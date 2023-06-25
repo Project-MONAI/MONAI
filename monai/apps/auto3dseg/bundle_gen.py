@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -25,15 +26,21 @@ from typing import Any
 from urllib.parse import urlparse
 
 import torch
-import re
 
 from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
-from monai.auto3dseg.utils import algo_to_pickle, _create_torchrun, _create_bcprun, _create_default, _run_cmd_bcprun, _run_cmd_torchrun
+from monai.auto3dseg.utils import (
+    _create_bcprun,
+    _create_default,
+    _create_torchrun,
+    _run_cmd_bcprun,
+    _run_cmd_torchrun,
+    algo_to_pickle,
+)
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
-from monai.utils import ensure_tuple, run_cmd, look_up_option
+from monai.utils import ensure_tuple, look_up_option, run_cmd
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
@@ -178,7 +185,7 @@ class BundleAlgo(Algo):
         config_files = []
         if os.path.isdir(config_dir):
             for file in sorted(os.listdir(config_dir)):
-                if (file.endswith("yaml") or file.endswith("json")):
+                if file.endswith("yaml") or file.endswith("json"):
                     # Python Fire may be confused by single-quoted WindowsPath
                     config_files.append(Path(os.path.join(config_dir, file)).as_posix())
 
@@ -193,25 +200,21 @@ class BundleAlgo(Algo):
                     "Try modify BundleAlgo._create_cmd for your cluster."
                 ) from err
 
-            return _create_bcprun(
-                f"{train_py} run",
-                cmd_prefix=self.device_setting["CMD_PREFIX"],
-                config_file=config_files
-                **params,
-            ), ""
+            return (
+                _create_bcprun(
+                    f"{train_py} run", cmd_prefix=self.device_setting["CMD_PREFIX"], config_file=config_files**params
+                ),
+                "",
+            )
         elif int(self.device_setting["n_devices"]) > 1:
-            return _create_torchrun(
-                f"{train_py} run",
-                config_file=config_files,
-                **params,
-            ), ""
+            return _create_torchrun(f"{train_py} run", config_file=config_files, **params), ""
         else:
-            return _create_default(
-                f"{train_py} run",
-                cmd_prefix=self.device_setting["CMD_PREFIX"],
-                config_file=config_files,
-                **params
-            ), ""
+            return (
+                _create_default(
+                    f"{train_py} run", cmd_prefix=self.device_setting["CMD_PREFIX"], config_file=config_files, **params
+                ),
+                "",
+            )
 
     def _run_cmd(self, cmd: str, devices_info: str = "") -> subprocess.CompletedProcess:
         """
@@ -236,18 +239,10 @@ class BundleAlgo(Algo):
                     "Try modify BundleAlgo._run_cmd for your cluster."
                 ) from err
 
-            return _run_cmd_bcprun(
-                cmd,
-                n=self.device_setting["NUM_NODES"],
-                p=self.device_setting["n_devices"],
-            )
+            return _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
         elif int(self.device_setting["n_devices"]) > 1:
             return _run_cmd_torchrun(
-                cmd,
-                nnodes=1,
-                nproc_per_node=self.device_setting["n_devices"],
-                env=ps_environ,
-                check=True
+                cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
             )
         else:
             return run_cmd(cmd.split(), env=ps_environ, check=True)

@@ -373,6 +373,7 @@ def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, *
 
     return algo, algo_meta_data
 
+
 def list_to_python_fire_arg_str(args: list) -> str:
     """
     Convert a list of arguments to a string that can be used in python-fire.
@@ -386,9 +387,9 @@ def list_to_python_fire_arg_str(args: list) -> str:
     args_str = ",".join([str(arg) for arg in args])
     return f"'{args_str}'"
 
+
 def check_and_set_optional_args(params: dict) -> str:
-    """
-    """
+    """ """
     cmd_mod_opt = ""
     for k, v in params.items():
         if isinstance(v, dict):
@@ -424,6 +425,7 @@ def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
         cmd_prefix += " "  # ensure a space after the command prefix so that the script can be appended
 
     return cmd_prefix + cmd + check_and_set_optional_args(params)
+
 
 def _create_torchrun(cmd: str, **kwargs: Any) -> str:
     """
@@ -469,6 +471,7 @@ def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
 
     return _create_default(cmd, cmd_prefix=cmd_prefix, **kwargs)
 
+
 def _run_cmd_torchrun(cmd: str, **kwargs):
     """
     Run the command with torchrun.
@@ -476,7 +479,7 @@ def _run_cmd_torchrun(cmd: str, **kwargs):
     Args:
         cmd: the command to run. Typically it is prepared by ``_create_torchrun``.
         kwargs: the keyword arguments to be passed to the ``torchrun``.
-    
+
     Return:
         the return code of the subprocess command.
     """
@@ -494,14 +497,15 @@ def _run_cmd_torchrun(cmd: str, **kwargs):
     torchrun_list += cmd_list
     return run_cmd(torchrun_list, **params)
 
+
 def _run_cmd_bcprun(cmd: str, **kwargs):
     """
     Run the command with bcprun.
 
     Args:
         cmd: the command to run. Typically it is prepared by ``_create_bcprun``.
-        kwargs: the keyword arguments to be passed to the ``bcprun``. 
-    
+        kwargs: the keyword arguments to be passed to the ``bcprun``.
+
     Returns:
         the return code of the subprocess command.
     """
