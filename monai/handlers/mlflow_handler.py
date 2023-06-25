@@ -245,7 +245,7 @@ class MLFlowHandler:
             f"{dataset_name}_samples": pandas_dataset.profile["num_rows"],
         }
 
-    def _log_dataset(self, sample_dict: dict[str, Any], context: str=None) -> None:
+    def _log_dataset(self, sample_dict: dict[str, Any], context: str = None) -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
 
