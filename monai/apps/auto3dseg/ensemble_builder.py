@@ -31,7 +31,7 @@ from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
 from monai.utils import RankFilter, deprecated_arg
-from monai.utils.enums import AlgoKeys, AlgoLaunchKeys
+from monai.utils.enums import AlgoKeys
 from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class, run_cmd
 from monai.utils.module import look_up_option, optional_import
 
@@ -446,7 +446,7 @@ class EnsembleRunner:
             "CUDA_VISIBLE_DEVICES": ",".join([str(x) for x in range(torch.cuda.device_count())]),
             "n_devices": torch.cuda.device_count(),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
-            "MN_START_METHOD": os.environ.get("MN_START_METHOD", AlgoLaunchKeys.NGC_BCP),
+            "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
             "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
         }
 
@@ -643,18 +643,18 @@ class EnsembleRunner:
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
         if int(self.device_setting["NUM_NODES"]) > 1:
-            if self.device_setting["MN_START_METHOD"] != AlgoLaunchKeys.NGC_BCP:
+            if self.device_setting["MN_START_METHOD"] != "bcprun":
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
                     "Try modify EnsembleRunner._create_cmd for your cluster."
                 )
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-            cmd = _create_bcprun(base_cmd, cmd_prefix=self.device_setting.cmd_prefix)
+            cmd = _create_bcprun("-m " + base_cmd, cmd_prefix=self.device_setting["CMD_PREFIX"])
             _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
 
         else:
             logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
-            cmd = _create_torchrun(base_cmd)
+            cmd = _create_torchrun("-m " + base_cmd)
             _run_cmd_torchrun(cmd,
                 nnodes=1,
                 nproc_per_node=self.device_setting["n_devices"],

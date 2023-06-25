@@ -29,7 +29,7 @@ from monai.apps.utils import get_logger
 from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
 from monai.transforms import SaveImage
-from monai.utils import AlgoKeys, has_option, look_up_option, optional_import, AlgoLaunchKeys
+from monai.utils import AlgoKeys, has_option, look_up_option, optional_import
 from monai.utils.misc import check_kwargs_exist_in_class_init, run_cmd
 
 logger = get_logger(module_name=__name__)
@@ -521,7 +521,7 @@ class AutoRunner:
         self.device_setting["NUM_NODES"] = num_nodes
 
         if mn_start_method is None:
-            mn_start_method = os.environ.get("MN_START_METHOD", AlgoLaunchKeys.NGC_BCP)
+            mn_start_method = os.environ.get("MN_START_METHOD", "bcprun")
         self.device_setting["MN_START_METHOD"] = mn_start_method
 
         if cmd_prefix is None:

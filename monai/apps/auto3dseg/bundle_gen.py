@@ -34,7 +34,7 @@ from monai.auto3dseg.utils import algo_to_pickle, _create_torchrun, _create_bcpr
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
 from monai.utils import ensure_tuple, run_cmd, look_up_option
-from monai.utils.enums import AlgoKeys, AlgoLaunchKeys
+from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
 ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "b5c01d4")
@@ -87,7 +87,7 @@ class BundleAlgo(Algo):
             "CUDA_VISIBLE_DEVICES": ",".join([str(x) for x in range(torch.cuda.device_count())]),
             "n_devices": int(torch.cuda.device_count()),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
-            "MN_START_METHOD": os.environ.get("MN_START_METHOD", AlgoLaunchKeys.NGC_BCP),
+            "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
             "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
         }
 
@@ -186,7 +186,7 @@ class BundleAlgo(Algo):
             # multi-node command
             # only bcprun is supported for now
             try:
-                look_up_option(self.device_setting["MN_START_METHOD"], [AlgoLaunchKeys.NGC_BCP])
+                look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
             except ValueError as err:
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet."
@@ -195,7 +195,7 @@ class BundleAlgo(Algo):
 
             return _create_bcprun(
                 f"{train_py} run",
-                cmd_prefix=self.device_setting.cmd_prefix,
+                cmd_prefix=self.device_setting["CMD_PREFIX"],
                 config_file=config_files
                 **params,
             ), ""
@@ -208,7 +208,7 @@ class BundleAlgo(Algo):
         else:
             return _create_default(
                 f"{train_py} run",
-                cmd_prefix=self.device_setting.cmd_prefix,
+                cmd_prefix=self.device_setting["CMD_PREFIX"],
                 config_file=config_files,
                 **params
             ), ""
@@ -229,7 +229,7 @@ class BundleAlgo(Algo):
 
         if int(self.device_setting["NUM_NODES"]) > 1:
             try:
-                look_up_option(self.device_setting["MN_START_METHOD"], [AlgoLaunchKeys.NGC_BCP])
+                look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
             except ValueError as err:
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet."

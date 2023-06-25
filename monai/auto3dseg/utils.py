@@ -471,7 +471,7 @@ def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
 def _run_cmd_torchrun(cmd: str, **kwargs):
     params = kwargs.copy()
 
-    cmd_list = cmd.split(" ")
+    cmd_list = cmd.split()
 
     # append arguments to the command list
     torchrun_list = ["torchrun"]
