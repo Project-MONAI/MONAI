@@ -411,7 +411,7 @@ class MLFlowHandler:
             raise AttributeError(
                 f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}."
             )
-        sample_dict: Dict[str, Sequence[str]] = {}
+        sample_dict: dict[str, Sequence[str]] = {}
         sample_dict["image"] = []
 
         for sample in dataset:
