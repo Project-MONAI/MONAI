@@ -401,7 +401,7 @@ def check_and_set_optional_args(params: dict) -> str:
 
 def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
-    Prepare the command for job to run the script with the given arguments.
+    Prepare the command for subprocess to run the script with the given arguments.
 
     Args:
         cmd: the command or script to run in the distributed job.
@@ -409,7 +409,7 @@ def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
         kwargs: the keyword arguments to be passed to the script.
 
     Returns:
-        the command to run the distributed job.
+        the command to run with ``subprocess``.
 
     Examples:
         To prepare a subprocess command
@@ -431,17 +431,17 @@ def _create_torchrun(cmd: str, **kwargs: Any) -> str:
 
     Args:
         cmd: the command or script to run in the distributed job.
-        cmd_prefix: the command prefix to run the script, e.g., "torchrun ", "python -m torch.distributed.launch ".
         kwargs: the keyword arguments to be passed to the script.
 
     Returns:
-        the command to run the multi-gpu/multi-node job.
+        the command to append to ``torchrun``
 
     Examples:
-        To prepare a subprocess command to append to torchrun command (torchrun --nnodes=1 --nproc_per_node=8)
-        "train.py run -k --config 'a,b'", the function can be called as
-        - _create_torchrun("train.py run -k", config=['a','b'], nnodes=1, nproc_per_node=8)
-        - _create_torchrun("train.py run -k --config 'a,b'", nnodes=1, nproc_per_node=8)
+        For command "torchrun --nnodes=1 --nproc_per_node=8 train.py run -k --config 'a,b'",
+        it only prepares command after the torchrun arguments, i.e., "train.py run -k --config 'a,b'".
+        The function can be called as
+        - _create_torchrun("train.py run -k", config=['a','b'])
+        - _create_torchrun("train.py run -k --config 'a,b'")
     """
     params = kwargs.copy()
     return cmd + check_and_set_optional_args(params)
@@ -449,7 +449,7 @@ def _create_torchrun(cmd: str, **kwargs: Any) -> str:
 
 def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
-    Prepare the command for distributed job submission using bcprun.
+    Prepare the command for distributed job running using bcprun.
 
     Args:
         script: the script to run in the distributed job.
@@ -460,15 +460,26 @@ def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
         The command to run the script in the distributed job.
 
     Examples:
-        To prepare a subprocess command
-        "bcprun -n 2 -p 8 -c python train.py run -k --config 'a,b'", the function can be called as
+        For command "bcprun -n 2 -p 8 -c python train.py run -k --config 'a,b'",
+        it only prepares command after the bcprun arguments, i.e., "train.py run -k --config 'a,b'".
+        the function can be called as
         - _create_bcprun("train.py run -k", config=['a','b'], n=2, p=8)
         - _create_bcprun("train.py run -k --config 'a,b'", n=2, p=8)
     """
 
-    return _create_default(cmd, cmd_prefix, **kwargs)
+    return _create_default(cmd, cmd_prefix=cmd_prefix, **kwargs)
 
 def _run_cmd_torchrun(cmd: str, **kwargs):
+    """
+    Run the command with torchrun.
+
+    Args:
+        cmd: the command to run. Typically it is prepared by ``_create_torchrun``.
+        kwargs: the keyword arguments to be passed to the ``torchrun``.
+    
+    Return:
+        the return code of the subprocess command.
+    """
     params = kwargs.copy()
 
     cmd_list = cmd.split()
@@ -484,6 +495,16 @@ def _run_cmd_torchrun(cmd: str, **kwargs):
     return run_cmd(torchrun_list, **params)
 
 def _run_cmd_bcprun(cmd: str, **kwargs):
+    """
+    Run the command with bcprun.
+
+    Args:
+        cmd: the command to run. Typically it is prepared by ``_create_bcprun``.
+        kwargs: the keyword arguments to be passed to the ``bcprun``. 
+    
+    Returns:
+        the return code of the subprocess command.
+    """
     params = kwargs.copy()
     cmd_list = ["bcprun"]
     required_args = ["n", "p"]
