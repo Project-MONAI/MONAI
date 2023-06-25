@@ -53,6 +53,7 @@ def dummy_train(tracking_folder):
         tracking_uri=path_to_uri(test_path),
         state_attributes=["test"],
         close_on_complete=True,
+        dataset_log=False,
     )
     handler.attach(engine)
     engine.run(range(3), max_epochs=2)
@@ -93,6 +94,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                     tracking_uri=path_to_uri(test_path),
                     state_attributes=["test"],
                     close_on_complete=True,
+                    dataset_log=False,
                 )
                 handler.attach(engine)
                 engine.run(range(3), max_epochs=2)
@@ -132,6 +134,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 experiment_param=experiment_param,
                 artifacts=[artifact_path],
                 close_on_complete=True,
+                dataset_log=False,
             )
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
@@ -165,6 +168,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
+                dataset_log=False,
             )
             handler._default_epoch_log = MagicMock()
             handler.attach(engine)
@@ -204,6 +208,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 close_on_complete=True,
+                dataset_log=False,
             )
             handler._default_iteration_log = MagicMock()
             handler.attach(engine)

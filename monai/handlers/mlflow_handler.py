@@ -411,7 +411,7 @@ class MLFlowHandler:
             raise AttributeError(
                 f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}."
             )
-        sample_dict = {}
+        sample_dict:Dict[str, Sequence[str]] = {}
         sample_dict["image"] = []
 
         for sample in dataset:
@@ -420,7 +420,7 @@ class MLFlowHandler:
             elif isinstance(sample, list):
                 image = sample[0]["image_meta_dict"]["filename_or_obj"]
             else:
-                raise AttributeError(f"Expect samples with type list or dict, but got {type(sample)}")
+                raise AttributeError(f"Expect samples' type to be list or dict, but got {type(sample)}")
 
             if not isinstance(image, str):
                 raise ValueError(f"Expect image to be string, but got type {type(image)}.")
