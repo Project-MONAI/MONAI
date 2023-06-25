@@ -383,20 +383,8 @@ def list_to_python_fire_arg_str(args: list) -> str:
     Returns:
         the string that can be used in python-fire.
     """
-    args_str = ",".join(str(args))
+    args_str = ",".join([str(arg) for arg in args])
     return f"'{args_str}'"
-
-def check_and_set_required_args(params: dict, required_args: list) -> str:
-    """
-    """
-    cmd_mod = ""
-    for arg in required_args:
-        val = params.pop(arg, None)
-        if val is None:
-            raise ValueError(f"The {arg} should be specified in the kwargs.")
-        cmd_mod += f" --{arg} {val}"
-
-    return cmd_mod
 
 def check_and_set_optional_args(params: dict) -> str:
     """
@@ -482,12 +470,26 @@ def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
 
 def _run_cmd_torchrun(cmd: str, **kwargs):
     params = kwargs.copy()
-    torchrun_args = check_and_set_required_args(params, ["nnodes", "nproc_per_node"])
-    cmd_list = ["torchrun"] + torchrun_args.split(" ") + cmd.split(" ")
-    return run_cmd(cmd_list, **kwargs)
+
+    cmd_list = cmd.split(" ")
+
+    # append arguments to the command list
+    torchrun_list = ["torchrun"]
+    required_args = ["nnodes", "nproc_per_node"]
+    for arg in required_args:
+        if arg not in params:
+            raise ValueError(f"Missing required argument {arg} for torchrun.")
+        torchrun_list += [f"--{arg}", str(params.pop(arg))]
+    torchrun_list += cmd_list
+    return run_cmd(torchrun_list, **params)
 
 def _run_cmd_bcprun(cmd: str, **kwargs):
     params = kwargs.copy()
-    bcprun_args = check_and_set_required_args(params, ["n", "p"])
-    cmd_list = ["bcprun"] + bcprun_args.split(" ") + ["-c"] + cmd
-    return run_cmd(cmd_list, **kwargs)
+    cmd_list = ["bcprun"]
+    required_args = ["n", "p"]
+    for arg in required_args:
+        if arg not in params:
+            raise ValueError(f"Missing required argument {arg} for bcprun.")
+        cmd_list += [f"-{arg}", str(params.pop(arg))]
+    cmd_list += ["-c"] + cmd
+    return run_cmd(cmd_list, **params)

@@ -25,6 +25,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import torch
+import re
 
 from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
@@ -198,10 +199,10 @@ class BundleAlgo(Algo):
                 config_file=config_files
                 **params,
             ), ""
-        elif  int(self.device_setting["n_devices"]) > 1:
+        elif int(self.device_setting["n_devices"]) > 1:
             return _create_torchrun(
                 f"{train_py} run",
-                config_file=config_files
+                config_file=config_files,
                 **params,
             ), ""
         else:
@@ -222,6 +223,10 @@ class BundleAlgo(Algo):
 
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
+
+        # delete pattern "VAR=VALUE" at the beginning of the string, with optional leading/trailing whitespaces
+        cmd = re.sub(r"^\s*\w+=.*?\s+", "", cmd)
+
         if int(self.device_setting["NUM_NODES"]) > 1:
             try:
                 look_up_option(self.device_setting["MN_START_METHOD"], [AlgoLaunchKeys.NGC_BCP])
