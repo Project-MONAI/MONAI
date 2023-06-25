@@ -26,12 +26,12 @@ from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
-from monai.auto3dseg.utils import datafold_read
+from monai.auto3dseg.utils import datafold_read, _create_torchrun, _create_bcprun, _create_default, _run_cmd_bcprun, _run_cmd_torchrun
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
 from monai.utils import RankFilter, deprecated_arg
-from monai.utils.enums import AlgoKeys
+from monai.utils.enums import AlgoKeys, AlgoLaunchKeys
 from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class, run_cmd
 from monai.utils.module import look_up_option, optional_import
 
@@ -446,7 +446,7 @@ class EnsembleRunner:
             "CUDA_VISIBLE_DEVICES": ",".join([str(x) for x in range(torch.cuda.device_count())]),
             "n_devices": torch.cuda.device_count(),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
-            "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
+            "MN_START_METHOD": os.environ.get("MN_START_METHOD", AlgoLaunchKeys.NGC_BCP),
             "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
         }
 
@@ -642,34 +642,23 @@ class EnsembleRunner:
         # define env for subprocess
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
-        cmd: str | None = self.device_setting["CMD_PREFIX"]  # type: ignore
-        if cmd is not None and not str(cmd).endswith(" "):
-            cmd += " "
         if int(self.device_setting["NUM_NODES"]) > 1:
-            if self.device_setting["MN_START_METHOD"] != "bcprun":
+            if self.device_setting["MN_START_METHOD"] != AlgoLaunchKeys.NGC_BCP:
                 raise NotImplementedError(
                     f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
                     "Try modify EnsembleRunner._create_cmd for your cluster."
                 )
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-            cmd = "python " if cmd is None else cmd
-            cmd = f"{cmd} -m {base_cmd}"
-            cmd_list = [
-                "bcprun",
-                "-n",
-                str(self.device_setting["NUM_NODES"]),
-                "-p",
-                str(self.device_setting["n_devices"]),
-                "-c",
-                cmd,
-            ]
+            cmd = _create_bcprun(base_cmd, cmd_prefix=self.device_setting.cmd_prefix)
+            _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
 
         else:
             logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
-            if cmd is None:
-                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
-            cmd = f"{cmd} -m {base_cmd}"
-            cmd_list = cmd.split()
-
-        run_cmd(cmd_list, env=ps_environ, check=True)
+            cmd = _create_torchrun(base_cmd)
+            _run_cmd_torchrun(cmd,
+                nnodes=1,
+                nproc_per_node=self.device_setting["n_devices"],
+                env=ps_environ,
+                check=True
+            )
         return
