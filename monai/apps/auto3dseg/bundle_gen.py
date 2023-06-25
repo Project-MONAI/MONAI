@@ -29,12 +29,11 @@ import torch
 from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
-from monai.auto3dseg.utils import algo_to_pickle
+from monai.auto3dseg.utils import algo_to_pickle, _create_torchrun, _create_bcprun, _create_default, _run_cmd_bcprun, _run_cmd_torchrun
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
 from monai.utils import ensure_tuple, run_cmd, look_up_option
 from monai.utils.enums import AlgoKeys, AlgoLaunchKeys
-from monai.utils.dist import _create_torchrun, _create_bcprun, _create_default, _run_cmd_bcprun, _run_cmd_torchrun
 
 logger = get_logger(module_name=__name__)
 ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "b5c01d4")
@@ -211,7 +210,7 @@ class BundleAlgo(Algo):
                 cmd_prefix=self.device_setting.cmd_prefix,
                 config_file=config_files,
                 **params
-            )
+            ), ""
 
     def _run_cmd(self, cmd: str, devices_info: str = "") -> subprocess.CompletedProcess:
         """

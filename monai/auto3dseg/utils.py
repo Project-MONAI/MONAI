@@ -450,9 +450,8 @@ def _create_torchrun(cmd: str, **kwargs: Any) -> str:
         the command to run the multi-gpu/multi-node job.
 
     Examples:
-        To prepare a subprocess command
-
-        "torchrun --nnodes=1 --nproc_per_node=8 train.py run -k --config 'a,b'", the function can be called as
+        To prepare a subprocess command to append to torchrun command (torchrun --nnodes=1 --nproc_per_node=8)
+        "train.py run -k --config 'a,b'", the function can be called as
         - _create_torchrun("train.py run -k", config=['a','b'], nnodes=1, nproc_per_node=8)
         - _create_torchrun("train.py run -k --config 'a,b'", nnodes=1, nproc_per_node=8)
     """
