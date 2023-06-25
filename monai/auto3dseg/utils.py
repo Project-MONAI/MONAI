@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 import pickle
+import subprocess
 import sys
 from copy import deepcopy
 from numbers import Number
@@ -472,7 +473,7 @@ def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     return _create_default(cmd, cmd_prefix=cmd_prefix, **kwargs)
 
 
-def _run_cmd_torchrun(cmd: str, **kwargs):
+def _run_cmd_torchrun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
     """
     Run the command with torchrun.
 
@@ -498,7 +499,7 @@ def _run_cmd_torchrun(cmd: str, **kwargs):
     return run_cmd(torchrun_list, **params)
 
 
-def _run_cmd_bcprun(cmd: str, **kwargs):
+def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
     """
     Run the command with bcprun.
 
@@ -516,5 +517,5 @@ def _run_cmd_bcprun(cmd: str, **kwargs):
         if arg not in params:
             raise ValueError(f"Missing required argument {arg} for bcprun.")
         cmd_list += [f"-{arg}", str(params.pop(arg))]
-    cmd_list += ["-c"] + cmd
+    cmd_list.extend(["-c", cmd])
     return run_cmd(cmd_list, **params)

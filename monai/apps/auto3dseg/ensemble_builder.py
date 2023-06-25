@@ -26,20 +26,13 @@ from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
-from monai.auto3dseg.utils import (
-    _create_bcprun,
-    _create_default,
-    _create_torchrun,
-    _run_cmd_bcprun,
-    _run_cmd_torchrun,
-    datafold_read,
-)
+from monai.auto3dseg.utils import _create_bcprun, _create_torchrun, _run_cmd_bcprun, _run_cmd_torchrun, datafold_read
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
 from monai.utils import RankFilter, deprecated_arg
 from monai.utils.enums import AlgoKeys
-from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class, run_cmd
+from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class
 from monai.utils.module import look_up_option, optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
@@ -656,7 +649,7 @@ class EnsembleRunner:
                     "Try modify EnsembleRunner._create_cmd for your cluster."
                 )
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-            cmd = _create_bcprun("-m " + base_cmd, cmd_prefix=self.device_setting["CMD_PREFIX"])
+            cmd = _create_bcprun("-m " + base_cmd, cmd_prefix=str(self.device_setting["CMD_PREFIX"]))
             _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
 
         else:
