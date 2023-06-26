@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from functools import wraps
 from inspect import getframeinfo, stack
 from queue import Empty
-from time import perf_counter, perf_counter_ns
+from time import perf_counter, perf_counter_ns, sleep
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -219,15 +219,13 @@ class WorkflowProfiler:
     def _read_thread_func(self):
         """Read results from the queue and add to self.results in a thread stared by `__enter__`."""
         while self._is_parent() and self._is_thread_active():
-            try:
+            while not self.queue.empty():
                 result = self.queue.get()
-
                 if result is None:
                     break
-
                 self.add_result(result)
-            except Empty:
-                pass
+            
+            sleep(self.queue_timeout)
 
         if not (not self._is_parent() or self.queue.empty()):
             raise AssertionError
