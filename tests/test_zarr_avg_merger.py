@@ -234,7 +234,7 @@ TEST_CASE_15_COMPRESSOR_LZMA = [
 ]
 
 
-@unittest.skipIf(not has_zarr or not has_numcodecs, "Requires zarr (and numcodecs) packages.)")
+@unittest.skipUnless(has_zarr and has_numcodecs, "Requires zarr (and numcodecs) packages.)")
 class ZarrAvgMergerTests(unittest.TestCase):
     @parameterized.expand(
         [
