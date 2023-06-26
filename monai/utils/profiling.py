@@ -21,7 +21,6 @@ from collections import defaultdict, namedtuple
 from contextlib import contextmanager
 from functools import wraps
 from inspect import getframeinfo, stack
-from queue import Empty
 from time import perf_counter, perf_counter_ns, sleep
 from typing import TYPE_CHECKING, Any, cast
 
@@ -224,7 +223,7 @@ class WorkflowProfiler:
                 if result is None:
                     break
                 self.add_result(result)
-            
+
             sleep(self.queue_timeout)
 
         if not (not self._is_parent() or self.queue.empty()):
