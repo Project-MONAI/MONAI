@@ -222,6 +222,7 @@ class WorkflowProfiler:
                 result = self.queue.get()
                 if result is None:
                     break
+                
                 self.add_result(result)
 
             sleep(self.queue_timeout)
