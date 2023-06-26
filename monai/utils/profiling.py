@@ -21,7 +21,8 @@ from collections import defaultdict, namedtuple
 from contextlib import contextmanager
 from functools import wraps
 from inspect import getframeinfo, stack
-from time import perf_counter, perf_counter_ns, sleep
+from queue import Empty
+from time import perf_counter, perf_counter_ns
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
@@ -203,8 +204,8 @@ class WorkflowProfiler:
         self.parent_pid = os.getpid()
         self.read_thread: threading.Thread | None = None
         self.lock = threading.RLock()
-        self.queue: multiprocessing.SimpleQueue = multiprocessing.SimpleQueue()
-        self.queue_timeout = 0.1
+        self.queue: multiprocessing.Queue = multiprocessing.Queue()
+        self.queue_timeout = 0.01
         self.call_selector = call_selector
 
     def _is_parent(self):
@@ -218,14 +219,17 @@ class WorkflowProfiler:
     def _read_thread_func(self):
         """Read results from the queue and add to self.results in a thread stared by `__enter__`."""
         while self._is_parent() and self._is_thread_active():
-            while not self.queue.empty():
-                result = self.queue.get()
+            try:
+                result = self.queue.get(timeout=self.queue_timeout)
+
                 if result is None:
                     break
 
                 self.add_result(result)
 
-            sleep(self.queue_timeout)
+                self.add_result(result)
+            except Empty:
+                pass
 
         if not (not self._is_parent() or self.queue.empty()):
             raise AssertionError
