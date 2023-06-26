@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import time
+import warnings
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -114,7 +115,7 @@ class MLFlowHandler:
         tracking_uri: str | None = None,
         iteration_log: bool | Callable[[Engine, int], bool] = True,
         epoch_log: bool | Callable[[Engine, int], bool] = True,
-        dataset_log: bool = True,
+        dataset_log: bool = False,
         epoch_logger: Callable[[Engine], Any] | None = None,
         iteration_logger: Callable[[Engine], Any] | None = None,
         dataset_logger: Callable[[Engine], Any] | None = None,
@@ -245,12 +246,19 @@ class MLFlowHandler:
             f"{dataset_name}_samples": pandas_dataset.profile["num_rows"],
         }
 
-    def _log_dataset(self, sample_dict: dict[str, Any], context: str | None = None) -> None:
+    def _log_dataset(self, sample_dict: dict[str, Any], context: str = "nontrain") -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
 
-        timestamp = str(int(time.time() * 1000))[-5:]
-        dataset_name = f"{context}_dataset_{timestamp}" if context else f"dataset_{timestamp}"
+        # Need to update the self.cur_run to sync the dataset log, otherwise the `inputs` info will be empty.
+        self.cur_run = self.client.get_run(self.cur_run.info.run_id)
+        logged_train_set = [x for x in self.cur_run.inputs.dataset_inputs if "train" == x.dataset.name[: len("train")]]
+        logged_nontrain_set = [
+            x for x in self.cur_run.inputs.dataset_inputs if "nontrain" == x.dataset.name[: len("nontrain")]
+        ]
+        dataset_cnt = str(len(logged_nontrain_set if context == "nontrain" else logged_train_set))
+
+        dataset_name = f"{context}_dataset_{dataset_cnt}"
         sample_df = pandas.DataFrame(sample_dict)
         dataset = mlflow.data.from_pandas(sample_df, name=dataset_name)
         exist_dataset_list = list(
@@ -259,8 +267,6 @@ class MLFlowHandler:
         if not len(exist_dataset_list):
             datasets = [mlflow.entities.DatasetInput(dataset._to_mlflow_entity())]
             self.client.log_inputs(run_id=self.cur_run.info.run_id, datasets=datasets)
-            # Need to update the self.cur_run to sync the dataset log, otherwise the `inputs` info will be empty.
-            self.cur_run = self.client.get_run(self.cur_run.info.run_id)
             dataset_info = MLFlowHandler._get_pandas_dataset_info(dataset)
             self._log_params(dataset_info)
 
@@ -412,19 +418,23 @@ class MLFlowHandler:
                 f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}."
             )
         sample_dict: dict[str, list[str]] = {}
-        sample_dict["image"] = []
+        sample_dict["images"] = []
 
         for sample in dataset:
             if isinstance(sample, dict):
-                image = sample["image_meta_dict"]["filename_or_obj"]
+                image_name = sample["image_meta_dict"]["filename_or_obj"] if "image_meta_dict" in sample else None
             elif isinstance(sample, list):
-                image = sample[0]["image_meta_dict"]["filename_or_obj"]
+                # When using a transform like `RandCropByPosNegLabel`, a sample will be a list containing slices.
+                image_name = sample[0]["image_meta_dict"]["filename_or_obj"] if "image_meta_dict" in sample[0] else None
             else:
-                raise AttributeError(f"Expect samples' type to be list or dict, but got {type(sample)}")
+                image_name = None
+                warnings.warn(f"Don't support {type(sample)} type samples in dataset.")
 
-            if not isinstance(image, str):
-                raise ValueError(f"Expect image to be string, but got type {type(image)}.")
+            if not isinstance(image_name, str):
+                warnings.warn(
+                    f"Expect the type of image name to be string, but got type {type(image_name)}. This will cause an empty dataset in MLFlow"
+                )
             else:
-                sample_dict["image"].append(image)
+                sample_dict["images"].append(image_name)
         dataset_type = "train" if isinstance(engine, Trainer) else "nontrain"
         self._log_dataset(sample_dict, dataset_type)
