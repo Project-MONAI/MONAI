@@ -72,12 +72,11 @@ jobs:
 
     - name: Add reaction
       uses: peter-evans/create-or-update-comment@v3
-      if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
         comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
-        reaction-type: rocket
+        reactions: rocket
 
 
   integration-unit:
@@ -157,4 +156,4 @@ jobs:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
         comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
-        reaction-type: +1
+        reactions: +1
