@@ -214,7 +214,8 @@ class ZarrAvgMerger(Merger):
         store: the zarr store to save the final results. Default is "merged.zarr".
         value_store: the zarr store to save the value aggregating tensor. Default is a temporary store.
         count_store: the zarr store to save the sample counting tensor. Default is a temporary store.
-        compressor: the compressor for zarr array. Default is "default".
+        compressor: the compressor for final merged zarr array. Default is "default".
+            The compressor for temporary zarr arrays (values and counts) will be set to None.
         chunks : int or tuple of ints that defines the chunk shape, or boolean. Default is True.
             If True, chunk shape will be guessed from `shape` and `dtype`.
             If False, ir will be set to `shape`, i.e., single chunk for the whole array.
@@ -257,7 +258,7 @@ class ZarrAvgMerger(Merger):
             shape=self.merged_shape,
             chunks=self.chunks,
             dtype=self.value_dtype,
-            compressor=self.compressor,
+            compressor=None,
             store=self.value_store,
             overwrite=True,
         )
@@ -265,7 +266,7 @@ class ZarrAvgMerger(Merger):
             shape=self.merged_shape,
             chunks=self.chunks,
             dtype=self.count_dtype,
-            compressor=self.compressor,
+            compressor=None,
             store=self.count_store,
             overwrite=True,
         )
