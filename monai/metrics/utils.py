@@ -267,7 +267,7 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
             instance_size.append((pred == instance_id).sum())
 
         pair_data = zip(pred_id, instance_size)
-        pair_list = sorted(pair_data, key=lambda x: x[1], reverse=True)  # type: ignore
+        pair_list = sorted(pair_data, key=lambda x: x[1], reverse=True)
         pred_id, _ = zip(*pair_list)
 
     new_pred = torch.zeros_like(pred, dtype=torch.int)

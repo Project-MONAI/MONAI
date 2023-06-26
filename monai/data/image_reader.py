@@ -502,7 +502,7 @@ class PydicomReader(ImageReader):
                 slices.append(slc_ds)
             else:
                 warnings.warn(f"slice: {slc_ds.filename} does not have InstanceNumber tag, skip it.")
-        slices = sorted(slices, key=lambda s: s.InstanceNumber)  # type: ignore
+        slices = sorted(slices, key=lambda s: s.InstanceNumber)
 
         if len(slices) == 0:
             raise ValueError("the input does not have valid slices.")
