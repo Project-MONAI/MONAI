@@ -432,7 +432,8 @@ class MLFlowHandler:
 
             if not isinstance(image_name, str):
                 warnings.warn(
-                    f"Expect the type of image name to be string, but got type {type(image_name)}. This will cause an empty dataset in MLFlow"
+                    f"Expect the type of image name to be string, but got type {type(image_name)}."
+                    " This will cause an empty dataset in MLFlow"
                 )
             else:
                 sample_dict["images"].append(image_name)
