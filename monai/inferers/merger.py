@@ -208,14 +208,15 @@ class ZarrAvgMerger(Merger):
         merged_shape: the shape of the tensor required to merge the patches.
         cropped_shape: the shape of the final merged output tensor.
             If not provided, it will be the same as `merged_shape`.
-        output_dtype: the dtype for the final result. Default is `float32`.
+        dtype: the dtype for the final merged result. Default is `float32`.
         value_dtype: the dtype for value aggregating tensor and the final result. Default is `float32`.
         count_dtype: the dtype for sample counting tensor. Default is `uint8`.
         store: the zarr store to save the final results. Default is "merged.zarr".
         value_store: the zarr store to save the value aggregating tensor. Default is a temporary store.
         count_store: the zarr store to save the sample counting tensor. Default is a temporary store.
         compressor: the compressor for final merged zarr array. Default is "default".
-            The compressor for temporary zarr arrays (values and counts) will be set to None.
+        value_compressor: the compressor for value aggregating zarr array. Default is None.
+        count_compressor: the compressor for sample counting zarr array. Default is None.
         chunks : int or tuple of ints that defines the chunk shape, or boolean. Default is True.
             If True, chunk shape will be guessed from `shape` and `dtype`.
             If False, ir will be set to `shape`, i.e., single chunk for the whole array.
@@ -226,19 +227,21 @@ class ZarrAvgMerger(Merger):
         self,
         merged_shape: Sequence[int],
         cropped_shape: Sequence[int] | None = None,
-        output_dtype: np.dtype | str = "float32",
+        dtype: np.dtype | str = "float32",
         value_dtype: np.dtype | str = "float32",
         count_dtype: np.dtype | str = "uint8",
         store: zarr.storage.Store | str = "merged.zarr",
         value_store: zarr.storage.Store | str | None = None,
         count_store: zarr.storage.Store | str | None = None,
         compressor: str = "default",
+        value_compressor: str | None = None,
+        count_compressor: str | None = None,
         chunks: Sequence[int] | bool = True,
     ) -> None:
         super().__init__(merged_shape=merged_shape, cropped_shape=cropped_shape)
         if not self.merged_shape:
             raise ValueError(f"`merged_shape` must be provided for `ZarrAvgMerger`. {self.merged_shape} is give.")
-        self.output_dtype = output_dtype
+        self.output_dtype = dtype
         self.value_dtype = value_dtype
         self.count_dtype = count_dtype
         self.store = store
@@ -246,6 +249,8 @@ class ZarrAvgMerger(Merger):
         self.count_store = zarr.storage.TempStore() if count_store is None else count_store
         self.chunks = chunks
         self.compressor = compressor
+        self.value_compressor = value_compressor
+        self.count_compressor = count_compressor
         self.output = zarr.empty(
             shape=self.merged_shape,
             chunks=self.chunks,
@@ -258,7 +263,7 @@ class ZarrAvgMerger(Merger):
             shape=self.merged_shape,
             chunks=self.chunks,
             dtype=self.value_dtype,
-            compressor=None,
+            compressor=self.value_compressor,
             store=self.value_store,
             overwrite=True,
         )
@@ -266,7 +271,7 @@ class ZarrAvgMerger(Merger):
             shape=self.merged_shape,
             chunks=self.chunks,
             dtype=self.count_dtype,
-            compressor=None,
+            compressor=self.count_compressor,
             store=self.count_store,
             overwrite=True,
         )

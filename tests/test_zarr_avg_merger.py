@@ -24,6 +24,7 @@ from tests.utils import assert_allclose
 
 np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")
+numcodecs, has_numcodecs = optional_import("numcodecs")
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 TENSOR_4x4_WITH_NAN = TENSOR_4x4.clone()
@@ -128,8 +129,8 @@ TEST_CASE_7_COUNT_VALUE_DTYPE = [
     TENSOR_4x4,
 ]
 # with both value_dtype, count_dtype set to double precision
-TEST_CASE_8_OUTPUT_DTYPE = [
-    dict(merged_shape=TENSOR_4x4.shape, output_dtype=np.float64),
+TEST_CASE_8_DTYPE = [
+    dict(merged_shape=TENSOR_4x4.shape, dtype=np.float64),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -196,6 +197,44 @@ TEST_CASE_12_CHUNKS = [
 ]
 
 
+# test for LZ4 compressor
+TEST_CASE_13_COMPRESSOR_LZ4 = [
+    dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4"),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+# test for pickle compressor
+TEST_CASE_14_COMPRESSOR_PICKLE = [
+    dict(merged_shape=TENSOR_4x4.shape, compressor="Pickle"),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+# test for LZMA compressor
+TEST_CASE_15_COMPRESSOR_LZMA = [
+    dict(merged_shape=TENSOR_4x4.shape, compressor="LZMA"),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+
+@unittest.skipIf(not has_zarr or not has_numcodecs, "Requires zarr (and numcodecs) packages.)")
 class ZarrAvgMergerTests(unittest.TestCase):
     @parameterized.expand(
         [
@@ -207,14 +246,26 @@ class ZarrAvgMergerTests(unittest.TestCase):
             TEST_CASE_5_VALUE_DTYPE,
             TEST_CASE_6_COUNT_DTYPE,
             TEST_CASE_7_COUNT_VALUE_DTYPE,
-            TEST_CASE_8_OUTPUT_DTYPE,
+            TEST_CASE_8_DTYPE,
             TEST_CASE_9_LARGER_SHAPE,
             TEST_CASE_10_DIRECTORY_STORE,
             TEST_CASE_11_MEMORY_STORE,
             TEST_CASE_12_CHUNKS,
+            TEST_CASE_13_COMPRESSOR_LZ4,
+            TEST_CASE_14_COMPRESSOR_PICKLE,
+            TEST_CASE_15_COMPRESSOR_LZMA,
         ]
     )
-    def test_avg_merger_patches(self, arguments, patch_locations, expected):
+    def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):
+        if "compressor" in arguments:
+            if arguments["compressor"] != "default":
+                arguments["compressor"] = zarr.codec_registry[arguments["compressor"].lower()]()
+        if "value_compressor" in arguments:
+            if arguments["value_compressor"] != "default":
+                arguments["value_compressor"] = zarr.codec_registry[arguments["value_compressor"].lower()]()
+        if "count_compressor" in arguments:
+            if arguments["count_compressor"] != "default":
+                arguments["count_compressor"] = zarr.codec_registry[arguments["count_compressor"].lower()]()
         merger = ZarrAvgMerger(**arguments)
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
@@ -228,13 +279,13 @@ class ZarrAvgMergerTests(unittest.TestCase):
         # check if the result is matching the expectation
         assert_allclose(output[:], expected.numpy())
 
-    def test_avg_merger_finalized_error(self):
+    def test_zarr_avg_merger_finalized_error(self):
         with self.assertRaises(ValueError):
             merger = ZarrAvgMerger(merged_shape=(1, 3, 2, 3))
             merger.finalize()
             merger.aggregate(torch.zeros(1, 3, 2, 2), (3, 3))
 
-    def test_avg_merge_none_merged_shape_error(self):
+    def test_zarr_avg_merge_none_merged_shape_error(self):
         with self.assertRaises(ValueError):
             ZarrAvgMerger(merged_shape=None)
 
