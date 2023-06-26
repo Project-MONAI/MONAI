@@ -226,8 +226,6 @@ class WorkflowProfiler:
                     break
 
                 self.add_result(result)
-
-                self.add_result(result)
             except Empty:
                 pass
 
