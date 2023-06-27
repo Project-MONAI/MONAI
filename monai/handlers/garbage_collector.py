@@ -13,16 +13,18 @@ from __future__ import annotations
 
 import gc
 from typing import TYPE_CHECKING
-from ignite.engine.events import CallableEventWithFilter
+
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events
+    from ignite.engine.events import CallableEventWithFilter
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
+    Events, _ = optional_import("ignite.engine.events", IgniteInfo.OPT_IMPORT_VERSION, min_version, "CallableEventWithFilter")
 
 
 class GarbageCollector:
