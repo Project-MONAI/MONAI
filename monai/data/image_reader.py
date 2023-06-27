@@ -218,7 +218,7 @@ class ITKReader(ImageReader):
             data: file name or a list of file names to read,
             kwargs: additional args for `itk.imread` API, will override `self.kwargs` for existing keys.
                 More details about available args:
-                https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
+                https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
         """
         img_ = []
@@ -230,7 +230,7 @@ class ITKReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                # https://itk.org/ITKExamples/src/IO/GDCM/ReadDICOMSeriesAndWrite3DImage
+                # https://examples.itk.org/src/io/gdcm/readdicomseriesandwrite3dimage/documentation
                 names_generator = itk.GDCMSeriesFileNames.New()
                 names_generator.SetUseSeriesDetails(True)
                 names_generator.AddSeriesRestriction("0008|0021")  # Series Date
