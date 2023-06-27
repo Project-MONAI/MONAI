@@ -22,9 +22,9 @@ if TYPE_CHECKING:
     from ignite.engine import Engine, Events
     from ignite.engine.events import CallableEventWithFilter
 else:
+    CallableEventWithFilter, _ = optional_import("ignite.engine.events", IgniteInfo.OPT_IMPORT_VERSION, min_version, "CallableEventWithFilter")
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
-    Events, _ = optional_import("ignite.engine.events", IgniteInfo.OPT_IMPORT_VERSION, min_version, "CallableEventWithFilter")
 
 
 class GarbageCollector:
@@ -48,7 +48,7 @@ class GarbageCollector:
 
     def __init__(self, trigger_event: str = "epoch", log_level: int = 10):
         self.trigger_event: Events
-        if isinstance(trigger_event, Events) or isinstance(trigger_events, CallableEventWithFilter):
+        if isinstance(trigger_event, Events) or isinstance(trigger_event, CallableEventWithFilter):
             self.trigger_event = trigger_event
         elif trigger_event.lower() == "epoch":
             self.trigger_event = Events.EPOCH_COMPLETED
