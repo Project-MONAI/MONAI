@@ -512,19 +512,19 @@ class PydicomReader(ImageReader):
         first_array = self._get_array_data(first_slice)
         shape = first_array.shape
         spacing = getattr(first_slice, "PixelSpacing", [1.0, 1.0, 1.0])
-        pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
+        prev_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
         stack_array = [first_array]
         for idx in range(1, len(slices)):
             slc_array = self._get_array_data(slices[idx])
             slc_shape = slc_array.shape
-            slc_spacing = getattr(first_slice, "PixelSpacing", (1.0, 1.0, 1.0))
-            slc_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, float(idx)))[2]
-            if spacing != slc_spacing:
+            slc_spacing = getattr(slices[idx], "PixelSpacing", (1.0, 1.0, 1.0))
+            slc_pos = getattr(slices[idx], "ImagePositionPatient", (0.0, 0.0, float(idx)))[2]
+            if not np.allclose(slc_spacing, spacing):
                 warnings.warn(f"the list contains slices that have different spacings {spacing} and {slc_spacing}.")
             if shape != slc_shape:
                 warnings.warn(f"the list contains slices that have different shapes {shape} and {slc_shape}.")
-            average_distance += abs(pos - slc_pos)
-            pos = slc_pos
+            average_distance += abs(prev_pos - slc_pos)
+            prev_pos = slc_pos
             stack_array.append(slc_array)
 
         if len(slices) > 1:
