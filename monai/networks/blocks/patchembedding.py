@@ -67,10 +67,10 @@ class PatchEmbeddingBlock(nn.Module):
         super().__init__()
 
         if not (0 <= dropout_rate <= 1):
-            raise ValueError("dropout_rate should be between 0 and 1.")
+            raise ValueError(f"dropout_rate {dropout_rate} should be between 0 and 1.")
 
         if hidden_size % num_heads != 0:
-            raise ValueError("hidden size should be divisible by num_heads.")
+            raise ValueError(f"hidden size {hidden_size} should be divisible by num_heads {num_heads}.")
 
         self.pos_embed = look_up_option(pos_embed, SUPPORTED_EMBEDDING_TYPES)
 

@@ -637,7 +637,7 @@ class GenerateInstanceType(Transform):
         inst_type = type_map_crop[seg_map_crop]  # type: ignore
         type_list, type_pixels = unique(inst_type, return_counts=True)
         type_list = list(zip(type_list, type_pixels))
-        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
+        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
         inst_type = type_list[0][0]
         if inst_type == 0:  # ! pick the 2nd most dominant if exist
             if len(type_list) > 1:
