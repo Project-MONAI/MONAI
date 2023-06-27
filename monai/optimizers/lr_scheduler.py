@@ -103,5 +103,8 @@ class WarmupCosineSchedule(LambdaLR):
         return max(0.0, 0.5 * (1.0 + math.cos(math.pi * float(self.cycles) * 2.0 * progress)))
 
     def get_lr(self):
-        return [max(self.end_lr, base_lr * lmbda(self.last_epoch))
-                for lmbda, base_lr in zip(self.lr_lambdas, self.base_lrs)]
+        current_lr = [base_lr * lmbda(self.last_epoch) for lmbda, base_lr in zip(self.lr_lambdas, self.base_lrs)]
+        if self.last_epoch < self.warmup_steps:
+            return current_lr
+        else:
+            return [max(self.end_lr, _current_lr) for _current_lr in current_lr]
