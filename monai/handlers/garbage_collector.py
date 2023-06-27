@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import gc
 from typing import TYPE_CHECKING
+from ignite.engine.events import CallableEventWithFilter
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
@@ -45,7 +46,7 @@ class GarbageCollector:
 
     def __init__(self, trigger_event: str = "epoch", log_level: int = 10):
         self.trigger_event: Events
-        if isinstance(trigger_event, Events):
+        if isinstance(trigger_event, Events) or isinstance(trigger_events, CallableEventWithFilter):
             self.trigger_event = trigger_event
         elif trigger_event.lower() == "epoch":
             self.trigger_event = Events.EPOCH_COMPLETED
