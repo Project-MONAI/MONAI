@@ -220,7 +220,7 @@ class ZarrAvgMerger(Merger):
         count_compressor: the compressor for sample counting zarr array. Default is None.
         chunks : int or tuple of ints that defines the chunk shape, or boolean. Default is True.
             If True, chunk shape will be guessed from `shape` and `dtype`.
-            If False, ir will be set to `shape`, i.e., single chunk for the whole array.
+            If False, it will be set to `shape`, i.e., single chunk for the whole array.
             If an int, the chunk size in each dimension will be given by the value of `chunks`.
     """
 
