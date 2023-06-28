@@ -77,7 +77,7 @@ class MLFlowHandler:
         iteration_logger: customized callable logger for iteration level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
         dataset_logger: customized callable logger to log the dataset information with MLFlow.
-            Must accept parameter "engine", use the default logger if None.
+            Must accept parameter "engine", use default logger if None.
         output_transform: a callable that is used to transform the
             ``ignite.engine.state.output`` into a scalar to track, or a dictionary of {key: scalar}.
             By default this value logging happens when every iteration completed.
@@ -250,20 +250,21 @@ class MLFlowHandler:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
 
-        # Need to update the self.cur_run to sync the dataset log, otherwise the `inputs` info will be empty.
+        # Need to update the self.cur_run to sync the dataset log, otherwise the `inputs` info will be out-of-date.
         self.cur_run = self.client.get_run(self.cur_run.info.run_id)
         logged_train_set = [x for x in self.cur_run.inputs.dataset_inputs if "train" == x.dataset.name[: len("train")]]
         logged_nontrain_set = [
             x for x in self.cur_run.inputs.dataset_inputs if "nontrain" == x.dataset.name[: len("nontrain")]
         ]
+        # In case there are more datasets.
         dataset_cnt = str(len(logged_nontrain_set if context == "nontrain" else logged_train_set))
-
         dataset_name = f"{context}_dataset_{dataset_cnt}"
         sample_df = pandas.DataFrame(sample_dict)
         dataset = mlflow.data.from_pandas(sample_df, name=dataset_name)
         exist_dataset_list = list(
             filter(lambda x: x.dataset.digest == dataset.digest, self.cur_run.inputs.dataset_inputs)
         )
+
         if not len(exist_dataset_list):
             datasets = [mlflow.entities.DatasetInput(dataset._to_mlflow_entity())]
             self.client.log_inputs(run_id=self.cur_run.info.run_id, datasets=datasets)
@@ -403,9 +404,12 @@ class MLFlowHandler:
 
     def _default_dataset_log(self, engine: Engine) -> None:
         """
-        Execute dataset log operation based on MONAI `engine.dataloader.dataset` data.
-        Abstract meta information from samples in dataset and build a Pandas DataFrame from it.
-        Create a PandasDataset in MLFlow using the meta information and log it.
+        Execute dataset log operation based on MONAI `Workflow.data_loader.dataset` data.
+        Abstract sample names in a dataset and build a Pandas DataFrame from it. To use this
+        function, every sample in the input dataset must have a filename, which can be fetched
+        from the `filename_or_obj` parameter in the `image_meta_dict` of the sample.
+        This function will log a PandasDataset, generated from the Pandas DataFrame, to MLFlow
+        inputs.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -414,26 +418,24 @@ class MLFlowHandler:
         dataloader = getattr(engine, "data_loader", None)
         dataset = getattr(dataloader, "dataset", None) if dataloader else None
         if not dataset:
-            raise AttributeError(
-                f"The engine dataloader is {dataloader} and the dataset of the dataloader is {dataset}."
-            )
+            raise AttributeError(f"The dataset of the engine is None. Cannot record it with MLFlow.")
+
         sample_dict: dict[str, list[str]] = {}
         sample_dict["images"] = []
-
         for sample in dataset:
             if isinstance(sample, dict):
                 image_name = sample["image_meta_dict"]["filename_or_obj"] if "image_meta_dict" in sample else None
             elif isinstance(sample, list):
-                # When using a transform like `RandCropByPosNegLabel`, a sample will be a list containing slices.
+                # When using a transform like `RandCropByPosNegLabel`, a sample will be a list containing image slices.
                 image_name = sample[0]["image_meta_dict"]["filename_or_obj"] if "image_meta_dict" in sample[0] else None
             else:
                 image_name = None
-                warnings.warn(f"Don't support {type(sample)} type samples in dataset.")
+                warnings.warn(f"Don't support {type(sample)} type samples when recording the dataset with MLFlow.")
 
             if not isinstance(image_name, str):
                 warnings.warn(
-                    f"Expect the type of image name to be string, but got type {type(image_name)}."
-                    " This will cause an empty dataset in MLFlow"
+                    f"Expected type string, got type {type(image_name)} of the image name."
+                    "May log an empty dataset in MLFlow"
                 )
             else:
                 sample_dict["images"].append(image_name)
