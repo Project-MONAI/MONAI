@@ -29,6 +29,7 @@ YANDEX_MODEL_FLAWED_URL = (
 
 
 class TestDownloadUrlYandex(unittest.TestCase):
+    @unittest.skip("data source unstable")
     def test_verify(self):
         with tempfile.TemporaryDirectory() as tempdir:
             download_url(url=YANDEX_MODEL_URL, filepath=os.path.join(tempdir, "model.pt"))
