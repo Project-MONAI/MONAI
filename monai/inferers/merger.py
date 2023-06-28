@@ -203,7 +203,7 @@ class ZarrAvgMerger(Merger):
     See https://zarr.readthedocs.io/en/stable/ for more details.
     It is particularly useful for storing N-dimensional arrays too large to fit into memory.
     One specific use case of this class is to merge patches extracted from whole slide images (WSI),
-    where the merged results does not fit into memory and need to be stored on a file system.
+    where the merged results do not fit into memory and need to be stored on a file system.
 
     Args:
         merged_shape: the shape of the tensor required to merge the patches.
