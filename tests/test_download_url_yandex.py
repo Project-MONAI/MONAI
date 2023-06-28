@@ -18,8 +18,14 @@ from urllib.error import HTTPError
 
 from monai.apps.utils import download_url
 
-YANDEX_MODEL_URL = "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2FJL_UJBWVYkexyg"  # noqa: B950
-YANDEX_MODEL_FLAWED_URL = "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2FJL_UJBWVYkexyg-url-with-error"  # noqa: B950
+YANDEX_MODEL_URL = (
+    "https://cloud-api.yandex.net/v1/disk/public/resources/download?"
+    "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2FJL_UJBWVYkexyg"
+)
+YANDEX_MODEL_FLAWED_URL = (
+    "https://cloud-api.yandex.net/v1/disk/public/resources/download?"
+    "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2FJL_UJBWVYkexyg-url-with-error"
+)
 
 
 class TestDownloadUrlYandex(unittest.TestCase):
