@@ -409,7 +409,10 @@ class MLFlowHandler:
         function, every sample in the input dataset must have a filename, which can be fetched
         from the `filename_or_obj` parameter in the `image_meta_dict` of the sample.
         This function will log a PandasDataset, generated from the Pandas DataFrame, to MLFlow
-        inputs.
+        inputs. For more details about PandasDataset, please refer to this link:
+        https://mlflow.org/docs/latest/python_api/mlflow.data.html#mlflow.data.pandas_dataset.PandasDataset
+
+        Please note that it may take a while to record the dataset if it has too many samples.
 
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
@@ -418,7 +421,7 @@ class MLFlowHandler:
         dataloader = getattr(engine, "data_loader", None)
         dataset = getattr(dataloader, "dataset", None) if dataloader else None
         if not dataset:
-            raise AttributeError(f"The dataset of the engine is None. Cannot record it with MLFlow.")
+            raise AttributeError("The dataset of the engine is None. Cannot record it by MLFlow.")
 
         sample_dict: dict[str, list[str]] = {}
         sample_dict["images"] = []
