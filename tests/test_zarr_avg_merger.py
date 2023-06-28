@@ -234,6 +234,31 @@ TEST_CASE_15_COMPRESSOR_LZMA = [
 ]
 
 
+# test with thread locking
+TEST_CASE_16_WITH_LOCK = [
+    dict(merged_shape=TENSOR_4x4.shape, thread_locking=True),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+# test without thread locking
+TEST_CASE_17_WITHOUT_LOCK = [
+    dict(merged_shape=TENSOR_4x4.shape, thread_locking=False),
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    TENSOR_4x4,
+]
+
+
 @unittest.skipUnless(has_zarr and has_numcodecs, "Requires zarr (and numcodecs) packages.)")
 class ZarrAvgMergerTests(unittest.TestCase):
     @parameterized.expand(
@@ -254,6 +279,8 @@ class ZarrAvgMergerTests(unittest.TestCase):
             TEST_CASE_13_COMPRESSOR_LZ4,
             TEST_CASE_14_COMPRESSOR_PICKLE,
             TEST_CASE_15_COMPRESSOR_LZMA,
+            TEST_CASE_16_WITH_LOCK,
+            TEST_CASE_17_WITHOUT_LOCK,
         ]
     )
     def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):

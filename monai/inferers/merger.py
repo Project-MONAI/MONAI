@@ -14,6 +14,7 @@ from __future__ import annotations
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from contextlib import nullcontext
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -237,6 +238,7 @@ class ZarrAvgMerger(Merger):
         value_compressor: str | None = None,
         count_compressor: str | None = None,
         chunks: Sequence[int] | bool = True,
+        thread_locking: bool = True,
     ) -> None:
         super().__init__(merged_shape=merged_shape, cropped_shape=cropped_shape)
         if not self.merged_shape:
@@ -275,8 +277,13 @@ class ZarrAvgMerger(Merger):
             store=self.count_store,
             overwrite=True,
         )
-        self.lock = threading.Lock()
-        self.lock_finalize = threading.Lock()
+        self.lock: threading.Lock | nullcontext
+        if thread_locking:
+            # use lock to protect the in-place addition during aggregation
+            self.lock = threading.Lock()
+        else:
+            # use nullcontext to avoid the locking if not needed
+            self.lock = nullcontext()
 
     def aggregate(self, values: torch.Tensor, location: Sequence[int]) -> None:
         """
@@ -311,17 +318,15 @@ class ZarrAvgMerger(Merger):
         Returns:
             zarr.Array: a zarr array of of merged patches
         """
-        # guard against possible multithreading calls
-        with self.lock_finalize:
-            # guard against multiple calls to finalize
-            if not self.is_finalized:
-                # use chunks for division to fit into memory
-                for chunk in iterate_over_chunks(self.values.chunks, self.values.cdata_shape):
-                    self.output[chunk] = self.values[chunk] / self.counts[chunk]
-                # finalize the shape
-                self.output.resize(self.cropped_shape)
-                # set finalize flag to protect performing in-place division again
-                self.is_finalized = True
+        # guard against multiple calls to finalize
+        if not self.is_finalized:
+            # use chunks for division to fit into memory
+            for chunk in iterate_over_chunks(self.values.chunks, self.values.cdata_shape):
+                self.output[chunk] = self.values[chunk] / self.counts[chunk]
+            # finalize the shape
+            self.output.resize(self.cropped_shape)
+            # set finalize flag to protect performing in-place division again
+            self.is_finalized = True
 
         return self.output
 
