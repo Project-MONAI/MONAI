@@ -292,10 +292,6 @@ class ZarrAvgMerger(Merger):
         Args:
             values: a tensor of shape BCHW[D], representing the values of inference output.
             location: a tuple/list giving the top left location of the patch in the original image.
-
-        Raises:
-            NotImplementedError: When the subclass does not override this method.
-
         """
         if self.is_finalized:
             raise ValueError("`ZarrAvgMerger` is already finalized. Please instantiate a new object to aggregate.")
