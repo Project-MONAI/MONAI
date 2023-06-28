@@ -20,11 +20,11 @@ from monai.apps.utils import download_url
 
 YANDEX_MODEL_URL = (
     "https://cloud-api.yandex.net/v1/disk/public/resources/download?"
-    "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2FJL_UJBWVYkexyg"
+    "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2Fxs0gzlj2_irgWA"
 )
 YANDEX_MODEL_FLAWED_URL = (
     "https://cloud-api.yandex.net/v1/disk/public/resources/download?"
-    "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2FJL_UJBWVYkexyg-url-with-error"
+    "public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2Fxs0gzlj2_irgWA-url-with-error"
 )
 
 
