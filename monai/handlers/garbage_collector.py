@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import gc
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
@@ -47,8 +47,8 @@ class GarbageCollector:
             - 0 (NOTSET)
     """
 
-    def __init__(self, trigger_event: Union[str, Events, CallableEventWithFilter] = "epoch", log_level: int = 10):
-        self.trigger_event: Union[Events, CallableEventWithFilter]
+    def __init__(self, trigger_event: str | Events | CallableEventWithFilter = "epoch", log_level: int = 10):
+        self.trigger_event: Events | CallableEventWithFilter
         if isinstance(trigger_event, Events) or isinstance(trigger_event, CallableEventWithFilter):
             self.trigger_event = trigger_event
         elif trigger_event.lower() == "epoch":
