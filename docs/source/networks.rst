@@ -472,7 +472,7 @@ Nets
   :members:
 
 `SegResNetDS`
-~~~~~~~~~~~
+~~~~~~~~~~~~
 .. autoclass:: SegResNetDS
   :members:
 
