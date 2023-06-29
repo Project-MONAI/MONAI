@@ -65,6 +65,13 @@ TEST_CASE_Vitautoenc.append(
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
+    def setUp(self):
+        self.threads = torch.get_num_threads()
+        torch.set_num_threads(4)
+
+    def tearDown(self):
+        torch.set_num_threads(self.threads)
+
     @parameterized.expand(TEST_CASE_Vitautoenc)
     @skip_if_windows
     def test_shape(self, input_param, input_shape, expected_shape):
