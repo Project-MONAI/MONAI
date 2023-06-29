@@ -71,7 +71,8 @@ class MLFlowHandler:
         epoch_log: whether to log data to MLFlow when epoch completed, default to `True`.
             ``epoch_log`` can be also a function and it will be interpreted as an event filter.
             See ``iteration_log`` argument for more details.
-        dataset_log: whether to log information about the dataset at the beginning.
+        dataset_log: whether to log information about the dataset at the beginning. This arg
+            is only useful when MLFlow version >= 2.4.0.
         epoch_logger: customized callable logger for epoch level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
         iteration_logger: customized callable logger for iteration level logging with MLFlow.
