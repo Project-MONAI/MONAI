@@ -264,10 +264,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             )
             tracking_path = os.path.join(bundle_root, "eval")
             mlflow_handler = MLFlowHandler(
-                iteration_log=False,
-                epoch_log=False,
-                dataset_log=True,
-                tracking_uri=path_to_uri(tracking_path),
+                iteration_log=False, epoch_log=False, dataset_log=True, tracking_uri=path_to_uri(tracking_path)
             )
 
             workflow.bundle_root = bundle_root
@@ -283,6 +280,7 @@ class TestHandlerMLFlow(unittest.TestCase):
             ]
             self.assertEqual(len(logged_nontrain_set), 1)
             mlflow_handler.close()
+
 
 if __name__ == "__main__":
     unittest.main()
