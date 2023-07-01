@@ -132,14 +132,12 @@ def get_mask_edges(
     spacing: Sequence | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Do binary erosion and use XOR for input to get the edges. This
+    Compute edges from binary segmentation masks. This
     function is helpful to further calculate metrics such as Average Surface
     Distance and Hausdorff Distance.
     The input images can be binary or labelfield images. If labelfield images
     are supplied, they are converted to binary images using `label_idx`.
 
-    `scipy`'s binary erosion is used to calculate the edges of the binary
-    labelfield.
 
     In order to improve the computing efficiency, before getting the edges,
     the images can be cropped and only keep the foreground if not specifies
@@ -157,6 +155,8 @@ def get_mask_edges(
             maintain two inputs' shapes, here the bounding box is achieved
             by ``(seg_pred | seg_gt)`` which represents the union set of two
             images. Defaults to ``True``.
+        spacing: the input spacing. If not None, the subvoxel edges and areas will be computed.
+            otherwise `scipy`'s binary erosion is used to calculate the edges.
     """
 
     # Get both labelfields as np arrays
