@@ -256,11 +256,6 @@ def compute_surface_dice(
     for b, c in np.ndindex(batch_size, n_class):
         if not use_subvoxels:
             (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c], crop=True)
-            if not np.any(edges_gt):
-                warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
-            if not np.any(edges_pred):
-                warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
-
             distances_pred_gt = get_surface_distance(
                 edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing_list[b]
             )
@@ -279,20 +274,17 @@ def compute_surface_dice(
             edges_pred, edges_gt, areas_pred, areas_gt = get_mask_edges(  # type: ignore
                 y_pred[b, c], y[b, c], crop=True, spacing=_spacing  # type: ignore
             )
-            if not np.any(edges_gt):
-                warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
-            if not np.any(edges_pred):
-                warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
-            dist_gt = get_surface_distance(None, edges_gt, distance_metric=distance_metric, spacing=spacing_list[b])
-            dist_pred = get_surface_distance(None, edges_pred, distance_metric=distance_metric, spacing=spacing_list[b])
-            dist_gt_to_pred, dist_pred_to_gt = dist_pred[edges_gt], dist_gt[edges_pred]
+            dist_pred_to_gt = get_surface_distance(edges_pred, edges_gt, distance_metric, spacing=spacing_list[b])
+            dist_gt_to_pred = get_surface_distance(edges_gt, edges_pred, distance_metric, spacing=spacing_list[b])
             areas_gt, areas_pred = areas_gt[edges_gt], areas_pred[edges_pred]
             boundary_complete = areas_gt.sum() + areas_pred.sum()
-            boundary_correct = (
-                areas_gt[dist_gt_to_pred <= class_thresholds[c]].sum()
-                + areas_pred[dist_pred_to_gt <= class_thresholds[c]].sum()
-            )
-
+            gt_true = areas_gt[dist_gt_to_pred <= class_thresholds[c]].sum() if len(areas_gt) > 0 else 0.0
+            pred_true = areas_pred[dist_pred_to_gt <= class_thresholds[c]].sum() if len(areas_pred) > 0 else 0.0
+            boundary_correct = gt_true + pred_true
+        if not np.any(edges_gt):
+            warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
+        if not np.any(edges_pred):
+            warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
         if boundary_complete == 0:
             # the class is neither present in the prediction, nor in the reference segmentation
             nsd[b, c] = np.nan

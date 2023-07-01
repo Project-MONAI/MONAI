@@ -393,12 +393,19 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         mask_gt, mask_pred = torch.zeros(1, 1, 128, 128, 128), torch.zeros(1, 1, 128, 128, 128)
         mask_gt[0, 0, 50, 60, 70] = 1
         res = compute_surface_dice(
-            mask_pred, mask_gt, class_thresholds=[1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
         )
         assert_allclose(res, 0.0, type_test=False)
+        mask_gt[0, 0, 50, 60, 70] = 0
         mask_pred[0, 0, 50, 60, 72] = 1
         res = compute_surface_dice(
-            mask_pred, mask_gt, class_thresholds=[1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
+        )
+        assert_allclose(res, 0.0, type_test=False)
+        mask_gt[0, 0, 50, 60, 70] = 1
+        mask_pred[0, 0, 50, 60, 72] = 1
+        res = compute_surface_dice(
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
         )
         assert_allclose(res, 0.5, type_test=False)
 
@@ -406,7 +413,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         mask_gt[0, 0, 0:50, :, :] = 1
         mask_pred[0, 0, 0:51, :, :] = 1
         res = compute_surface_dice(
-            mask_pred, mask_gt, class_thresholds=[1.0], include_background=True, spacing=(2, 1, 1), use_subvoxels=True
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(2, 1, 1), use_subvoxels=True
         )
         assert_allclose(res, 0.836145, type_test=False, atol=1e-3, rtol=1e-3)
 

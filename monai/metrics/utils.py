@@ -207,7 +207,7 @@ def get_mask_edges(
 
 
 def get_surface_distance(
-    seg_pred: np.ndarray | None,
+    seg_pred: np.ndarray,
     seg_gt: np.ndarray,
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
@@ -240,7 +240,7 @@ def get_surface_distance(
     if not np.any(seg_gt):
         dis = np.inf * np.ones_like(seg_gt)
     else:
-        if seg_pred is not None and not np.any(seg_pred):
+        if not np.any(seg_pred):
             dis = np.inf * np.ones_like(seg_gt)
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
@@ -250,7 +250,7 @@ def get_surface_distance(
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
 
-    return np.asarray(dis[seg_pred]) if seg_pred is not None else np.asarray(dis)
+    return np.asarray(dis[seg_pred])
 
 
 def is_binary_tensor(input: torch.Tensor, name: str) -> None:
