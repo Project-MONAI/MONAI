@@ -163,7 +163,7 @@ class SupervisedTrainer(Trainer):
             device=device,
             max_epochs=max_epochs,
             data_loader=train_data_loader,
-            current_epoch = current_epoch,
+            current_epoch=current_epoch,
             epoch_length=epoch_length,
             non_blocking=non_blocking,
             prepare_batch=prepare_batch,
