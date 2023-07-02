@@ -998,7 +998,7 @@ def generate_spatial_bounding_box(
         arg_max = where(dt == dt.max())[0]
         min_d = arg_max[0] - margin[di]
         max_d = arg_max[-1] + margin[di] + 1
-        if allow_smaller:
+        if not allow_smaller:
             min_d = max(min_d, 0)
             max_d = min(max_d, spatial_size[di])
 
