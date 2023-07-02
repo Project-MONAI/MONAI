@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import NdarrayOrTensor, NdarrayTensor
-from monai.transforms.croppad.dictionary import BorderPadD, CropForegroundD
+from monai.transforms.croppad.dictionary import CropForegroundD
 from monai.utils import (
     MetricReduction,
     convert_data_type,
@@ -178,10 +178,11 @@ def get_mask_edges(
         if not np.any(seg_pred | seg_gt):
             pred, gt = np.zeros_like(seg_pred), np.zeros_like(seg_gt)
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
-        cropper = CropForegroundD(keys=["pred", "gt"], source_key="src", start_coord_key=None, end_coord_key=None)
-        pad = BorderPadD(keys=["pred", "gt"], spatial_border=1, mode="constant")
+        cropper = CropForegroundD(
+            ["pred", "gt"], source_key="src", margin=1, allow_smaller=False, start_coord_key=None, end_coord_key=None
+        )
         mask = np.asarray(seg_pred | seg_gt)
-        cropped = pad(cropper({"pred": seg_pred[None], "gt": seg_gt[None], "src": mask[None]}))  # type: ignore
+        cropped = cropper({"pred": seg_pred[None], "gt": seg_gt[None], "src": mask[None]})  # type: ignore
         seg_pred = cropped["pred"]
         seg_gt = cropped["gt"]
 
