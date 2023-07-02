@@ -950,7 +950,7 @@ def generate_spatial_bounding_box(
     select_fn: Callable = is_positive,
     channel_indices: IndexSelection | None = None,
     margin: Sequence[int] | int = 0,
-    allow_smaller: bool = True,
+    allow_smaller: bool = False,
 ) -> tuple[list[int], list[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
@@ -971,7 +971,7 @@ def generate_spatial_bounding_box(
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
         allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-            than box size, default to `True`.
+            than box size, default to `False`.
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
