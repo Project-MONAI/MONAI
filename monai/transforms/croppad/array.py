@@ -837,7 +837,7 @@ class CropForeground(Crop):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
+            allow_smaller: when computing box size with `margin`, whether to allow the final box edges to be outside of the image edges (the image is smaller than the box). If `False`, part of a padded output box might be outside of the original image, if `True`, the image edges will be used as the box edges.
                 than box size, default to `False`. If `True`, the output will pad with specified `mode`
                 when the margined size is larger than image size.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
