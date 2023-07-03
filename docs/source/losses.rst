@@ -114,6 +114,6 @@ Loss Wrappers
     :members:
 
 `DeepSupervisionLoss`
-~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: DeepSupervisionLoss
     :members:
