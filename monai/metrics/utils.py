@@ -179,7 +179,7 @@ def get_mask_edges(
             pred, gt = np.zeros_like(seg_pred), np.zeros_like(seg_gt)
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
         cropper = CropForegroundD(
-            ["pred", "gt"], source_key="src", margin=1, allow_smaller=False, start_coord_key=None, end_coord_key=None
+            ["pred", "gt"], source_key="src", margin=1, allow_smaller=True, start_coord_key=None, end_coord_key=None
         )
         mask = np.asarray(seg_pred | seg_gt)
         cropped = cropper({"pred": seg_pred[None], "gt": seg_gt[None], "src": mask[None]})  # type: ignore
