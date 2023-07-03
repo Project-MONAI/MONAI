@@ -140,7 +140,6 @@ TEST_CASE_8_DTYPE = [
     TENSOR_4x4,
 ]
 
-
 # shape larger than what is covered by patches
 TEST_CASE_9_LARGER_SHAPE = [
     dict(merged_shape=(2, 3, 4, 6)),
@@ -152,7 +151,6 @@ TEST_CASE_9_LARGER_SHAPE = [
     ],
     pad(TENSOR_4x4, (0, 2), value=float("nan")),
 ]
-
 
 # explicit directory store
 TEST_CASE_10_DIRECTORY_STORE = [
@@ -183,7 +181,6 @@ TEST_CASE_11_MEMORY_STORE = [
     TENSOR_4x4,
 ]
 
-
 # explicit chunk size
 TEST_CASE_12_CHUNKS = [
     dict(merged_shape=TENSOR_4x4.shape, chunks=(1, 1, 2, 2)),
@@ -195,7 +192,6 @@ TEST_CASE_12_CHUNKS = [
     ],
     TENSOR_4x4,
 ]
-
 
 # test for LZ4 compressor
 TEST_CASE_13_COMPRESSOR_LZ4 = [
@@ -232,7 +228,6 @@ TEST_CASE_15_COMPRESSOR_LZMA = [
     ],
     TENSOR_4x4,
 ]
-
 
 # test with thread locking
 TEST_CASE_16_WITH_LOCK = [
