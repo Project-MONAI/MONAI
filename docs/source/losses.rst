@@ -112,3 +112,8 @@ Loss Wrappers
 ~~~~~~~~~~~~
 .. autoclass:: MaskedLoss
     :members:
+
+`DeepSupervisionLoss`
+~~~~~~~~~~~~
+.. autoclass:: DeepSupervisionLoss
+    :members:
