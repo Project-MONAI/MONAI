@@ -729,7 +729,7 @@ class CropForegroundd(Cropd):
         select_fn: Callable = is_positive,
         channel_indices: IndexSelection | None = None,
         margin: Sequence[int] | int = 0,
-        allow_smaller: bool = True,
+        allow_smaller: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         start_coord_key: str = "foreground_start_coord",
@@ -747,9 +747,9 @@ class CropForegroundd(Cropd):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is larger than image size, will pad with
-                specified `mode`.
+            allow_smaller: when computing box size with `margin`, whether to allow the final box edges to be outside of
+                the image edges (the image is smaller than the box). If `True`, part of a padded output box might be outside
+                of the original image, if `False`, the image edges will be used as the box edges.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
