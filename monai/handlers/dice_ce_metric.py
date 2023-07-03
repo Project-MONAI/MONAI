@@ -14,7 +14,6 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from monai.handlers.ignite_metric import IgniteMetric
-from monai.metrics import DiceMetric
 from monai.utils import MetricReduction
 from monai.losses import DiceCELoss
 from monai.metrics import LossMetric
