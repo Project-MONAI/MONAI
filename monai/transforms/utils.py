@@ -961,7 +961,6 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    If not `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
     This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
@@ -970,8 +969,10 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-            than box size, default to `False`.
+        allow_smaller: when computing box size with `margin`, whether to allow the final box edges to be outside of
+                the image edges (the image is smaller than the box). If `False`, the bounding boxes edges are aligned
+                with the input image edges, default to `False`.
+
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
