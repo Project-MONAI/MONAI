@@ -402,7 +402,8 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         )
         assert_allclose(res, 0.5, type_test=False)
 
-        mask_gt, mask_pred = torch.zeros(1, 1, 100, 100, 100), torch.zeros(1, 1, 100, 100, 100)
+        d = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        mask_gt, mask_pred = torch.zeros(1, 1, 100, 100, 100, device=d), torch.zeros(1, 1, 100, 100, 100, device=d)
         mask_gt[0, 0, 0:50, :, :] = 1
         mask_pred[0, 0, 0:51, :, :] = 1
         res = compute_surface_dice(
