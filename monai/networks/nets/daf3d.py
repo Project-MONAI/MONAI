@@ -9,7 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from __future__ import annotations
 
 from collections import OrderedDict
@@ -293,7 +292,12 @@ class Daf3dResNet(ResNet):
         # adapt layers to our needs
         self.layer1 = self._make_layer(Daf3dResNetBottleneck, block_inplanes[0], layers[0], spatial_dims, shortcut_type)
         self.layer2 = self._make_layer(
-            Daf3dResNetBottleneck, block_inplanes[1], layers[1], spatial_dims, shortcut_type, stride=(1, 2, 2)  # type: ignore
+            Daf3dResNetBottleneck,
+            block_inplanes[1],
+            layers[1],
+            spatial_dims,
+            shortcut_type,
+            stride=(1, 2, 2),  # type: ignore
         )
         self.layer3 = self._make_layer(
             Daf3dResNetDilatedBottleneck, block_inplanes[2], layers[2], spatial_dims, shortcut_type, stride=1
