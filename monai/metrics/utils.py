@@ -22,9 +22,8 @@ from monai.config import NdarrayOrTensor, NdarrayTensor
 from monai.transforms.croppad.dictionary import CropForegroundD
 from monai.utils import (
     MetricReduction,
-    convert_data_type,
-    convert_to_tensor,
     convert_to_numpy,
+    convert_to_tensor,
     ensure_tuple_rep,
     look_up_option,
     optional_import,
@@ -187,10 +186,10 @@ def get_mask_edges(
         edges_pred = binary_erosion(seg_pred) ^ seg_pred
         edges_gt = binary_erosion(seg_gt) ^ seg_gt
         return edges_pred, edges_gt
-    code_to_area_table, k = get_code_to_measure_table(spacing, device=seg_pred.device)
+    code_to_area_table, k = get_code_to_measure_table(spacing, device=seg_pred.device)  # type: ignore
     spatial_dims = len(spacing)
     conv = torch.nn.functional.conv3d if spatial_dims == 3 else torch.nn.functional.conv2d
-    vol = torch.stack([seg_pred[None], seg_gt[None]], dim=0).float()
+    vol = torch.stack([seg_pred[None], seg_gt[None]], dim=0).float()  # type: ignore
     code_pred, code_gt = conv(vol, k.to(vol))  # type: ignore
     # edges
     all_ones = len(code_to_area_table) - 1
@@ -200,7 +199,7 @@ def get_mask_edges(
     areas_pred = torch.index_select(code_to_area_table, 0, code_pred.view(-1).int()).reshape(code_pred.shape)
     areas_gt = torch.index_select(code_to_area_table, 0, code_gt.view(-1).int()).reshape(code_gt.shape)
     ret = (edges_pred[0], edges_gt[0], areas_pred[0], areas_gt[0])
-    return convert_to_numpy(ret, wrap_sequence=False)
+    return convert_to_numpy(ret, wrap_sequence=False)  # type: ignore
 
 
 def get_surface_distance(
