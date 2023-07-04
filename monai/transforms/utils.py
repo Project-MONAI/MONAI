@@ -950,7 +950,7 @@ def generate_spatial_bounding_box(
     select_fn: Callable = is_positive,
     channel_indices: IndexSelection | None = None,
     margin: Sequence[int] | int = 0,
-    allow_smaller: bool = True,
+    allow_smaller: bool = False,
 ) -> tuple[list[int], list[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
@@ -961,7 +961,6 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    If `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
     This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
@@ -970,8 +969,10 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-            than box size, default to `True`.
+        allow_smaller: when computing box size with `margin`, whether to allow the final box edges to be outside of
+                the image edges (the image is smaller than the box). If `False`, the bounding boxes edges are aligned
+                with the input image edges, default to `False`.
+
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
@@ -998,7 +999,7 @@ def generate_spatial_bounding_box(
         arg_max = where(dt == dt.max())[0]
         min_d = arg_max[0] - margin[di]
         max_d = arg_max[-1] + margin[di] + 1
-        if allow_smaller:
+        if not allow_smaller:
             min_d = max(min_d, 0)
             max_d = min(max_d, spatial_size[di])
 

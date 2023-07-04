@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
-from tests.utils import skip_if_windows
+from tests.utils import skip_if_quick, skip_if_windows
 
 TEST_CASE_Vitautoenc = []
 for in_channels in [1, 4]:
@@ -64,7 +64,8 @@ TEST_CASE_Vitautoenc.append(
 )
 
 
-class TestPatchEmbeddingBlock(unittest.TestCase):
+@skip_if_quick
+class TestVitAutoenc(unittest.TestCase):
     def setUp(self):
         self.threads = torch.get_num_threads()
         torch.set_num_threads(4)
