@@ -401,7 +401,7 @@ def check_and_set_optional_args(params: dict) -> str:
     return cmd_mod_opt
 
 
-def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+def _prepare_cmd_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
     Prepare the command for subprocess to run the script with the given arguments.
 
@@ -416,8 +416,8 @@ def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     Examples:
         To prepare a subprocess command
         "python train.py run -k --config 'a,b'", the function can be called as
-        - _create_default("train.py run -k", config=['a','b'])
-        - _create_default("train.py run -k --config 'a,b'")
+        - _prepare_cmd_default("train.py run -k", config=['a','b'])
+        - _prepare_cmd_default("train.py run -k --config 'a,b'")
 
     """
     params = kwargs.copy()
@@ -428,7 +428,7 @@ def _create_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     return cmd_prefix + cmd + check_and_set_optional_args(params)
 
 
-def _create_torchrun(cmd: str, **kwargs: Any) -> str:
+def _prepare_cmd_torchrun(cmd: str, **kwargs: Any) -> str:
     """
     Prepare the command for multi-gpu/multi-node job execution using torchrun.
 
@@ -443,14 +443,14 @@ def _create_torchrun(cmd: str, **kwargs: Any) -> str:
         For command "torchrun --nnodes=1 --nproc_per_node=8 train.py run -k --config 'a,b'",
         it only prepares command after the torchrun arguments, i.e., "train.py run -k --config 'a,b'".
         The function can be called as
-        - _create_torchrun("train.py run -k", config=['a','b'])
-        - _create_torchrun("train.py run -k --config 'a,b'")
+        - _prepare_cmd_torchrun("train.py run -k", config=['a','b'])
+        - _prepare_cmd_torchrun("train.py run -k --config 'a,b'")
     """
     params = kwargs.copy()
     return cmd + check_and_set_optional_args(params)
 
 
-def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+def _prepare_cmd_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
     """
     Prepare the command for distributed job running using bcprun.
 
@@ -466,11 +466,11 @@ def _create_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
         For command "bcprun -n 2 -p 8 -c python train.py run -k --config 'a,b'",
         it only prepares command after the bcprun arguments, i.e., "train.py run -k --config 'a,b'".
         the function can be called as
-        - _create_bcprun("train.py run -k", config=['a','b'], n=2, p=8)
-        - _create_bcprun("train.py run -k --config 'a,b'", n=2, p=8)
+        - _prepare_cmd_bcprun("train.py run -k", config=['a','b'], n=2, p=8)
+        - _prepare_cmd_bcprun("train.py run -k --config 'a,b'", n=2, p=8)
     """
 
-    return _create_default(cmd, cmd_prefix=cmd_prefix, **kwargs)
+    return _prepare_cmd_default(cmd, cmd_prefix=cmd_prefix, **kwargs)
 
 
 def _run_cmd_torchrun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
@@ -478,7 +478,7 @@ def _run_cmd_torchrun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
     Run the command with torchrun.
 
     Args:
-        cmd: the command to run. Typically it is prepared by ``_create_torchrun``.
+        cmd: the command to run. Typically it is prepared by ``_prepare_cmd_torchrun``.
         kwargs: the keyword arguments to be passed to the ``torchrun``.
 
     Return:
@@ -504,7 +504,7 @@ def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
     Run the command with bcprun.
 
     Args:
-        cmd: the command to run. Typically it is prepared by ``_create_bcprun``.
+        cmd: the command to run. Typically it is prepared by ``_prepare_cmd_bcprun``.
         kwargs: the keyword arguments to be passed to the ``bcprun``.
 
     Returns:

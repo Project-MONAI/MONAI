@@ -31,9 +31,9 @@ from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
 from monai.auto3dseg.utils import (
-    _create_bcprun,
-    _create_default,
-    _create_torchrun,
+    _prepare_cmd_bcprun,
+    _prepare_cmd_default,
+    _prepare_cmd_torchrun,
     _run_cmd_bcprun,
     _run_cmd_torchrun,
     algo_to_pickle,
@@ -201,7 +201,7 @@ class BundleAlgo(Algo):
                 ) from err
 
             return (
-                _create_bcprun(
+                _prepare_cmd_bcprun(
                     f"{train_py} run",
                     cmd_prefix=str(self.device_setting["CMD_PREFIX"]),
                     config_file=config_files,
@@ -210,10 +210,10 @@ class BundleAlgo(Algo):
                 "",
             )
         elif int(self.device_setting["n_devices"]) > 1:
-            return _create_torchrun(f"{train_py} run", config_file=config_files, **params), ""
+            return _prepare_cmd_torchrun(f"{train_py} run", config_file=config_files, **params), ""
         else:
             return (
-                _create_default(
+                _prepare_cmd_default(
                     f"{train_py} run",
                     cmd_prefix=str(self.device_setting["CMD_PREFIX"]),
                     config_file=config_files,

@@ -26,7 +26,13 @@ from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
-from monai.auto3dseg.utils import _create_bcprun, _create_torchrun, _run_cmd_bcprun, _run_cmd_torchrun, datafold_read
+from monai.auto3dseg.utils import (
+    _prepare_cmd_bcprun,
+    _prepare_cmd_torchrun,
+    _run_cmd_bcprun,
+    _run_cmd_torchrun,
+    datafold_read,
+)
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
@@ -649,12 +655,12 @@ class EnsembleRunner:
                     "Try modify EnsembleRunner._create_cmd for your cluster."
                 )
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-            cmd = _create_bcprun("-m " + base_cmd, cmd_prefix=str(self.device_setting["CMD_PREFIX"]))
+            cmd = _prepare_cmd_bcprun("-m " + base_cmd, cmd_prefix=str(self.device_setting["CMD_PREFIX"]))
             _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
 
         else:
             logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
-            cmd = _create_torchrun("-m " + base_cmd)
+            cmd = _prepare_cmd_torchrun("-m " + base_cmd)
             _run_cmd_torchrun(
                 cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
             )
