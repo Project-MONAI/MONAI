@@ -18,24 +18,27 @@ from monai.utils import MetricReduction
 from monai.losses import DiceCELoss
 from monai.metrics import LossMetric
 
-class DiceCEMetric(IgniteMetric):
+from torch.nn.modules.loss import _Loss
+
+class LossMetricIgnite(IgniteMetric):
     """
     Computes DiceCE score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
 
     def __init__(
         self,
-        # include_background: bool = True,
+        loss_fn: _Loss,
         reduction: MetricReduction | str = MetricReduction.MEAN,
-        # num_classes: int | None = None,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
-        *args,
-        **kwargs
+        # *args,
+        # **kwargs
     ) -> None:
         """
 
         Args:
+            loss_fn: a callable function that takes ``y_pred`` and optionally ``y`` as input (in the "batch-first" format),
+                returns a "batch-first" tensor of loss values.
             include_background: whether to include dice computation on the first channel of the predicted output.
                 Defaults to True.
             reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
@@ -57,7 +60,7 @@ class DiceCEMetric(IgniteMetric):
         See also:
             :py:meth:`monai.metrics.meandice.compute_dice`
         """
-        # metric_fn = DiceMetric(include_background=include_background, reduction=reduction, num_classes=num_classes)
-        loss_function = DiceCELoss(*args, **kwargs)
-        metric_fn = LossMetric(loss_fn=loss_function, reduction=reduction, get_not_nans=False)
+        self.loss_fn = loss_fn
+        # loss_function = DiceCELoss(*args, **kwargs)
+        metric_fn = LossMetric(loss_fn=self.loss_fn, reduction=reduction, get_not_nans=False)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
