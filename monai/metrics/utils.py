@@ -138,7 +138,6 @@ def get_mask_edges(
     The input images can be binary or labelfield images. If labelfield images
     are supplied, they are converted to binary images using `label_idx`.
 
-
     In order to improve the computing efficiency, before getting the edges,
     the images can be cropped and only keep the foreground if not specifies
     ``crop = False``.
@@ -158,45 +157,38 @@ def get_mask_edges(
         spacing: the input spacing. If not None, the subvoxel edges and areas will be computed.
             otherwise `scipy`'s binary erosion is used to calculate the edges.
     """
-
-    # Get both labelfields as np arrays
-    if isinstance(seg_pred, torch.Tensor):
-        seg_pred = seg_pred.detach().cpu().numpy()
-    if isinstance(seg_gt, torch.Tensor):
-        seg_gt = seg_gt.detach().cpu().numpy()
-
     if seg_pred.shape != seg_gt.shape:
         raise ValueError(f"seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
 
     # If not binary images, convert them
-    if seg_pred.dtype != bool:
+    if seg_pred.dtype not in (bool, torch.bool):
         seg_pred = seg_pred == label_idx
-    if seg_gt.dtype != bool:
+    if seg_gt.dtype not in (bool, torch.bool):
         seg_gt = seg_gt == label_idx
 
     if crop:
-        if not np.any(seg_pred | seg_gt):
+        if not (seg_pred | seg_gt).any():
             pred, gt = np.zeros_like(seg_pred), np.zeros_like(seg_gt)
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
         cropper = CropForegroundD(
             ["pred", "gt"], source_key="src", margin=1, allow_smaller=True, start_coord_key=None, end_coord_key=None
         )
-        mask = np.asarray(seg_pred | seg_gt)
+        mask = seg_pred | seg_gt
         cropped = cropper({"pred": seg_pred[None], "gt": seg_gt[None], "src": mask[None]})  # type: ignore
-        seg_pred = cropped["pred"]
-        seg_gt = cropped["gt"]
+        seg_pred = cropped["pred"][0]
+        seg_gt = cropped["gt"][0]
 
     if spacing is None:
         # Do binary erosion and use XOR to get edges
-        seg_pred = convert_data_type(seg_pred[0], np.ndarray)[0]
-        seg_gt = convert_data_type(seg_gt[0], np.ndarray)[0]
+        seg_pred = convert_data_type(seg_pred, np.ndarray)[0]
+        seg_gt = convert_data_type(seg_gt, np.ndarray)[0]
         edges_pred = binary_erosion(seg_pred) ^ seg_pred
         edges_gt = binary_erosion(seg_gt) ^ seg_gt
         return edges_pred, edges_gt
     code_to_area_table, k = get_code_to_measure_table(spacing)
-    sptial_dims = len(spacing)
-    conv = torch.nn.functional.conv3d if sptial_dims == 3 else torch.nn.functional.conv2d
-    code_pred, code_gt = conv(torch.stack([seg_pred, seg_gt], dim=0).float(), k.float())  # type: ignore
+    spatial_dims = len(spacing)
+    conv = torch.nn.functional.conv3d if spatial_dims == 3 else torch.nn.functional.conv2d
+    code_pred, code_gt = conv(torch.stack([seg_pred[None], seg_gt[None]], dim=0).float(), k.float())  # type: ignore
     # edges
     all_ones = len(code_to_area_table) - 1
     edges_pred = (code_pred != 0) & (code_pred != all_ones)
@@ -380,6 +372,7 @@ def _get_neighbour_code_to_normals_table(device=None):
     """
     returns a lookup table. For every binary neighbour code (2x2x2 neighbourhood = 8 neighbours = 8 bits = 256 codes)
     it contains the surface normals of the triangles. The length of the normal vector encodes the surfel area.
+    Adapted from https://github.com/deepmind/surface-distance
 
     created using the marching_cube algorithm see e.g. https://en.wikipedia.org/wiki/Marching_cubes
 
@@ -664,6 +657,7 @@ def create_table_neighbour_code_to_surface_area(spacing_mm, device=None):
         An array of size 256, mapping neighbourhood code to the surface area.
         ENCODING_KERNEL[3] which is the kernel used to compute the neighbourhood code.
     """
+    spacing_mm = ensure_tuple_rep(spacing_mm, 3)
     # compute the area for all 256 possible surface elements given a 2x2x2 neighbourhood according to the spacing_mm
     c = _get_neighbour_code_to_normals_table(device)
     s = torch.as_tensor(
@@ -695,6 +689,7 @@ def create_table_neighbour_code_to_contour_length(spacing_mm, device=None):
         A 16-element array mapping neighbourhood code to the contour length.
         ENCODING_KERNEL[2] which is the kernel used to compute the neighbourhood code.
     """
+    spacing_mm = ensure_tuple_rep(spacing_mm, 2)
     first, second = spacing_mm  # spacing along the first and second spatial dimension respectively
     diag = 0.5 * np.linalg.norm(spacing_mm)
 

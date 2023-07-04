@@ -327,13 +327,6 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
             str(context.exception),
         )
 
-        # input tensors not one-hot encoded
-        predictions_no_hot = torch.clone(predictions_hot)
-        predictions_no_hot[0, :, 0, 0] = torch.tensor([2, 0])
-
-        predictions_no_hot = predictions_no_hot.float()
-        predictions_no_hot[0, :, 0, 0] = torch.tensor([0.5, 0])
-
         # wrong number of class thresholds
         with self.assertRaises(ValueError) as context:
             SurfaceDiceMetric(class_thresholds=[1, 1, 1], include_background=True)(predictions_hot, labels_hot)
