@@ -202,10 +202,7 @@ class BundleAlgo(Algo):
 
             return (
                 _prepare_cmd_bcprun(
-                    f"{train_py} run",
-                    cmd_prefix=self.device_setting["CMD_PREFIX"],
-                    config_file=config_files,
-                    **params,
+                    f"{train_py} run", cmd_prefix=self.device_setting["CMD_PREFIX"], config_file=config_files, **params
                 ),
                 "",
             )
@@ -214,10 +211,7 @@ class BundleAlgo(Algo):
         else:
             return (
                 _prepare_cmd_default(
-                    f"{train_py} run",
-                    cmd_prefix=self.device_setting["CMD_PREFIX"],
-                    config_file=config_files,
-                    **params,
+                    f"{train_py} run", cmd_prefix=self.device_setting["CMD_PREFIX"], config_file=config_files, **params
                 ),
                 "",
             )
