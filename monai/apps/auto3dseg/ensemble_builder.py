@@ -655,7 +655,7 @@ class EnsembleRunner:
                     "Try modify EnsembleRunner._create_cmd for your cluster."
                 )
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-            cmd = _prepare_cmd_bcprun("-m " + base_cmd, cmd_prefix=str(self.device_setting["CMD_PREFIX"]))
+            cmd = _prepare_cmd_bcprun("-m " + base_cmd, cmd_prefix=self.device_setting["CMD_PREFIX"])
             _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
 
         else:

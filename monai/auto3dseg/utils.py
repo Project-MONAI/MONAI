@@ -401,7 +401,7 @@ def check_and_set_optional_args(params: dict) -> str:
     return cmd_mod_opt
 
 
-def _prepare_cmd_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+def _prepare_cmd_default(cmd: str, cmd_prefix: str | None = None, **kwargs: Any) -> str:
     """
     Prepare the command for subprocess to run the script with the given arguments.
 
@@ -421,6 +421,8 @@ def _prepare_cmd_default(cmd: str, cmd_prefix: str = "python", **kwargs: Any) ->
 
     """
     params = kwargs.copy()
+
+    cmd_prefix = cmd_prefix or "python"
 
     if not cmd_prefix.endswith(" "):
         cmd_prefix += " "  # ensure a space after the command prefix so that the script can be appended
@@ -450,7 +452,7 @@ def _prepare_cmd_torchrun(cmd: str, **kwargs: Any) -> str:
     return cmd + check_and_set_optional_args(params)
 
 
-def _prepare_cmd_bcprun(cmd: str, cmd_prefix: str = "python", **kwargs: Any) -> str:
+def _prepare_cmd_bcprun(cmd: str, cmd_prefix: str | None = None, **kwargs: Any) -> str:
     """
     Prepare the command for distributed job running using bcprun.
 
