@@ -27,7 +27,7 @@ from monai.apps import download_and_extract
 from monai.bundle import ConfigWorkflow, download
 from monai.handlers import MLFlowHandler
 from monai.utils import optional_import, path_to_uri
-from tests.utils import skip_if_quick
+from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 _, has_dataset_tracking = optional_import("mlflow", "2.4.0")
 
@@ -244,42 +244,43 @@ class TestHandlerMLFlow(unittest.TestCase):
             md5 = "f82da47259c0a617202fb54624798a55"
             compressed_file = os.path.join(tempdir, "endoscopic_tool_segmentation.zip")
             data_dir = os.path.join(tempdir, "endoscopic_tool_dataset")
-            if not os.path.exists(data_dir):
-                download_and_extract(resource, compressed_file, tempdir, md5)
+            with skip_if_downloading_fails():
+                if not os.path.exists(data_dir):
+                    download_and_extract(resource, compressed_file, tempdir, md5)
 
-            download(test_bundle_name, bundle_dir=tempdir)
+                download(test_bundle_name, bundle_dir=tempdir)
 
-            bundle_root = os.path.join(tempdir, test_bundle_name)
-            config_file = os.path.join(bundle_root, "configs/inference.json")
-            meta_file = os.path.join(bundle_root, "configs/metadata.json")
-            logging_file = os.path.join(bundle_root, "configs/logging.conf")
-            workflow = ConfigWorkflow(
-                workflow="infer",
-                config_file=config_file,
-                meta_file=meta_file,
-                logging_file=logging_file,
-                init_id="initialize",
-                run_id="run",
-                final_id="finalize",
-            )
-            tracking_path = os.path.join(bundle_root, "eval")
-            mlflow_handler = MLFlowHandler(
-                iteration_log=False, epoch_log=False, dataset_log=True, tracking_uri=path_to_uri(tracking_path)
-            )
+                bundle_root = os.path.join(tempdir, test_bundle_name)
+                config_file = os.path.join(bundle_root, "configs/inference.json")
+                meta_file = os.path.join(bundle_root, "configs/metadata.json")
+                logging_file = os.path.join(bundle_root, "configs/logging.conf")
+                workflow = ConfigWorkflow(
+                    workflow="infer",
+                    config_file=config_file,
+                    meta_file=meta_file,
+                    logging_file=logging_file,
+                    init_id="initialize",
+                    run_id="run",
+                    final_id="finalize",
+                )
+                tracking_path = os.path.join(bundle_root, "eval")
+                mlflow_handler = MLFlowHandler(
+                    iteration_log=False, epoch_log=False, dataset_log=True, tracking_uri=path_to_uri(tracking_path)
+                )
 
-            workflow.bundle_root = bundle_root
-            workflow.dataset_dir = data_dir
-            workflow.initialize()
-            mlflow_handler.attach(workflow.evaluator)
-            workflow.run()
-            workflow.finalize()
+                workflow.bundle_root = bundle_root
+                workflow.dataset_dir = data_dir
+                workflow.initialize()
+                mlflow_handler.attach(workflow.evaluator)
+                workflow.run()
+                workflow.finalize()
 
-            cur_run = mlflow_handler.client.get_run(mlflow_handler.cur_run.info.run_id)
-            logged_nontrain_set = [
-                x for x in cur_run.inputs.dataset_inputs if "nontrain" == x.dataset.name[: len("nontrain")]
-            ]
-            self.assertEqual(len(logged_nontrain_set), 1)
-            mlflow_handler.close()
+                cur_run = mlflow_handler.client.get_run(mlflow_handler.cur_run.info.run_id)
+                logged_nontrain_set = [
+                    x for x in cur_run.inputs.dataset_inputs if "nontrain" == x.dataset.name[: len("nontrain")]
+                ]
+                self.assertEqual(len(logged_nontrain_set), 1)
+                mlflow_handler.close()
 
 
 if __name__ == "__main__":
