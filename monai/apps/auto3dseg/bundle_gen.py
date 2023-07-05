@@ -95,7 +95,7 @@ class BundleAlgo(Algo):
             "n_devices": int(torch.cuda.device_count()),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
             "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
-            "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
+            "CMD_PREFIX": os.environ.get("CMD_PREFIX", ""),  # type: ignore
         }
 
     def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
@@ -202,7 +202,10 @@ class BundleAlgo(Algo):
 
             return (
                 _prepare_cmd_bcprun(
-                    f"{train_py} run", cmd_prefix=self.device_setting["CMD_PREFIX"], config_file=config_files, **params
+                    f"{train_py} run",
+                    cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
+                    config_file=config_files,
+                    **params,
                 ),
                 "",
             )
@@ -211,7 +214,10 @@ class BundleAlgo(Algo):
         else:
             return (
                 _prepare_cmd_default(
-                    f"{train_py} run", cmd_prefix=self.device_setting["CMD_PREFIX"], config_file=config_files, **params
+                    f"{train_py} run",
+                    cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
+                    config_file=config_files,
+                    **params,
                 ),
                 "",
             )
