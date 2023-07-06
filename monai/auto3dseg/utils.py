@@ -422,7 +422,8 @@ def _prepare_cmd_default(cmd: str, cmd_prefix: str | None = None, **kwargs: Any)
     """
     params = kwargs.copy()
 
-    cmd_prefix = cmd_prefix or "python"
+    if not cmd_prefix or "None" in cmd_prefix:  # defaulting to 'python'
+        cmd_prefix = "python"
 
     if not cmd_prefix.endswith(" "):
         cmd_prefix += " "  # ensure a space after the command prefix so that the script can be appended
