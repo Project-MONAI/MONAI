@@ -498,7 +498,7 @@ def _run_cmd_torchrun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
             raise ValueError(f"Missing required argument {arg} for torchrun.")
         torchrun_list += [f"--{arg}", str(params.pop(arg))]
     torchrun_list += cmd_list
-    return run_cmd(torchrun_list, **params)
+    return run_cmd(torchrun_list, run_cmd_verbose=True, **params)
 
 
 def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
@@ -520,4 +520,4 @@ def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
             raise ValueError(f"Missing required argument {arg} for bcprun.")
         cmd_list += [f"-{arg}", str(params.pop(arg))]
     cmd_list.extend(["-c", cmd])
-    return run_cmd(cmd_list, **params)
+    return run_cmd(cmd_list, run_cmd_verbose=True, **params)

@@ -841,6 +841,10 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
     debug = MONAIEnvVars.debug()
     kwargs["capture_output"] = kwargs.get("capture_output", debug)
 
+    if kwargs.pop("run_cmd_verbose", False):
+        import monai
+
+        monai.apps.utils.get_logger("run_cmd").info(f"{cmd_list}")
     try:
         return subprocess.run(cmd_list, **kwargs)
     except subprocess.CalledProcessError as e:

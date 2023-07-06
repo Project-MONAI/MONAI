@@ -251,7 +251,7 @@ class BundleAlgo(Algo):
                 cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
             )
         else:
-            return run_cmd(cmd.split(), env=ps_environ, check=True)
+            return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
