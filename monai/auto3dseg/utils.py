@@ -390,14 +390,14 @@ def list_to_python_fire_arg_str(args: list) -> str:
 
 
 def check_and_set_optional_args(params: dict) -> str:
-    """ """
+    """convert `params` into '--key_1=value_1 --key_2=value_2 ...'"""
     cmd_mod_opt = ""
     for k, v in params.items():
         if isinstance(v, dict):
             raise ValueError("Nested dict is not supported.")
         elif isinstance(v, list):
             v = list_to_python_fire_arg_str(v)
-        cmd_mod_opt += f" --{k} {str(v)}"
+        cmd_mod_opt += f" --{k}={v}"
     return cmd_mod_opt
 
 
