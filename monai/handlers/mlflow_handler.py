@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Any
 
 import torch
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 from monai.config import IgniteInfo, KeysCollection
 from monai.utils import ensure_tuple, min_version, optional_import
@@ -31,6 +30,7 @@ mlflow.entities, _ = optional_import(
     "mlflow.entities", descriptor="Please install mlflow.entities before using MLFlowHandler."
 )
 pandas, _ = optional_import("pandas", descriptor="Please install pandas for recording the dataset.")
+tqdm, _ = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
