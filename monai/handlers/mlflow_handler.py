@@ -257,7 +257,7 @@ class MLFlowHandler:
             f"{dataset_name}_samples": pandas_dataset.profile["num_rows"],
         }
 
-    def _log_dataset(self, sample_dict: dict[str, Any], context: str = "train") -> None:
+    def _log_dataset(self, sample_dict: dict[str, Any], context: str | KeysCollection = "train") -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
 
@@ -437,7 +437,7 @@ class MLFlowHandler:
         """
 
         if len(dataset_dict) == 0:
-            warnings.WarningMessage("There is no dataset to log!")
+            warnings.warn("There is no dataset to log!")
 
         # Log datasets to MLFlow one by one.
         for dataset_type, dataset in dataset_dict.items():
@@ -445,8 +445,8 @@ class MLFlowHandler:
                 raise AttributeError(f"The {dataset_type} dataset of is None. Cannot record it by MLFlow.")
 
             sample_dict: dict[str, list[str]] = {}
-
-            for sample in tqdm(dataset.data, f"Recording the {dataset_type} dataset"):
+            dataset_samples = getattr(dataset, "data", [])
+            for sample in tqdm(dataset_samples, f"Recording the {dataset_type} dataset"):
                 for key in self.dataset_keys:
                     if key not in sample_dict:
                         sample_dict[key] = []
