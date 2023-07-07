@@ -448,7 +448,7 @@ class MLFlowHandler:
 
             for sample in tqdm(dataset.data, f"Recording the {dataset_type} dataset"):
                 for key in self.dataset_keys:
-                    if not key in sample_dict:
+                    if key not in sample_dict:
                         sample_dict[key] = []
 
                     if key in sample:

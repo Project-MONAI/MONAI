@@ -117,7 +117,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         "dataset_log": False,
         "tracking_dataset_train": {"train": f"@train{ID_SEP_KEY}dataset"},
         "tracking_dataset_val": {"val": f"@validate{ID_SEP_KEY}dataset"},
-        "tracking_dataset_infer": {"test": f"@dataset"},
+        "tracking_dataset_infer": {"test": "@dataset"},
         "dataset_keys": "image",
         "is_not_rank0": (
             "$torch.distributed.is_available() \
