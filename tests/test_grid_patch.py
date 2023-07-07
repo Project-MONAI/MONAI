@@ -55,6 +55,8 @@ TEST_CASE_14 = [{"patch_size": (2, 2), "threshold": 150.0}, A, [A11, A12, A21]]
 TEST_CASE_15 = [{"patch_size": (2, 2), "num_patches": 3, "threshold": 50.0}, A, [A11]]
 # threshold filtering with num_patches less than available patches (count filtering)
 TEST_CASE_16 = [{"patch_size": (2, 2), "num_patches": 2, "threshold": 150.0}, A, [A11, A12]]
+# random sorting of output patches
+TEST_CASE_17 = [{"patch_size": (2, 2), "num_patches": 4, "sort_fn": "random"}, A, [A22, A11, A12, A21]]
 
 TEST_CASE_META_0 = [
     {"patch_size": (2, 2)},
@@ -94,6 +96,7 @@ for p in TEST_NDARRAYS:
     TEST_CASES.append([p, *TEST_CASE_14])
     TEST_CASES.append([p, *TEST_CASE_15])
     TEST_CASES.append([p, *TEST_CASE_16])
+    TEST_CASES.append([p, *TEST_CASE_17])
 
 
 class TestGridPatch(unittest.TestCase):
@@ -105,6 +108,7 @@ class TestGridPatch(unittest.TestCase):
         output = splitter(input_image)
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
+            np.random.seed(123)
             assert_allclose(
                 output_patch,
                 in_type(expected_patch),
