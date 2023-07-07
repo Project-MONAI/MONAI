@@ -263,9 +263,12 @@ class TestHandlerMLFlow(unittest.TestCase):
                     run_id="run",
                     final_id="finalize",
                 )
+
+                tracking_path = os.path.join(bundle_root, "eval")
+                workflow.bundle_root = bundle_root
+                workflow.dataset_dir = data_dir
                 workflow.initialize()
                 infer_dataset = workflow.dataset
-                tracking_path = os.path.join(bundle_root, "eval")
                 mlflow_handler = MLFlowHandler(
                     iteration_log=False,
                     epoch_log=False,
@@ -273,10 +276,6 @@ class TestHandlerMLFlow(unittest.TestCase):
                     dataset_dict={"test": infer_dataset},
                     tracking_uri=path_to_uri(tracking_path),
                 )
-
-                workflow.bundle_root = bundle_root
-                workflow.dataset_dir = data_dir
-                workflow.initialize()
                 mlflow_handler.attach(workflow.evaluator)
                 workflow.run()
                 workflow.finalize()
