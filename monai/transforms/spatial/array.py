@@ -3262,7 +3262,7 @@ class GridPatch(Transform, MultiSampleTrait):
 
     def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
-        Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
+        Sort the patches based on the sum of their intensity or in random order, and just keep `self.num_patches` of them.
 
         Args:
             image_np: a numpy.ndarray or torch.Tensor representing a stack of patches.
@@ -3277,8 +3277,10 @@ class GridPatch(Transform, MultiSampleTrait):
                 idx = argsort(image_np.sum(tuple(range(1, n_dims))))
             elif self.sort_fn == GridPatchSort.MAX:
                 idx = argsort(-image_np.sum(tuple(range(1, n_dims))))
+            elif self.sort_fn == GridPatchSort.RANDOM:
+                idx = np.random.permutation(image_np.shape[0])
             else:
-                raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
+                raise ValueError(f'`sort_fn` should be either "min", "max", "random" or None! {self.sort_fn} provided!')
             idx = idx[: self.num_patches]
             idx_np = convert_data_type(idx, np.ndarray)[0]
             image_np = image_np[idx]
