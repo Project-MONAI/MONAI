@@ -390,14 +390,14 @@ def list_to_python_fire_arg_str(args: list) -> str:
 
 
 def check_and_set_optional_args(params: dict) -> str:
-    """ """
+    """convert `params` into '--key_1=value_1 --key_2=value_2 ...'"""
     cmd_mod_opt = ""
     for k, v in params.items():
         if isinstance(v, dict):
             raise ValueError("Nested dict is not supported.")
         elif isinstance(v, list):
             v = list_to_python_fire_arg_str(v)
-        cmd_mod_opt += f" --{k} {str(v)}"
+        cmd_mod_opt += f" --{k}={v}"
     return cmd_mod_opt
 
 
@@ -422,7 +422,8 @@ def _prepare_cmd_default(cmd: str, cmd_prefix: str | None = None, **kwargs: Any)
     """
     params = kwargs.copy()
 
-    cmd_prefix = cmd_prefix or "python"
+    if not cmd_prefix or "None" in cmd_prefix:  # defaulting to 'python'
+        cmd_prefix = "python"
 
     if not cmd_prefix.endswith(" "):
         cmd_prefix += " "  # ensure a space after the command prefix so that the script can be appended
@@ -498,7 +499,7 @@ def _run_cmd_torchrun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
             raise ValueError(f"Missing required argument {arg} for torchrun.")
         torchrun_list += [f"--{arg}", str(params.pop(arg))]
     torchrun_list += cmd_list
-    return run_cmd(torchrun_list, **params)
+    return run_cmd(torchrun_list, run_cmd_verbose=True, **params)
 
 
 def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
@@ -520,4 +521,4 @@ def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
             raise ValueError(f"Missing required argument {arg} for bcprun.")
         cmd_list += [f"-{arg}", str(params.pop(arg))]
     cmd_list.extend(["-c", cmd])
-    return run_cmd(cmd_list, **params)
+    return run_cmd(cmd_list, run_cmd_verbose=True, **params)
