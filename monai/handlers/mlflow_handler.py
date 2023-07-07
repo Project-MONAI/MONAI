@@ -14,14 +14,15 @@ from __future__ import annotations
 import os
 import time
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import torch
+from torch.utils.data import Dataset
+from tqdm import tqdm
 
-from monai.config import IgniteInfo
-from monai.engines import Trainer
+from monai.config import IgniteInfo, KeysCollection
 from monai.utils import ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -72,13 +73,18 @@ class MLFlowHandler:
             ``epoch_log`` can be also a function and it will be interpreted as an event filter.
             See ``iteration_log`` argument for more details.
         dataset_log: whether to log information about the dataset at the beginning. This arg
-            is only useful when MLFlow version >= 2.4.0.
+            is only useful when MLFlow version >= 2.4.0. For more details, please go to the
+            website: https://mlflow.org/docs/latest/python_api/mlflow.data.html.
         epoch_logger: customized callable logger for epoch level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
         iteration_logger: customized callable logger for iteration level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
         dataset_logger: customized callable logger to log the dataset information with MLFlow.
-            Must accept parameter "engine", use default logger if None.
+            Must accept parameter "dataset_dict", use default logger if None.
+        dataset_dict: a dictionary in which the key is the name of the dataset and the value is a PyTorch
+            dataset, that needs to be recorded.
+        dataset_keys: a key or a collection of keys to indicate contents in the dataset that
+            need to be stored by MLFlow.
         output_transform: a callable that is used to transform the
             ``ignite.engine.state.output`` into a scalar to track, or a dictionary of {key: scalar}.
             By default this value logging happens when every iteration completed.
@@ -119,7 +125,9 @@ class MLFlowHandler:
         dataset_log: bool = False,
         epoch_logger: Callable[[Engine], Any] | None = None,
         iteration_logger: Callable[[Engine], Any] | None = None,
-        dataset_logger: Callable[[Engine], Any] | None = None,
+        dataset_logger: Callable[[Mapping[KeysCollection, Dataset]], Any] | None = None,
+        dataset_dict: Mapping[KeysCollection, Dataset] | None = None,
+        dataset_keys: KeysCollection = "image",
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
@@ -151,6 +159,8 @@ class MLFlowHandler:
         self.close_on_complete = close_on_complete
         self.experiment = None
         self.cur_run = None
+        self.dataset_dict = dataset_dict
+        self.dataset_keys = ensure_tuple(dataset_keys)
 
     def _delete_exist_param_in_dict(self, param_dict: dict) -> None:
         """
@@ -223,9 +233,9 @@ class MLFlowHandler:
 
         if self.dataset_log:
             if self.dataset_logger:
-                self.dataset_logger(engine)
+                self.dataset_logger(self.dataset_dict)
             else:
-                self._default_dataset_log(engine)
+                self._default_dataset_log(self.dataset_dict)
 
     def _set_experiment(self):
         experiment = self.experiment
@@ -247,19 +257,16 @@ class MLFlowHandler:
             f"{dataset_name}_samples": pandas_dataset.profile["num_rows"],
         }
 
-    def _log_dataset(self, sample_dict: dict[str, Any], context: str = "nontrain") -> None:
+    def _log_dataset(self, sample_dict: dict[str, Any], context: str = "train") -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
 
         # Need to update the self.cur_run to sync the dataset log, otherwise the `inputs` info will be out-of-date.
         self.cur_run = self.client.get_run(self.cur_run.info.run_id)
-        logged_train_set = [x for x in self.cur_run.inputs.dataset_inputs if "train" == x.dataset.name[: len("train")]]
-        logged_nontrain_set = [
-            x for x in self.cur_run.inputs.dataset_inputs if "nontrain" == x.dataset.name[: len("nontrain")]
-        ]
-        # In case there are more datasets.
-        dataset_cnt = str(len(logged_nontrain_set if context == "nontrain" else logged_train_set))
-        dataset_name = f"{context}_dataset_{dataset_cnt}"
+        logged_set = [x for x in self.cur_run.inputs.dataset_inputs if x.dataset.name.startswith(context)]
+        # In case there are datasets with the same name.
+        dataset_count = str(len(logged_set))
+        dataset_name = f"{context}_dataset_{dataset_count}"
         sample_df = pandas.DataFrame(sample_dict)
         dataset = mlflow.data.from_pandas(sample_df, name=dataset_name)
         exist_dataset_list = list(
@@ -403,45 +410,57 @@ class MLFlowHandler:
                 }
                 self._log_metrics(params, step=engine.state.iteration)
 
-    def _default_dataset_log(self, engine: Engine) -> None:
+    def _default_dataset_log(self, dataset_dict: Mapping[KeysCollection, Dataset]) -> None:
         """
-        Execute dataset log operation based on MONAI `Workflow.data_loader.dataset` data.
-        Abstract sample names in a dataset and build a Pandas DataFrame from it. To use this
-        function, every sample in the input dataset must have a filename, which can be fetched
-        from the `filename_or_obj` parameter in the `image_meta_dict` of the sample.
-        This function will log a PandasDataset, generated from the Pandas DataFrame, to MLFlow
-        inputs. For more details about PandasDataset, please refer to this link:
+        Execute dataset log operation based on the input dataset_dict. The dataset_dict should have a format
+        like:
+            {
+                "dataset_name0": dataset0,
+                "dataset_name1": dataset1,
+                ......
+            }
+        The keys stand for names of datasets, which will be logged as prefixes of dataset names in MLFlow.
+        The values are PyTorch datasets from which sample names are abstracted to build a Pandas DataFrame.
+
+        To use this function, every sample in the input datasets must contain keys specified by the `dataset_keys`
+        parameter.
+        This function will log a PandasDataset to MLFlow inputs, generated from the Pandas DataFrame.
+        For more details about PandasDataset, please refer to this link:
         https://mlflow.org/docs/latest/python_api/mlflow.data.html#mlflow.data.pandas_dataset.PandasDataset
 
         Please note that it may take a while to record the dataset if it has too many samples.
 
         Args:
-            engine: Ignite Engine, it can be a trainer, validator or evaluator.
+            dataset_dict: a dictionary in which the key is the name of the dataset and the value is a PyTorch
+                dataset, that needs to be recorded.
 
         """
-        dataloader = getattr(engine, "data_loader", None)
-        dataset = getattr(dataloader, "dataset", None) if dataloader else None
-        if not dataset:
-            raise AttributeError("The dataset of the engine is None. Cannot record it by MLFlow.")
 
-        sample_dict: dict[str, list[str]] = {}
-        sample_dict["images"] = []
-        for sample in dataset:
-            if isinstance(sample, dict):
-                image_name = sample["image_meta_dict"]["filename_or_obj"] if "image_meta_dict" in sample else None
-            elif isinstance(sample, list):
-                # When using a transform like `RandCropByPosNegLabel`, a sample will be a list containing image slices.
-                image_name = sample[0]["image_meta_dict"]["filename_or_obj"] if "image_meta_dict" in sample[0] else None
-            else:
-                image_name = None
-                warnings.warn(f"Don't support {type(sample)} type samples when recording the dataset with MLFlow.")
+        if len(dataset_dict) == 0:
+            warnings.WarningMessage("There is no dataset to log!")
 
-            if not isinstance(image_name, str):
-                warnings.warn(
-                    f"Expected type string, got type {type(image_name)} of the image name."
-                    "May log an empty dataset in MLFlow"
-                )
-            else:
-                sample_dict["images"].append(image_name)
-        dataset_type = "train" if isinstance(engine, Trainer) else "nontrain"
-        self._log_dataset(sample_dict, dataset_type)
+        # Log datasets to MLFlow one by one.
+        for dataset_type, dataset in dataset_dict.items():
+            if dataset is None:
+                raise AttributeError(f"The {dataset_type} dataset of is None. Cannot record it by MLFlow.")
+
+            sample_dict: dict[str, list[str]] = {}
+
+            for sample in tqdm(dataset.data, f"Recording the {dataset_type} dataset"):
+                for key in self.dataset_keys:
+                    if not key in sample_dict:
+                        sample_dict[key] = []
+
+                    if key in sample:
+                        value_to_log = sample[key]
+                    else:
+                        raise KeyError(f"Unexpect key '{key}' in the sample.")
+
+                    if not isinstance(value_to_log, str):
+                        warnings.warn(
+                            f"Expected type string, got type {type(value_to_log)} of the {key} name."
+                            "May log an empty dataset in MLFlow"
+                        )
+                    else:
+                        sample_dict[key].append(value_to_log)
+            self._log_dataset(sample_dict, dataset_type)

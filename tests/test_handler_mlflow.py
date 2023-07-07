@@ -263,9 +263,15 @@ class TestHandlerMLFlow(unittest.TestCase):
                     run_id="run",
                     final_id="finalize",
                 )
+                workflow.initialize()
+                infer_dataset = workflow.dataset
                 tracking_path = os.path.join(bundle_root, "eval")
                 mlflow_handler = MLFlowHandler(
-                    iteration_log=False, epoch_log=False, dataset_log=True, tracking_uri=path_to_uri(tracking_path)
+                    iteration_log=False,
+                    epoch_log=False,
+                    dataset_log=True,
+                    dataset_dict={"test": infer_dataset},
+                    tracking_uri=path_to_uri(tracking_path),
                 )
 
                 workflow.bundle_root = bundle_root
@@ -276,9 +282,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 workflow.finalize()
 
                 cur_run = mlflow_handler.client.get_run(mlflow_handler.cur_run.info.run_id)
-                logged_nontrain_set = [
-                    x for x in cur_run.inputs.dataset_inputs if "nontrain" == x.dataset.name[: len("nontrain")]
-                ]
+                logged_nontrain_set = [x for x in cur_run.inputs.dataset_inputs if x.dataset.name.startswith("test")]
                 self.assertEqual(len(logged_nontrain_set), 1)
                 mlflow_handler.close()
 
