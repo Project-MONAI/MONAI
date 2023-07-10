@@ -18,14 +18,14 @@ from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import IgniteMetric, from_engine
+from monai.losses import DiceLoss
 from monai.metrics import LossMetric
 from tests.utils import assert_allclose
-from monai.losses import DiceLoss
 
 TEST_CASE_1 = [{"include_background": True}, {"output_transform": from_engine(["pred", "label"])}, 0.75, (4, 2)]
 TEST_CASE_2 = [{"include_background": False}, {"output_transform": from_engine(["pred", "label"])}, 0.66666, (4, 1)]
 TEST_CASE_3 = [
-    {"reduction": "none"}, 
+    {"reduction": "none"},
     {"reduction": "mean_channel", "output_transform": from_engine(["pred", "label"])},
     torch.Tensor([1.0, 0.0, 1.0, 1.0]),
     (4, 2),
@@ -37,8 +37,8 @@ TEST_CASE_3 = [
 # compare loss_fn to metric_fn
 # compare dice loss to dice metric
 
-class TestHandlerIgniteMetricHandler(unittest.TestCase):
 
+class TestHandlerIgniteMetricHandler(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_metric_fn(self, loss_params, metric_params, expected_avg, details_shape):
         loss_fn = DiceLoss(**loss_params)
