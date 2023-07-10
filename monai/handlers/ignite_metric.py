@@ -19,14 +19,14 @@ import torch
 from torch.nn.modules.loss import _Loss
 
 from monai.config import IgniteInfo
-from monai.metrics import CumulativeIterationMetric
-from monai.utils import min_version, optional_import, MetricReduction
+from monai.metrics import CumulativeIterationMetric, LossMetric
+from monai.utils import MetricReduction, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from ignite.metrics import Metric, LossMetric
+    from ignite.metrics import LossMetric, Metric
     from ignite.metrics.metric import reinit__is_reduced
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
@@ -57,8 +57,14 @@ class IgniteMetric(Metric):
         kwargs: keyword argument that will be passed into the LossMetric
 
     """
+
     def __init__(
-        self, metric_fn: CumulativeIterationMetric = None, loss_fn: _Loss = None, output_transform: Callable = lambda x: x, save_details: bool = True, **kwargs,
+        self,
+        metric_fn: CumulativeIterationMetric = None,
+        loss_fn: _Loss = None,
+        output_transform: Callable = lambda x: x,
+        save_details: bool = True,
+        **kwargs,
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
@@ -67,12 +73,14 @@ class IgniteMetric(Metric):
         self._scores: list = []
         self._engine: Engine | None = None
         self._name: str | None = None
-        
-        if bool(self.metric_fn) == bool(self.loss_fn):
+
+        if self.metric_fn is None and  self.loss_fn is None:
+            raise ValueError(f"Either metric_fn or loss_fn have to be passed.")
+        if self.metric_fn is not None and  self.loss_fn is not None:
             raise ValueError(f"Either metric_fn or loss_fn have to be passed, but not both.")
         if self.loss_fn:
             self.metric_fn = LossMetric(loss_fn=self.loss_fn, **kwargs)
-        
+
         super().__init__(output_transform)
 
     @reinit__is_reduced
