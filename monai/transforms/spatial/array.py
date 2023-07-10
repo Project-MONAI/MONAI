@@ -3417,7 +3417,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         super().__init__(
             patch_size=patch_size,
             offset=(),
-            num_patches=None,
+            num_patches=num_patches,
             overlap=overlap,
             sort_fn=sort_fn,
             threshold=threshold,
