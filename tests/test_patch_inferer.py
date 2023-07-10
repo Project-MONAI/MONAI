@@ -127,6 +127,7 @@ TEST_CASE_10_STR_MERGER = [
     TENSOR_4x4,
 ]
 
+
 # non-divisible patch_size leading to larger image (without matching spatial shape)
 TEST_CASE_11_PADDING = [
     TENSOR_4x4,
@@ -154,6 +155,23 @@ TEST_CASE_13_PADDING_MATCHING = [
     lambda x: x,
     TENSOR_4x4,
 ]
+
+# multi-threading
+TEST_CASE_14_MULTITHREAD_BUFFER = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, buffer_size=2),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
+# multi-threading with batch
+TEST_CASE_15_MULTITHREADD_BUFFER = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, buffer_size=4, batch_size=4),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
 
 # list of tensor output
 TEST_CASE_0_LIST_TENSOR = [
@@ -245,6 +263,8 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_11_PADDING,
             TEST_CASE_12_MATCHING,
             TEST_CASE_13_PADDING_MATCHING,
+            TEST_CASE_14_MULTITHREAD_BUFFER,
+            TEST_CASE_15_MULTITHREADD_BUFFER,
         ]
     )
     def test_patch_inferer_tensor(self, inputs, arguments, network, expected):
