@@ -16,16 +16,17 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 import torch
+from torch.nn.modules.loss import _Loss
 
 from monai.config import IgniteInfo
 from monai.metrics import CumulativeIterationMetric
-from monai.utils import min_version, optional_import
+from monai.utils import min_version, optional_import, MetricReduction
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from ignite.metrics import Metric
+    from ignite.metrics import Metric, LossMetric
     from ignite.metrics.metric import reinit__is_reduced
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
@@ -44,6 +45,7 @@ class IgniteMetric(Metric):
     Args:
         metric_fn: callable function or class to compute raw metric results after every iteration.
             expect to return a Tensor with shape (batch, channel, ...) or tuple (Tensor, not_nans).
+        loss_fn: A torch _Loss function which is used to generate the LossMetric
         output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
             construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
             lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -52,18 +54,25 @@ class IgniteMetric(Metric):
             https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         save_details: whether to save metric computation details per image, for example: mean_dice of every image.
             default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+        kwargs: keyword argument that will be passed into the LossMetric
 
     """
-
     def __init__(
-        self, metric_fn: CumulativeIterationMetric, output_transform: Callable = lambda x: x, save_details: bool = True
+        self, metric_fn: CumulativeIterationMetric = None, loss_fn: _Loss = None, output_transform: Callable = lambda x: x, save_details: bool = True, **kwargs,
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
+        self.loss_fn = loss_fn
         self.save_details = save_details
         self._scores: list = []
         self._engine: Engine | None = None
         self._name: str | None = None
+        
+        if bool(self.metric_fn) == bool(self.loss_fn):
+            raise ValueError(f"Either metric_fn or loss_fn have to be passed, but not both.")
+        if self.loss_fn:
+            self.metric_fn = LossMetric(loss_fn=self.loss_fn, **kwargs)
+        
         super().__init__(output_transform)
 
     @reinit__is_reduced
