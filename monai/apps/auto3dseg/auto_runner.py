@@ -525,7 +525,7 @@ class AutoRunner:
         self.device_setting["MN_START_METHOD"] = mn_start_method
 
         if cmd_prefix is None:
-            cmd_prefix = os.environ.get("CMD_PREFIX")
+            cmd_prefix = os.environ.get("CMD_PREFIX", "")
         self.device_setting["CMD_PREFIX"] = cmd_prefix
 
         if cmd_prefix is not None:
