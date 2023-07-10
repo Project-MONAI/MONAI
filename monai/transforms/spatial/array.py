@@ -3428,7 +3428,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         self.max_offset = max_offset
         self.num_patches = num_patches
         self.sort_fn = sort_fn
-        
+
     def randomize(self, array):
         if self.min_offset is None:
             min_offset = (0,) * len(self.patch_size)
