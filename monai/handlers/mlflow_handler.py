@@ -125,8 +125,8 @@ class MLFlowHandler:
         dataset_log: bool = False,
         epoch_logger: Callable[[Engine], Any] | None = None,
         iteration_logger: Callable[[Engine], Any] | None = None,
-        dataset_logger: Callable[[Mapping[KeysCollection, Dataset]], Any] | None = None,
-        dataset_dict: Mapping[KeysCollection, Dataset] | None = None,
+        dataset_logger: Callable[[Mapping[str, Dataset]], Any] | None = None,
+        dataset_dict: Mapping[str, Dataset] | None = None,
         dataset_keys: KeysCollection = "image",
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
@@ -257,7 +257,7 @@ class MLFlowHandler:
             f"{dataset_name}_samples": pandas_dataset.profile["num_rows"],
         }
 
-    def _log_dataset(self, sample_dict: dict[str, Any], context: str | KeysCollection = "train") -> None:
+    def _log_dataset(self, sample_dict: dict[str, Any], context: str = "train") -> None:
         if not self.cur_run:
             raise ValueError("Current Run is not Active to log the dataset")
 
@@ -410,7 +410,7 @@ class MLFlowHandler:
                 }
                 self._log_metrics(params, step=engine.state.iteration)
 
-    def _default_dataset_log(self, dataset_dict: Mapping[KeysCollection, Dataset]) -> None:
+    def _default_dataset_log(self, dataset_dict: Mapping[str, Dataset]) -> None:
         """
         Execute dataset log operation based on the input dataset_dict. The dataset_dict should have a format
         like:
