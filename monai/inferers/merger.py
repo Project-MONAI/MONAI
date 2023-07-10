@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 else:
     zarr, _ = optional_import("zarr")
 
-
 __all__ = ["Merger", "AvgMerger", "ZarrAvgMerger"]
 
 

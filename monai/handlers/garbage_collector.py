@@ -49,7 +49,7 @@ class GarbageCollector:
 
     def __init__(self, trigger_event: str | Events | CallableEventWithFilter = "epoch", log_level: int = 10):
         self.trigger_event: Events | CallableEventWithFilter
-        if isinstance(trigger_event, Events) or isinstance(trigger_event, CallableEventWithFilter):
+        if isinstance(trigger_event, (Events, CallableEventWithFilter)):
             self.trigger_event = trigger_event
         elif trigger_event.lower() == "epoch":
             self.trigger_event = Events.EPOCH_COMPLETED
