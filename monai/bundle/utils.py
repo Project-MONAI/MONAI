@@ -114,11 +114,6 @@ DEFAULT_MLFLOW_SETTINGS = {
         "run_name": None,
         # may fill it at runtime
         "execute_config": None,
-        "dataset_log": False,
-        "tracking_dataset_train": {"train": f"@train{ID_SEP_KEY}dataset"},
-        "tracking_dataset_val": {"val": f"@validate{ID_SEP_KEY}dataset"},
-        "tracking_dataset_infer": {"test": "@dataset"},
-        "dataset_keys": "image",
         "is_not_rank0": (
             "$torch.distributed.is_available() \
                 and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
@@ -136,9 +131,6 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tag_name": "train_loss",
             "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
             "close_on_complete": True,
-            "dataset_log": "@dataset_log",
-            "dataset_dict": "@tracking_dataset_train",
-            "dataset_keys": "@dataset_keys",
         },
         # MLFlowHandler config for the validator
         "validator": {
@@ -148,9 +140,6 @@ DEFAULT_MLFLOW_SETTINGS = {
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
             "iteration_log": False,
-            "dataset_log": "@dataset_log",
-            "dataset_dict": "@tracking_dataset_val",
-            "dataset_keys": "@dataset_keys",
         },
         # MLFlowHandler config for the evaluator
         "evaluator": {
@@ -162,9 +151,6 @@ DEFAULT_MLFLOW_SETTINGS = {
             "artifacts": "@execute_config",
             "iteration_log": False,
             "close_on_complete": True,
-            "dataset_log": "@dataset_log",
-            "dataset_dict": "@tracking_dataset_infer",
-            "dataset_keys": "@dataset_keys",
         },
     },
 }
