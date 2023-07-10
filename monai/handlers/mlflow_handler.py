@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch.utils.data import Dataset
 
-from monai.config import IgniteInfo, KeysCollection
+from monai.config import IgniteInfo
 from monai.utils import CommonKeys, ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -125,7 +125,7 @@ class MLFlowHandler:
         iteration_logger: Callable[[Engine], Any] | None = None,
         dataset_logger: Callable[[Mapping[str, Dataset]], Any] | None = None,
         dataset_dict: Mapping[str, Dataset] | None = None,
-        dataset_keys: CommonKeys = CommonKeys.IMAGE,
+        dataset_keys: str = CommonKeys.IMAGE,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
