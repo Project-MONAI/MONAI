@@ -20,7 +20,7 @@ from torch.nn.modules.loss import _Loss
 
 from monai.config import IgniteInfo
 from monai.metrics import CumulativeIterationMetric, LossMetric
-from monai.utils import MetricReduction, min_version, optional_import
+from monai.utils import min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
@@ -75,9 +75,9 @@ class IgniteMetric(Metric):
         self._name: str | None = None
 
         if self.metric_fn is None and  self.loss_fn is None:
-            raise ValueError(f"Either metric_fn or loss_fn have to be passed.")
+            raise ValueError("Either metric_fn or loss_fn have to be passed.")
         if self.metric_fn is not None and  self.loss_fn is not None:
-            raise ValueError(f"Either metric_fn or loss_fn have to be passed, but not both.")
+            raise ValueError("Either metric_fn or loss_fn have to be passed, but not both.")
         if self.loss_fn:
             self.metric_fn = LossMetric(loss_fn=self.loss_fn, **kwargs)
 
