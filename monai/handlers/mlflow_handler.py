@@ -22,7 +22,7 @@ import torch
 from torch.utils.data import Dataset
 
 from monai.config import IgniteInfo, KeysCollection
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import CommonKeys, ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
@@ -72,9 +72,6 @@ class MLFlowHandler:
         epoch_log: whether to log data to MLFlow when epoch completed, default to `True`.
             ``epoch_log`` can be also a function and it will be interpreted as an event filter.
             See ``iteration_log`` argument for more details.
-        dataset_log: whether to log information about the dataset at the beginning. This arg
-            is only useful when MLFlow version >= 2.4.0. For more details, please go to the
-            website: https://mlflow.org/docs/latest/python_api/mlflow.data.html.
         epoch_logger: customized callable logger for epoch level logging with MLFlow.
             Must accept parameter "engine", use default logger if None.
         iteration_logger: customized callable logger for iteration level logging with MLFlow.
@@ -82,7 +79,9 @@ class MLFlowHandler:
         dataset_logger: customized callable logger to log the dataset information with MLFlow.
             Must accept parameter "dataset_dict", use default logger if None.
         dataset_dict: a dictionary in which the key is the name of the dataset and the value is a PyTorch
-            dataset, that needs to be recorded.
+            dataset, that needs to be recorded. This arg is only useful when MLFlow version >= 2.4.0.
+            For more details about how to log data with MLFlow, please go to the website:
+            https://mlflow.org/docs/latest/python_api/mlflow.data.html.
         dataset_keys: a key or a collection of keys to indicate contents in the dataset that
             need to be stored by MLFlow.
         output_transform: a callable that is used to transform the
@@ -122,12 +121,11 @@ class MLFlowHandler:
         tracking_uri: str | None = None,
         iteration_log: bool | Callable[[Engine, int], bool] = True,
         epoch_log: bool | Callable[[Engine, int], bool] = True,
-        dataset_log: bool = False,
         epoch_logger: Callable[[Engine], Any] | None = None,
         iteration_logger: Callable[[Engine], Any] | None = None,
         dataset_logger: Callable[[Mapping[str, Dataset]], Any] | None = None,
         dataset_dict: Mapping[str, Dataset] | None = None,
-        dataset_keys: KeysCollection = "image",
+        dataset_keys: CommonKeys = CommonKeys.IMAGE,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
@@ -141,7 +139,6 @@ class MLFlowHandler:
     ) -> None:
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
-        self.dataset_log = dataset_log
         self.epoch_logger = epoch_logger
         self.iteration_logger = iteration_logger
         self.dataset_logger = dataset_logger
@@ -231,11 +228,10 @@ class MLFlowHandler:
         self._delete_exist_param_in_dict(attrs)
         self._log_params(attrs)
 
-        if self.dataset_log:
-            if self.dataset_logger:
-                self.dataset_logger(self.dataset_dict)
-            else:
-                self._default_dataset_log(self.dataset_dict)
+        if self.dataset_logger:
+            self.dataset_logger(self.dataset_dict)
+        else:
+            self._default_dataset_log(self.dataset_dict)
 
     def _set_experiment(self):
         experiment = self.experiment
@@ -410,7 +406,7 @@ class MLFlowHandler:
                 }
                 self._log_metrics(params, step=engine.state.iteration)
 
-    def _default_dataset_log(self, dataset_dict: Mapping[str, Dataset]) -> None:
+    def _default_dataset_log(self, dataset_dict: Mapping[str, Dataset] | None) -> None:
         """
         Execute dataset log operation based on the input dataset_dict. The dataset_dict should have a format
         like:
@@ -421,6 +417,7 @@ class MLFlowHandler:
             }
         The keys stand for names of datasets, which will be logged as prefixes of dataset names in MLFlow.
         The values are PyTorch datasets from which sample names are abstracted to build a Pandas DataFrame.
+        If the input dataset_dict is None, this function will directly return and do nothing.
 
         To use this function, every sample in the input datasets must contain keys specified by the `dataset_keys`
         parameter.
@@ -436,7 +433,9 @@ class MLFlowHandler:
 
         """
 
-        if len(dataset_dict) == 0:
+        if dataset_dict is None:
+            return
+        elif len(dataset_dict) == 0:
             warnings.warn("There is no dataset to log!")
 
         # Log datasets to MLFlow one by one.

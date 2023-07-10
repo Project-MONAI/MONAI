@@ -272,7 +272,6 @@ class TestHandlerMLFlow(unittest.TestCase):
                 mlflow_handler = MLFlowHandler(
                     iteration_log=False,
                     epoch_log=False,
-                    dataset_log=True,
                     dataset_dict={"test": infer_dataset},
                     tracking_uri=path_to_uri(tracking_path),
                 )
