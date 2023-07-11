@@ -22,85 +22,148 @@ from monai.losses import DiceLoss
 from monai.metrics import LossMetric
 from tests.utils import assert_allclose
 
-TEST_CASE_1 = [{"include_background": True}, {"output_transform": from_engine(["pred", "label"])}, 0.75, (4, 2)]
-TEST_CASE_2 = [{"include_background": False}, {"output_transform": from_engine(["pred", "label"])}, 0.66666, (4, 1)]
+TEST_CASE_1 = [
+    {"reduction": "none", "include_background": True},
+    {},
+    {"output_transform": from_engine(["pred", "label"])},
+    0.25,
+]
+TEST_CASE_2 = [
+    {"reduction": "mean", "include_background": False},
+    {},
+    {"output_transform": from_engine(["pred", "label"])},
+    0.5,
+]
 TEST_CASE_3 = [
     {"reduction": "none"},
-    {"reduction": "mean_channel", "output_transform": from_engine(["pred", "label"])},
-    torch.Tensor([1.0, 0.0, 1.0, 1.0]),
-    (4, 2),
+    {"reduction": "mean_channel"},
+    {"output_transform": from_engine(["pred", "label"])},
+    torch.Tensor([0.5, 0]),
 ]
 
-
-# test loss_fn
-# test metric_fn
-# compare loss_fn to metric_fn
-# compare dice loss to dice metric
+TEST_CASES = [
+    [
+        {"include_background": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
+        {
+            "input": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+        },
+        0,
+    ],
+    [
+        {"include_background": False, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
+        {
+            "input": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+        },
+        0,
+    ],
+    [
+        {"include_background": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
+        {
+            "input": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+            "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]]]),
+        },
+        1,
+    ],
+    [
+        {"include_background": False, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
+        {
+            "input": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]]]),
+            "target": torch.tensor([[[[0.0, 0.0], [0.0, 0.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+        },
+        1,
+    ],
+    [
+        {"include_background": True, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
+        {
+            "input": torch.tensor([[[[0.0, 1.0], [0.0, 1.0]], [[0.0, 1.0], [0.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+        },
+        0.333333,
+    ],
+    [
+        {"include_background": False, "smooth_nr": 1e-6, "smooth_dr": 1e-6},
+        {
+            "input": torch.tensor([[[[0.0, 1.0], [0.0, 1.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+            "target": torch.tensor([[[[1.0, 0.0], [1.0, 0.0]], [[1.0, 1.0], [1.0, 1.0]]]]),
+        },
+        0,
+    ],
+]
 
 
 class TestHandlerIgniteMetricHandler(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_metric_fn(self, loss_params, metric_params, expected_avg, details_shape):
+    def test_metric_fn(self, loss_params, metric_params, handler_params, expected_avg):
         loss_fn = DiceLoss(**loss_params)
-        metric_fn = LossMetric(loss_fn=loss_fn)
-        ignite_metric = IgniteMetric(metric_fn=metric_fn, **metric_params)
+        metric_fn = LossMetric(loss_fn=loss_fn, **metric_params)
+        ignite_metric = IgniteMetric(metric_fn=metric_fn, **handler_params)
 
         def _val_func(engine, batch):
             pass
 
         engine = Engine(_val_func)
         ignite_metric.attach(engine=engine, name="ignite_dice_loss")
-        # test input a list of channel-first tensor
-        y_pred = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
-        y = torch.Tensor([[[0], [1]], [[0], [1]]])
+        y_pred = torch.tensor([[[[0.0, 1.0]], [[1.0, 0.0]]]])
+        y = torch.tensor([[[[0.0, 1.0]], [[0.0, 1.0]]]])
         engine.state.output = {"pred": y_pred, "label": y}
         engine.fire_event(Events.ITERATION_COMPLETED)
 
-        y_pred = [torch.Tensor([[0], [1]]), torch.Tensor([[1], [0]])]
-        y = torch.Tensor([[[0], [1]], [[1], [0]]])
+        y_pred = torch.tensor([[[[0.0, 1.0]], [[1.0, 0.0]]]])
+        y = torch.tensor([[[[0.0, 1.0]], [[1.0, 0.0]]]])
         engine.state.output = {"pred": y_pred, "label": y}
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         engine.fire_event(Events.EPOCH_COMPLETED)
+        print(f"{engine.state.metrics['ignite_dice_loss']}")
+        print(f"{engine.state.metric_details['ignite_dice_loss'].shape}")
+        print(f"{engine.state.metric_details['ignite_dice_loss']}")
         assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
-        self.assertTupleEqual(tuple(engine.state.metric_details["ignite_dice_loss"].shape), details_shape)
 
-    # @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    # def test_shape_mismatch(self, input_params, _expected_avg, _details_shape):
-    #     dice_metric = MeanDice(**input_params)
-    #     with self.assertRaises((AssertionError, ValueError)):
-    #         y_pred = torch.Tensor([[0, 1], [1, 0]])
-    #         y = torch.ones((2, 3))
-    #         dice_metric.update([y_pred, y])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
+    def test_loss_fn(self, loss_params, metric_params, handler_params, expected_avg):
+        loss_fn = DiceLoss(**loss_params)
+        ignite_metric = IgniteMetric(loss_fn=loss_fn, **handler_params, **metric_params)
 
-    #     with self.assertRaises((AssertionError, ValueError)):
-    #         y_pred = torch.Tensor([[0, 1], [1, 0]])
-    #         y = torch.ones((3, 2))
-    #         dice_metric.update([y_pred, y])
+        def _val_func(engine, batch):
+            pass
 
-    # @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    # def test_compute_n_class(self, input_params, expected_avg, details_shape):
-    #     dice_metric = MeanDice(num_classes=2, **input_params)
+        engine = Engine(_val_func)
+        ignite_metric.attach(engine=engine, name="ignite_dice_loss")
+        y_pred = torch.tensor([[[[0.0, 1.0]], [[1.0, 0.0]]]])
+        y = torch.tensor([[[[0.0, 1.0]], [[0.0, 1.0]]]])
+        engine.state.output = {"pred": y_pred, "label": y}
+        engine.fire_event(Events.ITERATION_COMPLETED)
 
-    #     def _val_func(engine, batch):
-    #         pass
+        y_pred = torch.tensor([[[[0.0, 1.0]], [[1.0, 0.0]]]])
+        y = torch.tensor([[[[0.0, 1.0]], [[1.0, 0.0]]]])
+        engine.state.output = {"pred": y_pred, "label": y}
+        engine.fire_event(Events.ITERATION_COMPLETED)
 
-    #     engine = Engine(_val_func)
-    #     dice_metric.attach(engine=engine, name="mean_dice")
-    #     # test input a list of channel-first tensor
-    #     y_pred = [torch.Tensor([[1]]), torch.Tensor([[0]])]
-    #     y = torch.Tensor([[[0], [1]], [[0], [1]]])
-    #     engine.state.output = {"pred": y_pred, "label": y}
-    #     engine.fire_event(Events.ITERATION_COMPLETED)
+        engine.fire_event(Events.EPOCH_COMPLETED)
+        print(f"{engine.state.metrics['ignite_dice_loss']}")
+        print(f"{engine.state.metric_details['ignite_dice_loss'].shape}")
+        print(f"{engine.state.metric_details['ignite_dice_loss']}")
+        assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
 
-    #     y_pred = [torch.Tensor([[1]]), torch.Tensor([[0]])]  # class indices y_pred
-    #     y = torch.Tensor([[[1]], [[0]]])  # class indices y
-    #     engine.state.output = {"pred": y_pred, "label": y}
-    #     engine.fire_event(Events.ITERATION_COMPLETED)
+    @parameterized.expand(TEST_CASES)
+    def test_dice_loss(self, input_param, input_data, expected_val):
+        loss_fn = DiceLoss(**input_param)
+        ignite_metric = IgniteMetric(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
 
-    #     engine.fire_event(Events.EPOCH_COMPLETED)
-    #     assert_allclose(engine.state.metrics["mean_dice"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
-    #     self.assertTupleEqual(tuple(engine.state.metric_details["mean_dice"].shape), details_shape)
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        ignite_metric.attach(engine=engine, name="ignite_dice_loss")
+        y_pred = input_data["input"]
+        y = input_data["target"]
+        engine.state.output = {"pred": y_pred, "label": y}
+        engine.fire_event(Events.ITERATION_COMPLETED)
+
+        engine.fire_event(Events.EPOCH_COMPLETED)
+        assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_val, atol=1e-4, rtol=1e-4, type_test=False)
 
 
 if __name__ == "__main__":
