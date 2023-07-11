@@ -35,8 +35,6 @@ else:
         "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, min_version, "reinit__is_reduced", as_type="decorator"
     )
 
-warnings.warn("IgniteMetric has been renamed to IgniteMetricHandler")
-
 
 class IgniteMetricHandler(Metric):
     """
