@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.handlers import IgniteMetricHandler, from_engine
+from monai.handlers import IgniteMetric, IgniteMetricHandler, from_engine
 from monai.losses import DiceLoss
 from monai.metrics import LossMetric
 from tests.utils import SkipIfNoModule, assert_allclose, optional_import
@@ -160,6 +160,25 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
     def test_dice_loss(self, input_param, input_data, expected_val):
         loss_fn = DiceLoss(**input_param)
         ignite_metric = IgniteMetricHandler(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
+
+        def _val_func(engine, batch):
+            pass
+
+        engine = Engine(_val_func)
+        ignite_metric.attach(engine=engine, name="ignite_dice_loss")
+        y_pred = input_data["input"]
+        y = input_data["target"]
+        engine.state.output = {"pred": y_pred, "label": y}
+        engine.fire_event(Events.ITERATION_COMPLETED)
+
+        engine.fire_event(Events.EPOCH_COMPLETED)
+        assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_val, atol=1e-4, rtol=1e-4, type_test=False)
+
+    @SkipIfNoModule("ignite")
+    @parameterized.expand(TEST_CASES[0:2])
+    def test_old_ignite_metric(self, input_param, input_data, expected_val):
+        loss_fn = DiceLoss(**input_param)
+        ignite_metric = IgniteMetric(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
 
         def _val_func(engine, batch):
             pass

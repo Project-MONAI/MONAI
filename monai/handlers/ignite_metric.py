@@ -13,21 +13,26 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import torch
 from torch.nn.modules.loss import _Loss
 
 from monai.config import IgniteInfo
 from monai.metrics import CumulativeIterationMetric, LossMetric
-from monai.utils import min_version, optional_import
+from monai.utils import deprecated, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
 if TYPE_CHECKING:
-    from ignite.engine import Engine
-    from ignite.metrics import Metric
-    from ignite.metrics.metric import reinit__is_reduced
+    try:
+        _, has_ignite = optional_import("ignite")
+        from ignite.engine import Engine
+        from ignite.metrics import Metric
+        from ignite.metrics.metric import reinit__is_reduced
+    except ImportError:
+        has_ignite = False
+
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
     Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="base")
@@ -148,4 +153,7 @@ class IgniteMetricHandler(Metric):
             engine.state.metric_details = {}  # type: ignore
 
 
-IgniteMetric = IgniteMetricHandler
+@deprecated(since="1.3", removed="1.4", msg_suffix="Use IgniteMetricHandler instead of IgniteMetric.")
+class IgniteMetric(IgniteMetricHandler):
+    def __init__(self, *args: List, **kwargs: Dict):
+        super().__init__(*args, **kwargs)
