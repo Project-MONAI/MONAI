@@ -14,13 +14,19 @@ from __future__ import annotations
 import unittest
 
 import torch
-from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import IgniteMetricHandler, from_engine
 from monai.losses import DiceLoss
 from monai.metrics import LossMetric
-from tests.utils import assert_allclose
+from tests.utils import SkipIfNoModule, assert_allclose, optional_import
+
+try:
+    _, has_ignite = optional_import("ignite")
+    from ignite.engine import Engine, Events
+except ImportError:
+    has_ignite = False
+
 
 TEST_CASE_1 = [
     {"reduction": "none", "include_background": True},
@@ -94,6 +100,7 @@ TEST_CASES = [
 
 
 class TestHandlerIgniteMetricHandler(unittest.TestCase):
+    @SkipIfNoModule("ignite")
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_metric_fn(self, loss_params, metric_params, handler_params, expected_avg):
         loss_fn = DiceLoss(**loss_params)
@@ -121,6 +128,7 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
         print(f"{engine.state.metric_details['ignite_dice_loss']}")
         assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
 
+    @SkipIfNoModule("ignite")
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_loss_fn(self, loss_params, metric_params, handler_params, expected_avg):
         loss_fn = DiceLoss(**loss_params)
@@ -147,6 +155,7 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
         print(f"{engine.state.metric_details['ignite_dice_loss']}")
         assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
 
+    @SkipIfNoModule("ignite")
     @parameterized.expand(TEST_CASES)
     def test_dice_loss(self, input_param, input_data, expected_val):
         loss_fn = DiceLoss(**input_param)
