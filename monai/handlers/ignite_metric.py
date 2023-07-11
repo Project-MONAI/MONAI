@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -69,7 +69,7 @@ class IgniteMetricHandler(Metric):
         loss_fn: _Loss | None = None,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
-        **kwargs: Dict,
+        **kwargs: dict,
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
@@ -155,5 +155,5 @@ class IgniteMetricHandler(Metric):
 
 @deprecated(since="1.3", removed="1.4", msg_suffix="Use IgniteMetricHandler instead of IgniteMetric.")
 class IgniteMetric(IgniteMetricHandler):
-    def __init__(self, *args: List, **kwargs: Dict):
+    def __init__(self, *args: list, **kwargs: dict):
         super().__init__(*args, **kwargs)
