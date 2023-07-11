@@ -17,7 +17,7 @@ import torch
 from ignite.engine import Engine, Events
 from parameterized import parameterized
 
-from monai.handlers import IgniteMetric, from_engine
+from monai.handlers import IgniteMetricHandler, from_engine
 from monai.losses import DiceLoss
 from monai.metrics import LossMetric
 from tests.utils import assert_allclose
@@ -98,7 +98,7 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
     def test_metric_fn(self, loss_params, metric_params, handler_params, expected_avg):
         loss_fn = DiceLoss(**loss_params)
         metric_fn = LossMetric(loss_fn=loss_fn, **metric_params)
-        ignite_metric = IgniteMetric(metric_fn=metric_fn, **handler_params)
+        ignite_metric = IgniteMetricHandler(metric_fn=metric_fn, **handler_params)
 
         def _val_func(engine, batch):
             pass
@@ -124,7 +124,7 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_loss_fn(self, loss_params, metric_params, handler_params, expected_avg):
         loss_fn = DiceLoss(**loss_params)
-        ignite_metric = IgniteMetric(loss_fn=loss_fn, **handler_params, **metric_params)
+        ignite_metric = IgniteMetricHandler(loss_fn=loss_fn, **handler_params, **metric_params)
 
         def _val_func(engine, batch):
             pass
@@ -150,7 +150,7 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_dice_loss(self, input_param, input_data, expected_val):
         loss_fn = DiceLoss(**input_param)
-        ignite_metric = IgniteMetric(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
+        ignite_metric = IgniteMetricHandler(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
 
         def _val_func(engine, batch):
             pass

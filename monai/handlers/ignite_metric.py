@@ -26,7 +26,7 @@ idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version,
 
 if TYPE_CHECKING:
     from ignite.engine import Engine
-    from ignite.metrics import LossMetric, Metric
+    from ignite.metrics import Metric
     from ignite.metrics.metric import reinit__is_reduced
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
@@ -35,8 +35,10 @@ else:
         "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, min_version, "reinit__is_reduced", as_type="decorator"
     )
 
+warnings.warn("IgniteMetric has been renamed to IgniteMetricHandler")
 
-class IgniteMetric(Metric):
+
+class IgniteMetricHandler(Metric):
     """
     Base Metric class based on ignite event handler mechanism.
     The input `prediction` or `label` data can be a PyTorch Tensor or numpy array with batch dim and channel dim,
@@ -74,9 +76,9 @@ class IgniteMetric(Metric):
         self._engine: Engine | None = None
         self._name: str | None = None
 
-        if self.metric_fn is None and  self.loss_fn is None:
+        if self.metric_fn is None and self.loss_fn is None:
             raise ValueError("Either metric_fn or loss_fn have to be passed.")
-        if self.metric_fn is not None and  self.loss_fn is not None:
+        if self.metric_fn is not None and self.loss_fn is not None:
             raise ValueError("Either metric_fn or loss_fn have to be passed, but not both.")
         if self.loss_fn:
             self.metric_fn = LossMetric(loss_fn=self.loss_fn, **kwargs)
@@ -146,3 +148,6 @@ class IgniteMetric(Metric):
         self._name = name
         if self.save_details and not hasattr(engine.state, "metric_details"):
             engine.state.metric_details = {}  # type: ignore
+
+
+IgniteMetric = IgniteMetricHandler
