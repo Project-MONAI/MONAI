@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -60,11 +60,11 @@ class IgniteMetricHandler(Metric):
 
     def __init__(
         self,
-        metric_fn: CumulativeIterationMetric = None,
-        loss_fn: _Loss = None,
+        metric_fn: CumulativeIterationMetric | None = None,
+        loss_fn: _Loss | None = None,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
-        **kwargs,
+        **kwargs: Dict,
     ) -> None:
         self._is_reduced: bool = False
         self.metric_fn = metric_fn
