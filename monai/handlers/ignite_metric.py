@@ -155,5 +155,14 @@ class IgniteMetricHandler(Metric):
 
 @deprecated(since="1.3", removed="1.4", msg_suffix="Use IgniteMetricHandler instead of IgniteMetric.")
 class IgniteMetric(IgniteMetricHandler):
-    def __init__(self, *args: list, **kwargs: dict):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        metric_fn: CumulativeIterationMetric | None = None,
+        loss_fn: _Loss | None = None,
+        output_transform: Callable = lambda x: x,
+        save_details: bool = True,
+        **kwargs: dict,
+    ) -> None:
+        super().__init__(
+            metric_fn=metric_fn, loss_fn=loss_fn, output_transform=output_transform, save_details=save_details, **kwargs
+        )
