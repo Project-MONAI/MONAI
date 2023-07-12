@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any, Tuple, Literal
+from typing import Any, Literal
 from warnings import warn
 
 import numpy as np
@@ -2603,7 +2603,7 @@ class UltrasoundConfidenceMap(Transform):
         gamma: float = 0.05,
         mode: Literal["RF", "B"] = "B",
     ):
-        
+
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -2615,7 +2615,7 @@ class UltrasoundConfidenceMap(Transform):
         # Octave instance for computing the confidence map
         self.oc = Oct2Py()
 
-    def sub2ind(self, size: Tuple[int], rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
+    def sub2ind(self, size: tuple[int], rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
         """Converts row and column subscripts into linear indices,
         basically the copy of the MATLAB function of the same name.
         https://www.mathworks.com/help/matlab/ref/sub2ind.html
@@ -2633,7 +2633,7 @@ class UltrasoundConfidenceMap(Transform):
         indices = rows + cols * size[0]
         return indices
 
-    def get_seed_and_labels(self, data : np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def get_seed_and_labels(self, data : np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Get the seed and label arrays for the max-flow algorithm
 
         Args:
@@ -2663,7 +2663,7 @@ class UltrasoundConfidenceMap(Transform):
 
         # SINK ELEMENTS - last image row
         sr_down = np.ones_like(sc) * (data.shape[0] - 1)
-        seed = self.sub2ind(data.shape, sr_down, sc).astype("float64")       
+        seed = self.sub2ind(data.shape, sr_down, sc).astype("float64")
 
         seed = np.unique(seed)
         seeds = np.concatenate((seeds, seed))
@@ -2724,7 +2724,6 @@ class UltrasoundConfidenceMap(Transform):
         # Entries vector, initially for diagonal
         s = np.zeros_like(p, dtype="float64")
 
-        vl = 0  # Vertical edges length
 
         edge_templates = [
             -1,  # Vertical edges
@@ -2738,7 +2737,6 @@ class UltrasoundConfidenceMap(Transform):
         ]
 
         vertical_end = None
-        diagonal_end = None
 
         for iter_idx, k in enumerate(edge_templates):
 
@@ -2756,7 +2754,7 @@ class UltrasoundConfidenceMap(Transform):
             if iter_idx == 1:
                 vertical_end = s.shape[0]  # Vertical edges length
             elif iter_idx == 5:
-                diagonal_end = s.shape[0]  # Diagonal edges length
+                s.shape[0]  # Diagonal edges length
 
         # Normalize weights
         s = self.normalize(s)
