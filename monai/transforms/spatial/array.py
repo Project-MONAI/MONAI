@@ -3243,7 +3243,6 @@ class GridPatch(Transform, MultiSampleTrait):
         self.num_patches = num_patches
         self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
-        self.patch_idx = tuple(range(num_patches)) if num_patches else None
 
     def filter_threshold(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
@@ -3278,8 +3277,6 @@ class GridPatch(Transform, MultiSampleTrait):
                 idx = argsort(image_np.sum(tuple(range(1, n_dims))))
             elif self.sort_fn == GridPatchSort.MAX:
                 idx = argsort(-image_np.sum(tuple(range(1, n_dims))))
-            elif self.sort_fn == GridPatchSort.RANDOM:
-                idx = self.patch_idx
             else:
                 raise ValueError(f'`sort_fn` should be either "min", "max", or None! {self.sort_fn} provided!')
             idx = idx[: self.num_patches]
@@ -3440,11 +3437,16 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
             max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
 
         self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
-
+    
+    def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         if self.sort_fn == GridPatchSort.RANDOM:
-            self.patch_idx = self.R.permutation(tuple(range(self.num_patches)))
+            idx = self.R.permutation(tuple(range(self.num_patches)))
+            idx = idx[: self.num_patches]
+            idx_np = convert_data_type(idx, np.ndarray)[0]
+            return image_np[idx], locations[idx_np]
         elif self.sort_fn not in (None, GridPatchSort.MIN, GridPatchSort.MAX):
-            raise ValueError(f'`sort_fn` should be either "min", "max", or None! {self.sort_fn} provided!')
+            raise ValueError(f'`sort_fn` should be either "min", "max", "random" or None! {self.sort_fn} provided!')
+        return super().filter_count(image_np, locations)
 
     def __call__(self, array: NdarrayOrTensor, randomize: bool = True):
         if randomize:
