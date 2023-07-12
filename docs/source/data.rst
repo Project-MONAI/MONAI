@@ -152,8 +152,8 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
-~~~~~~~~~~
 NrrdReader
+~~~~~~~~~~
 .. autoclass:: NrrdReader
   :members:
 
