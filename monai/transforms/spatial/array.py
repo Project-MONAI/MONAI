@@ -3437,7 +3437,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
             max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
 
         self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
-    
+
     def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         if self.sort_fn == GridPatchSort.RANDOM:
             idx = self.R.permutation(tuple(range(self.num_patches)))

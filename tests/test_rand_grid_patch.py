@@ -63,7 +63,7 @@ TEST_CASE_11 = [{"patch_size": (2, 2), "sort_fn": "random", "num_patches": 2}, A
 TEST_CASE_12 = [{"patch_size": (2, 2), "sort_fn": "random", "num_patches": 4}, A, [A11, A12, A21, A22]]
 TEST_CASE_13 = [
     {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "sort_fn": "random"},
-    A, 
+    A,
     [A[:, 1:3, 1:3]],
 ]
 
