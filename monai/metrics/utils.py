@@ -190,7 +190,7 @@ def get_mask_edges(
     spatial_dims = len(spacing)
     conv = torch.nn.functional.conv3d if spatial_dims == 3 else torch.nn.functional.conv2d
     vol = torch.stack([seg_pred[None], seg_gt[None]], dim=0).float()  # type: ignore
-    code_pred, code_gt = conv(vol, k.to(vol))  # type: ignore
+    code_pred, code_gt = conv(vol, k.to(vol))
     # edges
     all_ones = len(code_to_area_table) - 1
     edges_pred = (code_pred != 0) & (code_pred != all_ones)
