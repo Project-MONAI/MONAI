@@ -123,9 +123,6 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         engine.fire_event(Events.EPOCH_COMPLETED)
-        print(f"{engine.state.metrics['ignite_dice_loss']}")
-        print(f"{engine.state.metric_details['ignite_dice_loss'].shape}")
-        print(f"{engine.state.metric_details['ignite_dice_loss']}")
         assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
 
     @SkipIfNoModule("ignite")
@@ -150,9 +147,6 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
         engine.fire_event(Events.ITERATION_COMPLETED)
 
         engine.fire_event(Events.EPOCH_COMPLETED)
-        print(f"{engine.state.metrics['ignite_dice_loss']}")
-        print(f"{engine.state.metric_details['ignite_dice_loss'].shape}")
-        print(f"{engine.state.metric_details['ignite_dice_loss']}")
         assert_allclose(engine.state.metrics["ignite_dice_loss"], expected_avg, atol=1e-4, rtol=1e-4, type_test=False)
 
     @SkipIfNoModule("ignite")
