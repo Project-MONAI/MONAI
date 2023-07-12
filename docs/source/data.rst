@@ -152,6 +152,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+~~~~~~~~~~
+NrrdReader
+.. autoclass:: NrrdReader
+  :members:
 
 Image writer
 ------------
