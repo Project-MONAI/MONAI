@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.handlers.ignite_metric import IgniteMetric
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import HausdorffDistanceMetric
 from monai.utils import MetricReduction
 
 
-class HausdorffDistance(IgniteMetric):
+class HausdorffDistance(IgniteMetricHandler):
     """
     Computes Hausdorff distance from full size Tensor and collects average over batch, class-channels, iterations.
     """
