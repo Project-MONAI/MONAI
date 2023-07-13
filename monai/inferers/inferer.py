@@ -193,7 +193,7 @@ class PatchInferer(Inferer):
             buffer: Iterable | ThreadBuffer
             if self.buffer_size > 0:
                 # Use multi-threading to sample patches with a buffer
-                buffer = ThreadBuffer(patches, buffer_size=self.buffer_size, timeout=0.01)
+                buffer = ThreadBuffer(patches, buffer_size=self.buffer_size, timeout=0.1)
             else:
                 buffer = patches
             patch_batch: list[Any] = [None] * self.batch_size
