@@ -87,8 +87,6 @@ class IgniteMetricHandler(Metric):
             raise ValueError("Either metric_fn or loss_fn have to be passed, but not both.")
         if self.loss_fn:
             self.metric_fn = LossMetric(loss_fn=self.loss_fn, reduction=reduction, get_not_nans=get_not_nans)
-        # else:
-        #     self.metric_fn = cast(CumulativeIterationMetric, metric_fn)
 
         super().__init__(output_transform)
 
