@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.handlers.ignite_metric import IgniteMetric
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
 from monai.utils import MetricReduction
 
 
-class MeanSquaredError(IgniteMetric):
+class MeanSquaredError(IgniteMetricHandler):
     """
     Computes Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
@@ -51,7 +51,7 @@ class MeanSquaredError(IgniteMetric):
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
-class MeanAbsoluteError(IgniteMetric):
+class MeanAbsoluteError(IgniteMetricHandler):
     """
     Computes Mean Absolute Error from full size Tensor and collects average over batch, iterations.
     """
@@ -84,7 +84,7 @@ class MeanAbsoluteError(IgniteMetric):
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
-class RootMeanSquaredError(IgniteMetric):
+class RootMeanSquaredError(IgniteMetricHandler):
     """
     Computes Root Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
@@ -117,7 +117,7 @@ class RootMeanSquaredError(IgniteMetric):
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
-class PeakSignalToNoiseRatio(IgniteMetric):
+class PeakSignalToNoiseRatio(IgniteMetricHandler):
     """
     Computes Peak Signal to Noise Ratio from full size Tensor and collects average over batch, iterations.
     """
