@@ -700,6 +700,17 @@ Nets
 .. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
    :members:
 
+`DAF3D`
+~~~~~~~~~~~~
+.. autoclass:: DAF3D
+   :members:
+
+`Quicknat`
+~~~~~~~~~~~~
+.. autoclass:: Quicknat
+   :members:
+
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
