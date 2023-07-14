@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - dev
+      - temp-test
   # Allows you to run this workflow manually from the Actions tab
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
@@ -62,6 +63,7 @@ jobs:
     - name: docker_build
       shell: bash
       run: |
+        rm -rf /opt/hostedtoolcache
         docker --version
         # get tag info for versioning
         cat _version.py
