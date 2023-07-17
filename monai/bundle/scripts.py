@@ -193,11 +193,11 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
-def _download_from_huggingface_hub(repo: str, download_path: str, filename: str, version: str) -> None:
-    if len(repo.split("/")) != 2:
+def _download_from_huggingface_hub(repo_id: str, download_path: str, filename: str, version: str) -> None:
+    if len(repo_id.split("/")) != 2:
         raise ValueError("if source is `huggingface_hub`, repo should be in the form `repo_owner/repo_name`")
     extract_path = os.path.join(download_path, filename)
-    huggingface_hub.snapshot_download(repo_id=repo, revision=version, local_dir=extract_path, local_dir_use_symlinks="auto")
+    huggingface_hub.snapshot_download(repo_id=repo_id, revision=version, local_dir=extract_path)
 
 
 def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
@@ -212,7 +212,7 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
     elif source == "huggingface_hub":
-        huggingface_hub.list_repo_refs(repo_id=f"{repo}/{name}", repo_type="model")
+        huggingface_hub.list_repo_refs(repo_id=repo, repo_type="model")
         #TODO: implement this
         return None
     else:
@@ -351,12 +351,7 @@ def download(
         elif source_ == "huggingface_hub":
             if name_ is None:
                 raise ValueError(f"To download from source: 'huggingface_hub', `name` must be provided, got {name_}.")
-            _download_from_huggingface_hub(
-                repo=repo_,
-                download_path=bundle_dir_,
-                filename=name_,
-                version=version_,
-            )
+            _download_from_huggingface_hub(repo=repo_, download_path=bundle_dir_, filename=name_, version=version_)
         else:
             raise NotImplementedError(
                 f"Currently only download from `url`, source 'github', 'ngc', or 'huggingface_hub' are implemented, got source: {source_}."
@@ -1538,5 +1533,6 @@ def push_to_hf_hub(bundle_dir: str, repo_name: str) -> None:
         repo_name: name of the repo to create or push to the HF Hub
     """
     hf_api = huggingface_hub.HfApi()
-    repo_id = hf_api.create_repo(name=repo_name, exist_ok=True)
+    repo_url = hf_api.create_repo(name=repo_name, exist_ok=True)
+    repo_id = repo_url.repo_id
     return hf_api.upload_folder(path=bundle_dir, repo_id=repo_id)
