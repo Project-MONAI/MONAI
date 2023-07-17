@@ -27,7 +27,6 @@ try:
 except ImportError:
     has_ignite = False
 
-
 TEST_CASE_1 = [
     {"reduction": "none", "include_background": True},
     {},
