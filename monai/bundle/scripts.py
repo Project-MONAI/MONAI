@@ -321,7 +321,7 @@ def download(
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
     if repo_ is None:
         repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
-    if len(repo_.split("/")) != 3:
+    if len(repo_.split("/")) != 3 and source_ != "huggingface_hub":
         raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
 
     if url_ is not None:
