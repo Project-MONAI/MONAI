@@ -127,7 +127,6 @@ TEST_CASE_10_STR_MERGER = [
     TENSOR_4x4,
 ]
 
-
 # non-divisible patch_size leading to larger image (without matching spatial shape)
 TEST_CASE_11_PADDING = [
     TENSOR_4x4,
@@ -171,7 +170,6 @@ TEST_CASE_15_MULTITHREADD_BUFFER = [
     lambda x: x,
     TENSOR_4x4,
 ]
-
 
 # list of tensor output
 TEST_CASE_0_LIST_TENSOR = [
