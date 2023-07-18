@@ -53,6 +53,7 @@ from monai.utils import (
     SplineMode,
     TraceKeys,
     TraceStatusKeys,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -63,7 +64,6 @@ from monai.utils import (
     min_version,
     optional_import,
     pytorch_after,
-    deprecated_arg_default,
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
