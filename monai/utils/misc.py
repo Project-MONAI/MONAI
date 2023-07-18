@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import math
 import os
 import pprint
 import random
@@ -853,3 +854,13 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
         output = str(e.stdout.decode(errors="replace"))
         errors = str(e.stderr.decode(errors="replace"))
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
+
+
+def is_sqrt(num: Sequence[int] | int) -> bool:
+    """
+    Determine if the input is a square number or a squence of square numbers.
+    """
+    num = ensure_tuple(num)
+    sqrt_num = [int(math.sqrt(_num)) for _num in num]
+    ret = [_i * _j for _i, _j in zip(sqrt_num, sqrt_num)]
+    return ensure_tuple(ret) == num
