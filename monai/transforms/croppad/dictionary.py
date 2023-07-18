@@ -749,7 +749,7 @@ class CropForegroundd(Cropd):
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
-                final box edges.If `False`, part of a padded output box might be outside of the original image, if `True`,
+                final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
                 the image edges will be used as the box edges. Default to `True`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.

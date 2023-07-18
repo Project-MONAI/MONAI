@@ -88,7 +88,7 @@ for p in TEST_NDARRAYS_ALL:
                 "select_fn": lambda x: x > 0,
                 "channel_indices": None,
                 "margin": [2, 1],
-                "allow_smaller": False,
+                "allow_smaller": True,
             },
             {
                 "img": p(
@@ -107,7 +107,7 @@ for p in TEST_NDARRAYS_ALL:
                 "select_fn": lambda x: x > 0,
                 "channel_indices": None,
                 "margin": [2, 1],
-                "allow_smaller": True,
+                "allow_smaller": False,
             },
             {
                 "img": p(
