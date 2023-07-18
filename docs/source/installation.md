@@ -30,7 +30,7 @@ Ignite](https://pytorch.org/ignite/), please follow the instructions:
 
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
-The installation commands bellow usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
+The installation commands below usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
 
 1. Install the latest NVIDIA driver.
 1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
