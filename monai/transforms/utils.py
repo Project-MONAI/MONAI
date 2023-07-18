@@ -972,7 +972,8 @@ def generate_spatial_bounding_box(
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
         allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
-                final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, default to `True`.
+                final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
+                the bounding boxes edges are aligned with the final box edges. Default to `True`.
 
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
