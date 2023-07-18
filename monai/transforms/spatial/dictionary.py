@@ -2436,7 +2436,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
-            lowest values (`"min"`), or in their default order (`None`). Default to None.
+            lowest values (`"min"`), in random ("random"), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
