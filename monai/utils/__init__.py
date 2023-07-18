@@ -80,6 +80,7 @@ from .misc import (
     is_module_ver_at_least,
     is_scalar,
     is_scalar_tensor,
+    is_sqrt,
     issequenceiterable,
     list_to_dict,
     path_to_uri,
@@ -94,7 +95,6 @@ from .misc import (
     str2list,
     to_tuple_of_dictionaries,
     zip_with,
-    is_sqrt,
 )
 from .module import (
     InvalidPyTorchVersionError,
