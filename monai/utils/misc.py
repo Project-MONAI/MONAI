@@ -856,8 +856,11 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
 
 
-def is_sqrt(size):
-    size = ensure_tuple(size)
-    sqrt_size = [int(math.sqrt(_size)) for _size in size]
-    ret = [_i * _j for _i, _j in zip(sqrt_size, sqrt_size)]
-    return ensure_tuple(ret) == size
+def is_sqrt(num: Sequence[int] | int) -> bool:
+    """
+    Determine if the input is a square number or a squence of square numbers.
+    """
+    num = ensure_tuple(num)
+    sqrt_num = [int(math.sqrt(_num)) for _num in num]
+    ret = [_i * _j for _i, _j in zip(sqrt_num, sqrt_num)]
+    return ensure_tuple(ret) == num
