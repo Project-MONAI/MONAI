@@ -94,6 +94,7 @@ from .misc import (
     str2list,
     to_tuple_of_dictionaries,
     zip_with,
+    is_sqrt,
 )
 from .module import (
     InvalidPyTorchVersionError,

@@ -14,6 +14,7 @@ from __future__ import annotations
 import inspect
 import itertools
 import os
+import math
 import pprint
 import random
 import shutil
@@ -853,3 +854,10 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
         output = str(e.stdout.decode(errors="replace"))
         errors = str(e.stderr.decode(errors="replace"))
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
+
+
+def is_sqrt(size):
+    size = ensure_tuple(size)
+    sqrt_size = [int(math.sqrt(_size)) for _size in size]
+    ret = [_i * _j for _i, _j in zip(sqrt_size, sqrt_size)]
+    return ensure_tuple(ret) == size
