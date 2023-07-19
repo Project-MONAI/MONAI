@@ -82,7 +82,7 @@ for p in TEST_NDARRAYS_ALL:
     TESTS.append(
         [
             dict(num_cells=2, distort_steps=[(1.25,) * 3] * 3, mode="nearest", padding_mode="zeros"),
-            p(np.indices([3, 3, 3])[:1].astype(np.float32)),
+            p(np.indices([3, 3, 3])[:1].astype(np.float32) + 1e-5),
             p(
                 np.array(
                     [
@@ -103,7 +103,6 @@ class TestGridDistortion(unittest.TestCase):
     def test_grid_distortion(self, input_param, input_data, expected_val):
         g = GridDistortion(**input_param)
         result = g(input_data)
-        print(result)
         if input_param["padding_mode"] != "reflection":
             assert_allclose(result, expected_val, type_test=False, rtol=1e-4, atol=1e-4)
         else:
