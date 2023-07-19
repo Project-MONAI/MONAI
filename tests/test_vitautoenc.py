@@ -49,7 +49,7 @@ TEST_CASE_Vitautoenc.append(
         {
             "in_channels": 1,
             "img_size": (512, 512, 32),
-            "patch_size": (16, 16, 16),
+            "patch_size": (64, 64, 16),
             "hidden_size": 768,
             "mlp_dim": 3072,
             "num_layers": 4,
@@ -139,6 +139,19 @@ class TestVitAutoenc(unittest.TestCase):
                 in_channels=4,
                 img_size=(96, 96, 96),
                 patch_size=(16, 16, 16),
+                hidden_size=768,
+                mlp_dim=3072,
+                num_layers=12,
+                num_heads=12,
+                pos_embed="perc",
+                dropout_rate=0.3,
+            )
+
+        with self.assertRaises(ValueError):
+            ViTAutoEnc(
+                in_channels=4,
+                img_size=(96, 96, 96),
+                patch_size=(9, 9, 9),
                 hidden_size=768,
                 mlp_dim=3072,
                 num_layers=12,

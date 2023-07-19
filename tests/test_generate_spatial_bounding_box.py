@@ -82,7 +82,7 @@ for p in TEST_NDARRAYS:
                 "select_fn": lambda x: x > 0,
                 "channel_indices": None,
                 "margin": [2, 1],
-                "allow_smaller": True,
+                "allow_smaller": False,
             },
             ([-1, 0], [6, 5]),
         ]
@@ -96,7 +96,7 @@ for p in TEST_NDARRAYS:
                 "select_fn": lambda x: x > 0,
                 "channel_indices": None,
                 "margin": [2, 1],
-                "allow_smaller": False,
+                "allow_smaller": True,
             },
             ([0, 0], [5, 5]),
         ]
