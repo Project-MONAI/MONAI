@@ -643,7 +643,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
         transform = UltrasoundConfidenceMapTransform(
             alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mask"
-            
+
         )
         input_img_torch = torch.from_numpy(self.input_img_np)
         input_mask_torch = torch.from_numpy(self.input_mask_np)
