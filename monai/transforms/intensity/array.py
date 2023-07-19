@@ -2597,14 +2597,7 @@ class UltrasoundConfidenceMapTransform(Transform):
             calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
     """
 
-    def __init__(
-        self,
-        alpha: float = 2.0,
-        beta: float = 90.0,
-        gamma: float = 0.05,
-        mode="B",
-        sink_mode="all",
-    ) -> None:
+    def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all") -> None:
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -2613,7 +2606,6 @@ class UltrasoundConfidenceMapTransform(Transform):
 
         if self.mode not in ["B", "RF"]:
             raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
-
 
         if self.sink_mode not in ["all", "mid", "min", "mask"]:
             raise ValueError(

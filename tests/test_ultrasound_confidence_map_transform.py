@@ -534,10 +534,6 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         with self.assertRaises(ValueError):
             UltrasoundConfidenceMapTransform(mode="unknown")
 
-        # Unknown backend
-        with self.assertRaises(ValueError):
-            UltrasoundConfidenceMapTransform(backend="unknown")
-
         # Unknown sink_mode
         with self.assertRaises(ValueError):
             UltrasoundConfidenceMapTransform(sink_mode="unknown")
@@ -596,55 +592,38 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
     def test_func(self):
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="all"
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="all")
         output = transform(self.input_img_np)
         assert_allclose(output, SINK_ALL_OUTPUT, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mid"
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mid")
         output = transform(self.input_img_np)
         assert_allclose(output, SINK_MID_OUTPUT, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="min"
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="min")
         output = transform(self.input_img_np)
         assert_allclose(output, SINK_MIN_OUTPUT, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mask"
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mask")
         output = transform(self.input_img_np, self.input_mask_np)
         assert_allclose(output, SINK_MASK_OUTPUT, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="all"
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="all")
         input_img_torch = torch.from_numpy(self.input_img_np)
         output = transform(input_img_torch)
         assert_allclose(output, SINK_ALL_OUTPUT, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mid"
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mid")
         input_img_torch = torch.from_numpy(self.input_img_np)
         output = transform(input_img_torch)
         assert_allclose(output, SINK_MID_OUTPUT, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="min"
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="min")
         input_img_torch = torch.from_numpy(self.input_img_np)
         output = transform(input_img_torch)
         assert_allclose(output, SINK_MIN_OUTPUT, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(
-            alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mask"
-            
-        )
+        transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mask")
         input_img_torch = torch.from_numpy(self.input_img_np)
         input_mask_torch = torch.from_numpy(self.input_mask_np)
         output = transform(input_img_torch, input_mask_torch)
