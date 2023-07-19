@@ -2617,11 +2617,9 @@ class UltrasoundConfidenceMapTransform(Transform):
 
         if self.backend not in ["scipy", "octave"]:
             raise ValueError(f"Unknown backend: {self.backend}. Supported modes are 'scipy' and 'octave'.")
-
+        
         if self.sink_mode not in ["all", "mid", "min", "mask"]:
-            raise ValueError(
-                f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
-            )
+            raise ValueError(f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'.")
 
         self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
 
