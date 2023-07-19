@@ -514,7 +514,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         dtype: torch.dtype | None = None,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
         allow_missing_keys: bool = False,
