@@ -20,7 +20,6 @@ from monai.utils import min_version, optional_import
 __all__ = ["UltrasoundConfidenceMap"]
 
 cv2, _ = optional_import("cv2")
-Oct2Py, _ = optional_import("oct2py", "5.6.0", min_version, "Oct2Py")
 csc_matrix, _ = optional_import("scipy.sparse", "1.7.1", min_version, "csc_matrix")
 spsolve, _ = optional_import("scipy.sparse.linalg", "1.7.1", min_version, "spsolve")
 hilbert, _ = optional_import("scipy.signal", "1.7.1", min_version, "hilbert")
@@ -47,7 +46,6 @@ class UltrasoundConfidenceMap:
         gamma: float = 0.05,
         mode: Literal["RF", "B"] = "B",
         sink_mode: Literal["all", "mid", "min", "mask"] = "all",
-        backend: Literal["scipy", "octave"] = "scipy",
     ):
 
         # The hyperparameters for confidence map estimation
@@ -56,17 +54,12 @@ class UltrasoundConfidenceMap:
         self.gamma = gamma
         self.mode = mode
         self.sink_mode = sink_mode
-        self.backend = backend
 
         # The precision to use for all computations
         self.eps = np.finfo("float64").eps
 
         # Store sink indices for external use
         self._sink_indices = np.array([], dtype="float64")
-
-        if self.backend == "octave":
-            # Octave instance for computing the confidence map
-            self.oc = Oct2Py()
 
     def sub2ind(self, size: tuple[int], rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
         """Converts row and column subscripts into linear indices,
@@ -272,17 +265,13 @@ class UltrasoundConfidenceMap:
 
         return L
 
-    def _solve_linear_system(self, D, rhs, tol=1.0e-8, mode="scipy"):
+    def _solve_linear_system(self, D, rhs, tol=1.0e-8):
 
-        if mode == "scipy":
-            X = spsolve(D, rhs)
-
-        elif mode == "octave":
-            X = self.oc.mldivide(D, rhs)[:, 0]
+        X = spsolve(D, rhs)
 
         return X
 
-    def confidence_estimation(self, A, seeds, labels, beta, gamma, backend):
+    def confidence_estimation(self, A, seeds, labels, beta, gamma):
         """Compute confidence map
 
         Args:
@@ -326,7 +315,7 @@ class UltrasoundConfidenceMap:
         rhs = -B @ M  # type: ignore
 
         # Solve linear system
-        x = self._solve_linear_system(D, rhs, tol=1.0e-3, mode=backend)
+        x = self._solve_linear_system(D, rhs, tol=1.0e-3)
 
         # Prepare output
         probabilities = np.zeros((N,), dtype="float64")
@@ -369,6 +358,6 @@ class UltrasoundConfidenceMap:
         data = data * W
 
         # Find condidence values
-        map_ = self.confidence_estimation(data, seeds, labels, self.beta, self.gamma, self.backend)
+        map_ = self.confidence_estimation(data, seeds, labels, self.beta, self.gamma)
 
         return map_

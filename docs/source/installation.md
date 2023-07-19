@@ -10,8 +10,8 @@
 		- [Uninstall the packages](#uninstall-the-packages)
 	- [From conda-forge](#from-conda-forge)
 	- [From GitHub](#from-github)
-		- [Option 1 (as a part of your system-wide module)](#option-1-as-a-part-of-your-system-wide-module)
-		- [Option 2 (editable installation)](#option-2-editable-installation)
+		- [Option 1 (as a part of your system-wide module):](#option-1-as-a-part-of-your-system-wide-module)
+		- [Option 2 (editable installation):](#option-2-editable-installation)
 	- [Validating the install](#validating-the-install)
 	- [MONAI version string](#monai-version-string)
 	- [From DockerHub](#from-dockerhub)
@@ -254,10 +254,10 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 - The options are
 
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime, zarr]
+[nibabel, skimage, scipy, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime, zarr]
 ```
 
-which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
+which correspond to `nibabel`, `scikit-image`, `scipy`, `pillow`, `tensorboard`,
 `gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, and `zarr` respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.
