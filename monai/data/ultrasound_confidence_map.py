@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 import numpy as np
 
 from monai.utils import min_version, optional_import
