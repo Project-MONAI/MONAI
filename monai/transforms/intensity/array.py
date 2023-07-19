@@ -2604,7 +2604,7 @@ class UltrasoundConfidenceMapTransform(Transform):
         gamma: float = 0.05,
         mode = "B",
         sink_mode = "all",
-        solver_backend = "scipy",
+        solver_backend = "scipy"
     ) -> None:
         self.alpha = alpha
         self.beta = beta
