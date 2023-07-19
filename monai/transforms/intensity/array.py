@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any, Literal, Tuple
+from typing import Any, Literal
 from warnings import warn
 
 import numpy as np
