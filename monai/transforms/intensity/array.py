@@ -2593,7 +2593,8 @@ class UltrasoundConfidenceMapTransform(Transform):
         beta (float, optional): Beta parameter. Defaults to 90.0.
         gamma (float, optional): Gamma parameter. Defaults to 0.05.
         mode (str, optional): 'RF' or 'B' mode data. Defaults to 'B'.
-        sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
+        sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when
+            calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
         backend (str, optional): Backend to use. Defaults to 'scipy'. Can be one of 'scipy', 'octave'.
     """
 

@@ -246,7 +246,8 @@ class UltrasoundConfidenceMap:
 
         # Horizontal penalty
         s[:vertical_end] += gamma
-        # s[vertical_end:diagonal_end] += gamma * np.sqrt(2) # --> In the paper it is sqrt(2) since the diagonal edges are longer yet does not exist in the original code
+        # s[vertical_end:diagonal_end] += gamma * np.sqrt(2) # --> In the paper it is sqrt(2)
+        # since the diagonal edges are longer yet does not exist in the original code
 
         # Normalize differences
         s = self.normalize(s)
