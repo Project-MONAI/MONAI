@@ -2615,7 +2615,6 @@ class UltrasoundConfidenceMapTransform(Transform):
         self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
 
     def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
-
         if self.sink_mode == "mask" and mask is None:
             raise ValueError("Mask must be provided when sink mode is 'mask'.")
 

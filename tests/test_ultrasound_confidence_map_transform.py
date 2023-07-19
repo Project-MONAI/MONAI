@@ -527,7 +527,6 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         self.input_mask_np = TEST_MASK  # mock mask (numpy array)
 
     def test_parameters(self):
-
         # Unknown mode
         with self.assertRaises(ValueError):
             UltrasoundConfidenceMapTransform(mode="unknown")
@@ -589,7 +588,6 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
             transform(self.input_img_np)
 
     def test_func(self):
-
         transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="all")
         output = transform(self.input_img_np)
         assert_allclose(output, SINK_ALL_OUTPUT, rtol=1e-4, atol=1e-4)

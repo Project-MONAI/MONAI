@@ -39,7 +39,6 @@ class UltrasoundConfidenceMap:
     """
 
     def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all"):
-
         # The hyperparameters for confidence map estimation
         self.alpha = alpha
         self.beta = beta
@@ -209,7 +208,6 @@ class UltrasoundConfidenceMap:
         vertical_end = None
 
         for iter_idx, k in enumerate(edge_templates):
-
             neigh_idxs = padded_index[p + k]
 
             q = np.where(neigh_idxs > 0)[0]
@@ -258,7 +256,6 @@ class UltrasoundConfidenceMap:
         return lap
 
     def _solve_linear_system(self, lap, rhs):
-
         x = spsolve(lap, rhs)
 
         return x
