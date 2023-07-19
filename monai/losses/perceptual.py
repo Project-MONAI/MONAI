@@ -13,7 +13,10 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
-from lpips import LPIPS
+
+from monai.utils import optional_import
+
+LPIPS, _ = optional_import("lpips", name="LPIPS")
 from torchvision.models import ResNet50_Weights, resnet50
 from torchvision.models.feature_extraction import create_feature_extractor
 
