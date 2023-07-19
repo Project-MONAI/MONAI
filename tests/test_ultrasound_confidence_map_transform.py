@@ -278,7 +278,6 @@ SINK_MID_OUTPUT = np.array(
     ]
 )
 
-
 SINK_MIN_OUTPUT = np.array(
     [
         [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
@@ -521,12 +520,11 @@ SINK_MASK_OUTPUT = np.array(
 
 class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
     def setUp(self):
-        self.input_img_torch = torch.rand((256, 256))  # mock input image (torch tensor)
-        self.input_mask_torch = torch.ones((256, 256), dtype=torch.bool)  # mock mask (torch tensor)
+        self.input_img_torch = torch.from_numpy(TEST_INPUT)  # mock image (torch tensor)
+        self.input_mask_torch = torch.from_numpy(TEST_MASK)  # mock mask (torch tensor)
 
-        # create numpy versions of image and mask
-        self.input_img_np = self.input_img_torch.numpy()
-        self.input_mask_np = self.input_mask_torch.numpy()
+        self.input_img_np = TEST_INPUT  # mock image (numpy array)
+        self.input_mask_np = TEST_MASK  # mock mask (numpy array)
 
     def test_parameters(self):
 
@@ -543,7 +541,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
         # This should not raise an exception for torch tensor
         result_torch = transform(self.input_img_torch)
-        self.assertIsInstance(result_torch, np.ndarray)
+        self.assertIsInstance(result_torch, torch.Tensor)
 
         # This should not raise an exception for numpy array
         result_np = transform(self.input_img_np)
@@ -554,7 +552,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
         # This should not raise an exception for torch tensor
         result_torch = transform(self.input_img_torch)
-        self.assertIsInstance(result_torch, np.ndarray)
+        self.assertIsInstance(result_torch, torch.Tensor)
 
         # This should not raise an exception for numpy array
         result_np = transform(self.input_img_np)
@@ -565,7 +563,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
         # This should not raise an exception for torch tensor
         result_torch = transform(self.input_img_torch)
-        self.assertIsInstance(result_torch, np.ndarray)
+        self.assertIsInstance(result_torch, torch.Tensor)
 
         # This should not raise an exception for numpy array
         result_np = transform(self.input_img_np)
@@ -576,7 +574,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
         # This should not raise an exception for torch tensor with mask
         result_torch = transform(self.input_img_torch, self.input_mask_torch)
-        self.assertIsInstance(result_torch, np.ndarray)
+        self.assertIsInstance(result_torch, torch.Tensor)
 
         # This should not raise an exception for numpy array with mask
         result_np = transform(self.input_img_np, self.input_mask_np)
@@ -609,22 +607,21 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         assert_allclose(output, SINK_MASK_OUTPUT, rtol=1e-4, atol=1e-4)
 
         transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="all")
-        input_img_torch = torch.from_numpy(self.input_img_np)
-        output = transform(input_img_torch)
-        assert_allclose(output, SINK_ALL_OUTPUT, rtol=1e-4, atol=1e-4)
+        output = transform(self.input_img_torch)
+        assert_allclose(output, torch.tensor(SINK_ALL_OUTPUT), rtol=1e-4, atol=1e-4)
 
         transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mid")
-        input_img_torch = torch.from_numpy(self.input_img_np)
-        output = transform(input_img_torch)
-        assert_allclose(output, SINK_MID_OUTPUT, rtol=1e-4, atol=1e-4)
+        output = transform(self.input_img_torch)
+        assert_allclose(output, torch.tensor(SINK_MID_OUTPUT), rtol=1e-4, atol=1e-4)
 
         transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="min")
-        input_img_torch = torch.from_numpy(self.input_img_np)
-        output = transform(input_img_torch)
-        assert_allclose(output, SINK_MIN_OUTPUT, rtol=1e-4, atol=1e-4)
+        output = transform(self.input_img_torch)
+        assert_allclose(output, torch.tensor(SINK_MIN_OUTPUT), rtol=1e-4, atol=1e-4)
 
         transform = UltrasoundConfidenceMapTransform(alpha=2.0, beta=90.0, gamma=0.05, mode="B", sink_mode="mask")
-        input_img_torch = torch.from_numpy(self.input_img_np)
-        input_mask_torch = torch.from_numpy(self.input_mask_np)
-        output = transform(input_img_torch, input_mask_torch)
-        assert_allclose(output, SINK_MASK_OUTPUT, rtol=1e-4, atol=1e-4)
+        output = transform(self.input_img_torch, self.input_mask_torch)
+        assert_allclose(output, torch.tensor(SINK_MASK_OUTPUT), rtol=1e-4, atol=1e-4)
+
+
+if __name__ == "__main__":
+    unittest.main()

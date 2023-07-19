@@ -2619,8 +2619,8 @@ class UltrasoundConfidenceMapTransform(Transform):
         if self.sink_mode == "mask" and mask is None:
             raise ValueError("Mask must be provided when sink mode is 'mask'.")
 
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        img_np, *_ = convert_data_type(img, np.ndarray)
+        _img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_np, *_ = convert_data_type(_img, np.ndarray)
 
         mask_np = None
         if mask is not None:
@@ -2634,4 +2634,7 @@ class UltrasoundConfidenceMapTransform(Transform):
         # Compute confidence map
         conf_map = self._compute_conf_map(img_np, mask_np)
 
-        return convert_to_dst_type(src=conf_map, dst=img)[0]
+        if type(img) is torch.Tensor:
+            conf_map = torch.from_numpy(conf_map)
+
+        return conf_map
