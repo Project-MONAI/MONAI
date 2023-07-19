@@ -44,7 +44,7 @@ from monai.transforms import (
     convert_to_contiguous,
     reset_ops_id,
 )
-from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import
+from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import, convert_to_tensor
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -54,8 +54,10 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
+cp, _ = optional_import("cupy")
 lmdb, _ = optional_import("lmdb")
 pd, _ = optional_import("pandas")
+kvikio_numpy, _ = optional_import("kvikio.numpy")
 
 
 class Dataset(_TorchDataset):
@@ -1510,3 +1512,84 @@ class CSVDataset(Dataset):
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
         super().__init__(data=data, transform=transform)
+
+
+class GDSDataset(PersistentDataset):
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Sequence[Callable] | Callable,
+        cache_dir: Path | str | None,
+        hash_func: Callable[..., bytes] = pickle_hashing,
+        hash_transform: Callable[..., bytes] | None = None,
+        reset_ops_id: bool = True,
+        device: int = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            data=data,
+            transform=transform,
+            cache_dir=cache_dir,
+            hash_func=hash_func,
+            hash_transform=hash_transform,
+            reset_ops_id=reset_ops_id,
+            **kwargs,
+        )
+        self.device = device
+
+    def _cachecheck(self, item_transformed):
+        """given the input dictionary ``item_transformed``, return a transformed version of it"""
+        hashfile = None
+        # compute a cache id
+        if self.cache_dir is not None:
+            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+            data_item_md5 += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+
+        if hashfile is not None and hashfile.is_file():  # cache hit
+            with cp.cuda.Device(self.device):
+                item = {}
+                for k in item_transformed:
+                    meta_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta")
+                    item[k] = kvikio_numpy.fromfile(f"{hashfile}-{k}", dtype=np.float32, like=cp.empty(()))
+                    item[k] = convert_to_tensor(item[k].reshape(meta_k["shape"]), device=f"cuda:{self.device}")
+                    item[f"{k}_meta_dict"] = meta_k
+                return item
+
+        # create new cache
+        _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
+        if hashfile is None:
+            return _item_transformed
+
+        for k in _item_transformed:  # {'image': ..., 'label': ...}
+            _item_transformed_meta = _item_transformed[k].meta
+            _item_transformed_data = _item_transformed[k].array
+            _item_transformed_meta["shape"] = _item_transformed_data.shape
+            kvikio_numpy.tofile(_item_transformed_data, f"{hashfile}-{k}")
+            try:
+                # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
+                #       to make the cache more robust to manual killing of parent process
+                #       which may leave partially written cache files in an incomplete state
+                with tempfile.TemporaryDirectory() as tmpdirname:
+                    meta_hash_file_name = f"{hashfile.name}-{k}-meta"
+                    meta_hash_file = self.cache_dir / meta_hash_file_name
+                    temp_hash_file = Path(tmpdirname) / meta_hash_file_name
+                    torch.save(
+                        obj=_item_transformed_meta,
+                        f=temp_hash_file,
+                        pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
+                        pickle_protocol=self.pickle_protocol,
+                    )
+                    if temp_hash_file.is_file() and not meta_hash_file.is_file():
+                        # On Unix, if target exists and is a file, it will be replaced silently if the
+                        # user has permission.
+                        # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
+                        try:
+                            shutil.move(str(temp_hash_file), meta_hash_file)
+                        except FileExistsError:
+                            pass
+            except PermissionError:  # project-monai/monai issue #3613
+                pass
+        open(hashfile, "a").close()  # store cacheid
+
+        return _item_transformed
