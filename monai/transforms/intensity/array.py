@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any, Literal, Tuple
+from typing import Any, Literal
 from warnings import warn
 
 import numpy as np
@@ -2617,7 +2617,7 @@ class UltrasoundConfidenceMapTransform(Transform):
 
         if self.backend not in ["scipy", "octave"]:
             raise ValueError(f"Unknown backend: {self.backend}. Supported modes are 'scipy' and 'octave'.")
-        
+
         if self.sink_mode not in ["all", "mid", "min", "mask"]:
             raise ValueError(f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'.")
 

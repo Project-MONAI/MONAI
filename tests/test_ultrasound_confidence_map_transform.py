@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.transforms import UltrasoundConfidenceMapTransform
-from tests.utils import assert_allclose, is_tf32_env
+from tests.utils import assert_allclose
 
 TEST_INPUT = np.array(
     [

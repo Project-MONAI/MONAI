@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional, Tuple
+from typing import Literal
 
 import numpy as np
 
@@ -68,7 +68,7 @@ class UltrasoundConfidenceMap:
             # Octave instance for computing the confidence map
             self.oc = Oct2Py()
 
-    def sub2ind(self, size: Tuple[int], rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
+    def sub2ind(self, size: tuple[int], rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
         """Converts row and column subscripts into linear indices,
         basically the copy of the MATLAB function of the same name.
         https://www.mathworks.com/help/matlab/ref/sub2ind.html
@@ -87,8 +87,8 @@ class UltrasoundConfidenceMap:
         return indices
 
     def get_seed_and_labels(
-        self, data: np.ndarray, sink_mode: str = "all", sink_mask: Optional[np.ndarray] = None
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, data: np.ndarray, sink_mode: str = "all", sink_mask: np.ndarray | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Get the seed and label arrays for the max-flow algorithm
 
         Args:
@@ -210,7 +210,6 @@ class UltrasoundConfidenceMap:
         # Entries vector, initially for diagonal
         s = np.zeros_like(p, dtype="float64")
 
-        vl = 0  # Vertical edges length
 
         edge_templates = [
             -1,  # Vertical edges
@@ -224,7 +223,6 @@ class UltrasoundConfidenceMap:
         ]
 
         vertical_end = None
-        diagonal_end = None
 
         for iter_idx, k in enumerate(edge_templates):
 
@@ -242,7 +240,7 @@ class UltrasoundConfidenceMap:
             if iter_idx == 1:
                 vertical_end = s.shape[0]  # Vertical edges length
             elif iter_idx == 5:
-                diagonal_end = s.shape[0]  # Diagonal edges length
+                s.shape[0]  # Diagonal edges length
 
         # Normalize weights
         s = self.normalize(s)
@@ -342,7 +340,7 @@ class UltrasoundConfidenceMap:
 
         return probabilities
 
-    def __call__(self, data: np.ndarray, sink_mask: Optional[np.ndarray] = None) -> np.ndarray:
+    def __call__(self, data: np.ndarray, sink_mask: np.ndarray | None = None) -> np.ndarray:
         """Compute the confidence map
 
         Args:
