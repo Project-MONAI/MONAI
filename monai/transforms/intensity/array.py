@@ -2631,7 +2631,7 @@ class UltrasoundConfidenceMapTransform(Transform):
             img_np = skimage.color.rgb2gray(img_np)
 
         # Compute confidence map
-        conf_map = self._compute_conf_map(img_np, mask_np)
+        conf_map: NdarrayOrTensor = self._compute_conf_map(img_np, mask_np)
 
         if type(img) is torch.Tensor:
             conf_map = torch.from_numpy(conf_map)

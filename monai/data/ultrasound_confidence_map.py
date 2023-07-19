@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+from numpy.typing import NDArray
 
 from monai.utils import min_version, optional_import
 
@@ -52,7 +53,7 @@ class UltrasoundConfidenceMap:
         # Store sink indices for external use
         self._sink_indices = np.array([], dtype="float64")
 
-    def sub2ind(self, size: tuple[int], rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
+    def sub2ind(self, size: tuple[int, ...], rows: NDArray, cols: NDArray) -> NDArray:
         """Converts row and column subscripts into linear indices,
         basically the copy of the MATLAB function of the same name.
         https://www.mathworks.com/help/matlab/ref/sub2ind.html
@@ -61,27 +62,27 @@ class UltrasoundConfidenceMap:
 
         Args:
             size Tuple[int]: Size of the matrix
-            rows (np.ndarray): Row indices
-            cols (np.ndarray): Column indices
+            rows (NDArray): Row indices
+            cols (NDArray): Column indices
 
         Returns:
-            indices (np.ndarray): 1-D array of linear indices
+            indices (NDArray): 1-D array of linear indices
         """
-        indices = rows + cols * size[0]
+        indices: NDArray = rows + cols * size[0]
         return indices
 
     def get_seed_and_labels(
-        self, data: np.ndarray, sink_mode: str = "all", sink_mask: np.ndarray | None = None
-    ) -> tuple[np.ndarray, np.ndarray]:
+        self, data: NDArray, sink_mode: str = "all", sink_mask: NDArray | None = None
+    ) -> tuple[NDArray, NDArray]:
         """Get the seed and label arrays for the max-flow algorithm
 
         Args:
             data: Input array
             sink_mode (str, optional): Sink mode. Defaults to 'all'.
-            sink_mask (np.ndarray, optional): Sink mask. Defaults to None.
+            sink_mask (NDArray, optional): Sink mask. Defaults to None.
 
         Returns:
-            Tuple[np.ndarray, np.ndarray]: Seed and label arrays
+            Tuple[NDArray, NDArray]: Seed and label arrays
         """
 
         # Seeds and labels (boundary conditions)
@@ -144,37 +145,36 @@ class UltrasoundConfidenceMap:
 
         return seeds, labels
 
-    def normalize(self, inp: np.ndarray) -> np.ndarray:
+    def normalize(self, inp: NDArray) -> NDArray:
         """Normalize an array to [0, 1]"""
-        return (inp - np.min(inp)) / (np.ptp(inp) + self.eps)
+        normalized_array: NDArray = (inp - np.min(inp)) / (np.ptp(inp) + self.eps)
+        return normalized_array
 
-    def attenuation_weighting(self, img: np.ndarray, alpha: float) -> np.ndarray:
+    def attenuation_weighting(self, img: NDArray, alpha: float) -> NDArray:
         """Compute attenuation weighting
 
         Args:
-            img (np.ndarray): Image
+            img (NDArray): Image
             alpha: Attenuation coefficient (see publication)
 
         Returns:
-            w (np.ndarray): Weighting expressing depth-dependent attenuation
+            w (NDArray): Weighting expressing depth-dependent attenuation
         """
 
         # Create depth vector and repeat it for each column
         dw = np.linspace(0, 1, img.shape[0], dtype="float64")
         dw = np.tile(dw.reshape(-1, 1), (1, img.shape[1]))
 
-        w = 1.0 - np.exp(-alpha * dw)  # Compute exp inline
+        w: NDArray = 1.0 - np.exp(-alpha * dw)  # Compute exp inline
 
         return w
 
-    def confidence_laplacian(
-        self, padded_index: np.ndarray, padded_image: np.ndarray, beta: float, gamma: float
-    ) -> csc_matrix:  # type: ignore
+    def confidence_laplacian(self, padded_index: NDArray, padded_image: NDArray, beta: float, gamma: float):
         """Compute 6-Connected Laplacian for confidence estimation problem
 
         Args:
-            padded_index (np.ndarray): The index matrix of the image with boundary padding.
-            padded_image (np.ndarray): The padded image.
+            padded_index (NDArray): The index matrix of the image with boundary padding.
+            padded_image (NDArray): The padded image.
             beta (float): Random walks parameter that defines the sensitivity of the Gaussian weighting function.
             gamma (float): Horizontal penalty factor that adjusts the weight of horizontal edges in the Laplacian.
 
@@ -264,9 +264,9 @@ class UltrasoundConfidenceMap:
         """Compute confidence map
 
         Args:
-            img (np.ndarray): Processed image.
-            seeds (np.ndarray): Seeds for the random walks framework. These are indices of the source and sink nodes.
-            labels (np.ndarray): Labels for the random walks framework. These represent the classes or groups of the seeds.
+            img (NDArray): Processed image.
+            seeds (NDArray): Seeds for the random walks framework. These are indices of the source and sink nodes.
+            labels (NDArray): Labels for the random walks framework. These represent the classes or groups of the seeds.
             beta: Random walks parameter that defines the sensitivity of the Gaussian weighting function.
             gamma: Horizontal penalty factor that adjusts the weight of horizontal edges in the Laplacian.
 
@@ -318,14 +318,14 @@ class UltrasoundConfidenceMap:
 
         return probabilities
 
-    def __call__(self, data: np.ndarray, sink_mask: np.ndarray | None = None) -> np.ndarray:
+    def __call__(self, data: NDArray, sink_mask: NDArray | None = None) -> NDArray:
         """Compute the confidence map
 
         Args:
-            data (np.ndarray): RF ultrasound data (one scanline per column)
+            data (NDArray): RF ultrasound data (one scanline per column)
 
         Returns:
-            map (np.ndarray): Confidence map
+            map (NDArray): Confidence map
         """
 
         # Normalize data
@@ -347,6 +347,6 @@ class UltrasoundConfidenceMap:
         data = data * w
 
         # Find condidence values
-        map_ = self.confidence_estimation(data, seeds, labels, self.beta, self.gamma)
+        map_: NDArray = self.confidence_estimation(data, seeds, labels, self.beta, self.gamma)
 
         return map_
