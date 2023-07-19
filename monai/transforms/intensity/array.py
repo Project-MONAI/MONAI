@@ -2593,7 +2593,8 @@ class UltrasoundConfidenceMapTransform(Transform):
         beta (float, optional): Beta parameter. Defaults to 90.0.
         gamma (float, optional): Gamma parameter. Defaults to 0.05.
         mode (str, optional): 'RF' or 'B' mode data. Defaults to 'B'.
-        sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when calling the transform.
+        sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
+        backend (str, optional): Backend to use. Defaults to 'scipy'. Can be one of 'scipy', 'octave'.
     """
 
     def __init__(
@@ -2601,22 +2602,22 @@ class UltrasoundConfidenceMapTransform(Transform):
         alpha: float = 2.0,
         beta: float = 90.0,
         gamma: float = 0.05,
-        mode: Literal["RF", "B"] = "B",
-        sink_mode: Literal["all", "mid", "min", "mask"] = "all",
-        backend: Literal["scipy", "octave"] = "scipy",
+        mode = "B",
+        sink_mode = "all",
+        solver_backend = "scipy",
     ) -> None:
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
         self.mode = mode
         self.sink_mode = sink_mode
-        self.backend = backend
+        self.solver_backend = solver_backend
 
         if self.mode not in ["B", "RF"]:
             raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
 
-        if self.backend not in ["scipy", "octave"]:
-            raise ValueError(f"Unknown backend: {self.backend}. Supported modes are 'scipy' and 'octave'.")
+        if self.solver_backend not in ["scipy", "octave"]:
+            raise ValueError(f"Unknown solver backend: {self.solver_backend}. Supported modes are 'scipy' and 'octave'.")
         
         if self.sink_mode not in ["all", "mid", "min", "mask"]:
             raise ValueError(f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'.")
