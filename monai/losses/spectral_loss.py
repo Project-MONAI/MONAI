@@ -24,7 +24,7 @@ class JukeboxLoss(_Loss):
     Calculate spectral component based on the magnitude of Fast Fourier Transform (FFT).
 
     Based on:
-        Dhariwal, et al. 'Jukebox: A generative model for music.'https://arxiv.org/abs/2005.00341
+        Dhariwal, et al. 'Jukebox: A generative model for music.' https://arxiv.org/abs/2005.00341
 
     Args:
         spatial_dims: number of spatial dimensions.

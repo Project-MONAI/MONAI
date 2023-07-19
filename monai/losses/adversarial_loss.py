@@ -34,14 +34,16 @@ class PatchAdversarialLoss(_Loss):
     mustn't be passed to a final activation layer. That is taken care of internally within the loss.
 
     Args:
-        reduction: {``"none"``, ``"mean"``, ``"sum"``} Specifies the reduction to apply to the output.
-        Defaults to ``"mean"``.
-        - ``"none"``: no reduction will be applied.
-        - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
-        - ``"sum"``: the output will be summed.
+        reduction: {``"none"``, ``"mean"``, ``"sum"``}
+            Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+            - ``"none"``: no reduction will be applied.
+            - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+            - ``"sum"``: the output will be summed.
+
         criterion: which criterion (hinge, least_squares or bce) you want to use on the discriminators outputs.
-        Depending on the criterion, a different activation layer will be used. Make sure you don't run the outputs
-        through an activation layer prior to calling the loss.
+            Depending on the criterion, a different activation layer will be used. Make sure you don't run the outputs
+            through an activation layer prior to calling the loss.
         no_activation_leastsq: if True, the activation layer in the case of least-squares is removed.
     """
 
@@ -112,14 +114,14 @@ class PatchAdversarialLoss(_Loss):
         """
 
         Args:
-            input: output of Multi-Scale Patch Discriminator or Patch Discriminator; being a list of
-            tensors or a tensor; they shouldn't have gone through an activation layer.
+            input: output of Multi-Scale Patch Discriminator or Patch Discriminator; being a list of tensors
+                or a tensor; they shouldn't have gone through an activation layer.
             target_is_real: whereas the input corresponds to discriminator output for real or fake images
             for_discriminator: whereas this is being calculated for discriminator or generator loss. In the last
-            case, target_is_real is set to True, as the generator wants the input to be dimmed as real.
+                case, target_is_real is set to True, as the generator wants the input to be dimmed as real.
         Returns: if reduction is None, returns a list with the loss tensors of each discriminator if multi-scale
-        discriminator is active, or the loss tensor if there is just one discriminator. Otherwise, it returns the
-        summed or mean loss over the tensor and discriminator/s.
+            discriminator is active, or the loss tensor if there is just one discriminator. Otherwise, it returns the
+            summed or mean loss over the tensor and discriminator/s.
 
         """
 
