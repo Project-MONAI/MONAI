@@ -149,33 +149,33 @@ class UltrasoundConfidenceMap:
         """Normalize an array to [0, 1]"""
         return (inp - np.min(inp)) / (np.ptp(inp) + self.eps)
 
-    def attenuation_weighting(self, A: np.ndarray, alpha: float) -> np.ndarray:
+    def attenuation_weighting(self, img: np.ndarray, alpha: float) -> np.ndarray:
         """Compute attenuation weighting
 
         Args:
-            A (np.ndarray): Image
+            img (np.ndarray): Image
             alpha: Attenuation coefficient (see publication)
 
         Returns:
-            W (np.ndarray): Weighting expressing depth-dependent attenuation
+            w (np.ndarray): Weighting expressing depth-dependent attenuation
         """
 
         # Create depth vector and repeat it for each column
-        Dw = np.linspace(0, 1, A.shape[0], dtype="float64")
-        Dw = np.tile(Dw.reshape(-1, 1), (1, A.shape[1]))
+        dw = np.linspace(0, 1, img.shape[0], dtype="float64")
+        dw = np.tile(dw.reshape(-1, 1), (1, img.shape[1]))
 
-        W = 1.0 - np.exp(-alpha * Dw)  # Compute exp inline
+        w = 1.0 - np.exp(-alpha * dw)  # Compute exp inline
 
-        return W
+        return w
 
     def confidence_laplacian(
-        self, P: np.ndarray, A: np.ndarray, beta: float, gamma: float
+        self, padded_index: np.ndarray, padded_image: np.ndarray, beta: float, gamma: float
     ) -> csc_matrix:  # type: ignore
         """Compute 6-Connected Laplacian for confidence estimation problem
 
         Args:
-            P (np.ndarray): The index matrix of the image with boundary padding.
-            A (np.ndarray): The padded image.
+            padded_index (np.ndarray): The index matrix of the image with boundary padding.
+            padded_image (np.ndarray): The padded image.
             beta (float): Random walks parameter that defines the sensitivity of the Gaussian weighting function.
             gamma (float): Horizontal penalty factor that adjusts the weight of horizontal edges in the Laplacian.
 
@@ -183,15 +183,15 @@ class UltrasoundConfidenceMap:
             L (csc_matrix): The 6-connected Laplacian matrix used for confidence map estimation.
         """
 
-        m, _ = P.shape
+        m, _ = padded_index.shape
 
-        P = P.T.flatten()
-        A = A.T.flatten()
+        padded_index = padded_index.T.flatten()
+        padded_image = padded_image.T.flatten()
 
-        p = np.where(P > 0)[0]
+        p = np.where(padded_index > 0)[0]
 
-        i = P[p] - 1  # Index vector
-        j = P[p] - 1  # Index vector
+        i = padded_index[p] - 1  # Index vector
+        j = padded_index[p] - 1  # Index vector
         # Entries vector, initially for diagonal
         s = np.zeros_like(p, dtype="float64")
 
@@ -210,16 +210,16 @@ class UltrasoundConfidenceMap:
 
         for iter_idx, k in enumerate(edge_templates):
 
-            Q = P[p + k]
+            neigh_idxs = padded_index[p + k]
 
-            q = np.where(Q > 0)[0]
+            q = np.where(neigh_idxs > 0)[0]
 
-            ii = P[p[q]] - 1
+            ii = padded_index[p[q]] - 1
             i = np.concatenate((i, ii))
-            jj = Q[q] - 1
+            jj = neigh_idxs[q] - 1
             j = np.concatenate((j, jj))
-            W = np.abs(A[p[ii]] - A[p[jj]])  # Intensity derived weight
-            s = np.concatenate((s, W))
+            w = np.abs(padded_image[p[ii]] - padded_image[p[jj]])  # Intensity derived weight
+            s = np.concatenate((s, w))
 
             if iter_idx == 1:
                 vertical_end = s.shape[0]  # Vertical edges length
@@ -243,31 +243,31 @@ class UltrasoundConfidenceMap:
         )  # --> This epsilon changes results drastically default: 1.e-6
 
         # Create Laplacian, diagonal missing
-        L = csc_matrix((s, (i, j)))
+        lap = csc_matrix((s, (i, j)))
 
         # Reset diagonal weights to zero for summing
         # up the weighted edge degree in the next step
-        L.setdiag(0)
+        lap.setdiag(0)
 
         # Weighted edge degree
-        D = np.abs(L.sum(axis=0).A)[0]
+        diag = np.abs(lap.sum(axis=0).A)[0]
 
         # Finalize Laplacian by completing the diagonal
-        L.setdiag(D)
+        lap.setdiag(diag)
 
-        return L
+        return lap
 
-    def _solve_linear_system(self, D, rhs, tol=1.0e-8):
+    def _solve_linear_system(self, lap, rhs):
 
-        X = spsolve(D, rhs)
+        x = spsolve(lap, rhs)
 
-        return X
+        return x
 
-    def confidence_estimation(self, A, seeds, labels, beta, gamma):
+    def confidence_estimation(self, img, seeds, labels, beta, gamma):
         """Compute confidence map
 
         Args:
-            A (np.ndarray): Processed image.
+            img (np.ndarray): Processed image.
             seeds (np.ndarray): Seeds for the random walks framework. These are indices of the source and sink nodes.
             labels (np.ndarray): Labels for the random walks framework. These represent the classes or groups of the seeds.
             beta: Random walks parameter that defines the sensitivity of the Gaussian weighting function.
@@ -278,46 +278,46 @@ class UltrasoundConfidenceMap:
         """
 
         # Index matrix with boundary padding
-        G = np.arange(1, A.shape[0] * A.shape[1] + 1).reshape(A.shape[1], A.shape[0]).T
+        idx = np.arange(1, img.shape[0] * img.shape[1] + 1).reshape(img.shape[1], img.shape[0]).T
         pad = 1
 
-        G = np.pad(G, (pad, pad), "constant", constant_values=(0, 0))
-        B = np.pad(A, (pad, pad), "constant", constant_values=(0, 0))
+        padded_idx = np.pad(idx, (pad, pad), "constant", constant_values=(0, 0))
+        padded_img = np.pad(img, (pad, pad), "constant", constant_values=(0, 0))
 
         # Laplacian
-        D = self.confidence_laplacian(G, B, beta, gamma)
+        lap = self.confidence_laplacian(padded_idx, padded_img, beta, gamma)
 
         # Select marked columns from Laplacian to create L_M and B^T
-        B = D[:, seeds]
+        b = lap[:, seeds]
 
         # Select marked nodes to create B^T
-        N = np.sum(G > 0).item()
-        i_U = np.setdiff1d(np.arange(N), seeds.astype(int))  # Index of unmarked nodes
-        B = B[i_U, :]
+        n = np.sum(padded_idx > 0).item()
+        i_u = np.setdiff1d(np.arange(n), seeds.astype(int))  # Index of unmarked nodes
+        b = b[i_u, :]
 
         # Remove marked nodes from Laplacian by deleting rows and cols
-        keep_indices = np.setdiff1d(np.arange(D.shape[0]), seeds)
-        D = csc_matrix(D[keep_indices, :][:, keep_indices])
+        keep_indices = np.setdiff1d(np.arange(lap.shape[0]), seeds)
+        lap = csc_matrix(lap[keep_indices, :][:, keep_indices])
 
         # Define M matrix
-        M = np.zeros((seeds.shape[0], 1), dtype="float64")
-        M[:, 0] = labels == 1
+        m = np.zeros((seeds.shape[0], 1), dtype="float64")
+        m[:, 0] = labels == 1
 
         # Right-handside (-B^T*M)
-        rhs = -B @ M  # type: ignore
+        rhs = -b @ m  # type: ignore
 
         # Solve linear system
-        x = self._solve_linear_system(D, rhs, tol=1.0e-3)
+        x = self._solve_linear_system(lap, rhs)
 
         # Prepare output
-        probabilities = np.zeros((N,), dtype="float64")
+        probabilities = np.zeros((n,), dtype="float64")
         # Probabilities for unmarked nodes
-        probabilities[i_U] = x
+        probabilities[i_u] = x
         # Max probability for marked node
         probabilities[seeds[labels == 1].astype(int)] = 1.0
 
         # Final reshape with same size as input image (no padding)
-        probabilities = probabilities.reshape((A.shape[1], A.shape[0])).T
+        probabilities = probabilities.reshape((img.shape[1], img.shape[0])).T
 
         return probabilities
 
@@ -342,12 +342,12 @@ class UltrasoundConfidenceMap:
         seeds, labels = self.get_seed_and_labels(data, self.sink_mode, sink_mask)
 
         # Attenuation with Beer-Lambert
-        W = self.attenuation_weighting(data, self.alpha)
+        w = self.attenuation_weighting(data, self.alpha)
 
         # Apply weighting directly to image
         # Same as applying it individually during the formation of the
         # Laplacian
-        data = data * W
+        data = data * w
 
         # Find condidence values
         map_ = self.confidence_estimation(data, seeds, labels, self.beta, self.gamma)
