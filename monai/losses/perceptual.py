@@ -17,6 +17,7 @@ import torch.nn as nn
 from monai.utils import optional_import
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
+torchvision, _ = optional_import("torchvision")
 from torchvision.models import ResNet50_Weights, resnet50
 from torchvision.models.feature_extraction import create_feature_extractor
 
@@ -302,16 +303,18 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
             )
 
         if pretrained_path is None:
-            network = resnet50(weights=ResNet50_Weights.DEFAULT if pretrained else None)
+            network = torchvision.models.resnet50(
+                weights=torchvision.models.ResNet50_Weights.DEFAULT if pretrained else None
+            )
         else:
-            network = resnet50(weights=None)
+            network = torchvision.models.resnet50(weights=None)
             if pretrained is True:
                 state_dict = torch.load(pretrained_path)
                 if pretrained_state_dict_key is not None:
                     state_dict = state_dict[pretrained_state_dict_key]
                 network.load_state_dict(state_dict)
         self.final_layer = "layer4.2.relu_2"
-        self.model = create_feature_extractor(network, [self.final_layer])
+        self.model = torchvision.models.feature_extraction.create_feature_extractor(network, [self.final_layer])
         self.eval()
 
         for param in self.parameters():
