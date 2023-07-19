@@ -18,8 +18,6 @@ from monai.utils import optional_import
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
-from torchvision.models import ResNet50_Weights, resnet50
-from torchvision.models.feature_extraction import create_feature_extractor
 
 
 class PerceptualLoss(nn.Module):
