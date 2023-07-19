@@ -210,7 +210,6 @@ class UltrasoundConfidenceMap:
         # Entries vector, initially for diagonal
         s = np.zeros_like(p, dtype="float64")
 
-
         edge_templates = [
             -1,  # Vertical edges
             1,

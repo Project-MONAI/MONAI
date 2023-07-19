@@ -2602,9 +2602,9 @@ class UltrasoundConfidenceMapTransform(Transform):
         alpha: float = 2.0,
         beta: float = 90.0,
         gamma: float = 0.05,
-        mode = "B",
-        sink_mode = "all",
-        solver_backend = "scipy"
+        mode="B",
+        sink_mode="all",
+        solver_backend="scipy",
     ) -> None:
         self.alpha = alpha
         self.beta = beta
@@ -2617,10 +2617,14 @@ class UltrasoundConfidenceMapTransform(Transform):
             raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
 
         if self.solver_backend not in ["scipy", "octave"]:
-            raise ValueError(f"Unknown solver backend: {self.solver_backend}. Supported modes are 'scipy' and 'octave'.")
+            raise ValueError(
+                f"Unknown solver backend: {self.solver_backend}. Supported modes are 'scipy' and 'octave'."
+            )
 
         if self.sink_mode not in ["all", "mid", "min", "mask"]:
-            raise ValueError(f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'.")
+            raise ValueError(
+                f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
+            )
 
         self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
 
