@@ -26,6 +26,7 @@ import torch
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
+from monai.data.ultrasound_confidence_map import UltrasoundConfidenceMap
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -37,6 +38,7 @@ from monai.utils.module import min_version, optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_tensor, get_equivalent_dtype
 
 skimage, _ = optional_import("skimage", "0.19.0", min_version)
+
 
 __all__ = [
     "RandGaussianNoise",
@@ -77,6 +79,7 @@ __all__ = [
     "RandIntensityRemap",
     "ForegroundMask",
     "ComputeHoVerMaps",
+    "UltrasoundConfidenceMapTransform",
 ]
 
 
@@ -2577,3 +2580,80 @@ class ComputeHoVerMaps(Transform):
 
         hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
         return hv_maps
+
+
+class UltrasoundConfidenceMapTransform(Transform):
+    """Compute confidence map from an ultrasound image.
+    This transform uses the method introduced by Karamalis et al. in https://doi.org/10.1016/j.media.2012.07.005.
+    It generates a confidence map by setting source and sink points in the image and computing the probability
+    for random walks to reach the source for each pixel.
+
+    Args:
+        alpha (float, optional): Alpha parameter. Defaults to 2.0.
+        beta (float, optional): Beta parameter. Defaults to 90.0.
+        gamma (float, optional): Gamma parameter. Defaults to 0.05.
+        mode (str, optional): 'RF' or 'B' mode data. Defaults to 'B'.
+        sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when
+            calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
+    """
+
+    def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all") -> None:
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.mode = mode
+        self.sink_mode = sink_mode
+
+        if self.mode not in ["B", "RF"]:
+            raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
+
+        if self.sink_mode not in ["all", "mid", "min", "mask"]:
+            raise ValueError(
+                f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
+            )
+
+        self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
+
+    def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
+        """Compute confidence map from an ultrasound image.
+
+        Args:
+            img (ndarray or Tensor): Ultrasound image of shape [1, H, W] or [1, D, H, W]. If the image has channels,
+                they will be averaged before computing the confidence map.
+            mask (ndarray or Tensor, optional): Mask of shape [1, H, W]. Defaults to None. Must be
+                provided when sink mode is 'mask'. The non-zero values of the mask are used as sink points.
+
+        Returns:
+            ndarray or Tensor: Confidence map of shape [1, H, W].
+        """
+
+        if self.sink_mode == "mask" and mask is None:
+            raise ValueError("A mask must be provided when sink mode is 'mask'.")
+
+        if img.shape[0] != 1:
+            raise ValueError("The correct shape of the image is [1, H, W] or [1, D, H, W].")
+
+        _img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_np, *_ = convert_data_type(_img, np.ndarray)
+        img_np = img_np[0]  # Remove the first dimension
+
+        mask_np = None
+        if mask is not None:
+            mask = convert_to_tensor(mask, dtype=torch.bool, track_meta=get_track_meta())
+            mask_np, *_ = convert_data_type(mask, np.ndarray)
+            mask_np = mask_np[0]  # Remove the first dimension
+
+        # If the image is RGB, convert it to grayscale
+        if len(img_np.shape) == 3:
+            img_np = np.mean(img_np, axis=0)
+
+        if mask_np is not None and mask_np.shape != img_np.shape:
+            raise ValueError("The mask must have the same shape as the image.")
+
+        # Compute confidence map
+        conf_map: NdarrayOrTensor = self._compute_conf_map(img_np, mask_np)
+
+        if type(img) is torch.Tensor:
+            conf_map = torch.from_numpy(conf_map)
+
+        return conf_map
