@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.handlers.ignite_metric import IgniteMetric
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import PanopticQualityMetric
 from monai.utils import MetricReduction
 
 
-class PanopticQuality(IgniteMetric):
+class PanopticQuality(IgniteMetricHandler):
     """
     Computes Panoptic quality from full size Tensor and collects average over batch, class-channels, iterations.
     """

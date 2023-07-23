@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.handlers.ignite_metric import IgniteMetric
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import SurfaceDistanceMetric
 from monai.utils import MetricReduction
 
 
-class SurfaceDistance(IgniteMetric):
+class SurfaceDistance(IgniteMetricHandler):
     """
     Computes surface distance from full size Tensor and collects average over batch, class-channels, iterations.
     """

@@ -83,6 +83,7 @@ def run_testsuit():
         "test_handler_early_stop",
         "test_handler_garbage_collector",
         "test_handler_hausdorff_distance",
+        "test_handler_ignite_metric",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
         "test_handler_panoptic_quality",
