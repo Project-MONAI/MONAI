@@ -2615,20 +2615,40 @@ class UltrasoundConfidenceMapTransform(Transform):
         self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
 
     def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
+        """Compute confidence map from an ultrasound image.
+
+        Args:
+            img (ndarray or Tensor): Ultrasound image of shape [1, H, W] or [1, D, H, W]. If the image has channels,
+                they will be averaged before computing the confidence map.
+            mask (ndarray or Tensor, optional): Mask of shape [1, H, W]. Defaults to None. Must be
+                provided when sink mode is 'mask'. The non-zero values of the mask are used as sink points.
+
+        Returns:
+            ndarray or Tensor: Confidence map of shape [1, H, W].
+        """
+
         if self.sink_mode == "mask" and mask is None:
-            raise ValueError("Mask must be provided when sink mode is 'mask'.")
+            raise ValueError("A mask must be provided when sink mode is 'mask'.")
+
+        if img.shape[0] != 1:
+            raise ValueError("The correct shape of the image is [1, H, W] or [1, D, H, W].")
 
         _img = convert_to_tensor(img, track_meta=get_track_meta())
         img_np, *_ = convert_data_type(_img, np.ndarray)
+        img_np = img_np[0]  # Remove the first dimension
 
         mask_np = None
         if mask is not None:
             mask = convert_to_tensor(mask, dtype=torch.bool, track_meta=get_track_meta())
             mask_np, *_ = convert_data_type(mask, np.ndarray)
+            mask_np = mask_np[0]  # Remove the first dimension
 
-        # Convert to grayscale
-        if img_np.ndim == 3:
-            img_np = skimage.color.rgb2gray(img_np)
+        # If the image is RGB, convert it to grayscale
+        if len(img_np.shape) == 3:
+            img_np = np.mean(img_np, axis=0)
+
+        if mask_np is not None and mask_np.shape != img_np.shape:
+            raise ValueError("The mask must have the same shape as the image.")
 
         # Compute confidence map
         conf_map: NdarrayOrTensor = self._compute_conf_map(img_np, mask_np)

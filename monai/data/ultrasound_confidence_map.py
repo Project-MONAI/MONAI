@@ -322,10 +322,10 @@ class UltrasoundConfidenceMap:
         """Compute the confidence map
 
         Args:
-            data (NDArray): RF ultrasound data (one scanline per column)
+            data (NDArray): RF ultrasound data (one scanline per column) [H x W] 2D array
 
         Returns:
-            map (NDArray): Confidence map
+            map (NDArray): Confidence map [H x W] 2D array
         """
 
         # Normalize data
