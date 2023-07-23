@@ -535,7 +535,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         with self.assertRaises(ValueError):
             UltrasoundConfidenceMapTransform(sink_mode="unknown")
 
-    def test_RGB(self):
+    def test_rgb(self):
         # RGB image
         input_img_rgb = np.expand_dims(np.repeat(self.input_img_np, 3, axis=0), axis=0)
         input_img_rgb_torch = torch.from_numpy(input_img_rgb)
@@ -572,7 +572,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         self.assertIsInstance(result_np, np.ndarray)
         assert_allclose(result_np, SINK_MASK_OUTPUT, rtol=1e-4, atol=1e-4)
 
-    def test_multi_channel_2D(self):
+    def test_multi_channel_2d(self):
         # 2D multi-channel image
         input_img_rgb = np.expand_dims(np.repeat(self.input_img_np, 17, axis=0), axis=0)
         input_img_rgb_torch = torch.from_numpy(input_img_rgb)
