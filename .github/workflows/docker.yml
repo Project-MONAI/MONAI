@@ -85,7 +85,7 @@ jobs:
     container:
       image: docker://projectmonai/monai:latest
       options: "--shm-size=4g --ipc=host"
-    runs-on: [self-hosted, linux, X64, test]
+    runs-on: [self-hosted, linux, X64, docker]
     steps:
     - name: Import
       run: |
