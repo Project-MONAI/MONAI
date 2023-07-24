@@ -301,7 +301,7 @@ class UltrasoundConfidenceMap:
         m[:, 0] = labels == 1
 
         # Right-handside (-B^T*M)
-        rhs = -b @ m  # type: ignore
+        rhs = -b @ m
 
         # Solve linear system
         x = self._solve_linear_system(lap, rhs)
@@ -334,7 +334,7 @@ class UltrasoundConfidenceMap:
 
         if self.mode == "RF":
             # MATLAB hilbert applies the Hilbert transform to columns
-            data = np.abs(hilbert(data, axis=0)).astype("float64")  # type: ignore
+            data = np.abs(hilbert(data, axis=0)).astype("float64")
 
         seeds, labels = self.get_seed_and_labels(data, self.sink_mode, sink_mask)
 
