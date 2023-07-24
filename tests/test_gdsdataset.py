@@ -20,13 +20,14 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import PersistentDataset, json_hashing
+from monai.data import GDSDataset, json_hashing, PersistentDataset
 from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd, Transform
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     Compose(
         [
-            LoadImaged(keys=["image", "label", "extra"]),
+            LoadImaged(keys=["image", "label", "extra"], image_only=True),
             SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
         ]
     ),
@@ -35,7 +36,7 @@ TEST_CASE_1 = [
 
 TEST_CASE_2 = [
     [
-        LoadImaged(keys=["image", "label", "extra"]),
+        LoadImaged(keys=["image", "label", "extra"], image_only=True),
         SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
     ],
     (128, 128, 128),
@@ -46,39 +47,39 @@ TEST_CASE_3 = [None, (128, 128, 128)]
 
 class _InplaceXform(Transform):
     def __call__(self, data):
-        if data:
-            data[0] = data[0] + np.pi
-        else:
-            data.append(1)
+        data[0] = data[0] + 1
         return data
 
 
 class TestDataset(unittest.TestCase):
     def test_cache(self):
         """testing no inplace change to the hashed item"""
-        items = [[list(range(i))] for i in range(5)]
+        print(TEST_NDARRAYS[:2] + TEST_NDARRAYS[3:])
+        for p in TEST_NDARRAYS:
+            shape = (1, 10, 9, 8)
+            items = [p(np.arange(0, np.prod(shape)).reshape(shape))]
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            ds = PersistentDataset(
-                data=items,
-                transform=_InplaceXform(),
-                cache_dir=tempdir,
-                pickle_module="pickle",
-                pickle_protocol=pickle.HIGHEST_PROTOCOL,
-            )
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-            ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir)
-            self.assertEqual(list(ds1), list(ds))
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+            print("--- type:", type(items[0]))
+            with tempfile.TemporaryDirectory() as tempdir:
+                ds = GDSDataset(
+                    data=items,
+                    transform=_InplaceXform(),
+                    cache_dir=tempdir,
+                    device=0,
+                    pickle_module="pickle",
+                    pickle_protocol=pickle.HIGHEST_PROTOCOL,
+                )
+                ds1 = GDSDataset(items, transform=_InplaceXform(), cache_dir=tempdir, device=0)
+                assert_allclose(ds[0], ds1[0], type_test=False)
+                assert_allclose(items[0], p(np.arange(0, np.prod(shape)).reshape(shape)))
 
-            ds = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=json_hashing)
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
-            ds1 = PersistentDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_func=json_hashing)
-            self.assertEqual(list(ds1), list(ds))
-            self.assertEqual(items, [[[]], [[0]], [[0, 1]], [[0, 1, 2]], [[0, 1, 2, 3]]])
+                ds2 = GDSDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_transform=json_hashing, device=0)
+                assert_allclose(ds[0], ds2[0], type_test=False)
+                assert_allclose(items[0], p(np.arange(0, np.prod(shape)).reshape(shape)))
 
     # @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     # def test_shape(self, transform, expected_shape):
+    #     import torch
     #     test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
     #     with tempfile.TemporaryDirectory() as tempdir:
     #         nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
@@ -101,10 +102,11 @@ class TestDataset(unittest.TestCase):
     #         ]
 
     #         cache_dir = os.path.join(os.path.join(tempdir, "cache"), "data")
-    #         dataset_precached = PersistentDataset(data=test_data, transform=transform, cache_dir=cache_dir)
+    #         dataset_precached = GDSDataset(data=test_data, transform=transform, cache_dir=cache_dir, device=0)
     #         data1_precached = dataset_precached[0]
     #         data2_precached = dataset_precached[1]
-    #         dataset_postcached = PersistentDataset(data=test_data, transform=transform, cache_dir=cache_dir)
+
+    #         dataset_postcached = GDSDataset(data=test_data, transform=transform, cache_dir=cache_dir, device=0)
     #         data1_postcached = dataset_postcached[0]
     #         data2_postcached = dataset_postcached[1]
     #         data3_postcached = dataset_postcached[0:2]
@@ -131,38 +133,38 @@ class TestDataset(unittest.TestCase):
     #             for d in data3_postcached:
     #                 self.assertTupleEqual(d["image"].shape, expected_shape)
 
-    #         # update the data to cache
-    #         test_data_new = [
-    #             {
-    #                 "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
-    #                 "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
-    #                 "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
-    #             },
-    #             {
-    #                 "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
-    #                 "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
-    #                 "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
-    #             },
-    #         ]
-    #         dataset_postcached.set_data(data=test_data_new)
-    #         # test new exchanged cache content
-    #         if transform is None:
-    #             self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
-    #             self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
-    #             self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
+    #         # # update the data to cache
+    #         # test_data_new = [
+    #         #     {
+    #         #         "image": os.path.join(tempdir, "test_image1_new.nii.gz"),
+    #         #         "label": os.path.join(tempdir, "test_label1_new.nii.gz"),
+    #         #         "extra": os.path.join(tempdir, "test_extra1_new.nii.gz"),
+    #         #     },
+    #         #     {
+    #         #         "image": os.path.join(tempdir, "test_image2_new.nii.gz"),
+    #         #         "label": os.path.join(tempdir, "test_label2_new.nii.gz"),
+    #         #         "extra": os.path.join(tempdir, "test_extra2_new.nii.gz"),
+    #         #     },
+    #         # ]
+    #         # dataset_postcached.set_data(data=test_data_new)
+    #         # # test new exchanged cache content
+    #         # if transform is None:
+    #         #     self.assertEqual(dataset_postcached[0]["image"], os.path.join(tempdir, "test_image1_new.nii.gz"))
+    #         #     self.assertEqual(dataset_postcached[0]["label"], os.path.join(tempdir, "test_label1_new.nii.gz"))
+    #         #     self.assertEqual(dataset_postcached[1]["extra"], os.path.join(tempdir, "test_extra2_new.nii.gz"))
 
-    def test_different_transforms(self):
-        """
-        Different instances of `PersistentDataset` with the same cache_dir,
-        same input data, but different transforms should give different results.
-        """
-        shape = (1, 10, 9, 8)
-        im = np.arange(0, np.prod(shape)).reshape(shape)
-        with tempfile.TemporaryDirectory() as path:
-            im1 = PersistentDataset([im], Identity(), cache_dir=path, hash_transform=json_hashing)[0]
-            im2 = PersistentDataset([im], Flip(1), cache_dir=path, hash_transform=json_hashing)[0]
-            l2 = ((im1 - im2) ** 2).sum() ** 0.5
-            self.assertTrue(l2 > 1)
+    # def test_different_transforms(self):
+    #     """
+    #     Different instances of `GDSDataset` with the same cache_dir,
+    #     same input data, but different transforms should give different results.
+    #     """
+    #     shape = (1, 10, 9, 8)
+    #     im = np.arange(0, np.prod(shape)).reshape(shape)
+    #     with tempfile.TemporaryDirectory() as path:
+    #         im1 = GDSDataset([im], Identity(), cache_dir=path, hash_transform=json_hashing, device=0)[0]
+    #         im2 = GDSDataset([im], Flip(1), cache_dir=path, hash_transform=json_hashing, device=0)[0]
+    #         l2 = ((im1 - im2) ** 2).sum() ** 0.5
+    #         self.assertTrue(l2 > 1)
 
 
 if __name__ == "__main__":

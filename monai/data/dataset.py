@@ -34,6 +34,7 @@ from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
 from monai.transforms import (
     Compose,
@@ -46,6 +47,7 @@ from monai.transforms import (
 )
 from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import, convert_to_tensor
 from monai.utils.misc import first
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -328,7 +330,6 @@ class PersistentDataset(Dataset):
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
-
         item_transformed = self.transform(item_transformed, end=first_random, threading=True)
 
         if self.reset_ops_id:
@@ -377,6 +378,8 @@ class PersistentDataset(Dataset):
         """
         hashfile = None
         if self.cache_dir is not None:
+            if isinstance(item_transformed, np.ndarray):
+                print('*** Attention ****', item_transformed.dtype, item_transformed.shape)
             data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
             data_item_md5 += self.transform_hash
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
@@ -1520,10 +1523,10 @@ class GDSDataset(PersistentDataset):
         data: Sequence,
         transform: Sequence[Callable] | Callable,
         cache_dir: Path | str | None,
+        device: int,
         hash_func: Callable[..., bytes] = pickle_hashing,
         hash_transform: Callable[..., bytes] | None = None,
         reset_ops_id: bool = True,
-        device: int = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(
@@ -1546,50 +1549,90 @@ class GDSDataset(PersistentDataset):
             data_item_md5 += self.transform_hash
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
+        # print('cache ', self.cache_dir, hashfile, type(item_transformed), isinstance(item_transformed, (np.ndarray, torch.Tensor)))
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):
-                item = {}
-                for k in item_transformed:
-                    meta_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta")
-                    item[k] = kvikio_numpy.fromfile(f"{hashfile}-{k}", dtype=np.float32, like=cp.empty(()))
-                    item[k] = convert_to_tensor(item[k].reshape(meta_k["shape"]), device=f"cuda:{self.device}")
-                    item[f"{k}_meta_dict"] = meta_k
-                return item
+                if isinstance(item_transformed, dict):
+                    item = {}
+                    for k in item_transformed:
+                        meta_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta")
+                        item[k] = kvikio_numpy.fromfile(f"{hashfile}-{k}", dtype=meta_k["dtype"], like=cp.empty(()))
+                        item[k] = convert_to_tensor(item[k].reshape(meta_k["shape"]), device=f"cuda:{self.device}")
+                        item[f"{k}_meta_dict"] = meta_k
+                    return item
+                elif isinstance(item_transformed, (np.ndarray, torch.Tensor)):
+                    _meta = torch.load(self.cache_dir / f"{hashfile.name}-meta")
+                    _data = kvikio_numpy.fromfile(f"{hashfile}", dtype=_meta.pop("dtype"), like=cp.empty(()))
+                    _data = convert_to_tensor(_data.reshape(_meta.pop("shape")), device=f"cuda:{self.device}")
+                    if bool(_meta):
+                        return (_data, _meta)
+                    return _data
+                else:
+                    item = []
+                    for i, _item in enumerate(item_transformed):
+                        for k in _item:
+                            meta_i_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta-{i}")
+                            item_k = kvikio_numpy.fromfile(f"{hashfile}-{k}-{i}", dtype=np.float32, like=cp.empty(()))
+                            item_k = convert_to_tensor(item[i].reshape(meta_i_k["shape"]), device=f"cuda:{self.device}")
+                            item[i] = {f"{k}": item_k, f"{k}_meta_dict": meta_k}
+                    return item
 
         # create new cache
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is None:
             return _item_transformed
-
-        for k in _item_transformed:  # {'image': ..., 'label': ...}
-            _item_transformed_meta = _item_transformed[k].meta
-            _item_transformed_data = _item_transformed[k].array
-            _item_transformed_meta["shape"] = _item_transformed_data.shape
-            kvikio_numpy.tofile(_item_transformed_data, f"{hashfile}-{k}")
-            try:
-                # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
-                #       to make the cache more robust to manual killing of parent process
-                #       which may leave partially written cache files in an incomplete state
-                with tempfile.TemporaryDirectory() as tmpdirname:
-                    meta_hash_file_name = f"{hashfile.name}-{k}-meta"
-                    meta_hash_file = self.cache_dir / meta_hash_file_name
-                    temp_hash_file = Path(tmpdirname) / meta_hash_file_name
-                    torch.save(
-                        obj=_item_transformed_meta,
-                        f=temp_hash_file,
-                        pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
-                        pickle_protocol=self.pickle_protocol,
-                    )
-                    if temp_hash_file.is_file() and not meta_hash_file.is_file():
-                        # On Unix, if target exists and is a file, it will be replaced silently if the
-                        # user has permission.
-                        # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
-                        try:
-                            shutil.move(str(temp_hash_file), meta_hash_file)
-                        except FileExistsError:
-                            pass
-            except PermissionError:  # project-monai/monai issue #3613
-                pass
+        if isinstance(_item_transformed, dict):  # {"image": ,"label": }
+            print("*********")
+            for k in _item_transformed:
+                data_hashfile = f"{hashfile}-{k}"
+                meta_hash_file_name = f"{hashfile.name}-{k}-meta"
+                if isinstance(_item_transformed[k], (np.ndarray, torch.Tensor)):
+                    self._create_new_cache(_item_transformed[k], data_hashfile, meta_hash_file_name)
+                else:
+                    return _item_transformed
+        elif isinstance(_item_transformed, (np.ndarray, torch.Tensor)):  # [array, {}]
+            data_hashfile = f"{hashfile}"
+            meta_hash_file_name = f"{hashfile.name}-meta"
+            self._create_new_cache(_item_transformed, data_hashfile, meta_hash_file_name)
+        else: # [{"image": metatensor,"label": metatensor}, {"image": ,"label": }, "image_meta_dict"], [metatensor, metatensor, ]
+            for i, _item in enumerate(_item_transformed):
+                for k in _item:
+                    data_hashfile = f"{hashfile}-{k}-{i}"
+                    meta_hash_file_name = f"{hashfile.name}-{k}-meta-{i}"
+                    self._create_new_cache(_item, data_hashfile, meta_hash_file_name)
         open(hashfile, "a").close()  # store cacheid
 
         return _item_transformed
+
+    def _create_new_cache(self, data, data_hashfile, meta_hash_file_name):
+        _item_transformed_meta = data.meta if isinstance(data, MetaTensor) else {}
+        _item_transformed_data = data.array if isinstance(data, MetaTensor) else data
+        print(type(_item_transformed_data))
+        if isinstance(_item_transformed_data, torch.Tensor):
+            _item_transformed_data = _item_transformed_data.numpy()
+        _item_transformed_meta["shape"] = _item_transformed_data.shape
+        _item_transformed_meta["dtype"] = _item_transformed_data.dtype
+        kvikio_numpy.tofile(_item_transformed_data, data_hashfile)
+        try:
+            # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
+            #       to make the cache more robust to manual killing of parent process
+            #       which may leave partially written cache files in an incomplete state
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                meta_hash_file = self.cache_dir / meta_hash_file_name
+                temp_hash_file = Path(tmpdirname) / meta_hash_file_name
+                torch.save(
+                    obj=_item_transformed_meta,
+                    f=temp_hash_file,
+                    pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
+                    pickle_protocol=self.pickle_protocol,
+                )
+                if temp_hash_file.is_file() and not meta_hash_file.is_file():
+                    # On Unix, if target exists and is a file, it will be replaced silently if the
+                    # user has permission.
+                    # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
+                    try:
+                        shutil.move(str(temp_hash_file), meta_hash_file)
+                    except FileExistsError:
+                        pass
+        except PermissionError:  # project-monai/monai issue #3613
+            pass

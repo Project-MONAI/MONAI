@@ -38,6 +38,7 @@ from .dataset import (
     PersistentDataset,
     SmartCacheDataset,
     ZipDataset,
+    GDSDataset,
 )
 from .dataset_summary import DatasetSummary
 from .decathlon_datalist import (
