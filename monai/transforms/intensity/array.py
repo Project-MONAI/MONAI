@@ -39,7 +39,6 @@ from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, 
 
 skimage, _ = optional_import("skimage", "0.19.0", min_version)
 
-
 __all__ = [
     "RandGaussianNoise",
     "RandRicianNoise",

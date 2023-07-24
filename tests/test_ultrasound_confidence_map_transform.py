@@ -49,7 +49,6 @@ TEST_MASK = np.array(
     ]
 )
 
-
 SINK_ALL_OUTPUT = np.array(
     [
         [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
