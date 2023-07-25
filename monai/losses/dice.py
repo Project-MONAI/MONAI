@@ -268,6 +268,7 @@ class GeneralizedDiceLoss(_Loss):
             smooth_dr: a small constant added to the denominator to avoid nan.
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, intersection over union is computed from each item in the batch.
+                If True, the class-weighted intersection and union areas are first summed across the batches.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
