@@ -92,7 +92,7 @@ def soft_skel(img: torch.Tensor, iter_: int) -> torch.Tensor:
     return skel
 
 
-def soft_dice(y_true: torch.Tensor, y_pred: torch.Tensor, smooth: int = 1) -> torch.Tensor:
+def soft_dice(y_true: torch.Tensor, y_pred: torch.Tensor, smooth: float = 1.0) -> torch.Tensor:
     """
     Function to compute soft dice loss
 
