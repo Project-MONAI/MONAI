@@ -33,7 +33,7 @@ Please note that there are environment variables that can override the flags abo
 
 We recommend that users print out these two flags for confirmation when unsure.
 
-If you are using an NGC PyTorch container, the container includes a layer `ENV TORCH_ALLOW_TF32_CUBLAS_OVERRIDE=1`.
+If you are using an [NGC PyTorch container](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch), the container includes a layer `ENV TORCH_ALLOW_TF32_CUBLAS_OVERRIDE=1`.
 The default value `torch.backends.cuda.matmul.allow_tf32` will be overridden to `True`.
 
 If you can confirm through experiments that your model has no accuracy or convergence issues in TF32 mode and you have NVIDIA Ampere GPUs or above, you can set the two flags above to `True` to speed up your model.
