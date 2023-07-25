@@ -129,6 +129,7 @@ from .intensity.array import (
     ShiftIntensity,
     StdShiftIntensity,
     ThresholdIntensity,
+    UltrasoundConfidenceMapTransform,
 )
 from .intensity.dictionary import (
     AdjustContrastd,
