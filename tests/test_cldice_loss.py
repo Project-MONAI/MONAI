@@ -22,10 +22,7 @@ TEST_CASES = [
         0.0,
     ],
     [  # shape: (1, 5), (1, 5)
-        {
-            "y_pred": torch.ones((100, 3, 256, 256, 5)),
-            "y_true": torch.ones((100, 3, 256, 256, 5)),
-        },
+        {"y_pred": torch.ones((100, 3, 256, 256, 5)), "y_true": torch.ones((100, 3, 256, 256, 5))},
         0.0,
     ],
 ]
