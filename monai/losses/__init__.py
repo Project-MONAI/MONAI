@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss
 from .dice import (
