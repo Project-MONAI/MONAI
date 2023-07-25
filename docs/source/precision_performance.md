@@ -13,7 +13,7 @@ WITH TENSOR CORES](https://nvlabs.github.io/eccv2020-mixed-precision-tutorial/fi
 
 TF32 adopts 8 exponent bits, 10 bits of mantissa, and one sign bit.
 
-![Precision options used for AI training.](../images/ai_training_tf32_tensor_cores.png)
+![Precision options used for AI training.](../images/precision_options.png)
 
 ### Potential Impact
 
