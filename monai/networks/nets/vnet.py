@@ -224,7 +224,8 @@ class VNet(nn.Module):
         in_channels: int = 1,
         out_channels: int = 1,
         act: tuple[str, dict] | str = ("elu", {"inplace": True}),
-        dropout_prob: float = 0.5,
+        dropout_prob_down: float = 0.5,
+        dropout_prob_up: tuple[float, float] = [0.5, 0.5],
         dropout_dim: int = 3,
         bias: bool = False,
     ):
@@ -236,10 +237,10 @@ class VNet(nn.Module):
         self.in_tr = InputTransition(spatial_dims, in_channels, 16, act, bias=bias)
         self.down_tr32 = DownTransition(spatial_dims, 16, 1, act, bias=bias)
         self.down_tr64 = DownTransition(spatial_dims, 32, 2, act, bias=bias)
-        self.down_tr128 = DownTransition(spatial_dims, 64, 3, act, dropout_prob=dropout_prob, bias=bias)
-        self.down_tr256 = DownTransition(spatial_dims, 128, 2, act, dropout_prob=dropout_prob, bias=bias)
-        self.up_tr256 = UpTransition(spatial_dims, 256, 256, 2, act, dropout_prob=dropout_prob)
-        self.up_tr128 = UpTransition(spatial_dims, 256, 128, 2, act, dropout_prob=dropout_prob)
+        self.down_tr128 = DownTransition(spatial_dims, 64, 3, act, dropout_prob=dropout_prob_down, bias=bias)
+        self.down_tr256 = DownTransition(spatial_dims, 128, 2, act, dropout_prob=dropout_prob_down, bias=bias)
+        self.up_tr256 = UpTransition(spatial_dims, 256, 256, 2, act, dropout_prob=dropout_prob_up)
+        self.up_tr128 = UpTransition(spatial_dims, 256, 128, 2, act, dropout_prob=dropout_prob_up)
         self.up_tr64 = UpTransition(spatial_dims, 128, 64, 1, act)
         self.up_tr32 = UpTransition(spatial_dims, 64, 32, 1, act)
         self.out_tr = OutputTransition(spatial_dims, 32, out_channels, act, bias=bias)
