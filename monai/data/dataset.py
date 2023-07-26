@@ -377,8 +377,6 @@ class PersistentDataset(Dataset):
         """
         hashfile = None
         if self.cache_dir is not None:
-            if isinstance(item_transformed, np.ndarray):
-                print("*** Attention ****", item_transformed.dtype, item_transformed.shape)
             data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
             data_item_md5 += self.transform_hash
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
@@ -1608,28 +1606,28 @@ class GDSDataset(PersistentDataset):
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):
                 if isinstance(item_transformed, dict):
-                    item = {}
+                    item: dict[Any, Any] = {}  # type:ignore
                     for k in item_transformed:
-                        meta_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta")
+                        meta_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta")  # type:ignore
                         item[k] = kvikio_numpy.fromfile(f"{hashfile}-{k}", dtype=meta_k["dtype"], like=cp.empty(()))
                         item[k] = convert_to_tensor(item[k].reshape(meta_k["shape"]), device=f"cuda:{self.device}")
                         item[f"{k}_meta_dict"] = meta_k
                     return item
                 elif isinstance(item_transformed, (np.ndarray, torch.Tensor)):
-                    _meta = torch.load(self.cache_dir / f"{hashfile.name}-meta")
+                    _meta = torch.load(self.cache_dir / f"{hashfile.name}-meta")  # type:ignore
                     _data = kvikio_numpy.fromfile(f"{hashfile}", dtype=_meta.pop("dtype"), like=cp.empty(()))
                     _data = convert_to_tensor(_data.reshape(_meta.pop("shape")), device=f"cuda:{self.device}")
                     if bool(_meta):
                         return (_data, _meta)
                     return _data
                 else:
-                    item = []
+                    item: list[dict[Any, Any]] = [{} for _ in range(len(item_transformed))]  # type:ignore
                     for i, _item in enumerate(item_transformed):
                         for k in _item:
-                            meta_i_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta-{i}")
+                            meta_i_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta-{i}")  # type:ignore
                             item_k = kvikio_numpy.fromfile(f"{hashfile}-{k}-{i}", dtype=np.float32, like=cp.empty(()))
                             item_k = convert_to_tensor(item[i].reshape(meta_i_k["shape"]), device=f"cuda:{self.device}")
-                            item[i] = {f"{k}": item_k, f"{k}_meta_dict": meta_k}
+                            item[i].update({k: item_k, f"{k}_meta_dict": meta_i_k})
                     return item
 
         # create new cache
