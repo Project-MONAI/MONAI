@@ -25,7 +25,6 @@ from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd
 from monai.utils import optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
-
 _, has_cp = optional_import("cupy")
 _, has_kvikio_numpy = optional_import("kvikio.numpy")
 
