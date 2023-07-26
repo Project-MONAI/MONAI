@@ -151,6 +151,10 @@ make html
 ```
 The above commands build html documentation, they are used to automatically generate [https://docs.monai.io](https://docs.monai.io).
 
+The Python code docstring are written in
+[reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html) and
+the documentation pages can be in either [reStructuredText](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html) or [Markdown](https://en.wikipedia.org/wiki/Markdown).  In general the Python docstrings follow the [Google style](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings).
+
 Before submitting a pull request, it is recommended to:
 - edit the relevant `.rst` files in [`docs/source`](./docs/source) accordingly.
 - build html documentation locally
