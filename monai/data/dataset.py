@@ -47,7 +47,6 @@ from monai.transforms import (
 )
 from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import, convert_to_tensor
 from monai.utils.misc import first
-from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 
 if TYPE_CHECKING:
     from tqdm import tqdm

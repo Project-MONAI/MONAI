@@ -20,9 +20,12 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import GDSDataset, json_hashing, PersistentDataset
+from monai.data import GDSDataset, json_hashing
+from monai.utils import optional_import
 from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd, Transform
 from tests.utils import TEST_NDARRAYS, assert_allclose
+
+_, has_kvikio_numpy = optional_import("kvikio.numpy")
 
 TEST_CASE_1 = [
     Compose(
@@ -51,6 +54,7 @@ class _InplaceXform(Transform):
         return data
 
 
+@unittest.skipUnless(has_kvikio_numpy, "Requires scikit-image library.")
 class TestDataset(unittest.TestCase):
     def test_cache(self):
         """testing no inplace change to the hashed item"""
