@@ -25,6 +25,8 @@ from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd
 from monai.utils import optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
+
+_, has_cp = optional_import("cupy")
 _, has_kvikio_numpy = optional_import("kvikio.numpy")
 
 TEST_CASE_1 = [
@@ -54,6 +56,7 @@ class _InplaceXform(Transform):
         return data
 
 
+@unittest.skipUnless(has_cp, "Requires cupy library.")
 @unittest.skipUnless(has_kvikio_numpy, "Requires scikit-image library.")
 class TestDataset(unittest.TestCase):
     def test_cache(self):
