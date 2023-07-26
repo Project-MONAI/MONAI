@@ -1517,6 +1517,13 @@ class CSVDataset(Dataset):
 
 
 class GDSDataset(PersistentDataset):
+    """
+    Re-implementation of the PersistentDataset. GDSDataset enables a direct direct memory access(DMA) data path between
+    GPU memory and storage, thus avoiding a bounce buffer through the CPU. This direct path can increase system
+    bandwidth while decreasing latency and utilization load on the CPU and GPU.
+
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/main/modules/GDS_dataset.ipynb.
+    """
     def __init__(
         self,
         data: Sequence,
@@ -1528,6 +1535,40 @@ class GDSDataset(PersistentDataset):
         reset_ops_id: bool = True,
         **kwargs: Any,
     ) -> None:
+        """
+        Args:
+            data: input data file paths to load and transform to generate dataset for model.
+                `GDSDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
+            transform: transforms to execute operations on input data.
+            cache_dir: If specified, this is the location for gpu direct storage
+                of pre-computed transformed data tensors. The cache_dir is computed once, and
+                persists on disk until explicitly removed.  Different runs, programs, experiments
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If `cache_dir` doesn't exist, will automatically create it.
+                If `cache_dir` is `None`, there is effectively no caching.
+            device: target device to put the output Tensor data. Note that only int can be used to
+                specify the gpu to be used.
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
+            pickle_module: string representing the module used for pickling metadata and objects,
+                default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
+                we can't use `pickle` as arg directly, so here we use a string name instead.
+                if want to use other pickle module at runtime, just register like:
+                >>> from monai.data import utils
+                >>> utils.SUPPORTED_PICKLE_MOD["test"] = other_pickle
+                this arg is used by `torch.save`, for more details, please check:
+                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
+                and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
+            hash_transform: a callable to compute hash from the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+                Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
+
+        """
         super().__init__(
             data=data,
             transform=transform,
@@ -1540,7 +1581,22 @@ class GDSDataset(PersistentDataset):
         self.device = device
 
     def _cachecheck(self, item_transformed):
-        """given the input dictionary ``item_transformed``, return a transformed version of it"""
+        """
+        In order to enable direct storage to the GPU when loading the hashfile, rewritten this function.
+        Note that in this function, it will always return `torch.Tensor` when load data from cache.
+
+        Args:
+            item_transformed: The current data element to be mutated into transformed representation
+
+        Returns:
+            The transformed data_element, either from cache, or explicitly computing it.
+
+        Warning:
+            The current implementation does not encode transform information as part of the
+            hashing mechanism used for generating cache names when `hash_transform` is None.
+            If the transforms applied are changed in any way, the objects in the cache dir will be invalid.
+
+        """
         hashfile = None
         # compute a cache id
         if self.cache_dir is not None:
@@ -1579,7 +1635,7 @@ class GDSDataset(PersistentDataset):
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is None:
             return _item_transformed
-        if isinstance(_item_transformed, dict):  # {"image": ,"label": }
+        if isinstance(_item_transformed, dict):
             for k in _item_transformed:
                 data_hashfile = f"{hashfile}-{k}"
                 meta_hash_file_name = f"{hashfile.name}-{k}-meta"
@@ -1587,11 +1643,11 @@ class GDSDataset(PersistentDataset):
                     self._create_new_cache(_item_transformed[k], data_hashfile, meta_hash_file_name)
                 else:
                     return _item_transformed
-        elif isinstance(_item_transformed, (np.ndarray, torch.Tensor)):  # [array, {}]
+        elif isinstance(_item_transformed, (np.ndarray, torch.Tensor)):
             data_hashfile = f"{hashfile}"
             meta_hash_file_name = f"{hashfile.name}-meta"
             self._create_new_cache(_item_transformed, data_hashfile, meta_hash_file_name)
-        else: # [{"image": metatensor,"label": metatensor}, {"image": ,"label": }, "image_meta_dict"], [metatensor, metatensor, ]
+        else:
             for i, _item in enumerate(_item_transformed):
                 for k in _item:
                     data_hashfile = f"{hashfile}-{k}-{i}"
