@@ -1549,7 +1549,6 @@ class GDSDataset(PersistentDataset):
             data_item_md5 += self.transform_hash
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
-        # print('cache ', self.cache_dir, hashfile, type(item_transformed), isinstance(item_transformed, (np.ndarray, torch.Tensor)))
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):
                 if isinstance(item_transformed, dict):
@@ -1582,7 +1581,6 @@ class GDSDataset(PersistentDataset):
         if hashfile is None:
             return _item_transformed
         if isinstance(_item_transformed, dict):  # {"image": ,"label": }
-            print("*********")
             for k in _item_transformed:
                 data_hashfile = f"{hashfile}-{k}"
                 meta_hash_file_name = f"{hashfile.name}-{k}-meta"
@@ -1601,13 +1599,11 @@ class GDSDataset(PersistentDataset):
                     meta_hash_file_name = f"{hashfile.name}-{k}-meta-{i}"
                     self._create_new_cache(_item, data_hashfile, meta_hash_file_name)
         open(hashfile, "a").close()  # store cacheid
-
         return _item_transformed
 
     def _create_new_cache(self, data, data_hashfile, meta_hash_file_name):
         _item_transformed_meta = data.meta if isinstance(data, MetaTensor) else {}
         _item_transformed_data = data.array if isinstance(data, MetaTensor) else data
-        print(type(_item_transformed_data))
         if isinstance(_item_transformed_data, torch.Tensor):
             _item_transformed_data = _item_transformed_data.numpy()
         _item_transformed_meta["shape"] = _item_transformed_data.shape
