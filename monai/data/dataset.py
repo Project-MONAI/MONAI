@@ -45,7 +45,7 @@ from monai.transforms import (
     convert_to_contiguous,
     reset_ops_id,
 )
-from monai.utils import MAX_SEED, get_seed, look_up_option, min_version, optional_import, convert_to_tensor
+from monai.utils import MAX_SEED, convert_to_tensor, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -378,7 +378,7 @@ class PersistentDataset(Dataset):
         hashfile = None
         if self.cache_dir is not None:
             if isinstance(item_transformed, np.ndarray):
-                print('*** Attention ****', item_transformed.dtype, item_transformed.shape)
+                print("*** Attention ****", item_transformed.dtype, item_transformed.shape)
             data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
             data_item_md5 += self.transform_hash
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
@@ -1524,6 +1524,7 @@ class GDSDataset(PersistentDataset):
 
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/main/modules/GDS_dataset.ipynb.
     """
+
     def __init__(
         self,
         data: Sequence,

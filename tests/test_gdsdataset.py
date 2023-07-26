@@ -21,8 +21,8 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import GDSDataset, json_hashing
-from monai.utils import optional_import
 from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd, Transform
+from monai.utils import optional_import
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 _, has_kvikio_numpy = optional_import("kvikio.numpy")
@@ -76,9 +76,13 @@ class TestDataset(unittest.TestCase):
                 assert_allclose(ds[0], ds1[0], type_test=False)
                 assert_allclose(items[0], p(np.arange(0, np.prod(shape)).reshape(shape)))
 
-                ds = GDSDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_transform=json_hashing, device=0)
+                ds = GDSDataset(
+                    items, transform=_InplaceXform(), cache_dir=tempdir, hash_transform=json_hashing, device=0
+                )
                 assert_allclose(items[0], p(np.arange(0, np.prod(shape)).reshape(shape)))
-                ds1 = GDSDataset(items, transform=_InplaceXform(), cache_dir=tempdir, hash_transform=json_hashing, device=0)
+                ds1 = GDSDataset(
+                    items, transform=_InplaceXform(), cache_dir=tempdir, hash_transform=json_hashing, device=0
+                )
                 assert_allclose(ds[0], ds1[0], type_test=False)
                 assert_allclose(items[0], p(np.arange(0, np.prod(shape)).reshape(shape)))
 

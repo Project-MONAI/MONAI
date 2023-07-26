@@ -33,12 +33,12 @@ from .dataset import (
     CSVDataset,
     Dataset,
     DatasetFunc,
+    GDSDataset,
     LMDBDataset,
     NPZDictItemDataset,
     PersistentDataset,
     SmartCacheDataset,
     ZipDataset,
-    GDSDataset,
 )
 from .dataset_summary import DatasetSummary
 from .decathlon_datalist import (
