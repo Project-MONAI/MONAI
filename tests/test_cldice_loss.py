@@ -17,14 +17,8 @@ from parameterized import parameterized
 from monai.losses import SoftclDiceLoss, SoftDiceclDiceLoss
 
 TEST_CASES = [
-    [  # shape: (1, 4), (1, 4)
-        {"y_pred": torch.ones((100, 3, 256, 256)), "y_true": torch.ones((100, 3, 256, 256))},
-        0.0,
-    ],
-    [  # shape: (1, 5), (1, 5)
-        {"y_pred": torch.ones((100, 3, 256, 256, 5)), "y_true": torch.ones((100, 3, 256, 256, 5))},
-        0.0,
-    ],
+    [{"y_pred": torch.ones((7, 3, 11, 10)), "y_true": torch.ones((7, 3, 11, 10))}, 0.0],
+    [{"y_pred": torch.ones((2, 3, 13, 14, 5)), "y_true": torch.ones((2, 3, 13, 14, 5))}, 0.0],
 ]
 
 
