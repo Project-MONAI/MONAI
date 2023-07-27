@@ -1521,6 +1521,8 @@ class GDSDataset(PersistentDataset):
     bandwidth while decreasing latency and utilization load on the CPU and GPU.
 
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/main/modules/GDS_dataset.ipynb.
+
+    See also: https://github.com/rapidsai/kvikio
     """
 
     def __init__(
