@@ -33,6 +33,7 @@ from .dataset import (
     CSVDataset,
     Dataset,
     DatasetFunc,
+    GDSDataset,
     LMDBDataset,
     NPZDictItemDataset,
     PersistentDataset,
