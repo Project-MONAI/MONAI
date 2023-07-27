@@ -1550,15 +1550,6 @@ class GDSDataset(PersistentDataset):
                 specify the gpu to be used.
             hash_func: a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
-            pickle_module: string representing the module used for pickling metadata and objects,
-                default to `"pickle"`. due to the pickle limitation in multi-processing of Dataloader,
-                we can't use `pickle` as arg directly, so here we use a string name instead.
-                if want to use other pickle module at runtime, just register like:
-                >>> from monai.data import utils
-                >>> utils.SUPPORTED_PICKLE_MOD["test"] = other_pickle
-                this arg is used by `torch.save`, for more details, please check:
-                https://pytorch.org/docs/stable/generated/torch.save.html#torch.save,
-                and ``monai.data.utils.SUPPORTED_PICKLE_MOD``.
             hash_transform: a callable to compute hash from the transform information when caching.
                 This may reduce errors due to transforms changing during experiments. Default to None (no hash).
                 Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
