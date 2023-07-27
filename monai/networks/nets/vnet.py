@@ -151,7 +151,7 @@ class UpTransition(nn.Module):
         self.ops = _make_nconv(spatial_dims, out_channels, nconvs, act)
 
     def forward(self, x, skipx):
-        if self.dropout[0] is not None:
+        if self.dropout is not None:
             out = self.dropout(x)
         else:
             out = x
