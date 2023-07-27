@@ -253,7 +253,7 @@ class ShiftIntensity(Transform):
         else:
             out = img + offset
             out, *_ = convert_data_type(data=out, dtype=img.dtype, safe=self.safe)
-            return out
+            return out  # type: ignore
 
 
 class RandShiftIntensity(RandomizableTransform):
