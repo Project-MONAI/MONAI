@@ -1618,7 +1618,9 @@ class GDSDataset(PersistentDataset):
                     for i, _item in enumerate(item_transformed):
                         for k in _item:
                             meta_i_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta-{i}")
-                            item_k = kvikio_numpy.fromfile(f"{hashfile}-{k}-{i}", dtype=meta_i_k["dtype"], like=cp.empty(()))
+                            item_k = kvikio_numpy.fromfile(
+                                f"{hashfile}-{k}-{i}", dtype=meta_i_k["dtype"], like=cp.empty(())
+                            )
                             item_k = convert_to_tensor(item[i].reshape(meta_i_k["shape"]), device=f"cuda:{self.device}")
                             item[i].update({k: item_k, f"{k}_meta_dict": meta_i_k})
                     return item
