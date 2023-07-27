@@ -16,6 +16,7 @@ import torch.nn as nn
 
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.layers.factories import Act, Conv, Dropout, Norm, split_args
+from monai.utils import deprecated_arg
 
 __all__ = ["VNet"]
 
@@ -206,8 +207,9 @@ class VNet(nn.Module):
             The value should meet the condition that ``16 % in_channels == 0``.
         out_channels: number of output channels for the network. Defaults to 1.
         act: activation type in the network. Defaults to ``("elu", {"inplace": True})``.
-        dropout_prob: dropout ratio. Defaults to 0.5.
-        dropout_dim: determine the dimensions of dropout. Defaults to 3.
+        dropout_prob_down: dropout ratio for DownTransition blocks. Defaults to 0.5.
+        dropout_prob_up: dropout ratio for UpTransition blocks. Defaults to (0.5, 0.5).
+        dropout_dim: determine the dimensions of dropout. Defaults to (0.5, 0.5).
 
             - ``dropout_dim = 1``, randomly zeroes some of the elements for each channel.
             - ``dropout_dim = 2``, Randomly zeroes out entire channels (a channel is a 2D feature map).
@@ -216,14 +218,30 @@ class VNet(nn.Module):
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
 
+    .. deprecated:: 1.2
+        ``dropout_prob`` is deprecated in favor of ``dropout_prob_down`` and ``dropout_prob_up``.
+
     """
 
+    @deprecated_arg(
+        name="dropout_prob",
+        since="1.2",
+        new_name="dropout_prob_down",
+        msg_suffix="please use `dropout_prob_down` instead.",
+    )
+    @deprecated_arg(
+        name="dropout_prob",
+        since="1.2",
+        new_name="dropout_prob_up",
+        msg_suffix="please use `dropout_prob_up` instead.",
+    )
     def __init__(
         self,
         spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 1,
         act: tuple[str, dict] | str = ("elu", {"inplace": True}),
+        dropout_prob: float | None = 0.5,  # deprecated
         dropout_prob_down: float | None = 0.5,
         dropout_prob_up: tuple[float | None, float] = (0.5, 0.5),
         dropout_dim: int = 3,
