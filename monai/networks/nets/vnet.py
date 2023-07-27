@@ -133,7 +133,7 @@ class UpTransition(nn.Module):
         out_channels: int,
         nconvs: int,
         act: tuple[str, dict] | str,
-        dropout_prob: tuple[float | None, float] = [None, 0.5],  # noqa: B006
+        dropout_prob: tuple[float | None, float] = (None, 0.5),
         dropout_dim: int = 3,
     ):
         super().__init__()
@@ -224,8 +224,8 @@ class VNet(nn.Module):
         in_channels: int = 1,
         out_channels: int = 1,
         act: tuple[str, dict] | str = ("elu", {"inplace": True}),
-        dropout_prob_down: float = 0.5,
-        dropout_prob_up: tuple[float, float] = [0.5, 0.5],  # noqa: B006
+        dropout_prob_down: float | None = 0.5,
+        dropout_prob_up: tuple[float | None, float] = (0.5, 0.5),
         dropout_dim: int = 3,
         bias: bool = False,
     ):
