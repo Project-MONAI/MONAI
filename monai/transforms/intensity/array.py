@@ -255,13 +255,17 @@ class RandShiftIntensity(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1) -> None:
+    def __init__(
+        self, offsets: tuple[float, float] | float, safe: bool = False, channel_wise: bool = False, prob: float = 0.1
+    ) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
                 if single number, offset value is picked from (-offsets, offsets).
             safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
                 E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
+            channel_wise: if True, calculate on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
             prob: probability of shift.
         """
         RandomizableTransform.__init__(self, prob)
@@ -272,13 +276,17 @@ class RandShiftIntensity(RandomizableTransform):
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self.channel_wise = channel_wise
         self._shifter = ShiftIntensity(self._offset, safe)
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+        if self.channel_wise:
+            self._offset = [self.R.uniform(low=self.offsets[0], high=self.offsets[1]) for _ in range(data.shape[0])]
+        else:
+            self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
     def __call__(self, img: NdarrayOrTensor, factor: float | None = None, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -292,12 +300,17 @@ class RandShiftIntensity(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return img
 
-        return self._shifter(img, self._offset if factor is None else self._offset * factor)
+        if self.channel_wise:
+            for i, d in enumerate(img):
+                img[i] = self._shifter(d, self._offset[i] if factor is None else self._offset * factor)
+        else:
+            img = self._shifter(img, self._offset if factor is None else self._offset * factor)
+        return img
 
 
 class StdShiftIntensity(Transform):
@@ -493,8 +506,8 @@ class ScaleIntensityFixedMean(Transform):
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
             channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
-            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
-            channel of the image if True.
+                on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+                channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
         self.factor = factor
@@ -633,12 +646,20 @@ class RandScaleIntensity(RandomizableTransform):
 
     backend = ScaleIntensity.backend
 
-    def __init__(self, factors: tuple[float, float] | float, prob: float = 0.1, dtype: DtypeLike = np.float32) -> None:
+    def __init__(
+        self,
+        factors: tuple[float, float] | float,
+        prob: float = 0.1,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         """
         Args:
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
+            channel_wise: if True, scale on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
 
         """
@@ -650,13 +671,17 @@ class RandScaleIntensity(RandomizableTransform):
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.channel_wise = channel_wise
         self.dtype = dtype
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        if self.channel_wise:
+            self.factor = [self.R.uniform(low=self.factors[0], high=self.factors[1]) for _ in range(data.shape[0])]
+        else:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -664,12 +689,20 @@ class RandScaleIntensity(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
 
-        return ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
+        if self.channel_wise:
+            out = []
+            for i, d in enumerate(img):
+                out_channel = ScaleIntensity(minv=None, maxv=None, factor=self.factor[i], dtype=self.dtype)(d)
+                out.append(out_channel)
+            ret = torch.stack(out)
+        else:
+            ret = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
+        return ret
 
 
 class RandBiasField(RandomizableTransform):

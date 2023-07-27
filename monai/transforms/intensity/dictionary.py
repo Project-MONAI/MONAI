@@ -369,6 +369,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         offsets: tuple[float, float] | float,
         safe: bool = False,
+        channel_wise: bool = False,
         factor_key: str | None = None,
         meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
@@ -383,6 +384,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 if single number, offset value is picked from (-offsets, offsets).
             safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
                 E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
+            channel_wise: if True, calculate on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
             factor_key: if not None, use it as the key to extract a value from the corresponding
                 metadata dictionary of `key` at runtime, and multiply the random `offset` to shift intensity.
                 Usually, `IntensityStatsd` transform can pre-compute statistics of intensity values
@@ -409,7 +412,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.shifter = RandShiftIntensity(offsets=offsets, safe=safe, prob=1.0)
+        self.shifter = RandShiftIntensity(offsets=offsets, safe=safe, channel_wise=channel_wise, prob=1.0)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -586,6 +589,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         factors: tuple[float, float] | float,
         prob: float = 0.1,
+        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -597,13 +601,15 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
                 (Default 0.1, with 10% probability it returns a scaled array.)
+            channel_wise: if True, scale on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0)
+        self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0, channel_wise=channel_wise)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -620,8 +626,15 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
+        # expect all the specified keys have same spatial shape and share same random holes
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
+
         # all the keys share the same random scale factor
-        self.scaler.randomize(None)
+        self.scaler.randomize(d[first_key])
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key], randomize=False)
         return d
