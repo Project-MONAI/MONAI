@@ -230,10 +230,7 @@ class VNet(nn.Module):
         msg_suffix="please use `dropout_prob_down` instead.",
     )
     @deprecated_arg(
-        name="dropout_prob",
-        since="1.2",
-        new_name="dropout_prob_up",
-        msg_suffix="please use `dropout_prob_up` instead.",
+        name="dropout_prob", since="1.2", new_name="dropout_prob_up", msg_suffix="please use `dropout_prob_up` instead."
     )
     def __init__(
         self,
