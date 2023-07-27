@@ -17,6 +17,7 @@ import tempfile
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data import GDSDataset, json_hashing
@@ -47,6 +48,19 @@ TEST_CASE_2 = [
 ]
 
 TEST_CASE_3 = [None, (128, 128, 128)]
+
+DTYPES = {
+    np.dtype(np.uint8): torch.uint8,
+    np.dtype(np.int8): torch.int8,
+    np.dtype(np.int16): torch.int16,
+    np.dtype(np.int32): torch.int32,
+    np.dtype(np.int64): torch.int64,
+    np.dtype(np.float16): torch.float16,
+    np.dtype(np.float32): torch.float32,
+    np.dtype(np.float64): torch.float64,
+    np.dtype(np.complex64): torch.complex64,
+    np.dtype(np.complex128): torch.complex128,
+}
 
 
 class _InplaceXform(Transform):
@@ -93,15 +107,27 @@ class TestDataset(unittest.TestCase):
         shape = (1, 10, 9, 8)
         items = [TEST_NDARRAYS[-1](np.arange(0, np.prod(shape)).reshape(shape))]
         with tempfile.TemporaryDirectory() as tempdir:
-            ds = GDSDataset(
-                data=items,
-                transform=_InplaceXform(),
-                cache_dir=tempdir,
-                device=0,
-                pickle_module="pickle",
-                pickle_protocol=pickle.HIGHEST_PROTOCOL,
-            )
+            ds = GDSDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, device=0)
             assert_allclose(ds[0], ds[0][0], type_test=False)
+
+    def test_dtype(self):
+        shape = (1, 10, 9, 8)
+        data = np.arange(0, np.prod(shape)).reshape(shape)
+        for _dtype in DTYPES.keys():
+            items = [np.array(data).astype(_dtype)]
+            with tempfile.TemporaryDirectory() as tempdir:
+                ds = GDSDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, device=0)
+                ds1 = GDSDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, device=0)
+                self.assertEqual(ds[0].dtype, _dtype)
+                self.assertEqual(ds1[0].dtype, DTYPES[_dtype])
+
+        for _dtype in DTYPES.keys():
+            items = [torch.tensor(data, dtype=DTYPES[_dtype])]
+            with tempfile.TemporaryDirectory() as tempdir:
+                ds = GDSDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, device=0)
+                ds1 = GDSDataset(data=items, transform=_InplaceXform(), cache_dir=tempdir, device=0)
+                self.assertEqual(ds[0].dtype, DTYPES[_dtype])
+                self.assertEqual(ds1[0].dtype, DTYPES[_dtype])
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, transform, expected_shape):
