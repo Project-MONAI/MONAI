@@ -61,7 +61,7 @@ class SSIMLoss(_Loss):
         """
         super().__init__(reduction=LossReduction(reduction).value)
         self.spatial_dims = spatial_dims
-        self.data_range = data_range
+        self._data_range = data_range
         self.kernel_type = kernel_type
 
         if not isinstance(win_size, Sequence):
@@ -77,13 +77,22 @@ class SSIMLoss(_Loss):
 
         self.ssim_metric = SSIMMetric(
             spatial_dims=self.spatial_dims,
-            data_range=self.data_range,
+            data_range=self._data_range,
             kernel_type=self.kernel_type,
             win_size=self.kernel_size,
             kernel_sigma=self.kernel_sigma,
             k1=self.k1,
             k2=self.k2,
         )
+
+    @property
+    def data_range(self) -> float:
+        return self._data_range
+
+    @data_range.setter
+    def data_range(self, value: float) -> None:
+        self._data_range = value
+        self.ssim_metric.data_range = value
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
