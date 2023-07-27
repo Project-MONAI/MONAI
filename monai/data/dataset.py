@@ -1607,9 +1607,10 @@ class GDSDataset(PersistentDataset):
                     return item
                 elif isinstance(item_transformed, (np.ndarray, torch.Tensor)):
                     _meta = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-meta")
-                    _data = kvikio_numpy.fromfile(f"{hashfile}", dtype=_meta.pop("dtype"), like=cp.empty(()))
-                    _data = convert_to_tensor(_data.reshape(_meta.pop("shape")), device=f"cuda:{self.device}")
-                    if bool(_meta):
+                    _data = kvikio_numpy.fromfile(f"{hashfile}", dtype=_meta["dtype"], like=cp.empty(()))
+                    _data = convert_to_tensor(_data.reshape(_meta["shape"]), device=f"cuda:{self.device}")
+                    filtered_keys = list(filter(lambda key: key not in ["dtype", "shape"], _meta.keys()))
+                    if bool(filtered_keys):
                         return (_data, _meta)
                     return _data
                 else:
@@ -1617,7 +1618,7 @@ class GDSDataset(PersistentDataset):
                     for i, _item in enumerate(item_transformed):
                         for k in _item:
                             meta_i_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta-{i}")
-                            item_k = kvikio_numpy.fromfile(f"{hashfile}-{k}-{i}", dtype=np.float32, like=cp.empty(()))
+                            item_k = kvikio_numpy.fromfile(f"{hashfile}-{k}-{i}", dtype=meta_i_k["dtype"], like=cp.empty(()))
                             item_k = convert_to_tensor(item[i].reshape(meta_i_k["shape"]), device=f"cuda:{self.device}")
                             item[i].update({k: item_k, f"{k}_meta_dict": meta_i_k})
                     return item
@@ -1653,7 +1654,7 @@ class GDSDataset(PersistentDataset):
         if isinstance(_item_transformed_data, torch.Tensor):
             _item_transformed_data = _item_transformed_data.numpy()
         self._meta_cache[meta_hash_file_name]["shape"] = _item_transformed_data.shape
-        self._meta_cache[meta_hash_file_name]["dtype"] = _item_transformed_data.dtype
+        self._meta_cache[meta_hash_file_name]["dtype"] = str(_item_transformed_data.dtype)
         kvikio_numpy.tofile(_item_transformed_data, data_hashfile)
         try:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
