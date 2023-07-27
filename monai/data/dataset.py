@@ -1569,6 +1569,7 @@ class GDSDataset(PersistentDataset):
             **kwargs,
         )
         self.device = device
+        self._meta_cache: dict[Any, dict[Any, Any]] = {}
 
     def _cachecheck(self, item_transformed):
         """
@@ -1599,13 +1600,13 @@ class GDSDataset(PersistentDataset):
                 if isinstance(item_transformed, dict):
                     item: dict[Any, Any] = {}  # type:ignore
                     for k in item_transformed:
-                        meta_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta")  # type:ignore
+                        meta_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta")
                         item[k] = kvikio_numpy.fromfile(f"{hashfile}-{k}", dtype=meta_k["dtype"], like=cp.empty(()))
                         item[k] = convert_to_tensor(item[k].reshape(meta_k["shape"]), device=f"cuda:{self.device}")
                         item[f"{k}_meta_dict"] = meta_k
                     return item
                 elif isinstance(item_transformed, (np.ndarray, torch.Tensor)):
-                    _meta = torch.load(self.cache_dir / f"{hashfile.name}-meta")  # type:ignore
+                    _meta = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-meta")
                     _data = kvikio_numpy.fromfile(f"{hashfile}", dtype=_meta.pop("dtype"), like=cp.empty(()))
                     _data = convert_to_tensor(_data.reshape(_meta.pop("shape")), device=f"cuda:{self.device}")
                     if bool(_meta):
@@ -1615,7 +1616,7 @@ class GDSDataset(PersistentDataset):
                     item: list[dict[Any, Any]] = [{} for _ in range(len(item_transformed))]  # type:ignore
                     for i, _item in enumerate(item_transformed):
                         for k in _item:
-                            meta_i_k = torch.load(self.cache_dir / f"{hashfile.name}-{k}-meta-{i}")  # type:ignore
+                            meta_i_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta-{i}")
                             item_k = kvikio_numpy.fromfile(f"{hashfile}-{k}-{i}", dtype=np.float32, like=cp.empty(()))
                             item_k = convert_to_tensor(item[i].reshape(meta_i_k["shape"]), device=f"cuda:{self.device}")
                             item[i].update({k: item_k, f"{k}_meta_dict": meta_i_k})
@@ -1647,12 +1648,12 @@ class GDSDataset(PersistentDataset):
         return _item_transformed
 
     def _create_new_cache(self, data, data_hashfile, meta_hash_file_name):
-        _item_transformed_meta = data.meta if isinstance(data, MetaTensor) else {}
+        self._meta_cache[meta_hash_file_name] = copy(data.meta) if isinstance(data, MetaTensor) else {}
         _item_transformed_data = data.array if isinstance(data, MetaTensor) else data
         if isinstance(_item_transformed_data, torch.Tensor):
             _item_transformed_data = _item_transformed_data.numpy()
-        _item_transformed_meta["shape"] = _item_transformed_data.shape
-        _item_transformed_meta["dtype"] = _item_transformed_data.dtype
+        self._meta_cache[meta_hash_file_name]["shape"] = _item_transformed_data.shape
+        self._meta_cache[meta_hash_file_name]["dtype"] = _item_transformed_data.dtype
         kvikio_numpy.tofile(_item_transformed_data, data_hashfile)
         try:
             # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
@@ -1662,7 +1663,7 @@ class GDSDataset(PersistentDataset):
                 meta_hash_file = self.cache_dir / meta_hash_file_name
                 temp_hash_file = Path(tmpdirname) / meta_hash_file_name
                 torch.save(
-                    obj=_item_transformed_meta,
+                    obj=self._meta_cache[meta_hash_file_name],
                     f=temp_hash_file,
                     pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
                     pickle_protocol=self.pickle_protocol,
@@ -1677,3 +1678,9 @@ class GDSDataset(PersistentDataset):
                         pass
         except PermissionError:  # project-monai/monai issue #3613
             pass
+
+    def _load_meta_cache(self, meta_hash_file_name):
+        if meta_hash_file_name in self._meta_cache:
+            return self._meta_cache[meta_hash_file_name]
+        else:
+            return torch.load(self.cache_dir / meta_hash_file_name)  # type:ignore
