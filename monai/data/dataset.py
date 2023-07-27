@@ -1516,7 +1516,7 @@ class CSVDataset(Dataset):
 
 class GDSDataset(PersistentDataset):
     """
-    Re-implementation of the PersistentDataset. GDSDataset enables a direct direct memory access(DMA) data path between
+    An extension of the PersistentDataset using direct memory access(DMA) data path between
     GPU memory and storage, thus avoiding a bounce buffer through the CPU. This direct path can increase system
     bandwidth while decreasing latency and utilization load on the CPU and GPU.
 
