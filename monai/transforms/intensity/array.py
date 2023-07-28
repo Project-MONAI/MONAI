@@ -666,7 +666,7 @@ class RandScaleIntensity(RandomizableTransform):
         if not self._do_transform:
             return None
         if self.channel_wise:
-            self.factor = [self.R.uniform(low=self.factors[0], high=self.factors[1]) for _ in range(data.shape[0])]
+            self.factor = [self.R.uniform(low=self.factors[0], high=self.factors[1]) for _ in range(data.shape[0])]  # type: ignore
         else:
             self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
@@ -681,12 +681,13 @@ class RandScaleIntensity(RandomizableTransform):
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
 
+        ret: NdarrayOrTensor
         if self.channel_wise:
             out = []
             for i, d in enumerate(img):
-                out_channel = ScaleIntensity(minv=None, maxv=None, factor=self.factor[i], dtype=self.dtype)(d)
+                out_channel = ScaleIntensity(minv=None, maxv=None, factor=self.factor[i], dtype=self.dtype)(d)  # type: ignore
                 out.append(out_channel)
-            ret = torch.stack(out)
+            ret = torch.stack(out)  # type: ignore
         else:
             ret = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
         return ret
