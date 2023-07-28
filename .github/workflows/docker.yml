@@ -89,7 +89,7 @@ jobs:
     steps:
     - name: Import
       run: |
-        export CUDA_VISIBLE_DEVICES=  # cpu-only
+        export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=  # cpu-only
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai
         ls -al
