@@ -73,6 +73,11 @@ Segmentation Losses
 .. autoclass:: ContrastiveLoss
     :members:
 
+`ShapeLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: ShapeLoss
+    :members:
+
 Registration Losses
 -------------------
 
