@@ -237,6 +237,7 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
             None,
             None,
             0,
+            False,
             t1,
             test2=t2,
         )
