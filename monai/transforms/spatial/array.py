@@ -3520,10 +3520,7 @@ class RandSimulateLowResolution(RandomizableTransform):
             target_shape = np.round(input_shape * self.zoom_factor).astype(np.int_)
 
             resize_tfm_downsample = Resize(
-                spatial_size=target_shape,
-                size_mode="all",
-                mode=self.downsample_mode,
-                anti_aliasing=False
+                spatial_size=target_shape, size_mode="all", mode=self.downsample_mode, anti_aliasing=False
             )
 
             resize_tfm_upsample = Resize(
