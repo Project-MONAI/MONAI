@@ -926,7 +926,7 @@ Spatial
     :special-members: __call__
 
 `RandSimulateLowResolution`
-""""""""""""""""""""
+"""""""""""""""""""""""""""
 .. autoclass:: RandSimulateLowResolution
     :members:
     :special-members: __call__
