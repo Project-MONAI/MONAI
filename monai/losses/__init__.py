@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 from .adversarial_loss import PatchAdversarialLoss
 from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
