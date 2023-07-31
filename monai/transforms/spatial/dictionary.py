@@ -2582,7 +2582,7 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
-    ) -> "RandSimulateLowResolutiond":
+    ) -> RandSimulateLowResolutiond:
         super().set_random_state(seed, state)
         return self
 

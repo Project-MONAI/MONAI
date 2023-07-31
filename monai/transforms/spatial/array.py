@@ -3476,7 +3476,7 @@ class RandSimulateLowResolution(RandomizableTransform):
         upsample_mode: InterpolateMode | str = InterpolateMode.TRILINEAR,
         zoom_range: Sequence[float] = (0.5, 1.0),
         align_corners=False,
-        device: Optional[torch.device] = None,
+        device: torch.device | None = None,
     ) -> None:
         """
         Args:
@@ -3500,7 +3500,7 @@ class RandSimulateLowResolution(RandomizableTransform):
         self.device = device
         self.zoom_factor = 1
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         self.zoom_factor = self.R.uniform(self.zoom_range[0], self.zoom_range[1])
         if not self._do_transform:
