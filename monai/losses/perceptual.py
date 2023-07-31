@@ -18,8 +18,7 @@ from monai.utils import optional_import
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
-from torchvision.models import ResNet50_Weights, resnet50
-from torchvision.models.feature_extraction import create_feature_extractor
+
 
 
 class PerceptualLoss(nn.Module):
@@ -79,6 +78,7 @@ class PerceptualLoss(nn.Module):
             torch.hub.set_dir(cache_dir)
 
         self.spatial_dims = spatial_dims
+        self.perceptual_function : nn.Module
         if spatial_dims == 3 and is_fake_3d is False:
             self.perceptual_function = MedicalNetPerceptualSimilarity(net=network_type, verbose=False)
         elif "radimagenet_" in network_type:
@@ -168,7 +168,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     def __init__(self, net: str = "medicalnet_resnet10_23datasets", verbose: bool = False) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
-        self.model = torch.hub.load("Warvito/MedicalNet-models", model=net, verbose=verbose)
+        self.model = torch.hub.load("marksgraham/MedicalNet-models", model=net, verbose=verbose, force_reload=True)
         self.eval()
 
         for param in self.parameters():
@@ -196,7 +196,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         feats_input = normalize_tensor(outs_input)
         feats_target = normalize_tensor(outs_target)
 
-        results = (feats_input - feats_target) ** 2
+        results : torch.Tensor = (feats_input - feats_target) ** 2
         results = spatial_average_3d(results.sum(dim=1, keepdim=True), keepdim=True)
 
         return results
@@ -266,7 +266,7 @@ class RadImageNetPerceptualSimilarity(nn.Module):
         feats_input = normalize_tensor(outs_input)
         feats_target = normalize_tensor(outs_target)
 
-        results = (feats_input - feats_target) ** 2
+        results: torch.Tensor = (feats_input - feats_target) ** 2
         results = spatial_average(results.sum(dim=1, keepdim=True), keepdim=True)
 
         return results
@@ -345,7 +345,7 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         feats_input = normalize_tensor(outs_input)
         feats_target = normalize_tensor(outs_target)
 
-        results = (feats_input - feats_target) ** 2
+        results : torch.Tensor = (feats_input - feats_target) ** 2
         results = spatial_average(results.sum(dim=1, keepdim=True), keepdim=True)
 
         return results
