@@ -64,7 +64,7 @@ class PatchAdversarialLoss(_Loss):
         # Depending on the criterion, a different activation layer is used.
         self.real_label = 1.0
         self.fake_label = 0.0
-        self.loss_fct : _Loss
+        self.loss_fct: _Loss
         if criterion == AdversarialCriterions.BCE.value:
             self.activation = get_act_layer("SIGMOID")
             self.loss_fct = torch.nn.BCELoss(reduction=reduction)
@@ -153,16 +153,18 @@ class PatchAdversarialLoss(_Loss):
                 loss_ = self.forward_single(disc_out, target_[disc_ind])
             loss_list.append(loss_)
 
+        loss: torch.Tensor | list[torch.Tensor]
         if loss_list is not None:
             if self.reduction == LossReduction.MEAN.value:
                 loss = torch.mean(torch.stack(loss_list))
             elif self.reduction == LossReduction.SUM.value:
                 loss = torch.sum(torch.stack(loss_list))
-
+            else:
+                loss = loss_list
         return loss
 
     def forward_single(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        forward : torch.Tensor
+        forward: torch.Tensor
         if (
             self.criterion == AdversarialCriterions.BCE.value
             or self.criterion == AdversarialCriterions.LEAST_SQUARE.value

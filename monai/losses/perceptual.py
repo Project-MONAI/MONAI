@@ -20,7 +20,6 @@ LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
 
 
-
 class PerceptualLoss(nn.Module):
     """
     Perceptual loss using features from pretrained deep neural networks trained. The function supports networks
@@ -78,7 +77,7 @@ class PerceptualLoss(nn.Module):
             torch.hub.set_dir(cache_dir)
 
         self.spatial_dims = spatial_dims
-        self.perceptual_function : nn.Module
+        self.perceptual_function: nn.Module
         if spatial_dims == 3 and is_fake_3d is False:
             self.perceptual_function = MedicalNetPerceptualSimilarity(net=network_type, verbose=False)
         elif "radimagenet_" in network_type:
@@ -196,7 +195,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         feats_input = normalize_tensor(outs_input)
         feats_target = normalize_tensor(outs_target)
 
-        results : torch.Tensor = (feats_input - feats_target) ** 2
+        results: torch.Tensor = (feats_input - feats_target) ** 2
         results = spatial_average_3d(results.sum(dim=1, keepdim=True), keepdim=True)
 
         return results
@@ -345,7 +344,7 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         feats_input = normalize_tensor(outs_input)
         feats_target = normalize_tensor(outs_target)
 
-        results : torch.Tensor = (feats_input - feats_target) ** 2
+        results: torch.Tensor = (feats_input - feats_target) ** 2
         results = spatial_average(results.sum(dim=1, keepdim=True), keepdim=True)
 
         return results
