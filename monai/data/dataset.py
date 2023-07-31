@@ -1600,7 +1600,7 @@ class GDSDataset(PersistentDataset):
         if hashfile is not None and hashfile.is_file():  # cache hit
             with cp.cuda.Device(self.device):
                 if isinstance(item_transformed, dict):
-                    item: dict[Any, Any] = {}  # type:ignore
+                    item: dict[Any, Any] = {}
                     for k in item_transformed:
                         meta_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta")
                         item[k] = kvikio_numpy.fromfile(f"{hashfile}-{k}", dtype=meta_k["dtype"], like=cp.empty(()))
@@ -1688,4 +1688,4 @@ class GDSDataset(PersistentDataset):
         if meta_hash_file_name in self._meta_cache:
             return self._meta_cache[meta_hash_file_name]
         else:
-            return torch.load(self.cache_dir / meta_hash_file_name)  # type:ignore
+            return torch.load(self.cache_dir / meta_hash_file_name)
