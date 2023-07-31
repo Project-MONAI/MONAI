@@ -3498,7 +3498,7 @@ class RandSimulateLowResolution(RandomizableTransform):
         self.zoom_range = zoom_range
         self.align_corners = align_corners
         self.device = device
-        self.zoom_factor = 1
+        self.zoom_factor = 1.0
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
@@ -3516,8 +3516,8 @@ class RandSimulateLowResolution(RandomizableTransform):
             self.randomize()
 
         if self._do_transform:
-            input_shape = np.array(img.shape[1:])
-            target_shape = np.round(input_shape * self.zoom_factor).astype(np.int_)
+            input_shape = img.shape[1:]
+            target_shape = np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_)
 
             resize_tfm_downsample = Resize(
                 spatial_size=target_shape, size_mode="all", mode=self.downsample_mode, anti_aliasing=False
