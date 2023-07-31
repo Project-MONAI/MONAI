@@ -1141,6 +1141,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             grid = self.rand_affine.get_identity_grid(sp_size, lazy=lazy_)
             if self._do_transform:  # add some random factors
                 grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid, lazy=lazy_)
+        grid = 0 if grid is None else grid  # always provide a grid to self.rand_affine
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform

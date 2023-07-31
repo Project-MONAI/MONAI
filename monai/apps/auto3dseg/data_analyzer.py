@@ -70,7 +70,7 @@ class DataAnalyzer:
             the DataAnalyzer will skip looking for labels and all label-related operations.
         hist_bins: bins to compute histogram for each image channel.
         hist_range: ranges to compute histogram for each image channel.
-        fmt: format used to save the analysis results. Defaults to "yaml".
+        fmt: format used to save the analysis results. Currently support ``"json"`` and ``"yaml"``, defaults to "yaml".
         histogram_only: whether to only compute histograms. Defaults to False.
         extra_params: other optional arguments. Currently supported arguments are :
             'allowed_shape_difference' (default 5) can be used to change the default tolerance of
@@ -164,6 +164,7 @@ class DataAnalyzer:
         constant_props = [result[DataStatsKeys.SUMMARY][DataStatsKeys.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
             if "stdev" in prop and np.any(prop["stdev"]):
+                logger.debug(f"summary image_stats {prop} has non-zero stdev {prop['stdev']}.")
                 return False
 
         return True
@@ -242,15 +243,16 @@ class DataAnalyzer:
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             logger.info("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
         if self.output_path:
+            logger.info(f"Writing data stats to {self.output_path}.")
             ConfigParser.export_config_file(
                 result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
+            by_case_path = self.output_path.replace(f".{self.fmt}", f"_by_case.{self.fmt}")
+            if by_case_path == self.output_path:  # self.output_path not ended with self.fmt?
+                by_case_path += f".by_case.{self.fmt}"
+            logger.info(f"Writing by-case data stats to {by_case_path}, this may take a while.")
             ConfigParser.export_config_file(
-                result_bycase,
-                self.output_path.replace(".yaml", "_by_case.yaml"),
-                fmt=self.fmt,
-                default_flow_style=None,
-                sort_keys=False,
+                result_bycase, by_case_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
         # release memory
         if self.device.type == "cuda":
