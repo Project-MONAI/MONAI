@@ -3516,6 +3516,7 @@ class RandSimulateLowResolution(RandomizableTransform):
             self.randomize()
 
         if self._do_transform:
+
             input_shape = img.shape[1:]
             target_shape = np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_)
 
