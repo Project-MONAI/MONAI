@@ -2549,7 +2549,7 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
             keys: keys of the corresponding items to be transformed.
             prob: probability of performing this augmentation
             downsample_mode: interpolation mode for downsampling operation
-            upsample_mode: interpolation mode for downsampling operation
+            upsample_mode: interpolation mode for upsampling operation
             zoom_range: range from which the random zoom factor for the downsampling and upsampling operation is
             sampled. It determines the shape of the downsampled tensor.
             align_corners: This only has an effect when downsample_mode or upsample_mode  is 'linear', 'bilinear',
