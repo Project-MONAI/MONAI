@@ -17,7 +17,10 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
+from monai.utils import optional_import
+from tests.utils import SkipIfBeforePyTorchVersion
 
+_, has_torchvision = optional_import("torchvision")
 TEST_CASES = [
     [{"spatial_dims": 2, "network_type": "squeeze"}, (2, 1, 64, 64), (2, 1, 64, 64)],
     [
@@ -45,6 +48,8 @@ TEST_CASES = [
 ]
 
 
+@SkipIfBeforePyTorchVersion((1, 10))
+@unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestPerceptualLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, target_shape):
@@ -79,4 +84,4 @@ class TestPerceptualLoss(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()
