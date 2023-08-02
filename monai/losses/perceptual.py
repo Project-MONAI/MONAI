@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import torch
 import torch.nn as nn
 
@@ -75,6 +77,10 @@ class PerceptualLoss(nn.Module):
 
         if cache_dir:
             torch.hub.set_dir(cache_dir)
+            # raise a warning that this may change the default cache dir for all torch.hub calls
+            warnings.warn(
+                f"Setting cache_dir to {cache_dir}, this may change the default cache dir for all torch.hub calls."
+            )
 
         self.spatial_dims = spatial_dims
         self.perceptual_function: nn.Module
