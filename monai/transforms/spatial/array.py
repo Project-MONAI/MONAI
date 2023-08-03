@@ -499,6 +499,9 @@ class Spacing(InvertibleTransform, LazyTransform):
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
             input_affine = np.eye(sr + 1, dtype=np.float64)
+        input_affine_shape = input_affine.shape[0]
+        if input_affine_shape != sr +1 :
+            warnings.warn(f"Expected `affine_matrix` of size ({sr+1},{sr+1}) for {sr}D input got ({input_affine_shape},{input_affine_shape}) . The affine matrix will be truncated for {sr}D input.")
         affine_ = to_affine_nd(sr, convert_data_type(input_affine, np.ndarray)[0])
 
         out_d = self.pixdim[:sr].copy()
@@ -3549,3 +3552,12 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         else:
             return img
+
+
+img = MetaTensor(torch.rand(10,10,5), affine=torch.eye(4), meta={"original_channel_dim": torch.nan})
+sr = Spacing(pixdim=(2,2,2))
+
+double_spacing = sr(img)
+
+#expected shape (6,6,3) or an exception, but the results is (10,6,3), so first dim is treated as channel
+print(double_spacing.shape)
