@@ -86,10 +86,10 @@ class PerceptualLoss(nn.Module):
                 "Argument is_fake_3d must be set to False."
             )
 
-        if network_type.lower() not in [m for m in PercetualNetworkType]:
+        if network_type.lower() not in list(PercetualNetworkType):
             raise ValueError(
                 "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
-                % ", ".join([m for m in PercetualNetworkType])
+                % ", ".join(PercetualNetworkType)
             )
 
         if cache_dir:

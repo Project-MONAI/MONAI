@@ -55,10 +55,10 @@ class PatchAdversarialLoss(_Loss):
     ) -> None:
         super().__init__(reduction=LossReduction(reduction))
 
-        if criterion.lower() not in [m for m in AdversarialCriterions]:
+        if criterion.lower() not in list(AdversarialCriterions):
             raise ValueError(
                 "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
-                % ", ".join([m for m in AdversarialCriterions])
+                % ", ".join(AdversarialCriterions)
             )
 
         # Depending on the criterion, a different activation layer is used.
