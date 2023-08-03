@@ -173,7 +173,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
     def __init__(self, net: str = "medicalnet_resnet10_23datasets", verbose: bool = False) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
-        self.model = torch.hub.load("marksgraham/MedicalNet-models", model=net, verbose=verbose, force_reload=True)
+        self.model = torch.hub.load("warvito/MedicalNet-models", model=net, verbose=verbose)
         self.eval()
 
         for param in self.parameters():

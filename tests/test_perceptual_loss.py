@@ -48,7 +48,7 @@ TEST_CASES = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 10))
+@SkipIfBeforePyTorchVersion((1, 11))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestPerceptualLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
