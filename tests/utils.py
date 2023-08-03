@@ -46,7 +46,8 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
-from monai.utils.module import pytorch_after, version_leq
+from monai.utils.module import pytorch_after
+from monai.utils.tf32 import has_ampere_or_later
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
@@ -179,11 +180,8 @@ def is_tf32_env():
     global _tf32_enabled
     if _tf32_enabled is None:
         _tf32_enabled = False
-        if (
-            torch.cuda.is_available()
-            and not version_leq(f"{torch.version.cuda}", "10.100")
-            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
-            and torch.cuda.device_count() > 0  # at least 11.0
+        if has_ampere_or_later() and (
+            os.environ.get("NVIDIA_TF32_OVERRIDE") == "1" or os.environ.get("TORCH_ALLOW_TF32_CUBLAS_OVERRIDE") == "1"
         ):
             try:
                 # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
