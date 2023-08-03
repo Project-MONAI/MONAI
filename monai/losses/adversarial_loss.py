@@ -50,28 +50,28 @@ class PatchAdversarialLoss(_Loss):
     def __init__(
         self,
         reduction: LossReduction | str = LossReduction.MEAN,
-        criterion: str = AdversarialCriterions.LEAST_SQUARE.value,
+        criterion: str = AdversarialCriterions.LEAST_SQUARE,
         no_activation_leastsq: bool = False,
     ) -> None:
-        super().__init__(reduction=LossReduction(reduction).value)
+        super().__init__(reduction=LossReduction(reduction))
 
-        if criterion.lower() not in [m.value for m in AdversarialCriterions]:
+        if criterion.lower() not in [m for m in AdversarialCriterions]:
             raise ValueError(
                 "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
-                % ", ".join([m.value for m in AdversarialCriterions])
+                % ", ".join([m for m in AdversarialCriterions])
             )
 
         # Depending on the criterion, a different activation layer is used.
         self.real_label = 1.0
         self.fake_label = 0.0
         self.loss_fct: _Loss
-        if criterion == AdversarialCriterions.BCE.value:
+        if criterion == AdversarialCriterions.BCE:
             self.activation = get_act_layer("SIGMOID")
             self.loss_fct = torch.nn.BCELoss(reduction=reduction)
-        elif criterion == AdversarialCriterions.HINGE.value:
+        elif criterion == AdversarialCriterions.HINGE:
             self.activation = get_act_layer("TANH")
             self.fake_label = -1.0
-        elif criterion == AdversarialCriterions.LEAST_SQUARE.value:
+        elif criterion == AdversarialCriterions.LEAST_SQUARE:
             if no_activation_leastsq:
                 self.activation = None
             else:
@@ -137,7 +137,7 @@ class PatchAdversarialLoss(_Loss):
             input = [input]
         target_ = []
         for _, disc_out in enumerate(input):
-            if self.criterion != AdversarialCriterions.HINGE.value:
+            if self.criterion != AdversarialCriterions.HINGE:
                 target_.append(self.get_target_tensor(disc_out, target_is_real))
             else:
                 target_.append(self.get_zero_tensor(disc_out))
@@ -147,30 +147,27 @@ class PatchAdversarialLoss(_Loss):
         for disc_ind, disc_out in enumerate(input):
             if self.activation is not None:
                 disc_out = self.activation(disc_out)
-            if self.criterion == AdversarialCriterions.HINGE.value and not target_is_real:
-                loss_ = self.forward_single(-disc_out, target_[disc_ind])
+            if self.criterion == AdversarialCriterions.HINGE and not target_is_real:
+                loss_ = self._forward_single(-disc_out, target_[disc_ind])
             else:
-                loss_ = self.forward_single(disc_out, target_[disc_ind])
+                loss_ = self._forward_single(disc_out, target_[disc_ind])
             loss_list.append(loss_)
 
         loss: torch.Tensor | list[torch.Tensor]
         if loss_list is not None:
-            if self.reduction == LossReduction.MEAN.value:
+            if self.reduction == LossReduction.MEAN:
                 loss = torch.mean(torch.stack(loss_list))
-            elif self.reduction == LossReduction.SUM.value:
+            elif self.reduction == LossReduction.SUM:
                 loss = torch.sum(torch.stack(loss_list))
             else:
                 loss = loss_list
         return loss
 
-    def forward_single(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def _forward_single(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         forward: torch.Tensor
-        if (
-            self.criterion == AdversarialCriterions.BCE.value
-            or self.criterion == AdversarialCriterions.LEAST_SQUARE.value
-        ):
+        if self.criterion == AdversarialCriterions.BCE or self.criterion == AdversarialCriterions.LEAST_SQUARE:
             forward = self.loss_fct(input, target)
-        elif self.criterion == AdversarialCriterions.HINGE.value:
+        elif self.criterion == AdversarialCriterions.HINGE:
             minval = torch.min(input - 1, self.get_zero_tensor(input))
             forward = -torch.mean(minval)
         return forward

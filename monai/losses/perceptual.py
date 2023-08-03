@@ -17,9 +17,20 @@ import torch
 import torch.nn as nn
 
 from monai.utils import optional_import
+from monai.utils.enums import StrEnum
 
 LPIPS, _ = optional_import("lpips", name="LPIPS")
 torchvision, _ = optional_import("torchvision")
+
+
+class PercetualNetworkType(StrEnum):
+    alex = "alex"
+    vgg = "vgg"
+    squeeze = "squeeze"
+    radimagenet_resnet50 = "radimagenet_resnet50"
+    medicalnet_resnet10_23datasets = "medicalnet_resnet10_23datasets"
+    medical_resnet50_23datasets = "medical_resnet50_23datasets"
+    resnet50 = "resnet50"
 
 
 class PerceptualLoss(nn.Module):
@@ -32,8 +43,8 @@ class PerceptualLoss(nn.Module):
     3D Medical Image Analysis" https://arxiv.org/abs/1904.00625 ;
     and ResNet50 from Torchvision: https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html .
 
-    The fake 3D implementation is based on a 2.5D approach where we calculate the 2D perceptual on slices from the
-    three axis.
+    The fake 3D implementation is based on a 2.5D approach where we calculate the 2D perceptual loss on slices from all
+    three axes and average. The full 3D approach uses a 3D network to calculate the perceptual loss.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -56,7 +67,7 @@ class PerceptualLoss(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        network_type: str = "alex",
+        network_type: str = PercetualNetworkType.alex,
         is_fake_3d: bool = True,
         fake_3d_ratio: float = 0.5,
         cache_dir: str | None = None,
@@ -73,6 +84,12 @@ class PerceptualLoss(nn.Module):
             raise ValueError(
                 "MedicalNet networks are only compatible with ``spatial_dims=3``."
                 "Argument is_fake_3d must be set to False."
+            )
+
+        if network_type.lower() not in [m for m in PercetualNetworkType]:
+            raise ValueError(
+                "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
+                % ", ".join([m for m in PercetualNetworkType])
             )
 
         if cache_dir:
