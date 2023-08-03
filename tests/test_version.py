@@ -16,7 +16,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.utils import version_leq
+from monai.utils import version_geq, version_leq
 
 
 # from pkg_resources
@@ -79,6 +79,11 @@ class TestVersionCompare(unittest.TestCase):
     def test_compare(self, a, b, expected=True):
         """Test version_leq with `a` and `b`"""
         self.assertEqual(version_leq(a, b), expected)
+
+    @parameterized.expand(TEST_CASES)
+    def test_compare(self, a, b, expected=True):
+        """Test version_geq with `b` and `a`"""
+        self.assertEqual(version_geq(b, a), expected)
 
 
 if __name__ == "__main__":
