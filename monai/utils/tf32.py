@@ -48,9 +48,9 @@ def detect_default_tf32() -> bool:
 
         if pytorch_after(1, 7, 0) and not pytorch_after(1, 12, 0):
             warnings.warn(
-                f"torch.backends.cuda.matmul.allow_tf32 = True by default.\n"
-                f"  This value defaults to True when PyTorch version in [1.7, 1.11] and may affect precision\n"
-                f"  See https://docs.monai.io/en/latest/precision_accelerating.html#precision-and-accelerating"
+                "torch.backends.cuda.matmul.allow_tf32 = True by default.\n"
+                "  This value defaults to True when PyTorch version in [1.7, 1.11] and may affect precision\n"
+                "  See https://docs.monai.io/en/latest/precision_accelerating.html#precision-and-accelerating"
             )
             may_enable_tf32 = True
 
