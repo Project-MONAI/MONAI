@@ -11,6 +11,10 @@
 
 from __future__ import annotations
 
+from monai.utils import detect_default_tf32
+
+detect_default_tf32()
+
 from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss

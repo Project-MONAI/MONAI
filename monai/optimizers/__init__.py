@@ -11,6 +11,10 @@
 
 from __future__ import annotations
 
+from monai.utils import detect_default_tf32
+
+detect_default_tf32()
+
 from .lr_finder import LearningRateFinder
 from .lr_scheduler import ExponentialLR, LinearLR, WarmupCosineSchedule
 from .novograd import Novograd

@@ -11,6 +11,10 @@
 
 from __future__ import annotations
 
+from monai.utils import detect_default_tf32
+
+detect_default_tf32()
+
 from .utils import (
     convert_to_onnx,
     convert_to_torchscript,

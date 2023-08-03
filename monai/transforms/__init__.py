@@ -11,6 +11,10 @@
 
 from __future__ import annotations
 
+from monai.utils import detect_default_tf32
+
+detect_default_tf32()
+
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
 from .compose import Compose, OneOf, RandomOrder, SomeOf
 from .croppad.array import (
