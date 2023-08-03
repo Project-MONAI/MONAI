@@ -76,12 +76,12 @@ TEST_CASES = (
 
 class TestVersionCompare(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_compare(self, a, b, expected=True):
+    def test_compare_leq(self, a, b, expected=True):
         """Test version_leq with `a` and `b`"""
         self.assertEqual(version_leq(a, b), expected)
 
     @parameterized.expand(TEST_CASES)
-    def test_compare(self, a, b, expected=True):
+    def test_compare_geq(self, a, b, expected=True):
         """Test version_geq with `b` and `a`"""
         self.assertEqual(version_geq(b, a), expected)
 

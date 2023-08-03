@@ -65,5 +65,5 @@ def detect_default_tf32() -> bool:
                 may_enable_tf32 = True
 
         return may_enable_tf32
-    except:
+    except BaseException:
         return False

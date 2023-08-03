@@ -14,7 +14,7 @@ from __future__ import annotations
 try:
     from ..utils import detect_default_tf32
     detect_default_tf32()
-except:
+except BaseException:
     pass
 
 from .adaptors import FunctionSignature, adaptor, apply_alias, to_kwargs
