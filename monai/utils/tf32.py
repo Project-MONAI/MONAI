@@ -10,8 +10,8 @@
 # limitations under the License.
 
 from __future__ import annotations
-import functools
 
+import functools
 import os
 import warnings
 
@@ -20,6 +20,7 @@ import torch
 from monai.utils.module import pytorch_after, version_geq
 
 __all__ = ["has_ampere_or_later", "detect_default_tf32"]
+
 
 @functools.lru_cache(None)
 def has_ampere_or_later() -> bool:
@@ -35,6 +36,7 @@ def has_ampere_or_later() -> bool:
         if major >= 8:  # Ampere and later
             return True
     return False
+
 
 @functools.lru_cache(None)
 def detect_default_tf32() -> bool:
