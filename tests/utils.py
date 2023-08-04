@@ -47,7 +47,7 @@ from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.module import pytorch_after
-from monai.utils.tf32 import has_ampere_or_later
+from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
@@ -173,16 +173,14 @@ def test_is_quick():
 
 def is_tf32_env():
     """
-    The environment variable NVIDIA_TF32_OVERRIDE=0 will override any defaults
-    or programmatic configuration of NVIDIA libraries, and consequently,
-    cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
+    When we may be using TF32 mode, check the precision of matrix operation.
+    If the checking result is greater than the threshold 0.001,
+    set _tf32_enabled=True (and relax _rtol for tests).
     """
     global _tf32_enabled
     if _tf32_enabled is None:
         _tf32_enabled = False
-        if has_ampere_or_later() and (
-            os.environ.get("NVIDIA_TF32_OVERRIDE") == "1" or os.environ.get("TORCH_ALLOW_TF32_CUBLAS_OVERRIDE") == "1"
-        ):
+        if detect_default_tf32() or torch.backends.cuda.matmul.allow_tf32:
             try:
                 # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
                 g_gpu = torch.Generator(device="cuda")
