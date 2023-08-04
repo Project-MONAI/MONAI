@@ -578,13 +578,13 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}${PY_EXE} -m ruff --version
+    ruff --version
 
     if [ $doRuffFix = true ]
     then
-        ${cmdPrefix}${PY_EXE} -m ruff check --fix "$(pwd)"
+        ruff check --fix "$(pwd)"
     else
-        ${cmdPrefix}${PY_EXE} -m ruff check "$(pwd)"
+        ruff check "$(pwd)"
     fi
 
     ruff_status=$?
