@@ -3552,12 +3552,3 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         else:
             return img
-
-
-img = MetaTensor(torch.rand(10,10,5), affine=torch.eye(4), meta={"original_channel_dim": torch.nan})
-sr = Spacing(pixdim=(2,2,2))
-
-double_spacing = sr(img)
-
-#expected shape (6,6,3) or an exception, but the results is (10,6,3), so first dim is treated as channel
-print(double_spacing.shape)
