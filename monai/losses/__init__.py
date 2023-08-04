@@ -11,13 +11,6 @@
 
 from __future__ import annotations
 
-try:
-    from ..utils import detect_default_tf32
-
-    detect_default_tf32()
-except BaseException:
-    pass
-
 from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss

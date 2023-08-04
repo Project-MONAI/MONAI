@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+import functools
 
 import os
 import warnings
@@ -20,7 +21,7 @@ from monai.utils.module import pytorch_after, version_geq
 
 __all__ = ["has_ampere_or_later", "detect_default_tf32"]
 
-
+@functools.lru_cache(None)
 def has_ampere_or_later() -> bool:
     """
     Check if there is any Ampere and later GPU.
@@ -35,7 +36,7 @@ def has_ampere_or_later() -> bool:
             return True
     return False
 
-
+@functools.lru_cache(None)
 def detect_default_tf32() -> bool:
     """
     Dectect if there is anything that may enable TF32 mode by default.
@@ -49,7 +50,7 @@ def detect_default_tf32() -> bool:
         if pytorch_after(1, 7, 0) and not pytorch_after(1, 12, 0):
             warnings.warn(
                 "torch.backends.cuda.matmul.allow_tf32 = True by default.\n"
-                "  This value defaults to True when PyTorch version in [1.7, 1.11] and may affect precision\n"
+                "  This value defaults to True when PyTorch version in [1.7, 1.11] and may affect precision.\n"
                 "  See https://docs.monai.io/en/latest/precision_accelerating.html#precision-and-accelerating"
             )
             may_enable_tf32 = True
@@ -66,4 +67,8 @@ def detect_default_tf32() -> bool:
 
         return may_enable_tf32
     except BaseException:
+        from monai.utils.misc import MONAIEnvVars
+
+        if MONAIEnvVars.debug():
+            raise
         return False
