@@ -61,7 +61,7 @@ onnx, _ = optional_import("onnx")
 logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
-download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
 
 
@@ -80,9 +80,9 @@ def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwa
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
-
     # recursively update the default args with new args
     for k, v in kwargs.items():
+        print(k, v)
         if ignore_none and v is None:
             continue
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
@@ -156,6 +156,10 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name}/versions/{version}/zip"
 
 
+def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
+    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/{model_name}/versions/{version}/files"
+
+
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
     repo_owner, repo_name, tag_name = repo.split("/")
     if ".zip" not in filename:
@@ -164,6 +168,16 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     filepath = download_path / f"{filename}"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
+
+
+def _download_from_monaihosting(
+    download_path: Path, filename: str, version: str, progress: bool
+) -> None:
+    url = _get_monaihosting_bundle_url(model_name=filename, version=version)
+    filepath = download_path / f"{filename}_v{version}.zip"
+    extract_path = download_path / f"{filename}"
+    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+    extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
 def _add_ngc_prefix(name: str, prefix: str = "monai_") -> str:
@@ -192,6 +206,19 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
+def _get_latest_bundle_version_monaihosting(name):
+    url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
+    full_url = f"{url}/{name}"
+    requests_get, has_requests = optional_import("requests", name="get")
+    if has_requests:
+        resp = requests_get(full_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package.  Please install it.")
+    model_info = json.loads(resp.text)
+    return model_info["model"]["latestVersionIdStr"]
+
+
 def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
@@ -200,11 +227,14 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
             if v["name"] == name:
                 return v["latest"]
         return None
+    elif source == "monaihosting":
+        return _get_latest_bundle_version_monaihosting(name)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
     else:
-        raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
+        raise ValueError(
+            f"To get the latest bundle version, source should be 'github', 'monaihosting' or 'ngc', got {source}.")
 
 
 def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
@@ -324,6 +354,13 @@ def download(
             if version_ is not None:
                 name_ = "_v".join([name_, version_])
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
+        elif source_ == "monaihosting":
+            _download_from_monaihosting(
+                download_path=bundle_dir_,
+                filename=name_,
+                version=version_,
+                progress=progress_,
+            )
         elif source_ == "ngc":
             _download_from_ngc(
                 download_path=bundle_dir_,
