@@ -163,9 +163,9 @@ class MBConvBlock(nn.Module):
             self._se_adaptpool = adaptivepool_type(1)
             num_squeezed_channels = max(1, int(in_channels * self.se_ratio))
             self._se_reduce = conv_type(in_channels=oup, out_channels=num_squeezed_channels, kernel_size=1)
-            self._se_reduce_padding = _make_same_padder(self._se_reduce, [1, 1])
+            self._se_reduce_padding = _make_same_padder(self._se_reduce, [1] * spatial_dims)
             self._se_expand = conv_type(in_channels=num_squeezed_channels, out_channels=oup, kernel_size=1)
-            self._se_expand_padding = _make_same_padder(self._se_expand, [1, 1])
+            self._se_expand_padding = _make_same_padder(self._se_expand, [1] * spatial_dims)
 
         # Pointwise convolution phase
         final_oup = out_channels

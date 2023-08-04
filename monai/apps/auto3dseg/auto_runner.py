@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import warnings
 from copy import deepcopy
 from time import sleep
@@ -31,7 +30,7 @@ from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
 from monai.transforms import SaveImage
 from monai.utils import AlgoKeys, has_option, look_up_option, optional_import
-from monai.utils.misc import check_kwargs_exist_in_class_init
+from monai.utils.misc import check_kwargs_exist_in_class_init, run_cmd
 
 logger = get_logger(module_name=__name__)
 
@@ -526,7 +525,7 @@ class AutoRunner:
         self.device_setting["MN_START_METHOD"] = mn_start_method
 
         if cmd_prefix is None:
-            cmd_prefix = os.environ.get("CMD_PREFIX")
+            cmd_prefix = os.environ.get("CMD_PREFIX", "")
         self.device_setting["CMD_PREFIX"] = cmd_prefix
 
         if cmd_prefix is not None:
@@ -719,7 +718,7 @@ class AutoRunner:
                 logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
                 continue
 
-            subprocess.run(cmd.split(), check=True)
+            run_cmd(cmd.split(), check=True)
 
             n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
             while n_trainings - last_total_tasks < max_trial:
@@ -727,7 +726,7 @@ class AutoRunner:
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
 
             cmd = "nnictl stop --all"
-            subprocess.run(cmd.split(), check=True)
+            run_cmd(cmd.split(), check=True)
             logger.info(f"NNI completes HPO on {name}")
             last_total_tasks = n_trainings
 

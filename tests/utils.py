@@ -153,6 +153,7 @@ def skip_if_downloading_fails():
                 "md5 check",
                 "limit",  # HTTP Error 503: Egress is over the account limit
                 "authenticate",
+                "timed out",  # urlopen error [Errno 110] Connection timed out
             )
         ):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
