@@ -578,6 +578,8 @@ then
     then
         install_deps
     fi
+    which ruff
+    whereis -b ruff
     ruff --version
 
     if [ $doRuffFix = true ]
