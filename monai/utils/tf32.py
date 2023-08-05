@@ -27,6 +27,7 @@ def has_ampere_or_later() -> bool:
     Check if there is any Ampere and later GPU.
     """
     import torch
+
     from monai.utils.module import version_geq
 
     if not version_geq(f"{torch.version.cuda}", "11.0"):

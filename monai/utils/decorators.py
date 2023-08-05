@@ -81,6 +81,7 @@ class MethodReplacer:
 
         setattr(owner, name, self.meth)
 
+
 def reset_torch_cuda_after_run(func: Callable) -> Callable:
     """
     To resolve `torch.cuda` initialization order issue.
@@ -97,8 +98,11 @@ def reset_torch_cuda_after_run(func: Callable) -> Callable:
         val = func(*args, **kwargs)
 
         import importlib
+
         import torch
+
         importlib.reload(torch.cuda)
 
         return val
+
     return wrapped_func
