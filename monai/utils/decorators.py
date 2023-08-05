@@ -87,7 +87,7 @@ def reset_torch_cuda_after_run(func: Callable) -> Callable:
     If a function calls `torch.cuda` in a `__init__.py` file,
     the function should be decorated by this decorator
     to maintain CUDA lazy initialization.
-    
+
     See https://github.com/Project-MONAI/MONAI/issues/2161 and
     https://github.com/pytorch/pytorch/issues/80876
     """
