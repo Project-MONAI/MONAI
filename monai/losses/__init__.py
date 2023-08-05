@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from .adversarial_loss import PatchAdversarialLoss
 from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss
@@ -34,7 +35,9 @@ from .focal_loss import FocalLoss
 from .giou_loss import BoxGIoULoss, giou
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
+from .perceptual import PerceptualLoss
 from .spatial_mask import MaskedLoss
+from .spectral_loss import JukeboxLoss
 from .ssim_loss import SSIMLoss
 from .tversky import TverskyLoss
 from .unified_focal_loss import AsymmetricUnifiedFocalLoss
