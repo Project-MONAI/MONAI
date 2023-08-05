@@ -15,19 +15,19 @@ import functools
 import os
 import warnings
 
-import torch
-
-from monai.utils.module import pytorch_after, version_geq
+from monai.utils.decorators import reset_torch_cuda_after_run
 
 __all__ = ["has_ampere_or_later", "detect_default_tf32"]
 
 @functools.lru_cache(None)
+@reset_torch_cuda_after_run
 def has_ampere_or_later() -> bool:
     """
     Check if there is any Ampere and later GPU.
     """
-    if not torch.cuda.is_available():
-        return False
+    import torch
+    from monai.utils.module import version_geq
+
     if not version_geq(f"{torch.version.cuda}", "11.0"):
         return False
     for i in range(torch.cuda.device_count()):
@@ -46,6 +46,8 @@ def detect_default_tf32() -> bool:
     try:
         if not has_ampere_or_later():
             return False
+
+        from monai.utils.module import pytorch_after
 
         if pytorch_after(1, 7, 0) and not pytorch_after(1, 12, 0):
             warnings.warn(

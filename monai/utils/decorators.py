@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from functools import wraps
 
-__all__ = ["RestartGenerator", "MethodReplacer"]
+__all__ = ["RestartGenerator", "MethodReplacer", "reset_torch_cuda_after_run"]
 
 from typing import Callable, Generator
 
@@ -80,3 +80,25 @@ class MethodReplacer:
                 namelist.append(entry)
 
         setattr(owner, name, self.meth)
+
+def reset_torch_cuda_after_run(func: Callable) -> Callable:
+    """
+    To resolve `torch.cuda` initialization order issue.
+    If a function calls `torch.cuda` in a `__init__.py` file,
+    the function should be decorated by this decorator
+    to maintain CUDA lazy initialization.
+    
+    See https://github.com/Project-MONAI/MONAI/issues/2161 and
+    https://github.com/pytorch/pytorch/issues/80876
+    """
+
+    @wraps(func)
+    def wrapped_func(*args, **kwargs):
+        val = func(*args, **kwargs)
+
+        import importlib
+        import torch
+        importlib.reload(torch.cuda)
+
+        return val
+    return wrapped_func
