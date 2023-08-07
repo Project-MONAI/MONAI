@@ -1132,7 +1132,7 @@ class ScaleIntensityRangePercentiles(Transform):
     .. code-block:: python
         :emphasize-lines: 11, 22
 
-        image = np.array(
+        image = torch.Tensor(
             [[[1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
@@ -1144,23 +1144,24 @@ class ScaleIntensityRangePercentiles(Transform):
         # to output range [b_min, b_max]
         scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, False)
         print(scaler(image))
-        [[[0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.]]]
+        metatensor([[[  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.]]])
+
 
         # Scale from lower and upper image intensity percentiles
         # to lower and upper percentiles of the output range [b_min, b_max]
         rel_scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, True)
         print(rel_scaler(image))
-        [[[20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.]]]
+        metatensor([[[ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.]]])
 
     See Also:
 
