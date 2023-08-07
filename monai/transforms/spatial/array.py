@@ -502,7 +502,9 @@ class Spacing(InvertibleTransform, LazyTransform):
         input_affine_shape = input_affine.shape[0]
         if input_affine_shape != sr + 1:
             warnings.warn(
-                f"Expected `affine_matrix` of size ({sr+1},{sr+1}) for {sr}D input got ({input_affine_shape},{input_affine_shape}) . The affine matrix will be truncated for {sr}D input."
+                f"Expected `affine_matrix` of size ({sr+1},{sr+1}) for {sr}D input got "
+                f"({input_affine_shape},{input_affine_shape}). "
+                f"The affine matrix will be truncated for {sr}D input."
             )
         affine_ = to_affine_nd(sr, convert_data_type(input_affine, np.ndarray)[0])
 
