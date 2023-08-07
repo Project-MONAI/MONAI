@@ -159,7 +159,7 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
 
 
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
-    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/{model_name}/versions/{version}/files"
+    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/{model_name}/versions/{version}/files/{model_name}_v{version}.zip"
 
 
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
@@ -175,9 +175,8 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
 def _download_from_monaihosting(download_path: Path, filename: str, version: str, progress: bool) -> None:
     url = _get_monaihosting_bundle_url(model_name=filename, version=version)
     filepath = download_path / f"{filename}_v{version}.zip"
-    extract_path = download_path / f"{filename}"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
-    extractall(filepath=filepath, output_dir=extract_path, has_base=True)
+    extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
 def _add_ngc_prefix(name: str, prefix: str = "monai_") -> str:
