@@ -17,13 +17,10 @@ import torch
 from torch.utils.data import DataLoader as _TorchDataLoader
 from torch.utils.data import Dataset
 
-from monai.apps.utils import get_logger
 from monai.data.meta_obj import get_track_meta
 from monai.data.utils import list_data_collate, set_rnd, worker_init_fn
 
 __all__ = ["DataLoader"]
-
-logger = get_logger(module_name=__name__)
 
 
 class DataLoader(_TorchDataLoader):
