@@ -45,7 +45,7 @@ class ClearMLHandler:
             project_name: ClearML project name, default to 'MONAI'.
             task_name: ClearML task name, default to 'monai_experiment'.
             output_uri: The default location for output models and other artifacts, default to 'True'.
-            tags: A list of tags (str) to the created Task, default to 'None'.
+            tags: Add a list of tags (str) to the created Task, default to 'None'.
             reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
             continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
             auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
@@ -104,7 +104,7 @@ class ClearMLStatsHandler(ClearMLHandler, TensorBoardStatsHandler):
             project_name: ClearML project name, default to 'MONAI'.
             task_name: ClearML task name, default to 'monai_experiment'.
             output_uri: The default location for output models and other artifacts, default to 'True'.
-            tags: A list of tags (str) to the created Task, default to 'None'.
+            tags: Add a list of tags (str) to the created Task, default to 'None'.
             reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
             continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
             auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
@@ -155,7 +155,7 @@ class ClearMLImageHandler(ClearMLHandler, TensorBoardImageHandler):
             project_name: ClearML project name, default to 'MONAI'.
             task_name: ClearML task name, default to 'monai_experiment'.
             output_uri: The default location for output models and other artifacts, default to 'True'.
-            tags: A list of tags (str) to the created Task, default to 'None'.
+            tags: Add a list of tags (str) to the created Task, default to 'None'.
             reuse_last_task_id: Force a new Task (experiment) with a previously used Task ID, default to 'True'.
             continue_last_task: Continue the execution of a previously executed Task (experiment), default to 'False'.
             auto_connect_frameworks: Automatically connect frameworks, default to 'True'.
