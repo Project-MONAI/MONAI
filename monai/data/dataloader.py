@@ -11,10 +11,13 @@
 
 from __future__ import annotations
 
+import warnings
+
 import torch
 from torch.utils.data import DataLoader as _TorchDataLoader
 from torch.utils.data import Dataset
 
+from monai.data.meta_obj import get_track_meta
 from monai.data.utils import list_data_collate, set_rnd, worker_init_fn
 
 __all__ = ["DataLoader"]
@@ -87,5 +90,17 @@ class DataLoader(_TorchDataLoader):
             kwargs["collate_fn"] = list_data_collate
         if "worker_init_fn" not in kwargs:
             kwargs["worker_init_fn"] = worker_init_fn
+
+        if (
+            "multiprocessing_context" in kwargs
+            and kwargs["multiprocessing_context"] == "spawn"
+            and not get_track_meta()
+        ):
+            warnings.warn(
+                "Please be aware: Return type of the dataloader will not be a Tensor as expected but"
+                " a MetaTensor instead! This is because 'spawn' creates a new process where _TRACK_META"
+                " is initialized to True again. Context:_TRACK_META is set to False and"
+                " multiprocessing_context to spawn"
+            )
 
         super().__init__(dataset=dataset, num_workers=num_workers, **kwargs)
