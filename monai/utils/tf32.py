@@ -24,12 +24,20 @@ def has_ampere_or_later() -> bool:
     Check if there is any Ampere and later GPU.
     """
     import torch
+
     from monai.utils.module import version_geq
 
     if not (torch.version.cuda and version_geq(f"{torch.version.cuda}", "11.0")):
         return False
 
-    from pynvml import nvmlInit, nvmlShutdown, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetCudaComputeCapability
+    from pynvml import (
+        nvmlDeviceGetCount,
+        nvmlDeviceGetCudaComputeCapability,
+        nvmlDeviceGetHandleByIndex,
+        nvmlInit,
+        nvmlShutdown,
+    )
+
     try:
         nvmlInit()
         for i in range(nvmlDeviceGetCount()):
