@@ -25,30 +25,26 @@ def has_ampere_or_later() -> bool:
     """
     import torch
 
-    from monai.utils.module import version_geq
+    from monai.utils.module import version_geq, optional_import
 
     if not (torch.version.cuda and version_geq(f"{torch.version.cuda}", "11.0")):
         return False
 
-    from pynvml import (
-        nvmlDeviceGetCount,
-        nvmlDeviceGetCudaComputeCapability,
-        nvmlDeviceGetHandleByIndex,
-        nvmlInit,
-        nvmlShutdown,
-    )
+    pynvml, has_pynvml = optional_import("pynvml")
+    if not has_pynvml:  # assuming that the user has Ampere and later GPU
+        return True
 
     try:
-        nvmlInit()
-        for i in range(nvmlDeviceGetCount()):
-            handle = nvmlDeviceGetHandleByIndex(i)
-            major, _ = nvmlDeviceGetCudaComputeCapability(handle)
+        pynvml.nvmlInit()
+        for i in range(pynvml.nvmlDeviceGetCount()):
+            handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+            major, _ = pynvml.nvmlDeviceGetCudaComputeCapability(handle)
             if major >= 8:
                 return True
     except BaseException:
         pass
     finally:
-        nvmlShutdown()
+        pynvml.nvmlShutdown()
 
     return False
 
