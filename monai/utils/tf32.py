@@ -25,7 +25,7 @@ def has_ampere_or_later() -> bool:
     """
     import torch
 
-    from monai.utils.module import version_geq, optional_import
+    from monai.utils.module import optional_import, version_geq
 
     if not (torch.version.cuda and version_geq(f"{torch.version.cuda}", "11.0")):
         return False
