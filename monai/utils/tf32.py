@@ -15,27 +15,33 @@ import functools
 import os
 import warnings
 
-from monai.utils.decorators import reset_torch_cuda_after_run
-
 __all__ = ["has_ampere_or_later", "detect_default_tf32"]
 
 
 @functools.lru_cache(None)
-@reset_torch_cuda_after_run
 def has_ampere_or_later() -> bool:
     """
     Check if there is any Ampere and later GPU.
     """
     import torch
-
     from monai.utils.module import version_geq
 
     if not version_geq(f"{torch.version.cuda}", "11.0"):
         return False
-    for i in range(torch.cuda.device_count()):
-        major, _ = torch.cuda.get_device_capability(i)
-        if major >= 8:  # Ampere and later
-            return True
+
+    from pynvml import nvmlInit, nvmlShutdown, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetCudaComputeCapability
+    try:
+        nvmlInit()
+        for i in range(nvmlDeviceGetCount()):
+            handle = nvmlDeviceGetHandleByIndex(i)
+            major, _ = nvmlDeviceGetCudaComputeCapability(handle)
+            if major >= 8:
+                return True
+    except BaseException:
+        pass
+    finally:
+        nvmlShutdown()
+
     return False
 
 
