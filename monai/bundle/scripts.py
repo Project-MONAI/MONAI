@@ -45,6 +45,7 @@ from monai.networks import (
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
+    deprecated_arg_default,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -61,7 +62,8 @@ onnx, _ = optional_import("onnx")
 logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
-download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
+# set BUNDLE_DOWNLOAD_SRC="monaihosting" to use monaihosting source in default for bundle download
+download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 PPRINT_CONFIG_N = 5
 
 
@@ -170,9 +172,7 @@ def _download_from_github(repo: str, download_path: Path, filename: str, progres
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
-def _download_from_monaihosting(
-    download_path: Path, filename: str, version: str, progress: bool
-) -> None:
+def _download_from_monaihosting(download_path: Path, filename: str, version: str, progress: bool) -> None:
     url = _get_monaihosting_bundle_url(model_name=filename, version=version)
     filepath = download_path / f"{filename}_v{version}.zip"
     extract_path = download_path / f"{filename}"
@@ -234,7 +234,8 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
     else:
         raise ValueError(
-            f"To get the latest bundle version, source should be 'github', 'monaihosting' or 'ngc', got {source}.")
+            f"To get the latest bundle version, source should be 'github', 'monaihosting' or 'ngc', got {source}."
+        )
 
 
 def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
@@ -247,6 +248,7 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
+@deprecated_arg_default("source", "github", "monaihosting", since="1.3", replaced="1.4")
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -277,6 +279,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle from ngc with latest version:
         python -m monai.bundle download --name <bundle_name> --source "ngc" --bundle_dir "./"
 
+        # Execute this module as a CLI entry, and download bundle from monaihosting with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "monaihosting" --bundle_dir "./"
+
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
 
@@ -300,7 +305,7 @@ def download(
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc" or "github".
+            it should be "ngc", "monaihosting" or "github".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github".
             If used, it should be in the form of "repo_owner/repo_name/release_tag".
         url: url to download the data. If not `None`, data will be downloaded directly
@@ -355,12 +360,7 @@ def download(
                 name_ = "_v".join([name_, version_])
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
         elif source_ == "monaihosting":
-            _download_from_monaihosting(
-                download_path=bundle_dir_,
-                filename=name_,
-                version=version_,
-                progress=progress_,
-            )
+            _download_from_monaihosting(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
         elif source_ == "ngc":
             _download_from_ngc(
                 download_path=bundle_dir_,
@@ -371,7 +371,8 @@ def download(
             )
         else:
             raise NotImplementedError(
-                f"Currently only download from `url`, source 'github' or 'ngc' are implemented, got source: {source_}."
+                "Currently only download from `url`, source 'github', 'monaihosting' or 'ngc' are implemented,"
+                f"got source: {source_}."
             )
 
 
@@ -411,7 +412,7 @@ def load(
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
             downloaded first.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc" or "github".
+            it should be "ngc", "monaihosting" or "github".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github".
             If used, it should be in the form of "repo_owner/repo_name/release_tag".
         remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
