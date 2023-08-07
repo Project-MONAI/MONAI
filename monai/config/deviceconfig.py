@@ -84,6 +84,7 @@ def get_optional_config_values():
     output["transformers"] = get_package_version("transformers")
     output["mlflow"] = get_package_version("mlflow")
     output["pynrrd"] = get_package_version("nrrd")
+    output["clearml"] = get_package_version("clearml")
 
     return output
 
