@@ -23,6 +23,7 @@ from .loss_metric import LossMetric
 from .meandice import DiceHelper, DiceMetric, compute_dice
 from .meaniou import MeanIoU, compute_iou, compute_meaniou
 from .metric import Cumulative, CumulativeIterationMetric, IterationMetric, Metric
+from .mmd import MMDMetric, compute_mmd
 from .panoptic_quality import PanopticQualityMetric, compute_panoptic_quality
 from .regression import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric, SSIMMetric
 from .rocauc import ROCAUCMetric, compute_roc_auc
