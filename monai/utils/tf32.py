@@ -26,7 +26,7 @@ def has_ampere_or_later() -> bool:
     import torch
     from monai.utils.module import version_geq
 
-    if not version_geq(f"{torch.version.cuda}", "11.0"):
+    if not (torch.version.cuda and version_geq(f"{torch.version.cuda}", "11.0")):
         return False
 
     from pynvml import nvmlInit, nvmlShutdown, nvmlDeviceGetCount, nvmlDeviceGetHandleByIndex, nvmlDeviceGetCudaComputeCapability
