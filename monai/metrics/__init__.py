@@ -25,7 +25,16 @@ from .meaniou import MeanIoU, compute_iou, compute_meaniou
 from .metric import Cumulative, CumulativeIterationMetric, IterationMetric, Metric
 from .mmd import MMDMetric, compute_mmd
 from .panoptic_quality import PanopticQualityMetric, compute_panoptic_quality
-from .regression import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric, SSIMMetric
+from .regression import (
+    MAEMetric,
+    MSEMetric,
+    MultiScaleSSIMMetric,
+    PSNRMetric,
+    RMSEMetric,
+    SSIMMetric,
+    compute_ms_ssim,
+    compute_ssim_and_cs,
+)
 from .rocauc import ROCAUCMetric, compute_roc_auc
 from .surface_dice import SurfaceDiceMetric, compute_surface_dice
 from .surface_distance import SurfaceDistanceMetric, compute_average_surface_distance
