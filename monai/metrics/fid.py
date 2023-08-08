@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-from scipy import linalg
 
 from monai.metrics.metric import Metric
+from monai.utils import optional_import
+
+scipy, _ = optional_import("scipy")
 
 
 class FIDMetric(Metric):
@@ -78,7 +80,7 @@ def _cov(input_data: torch.Tensor, rowvar: bool = True) -> torch.Tensor:
 
 def _sqrtm(input_data: torch.Tensor) -> torch.Tensor:
     """Compute the square root of a matrix."""
-    scipy_res, _ = linalg.sqrtm(input_data.detach().cpu().numpy().astype(np.float_), disp=False)
+    scipy_res, _ = scipy.linalg.sqrtm(input_data.detach().cpu().numpy().astype(np.float_), disp=False)
     return torch.from_numpy(scipy_res)
 
 

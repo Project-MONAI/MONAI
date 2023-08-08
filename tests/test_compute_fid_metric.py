@@ -17,8 +17,12 @@ import numpy as np
 import torch
 
 from monai.metrics import FIDMetric
+from monai.utils import optional_import
+
+_, has_scipy = optional_import("scipy")
 
 
+@unittest.skipUnless(has_scipy, "Requires scipy")
 class TestFIDMetric(unittest.TestCase):
     def test_results(self):
         x = torch.Tensor([[1, 2], [1, 2], [1, 2]])
