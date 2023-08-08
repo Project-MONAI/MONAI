@@ -1541,7 +1541,7 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
-class AutoBundle():
+class AutoBundle:
     def __init__(self, bundle_name_or_path: str, bundle_dir: str = None, workflow: str = "train", **kwargs) -> None:
         _bundle_name_or_path = Path(ensure_tuple(bundle_name_or_path)[0])
         if _bundle_name_or_path.is_file():
@@ -1549,10 +1549,7 @@ class AutoBundle():
             logging_file = f"{_bundle_name_or_path.parent}/logging.conf"
             self.meta_file = f"{_bundle_name_or_path.parent}/metadata.json"
         else:
-            download_args = {
-                "version": kwargs.pop("version", None),
-                "source": kwargs.pop("source", download_source),
-            }
+            download_args = {"version": kwargs.pop("version", None), "source": kwargs.pop("source", download_source)}
             download(bundle_name_or_path, bundle_dir=bundle_dir, **download_args)
             bundle_dir = _process_bundle_dir(bundle_dir)
             config_file = f"{bundle_dir}/{bundle_name_or_path}/configs/{workflow}.json"
@@ -1560,11 +1557,7 @@ class AutoBundle():
             self.meta_file = f"{bundle_dir}/{bundle_name_or_path}/configs/metadata.json"
 
         self.workflow = ConfigWorkflow(
-            config_file=config_file,
-            meta_file=self.meta_file,
-            logging_file=logging_file,
-            workflow=workflow,
-            **kwargs
+            config_file=config_file, meta_file=self.meta_file, logging_file=logging_file, workflow=workflow, **kwargs
         )
         self.workflow.initialize()
 
