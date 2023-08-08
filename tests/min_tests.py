@@ -204,6 +204,7 @@ def run_testsuit():
         "test_spatial_combine_transforms",
         "test_bundle_workflow",
         "test_zarr_avg_merger",
+        "test_perceptual_loss",
         "test_ultrasound_confidence_map_transform",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
