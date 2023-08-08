@@ -60,9 +60,9 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
 
 .. toctree::
   :maxdepth: 1
-  :caption: Precision and Performance
+  :caption: Precision and Accelerating
 
-  precision_performance
+  precision_accelerating
 
 .. toctree::
   :maxdepth: 1

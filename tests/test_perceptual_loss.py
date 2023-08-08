@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails
 
 _, has_torchvision = optional_import("torchvision")
 TEST_CASES = [
@@ -59,13 +59,15 @@ class TestPerceptualLoss(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_identical_input(self, input_param, input_shape, target_shape):
-        loss = PerceptualLoss(**input_param)
+        with skip_if_downloading_fails():
+            loss = PerceptualLoss(**input_param)
         tensor = torch.randn(input_shape)
         result = loss(tensor, tensor)
         self.assertEqual(result, torch.Tensor([0.0]))
 
     def test_different_shape(self):
-        loss = PerceptualLoss(spatial_dims=2, network_type="squeeze")
+        with skip_if_downloading_fails():
+            loss = PerceptualLoss(spatial_dims=2, network_type="squeeze")
         tensor = torch.randn(2, 1, 64, 64)
         target = torch.randn(2, 1, 32, 32)
         with self.assertRaises(ValueError):
