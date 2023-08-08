@@ -318,7 +318,7 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = False):
         result = execute_compose(
             input_,
             transforms=self.transforms,
@@ -326,7 +326,7 @@ class Compose(Randomizable, InvertibleTransform):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,
+            lazy=lazy,
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
@@ -447,7 +447,7 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data, start=0, end=None, threading=False, lazy: str | bool | None = None):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
         if start != 0:
             raise ValueError(f"OneOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -466,7 +466,7 @@ class OneOf(Compose):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,
+            lazy=lazy,
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
