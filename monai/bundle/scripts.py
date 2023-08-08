@@ -1501,3 +1501,50 @@ def init_bundle(
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))
     elif network is not None:
         save_state(network, str(models_dir / "model.pt"))
+
+
+class AutoBundle():
+    def __init__(self, bundle_name_or_path: str, bundle_dir: str = None, workflow: str = "train", **kwargs) -> None:
+        _bundle_name_or_path = Path(ensure_tuple(bundle_name_or_path)[0])
+        if _bundle_name_or_path.is_file():
+            config_file = bundle_name_or_path
+            logging_file = f"{_bundle_name_or_path.parent}/logging.conf"
+            self.meta_file = f"{_bundle_name_or_path.parent}/metadata.json"
+        else:
+            download_args = {
+                "version": kwargs.pop("version", None),
+                "source": kwargs.pop("source", download_source),
+            }
+            download(bundle_name_or_path, bundle_dir=bundle_dir, **download_args)
+            bundle_dir = _process_bundle_dir(bundle_dir)
+            config_file = f"{bundle_dir}/{bundle_name_or_path}/configs/{workflow}.json"
+            logging_file = f"{bundle_dir}/{bundle_name_or_path}/configs/logging.conf"
+            self.meta_file = f"{bundle_dir}/{bundle_name_or_path}/configs/metadata.json"
+
+        self.workflow = ConfigWorkflow(
+            config_file=config_file,
+            meta_file=self.meta_file,
+            logging_file=logging_file,
+            workflow=workflow,
+            **kwargs
+        )
+        self.workflow.initialize()
+
+    def from_bundle(self, property: str | None = None, meta: str | None = None):
+        if property is not None and meta is not None:
+            raise ValueError("Incompatible values: both property and meta are specified.")
+        if property is not None:
+            if property in self.workflow.properties:
+                return getattr(self.workflow, property)
+            raise ValueError(f"Missing property {property} in the bundle.")
+        if meta is not None:
+            metadata = ConfigParser.load_config_files(files=self.meta_file)
+            if meta.lower() in metadata.keys():
+                return {meta: metadata[meta.lower()]}
+            raise ValueError(f"Missing meta {meta} informtation in metadata.json.")
+
+    def train(self):
+        pass
+
+    def predict(self):
+        pass
