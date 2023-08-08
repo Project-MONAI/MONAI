@@ -180,7 +180,7 @@ def is_tf32_env():
     global _tf32_enabled
     if _tf32_enabled is None:
         _tf32_enabled = False
-        if detect_default_tf32() or torch.backends.cuda.matmul.allow_tf32:
+        if torch.cuda.is_available() and (detect_default_tf32() or torch.backends.cuda.matmul.allow_tf32):
             try:
                 # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
                 g_gpu = torch.Generator(device="cuda")
