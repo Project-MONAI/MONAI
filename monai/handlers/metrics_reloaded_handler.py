@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.handlers.ignite_metric import IgniteMetric
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import MetricsReloadedBinary, MetricsReloadedCategorical
 from monai.utils.enums import MetricReduction
 
 
-class MetricsReloadedBinaryHandler(IgniteMetric):
+class MetricsReloadedBinaryHandler(IgniteMetricHandler):
     """
     Handler of MetricsReloadedBinary, which wraps the binary pairwise metrics of MetricsReloaded.
     """
@@ -36,7 +36,7 @@ class MetricsReloadedBinaryHandler(IgniteMetric):
 
         Args:
             metric_name: Name of a binary metric from the MetricsReloaded package.
-            include_background: whether to skip computation on the first channel of
+            include_background: whether to include computation on the first channel of
                 the predicted output. Defaults to ``True``.
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -65,7 +65,7 @@ class MetricsReloadedBinaryHandler(IgniteMetric):
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
-class MetricsReloadedCategoricalHandler(IgniteMetric):
+class MetricsReloadedCategoricalHandler(IgniteMetricHandler):
     """
     Handler of MetricsReloadedCategorical, which wraps the categorical pairwise metrics of MetricsReloaded.
     """
@@ -84,7 +84,7 @@ class MetricsReloadedCategoricalHandler(IgniteMetric):
 
         Args:
             metric_name: Name of a categorical metric from the MetricsReloaded package.
-            include_background: whether to skip computation on the first channel of
+            include_background: whether to include computation on the first channel of
                 the predicted output. Defaults to ``True``.
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,

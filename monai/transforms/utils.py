@@ -28,7 +28,7 @@ from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
-from monai.transforms.compose import Compose, OneOf
+from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
@@ -52,6 +52,8 @@ from monai.utils import (
     PytorchPadMode,
     SplineMode,
     TraceKeys,
+    TraceStatusKeys,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -121,6 +123,7 @@ __all__ = [
     "sync_meta_info",
     "reset_ops_id",
     "resolves_modes",
+    "has_status_keys",
 ]
 
 
@@ -943,6 +946,7 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
+@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
@@ -959,7 +963,6 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    If `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
     This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
@@ -968,8 +971,10 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-            than box size, default to `True`.
+        allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
+                the bounding boxes edges are aligned with the final box edges. Default to `True`.
+
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
@@ -1395,10 +1400,10 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
     trans_info = dict(trans_info)
     if "mode" in trans_info:
         current_mode = trans_info["mode"]
-        if current_mode[0] in _interp_modes:
-            trans_info["mode"] = [mode for _ in range(len(mode))]
-        elif current_mode in _interp_modes:
+        if isinstance(current_mode, int) or current_mode in _interp_modes:
             trans_info["mode"] = mode
+        elif isinstance(current_mode[0], int) or current_mode[0] in _interp_modes:
+            trans_info["mode"] = [mode for _ in range(len(mode))]
     if "align_corners" in trans_info:
         _align_corners = TraceKeys.NONE if align_corners is None else align_corners
         current_value = trans_info["align_corners"]
@@ -1549,6 +1554,7 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: H
         test_data: data to be used to count the number of conversions
         key: if using dictionary transforms, this key will be used to check the number of conversions.
     """
+    from monai.transforms.compose import OneOf
 
     def _get_data(obj, key):
         return obj if key is None else obj[key]
@@ -1663,7 +1669,7 @@ def print_transform_backends():
     print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
-    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+    print_color(f"Number of uncategorized: {n_uncategorized}", Colors.red)
 
 
 def convert_pad_mode(dst: NdarrayOrTensor, mode: str | None):
@@ -1968,6 +1974,81 @@ def resolves_modes(
     else:
         _interp_mode = GridSampleMode(_interp_mode)
     return backend, _interp_mode, _padding_mode, _kwargs
+
+
+def check_applied_operations(entry: list | dict, status_key: str, default_message: str = "No message provided"):
+    """
+    Check the operations of a MetaTensor to determine whether there are any statuses
+    Args:
+        entry: a dictionary that may contain TraceKey.STATUS entries, or a list of such dictionaries
+        status_key: the status key to search for. This must be an entry in `TraceStatusKeys`_
+        default_message: The message to provide if no messages are provided for the given status key entry
+
+    Returns:
+        A list of status messages matching the providing status key
+
+    """
+    if isinstance(entry, list):
+        results = list()
+        for sub_entry in entry:
+            results.extend(check_applied_operations(sub_entry, status_key, default_message))
+        return results
+    else:
+        status_key_ = TraceStatusKeys(status_key)
+        if TraceKeys.STATUSES in entry:
+            if status_key_ in entry[TraceKeys.STATUSES]:
+                reason = entry[TraceKeys.STATUSES][status_key_]
+                if reason is None:
+                    return [default_message]
+                return reason if isinstance(reason, list) else [reason]
+        return []
+
+
+def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = "No message provided"):
+    """
+    Checks whether a given tensor is has a particular status key message on any of its
+    applied operations. If it doesn't, it returns the tuple `(False, None)`. If it does
+    it returns a tuple of True and a list of status messages for that status key.
+
+    Status keys are defined in :class:`TraceStatusKeys<monai.utils.enums.TraceStatusKeys>`.
+
+    This function also accepts:
+
+    * dictionaries of tensors
+    * lists or tuples of tensors
+    * list or tuples of dictionaries of tensors
+
+    In any of the above scenarios, it iterates through the collections and executes itself recursively until it is
+    operating on tensors.
+
+    Args:
+        data: a `torch.Tensor` or `MetaTensor` or collections of torch.Tensor or MetaTensor, as described above
+        status_key: the status key to look for, from `TraceStatusKeys`
+        default_message: a default message to use if the status key entry doesn't have a message set
+
+    Returns:
+        A tuple. The first entry is `False` or `True`. The second entry is the status messages that can be used for the
+        user to help debug their pipelines.
+
+    """
+    status_key_occurrences = list()
+    if isinstance(data, (list, tuple)):
+        for d in data:
+            _, reasons = has_status_keys(d, status_key, default_message)
+            if reasons is not None:
+                status_key_occurrences.extend(reasons)
+    elif isinstance(data, monai.data.MetaTensor):
+        for op in data.applied_operations:
+            status_key_occurrences.extend(check_applied_operations(op, status_key, default_message))
+    elif isinstance(data, dict):
+        for d in data.values():
+            _, reasons = has_status_keys(d, status_key, default_message)
+            if reasons is not None:
+                status_key_occurrences.extend(reasons)
+
+    if len(status_key_occurrences) > 0:
+        return False, status_key_occurrences
+    return True, None
 
 
 if __name__ == "__main__":

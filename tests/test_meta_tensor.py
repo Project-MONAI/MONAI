@@ -413,6 +413,10 @@ class TestMetaTensor(unittest.TestCase):
         x.is_batch = True
         with self.assertRaises(ValueError):
             x[slice(0, 8)]
+        x = MetaTensor(np.zeros((3, 3, 4)))
+        x.is_batch = True
+        self.assertEqual(x[torch.tensor([True, False, True])].shape, (2, 3, 4))
+        self.assertEqual(x[[True, False, True]].shape, (2, 3, 4))
 
     @parameterized.expand(DTYPES)
     @SkipIfBeforePyTorchVersion((1, 8))

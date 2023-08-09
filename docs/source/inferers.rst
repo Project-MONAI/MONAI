@@ -57,6 +57,13 @@ Splitters
     :members:
     :special-members: __call__
 
+`WSISlidingWindowSplitter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: WSISlidingWindowSplitter
+    :members:
+    :special-members: __call__
+
+
 Mergers
 -------
 .. currentmodule:: monai.inferers
@@ -70,6 +77,11 @@ Mergers
     :members:
     :special-members: __call__
 
+`ZarrAvgMerger`
+~~~~~~~~~~~~~~~
+.. autoclass:: ZarrAvgMerger
+    :members:
+    :special-members: __call__
 
 
 Sliding Window Inference Function

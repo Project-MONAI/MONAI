@@ -33,10 +33,8 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
-    AddChannel,
     AddCoordinateChannels,
     AddExtremePointsChannel,
-    AsChannelFirst,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -221,31 +219,6 @@ class Identityd(MapTransform):
         return d
 
 
-class AsChannelFirstd(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
-    """
-
-    backend = AsChannelFirst.backend
-
-    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            channel_dim: which dimension of input image is the channel, default is the last dimension.
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.converter = AsChannelFirst(channel_dim=channel_dim)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.converter(d[key])
-        return d
-
-
 class AsChannelLastd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
@@ -268,30 +241,6 @@ class AsChannelLastd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
-        return d
-
-
-class AddChanneld(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
-    """
-
-    backend = AddChannel.backend
-
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.adder = AddChannel()
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.adder(d[key])
         return d
 
 
@@ -334,6 +283,50 @@ class EnsureChannelFirstd(MapTransform):
         for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
             d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
         return d
+
+
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstd instead.",
+)
+class AsChannelFirstd(EnsureChannelFirstd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
+    """
+
+    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            channel_dim: which dimension of input image is the channel, default is the last dimension.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys=keys, channel_dim=channel_dim, allow_missing_keys=allow_missing_keys)
+
+
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstd instead"
+    " with `channel_dim='no_channel'`.",
+)
+class AddChanneld(EnsureChannelFirstd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
+    """
+
+    backend = EnsureChannelFirstd.backend
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys, channel_dim="no_channel")
 
 
 class RepeatChanneld(MapTransform):
@@ -452,7 +445,7 @@ class SplitDimd(MapTransform, MultiSampleTrait):
         return d
 
 
-@deprecated(since="0.8", msg_suffix="please use `SplitDimd` instead.")
+@deprecated(since="0.8", removed="1.3", msg_suffix="please use `SplitDimd` instead.")
 class SplitChanneld(SplitDimd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
@@ -521,7 +514,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         dtype: torch.dtype | None = None,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
         allow_missing_keys: bool = False,

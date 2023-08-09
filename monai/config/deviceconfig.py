@@ -71,6 +71,7 @@ def get_optional_config_values():
     output["ITK"] = get_package_version("itk")
     output["Nibabel"] = get_package_version("nibabel")
     output["scikit-image"] = get_package_version("skimage")
+    output["scipy"] = get_package_version("scipy")
     output["Pillow"] = get_package_version("PIL")
     output["Tensorboard"] = get_package_version("tensorboard")
     output["gdown"] = get_package_version("gdown")
@@ -83,6 +84,7 @@ def get_optional_config_values():
     output["transformers"] = get_package_version("transformers")
     output["mlflow"] = get_package_version("mlflow")
     output["pynrrd"] = get_package_version("nrrd")
+    output["clearml"] = get_package_version("clearml")
 
     return output
 

@@ -5,6 +5,117 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2023-06-08
+### Added
+* Various Auto3DSeg enhancements and integration tests including multi-node multi-GPU optimization, major usability improvements
+* TensorRT and ONNX support for `monai.bundle` API and the relevant models
+* nnU-Net V2 integration `monai.apps.nnunet`
+* Binary and categorical metrics and event handlers using `MetricsReloaded`
+* Python module and CLI entry point for bundle workflows in `monai.bundle.workflows` and `monai.fl.client`
+* Modular patch inference API including `PatchInferer`, `merger`, and `splitter`
+* Initial release of lazy resampling including transforms and MetaTensor implementations
+* Bridge for ITK Image object and MetaTensor `monai.data.itk_torch_bridge`
+* Sliding window inference memory efficiency optimization including `SlidingWindowInfererAdapt`
+* Generic kernel filtering transforms `ImageFiltered` and `RandImageFiltered`
+* Trainable bilateral filters and joint bilateral filters
+* ClearML stats and image handlers for experiment tracking
+#### misc.
+* Utility functions to warn API default value changes (#5738)
+* Support of dot notation to access content of `ConfigParser` (#5813)
+* Softmax version to focal loss (#6544)
+* FROC metric for N-dimensional (#6528)
+* Extend SurfaceDiceMetric for 3D images (#6549)
+* A `track_meta` option for Lambda and derived transforms (#6385)
+* CLIP pre-trained text-to-vision embedding (#6282)
+* Optional spacing to surface distances calculations (#6144)
+* `WSIReader` read by power and mpp (#6244)
+* Support GPU tensor for `GridPatch` and `GridPatchDataset` (#6246)
+* `SomeOf` transform composer (#6143)
+* GridPatch with both count and threshold filtering (#6055)
+### Fixed
+#### transforms
+* `map_classes_to_indices` efficiency issue (#6468)
+* Adaptive resampling mode based on backends (#6429)
+* Improve Compose encapsulation (#6224)
+* User-provided `FolderLayout` in `SaveImage` and `SaveImaged` transforms (#6213)
+* `SpacingD` output shape compute stability (#6126)
+* No mutate ratio /user inputs `croppad` (#6127)
+* A `warn` flag to RandCropByLabelClasses (#6121)
+* `nan` to indicate `no_channel`, split dim singleton (#6090)
+* Compatible padding mode (#6076)
+* Allow for missing `filename_or_obj` key (#5980)
+* `Spacing` pixdim in-place change (#5950)
+* Add warning in `RandHistogramShift` (#5877)
+* Exclude `cuCIM` wrappers from `get_transform_backends` (#5838)
+#### data
+* `__format__` implementation of MetaTensor (#6523)
+* `channel_dim` in `TiffFileWSIReader` and `CuCIMWSIReader` (#6514)
+* Prepend `"meta"` to `MetaTensor.__repr__` and `MetaTensor.__str__` for easier identification (#6214)
+* MetaTensor slicing issue (#5845)
+* Default writer flags (#6147)
+* `WSIReader` defaults and tensor conversion (#6058)
+* Remove redundant array copy for WSITiffFileReader (#6089)
+* Fix unused arg in `SlidingPatchWSIDataset` (#6047)
+* `reverse_indexing` for PILReader (#6008)
+* Use `np.linalg` for the small affine inverse (#5967)
+#### metrics and losses
+* Removing L2-norm in contrastive loss (L2-norm already present in CosSim) (#6550)
+* Fixes the SSIM metric (#6250)
+* Efficiency issues of Dice metrics (#6412)
+* Generalized Dice issue (#5929)
+* Unify output tensor devices for multiple metrics (#5924)
+#### networks
+* Make `RetinaNet` throw errors for NaN only when training (#6479)
+* Replace deprecated arg in torchvision models (#6401)
+* Improves NVFuser import check (#6399)
+* Add `device` in `HoVerNetNuclearTypePostProcessing` and `HoVerNetInstanceMapPostProcessing` (#6333)
+* Enhance hovernet load pretrained function (#6269)
+* Access to the `att_mat` in self-attention modules (#6493)
+* Optional swinunetr-v2 (#6203)
+* Add transform to handle empty box as training data for `retinanet_detector` (#6170)
+* GPU utilization of DiNTS network (#6050)
+* A pixelshuffle upsample shape mismatch problem (#5982)
+* GEGLU activation function for the MLP Block (#5856)
+* Constructors for `DenseNet` derived classes (#5846)
+* Flexible interpolation modes in `regunet` (#5807)
+#### bundle
+* Optimized the `deepcopy` logic in `ConfigParser` (#6464)
+* Improve check and error message of bundle run (#6400)
+* Warn or raise ValueError on duplicated key in json/yaml config (#6252)
+* Default metadata and logging values for bundle run (#6072)
+* `pprint` head and tail in bundle script (#5969)
+* Config parsing issue for substring reference (#5932)
+* Fix instantiate for object instantiation with attribute `path` (#5866)
+* Fix `_get_latest_bundle_version` issue on Windows (#5787)
+#### engines and handlers
+* MLflow handler run bug (#6446)
+* `monai.engine` training attribute check (#6132)
+* Update StatsHandler logging message (#6051)
+* Added callable options for `iteration_log` and `epoch_log` in TensorBoard and MLFlow (#5976)
+* `CheckpointSaver` logging error (#6026)
+* Callable options for `iteration_log` and `epoch_log` in StatsHandler (#5965)
+#### misc.
+* Avoid creating cufile.log when `import monai` (#6106)
+* `monai._extensions` module compatibility with rocm (#6161)
+* Issue of repeated UserWarning: "TypedStorage is deprecated" (#6105)
+* Use logging config at module level (#5960)
+* Add ITK to the list of optional dependencies (#5858)
+* `RankFilter` to skip logging when the rank is not meeting criteria (#6243)
+* Various documentation issues
+### Changed
+* Overall more precise and consistent type annotations
+* Optionally depend on PyTorch-Ignite v0.4.11 instead of v0.4.10
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:23.03-py3` from `nvcr.io/nvidia/pytorch:22.10-py3`
+### Deprecated
+* `resample=True`; `resample=False` will be the new default in `SaveImage`
+* `random_size=True`; `random_size=False` will be the new default for the random cropping transforms
+* `image_only=False`; `image_only=True` will be the new default in `LoadImage`
+* `AddChannel` and `AsChannelFirst` in favor of `EnsureChannelFirst`
+### Removed
+* Deprecated APIs since v0.9, including WSIReader from `monai.apps`, `NiftiSaver` and `PNGSaver` from `monai.data`
+* Support for PyTorch 1.8
+* Support for Python 3.7
+
 ## [1.1.0] - 2022-12-19
 ### Added
 * Hover-Net based digital pathology workflows including new network, loss, postprocessing, metric, training, and inference modules
@@ -706,7 +817,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/Project-MONAI/MONAI/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...1.1.0
 [1.0.1]: https://github.com/Project-MONAI/MONAI/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/Project-MONAI/MONAI/compare/0.9.1...1.0.0

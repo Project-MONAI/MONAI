@@ -118,15 +118,18 @@ from .intensity.array import (
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     RandScaleIntensity,
+    RandScaleIntensityFixedMean,
     RandShiftIntensity,
     RandStdShiftIntensity,
     SavitzkyGolaySmooth,
     ScaleIntensity,
+    ScaleIntensityFixedMean,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
     StdShiftIntensity,
     ThresholdIntensity,
+    UltrasoundConfidenceMapTransform,
 )
 from .intensity.dictionary import (
     AdjustContrastd,
@@ -198,6 +201,9 @@ from .intensity.dictionary import (
     RandScaleIntensityd,
     RandScaleIntensityD,
     RandScaleIntensityDict,
+    RandScaleIntensityFixedMeand,
+    RandScaleIntensityFixedMeanD,
+    RandScaleIntensityFixedMeanDict,
     RandShiftIntensityd,
     RandShiftIntensityD,
     RandShiftIntensityDict,
@@ -230,7 +236,9 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
-from .lazy.functional import apply_transforms
+from .lazy.array import ApplyPending
+from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
+from .lazy.functional import apply_pending
 from .lazy.utils import combine_transforms, resample
 from .meta_utility.dictionary import (
     FromMetaTensord,
@@ -373,6 +381,7 @@ from .spatial.array import (
     RandGridPatch,
     RandRotate,
     RandRotate90,
+    RandSimulateLowResolution,
     RandZoom,
     Resample,
     ResampleToMatch,
@@ -429,6 +438,9 @@ from .spatial.dictionary import (
     RandRotated,
     RandRotateD,
     RandRotateDict,
+    RandSimulateLowResolutiond,
+    RandSimulateLowResolutionD,
+    RandSimulateLowResolutionDict,
     RandZoomd,
     RandZoomD,
     RandZoomDict,

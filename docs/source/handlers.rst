@@ -29,9 +29,9 @@ CSV saver
     :members:
 
 
-Ignite Metric
--------------
-.. autoclass:: IgniteMetric
+Ignite Metric Handler
+---------------------
+.. autoclass:: IgniteMetricHandler
     :members:
 
 

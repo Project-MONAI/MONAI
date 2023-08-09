@@ -371,6 +371,7 @@ class ConfigWorkflow(BundleWorkflow):
             # no ID of reference config item, skipping check for this optional property
             return True
         # check validation `validator` and `interval` properties as the handler index of ValidationHandler is unknown
+        ref: str | None = None
         if name in ("evaluator", "val_interval"):
             if f"train{ID_SEP_KEY}handlers" in self.parser:
                 for h in self.parser[f"train{ID_SEP_KEY}handlers"]:
@@ -378,7 +379,8 @@ class ConfigWorkflow(BundleWorkflow):
                         ref = h.get(ref_id, None)
         else:
             ref = self.parser.get(ref_id, None)
-        if ref is not None and ref != ID_REF_KEY + id:
+        # for reference IDs that not refer to a property directly but using expressions, skip the check
+        if ref is not None and not ref.startswith(EXPR_KEY) and ref != ID_REF_KEY + id:
             return False
         return True
 

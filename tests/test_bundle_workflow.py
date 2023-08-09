@@ -117,6 +117,12 @@ class TestBundleWorkflow(unittest.TestCase):
         trainer.initialize()
         # test required and optional properties
         self.assertListEqual(trainer.check_properties(), [])
+        # test override optional properties
+        trainer.parser.update(
+            pairs={"validate#evaluator#postprocessing": "$@validate#postprocessing if @val_interval > 0 else None"}
+        )
+        trainer.initialize()
+        self.assertListEqual(trainer.check_properties(), [])
         # test read / write the properties
         dataset = trainer.train_dataset
         self.assertTrue(isinstance(dataset, Dataset))

@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
@@ -27,7 +26,13 @@ from monai.apps.auto3dseg.bundle_gen import BundleAlgo
 from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
-from monai.auto3dseg.utils import datafold_read
+from monai.auto3dseg.utils import (
+    _prepare_cmd_bcprun,
+    _prepare_cmd_torchrun,
+    _run_cmd_bcprun,
+    _run_cmd_torchrun,
+    datafold_read,
+)
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
@@ -95,7 +100,7 @@ class AlgoEnsemble(ABC):
             datalist = ConfigParser.load_config_file(data_list_or_path)
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
-            elif hasattr(self, "rank") and self.rank == 0:
+            elif not hasattr(self, "rank") or self.rank == 0:
                 logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
 
         else:
@@ -161,7 +166,7 @@ class AlgoEnsemble(ABC):
                       only make prediction on the infer_files[file_slices].
                     - ``"mode"``: ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
                     - ``"image_save_func"``: a dictionary used to instantiate the ``SaveImage`` transform. When specified,
-                      the ensemble prediction will save the prediciton files, instead of keeping the files in the memory.
+                      the ensemble prediction will save the prediction files, instead of keeping the files in the memory.
                       Example: `{"_target_": "SaveImage", "output_dir": "./"}`
                     - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
                       to the label class prediction, otherwise argmax(x) is used.
@@ -448,7 +453,7 @@ class EnsembleRunner:
             "n_devices": torch.cuda.device_count(),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
             "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
-            "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
+            "CMD_PREFIX": os.environ.get("CMD_PREFIX", ""),
         }
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
@@ -552,7 +557,7 @@ class EnsembleRunner:
         self.num_fold = num_fold
 
     def ensemble(self):
-        if self.mgpu:  # torch.cuda.device_count() is not used because env is not set by autorruner
+        if self.mgpu:  # torch.cuda.device_count() is not used because env is not set by autorunner
             # init multiprocessing and update infer_files
             dist.init_process_group(backend="nccl", init_method="env://")
             self.world_size = dist.get_world_size()
@@ -582,9 +587,16 @@ class EnsembleRunner:
         builder.set_ensemble_method(self.ensemble_method)
         self.ensembler = builder.get_ensemble()
         infer_files = self.ensembler.infer_files
-        infer_files = partition_dataset(
-            data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=True
-        )[self.rank]
+        if len(infer_files) < self.world_size:
+            if len(infer_files) == 0:
+                logger.info("No testing files for inference is provided. Ensembler ending.")
+                return
+            infer_files = [infer_files[self.rank]] if self.rank < len(infer_files) else []
+        else:
+            infer_files = partition_dataset(
+                data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=False
+            )[self.rank]
+
         # TO DO: Add some function in ensembler for infer_files update?
         self.ensembler.infer_files = infer_files
         # add rank to pred_params
@@ -636,9 +648,6 @@ class EnsembleRunner:
         # define env for subprocess
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
-        cmd: str | None = self.device_setting["CMD_PREFIX"]  # type: ignore
-        if cmd is not None and not str(cmd).endswith(" "):
-            cmd += " "
         if int(self.device_setting["NUM_NODES"]) > 1:
             if self.device_setting["MN_START_METHOD"] != "bcprun":
                 raise NotImplementedError(
@@ -646,24 +655,13 @@ class EnsembleRunner:
                     "Try modify EnsembleRunner._create_cmd for your cluster."
                 )
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-            cmd = "python " if cmd is None else cmd
-            cmd = f"{cmd} -m {base_cmd}"
-            cmd_list = [
-                "bcprun",
-                "-n",
-                str(self.device_setting["NUM_NODES"]),
-                "-p",
-                str(self.device_setting["n_devices"]),
-                "-c",
-                cmd,
-            ]
+            cmd = _prepare_cmd_bcprun("-m " + base_cmd, cmd_prefix=f"{self.device_setting['CMD_PREFIX']}")
+            _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
 
         else:
             logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
-            if cmd is None:
-                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
-            cmd = f"{cmd} -m {base_cmd}"
-            cmd_list = cmd.split()
-
-        _ = subprocess.run(cmd_list, env=ps_environ, check=True)
+            cmd = _prepare_cmd_torchrun("-m " + base_cmd)
+            _run_cmd_torchrun(
+                cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
+            )
         return

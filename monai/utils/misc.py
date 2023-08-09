@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import math
 import os
 import pprint
 import random
 import shutil
+import subprocess
 import tempfile
 import types
 import warnings
@@ -73,6 +75,7 @@ __all__ = [
     "CheckKeyDuplicatesYamlLoader",
     "ConvertUnits",
     "check_kwargs_exist_in_class_init",
+    "run_cmd",
 ]
 
 _seed = None
@@ -821,3 +824,43 @@ def check_kwargs_exist_in_class_init(cls, kwargs):
     extra_kwargs = input_kwargs - init_params
 
     return extra_kwargs == set(), extra_kwargs
+
+
+def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
+    """
+    Run a command by using ``subprocess.run`` with capture_output=True and stderr=subprocess.STDOUT
+    so that the raise exception will have that information. The argument `capture_output` can be set explicitly
+    if desired, but will be overriden with the debug status from the variable.
+
+    Args:
+        cmd_list: a list of strings describing the command to run.
+        kwargs: keyword arguments supported by the ``subprocess.run`` method.
+
+    Returns:
+        a CompletedProcess instance after the command completes.
+    """
+    debug = MONAIEnvVars.debug()
+    kwargs["capture_output"] = kwargs.get("capture_output", debug)
+
+    if kwargs.pop("run_cmd_verbose", False):
+        import monai
+
+        monai.apps.utils.get_logger("run_cmd").info(f"{cmd_list}")
+    try:
+        return subprocess.run(cmd_list, **kwargs)
+    except subprocess.CalledProcessError as e:
+        if not debug:
+            raise
+        output = str(e.stdout.decode(errors="replace"))
+        errors = str(e.stderr.decode(errors="replace"))
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
+
+
+def is_sqrt(num: Sequence[int] | int) -> bool:
+    """
+    Determine if the input is a square number or a squence of square numbers.
+    """
+    num = ensure_tuple(num)
+    sqrt_num = [int(math.sqrt(_num)) for _num in num]
+    ret = [_i * _j for _i, _j in zip(sqrt_num, sqrt_num)]
+    return ensure_tuple(ret) == num
