@@ -201,3 +201,10 @@ class WandbStatsHandler:
             )
 
         wandb.log(log_dict)
+
+    def close(self):
+        """
+        Finish the Weights & Biases run.
+        """
+        if wandb.run is not None:
+            wandb.finish()
