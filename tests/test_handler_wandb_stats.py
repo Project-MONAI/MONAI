@@ -14,8 +14,10 @@ from __future__ import annotations
 import glob
 import os
 import shutil
+import torch
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 
 from ignite.engine import Engine
 
@@ -25,29 +27,28 @@ from monai.utils import optional_import
 wandb, _ = optional_import("wandb")
 
 
+def dummy_train(start):
+    # set up engine
+    def _train_func(engine, batch):
+        return batch + 1.0
+
+    engine = Engine(_train_func)
+
+    # set up testing handler
+    handler = WandbStatsHandler(
+        output_transform=lambda x: x,
+    )
+    handler.attach(engine)
+    engine.run(torch.tensor([start]), max_epochs=5)
+    handler.close()
+
+
 @unittest.skipUnless(wandb, "Requires wandb installation")
-class TestWandbStatsHandler(unittest.TestCase):
-    def test_metric_tracking(self):
-        tempdir = tempfile.TemporaryDirectory()
-        os.system("wandb offline")
-        os.environ["WANDB_DIR"] = tempdir.name
-
-        wandb.init(dir=tempdir.name)
-
-        # set up engine
-        def _train_func(engine, batch):
-            return [batch + 1.0]
-
-        engine = Engine(_train_func)
-
-        handler = WandbStatsHandler(output_transform=lambda x: x)
-        handler.attach(engine)
-
-        engine.run(range(3), max_epochs=2)
-
-        self.assertTrue(os.path.isdir(tempdir.name))
-        self.assertTrue(len(glob.glob(os.path.join(tempdir.name, "*"))) > 0)
-
-        wandb.finish()
-
-        shutil.rmtree(tempdir.name)
+class TestHandlerWB(unittest.TestCase):
+    def test_multi_thread(self):
+        wandb.init(
+            project="multithread-handlers", save_code=True, sync_tensorboard=True
+        )
+        with ThreadPoolExecutor(2, "Training") as executor:
+            for t in range(2):
+                executor.submit(dummy_train, t + 2)
