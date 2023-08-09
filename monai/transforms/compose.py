@@ -447,7 +447,7 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = False):
         if start != 0:
             raise ValueError(f"OneOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -542,7 +542,7 @@ class RandomOrder(Compose):
         super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides)
         self.log_stats = log_stats
 
-    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = False):
         if start != 0:
             raise ValueError(f"RandomOrder requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -561,7 +561,7 @@ class RandomOrder(Compose):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,
+            lazy=lazy,
             threading=threading,
             log_stats=self.log_stats,
         )
