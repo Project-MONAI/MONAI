@@ -1542,7 +1542,48 @@ def init_bundle(
 
 
 class BundleManager:
-    def __init__(self, bundle_name_or_path: str | Sequence[str], bundle_dir: str = None, configs: str | Sequence[str] = "train", **kwargs) -> None:
+    """
+    The `BundleManager` class facilitates the automatic downloading and instantiation of bundles.
+    It allows users to retrieve bundle properties and meta information.
+
+    Typical usage examples:
+
+    .. code-block:: python
+
+        from monai.bundle import BundleManager
+
+        # Create a BundleManager instance for the 'spleen_ct_segmentation' bundle
+        bundle = BundleManager("spleen_ct_segmentation")
+
+        # Get properties defined in `TrainProperties` or `InferProperties`
+        train_preprocessing = bundle.get("train_preprocessing")
+        print(train_preprocessing)
+
+        # Also support to retrieve meta information from the "metadata.json" file
+        version = bundle.get(meta = "version")
+        print(version)
+
+
+    Args:
+        bundle_name_or_path: the name or file path of the bundle. If a list of file paths is provided,
+            their contents will be merged.
+        bundle_dir: the target directory to store downloaded bundle.
+            Defaults to the 'bundle' subfolder under `torch.hub.get_dir()`.
+
+        target directory to store the downloaded data.
+            Default is `bundle` subfolder under `torch.hub.get_dir()`.
+        configs: The name of the config file(s), supporting multiple names.
+            Defaults to "train".
+        kwargs: Additional arguments for download or workflow class instantiation.
+    """
+
+    def __init__(
+        self,
+        bundle_name_or_path: str | Sequence[str],
+        bundle_dir: PathLike | None = None,
+        configs: str | Sequence[str] = "train",
+        **kwargs,
+    ) -> None:
         configs = ensure_tuple(configs)
         if "train" in configs:
             workflow = "train"
@@ -1554,7 +1595,11 @@ class BundleManager:
             config_file = bundle_name_or_path
             config_root_path = _bundle_name_or_path.parent
         else:
-            download_args = {"version": kwargs.pop("version", None), "source": kwargs.pop("source", download_source)}
+            download_args = {
+                "version": kwargs.pop("version", None),
+                "args_file": kwargs.pop("args_file", None),
+                "source": kwargs.pop("source", download_source),
+            }
             download(bundle_name_or_path, bundle_dir=bundle_dir, **download_args)
             bundle_dir = _process_bundle_dir(bundle_dir)
             config_root_path = bundle_dir / bundle_name_or_path / "configs"
@@ -1567,11 +1612,23 @@ class BundleManager:
         self.meta_file = config_root_path / "metadata.json"
 
         self.workflow = ConfigWorkflow(
-            config_file=config_file, meta_file=str(self.meta_file), logging_file=str(logging_file), workflow=workflow, **kwargs
+            config_file=config_file,
+            meta_file=str(self.meta_file),
+            logging_file=str(logging_file),
+            workflow=workflow,
+            **kwargs,
         )
         self.workflow.initialize()
 
     def get(self, property: str | None = None, meta: str | None = None) -> Any:
+        """
+        Get information from the bundle.
+
+        Args:
+            property: the target property, defined in `TrainProperties` or `InferProperties`.
+            meta: meta information retrieved from the "metadata.json" file, such as version, changelog, etc.
+
+        """
         if property is not None and meta is not None:
             raise ValueError("Incompatible values: both property and meta are specified.")
         if property is not None:
