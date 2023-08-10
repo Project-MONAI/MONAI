@@ -332,9 +332,11 @@ class DataAnalyzer:
             batch_data = batch_data[0]
             try:
                 batch_data[self.image_key] = batch_data[self.image_key].to(device)
+                _label_argmax = False
                 if self.label_key is not None:
                     label = batch_data[self.label_key]
                     label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                    _label_argmax = True  # track if label is argmaxed
                     batch_data[self.label_key] = label.to(device)
                 d = summarizer(batch_data)
             except BaseException as err:
@@ -348,7 +350,8 @@ class DataAnalyzer:
                     batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
                     if self.label_key is not None:
                         label = batch_data[self.label_key]
-                        label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                        if not _label_argmax:
+                            label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
                         batch_data[self.label_key] = label.to("cpu")
                     d = summarizer(batch_data)
 
