@@ -589,7 +589,7 @@ def compute_ms_ssim(
             k2=k2,
         )
 
-        cs_per_batch = cs.view(cs.shape[0], -1).mean(1) 
+        cs_per_batch = cs.view(cs.shape[0], -1).mean(1)
 
         multiscale_list.append(torch.relu(cs_per_batch))
         y_pred = avg_pool(y_pred, kernel_size=2)
