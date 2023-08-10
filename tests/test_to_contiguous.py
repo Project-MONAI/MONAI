@@ -21,7 +21,7 @@ from tests.utils import assert_allclose
 
 
 class TestToContiguous(unittest.TestCase):
-    def test_decollation_dict(self):
+    def test_contiguous_dict(self):
         tochange = np.moveaxis(np.zeros((2, 3, 4)), 0, -1)
         test_dict = {"test_key": [[1]], 0: np.array(0), 1: np.array([0]), "nested": {"nested": [tochange]}}
         output = convert_to_contiguous(test_dict)
@@ -30,16 +30,17 @@ class TestToContiguous(unittest.TestCase):
         assert_allclose(output[1], np.array([0]))
         self.assertTrue(output["nested"]["nested"][0].flags.c_contiguous)
 
-    def test_decollation_seq(self):
+    def test_contiguous_seq(self):
         tochange = torch.zeros(2, 3, 4).transpose(0, 1)
-        test_dict = [[[1]], np.array(0), np.array([0]), torch.tensor(1.0), [[tochange]], "test_string"]
-        output = convert_to_contiguous(test_dict)
+        test_seq = [[[1]], np.array(0), np.array([0]), torch.tensor(1.0), [[tochange]], "test_string", (1, 2, 3)]
+        output = convert_to_contiguous(test_seq)
         self.assertEqual(output[0], [[1]])
         assert_allclose(output[1], np.array(0))
         assert_allclose(output[2], np.array([0]))
         assert_allclose(output[3], torch.tensor(1.0))
         self.assertTrue(output[4][0][0].is_contiguous())
         self.assertEqual(output[5], "test_string")
+        self.assertEqual(output[6], (1, 2, 3))
 
 
 if __name__ == "__main__":
