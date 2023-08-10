@@ -1542,22 +1542,32 @@ def init_bundle(
 
 
 class BundleManager:
-    def __init__(self, bundle_name_or_path: str, bundle_dir: str = None, workflow: str = "train", **kwargs) -> None:
+    def __init__(self, bundle_name_or_path: str | Sequence[str], bundle_dir: str = None, configs: str | Sequence[str] = "train", **kwargs) -> None:
+        configs = ensure_tuple(configs)
+        if "train" in configs:
+            workflow = "train"
+        else:
+            workflow = "infer"
+
         _bundle_name_or_path = Path(ensure_tuple(bundle_name_or_path)[0])
         if _bundle_name_or_path.is_file():
             config_file = bundle_name_or_path
-            logging_file = _bundle_name_or_path.parent / "logging.conf"
-            self.meta_file = _bundle_name_or_path.parent / "metadata.json"
+            config_root_path = _bundle_name_or_path.parent
         else:
             download_args = {"version": kwargs.pop("version", None), "source": kwargs.pop("source", download_source)}
             download(bundle_name_or_path, bundle_dir=bundle_dir, **download_args)
             bundle_dir = _process_bundle_dir(bundle_dir)
-            config_file = bundle_dir / bundle_name_or_path / "configs" / f"{workflow}.json"
-            logging_file = bundle_dir / bundle_name_or_path / "configs" / "logging.conf"
-            self.meta_file = bundle_dir / bundle_name_or_path / "configs" / "metadata.json"
+            config_root_path = bundle_dir / bundle_name_or_path / "configs"
+            if len(configs) > 0:
+                config_file = [str(config_root_path / f"{_config}.json") for _config in configs]
+            else:
+                config_file = str(config_root_path / f"{configs[0]}.json")
+
+        logging_file = config_root_path / "logging.conf"
+        self.meta_file = config_root_path / "metadata.json"
 
         self.workflow = ConfigWorkflow(
-            config_file=str(config_file), meta_file=str(self.meta_file), logging_file=str(logging_file), workflow=workflow, **kwargs
+            config_file=config_file, meta_file=str(self.meta_file), logging_file=str(logging_file), workflow=workflow, **kwargs
         )
         self.workflow.initialize()
 
