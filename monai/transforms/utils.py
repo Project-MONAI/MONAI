@@ -1712,8 +1712,8 @@ def convert_to_contiguous(
         return ascontiguousarray(data, **kwargs)
     elif isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
-    elif isinstance(data, Sequence) and not isinstance(data, bytes):
-        return [convert_to_contiguous(i, **kwargs) for i in data]  # type: ignore
+    elif isinstance(data, Sequence):
+        return type(data)(convert_to_contiguous(i, **kwargs) for i in data)  # type: ignore
     else:
         return data
 
