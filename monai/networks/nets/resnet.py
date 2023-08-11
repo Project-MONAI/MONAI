@@ -333,7 +333,7 @@ def _resnet(
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-    model: ResNet = ResNet(block, layers, block_inplanes, bias_downsample=not pretrained, **kwargs)
+    model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
     if pretrained:
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
@@ -341,6 +341,8 @@ def _resnet(
         raise NotImplementedError(
             "Currently not implemented. You need to manually download weights provided by the paper's author"
             " and load then to the model with `state_dict`. See https://github.com/Tencent/MedicalNet"
+            "Please ensure you pass the appropriate `shortcut_type` and `bias_downsample` args. as specified"
+            "here: https://github.com/Tencent/MedicalNet/tree/18c8bb6cd564eb1b964bffef1f4c2283f1ae6e7b#update20190730"
         )
     return model
 
