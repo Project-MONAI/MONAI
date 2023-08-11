@@ -1618,9 +1618,7 @@ class BundleManager:
             bundle_dir = _process_bundle_dir(bundle_dir)
             config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
             if len(configs) > 0:
-                config_file = [
-                    str(_find_config_file(config_root_path, _config)) for _config in configs  # type: ignore
-                ]
+                config_file = [str(_find_config_file(config_root_path, _config)) for _config in configs]  # type: ignore
             else:
                 config_file = str(_find_config_file(config_root_path, configs[0]))  # type: ignore
 
@@ -1641,7 +1639,7 @@ class BundleManager:
         Get information from the bundle by id.
 
         Args:
-            id: id to specify the expected position. 
+            id: id to specify the expected position.
                 It could be the target property, defined in `TrainProperties` or `InferProperties`.
                 Or meta information retrieved from the "metadata.json" file, such as version, changelog, etc.
 
