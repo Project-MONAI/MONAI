@@ -1618,7 +1618,9 @@ class BundleManager:
             bundle_dir = _process_bundle_dir(bundle_dir)
             config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
             if len(configs) > 0:
-                config_file = [str(config_root_path / _find_bundle_file(config_root_path, _config)) for _config in configs]  # type: ignore
+                config_file = [  # type: ignore
+                    str(config_root_path / _find_bundle_file(config_root_path, _config)) for _config in configs
+                ]
             else:
                 config_file = str(config_root_path / _find_bundle_file(config_root_path, configs[0]))  # type: ignore
 
