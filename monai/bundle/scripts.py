@@ -1541,11 +1541,11 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
-def _find_bundle_file(root_dir: Path, file_name: str, suffix: Sequence[str] = ("json", "yaml", "yml")) -> str | None:
+def _find_config_file(root_dir: Path, file_name: str, suffix: Sequence[str] = ("json", "yaml", "yml")) -> Path | None:
     # find bundle file with possible suffix
     for _suffix in suffix:
-        full_name = f"{file_name}.{_suffix}"
-        if full_name in os.listdir(root_dir):
+        full_name = root_dir / f"{file_name}.{_suffix}"
+        if full_name.is_file():
             return full_name
     return None
 
@@ -1619,43 +1619,41 @@ class BundleManager:
             config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
             if len(configs) > 0:
                 config_file = [
-                    str(config_root_path / _find_bundle_file(config_root_path, _config)) for _config in configs  # type: ignore
+                    str(_find_config_file(config_root_path, _config)) for _config in configs  # type: ignore
                 ]
             else:
-                config_file = str(config_root_path / _find_bundle_file(config_root_path, configs[0]))  # type: ignore
+                config_file = str(_find_config_file(config_root_path, configs[0]))  # type: ignore
 
         logging_file = config_root_path / "logging.conf"
         self.meta_file = config_root_path / "metadata.json"
 
         self.workflow = ConfigWorkflow(
             config_file=config_file,
-            meta_file=str(self.meta_file),
-            logging_file=str(logging_file),
+            meta_file=str(self.meta_file) if self.meta_file.is_file() else None,
+            logging_file=str(logging_file) if logging_file.is_file() else None,
             workflow=workflow,
             **kwargs,
         )
         self.workflow.initialize()
 
-    def get(self, property: str | None = None, meta: str | None = None) -> Any:
+    def get(self, id: str = "", default: Any | None = None) -> Any:
         """
-        Get information from the bundle.
+        Get information from the bundle by id.
 
         Args:
-            property: the target property, defined in `TrainProperties` or `InferProperties`.
-            meta: meta information retrieved from the "metadata.json" file, such as version, changelog, etc.
+            id: id to specify the expected position. 
+                It could be the target property, defined in `TrainProperties` or `InferProperties`.
+                Or meta information retrieved from the "metadata.json" file, such as version, changelog, etc.
 
         """
-        if property is not None and meta is not None:
-            raise ValueError("Incompatible values: both property and meta are specified.")
-        if property is not None:
-            if property in self.workflow.properties:  # type: ignore
-                return getattr(self.workflow, property)
-            raise ValueError(f"Missing property {property} in the bundle.")
-        if meta is not None:
+        if id in self.workflow.properties:  # type: ignore
+            return getattr(self.workflow, id)
+        elif self.meta_file.is_file():
             metadata = ConfigParser.load_config_files(files=self.meta_file)
-            if meta.lower() in metadata.keys():
-                return {meta: metadata[meta.lower()]}
-            raise ValueError(f"Missing meta {meta} informtation in metadata.json.")
+            if id.lower() in metadata.keys():
+                return {id: metadata[id.lower()]}
+            warnings.warn("Specified ``id`` is invalid, return default value.")
+        return default
 
     def train(self):
         pass
