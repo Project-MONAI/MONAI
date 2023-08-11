@@ -1541,6 +1541,15 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
+def _find_bundle_file(root_dir: Path, file_name: str, suffix: Sequence[str] = ("json", "yaml", "yml")) -> str | None:
+    # find bundle file with possible suffix
+    for _suffix in suffix:
+        full_name = f"{file_name}.{_suffix}"
+        if full_name in os.listdir(root_dir):
+            return full_name
+    return None
+
+
 class BundleManager:
     """
     The `BundleManager` class facilitates the automatic downloading and instantiation of bundles.
@@ -1609,9 +1618,9 @@ class BundleManager:
             bundle_dir = _process_bundle_dir(bundle_dir)
             config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
             if len(configs) > 0:
-                config_file = [str(config_root_path / f"{_config}.json") for _config in configs]
+                config_file = [str(config_root_path / _find_bundle_file(config_root_path, _config)) for _config in configs]  # type: ignore
             else:
-                config_file = str(config_root_path / f"{configs[0]}.json")
+                config_file = str(config_root_path / _find_bundle_file(config_root_path, configs[0]))  # type: ignore
 
         logging_file = config_root_path / "logging.conf"
         self.meta_file = config_root_path / "metadata.json"
