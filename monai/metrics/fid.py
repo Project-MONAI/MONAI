@@ -34,9 +34,6 @@ class FIDMetric(Metric):
     average pooling.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
-
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return get_fid_score(y_pred, y)
 
