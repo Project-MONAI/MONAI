@@ -447,10 +447,10 @@ class MultiScaleSSIMMetric(RegressionMetric):
     """
     Computes the Multi-Scale Structural Similarity Index Measure (MS-SSIM).
 
-    [1] Wang, Z., Simoncelli, E.P. and Bovik, A.C., 2003, November.
-            Multiscale structural similarity for image quality assessment.
-            In The Thirty-Seventh Asilomar Conference on Signals, Systems
-            & Computers, 2003 (Vol. 2, pp. 1398-1402). Ieee.
+    MS-SSIM reference paper:
+        Wang, Z., Simoncelli, E.P. and Bovik, A.C., 2003, November. "Multiscale structural
+        similarity for image quality assessment." In The Thirty-Seventh Asilomar Conference
+        on Signals, Systems & Computers, 2003 (Vol. 2, pp. 1398-1402). IEEE
 
     Args:
         spatial_dims: number of spatial dimensions of the input images.

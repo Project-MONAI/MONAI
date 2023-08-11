@@ -25,7 +25,7 @@ class FIDMetric(Metric):
     """
     Frechet Inception Distance (FID). The FID calculates the distance between two distributions of feature vectors.
     Based on: Heusel M. et al. "Gans trained by a two time-scale update rule converge to a local nash equilibrium."
-    https://arxiv.org/abs/1706.08500#. The inputs for this metric should be two groups of feature vectors (with format
+    https://arxiv.org/abs/1706.08500. The inputs for this metric should be two groups of feature vectors (with format
     (number images, number of features)) extracted from the a pretrained network.
 
     Originally, it was proposed to use the activations of the pool_3 layer of an Inception v3 pretrained with Imagenet.
