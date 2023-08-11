@@ -1560,16 +1560,15 @@ class BundleManager:
         print(train_preprocessing)
 
         # Also support to retrieve meta information from the "metadata.json" file
-        version = bundle.get(meta = "version")
+        version = bundle.get(meta="version")
         print(version)
 
-
     Args:
-        bundle_name_or_path: the name or file path of the bundle. If a list of file paths is provided,
-            their contents will be merged.
+        bundle_name: the name of the bundle. Defaults to None.
+        config_path: file path of the bundle. If a list of file paths is provided,
+            their contents will be merged. Defaults to None.
         bundle_dir: the target directory to store downloaded bundle.
             Defaults to the 'bundle' subfolder under `torch.hub.get_dir()`.
-
         target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         configs: The name of the config file(s), supporting multiple names.
@@ -1579,30 +1578,36 @@ class BundleManager:
 
     def __init__(
         self,
-        bundle_name_or_path: str | Sequence[str],
+        bundle_name: str | None = None,
+        config_path: str | Sequence[str] | None = None,
         bundle_dir: PathLike | None = None,
         configs: str | Sequence[str] = "train",
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
+        if bundle_name is None and config_path is None:
+            raise ValueError("Must specify bundle_name or config_path.")
         configs = ensure_tuple(configs)
         if "train" in configs:
             workflow = "train"
         else:
             workflow = "infer"
 
-        _bundle_name_or_path = Path(ensure_tuple(bundle_name_or_path)[0])
-        if _bundle_name_or_path.is_file():
-            config_file = bundle_name_or_path
-            config_root_path = _bundle_name_or_path.parent
+        if config_path is not None:
+            _config_path = Path(ensure_tuple(config_path)[0])
+            if _config_path.is_file():
+                config_file = config_path
+                config_root_path = _config_path.parent
+            else:
+                raise FileNotFoundError(f"Cannot find the config file: {config_path}.")
         else:
             download_args = {
                 "version": kwargs.pop("version", None),
                 "args_file": kwargs.pop("args_file", None),
                 "source": kwargs.pop("source", download_source),
             }
-            download(bundle_name_or_path, bundle_dir=bundle_dir, **download_args)
+            download(bundle_name, bundle_dir=bundle_dir, **download_args)
             bundle_dir = _process_bundle_dir(bundle_dir)
-            config_root_path = bundle_dir / bundle_name_or_path / "configs"
+            config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
             if len(configs) > 0:
                 config_file = [str(config_root_path / f"{_config}.json") for _config in configs]
             else:
@@ -1632,7 +1637,7 @@ class BundleManager:
         if property is not None and meta is not None:
             raise ValueError("Incompatible values: both property and meta are specified.")
         if property is not None:
-            if property in self.workflow.properties:
+            if property in self.workflow.properties:  # type: ignore
                 return getattr(self.workflow, property)
             raise ValueError(f"Missing property {property} in the bundle.")
         if meta is not None:
