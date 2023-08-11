@@ -1569,7 +1569,7 @@ class BundleManager:
         print(train_preprocessing)
 
         # Also support to retrieve meta information from the "metadata.json" file
-        version = bundle.get(meta="version")
+        version = bundle.get("version")
         print(version)
 
     Args:
@@ -1642,6 +1642,7 @@ class BundleManager:
             id: id to specify the expected position.
                 It could be the target property, defined in `TrainProperties` or `InferProperties`.
                 Or meta information retrieved from the "metadata.json" file, such as version, changelog, etc.
+            default: default value to return if the specified ``id`` is invalid.
 
         """
         if id in self.workflow.properties:  # type: ignore
@@ -1650,7 +1651,7 @@ class BundleManager:
             metadata = ConfigParser.load_config_files(files=self.meta_file)
             if id.lower() in metadata.keys():
                 return {id: metadata[id.lower()]}
-            warnings.warn("Specified ``id`` is invalid, return default value.")
+            warnings.warn("Specified ``id`` is invalid or missing 'metadata.json', return default value.")
         return default
 
     def train(self):
