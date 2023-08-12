@@ -158,7 +158,7 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
             - "lazy_padding_mode"
             - "lazy_interpolation_mode" (this option might be ignored when ``mode="auto"``.)
             - "lazy_align_corners"
-            - "lazy_dtype"
+            - "lazy_dtype" (dtype for resampling computation; this might be ignored when ``mode="auto"``.)
             - "atol" for tolerance for matrix floating point comparison.
             - "lazy_resample_mode" for resampling backend, default to `"auto"`. Setting to other values will use the
               `monai.transforms.SpatialResample` for resampling.
@@ -216,12 +216,14 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
             and allclose(convert_to_numpy(in_shape, wrap_sequence=True), out_spatial_size)
         ):
             img.affine = call_kwargs["dst_affine"]
+            img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
             return img
         img = monai.transforms.crop_or_pad_nd(img, matrix_np, out_spatial_size, mode=call_kwargs["padding_mode"])
+        img = img.to(torch.float32)  # consistent with monai.transforms.spatial.functional.spatial_resample
         img.affine = call_kwargs["dst_affine"]
         return img
 
     resampler = monai.transforms.SpatialResample(**init_kwargs)
-    resampler.lazy_evaluation = False  # resampler is a lazytransform
+    resampler.lazy = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`
         return resampler(img=img, **call_kwargs)

@@ -33,6 +33,7 @@ from .dataset import (
     CSVDataset,
     Dataset,
     DatasetFunc,
+    GDSDataset,
     LMDBDataset,
     NPZDictItemDataset,
     PersistentDataset,
@@ -150,3 +151,5 @@ with contextlib.suppress(BaseException):
         return _rebuild_meta, (type(meta_tensor), storage, dtype, metadata)
 
     ForkingPickler.register(MetaTensor, reduce_meta_tensor)
+
+from .ultrasound_confidence_map import UltrasoundConfidenceMap

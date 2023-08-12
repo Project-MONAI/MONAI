@@ -25,3 +25,4 @@ help:
 
 clean:
 	rm -rf build/
+	rm -rf source/_gen

@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 
 import torch
@@ -19,7 +20,7 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 from monai.networks.layers import Conv
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, is_sqrt
 
 __all__ = ["ViTAutoEnc"]
 
@@ -46,21 +47,25 @@ class ViTAutoEnc(nn.Module):
         pos_embed: str = "conv",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        qkv_bias: bool = False,
+        save_attn: bool = False,
     ) -> None:
         """
         Args:
-            in_channels: dimension of input channels or the number of channels for input
+            in_channels: dimension of input channels or the number of channels for input.
             img_size: dimension of input image.
-            patch_size: dimension of patch size.
-            hidden_size: dimension of hidden layer.
-            out_channels: number of output channels.
-            deconv_chns: number of channels for the deconvolution layers.
-            mlp_dim: dimension of feedforward layer.
-            num_layers: number of transformer blocks.
-            num_heads: number of attention heads.
-            pos_embed: position embedding layer type.
-            dropout_rate: faction of the input units to drop.
-            spatial_dims: number of spatial dimensions.
+            patch_size: dimension of patch size
+            out_channels:  number of output channels. Defaults to 1.
+            deconv_chns: number of channels for the deconvolution layers. Defaults to 16.
+            hidden_size: dimension of hidden layer. Defaults to 768.
+            mlp_dim: dimension of feedforward layer. Defaults to 3072.
+            num_layers:  number of transformer blocks. Defaults to 12.
+            num_heads: number of attention heads. Defaults to 12.
+            pos_embed: position embedding layer type. Defaults to "conv".
+            dropout_rate: faction of the input units to drop. Defaults to 0.0.
+            spatial_dims: number of spatial dimensions. Defaults to 3.
+            qkv_bias: apply bias to the qkv linear layer in self attention block. Defaults to False.
+            save_attn: to make accessible the attention in self attention block. Defaults to False. Defaults to False.
 
         Examples::
 
@@ -74,9 +79,14 @@ class ViTAutoEnc(nn.Module):
         """
 
         super().__init__()
-
+        if not is_sqrt(patch_size):
+            raise ValueError(f"patch_size should be square number, got {patch_size}.")
         self.patch_size = ensure_tuple_rep(patch_size, spatial_dims)
+        self.img_size = ensure_tuple_rep(img_size, spatial_dims)
         self.spatial_dims = spatial_dims
+        for m, p in zip(self.img_size, self.patch_size):
+            if m % p != 0:
+                raise ValueError(f"patch_size={patch_size} should be divisible by img_size={img_size}.")
 
         self.patch_embedding = PatchEmbeddingBlock(
             in_channels=in_channels,
@@ -89,16 +99,19 @@ class ViTAutoEnc(nn.Module):
             spatial_dims=self.spatial_dims,
         )
         self.blocks = nn.ModuleList(
-            [TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate) for i in range(num_layers)]
+            [
+                TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias, save_attn)
+                for i in range(num_layers)
+            ]
         )
         self.norm = nn.LayerNorm(hidden_size)
 
-        new_patch_size = [4] * self.spatial_dims
         conv_trans = Conv[Conv.CONVTRANS, self.spatial_dims]
         # self.conv3d_transpose* is to be compatible with existing 3d model weights.
-        self.conv3d_transpose = conv_trans(hidden_size, deconv_chns, kernel_size=new_patch_size, stride=new_patch_size)
+        up_kernel_size = [int(math.sqrt(i)) for i in self.patch_size]
+        self.conv3d_transpose = conv_trans(hidden_size, deconv_chns, kernel_size=up_kernel_size, stride=up_kernel_size)
         self.conv3d_transpose_1 = conv_trans(
-            in_channels=deconv_chns, out_channels=out_channels, kernel_size=new_patch_size, stride=new_patch_size
+            in_channels=deconv_chns, out_channels=out_channels, kernel_size=up_kernel_size, stride=up_kernel_size
         )
 
     def forward(self, x):

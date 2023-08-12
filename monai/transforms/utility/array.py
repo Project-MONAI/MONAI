@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for utility functions
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for utility functions.
 """
 
 from __future__ import annotations
@@ -142,38 +141,6 @@ class RandIdentity(RandomizableTrait):
         return data
 
 
-@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
-class AsChannelFirst(Transform):
-    """
-    Change the channel dimension of the image to the first dimension.
-
-    Most of the image transformations in ``monai.transforms``
-    assume the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-
-    This transform could be used to convert, for example, a channel-last image array in shape
-    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
-    so that the multidimensional image array can be correctly interpreted by the other transforms.
-
-    Args:
-        channel_dim: which dimension of input image is the channel, default is the last dimension.
-    """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self, channel_dim: int = -1) -> None:
-        if not (isinstance(channel_dim, int) and channel_dim >= -1):
-            raise ValueError(f"invalid channel dimension ({channel_dim}).")
-        self.channel_dim = channel_dim
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """
-        Apply the transform to `img`.
-        """
-        out: NdarrayOrTensor = convert_to_tensor(moveaxis(img, self.channel_dim, 0), track_meta=get_track_meta())
-        return out
-
-
 class AsChannelLast(Transform):
     """
     Change the channel dimension of the image to the last dimension.
@@ -201,31 +168,6 @@ class AsChannelLast(Transform):
         Apply the transform to `img`.
         """
         out: NdarrayOrTensor = convert_to_tensor(moveaxis(img, self.channel_dim, -1), track_meta=get_track_meta())
-        return out
-
-
-@deprecated(since="0.8", msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.")
-class AddChannel(Transform):
-    """
-    Adds a 1-length channel dimension to the input image.
-
-    Most of the image transformations in ``monai.transforms``
-    assumes the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-
-    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
-    spatial image into the channel-first format so that the
-    multidimensional image array can be correctly interpreted by the other
-    transforms.
-    """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
-        """
-        Apply the transform to `img`.
-        """
-        out: NdarrayOrTensor = convert_to_tensor(img[None], track_meta=get_track_meta())
         return out
 
 
@@ -289,6 +231,54 @@ class EnsureChannelFirst(Transform):
             result = moveaxis(img, int(channel_dim), 0)  # type: ignore
 
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
+
+
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.",
+)
+class AsChannelFirst(EnsureChannelFirst):
+    """
+    Change the channel dimension of the image to the first dimension.
+    Most of the image transformations in ``monai.transforms``
+    assume the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+    This transform could be used to convert, for example, a channel-last image array in shape
+    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
+    so that the multidimensional image array can be correctly interpreted by the other transforms.
+    Args:
+        channel_dim: which dimension of input image is the channel, default is the last dimension.
+    """
+
+    def __init__(self, channel_dim: int = -1) -> None:
+        super().__init__(channel_dim=channel_dim)
+
+
+@deprecated(
+    since="0.8",
+    removed="1.3",
+    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead"
+    " with `channel_dim='no_channel'`.",
+)
+class AddChannel(EnsureChannelFirst):
+    """
+    Adds a 1-length channel dimension to the input image.
+
+    Most of the image transformations in ``monai.transforms``
+    assumes the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+
+    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
+    spatial image into the channel-first format so that the
+    multidimensional image array can be correctly interpreted by the other
+    transforms.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self) -> None:
+        super().__init__(channel_dim="no_channel")
 
 
 class RepeatChannel(Transform):
@@ -391,7 +381,7 @@ class SplitDim(Transform, MultiSampleTrait):
         return outputs
 
 
-@deprecated(since="0.8", msg_suffix="please use `SplitDim` instead.")
+@deprecated(since="0.8", removed="1.3", msg_suffix="please use `SplitDim` instead.")
 class SplitChannel(SplitDim):
     """
     Split Numpy array or PyTorch Tensor data according to the channel dim.
@@ -459,7 +449,7 @@ class ToTensor(Transform):
     def __init__(
         self,
         dtype: torch.dtype | None = None,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
     ) -> None:
@@ -830,6 +820,8 @@ class Lambda(InvertibleTransform):
     Args:
         func: Lambda/function to be applied.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     Raises:
         TypeError: When ``func`` is not an ``Optional[Callable]``.
@@ -838,11 +830,14 @@ class Lambda(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Callable | None = None, inv_func: Callable = no_collation) -> None:
+    def __init__(
+        self, func: Callable | None = None, inv_func: Callable = no_collation, track_meta: bool = True
+    ) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
         self.inv_func = inv_func
+        self.track_meta = track_meta
 
     def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         """
@@ -860,7 +855,7 @@ class Lambda(InvertibleTransform):
             raise TypeError(f"func must be None or callable but is {type(fn).__name__}.")
         out = fn(img)
         # convert to MetaTensor if necessary
-        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and get_track_meta():
+        if isinstance(out, (np.ndarray, torch.Tensor)) and not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             self.push_transform(out)
@@ -881,21 +876,29 @@ class RandLambda(Lambda, RandomizableTransform):
         func: Lambda/function to be applied.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
         inv_func: Lambda/function of inverse operation, default to `lambda x: x`.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
 
     For more details, please check :py:class:`monai.transforms.Lambda`.
     """
 
     backend = Lambda.backend
 
-    def __init__(self, func: Callable | None = None, prob: float = 1.0, inv_func: Callable = no_collation) -> None:
-        Lambda.__init__(self=self, func=func, inv_func=inv_func)
+    def __init__(
+        self,
+        func: Callable | None = None,
+        prob: float = 1.0,
+        inv_func: Callable = no_collation,
+        track_meta: bool = True,
+    ) -> None:
+        Lambda.__init__(self=self, func=func, inv_func=inv_func, track_meta=track_meta)
         RandomizableTransform.__init__(self=self, prob=prob)
 
     def __call__(self, img: NdarrayOrTensor, func: Callable | None = None):
         self.randomize(img)
         out = deepcopy(super().__call__(img, func) if self._do_transform else img)
         # convert to MetaTensor if necessary
-        if not isinstance(out, MetaTensor) and get_track_meta():
+        if not isinstance(out, MetaTensor) and self.track_meta:
             out = MetaTensor(out)
         if isinstance(out, MetaTensor):
             lambda_info = self.pop_transform(out) if self._do_transform else {}
@@ -1627,24 +1630,37 @@ class ImageFilter(Transform):
                 raise ValueError("`filter_size` should be a single uneven integer.")
             if filter not in self.supported_filters:
                 raise NotImplementedError(f"{filter}. Supported filters are {self.supported_filters}.")
-        elif isinstance(filter, torch.Tensor) or isinstance(filter, np.ndarray):
+        elif isinstance(filter, (torch.Tensor, np.ndarray)):
             if filter.ndim not in [1, 2, 3]:
                 raise ValueError("Only 1D, 2D, and 3D filters are supported.")
             self._check_all_values_uneven(filter.shape)
-        elif isinstance(filter, (nn.Module, Transform)):
-            pass
-        else:
+        elif not isinstance(filter, (nn.Module, Transform)):
             raise TypeError(
                 f"{type(filter)} is not supported."
                 "Supported types are `class 'str'`, `class 'torch.Tensor'`, `class 'np.ndarray'`, "
                 "`class 'torch.nn.modules.module.Module'`, `class 'monai.transforms.Transform'`"
             )
 
-    def _check_kwargs_are_present(self, filter, **kwargs):
+    def _check_kwargs_are_present(self, filter: str | NdarrayOrTensor | nn.Module, **kwargs: Any) -> None:
+        """
+        Perform sanity checks on the kwargs if the filter contains the required keys.
+        If the filter is ``gauss``, kwargs should contain ``sigma``.
+        If the filter is ``savitzky_golay``, kwargs should contain ``order``.
+
+        Args:
+            filter: A string specifying the filter, a custom filter as ``torch.Tenor`` or ``np.ndarray`` or a ``nn.Module``.
+            kwargs: additional arguments defining the filter.
+
+        Raises:
+            KeyError if the filter doesn't contain the requirement key.
+        """
+
+        if not isinstance(filter, str):
+            return
         if filter == "gauss" and "sigma" not in kwargs.keys():
-            raise KeyError("`filter='gauss', requires the additonal keyword argument `sigma`")
+            raise KeyError("`filter='gauss', requires the additional keyword argument `sigma`")
         if filter == "savitzky_golay" and "order" not in kwargs.keys():
-            raise KeyError("`filter='savitzky_golay', requires the additonal keyword argument `order`")
+            raise KeyError("`filter='savitzky_golay', requires the additional keyword argument `order`")
 
     def _get_filter_from_string(self, filter: str, size: int, ndim: int) -> nn.Module | Callable:
         if filter == "mean":

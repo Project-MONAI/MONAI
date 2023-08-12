@@ -31,7 +31,7 @@ from monai.transforms.transform import Transform
 from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, sum, unique
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.misc import ensure_tuple_rep
-from monai.utils.type_conversion import convert_to_dst_type
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
 label, _ = optional_import("scipy.ndimage.measurements", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
@@ -637,7 +637,7 @@ class GenerateInstanceType(Transform):
         inst_type = type_map_crop[seg_map_crop]  # type: ignore
         type_list, type_pixels = unique(inst_type, return_counts=True)
         type_list = list(zip(type_list, type_pixels))
-        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
+        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
         inst_type = type_list[0][0]
         if inst_type == 0:  # ! pick the 2nd most dominant if exist
             if len(type_list) > 1:
@@ -671,6 +671,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
         contour_level: an optional value for `skimage.measure.find_contours` to find contours in the array.
             If not provided, the level is set to `(max(image) + min(image)) / 2`.
+        device: target device to put the output Tensor data.
     """
 
     def __init__(
@@ -686,9 +687,10 @@ class HoVerNetInstanceMapPostProcessing(Transform):
         watershed_connectivity: int | None = 1,
         min_num_points: int = 3,
         contour_level: float | None = None,
+        device: str | torch.device | None = None,
     ) -> None:
         super().__init__()
-
+        self.device = device
         self.generate_watershed_mask = GenerateWatershedMask(
             activation=activation, threshold=mask_threshold, min_object_size=min_object_size
         )
@@ -742,7 +744,7 @@ class HoVerNetInstanceMapPostProcessing(Transform):
                     "centroid": instance_centroid,
                     "contour": instance_contour,
                 }
-
+        instance_map = convert_to_tensor(instance_map, device=self.device)
         return instance_info, instance_map
 
 
@@ -758,13 +760,19 @@ class HoVerNetNuclearTypePostProcessing(Transform):
         threshold: an optional float value to threshold to binarize probability map.
             If not provided, defaults to 0.5 when activation is not "softmax", otherwise None.
         return_type_map: whether to calculate and return pixel-level type map.
+        device: target device to put the output Tensor data.
 
     """
 
     def __init__(
-        self, activation: str | Callable = "softmax", threshold: float | None = None, return_type_map: bool = True
+        self,
+        activation: str | Callable = "softmax",
+        threshold: float | None = None,
+        return_type_map: bool = True,
+        device: str | torch.device | None = None,
     ) -> None:
         super().__init__()
+        self.device = device
         self.return_type_map = return_type_map
         self.generate_instance_type = GenerateInstanceType()
 
@@ -824,5 +832,6 @@ class HoVerNetNuclearTypePostProcessing(Transform):
             # update instance type map
             if type_map is not None:
                 type_map[instance_map == inst_id] = instance_type
+                type_map = convert_to_tensor(type_map, device=self.device)
 
         return instance_info, type_map

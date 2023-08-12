@@ -177,6 +177,7 @@ class TestMetaTensor(unittest.TestCase):
         a = deepcopy(m)
         self.check(a, m, ids=False)
         # clone
+        a = m.clone(memory_format=torch.preserve_format)
         a = m.clone()
         self.check(a, m, ids=False)
         a = MetaTensor([[]], device=device, dtype=dtype)
@@ -412,6 +413,10 @@ class TestMetaTensor(unittest.TestCase):
         x.is_batch = True
         with self.assertRaises(ValueError):
             x[slice(0, 8)]
+        x = MetaTensor(np.zeros((3, 3, 4)))
+        x.is_batch = True
+        self.assertEqual(x[torch.tensor([True, False, True])].shape, (2, 3, 4))
+        self.assertEqual(x[[True, False, True]].shape, (2, 3, 4))
 
     @parameterized.expand(DTYPES)
     @SkipIfBeforePyTorchVersion((1, 8))
@@ -432,6 +437,7 @@ class TestMetaTensor(unittest.TestCase):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
         self.assertEqual(str(t), "metatensor([1.])")
         self.assertEqual(t.__repr__(), "metatensor([1.])")
+        self.assertEqual(f"{t[0]:.2f}", "1.00")
 
     def test_shape(self):
         s = MetaTensor([1])

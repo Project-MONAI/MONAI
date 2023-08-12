@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from typing import Sequence
 
 import torch
 import torch.nn as nn
@@ -74,7 +74,7 @@ class ConvDenseBlock(DenseBlock):
         adn_ordering: str = "NDA",
         act: tuple | str | None = Act.PRELU,
         norm: tuple | str | None = Norm.INSTANCE,
-        dropout: int | None = None,
+        dropout: tuple | str | float | None = None,
         bias: bool = True,
     ):
         self.spatial_dims = spatial_dims

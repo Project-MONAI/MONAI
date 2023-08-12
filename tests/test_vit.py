@@ -161,6 +161,25 @@ class TestViT(unittest.TestCase):
         test_data = torch.randn(input_shape)
         test_onnx_save(net, test_data, atol=1e-3)
 
+    def test_access_attn_matrix(self):
+        # input format
+        in_channels = 1
+        img_size = (96, 96, 96)
+        patch_size = (16, 16, 16)
+        in_shape = (1, in_channels, img_size[0], img_size[1], img_size[2])
+
+        # no data in the matrix
+        no_matrix_acess_blk = ViT(in_channels=in_channels, img_size=img_size, patch_size=patch_size)
+        no_matrix_acess_blk(torch.randn(in_shape))
+        assert isinstance(no_matrix_acess_blk.blocks[0].attn.att_mat, torch.Tensor)
+        # no of elements is zero
+        assert no_matrix_acess_blk.blocks[0].attn.att_mat.nelement() == 0
+
+        # be able to acess the attention matrix
+        matrix_acess_blk = ViT(in_channels=in_channels, img_size=img_size, patch_size=patch_size, save_attn=True)
+        matrix_acess_blk(torch.randn(in_shape))
+        assert matrix_acess_blk.blocks[0].attn.att_mat.shape == (in_shape[0], 12, 216, 216)
+
 
 if __name__ == "__main__":
     unittest.main()

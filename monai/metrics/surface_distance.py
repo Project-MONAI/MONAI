@@ -12,11 +12,19 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
 
-from monai.metrics.utils import do_metric_reduction, get_mask_edges, get_surface_distance, ignore_background
+from monai.metrics.utils import (
+    do_metric_reduction,
+    get_mask_edges,
+    get_surface_distance,
+    ignore_background,
+    prepare_spacing,
+)
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
@@ -34,7 +42,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip distance computation on the first channel of
+        include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
@@ -63,7 +71,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: input data to compute, typical segmentation model output.
@@ -71,12 +79,23 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
                 should be binarized.
             y: ground truth to compute the distance. It must be one-hot format and first dim is batch.
                 The values should be binarized.
+            kwargs: additional parameters, e.g. ``spacing`` should be passed to correctly compute the metric.
+                ``spacing``: spacing of pixel (or voxel). This parameter is relevant only
+                if ``distance_metric`` is set to ``"euclidean"``.
+                If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+                the length of the sequence must be equal to the image dimensions.
+                This spacing will be used for all images in the batch.
+                If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+                If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+                else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+                for all images in batch. Defaults to ``None``.
 
         Raises:
             ValueError: when `y_pred` has less than three dimensions.
         """
         if y_pred.dim() < 3:
             raise ValueError("y_pred should have at least three dimensions.")
+
         # compute (BxC) for each channel for each batch
         return compute_average_surface_distance(
             y_pred=y_pred,
@@ -84,6 +103,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
             include_background=self.include_background,
             symmetric=self.symmetric,
             distance_metric=self.distance_metric,
+            spacing=kwargs.get("spacing"),
         )
 
     def aggregate(
@@ -113,6 +133,7 @@ def compute_average_surface_distance(
     include_background: bool = False,
     symmetric: bool = False,
     distance_metric: str = "euclidean",
+    spacing: int | float | np.ndarray | Sequence[int | float | np.ndarray | Sequence[int | float]] | None = None,
 ) -> torch.Tensor:
     """
     This function is used to compute the Average Surface Distance from `y_pred` to `y`
@@ -127,12 +148,19 @@ def compute_average_surface_distance(
             should be binarized.
         y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip distance computation on the first channel of
+        include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             the metric used to compute surface distance. Defaults to ``"euclidean"``.
+        spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            If a single number, isotropic spacing with that value is used for all images in the batch. If a sequence of numbers,
+            the length of the sequence must be equal to the image dimensions. This spacing will be used for all images in the batch.
+            If a sequence of sequences, the length of the outer sequence must be equal to the batch size.
+            If inner sequence has length 1, isotropic spacing with that value is used for all images in the batch,
+            else the inner sequence length must be equal to the image dimensions. If ``None``, spacing of unity is used
+            for all images in batch. Defaults to ``None``.
     """
 
     if not include_background:
@@ -147,15 +175,22 @@ def compute_average_surface_distance(
     batch_size, n_class = y_pred.shape[:2]
     asd = np.empty((batch_size, n_class))
 
+    img_dim = y_pred.ndim - 2
+    spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
+
     for b, c in np.ndindex(batch_size, n_class):
         (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
         if not np.any(edges_gt):
             warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
         if not np.any(edges_pred):
             warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
-        surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric)
+        surface_distance = get_surface_distance(
+            edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing_list[b]
+        )
         if symmetric:
-            surface_distance_2 = get_surface_distance(edges_gt, edges_pred, distance_metric=distance_metric)
+            surface_distance_2 = get_surface_distance(
+                edges_gt, edges_pred, distance_metric=distance_metric, spacing=spacing_list[b]
+            )
             surface_distance = np.concatenate([surface_distance, surface_distance_2])
         asd[b, c] = np.nan if surface_distance.shape == (0,) else surface_distance.mean()
 

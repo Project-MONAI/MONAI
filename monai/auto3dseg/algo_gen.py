@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from monai.config import PathLike
 from monai.transforms import Randomizable
 
 
@@ -19,6 +20,8 @@ class Algo:
     An algorithm in this context is loosely defined as a data processing pipeline consisting of multiple components
     such as image preprocessing, followed by deep learning model training and evaluation.
     """
+
+    template_path: PathLike | None = None
 
     def set_data_stats(self, *args, **kwargs):
         """Provide dataset (and summaries) so that the model creation can depend on the input datasets."""

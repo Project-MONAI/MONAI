@@ -15,6 +15,7 @@ import os
 import time
 import warnings
 from abc import ABC, abstractmethod
+from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
 from typing import Any, Sequence
@@ -44,16 +45,19 @@ class BundleWorkflow(ABC):
 
     """
 
+    supported_train_type: tuple = ("train", "training")
+    supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
+
     def __init__(self, workflow: str | None = None):
         if workflow is None:
             self.properties = None
             self.workflow = None
             return
-        if workflow.lower() in ("train", "training"):
-            self.properties = TrainProperties
+        if workflow.lower() in self.supported_train_type:
+            self.properties = copy(TrainProperties)
             self.workflow = "train"
-        elif workflow.lower() in ("infer", "inference", "eval", "evaluation"):
-            self.properties = InferProperties
+        elif workflow.lower() in self.supported_infer_type:
+            self.properties = copy(InferProperties)
             self.workflow = "infer"
         else:
             raise ValueError(f"Unsupported workflow type: '{workflow}'.")
@@ -126,6 +130,24 @@ class BundleWorkflow(ABC):
         """
         return self.workflow
 
+    def add_property(self, name: str, required: str, desc: str | None = None) -> None:
+        """
+        Besides the default predefined properties, some 3rd party applications may need the bundle
+        definition to provide additional properties for the specific use cases, if the bundle can't
+        provide the property, means it can't work with the application.
+        This utility adds the property for the application requirements check and access.
+
+        Args:
+            name: the name of target property.
+            required: whether the property is "must-have".
+            desc: descriptions for the property.
+        """
+        if self.properties is None:
+            self.properties = {}
+        if name in self.properties:
+            warnings.warn(f"property '{name}' already exists in the properties list, overriding it.")
+        self.properties[name] = {BundleProperty.DESC: desc, BundleProperty.REQUIRED: required}
+
     def check_properties(self) -> list[str] | None:
         """
         Check whether the required properties are existing in the bundle workflow.
@@ -145,8 +167,11 @@ class ConfigWorkflow(BundleWorkflow):
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
+            to run the config, the target config must contain this ID.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+            allow a config to have no `initialize` logic and the ID.
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+            allow a config to have no `finalize` logic and the ID.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
             Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
@@ -158,7 +183,7 @@ class ConfigWorkflow(BundleWorkflow):
             if other string, treat it as file path to load the tracking settings.
             if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            for detailed usage examples, plesae check the tutorial:
+            for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
@@ -179,7 +204,7 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow: str | None = None,
-        **override: dict,
+        **override: Any,
     ) -> None:
         super().__init__(workflow=workflow)
         if logging_file is not None:
@@ -215,6 +240,7 @@ class ConfigWorkflow(BundleWorkflow):
             else:
                 settings_ = ConfigParser.load_config_files(tracking)
             self.patch_bundle_tracking(parser=self.parser, settings=settings_)
+        self._is_initialized: bool = False
 
     def initialize(self) -> Any:
         """
@@ -223,6 +249,7 @@ class ConfigWorkflow(BundleWorkflow):
         """
         # reset the "reference_resolver" buffer at initialization stage
         self.parser.parse(reset=True)
+        self._is_initialized = True
         return self._run_expr(id=self.init_id)
 
     def run(self) -> Any:
@@ -230,6 +257,8 @@ class ConfigWorkflow(BundleWorkflow):
         Run the bundle workflow, it can be a training, evaluation or inference.
 
         """
+        if self.run_id not in self.parser:
+            raise ValueError(f"run ID '{self.run_id}' doesn't exist in the config file.")
         return self._run_expr(id=self.run_id)
 
     def finalize(self) -> Any:
@@ -242,8 +271,8 @@ class ConfigWorkflow(BundleWorkflow):
     def check_properties(self) -> list[str] | None:
         """
         Check whether the required properties are existing in the bundle workflow.
-        If the optional properties have reference in the config, will also check whether the properties are exising.
-        If no workflow type specified, return None, otherwise, return a list of required but missing properites.
+        If the optional properties have reference in the config, will also check whether the properties are existing.
+        If no workflow type specified, return None, otherwise, return a list of required but missing properties.
 
         """
         ret = super().check_properties()
@@ -284,7 +313,7 @@ class ConfigWorkflow(BundleWorkflow):
             property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
 
         """
-        if not self.parser.ref_resolver.is_resolved():
+        if not self._is_initialized:
             raise RuntimeError("Please execute 'initialize' before getting any parsed content.")
         prop_id = self._get_prop_id(name, property)
         return self.parser.get_parsed_content(id=prop_id) if prop_id is not None else None
@@ -303,7 +332,27 @@ class ConfigWorkflow(BundleWorkflow):
         if prop_id is not None:
             self.parser[prop_id] = value
             # must parse the config again after changing the content
+            self._is_initialized = False
             self.parser.ref_resolver.reset()
+
+    def add_property(  # type: ignore[override]
+        self, name: str, required: str, config_id: str, desc: str | None = None
+    ) -> None:
+        """
+        Besides the default predefined properties, some 3rd party applications may need the bundle
+        definition to provide additional properties for the specific use cases, if the bundle can't
+        provide the property, means it can't work with the application.
+        This utility adds the property for the application requirements check and access.
+
+        Args:
+            name: the name of target property.
+            required: whether the property is "must-have".
+            config_id: the config ID of target property in the bundle definition.
+            desc: descriptions for the property.
+
+        """
+        super().add_property(name=name, required=required, desc=desc)
+        self.properties[name][BundlePropertyConfig.ID] = config_id  # type: ignore[index]
 
     def _check_optional_id(self, name: str, property: dict) -> bool:
         """
@@ -322,6 +371,7 @@ class ConfigWorkflow(BundleWorkflow):
             # no ID of reference config item, skipping check for this optional property
             return True
         # check validation `validator` and `interval` properties as the handler index of ValidationHandler is unknown
+        ref: str | None = None
         if name in ("evaluator", "val_interval"):
             if f"train{ID_SEP_KEY}handlers" in self.parser:
                 for h in self.parser[f"train{ID_SEP_KEY}handlers"]:
@@ -329,7 +379,8 @@ class ConfigWorkflow(BundleWorkflow):
                         ref = h.get(ref_id, None)
         else:
             ref = self.parser.get(ref_id, None)
-        if ref is not None and ref != ID_REF_KEY + id:
+        # for reference IDs that not refer to a property directly but using expressions, skip the check
+        if ref is not None and not ref.startswith(EXPR_KEY) and ref != ID_REF_KEY + id:
             return False
         return True
 

@@ -45,6 +45,7 @@ from monai.networks import (
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
+    deprecated_arg_default,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -61,6 +62,7 @@ onnx, _ = optional_import("onnx")
 logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
+# set BUNDLE_DOWNLOAD_SRC="monaihosting" to use monaihosting source in default for bundle download
 download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 PPRINT_CONFIG_N = 5
 
@@ -80,9 +82,9 @@ def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwa
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
-
     # recursively update the default args with new args
     for k, v in kwargs.items():
+        print(k, v)
         if ignore_none and v is None:
             continue
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
@@ -156,12 +158,24 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name}/versions/{version}/zip"
 
 
+def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
+    monaihosting_root_path = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
+    return f"{monaihosting_root_path}/{model_name}/versions/{version}/files/{model_name}_v{version}.zip"
+
+
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
     repo_owner, repo_name, tag_name = repo.split("/")
     if ".zip" not in filename:
         filename += ".zip"
     url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
     filepath = download_path / f"{filename}"
+    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+    extractall(filepath=filepath, output_dir=download_path, has_base=True)
+
+
+def _download_from_monaihosting(download_path: Path, filename: str, version: str, progress: bool) -> None:
+    url = _get_monaihosting_bundle_url(model_name=filename, version=version)
+    filepath = download_path / f"{filename}_v{version}.zip"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
@@ -192,6 +206,19 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
+def _get_latest_bundle_version_monaihosting(name):
+    url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
+    full_url = f"{url}/{name}"
+    requests_get, has_requests = optional_import("requests", name="get")
+    if has_requests:
+        resp = requests_get(full_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package.  Please install it.")
+    model_info = json.loads(resp.text)
+    return model_info["model"]["latestVersionIdStr"]
+
+
 def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
@@ -200,11 +227,15 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
             if v["name"] == name:
                 return v["latest"]
         return None
+    elif source == "monaihosting":
+        return _get_latest_bundle_version_monaihosting(name)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
     else:
-        raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
+        raise ValueError(
+            f"To get the latest bundle version, source should be 'github', 'monaihosting' or 'ngc', got {source}."
+        )
 
 
 def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
@@ -217,6 +248,7 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
+@deprecated_arg_default("source", "github", "monaihosting", since="1.3", replaced="1.4")
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -247,6 +279,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle from ngc with latest version:
         python -m monai.bundle download --name <bundle_name> --source "ngc" --bundle_dir "./"
 
+        # Execute this module as a CLI entry, and download bundle from monaihosting with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "monaihosting" --bundle_dir "./"
+
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
 
@@ -270,7 +305,7 @@ def download(
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc" or "github".
+            it should be "ngc", "monaihosting" or "github".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github".
             If used, it should be in the form of "repo_owner/repo_name/release_tag".
         url: url to download the data. If not `None`, data will be downloaded directly
@@ -324,6 +359,8 @@ def download(
             if version_ is not None:
                 name_ = "_v".join([name_, version_])
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
+        elif source_ == "monaihosting":
+            _download_from_monaihosting(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
         elif source_ == "ngc":
             _download_from_ngc(
                 download_path=bundle_dir_,
@@ -334,7 +371,8 @@ def download(
             )
         else:
             raise NotImplementedError(
-                f"Currently only download from `url`, source 'github' or 'ngc' are implemented, got source: {source_}."
+                "Currently only download from `url`, source 'github', 'monaihosting' or 'ngc' are implemented,"
+                f"got source: {source_}."
             )
 
 
@@ -374,7 +412,7 @@ def load(
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
             downloaded first.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc" or "github".
+            it should be "ngc", "monaihosting" or "github".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github".
             If used, it should be in the form of "repo_owner/repo_name/release_tag".
         remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
@@ -608,16 +646,22 @@ def run(
     .. code-block:: bash
 
         # Execute this module as a CLI entry:
+        python -m monai.bundle run --meta_file <meta path> --config_file <config path>
+
+        # Execute with specified `run_id=training`:
         python -m monai.bundle run training --meta_file <meta path> --config_file <config path>
 
+        # Execute with all specified `run_id=runtest`, `init_id=inittest`, `final_id=finaltest`:
+        python -m monai.bundle run --run_id runtest --init_id inittest --final_id finaltest ...
+
         # Override config values at runtime by specifying the component id and its new value:
-        python -m monai.bundle run training --net#input_chns 1 ...
+        python -m monai.bundle run --net#input_chns 1 ...
 
         # Override config values with another config file `/path/to/another.json`:
-        python -m monai.bundle run evaluating --net %/path/to/another.json ...
+        python -m monai.bundle run --net %/path/to/another.json ...
 
         # Override config values with part content of another config file:
-        python -m monai.bundle run training --net %/data/other.json#net_arg ...
+        python -m monai.bundle run --net %/data/other.json#net_arg ...
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime:
@@ -625,8 +669,11 @@ def run(
 
     Args:
         run_id: ID name of the expected config expression to run, default to "run".
+            to run the config, the target config must contain this ID.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+            it's optional for both configs and this `run` function.
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+            it's optional for both configs and this `run` function.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
             Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
@@ -639,7 +686,7 @@ def run(
             if other string, treat it as file path to load the tracking settings.
             if `dict`, treat it as tracking settings.
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            for detailed usage examples, plesae check the tutorial:
+            for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
@@ -690,7 +737,7 @@ def run(
 def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
-    The workflow should be suclass of `BundleWorkflow` and be available to import.
+    The workflow should be subclass of `BundleWorkflow` and be available to import.
     It can be MONAI existing bundle workflows or user customized workflows.
 
     Typical usage examples:
@@ -853,6 +900,7 @@ def verify_net_in_out(
     p: int | None = None,
     n: int | None = None,
     any: int | None = None,
+    extra_forward_args: dict | None = None,
     args_file: str | None = None,
     **override: Any,
 ) -> None:
@@ -876,6 +924,8 @@ def verify_net_in_out(
         p: power factor to generate fake data shape if dim of expected shape is "x**p", default to 1.
         n: multiply factor to generate fake data shape if dim of expected shape is "x*n", default to 1.
         any: specified size to generate fake data shape if dim of expected shape is "*", default to 1.
+        extra_forward_args: a dictionary that contains other args for the forward function of the network.
+            Default to an empty dictionary.
         args_file: a JSON or YAML file to provide default values for `net_id`, `meta_file`, `config_file`,
             `device`, `p`, `n`, `any`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
@@ -892,11 +942,20 @@ def verify_net_in_out(
         p=p,
         n=n,
         any=any,
+        extra_forward_args=extra_forward_args,
         **override,
     )
     _log_input_summary(tag="verify_net_in_out", args=_args)
-    config_file_, meta_file_, net_id_, device_, p_, n_, any_ = _pop_args(
-        _args, "config_file", "meta_file", net_id="", device="cuda:0" if is_available() else "cpu", p=1, n=1, any=1
+    config_file_, meta_file_, net_id_, device_, p_, n_, any_, extra_forward_args_ = _pop_args(
+        _args,
+        "config_file",
+        "meta_file",
+        net_id="",
+        device="cuda:0" if is_available() else "cpu",
+        p=1,
+        n=1,
+        any=1,
+        extra_forward_args={},
     )
 
     parser = ConfigParser()
@@ -924,10 +983,10 @@ def verify_net_in_out(
             from torch.cuda.amp import autocast
 
             with autocast():
-                output = net(test_data.cuda())
+                output = net(test_data.cuda(), **extra_forward_args_)
             net.to(device_)
         else:
-            output = net(test_data)
+            output = net(test_data, **extra_forward_args_)
         if output.shape[1] != output_channels:
             raise ValueError(f"output channel number `{output.shape[1]}` doesn't match: `{output_channels}`.")
         if output.dtype != output_dtype:
@@ -1142,9 +1201,9 @@ def ckpt_export(
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to TorchScript model.
         input_shape: a shape used to generate the random input of the network, when converting the model to a
-            torchscript model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
+            TorchScript model. Should be a list like [N, C, H, W] or [N, C, H, W, D]. If not given, will try to
             parse from the `metadata` config.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
@@ -1233,13 +1292,26 @@ def trt_export(
     use_trace: bool | None = None,
     dynamic_batchsize: Sequence[int] | None = None,
     device: int | None = None,
+    use_onnx: bool | None = None,
+    onnx_input_names: Sequence[str] | None = None,
+    onnx_output_names: Sequence[str] | None = None,
     args_file: str | None = None,
     converter_kwargs: Mapping | None = None,
     **override: Any,
 ) -> None:
     """
-    Export the model checkpoint to the given filepath as a TensorRT engine-based torchscript.
+    Export the model checkpoint to the given filepath as a TensorRT engine-based TorchScript.
     Currently, this API only supports converting models whose inputs are all tensors.
+
+    There are two ways to export a model:
+    1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
+    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
+    TensorRT engine-based TorchScript.
+
+    When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
+    may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
+    the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
+    not supported by the ONNX if exported through `torch.jit.script`.
 
     Typical usage examples:
 
@@ -1253,23 +1325,30 @@ def trt_export(
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-        config_file: filepath of the config file to save in the TensorRT based torchscript model and extract network
+        config_file: filepath of the config file to save in the TensorRT based TorchScript model and extract network
             information, the saved key in the model is the config filename without extension, and the saved config
             value is always serialized in JSON format no matter the original file format is JSON or YAML.
             it can be a single file or a list of files. if `None`, must be provided in `args_file`.
         key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
             weights. if not nested checkpoint, no need to set.
-        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        precision: the weight precision of the converted TensorRT engine based TorchScript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D]. If not given, will try to parse from the `metadata` config.
-        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
-            a TensorRT engine based torchscript model.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
+            a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True).
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
             converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of
             model input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize
             that the TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in
             the application.
         device: the target GPU index to convert and verify the model.
+        use_onnx: whether using the ONNX-TensorRT way to export the TensorRT engine-based TorchScript model.
+        onnx_input_names: optional input names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the model inputs. If not
+            given, will use `['input_0']`, which supposes the model only has one input.
+        onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of the model outputs. If
+            not given, will use `['output_0']`, which supposes the model only has one output.
         args_file: a JSON or YAML file to provide default values for all the parameters of this function, so that
             the command line inputs can be simplified.
         converter_kwargs: extra arguments that are needed by `convert_to_trt`, except ones that already exist in the
@@ -1291,6 +1370,9 @@ def trt_export(
         use_trace=use_trace,
         dynamic_batchsize=dynamic_batchsize,
         device=device,
+        use_onnx=use_onnx,
+        onnx_input_names=onnx_input_names,
+        onnx_output_names=onnx_output_names,
         converter_kwargs=converter_kwargs,
         **override,
     )
@@ -1307,6 +1389,9 @@ def trt_export(
         use_trace_,
         dynamic_batchsize_,
         device_,
+        use_onnx_,
+        onnx_input_names_,
+        onnx_output_names_,
         converter_kwargs_,
     ) = _pop_args(
         _args,
@@ -1321,6 +1406,9 @@ def trt_export(
         use_trace=False,
         dynamic_batchsize=None,
         device=None,
+        use_onnx=False,
+        onnx_input_names=["input_0"],
+        onnx_output_names=["output_0"],
         converter_kwargs={},
     )
 
@@ -1345,6 +1433,9 @@ def trt_export(
         "dynamic_batchsize": dynamic_batchsize_,
         "use_trace": use_trace_,
         "device": device_,
+        "use_onnx": use_onnx_,
+        "onnx_input_names": onnx_input_names_,
+        "onnx_output_names": onnx_output_names_,
     }
     converter_kwargs_.update(trt_api_parameters)
 
@@ -1427,7 +1518,7 @@ def init_bundle(
         Describe your model here and how to run it, for example using `inference.json`:
 
         ```
-        python -m monai.bundle run evaluating \
+        python -m monai.bundle run \
             --meta_file /path/to/bundle/configs/metadata.json \
             --config_file /path/to/bundle/configs/inference.json \
             --dataset_dir ./input \
