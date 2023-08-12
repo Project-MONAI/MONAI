@@ -21,7 +21,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, 
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_onnx_save, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -184,7 +184,9 @@ class TestRetinaNetDetector(unittest.TestCase):
             targets = [one_target] * len(input_data)
             result = detector.forward(input_data, targets)
 
-    def get_detector_for_script_onnx_test(self, input_param):
+    @parameterized.expand(TEST_CASES_TS)
+    def test_script(self, input_param, input_shape):
+        # test whether support torchscript
         returned_layers = [1]
         anchor_generator = AnchorGeneratorWithAnchorShape(
             feature_map_scales=(1, 2), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
@@ -192,18 +194,23 @@ class TestRetinaNetDetector(unittest.TestCase):
         detector = retinanet_resnet50_fpn_detector(
             **input_param, anchor_generator=anchor_generator, returned_layers=returned_layers
         )
-        return detector
-
-    @parameterized.expand(TEST_CASES_TS)
-    def test_script(self, input_param, input_shape):
-        # test whether support torchscript
-        detector = self.get_detector_for_script_onnx_test(input_param)
         with eval_mode(detector):
             input_data = torch.randn(input_shape)
             test_script_save(detector.network, input_data)
-            # it is ideal not to use trace to work with loop in RetinaNetDetector.
-            # however torch.jit.script fails with RetinaNetDetector. so we use trace here.
-            test_script_save(detector, input_data, use_trace=True)
+
+    @parameterized.expand(TEST_CASES_TS)
+    def test_onnx(self, input_param, input_shape):
+        # test whether support onnx
+        returned_layers = [1]
+        anchor_generator = AnchorGeneratorWithAnchorShape(
+            feature_map_scales=(1, 2), base_anchor_shapes=((8,) * input_param["spatial_dims"],)
+        )
+        detector = retinanet_resnet50_fpn_detector(
+            **input_param, anchor_generator=anchor_generator, returned_layers=returned_layers
+        )
+        with eval_mode(detector):
+            input_data = torch.randn(input_shape)
+            test_onnx_save(detector.network, input_data)
 
 
 if __name__ == "__main__":
