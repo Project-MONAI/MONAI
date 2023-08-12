@@ -722,7 +722,6 @@ def test_script_save(net, *inputs, **kwargs):
     The test will be performed with CUDA if available, else CPU.
     """
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
-    device = "cpu"
     try:
         with tempfile.TemporaryDirectory() as tempdir:
             convert_to_torchscript(
@@ -748,7 +747,6 @@ def test_onnx_save(net, *inputs, device=None, **kwargs):
     Saved ONNX model is validated with onnxruntime, if available, else ONNX native implementation.
     """
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
-    device = "cpu"
     _, has_onnxruntime = optional_import("onnxruntime")
     try:
         with tempfile.TemporaryDirectory() as tempdir:
