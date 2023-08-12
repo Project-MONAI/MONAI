@@ -915,7 +915,7 @@ def convert_to_trt(
     if not dynamic_batchsize:
         warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
 
-    #if (dynamic_batchsize is not None) and (len(dynamic_batchsize) != 3):
+    # if (dynamic_batchsize is not None) and (len(dynamic_batchsize) != 3):
     #    warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
 
     device = device if device else 0
@@ -930,17 +930,23 @@ def convert_to_trt(
     min_input_shape = []
     opt_input_shape = []
     max_input_shape = []
-    if isinstance(input_shape[0], list): 
+    if isinstance(input_shape[0], list):
         inputs = [torch.rand(ensure_tuple(shape)).to(target_device) for shape in input_shape]
         # Use the dynamic batchsize range to generate the min, opt and max model input shape
         if dynamic_batchsize:
-            min_input_shape.extend([scale_batch_size(input_shape[i], dynamic_batchsize[i][0]) for i in range(len(input_shape))])
-            opt_input_shape.extend([scale_batch_size(input_shape[i], dynamic_batchsize[i][1]) for i in range(len(input_shape))])
-            max_input_shape.append([scale_batch_size(input_shape[i], dynamic_batchsize[i][2]) for i in range(len(input_shape))])
+            min_input_shape.extend(
+                [scale_batch_size(input_shape[i], dynamic_batchsize[i][0]) for i in range(len(input_shape))]
+            )
+            opt_input_shape.extend(
+                [scale_batch_size(input_shape[i], dynamic_batchsize[i][1]) for i in range(len(input_shape))]
+            )
+            max_input_shape.append(
+                [scale_batch_size(input_shape[i], dynamic_batchsize[i][2]) for i in range(len(input_shape))]
+            )
         else:
             max_input_shape.extend(input_shape)
             min_input_shape = opt_input_shape = max_input_shape
- 
+
     else:
         inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
         # Use the dynamic batchsize range to generate the min, opt and max model input shape
@@ -984,7 +990,8 @@ def convert_to_trt(
                 input_placeholder = [
                     torch_tensorrt.Input(
                         min_shape=min_input_shape[i], opt_shape=opt_input_shape[i], max_shape=max_input_shape[i]
-                    ) for i in range(len(min_input_shape))
+                    )
+                    for i in range(len(min_input_shape))
                 ]
                 trt_model = torch_tensorrt.compile(
                     ir_model,

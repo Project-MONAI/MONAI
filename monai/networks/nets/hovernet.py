@@ -604,10 +604,7 @@ class HoVerNet(nn.Module):
             if self.type_prediction is not None:
                 output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
         else:
-            output = [
-                self.nucleus_prediction(x, short_cuts),
-                self.horizontal_vertical(x, short_cuts),
-            ]
+            output = [self.nucleus_prediction(x, short_cuts), self.horizontal_vertical(x, short_cuts)]
             if self.type_prediction is not None:
                 output.append(self.type_prediction(x, short_cuts))
 
