@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vit import ViT
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save, test_onnx_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_onnx_save, test_script_save
 
 TEST_CASE_Vit = []
 for dropout_rate in [0.6]:

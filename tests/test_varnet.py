@@ -9,8 +9,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import annotations
-
 import unittest
 
 import torch
@@ -20,7 +18,7 @@ from monai.apps.reconstruction.networks.nets.coil_sensitivity_model import CoilS
 from monai.apps.reconstruction.networks.nets.complex_unet import ComplexUnet
 from monai.apps.reconstruction.networks.nets.varnet import VariationalNetworkModel
 from monai.networks import eval_mode
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import test_script_save
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 coil_sens_model = CoilSensitivityModel(spatial_dims=2, features=[8, 16, 32, 64, 128, 8])
@@ -32,29 +30,30 @@ TESTS.append([coil_sens_model, refinement_model, num_cascades, (2, 3, 50, 50, 2)
 
 
 class TestVarNet(unittest.TestCase):
-    def prepare_data(self, input_shape):
+    @parameterized.expand(TESTS)
+    def test_shape(self, coil_sens_model, refinement_model, num_cascades, input_shape, expected_shape):
+        net = VariationalNetworkModel(coil_sens_model, refinement_model, num_cascades).to(device)
         mask_shape = [1 for _ in input_shape]
         mask_shape[-2] = input_shape[-2]
         mask = torch.zeros(mask_shape)
         mask[..., mask_shape[-2] // 2 - 5 : mask_shape[-2] // 2 + 5, :] = 1
-        test_data = torch.randn(input_shape)
-        return test_data, mask.bool()
-
-    @parameterized.expand(TESTS)
-    def test_shape(self, coil_sens_model, refinement_model, num_cascades, input_shape, expected_shape):
-        net = VariationalNetworkModel(coil_sens_model, refinement_model, num_cascades).to(device)
-        _, mask = self.prepare_data(input_shape)
 
         with eval_mode(net):
-            result = net(torch.randn(input_shape).to(device), mask.to(device))
+            result = net(torch.randn(input_shape).to(device), mask.bool().to(device))
         self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand(TESTS)
-    @SkipIfBeforePyTorchVersion((1, 9, 1))
     def test_script(self, coil_sens_model, refinement_model, num_cascades, input_shape, expected_shape):
         net = VariationalNetworkModel(coil_sens_model, refinement_model, num_cascades)
-        test_data, mask = self.prepare_data(input_shape)
-        test_script_save(net, test_data, mask)
+
+        mask_shape = [1 for _ in input_shape]
+        mask_shape[-2] = input_shape[-2]
+        mask = torch.zeros(mask_shape)
+        mask[..., mask_shape[-2] // 2 - 5 : mask_shape[-2] // 2 + 5, :] = 1
+
+        test_data = torch.randn(input_shape)
+
+        test_script_save(net, test_data, mask.bool())
 
 
 if __name__ == "__main__":

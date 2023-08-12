@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import MILModel
 from monai.utils.module import optional_import
-from tests.utils import skip_if_downloading_fails, test_script_save, test_onnx_save
+from tests.utils import skip_if_downloading_fails, test_onnx_save, test_script_save
 
 models, _ = optional_import("torchvision.models")
 
