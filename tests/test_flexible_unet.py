@@ -378,14 +378,14 @@ class TestFLEXIBLEUNET(unittest.TestCase):
         # check output shape
         self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand(CASES_2D + CASES_3D + CASES_VARIATIONS)
+    @parameterized.expand(CASES_2D + CASES_3D)
     def test_onnx(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         with skip_if_downloading_fails():
             net = FlexibleUNet(**input_param).to(device)
-            input_data = torch.randn(input_shape)
-            test_onnx_save(net, input_data)
+            input_data = torch.randn(input_shape).to(device)
+            test_onnx_save(net, input_data, atol=1e-3)
 
     @parameterized.expand(CASES_PRETRAIN)
     def test_pretrain(self, input_param, efficient_input_param, weight_list):

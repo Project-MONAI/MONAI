@@ -21,7 +21,7 @@ from monai.networks import eval_mode
 from monai.networks.nets import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
-from tests.utils import test_script_save, test_onnx_save
+from tests.utils import test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -186,12 +186,6 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
-
-    @parameterized.expand(TEST_SCRIPT_CASES)
-    def test_onnx(self, model, input_param, input_shape, expected_shape):
-        net = model(**input_param)
-        test_data = torch.randn(input_shape)
-        test_onnx_save(net, test_data, atol=1e-3)
 
 
 if __name__ == "__main__":

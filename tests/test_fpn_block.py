@@ -21,7 +21,7 @@ from monai.networks.blocks.backbone_fpn_utils import _resnet_fpn_extractor
 from monai.networks.blocks.feature_pyramid_network import FeaturePyramidNetwork
 from monai.networks.nets.resnet import resnet50
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save, test_onnx_save
+from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -64,14 +64,6 @@ class TestFPNBlock(unittest.TestCase):
         data["feat1"] = torch.rand(input_shape[1])
         test_script_save(net, data)
 
-    @parameterized.expand(TEST_CASES)
-    @unittest.skip("pending: https://github.com/pytorch/pytorch/issues/84257")
-    def test_onnx(self, input_param, input_shape, expected_shape):
-        # test whether support onnx
-        net = FeaturePyramidNetwork(**input_param)
-        data = {"feat0": torch.rand(input_shape[0]), "feat1": torch.rand(input_shape[1])}
-        test_onnx_save(net, data)
-
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestFPN(unittest.TestCase):
@@ -90,14 +82,6 @@ class TestFPN(unittest.TestCase):
         net = _resnet_fpn_extractor(backbone=resnet50(), spatial_dims=input_param["spatial_dims"], returned_layers=[1])
         data = torch.rand(input_shape)
         test_script_save(net, data)
-
-    @parameterized.expand(TEST_CASES2)
-    @unittest.skip("pending: https://github.com/pytorch/pytorch/issues/84257")
-    def test_onnx(self, input_param, input_shape, expected_shape):
-        # test whether support onnx
-        net = _resnet_fpn_extractor(backbone=resnet50(), spatial_dims=input_param["spatial_dims"], returned_layers=[1])
-        data = torch.rand(input_shape)
-        test_onnx_save(net, data)
 
 
 if __name__ == "__main__":

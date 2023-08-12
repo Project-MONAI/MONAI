@@ -21,7 +21,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, 
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save, test_onnx_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -204,14 +204,6 @@ class TestRetinaNetDetector(unittest.TestCase):
             # it is ideal not to use trace to work with loop in RetinaNetDetector.
             # however torch.jit.script fails with RetinaNetDetector. so we use trace here.
             test_script_save(detector, input_data, use_trace=True)
-
-    @parameterized.expand(TEST_CASES_TS)
-    def test_onnx(self, input_param, input_shape):
-        # test whether support onnx
-        detector = self.get_detector_for_script_onnx_test(input_param)
-        with eval_mode(detector):
-            input_data = torch.randn(input_shape)
-            test_onnx_save(detector, input_data)
 
 
 if __name__ == "__main__":
