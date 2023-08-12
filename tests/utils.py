@@ -756,7 +756,7 @@ def test_onnx_save(net, *inputs, device=None, **kwargs):
                 verify=True,
                 inputs=inputs,
                 use_ort=has_onnxruntime,
-                **kwargs
+                **kwargs,
             )
     except (RuntimeError, AttributeError):
         if sys.version_info.major == 3 and sys.version_info.minor == 11:
