@@ -121,6 +121,12 @@ class TestResNetVAE(unittest.TestCase):
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
 
+    def test_onnx(self):
+        input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET_VAE[0]
+        net = SegResNetVAE(**input_param)
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data)
+
 
 if __name__ == "__main__":
     unittest.main()

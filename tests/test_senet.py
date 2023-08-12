@@ -75,7 +75,6 @@ class TestSENET(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_onnx(self, net, net_args):
-        # AssertionError: Tensor-likes are not close!
         net = net(**net_args)
         input_data = torch.randn(2, 2, 64, 64, 64)
         test_onnx_save(net, input_data)
