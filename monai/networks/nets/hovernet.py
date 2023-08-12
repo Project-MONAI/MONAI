@@ -465,6 +465,7 @@ class HoVerNet(nn.Module):
         adapt_standard_resnet: bool = False,
         pretrained_state_dict_key: str | None = None,
         freeze_encoder: bool = False,
+        list_output: bool = False,
     ) -> None:
         super().__init__()
 
@@ -499,6 +500,7 @@ class HoVerNet(nn.Module):
 
         conv_type: type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
+        self.list_output = list_output
         self.conv0 = nn.Sequential(
             OrderedDict(
                 [
@@ -594,12 +596,20 @@ class HoVerNet(nn.Module):
         x = self.bottleneck(x)
         x = self.upsample(x)
 
-        output = {
-            HoVerNetBranch.NP.value: self.nucleus_prediction(x, short_cuts),
-            HoVerNetBranch.HV.value: self.horizontal_vertical(x, short_cuts),
-        }
-        if self.type_prediction is not None:
-            output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
+        if not self.list_output:
+            output = {
+                HoVerNetBranch.NP.value: self.nucleus_prediction(x, short_cuts),
+                HoVerNetBranch.HV.value: self.horizontal_vertical(x, short_cuts),
+            }
+            if self.type_prediction is not None:
+                output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
+        else:
+            output = [
+                self.nucleus_prediction(x, short_cuts),
+                self.horizontal_vertical(x, short_cuts),
+            ]
+            if self.type_prediction is not None:
+                output.append(self.type_prediction(x, short_cuts))
 
         return output
 
