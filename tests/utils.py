@@ -746,7 +746,6 @@ def test_onnx_save(net, *inputs, device=None, **kwargs):
     PyTorch model inference is performed with CUDA if available, else CPU.
     Saved ONNX model is validated with onnxruntime, if available, else ONNX native implementation.
     """
-    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
     _, has_onnxruntime = optional_import("onnxruntime")
     try:
         with tempfile.TemporaryDirectory() as tempdir:
