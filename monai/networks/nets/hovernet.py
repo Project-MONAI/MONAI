@@ -34,6 +34,7 @@ import re
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable, Sequence
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -42,7 +43,12 @@ from monai.apps.utils import download_url
 from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
-from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
+from monai.utils.enums import (
+    HoVerNetBranch,
+    HoVerNetMode,
+    InterpolateMode,
+    UpsampleMode,
+)
 from monai.utils.module import export, look_up_option
 
 __all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
@@ -78,14 +84,29 @@ class _DenseLayerDecoder(nn.Module):
 
         self.layers = nn.Sequential()
 
-        self.layers.add_module("preact_bna/bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
+        self.layers.add_module(
+            "preact_bna/bn",
+            get_norm_layer(name=norm, spatial_dims=2, channels=in_channels),
+        )
         self.layers.add_module("preact_bna/relu", get_act_layer(name=act))
-        self.layers.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, bias=False))
-        self.layers.add_module("conv1/norm", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
+        self.layers.add_module(
+            "conv1", conv_type(in_channels, num_features, kernel_size=1, bias=False)
+        )
+        self.layers.add_module(
+            "conv1/norm",
+            get_norm_layer(name=norm, spatial_dims=2, channels=num_features),
+        )
         self.layers.add_module("conv1/relu2", get_act_layer(name=act))
         self.layers.add_module(
             "conv2",
-            conv_type(num_features, out_channels, kernel_size=kernel_size, padding=padding, groups=4, bias=False),
+            conv_type(
+                num_features,
+                out_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                groups=4,
+                bias=False,
+            ),
         )
 
         if dropout_prob > 0:
@@ -135,7 +156,14 @@ class _DecoderBlock(nn.Sequential):
         padding: int = kernel_size // 2 if same_padding else 0
 
         self.add_module(
-            "conva", conv_type(in_channels, in_channels // 4, kernel_size=kernel_size, padding=padding, bias=False)
+            "conva",
+            conv_type(
+                in_channels,
+                in_channels // 4,
+                kernel_size=kernel_size,
+                padding=padding,
+                bias=False,
+            ),
         )
 
         _in_channels = in_channels // 4
@@ -155,7 +183,9 @@ class _DecoderBlock(nn.Sequential):
 
         trans = _Transition(_in_channels, act=act, norm=norm)
         self.add_module("bna_block", trans)
-        self.add_module("convf", conv_type(_in_channels, _in_channels, kernel_size=1, bias=False))
+        self.add_module(
+            "convf", conv_type(_in_channels, _in_channels, kernel_size=1, bias=False)
+        )
 
 
 class _DenseLayer(nn.Sequential):
@@ -194,25 +224,53 @@ class _DenseLayer(nn.Sequential):
         dropout_type: Callable = Dropout[Dropout.DROPOUT, 2]
 
         if not drop_first_norm_relu:
-            self.layers.add_module("preact/bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
+            self.layers.add_module(
+                "preact/bn",
+                get_norm_layer(name=norm, spatial_dims=2, channels=in_channels),
+            )
             self.layers.add_module("preact/relu", get_act_layer(name=act))
 
-        self.layers.add_module("conv1", conv_type(in_channels, num_features, kernel_size=1, padding=0, bias=False))
-        self.layers.add_module("conv1/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
+        self.layers.add_module(
+            "conv1",
+            conv_type(in_channels, num_features, kernel_size=1, padding=0, bias=False),
+        )
+        self.layers.add_module(
+            "conv1/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features)
+        )
         self.layers.add_module("conv1/relu", get_act_layer(name=act))
 
         if in_channels != 64 and drop_first_norm_relu:
             self.layers.add_module(
-                "conv2", conv_type(num_features, num_features, kernel_size=kernel_size, stride=2, padding=2, bias=False)
+                "conv2",
+                conv_type(
+                    num_features,
+                    num_features,
+                    kernel_size=kernel_size,
+                    stride=2,
+                    padding=2,
+                    bias=False,
+                ),
             )
         else:
             self.layers.add_module(
-                "conv2", conv_type(num_features, num_features, kernel_size=kernel_size, padding=1, bias=False)
+                "conv2",
+                conv_type(
+                    num_features,
+                    num_features,
+                    kernel_size=kernel_size,
+                    padding=1,
+                    bias=False,
+                ),
             )
 
-        self.layers.add_module("conv2/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features))
+        self.layers.add_module(
+            "conv2/bn", get_norm_layer(name=norm, spatial_dims=2, channels=num_features)
+        )
         self.layers.add_module("conv2/relu", get_act_layer(name=act))
-        self.layers.add_module("conv3", conv_type(num_features, out_channels, kernel_size=1, padding=0, bias=False))
+        self.layers.add_module(
+            "conv3",
+            conv_type(num_features, out_channels, kernel_size=1, padding=0, bias=False),
+        )
 
         if dropout_prob > 0:
             self.layers.add_module("dropout", dropout_type(dropout_prob))
@@ -220,7 +278,10 @@ class _DenseLayer(nn.Sequential):
 
 class _Transition(nn.Sequential):
     def __init__(
-        self, in_channels: int, act: str | tuple = ("relu", {"inplace": True}), norm: str | tuple = "batch"
+        self,
+        in_channels: int,
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
     ) -> None:
         """
         Args:
@@ -230,7 +291,9 @@ class _Transition(nn.Sequential):
         """
         super().__init__()
 
-        self.add_module("bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels))
+        self.add_module(
+            "bn", get_norm_layer(name=norm, spatial_dims=2, channels=in_channels)
+        )
         self.add_module("relu", get_act_layer(name=act))
 
 
@@ -272,17 +335,39 @@ class _ResidualBlock(nn.Module):
         conv_type: Callable = Conv[Conv.CONV, 2]
 
         if in_channels == 64:
-            self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, bias=False)
+            self.shortcut = conv_type(
+                in_channels, out_channels, kernel_size=1, bias=False
+            )
         else:
-            self.shortcut = conv_type(in_channels, out_channels, kernel_size=1, stride=2, padding=1, bias=False)
+            self.shortcut = conv_type(
+                in_channels,
+                out_channels,
+                kernel_size=1,
+                stride=2,
+                padding=1,
+                bias=False,
+            )
 
         layer = _DenseLayer(
-            num_features, in_channels, out_channels, dropout_prob, act=act, norm=norm, drop_first_norm_relu=True
+            num_features,
+            in_channels,
+            out_channels,
+            dropout_prob,
+            act=act,
+            norm=norm,
+            drop_first_norm_relu=True,
         )
         self.layers.add_module("denselayer_0", layer)
 
         for i in range(1, layers):
-            layer = _DenseLayer(num_features, out_channels, out_channels, dropout_prob, act=act, norm=norm)
+            layer = _DenseLayer(
+                num_features,
+                out_channels,
+                out_channels,
+                dropout_prob,
+                act=act,
+                norm=norm,
+            )
             self.layers.add_module(f"denselayer_{i}", layer)
 
         self.bna_block = _Transition(out_channels, act=act, norm=norm)
@@ -363,7 +448,19 @@ class _DecoderBranch(nn.ModuleList):
         _pad_size = (kernel_size - 1) // 2
         _seq_block = nn.Sequential(
             OrderedDict(
-                [("conva", conv_type(256, 64, kernel_size=kernel_size, stride=1, bias=False, padding=_pad_size))]
+                [
+                    (
+                        "conva",
+                        conv_type(
+                            256,
+                            64,
+                            kernel_size=kernel_size,
+                            stride=1,
+                            bias=False,
+                            padding=_pad_size,
+                        ),
+                    )
+                ]
             )
         )
 
@@ -382,10 +479,16 @@ class _DecoderBranch(nn.ModuleList):
         self.output_features.add_module(f"decoderblock{_i + 2}", _seq_block)
 
         self.upsample = UpSample(
-            2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, interp_mode=InterpolateMode.BILINEAR, bias=False
+            2,
+            scale_factor=2,
+            mode=UpsampleMode.NONTRAINABLE,
+            interp_mode=InterpolateMode.BILINEAR,
+            bias=False,
         )
 
-    def forward(self, xin: torch.Tensor, short_cuts: list[torch.Tensor]) -> torch.Tensor:
+    def forward(
+        self, xin: torch.Tensor, short_cuts: list[torch.Tensor]
+    ) -> torch.Tensor:
         block_number = len(short_cuts) - 1
         x = xin + short_cuts[block_number]
 
@@ -446,6 +549,10 @@ class HoVerNet(nn.Module):
         pretrained_state_dict_key: this arg is used when `pretrained_url` is provided and `adapt_standard_resnet` is True.
             It is used to extract the expected state dict.
         freeze_encoder: whether to freeze the encoder of the network.
+        use_list_output: whether to use a list as the forward method output. If set to False, the output of the
+            forward method would be a dictionary mapping output names to output tensors. Otherwise, the output of the
+            forward method would be a list of tensors in `[HoVerNetBranch.NP, HoVerNetBranch.HV, HoVerNetBranch.NC]`
+            order.
     """
 
     Mode = HoVerNetMode
@@ -465,7 +572,7 @@ class HoVerNet(nn.Module):
         adapt_standard_resnet: bool = False,
         pretrained_state_dict_key: str | None = None,
         freeze_encoder: bool = False,
-        list_output: bool = False,
+        use_list_output: bool = False,
     ) -> None:
         super().__init__()
 
@@ -481,7 +588,9 @@ class HoVerNet(nn.Module):
         if out_classes > 128:
             raise ValueError("Number of nuclear types classes exceeds maximum (128)")
         elif out_classes == 1:
-            raise ValueError("Number of nuclear type classes should either be None or >1")
+            raise ValueError(
+                "Number of nuclear type classes should either be None or >1"
+            )
 
         if dropout_prob > 1 or dropout_prob < 0:
             raise ValueError("Dropout can only be in the range 0.0 to 1.0")
@@ -500,12 +609,27 @@ class HoVerNet(nn.Module):
 
         conv_type: type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
-        self.list_output = list_output
+        self.use_list_output = use_list_output
         self.conv0 = nn.Sequential(
             OrderedDict(
                 [
-                    ("conv", conv_type(in_channels, _init_features, kernel_size=7, stride=1, padding=_pad, bias=False)),
-                    ("bn", get_norm_layer(name=norm, spatial_dims=2, channels=_init_features)),
+                    (
+                        "conv",
+                        conv_type(
+                            in_channels,
+                            _init_features,
+                            kernel_size=7,
+                            stride=1,
+                            padding=_pad,
+                            bias=False,
+                        ),
+                    ),
+                    (
+                        "bn",
+                        get_norm_layer(
+                            name=norm, spatial_dims=2, channels=_init_features
+                        ),
+                    ),
                     ("relu", get_act_layer(name=act)),
                 ]
             )
@@ -545,19 +669,39 @@ class HoVerNet(nn.Module):
         # bottleneck convolution
         self.bottleneck = nn.Sequential()
         self.bottleneck.add_module(
-            "conv_bottleneck", conv_type(_in_channels, _num_features, kernel_size=1, stride=1, padding=0, bias=False)
+            "conv_bottleneck",
+            conv_type(
+                _in_channels,
+                _num_features,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
         )
         self.upsample = UpSample(
-            2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, interp_mode=InterpolateMode.BILINEAR, bias=False
+            2,
+            scale_factor=2,
+            mode=UpsampleMode.NONTRAINABLE,
+            interp_mode=InterpolateMode.BILINEAR,
+            bias=False,
         )
 
         # decode branches
         self.nucleus_prediction = _DecoderBranch(
-            kernel_size=_ksize, same_padding=decoder_padding, out_channels=np_out_channels
+            kernel_size=_ksize,
+            same_padding=decoder_padding,
+            out_channels=np_out_channels,
         )
-        self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize, same_padding=decoder_padding)
+        self.horizontal_vertical = _DecoderBranch(
+            kernel_size=_ksize, same_padding=decoder_padding
+        )
         self.type_prediction: _DecoderBranch | None = (
-            _DecoderBranch(out_channels=out_classes, kernel_size=_ksize, same_padding=decoder_padding)
+            _DecoderBranch(
+                out_channels=out_classes,
+                kernel_size=_ksize,
+                same_padding=decoder_padding,
+            )
             if out_classes > 0
             else None
         )
@@ -571,18 +715,26 @@ class HoVerNet(nn.Module):
 
         if pretrained_url is not None:
             if adapt_standard_resnet:
-                weights = _remap_standard_resnet_model(pretrained_url, state_dict_key=pretrained_state_dict_key)
+                weights = _remap_standard_resnet_model(
+                    pretrained_url, state_dict_key=pretrained_state_dict_key
+                )
             else:
                 weights = _remap_preact_resnet_model(pretrained_url)
             _load_pretrained_encoder(self, weights)
 
-    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+    def forward(
+        self, x: torch.Tensor
+    ) -> Union[dict[str, torch.Tensor], list[torch.Tensor]]:
         if self.mode == HoVerNetMode.ORIGINAL.value:
             if x.shape[-1] != 270 or x.shape[-2] != 270:
-                raise ValueError("Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL")
+                raise ValueError(
+                    "Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL"
+                )
         else:
             if x.shape[-1] != 256 or x.shape[-2] != 256:
-                raise ValueError("Input size should be 256 x 256 when using HoVerNetMode.FAST")
+                raise ValueError(
+                    "Input size should be 256 x 256 when using HoVerNetMode.FAST"
+                )
 
         x = self.conv0(x)
         short_cuts = []
@@ -596,17 +748,20 @@ class HoVerNet(nn.Module):
         x = self.bottleneck(x)
         x = self.upsample(x)
 
-        if not self.list_output:
+        if self.use_list_output:
+            output = [
+                self.nucleus_prediction(x, short_cuts),
+                self.horizontal_vertical(x, short_cuts),
+            ]
+            if self.type_prediction is not None:
+                output.append(self.type_prediction(x, short_cuts))
+        else:
             output = {
                 HoVerNetBranch.NP.value: self.nucleus_prediction(x, short_cuts),
                 HoVerNetBranch.HV.value: self.horizontal_vertical(x, short_cuts),
             }
             if self.type_prediction is not None:
                 output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
-        else:
-            output = [self.nucleus_prediction(x, short_cuts), self.horizontal_vertical(x, short_cuts)]
-            if self.type_prediction is not None:
-                output.append(self.type_prediction(x, short_cuts))
 
         return output
 
@@ -614,7 +769,9 @@ class HoVerNet(nn.Module):
 def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):
     model_dict = model.state_dict()
     state_dict = {
-        k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
+        k: v
+        for k, v in state_dict.items()
+        if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
     }
 
     model_dict.update(state_dict)
@@ -624,7 +781,9 @@ def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):
             "no key will be updated. Please check if 'pretrained_url' or `pretrained_state_dict_key` is correct."
         )
     else:
-        print(f"{len(state_dict)} out of {len(model_dict)} keys are updated with pretrained weights.")
+        print(
+            f"{len(state_dict)} out of {len(model_dict)} keys are updated with pretrained weights."
+        )
 
 
 def _remap_preact_resnet_model(model_url: str):
@@ -635,9 +794,10 @@ def _remap_preact_resnet_model(model_url: str):
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "preact-resnet50.pth")
     download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None if torch.cuda.is_available() else torch.device("cpu"))[
-        "desc"
-    ]
+    state_dict = torch.load(
+        weights_dir,
+        map_location=None if torch.cuda.is_available() else torch.device("cpu"),
+    )["desc"]
     for key in list(state_dict.keys()):
         new_key = None
         if pattern_conv0.match(key):
@@ -645,7 +805,9 @@ def _remap_preact_resnet_model(model_url: str):
         elif pattern_block.match(key):
             new_key = re.sub(pattern_block, r"res_blocks.\1.\2", key)
             if pattern_layer.match(new_key):
-                new_key = re.sub(pattern_layer, r"\1.layers.denselayer_\2.layers\3", new_key)
+                new_key = re.sub(
+                    pattern_layer, r"\1.layers.denselayer_\2.layers\3", new_key
+                )
             elif pattern_bna.match(new_key):
                 new_key = re.sub(pattern_bna, r"\1.bna_block.\2", new_key)
         if new_key:
@@ -662,15 +824,22 @@ def _remap_standard_resnet_model(model_url: str, state_dict_key: str | None = No
     pattern_bn1 = re.compile(r"^bn1\.(.+)$")
     pattern_block = re.compile(r"^layer(\d+)\.(\d+)\.(.+)$")
     # bn3 to next denselayer's preact/bn
-    pattern_block_bn3 = re.compile(r"^(res_blocks.d\d+\.layers\.denselayer_)(\d+)\.layers\.bn3\.(.+)$")
+    pattern_block_bn3 = re.compile(
+        r"^(res_blocks.d\d+\.layers\.denselayer_)(\d+)\.layers\.bn3\.(.+)$"
+    )
     # bn1, bn2 to conv1/bn, conv2/bn
-    pattern_block_bn = re.compile(r"^(res_blocks.d\d+\.layers\.denselayer_\d+\.layers)\.bn(\d+)\.(.+)$")
+    pattern_block_bn = re.compile(
+        r"^(res_blocks.d\d+\.layers\.denselayer_\d+\.layers)\.bn(\d+)\.(.+)$"
+    )
     pattern_downsample0 = re.compile(r"^(res_blocks.d\d+).+\.downsample\.0\.(.+)")
     pattern_downsample1 = re.compile(r"^(res_blocks.d\d+).+\.downsample\.1\.(.+)")
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "resnet50.pth")
     download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None if torch.cuda.is_available() else torch.device("cpu"))
+    state_dict = torch.load(
+        weights_dir,
+        map_location=None if torch.cuda.is_available() else torch.device("cpu"),
+    )
     if state_dict_key is not None:
         state_dict = state_dict[state_dict_key]
 
@@ -694,7 +863,10 @@ def _remap_standard_resnet_model(model_url: str, state_dict_key: str | None = No
             if pattern_block_bn3.match(new_key):
                 new_key = re.sub(
                     pattern_block_bn3,
-                    lambda s: s.group(1) + str(int(s.group(2)) + 1) + ".layers.preact/bn." + s.group(3),
+                    lambda s: s.group(1)
+                    + str(int(s.group(2)) + 1)
+                    + ".layers.preact/bn."
+                    + s.group(3),
                     new_key,
                 )
             elif pattern_block_bn.match(new_key):
