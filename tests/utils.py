@@ -738,7 +738,7 @@ def test_script_save(net, *inputs, **kwargs):
         raise
 
 
-def test_onnx_save(net, *inputs, device=None, **kwargs):
+def test_onnx_save(net, *inputs, **kwargs):
     """
     Test the ability to save `net` in ONNX format, reload it and validate with runtime.
     The value `inputs` is forward-passed through the `net` without gradient accumulation
