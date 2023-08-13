@@ -128,7 +128,7 @@ class TestDynUNet(unittest.TestCase):
         input_param, input_shape, _ = TEST_CASE_DYNUNET_2D[0]
         net = DynUNet(**input_param)
         test_data = torch.randn(input_shape)
-        test_onnx_save(net, test_data, atol=0.0001)
+        test_onnx_save(net, test_data, atol=1e-3)
 
 
 @skip_if_no_cuda

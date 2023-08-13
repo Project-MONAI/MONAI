@@ -104,7 +104,7 @@ class TestResNet(unittest.TestCase):
         input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET[0]
         net = SegResNet(**input_param)
         test_data = torch.randn(input_shape)
-        test_onnx_save(net, test_data, atol=0.0001)
+        test_onnx_save(net, test_data, atol=1e-4)
 
 
 class TestResNetVAE(unittest.TestCase):
@@ -125,7 +125,7 @@ class TestResNetVAE(unittest.TestCase):
         input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET_VAE[0]
         net = SegResNetVAE(**input_param)
         test_data = torch.randn(input_shape)
-        test_onnx_save(net, test_data)
+        test_onnx_save(net, test_data, atol=1e-4)
 
 
 if __name__ == "__main__":
