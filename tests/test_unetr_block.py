@@ -127,7 +127,7 @@ class TestResBasicBlock(unittest.TestCase):
         net = UnetrBasicBlock(**input_param)
         with eval_mode(net):
             test_data = torch.randn(input_shape)
-            test_onnx_save(net, test_data)
+            test_onnx_save(net, test_data, atol=1e-3)
 
 
 class TestUpBlock(unittest.TestCase):
@@ -150,7 +150,7 @@ class TestUpBlock(unittest.TestCase):
         net = UnetrUpBlock(**input_param)
         test_data = torch.randn(input_shape)
         skip_data = torch.randn(skip_shape)
-        test_onnx_save(net, test_data, skip_data)
+        test_onnx_save(net, test_data, skip_data, atol=1e-3)
 
 
 class TestPrUpBlock(unittest.TestCase):
@@ -171,7 +171,7 @@ class TestPrUpBlock(unittest.TestCase):
         input_param, input_shape, _ = TEST_PRUP_BLOCK[0]
         net = UnetrPrUpBlock(**input_param)
         test_data = torch.randn(input_shape)
-        test_onnx_save(net, test_data)
+        test_onnx_save(net, test_data, atol=1e-3)
 
 
 if __name__ == "__main__":

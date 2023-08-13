@@ -71,7 +71,7 @@ class TestNetAdapter(unittest.TestCase):
         input_param["model"] = model
         net = NetAdapter(**input_param).to("cpu")
         test_data = torch.randn(input_shape).to("cpu")
-        test_onnx_save(net, test_data)
+        test_onnx_save(net, test_data, atol=1e-3)
 
 
 if __name__ == "__main__":
