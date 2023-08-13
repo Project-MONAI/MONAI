@@ -602,9 +602,10 @@ class HoVerNet(nn.Module):
         x = self.upsample(x)
 
         if self.use_list_output:
-            output = [self.nucleus_prediction(x, short_cuts), self.horizontal_vertical(x, short_cuts)]
+            list_output = [self.nucleus_prediction(x, short_cuts), self.horizontal_vertical(x, short_cuts)]
             if self.type_prediction is not None:
-                output.append(self.type_prediction(x, short_cuts))
+                list_output.append(self.type_prediction(x, short_cuts))
+            return list_output
         else:
             output = {
                 HoVerNetBranch.NP.value: self.nucleus_prediction(x, short_cuts),
@@ -612,8 +613,7 @@ class HoVerNet(nn.Module):
             }
             if self.type_prediction is not None:
                 output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
-
-        return output
+            return output
 
 
 def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):
