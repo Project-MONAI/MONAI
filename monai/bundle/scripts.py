@@ -63,7 +63,7 @@ logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
 # set BUNDLE_DOWNLOAD_SRC="monaihosting" to use monaihosting source in default for bundle download
-download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 PPRINT_CONFIG_N = 5
 
 
@@ -253,7 +253,7 @@ def download(
     name: str | None = None,
     version: str | None = None,
     bundle_dir: PathLike | None = None,
-    source: str = download_source,
+    source: str = DEFAULT_DOWNLOAD_SOURCE,
     repo: str | None = None,
     url: str | None = None,
     remove_prefix: str | None = "monai_",
@@ -382,7 +382,7 @@ def load(
     model_file: str | None = None,
     load_ts_module: bool = False,
     bundle_dir: PathLike | None = None,
-    source: str = download_source,
+    source: str = DEFAULT_DOWNLOAD_SOURCE,
     repo: str | None = None,
     remove_prefix: str | None = "monai_",
     progress: bool = True,
@@ -1582,7 +1582,13 @@ class BundleManager:
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         configs: The name of the config file(s), supporting multiple names.
             Defaults to "train".
-        kwargs: Additional arguments for download or workflow class instantiation.
+        version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
+            the latest version.
+        source: storage location name. This argument is used when `url` is `None`.
+            In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
+            it should be "ngc", "monaihosting" or "github".
+        args_file: a JSON or YAML file to provide default values for all the args in download function.
+        kwargs: Additional arguments for workflow class instantiation.
     """
 
     def __init__(
@@ -1591,6 +1597,9 @@ class BundleManager:
         config_path: str | Sequence[str] | None = None,
         bundle_dir: PathLike | None = None,
         configs: str | Sequence[str] = "train",
+        version: str | None = None,
+        source: str = DEFAULT_DOWNLOAD_SOURCE,
+        args_file: str | None = None,
         **kwargs: Any,
     ) -> None:
         if bundle_name is None and config_path is None:
@@ -1609,13 +1618,14 @@ class BundleManager:
             else:
                 raise FileNotFoundError(f"Cannot find the config file: {config_path}.")
         else:
-            download_args = {
-                "version": kwargs.pop("version", None),
-                "args_file": kwargs.pop("args_file", None),
-                "source": kwargs.pop("source", download_source),
-            }
-            download(bundle_name, bundle_dir=bundle_dir, **download_args)
             bundle_dir = _process_bundle_dir(bundle_dir)
+            download(
+                bundle_name,
+                bundle_dir=bundle_dir,
+                version=version,
+                source=source,
+                args_file=args_file,
+            )
             config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
             if len(configs) > 0:
                 config_file = [str(_find_config_file(config_root_path, _config)) for _config in configs]  # type: ignore
