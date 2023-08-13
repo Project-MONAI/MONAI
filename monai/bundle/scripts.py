@@ -1619,13 +1619,7 @@ class BundleManager:
                 raise FileNotFoundError(f"Cannot find the config file: {config_path}.")
         else:
             bundle_dir = _process_bundle_dir(bundle_dir)
-            download(
-                bundle_name,
-                bundle_dir=bundle_dir,
-                version=version,
-                source=source,
-                args_file=args_file,
-            )
+            download(bundle_name, bundle_dir=bundle_dir, version=version, source=source, args_file=args_file)
             config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
             if len(configs) > 0:
                 config_file = [str(_find_config_file(config_root_path, _config)) for _config in configs]  # type: ignore
