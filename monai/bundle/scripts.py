@@ -1578,8 +1578,6 @@ class BundleManager:
             their contents will be merged. Defaults to None.
         bundle_dir: the target directory to store downloaded bundle.
             Defaults to the 'bundle' subfolder under `torch.hub.get_dir()`.
-        target directory to store the downloaded data.
-            Default is `bundle` subfolder under `torch.hub.get_dir()`.
         configs: The name of the config file(s), supporting multiple names.
             Defaults to "train".
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
