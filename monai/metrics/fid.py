@@ -26,12 +26,12 @@ class FIDMetric(Metric):
     Frechet Inception Distance (FID). The FID calculates the distance between two distributions of feature vectors.
     Based on: Heusel M. et al. "Gans trained by a two time-scale update rule converge to a local nash equilibrium."
     https://arxiv.org/abs/1706.08500. The inputs for this metric should be two groups of feature vectors (with format
-    (number images, number of features)) extracted from the a pretrained network.
+    (number images, number of features)) extracted from a pretrained network.
 
     Originally, it was proposed to use the activations of the pool_3 layer of an Inception v3 pretrained with Imagenet.
     However, others networks pretrained on medical datasets can be used as well (for example, RadImageNwt for 2D and
-    MedicalNet for 3D images). If the chosen model output is not a scalar, usually it is used a global spatial
-    average pooling.
+    MedicalNet for 3D images). If the chosen model output is not a scalar, a global spatia average pooling should be
+    used.
     """
 
     def __call__(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -39,6 +39,12 @@ class FIDMetric(Metric):
 
 
 def get_fid_score(y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Computes the FID score metric on a batch of feature vectors.
+
+    Args:
+        y_pred: feature vectors extracted from a pretrained network run on generated images.
+        y: feature vectors extracted from a pretrained network run on images from the real data distribution.
+    """
     y = y.double()
     y_pred = y_pred.double()
 
