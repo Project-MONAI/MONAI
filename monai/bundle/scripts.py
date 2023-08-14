@@ -1573,7 +1573,7 @@ class BundleManager:
         print(version)
 
     Args:
-        bundle_name: the name of the bundle. Defaults to None.
+        name: the name of the bundle. Defaults to None.
         config_path: file path of the bundle. If a list of file paths is provided,
             their contents will be merged. Defaults to None.
         bundle_dir: the target directory to store downloaded bundle.
@@ -1593,7 +1593,7 @@ class BundleManager:
 
     def __init__(
         self,
-        bundle_name: str | None = None,
+        name: str | None = None,
         config_path: str | Sequence[str] | None = None,
         bundle_dir: PathLike | None = None,
         configs: str | Sequence[str] = "train",
@@ -1602,8 +1602,8 @@ class BundleManager:
         args_file: str | None = None,
         **kwargs: Any,
     ) -> None:
-        if bundle_name is None and config_path is None:
-            raise ValueError("Must specify bundle_name or config_path.")
+        if name is None and config_path is None:
+            raise ValueError("Must specify name or config_path.")
         configs = ensure_tuple(configs)
         if "train" in configs:
             workflow = "train"
@@ -1619,8 +1619,8 @@ class BundleManager:
                 raise FileNotFoundError(f"Cannot find the config file: {config_path}.")
         else:
             bundle_dir = _process_bundle_dir(bundle_dir)
-            download(bundle_name, bundle_dir=bundle_dir, version=version, source=source, args_file=args_file)
-            config_root_path = bundle_dir / bundle_name / "configs"  # type: ignore
+            download(name, bundle_dir=bundle_dir, version=version, source=source, args_file=args_file)
+            config_root_path = bundle_dir / name / "configs"  # type: ignore
             if len(configs) > 0:
                 config_file = [str(_find_config_file(config_root_path, _config)) for _config in configs]  # type: ignore
             else:
