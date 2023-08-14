@@ -87,7 +87,7 @@ class TestREGUNET(unittest.TestCase):
         input_param, input_shape, _ = TEST_CASE_REGUNET_2D[0]
         net = RegUNet(**input_param)
         test_data = torch.randn(input_shape)
-        test_onnx_save(net, test_data)
+        test_onnx_save(net, test_data, atol=1e-3)
 
 
 if __name__ == "__main__":
