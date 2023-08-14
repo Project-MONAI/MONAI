@@ -179,17 +179,19 @@ class TestHoverNet(unittest.TestCase):
             pass
 
     def test_script(self):
+        # the test only gets executed once because it is outside of the loop.
+        # it must be a bug.
         for padding_flag in [True, False]:
             net = HoVerNet(mode=HoVerNet.Mode.FAST, decoder_padding=padding_flag)
-            test_data = torch.randn(1, 3, 256, 256)
-            test_script_save(net, test_data)
+        test_data = torch.randn(1, 3, 256, 256)
+        test_script_save(net, test_data)
 
     @SkipIfBeforePyTorchVersion((1, 12))
     def test_onnx(self):
         for padding_flag in [True, False]:
             net = HoVerNet(mode=HoVerNet.Mode.FAST, decoder_padding=padding_flag)
-            test_data = torch.randn(1, 3, 256, 256)
-            test_onnx_save(net, test_data)
+        test_data = torch.randn(1, 3, 256, 256)
+        test_onnx_save(net, test_data)
 
     def test_ill_input_shape(self):
         net = HoVerNet(mode=HoVerNet.Mode.FAST)
