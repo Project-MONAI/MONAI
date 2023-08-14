@@ -565,22 +565,60 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
 ]
 
 
+TEST_COMPOSE_LAZY_ON_CALL_EXECUTE_LOGGING_TEST_CASES = [
+    [
+        mt.Compose,
+        (
+            mt.Flip(0),
+            mt.Spacing((1.2, 1.2))
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
+            "upcoming 'Spacing', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: applied_operations: 2\n"
+        ),
+    ],
+]
+
+
 class TestComposeExecuteWithLogging(unittest.TestCase):
-    @parameterized.expand(TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES)
-    def test_compose_with_logging(self, keys, pipeline, lazy, expected):
+    LOGGER_NAME = "a_logger_name"
+
+    def init_logger(self, name = LOGGER_NAME):
         stream = StringIO()
         handler = logging.StreamHandler(stream)
         formatter = logging.Formatter("%(levelname)s - %(message)s")
         handler.setFormatter(formatter)
-        logger = logging.getLogger("a_logger_name")
+        logger = logging.getLogger(name)
         logger.setLevel(logging.INFO)
         while len(logger.handlers) > 0:
             logger.removeHandler(logger.handlers[-1])
         logger.addHandler(handler)
+        return handler, stream
+
+    @parameterized.expand(TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES)
+    def test_compose_with_logging(self, keys, pipeline, lazy, expected):
+        handler, stream = self.init_logger(name=self.LOGGER_NAME)
 
         data = data_from_keys(keys, 12, 16)
-        c = mt.Compose(deepcopy(pipeline), lazy=lazy, log_stats="a_logger_name")
+        c = mt.Compose(deepcopy(pipeline), lazy=lazy, log_stats=self.LOGGER_NAME)
         c(data)
+
+        handler.flush()
+        actual = stream.getvalue()
+        self.assertEqual(actual, expected)
+
+    @parameterized.expand(TEST_COMPOSE_LAZY_ON_CALL_EXECUTE_LOGGING_TEST_CASES)
+    # todo test other compose types
+    def test_compose_lazy_on_call_with_logging(self, compose_type, pipeline, lazy_on_call, expected):
+        handler, stream = self.init_logger(name=self.LOGGER_NAME)
+
+        data = data_from_keys(None, 12, 16)
+        c = compose_type(deepcopy(pipeline), log_stats=self.LOGGER_NAME)
+        c(data, lazy=lazy_on_call)
 
         handler.flush()
         actual = stream.getvalue()
