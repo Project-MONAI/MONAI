@@ -83,7 +83,7 @@ def compute_mmd(y: torch.Tensor, y_pred: torch.Tensor, y_mapping: Callable | Non
 
     # term 3
     c3 = 2 / (m * n)
-    b = torch.sum(y_pred_y)
+    c = torch.sum(y_pred_y)
 
     mmd = c1 * a + c2 * b - c3 * c
     return mmd
