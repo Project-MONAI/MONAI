@@ -27,40 +27,30 @@ class MMDMetric(Metric):
     Gretton, A., et al,, 2012.  A kernel two-sample test. The Journal of Machine Learning Research, 13(1), pp.723-773.
 
     Args:
-        y_transform: Callable to transform the y tensor before computing the metric. It is usually a Gaussian or Laplace
+        y_mapping: Callable to transform the y tensors before computing the metric. It is usually a Gaussian or Laplace
             filter, but it can be any function that takes a tensor as input and returns a tensor as output such as a
-            feature extractor or an Identity function.
-        y_pred_transform: Callable to transform the y_pred tensor before computing the metric.
+            feature extractor or an Identity function., e.g. `y_mapping = lambda x: x.square()`.
     """
 
-    def __init__(self, y_transform: Callable | None = None, y_pred_transform: Callable | None = None) -> None:
+    def __init__(self, y_mapping: Callable | None = None) -> None:
         super().__init__()
-
-        self.y_transform = y_transform
-        self.y_pred_transform = y_pred_transform
+        self.y_mapping = y_mapping
 
     def __call__(self, y: torch.Tensor, y_pred: torch.Tensor) -> torch.Tensor:
-        return compute_mmd(y, y_pred, self.y_transform, self.y_pred_transform)
+        return compute_mmd(y, y_pred, self.y_mapping)
 
 
-def compute_mmd(
-    y: torch.Tensor, y_pred: torch.Tensor, y_transform: Callable | None, y_pred_transform: Callable | None
-) -> torch.Tensor:
+def compute_mmd(y: torch.Tensor, y_pred: torch.Tensor, y_mapping: Callable | None) -> torch.Tensor:
     """
     Args:
         y: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
         y_pred: second sample (e.g., the reconstructed image). It has similar shape as y.
+        y_mapping: Callable to transform the y tensors before computing the metric.
     """
 
-    # Beta and Gamma are not calculated since torch.mean is used at return
-    beta = 1.0
-    gamma = 2.0
-
-    if y_transform is not None:
-        y = y_transform(y)
-
-    if y_pred_transform is not None:
-        y_pred = y_pred_transform(y_pred)
+    if y_mapping is not None:
+        y = y_mapping(y)
+        y_pred = y_mapping(y_pred)
 
     if y_pred.shape != y.shape:
         raise ValueError(
@@ -79,9 +69,21 @@ def compute_mmd(
     y_pred_y_pred = torch.mm(y_pred, y_pred.t())
     y_pred_y = torch.mm(y_pred, y.t())
 
-    y_y = y_y / y.shape[1]
-    y_pred_y_pred = y_pred_y_pred / y.shape[1]
-    y_pred_y = y_pred_y / y.shape[1]
+    m = y.shape[0]
+    n = y_pred.shape[0]
 
     # Ref. 1 Eq. 3 (found under Lemma 6)
-    return beta * (torch.mean(y_y) + torch.mean(y_pred_y_pred)) - gamma * torch.mean(y_pred_y)
+    # term 1
+    c1 = 1 / (m * (m - 1))
+    A = torch.sum(y_y - torch.diag(torch.diagonal(y_y)))
+
+    # term 2
+    c2 = 1 / (n * (n - 1))
+    B = torch.sum(y_pred_y_pred - torch.diag(torch.diagonal(y_pred_y_pred)))
+
+    # term 3
+    c3 = 2 / (m * n)
+    C = torch.sum(y_pred_y)
+
+    mmd = c1 * A + c2 * B - c3 * C
+    return mmd

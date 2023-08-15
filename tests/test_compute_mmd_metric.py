@@ -20,13 +20,15 @@ from parameterized import parameterized
 from monai.metrics import MMDMetric
 
 TEST_CASES = [
+    [{"y_mapping": None}, {"y": torch.ones([3, 3, 144, 144]), "y_pred": torch.ones([3, 3, 144, 144])}, 0.0],
+    [{"y_mapping": None}, {"y": torch.ones([3, 3, 144, 144, 144]), "y_pred": torch.ones([3, 3, 144, 144, 144])}, 0.0],
     [
-        {"y_transform": None, "y_pred_transform": None},
+        {"y_mapping": lambda x: x.square()},
         {"y": torch.ones([3, 3, 144, 144]), "y_pred": torch.ones([3, 3, 144, 144])},
         0.0,
     ],
     [
-        {"y_transform": None, "y_pred_transform": None},
+        {"y_mapping": lambda x: x.square()},
         {"y": torch.ones([3, 3, 144, 144, 144]), "y_pred": torch.ones([3, 3, 144, 144, 144])},
         0.0,
     ],

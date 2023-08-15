@@ -531,7 +531,7 @@ def compute_ms_ssim(
             It must be a 2D or 3D batch-first tensor [B,C,H,W] or [B,C,H,W,D].
         y: Reference image.
             It must be a 2D or 3D batch-first tensor [B,C,H,W] or [B,C,H,W,D].
-                spatial_dims: number of spatial dimensions of the input images.
+        spatial_dims: number of spatial dimensions of the input images.
         data_range: value range of input images. (usually 1.0 or 255)
         kernel_type: type of kernel, can be "gaussian" or "uniform".
         kernel_size: size of kernel
