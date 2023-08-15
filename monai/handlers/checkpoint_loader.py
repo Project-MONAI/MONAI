@@ -66,6 +66,20 @@ class CheckpointLoader:
         #ignite.handlers.checkpoint.Checkpoint.load_objects.
         https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module.load_state_dict.
 
+    Example:: 
+        save_dict = {
+            "trainer": trainer,
+            "net": network,
+            "opt": optimizer,
+            "lr": lr_scheduler,
+        }
+
+        map_location = "cuda:0"
+        # checkpoint needs to have same save_dict for this to work
+        handler = CheckpointLoader(load_path="/test/checkpoint.pt", load_dict=save_dict, map_location=map_location, strict=True)
+        handler(trainer)
+        # Trainer now has the same state as stored, including the number of epochs and iterations completed
+        # so you can resume an interrupted training at the place where it left
     """
 
     def __init__(
