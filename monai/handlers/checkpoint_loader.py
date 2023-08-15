@@ -37,6 +37,7 @@ class CheckpointLoader:
     as PyTorch recommended and then use this loader to load the model.
 
     Usage example::
+
         trainer = SupervisedTrainer(...)
         save_dict = {
             "trainer": trainer,
