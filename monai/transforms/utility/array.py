@@ -1223,7 +1223,7 @@ class MapLabelValue:
 
         self.orig_labels = orig_labels
         self.target_labels = target_labels
-        self.pair = ((o, t) for o, t in zip(self.orig_labels, self.target_labels) if o != t)
+        self.pair = tuple((o, t) for o, t in zip(self.orig_labels, self.target_labels) if o != t)
         type_dtype = type(dtype)
         if getattr(type_dtype, "__module__", "") == "torch":
             self.use_numpy = False
