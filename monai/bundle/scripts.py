@@ -1540,8 +1540,9 @@ def push_to_hf_hub(
         bundle_dir: path to the bundle directory.
         token: Hugging Face authentication token. Default is `None` (will default to the stored token).
         private: Private visibility of the repository on Hugging Face. Default is `True`.
-        branch_name: Name of branch. If branch does not exist, it will be created. Default is `None`.
-        tag_name: Name of tag. Default is `None`.
+        version_name: Name of the version tag to create. Default is `None` (no version tag is created).
+        tag_as_latest_version: Whether to tag the commit as `latest_version`. 
+            This version will downloaded by default when using `bundle.download()`. Default is `False`.
         upload_folder_kwargs: Keyword arguments to pass to `HfApi.upload_folder`.
 
     Returns:
@@ -1571,6 +1572,7 @@ def push_to_hf_hub(
             tag = version_name,
             exist_ok = True)
     
+    # Optionally tag as `latest_version`
     if tag_as_latest_version:
         hf_api.create_tag(
             repo_id = repo,
