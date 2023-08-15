@@ -1527,8 +1527,8 @@ def push_to_hf_hub(
     bundle_dir: str,
     token: str | None = None,
     private: bool | None = True,
-    branch_name: str | None = None,
-    tag_name: str | None = None,
+    version_name: str | None = None,
+    tag_as_latest_version: bool | None = False,
     **upload_folder_kwargs: Any,
     ) -> str:
     """
@@ -1557,27 +1557,24 @@ def push_to_hf_hub(
     if os.path.exists(modelcard_path):
         # Copy README from old path if it exists
         copyfile(modelcard_path, new_modelcard_path)
-
-    # Create branch if branch_name is specified
-    if branch_name is not None:
-      huggingface_hub.create_branch(
-          repo_id=repo,
-          branch=branch_name,
-          exist_ok=True)
     
     # Upload bundle folder to repo
     repo_url = hf_api.upload_folder(
         repo_id=repo,
         folder_path=os.path.join(bundle_dir, bundle_name),
-        revision=branch_name,
         **upload_folder_kwargs)
 
-    # Create tag if specified
-    if tag_name is not None:
-      hf_api.create_tag(
-          repo_id = repo,
-          tag = tag_name,
-          revision = branch_name,  # if None, will default to `main` branch
-          exist_ok = True)
+    # Create version tag if specified
+    if version_name is not None:
+        hf_api.create_tag(
+            repo_id = repo,
+            tag = version_name,
+            exist_ok = True)
+    
+    if tag_as_latest_version:
+        hf_api.create_tag(
+            repo_id = repo,
+            tag = "latest_version",
+            exist_ok = True)
 
     return repo_url
