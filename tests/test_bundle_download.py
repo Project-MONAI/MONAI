@@ -15,6 +15,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest.case import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -22,6 +23,7 @@ from parameterized import parameterized
 import monai.networks.nets as nets
 from monai.apps import check_hash
 from monai.bundle import ConfigParser, load
+from monai.utils import optional_import
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     assert_allclose,
@@ -29,6 +31,8 @@ from tests.utils import (
     skip_if_downloading_fails,
     skip_if_quick,
 )
+
+_, has_huggingface_hub = optional_import("huggingface_hub")
 
 TEST_CASE_1 = ["test_bundle", None]
 
@@ -56,6 +60,12 @@ TEST_CASE_5 = [
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
     "cuda" if torch.cuda.is_available() else "cpu",
     "model.ts",
+]
+
+TEST_CASE_6 = [
+    ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
+    "test_bundle",
+    "monai-test/test_bundle",
 ]
 
 
@@ -177,6 +187,29 @@ class TestLoad(unittest.TestCase):
                 self.assertTrue(metadata["pytorch_version"] == "1.7.1")
                 # test extra_file_dict
                 self.assertTrue("network.json" in extra_file_dict.keys())
+
+    @parameterized.expand([TEST_CASE_6])
+    @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
+    def test_hf_hub_download_bundle(self, bundle_files, bundle_name, repo):
+        with skip_if_downloading_fails():
+            with tempfile.TemporaryDirectory() as tempdir:
+                cmd = [
+                    "coverage",
+                    "run",
+                    "-m",
+                    "monai.bundle",
+                    "download",
+                    "--name",
+                    bundle_name,
+                    "--source",
+                    "huggingface_hub",
+                ]
+                cmd += ["--bundle_dir", tempdir, "--repo", repo, "--progress", "False"]
+                command_line_tests(cmd)
+                for file in bundle_files:
+                    file_path = os.path.join(tempdir, bundle_name, file)
+                    self.assertTrue(os.path.exists(file_path))
 
 
 if __name__ == "__main__":

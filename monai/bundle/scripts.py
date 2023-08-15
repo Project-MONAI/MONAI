@@ -193,13 +193,6 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
-def _download_from_huggingface_hub(repo_id: str, download_path: str, filename: str, version: str) -> None:
-    if len(repo_id.split("/")) != 2:
-        raise ValueError("if source is `huggingface_hub`, repo should be in the form `repo_owner/repo_name`")
-    extract_path = os.path.join(download_path, filename)
-    huggingface_hub.snapshot_download(repo_id=repo_id, revision=version, local_dir=extract_path)
-
-
 def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
@@ -212,9 +205,13 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
     elif source == "huggingface_hub":
-        huggingface_hub.list_repo_refs(repo_id=repo, repo_type="model")
-        #TODO: implement this
-        return None
+        refs = huggingface_hub.list_repo_refs(repo_id=repo)
+        if len(refs.tags) > 0:
+            all_versions = [t.name for t in refs.tags]  # git tags, not to be confused with `tag`
+            latest_version = ['latest_version' if 'latest_version' in all_versions else all_versions[-1]][0]
+        else:
+            latest_version = [b.name for b in refs.branches][0]  # use the branch that was last updated
+        return latest_version
     else:
         raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
 
@@ -280,7 +277,7 @@ def download(
             "monai_brats_mri_segmentation" in ngc:
             https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
-            the latest version. If `source` is "huggingface_hub", this argument is a Git revision id.
+            the latest version (or the last commit to the `main` branch in the case of Hugging Face Hub).
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
@@ -323,7 +320,8 @@ def download(
         repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
     if len(repo_.split("/")) != 3 and source_ != "huggingface_hub":
         raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
-
+    elif len(repo_.split("/")) != 2 and source_ == "huggingface_hub":
+        raise ValueError("Hugging Face Hub repo should be in the form of `repo_owner/repo_name`")
     if url_ is not None:
         if name_ is not None:
             filepath = bundle_dir_ / f"{name_}.zip"
@@ -349,9 +347,8 @@ def download(
                 progress=progress_,
             )
         elif source_ == "huggingface_hub":
-            if name_ is None:
-                raise ValueError(f"To download from source: 'huggingface_hub', `name` must be provided, got {name_}.")
-            _download_from_huggingface_hub(repo=repo_, download_path=bundle_dir_, filename=name_, version=version_)
+            extract_path = os.path.join(bundle_dir_, name_)
+            huggingface_hub.snapshot_download(repo_id=repo_, revision=version_, local_dir=extract_path)
         else:
             raise NotImplementedError(
                 f"Currently only download from `url`, source 'github', 'ngc', or 'huggingface_hub' are implemented, got source: {source_}."
@@ -1524,15 +1521,63 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
-def push_to_hf_hub(bundle_dir: str, repo_name: str) -> None:
+def push_to_hf_hub(
+    repo: str,
+    bundle_name: str,
+    bundle_dir: str,
+    token: str | None = None,
+    private: bool | None = True,
+    branch_name: str | None = None,
+    tag_name: str | None = None,
+    **upload_folder_kwargs: Any,
+    ) -> str:
     """
-    Push the current bundle to the Hugging Face Hub.
+    Push a MONAI bundle to the Hugging Face Hub.
 
     Args:
-        bundle_dir: path to the bundle directory to push
-        repo_name: name of the repo to create or push to the HF Hub
+        repo: namespace (user or organization) and a repo name separated by a /, e.g. `hf_username/bundle_name`
+        bundle_name: name of the bundle directory to push.
+        bundle_dir: path to the bundle directory.
+        token: Hugging Face authentication token. Default is `None` (will default to the stored token).
+        private: Private visibility of the repository on Hugging Face. Default is `True`.
+        branch_name: Name of branch. If branch does not exist, it will be created. Default is `None`.
+        tag_name: Name of tag. Default is `None`.
+        upload_folder_kwargs: Keyword arguments to pass to `HfApi.upload_folder`.
+
+    Returns:
+        repo_url: URL of the Hugging Face repo
     """
-    hf_api = huggingface_hub.HfApi()
-    repo_url = hf_api.create_repo(name=repo_name, exist_ok=True)
-    repo_id = repo_url.repo_id
-    return hf_api.upload_folder(path=bundle_dir, repo_id=repo_id)
+    # Connect to API and create repo
+    hf_api = huggingface_hub.HfApi(token=token)
+    hf_api.create_repo(repo_id=repo, private=private, exist_ok=True)
+
+    # Create model card in bundle directory
+    new_modelcard_path = os.path.join(bundle_dir, bundle_name, "README.md")
+    modelcard_path = os.path.join(bundle_dir, bundle_name, "docs", "README.md")
+    if os.path.exists(modelcard_path):
+        # Copy README from old path if it exists
+        copyfile(modelcard_path, new_modelcard_path)
+
+    # Create branch if branch_name is specified
+    if branch_name is not None:
+      huggingface_hub.create_branch(
+          repo_id=repo,
+          branch=branch_name,
+          exist_ok=True)
+    
+    # Upload bundle folder to repo
+    repo_url = hf_api.upload_folder(
+        repo_id=repo,
+        folder_path=os.path.join(bundle_dir, bundle_name),
+        revision=branch_name,
+        **upload_folder_kwargs)
+
+    # Create tag if specified
+    if tag_name is not None:
+      hf_api.create_tag(
+          repo_id = repo,
+          tag = tag_name,
+          revision = branch_name,  # if None, will default to `main` branch
+          exist_ok = True)
+
+    return repo_url
