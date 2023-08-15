@@ -417,7 +417,7 @@ def load(
             If used, it should be in the form of "repo_owner/repo_name/release_tag".
         remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
             have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
-            maintain the consistency between these two sources, remove prefix is necessary.
+            maintain the consistency between these three sources, remove prefix is necessary.
             Therefore, if specified, downloaded folder name will remove the prefix.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
@@ -1548,6 +1548,78 @@ def _find_config_file(root_dir: Path, file_name: str, suffix: Sequence[str] = ("
         if full_name.is_file():
             return full_name
     return None
+
+
+def load_bundle_state_dict(
+    name: str | None = None,
+    bundle_dir: PathLike | None = None,
+    model: str | None = None,
+    device: str | None = None,
+    dst_prefix: str = "",
+    key_in_ckpt: str | None = None,
+    mapping: dict = None,
+    exclude_vars: str = None,
+    inplace: bool = True,
+    config_path: str | Sequence[str] | None = None,
+    configs: str | Sequence[str] = "train",
+    version: str | None = None,
+    source: str = DEFAULT_DOWNLOAD_SOURCE,
+    args_file: str | None = None,
+    model_file: str | None = None,
+    load_ts_module: bool = False,
+    config_files: Sequence[str] = (),
+    **override: Any
+):
+    """
+
+    Args:
+
+    Examples
+    
+    """
+    bundle_dir = _process_bundle_dir(bundle_dir)
+    if device is None:
+        device = "cuda:0" if is_available() else "cpu"
+    if model_file is None:
+        model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+    full_path = os.path.join(bundle_dir, name, model_file)
+    if not os.path.exists(full_path) or model is None:
+        _override = {f"network_def#{key}": value for key, value in override.items()}
+        bundle = BundleManager(
+            name=name,
+            config_path=config_path,
+            bundle_dir=bundle_dir,
+            configs=configs,
+            version=version,
+            source=source,
+            args_file=args_file,
+            **_override
+        )
+
+    # loading with `torch.jit.load`
+    if load_ts_module is True:
+        return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
+
+    # loading with `torch.load`
+    model_dict = torch.load(full_path, map_location=torch.device(device))
+    if not isinstance(model_dict, Mapping):
+        warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
+        model_dict = get_state_dict(model_dict)
+
+    if model is not None:
+        model.to(device)
+    else:
+        model = bundle.get("network_def").to(device)
+
+    copy_model_state(
+        dst=model,
+        src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt],
+        dst_prefix=dst_prefix,
+        mapping=mapping,
+        exclude_vars=exclude_vars,
+        inplace=inplace,
+    )
+    return model
 
 
 class BundleManager:
