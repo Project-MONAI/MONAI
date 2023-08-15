@@ -75,15 +75,15 @@ def compute_mmd(y: torch.Tensor, y_pred: torch.Tensor, y_mapping: Callable | Non
     # Ref. 1 Eq. 3 (found under Lemma 6)
     # term 1
     c1 = 1 / (m * (m - 1))
-    A = torch.sum(y_y - torch.diag(torch.diagonal(y_y)))
+    a = torch.sum(y_y - torch.diag(torch.diagonal(y_y)))
 
     # term 2
     c2 = 1 / (n * (n - 1))
-    B = torch.sum(y_pred_y_pred - torch.diag(torch.diagonal(y_pred_y_pred)))
+    b = torch.sum(y_pred_y_pred - torch.diag(torch.diagonal(y_pred_y_pred)))
 
     # term 3
     c3 = 2 / (m * n)
-    C = torch.sum(y_pred_y)
+    b = torch.sum(y_pred_y)
 
-    mmd = c1 * A + c2 * B - c3 * C
+    mmd = c1 * a + c2 * b - c3 * c
     return mmd
