@@ -46,6 +46,9 @@ class TestMMDMetric(unittest.TestCase):
         with self.assertRaises(ValueError):
             MMDMetric()(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 145, 145]))
 
+    def test_if_inputs_have_one_sample(self):
+        with self.assertRaises(ValueError):
+            MMDMetric()(torch.ones([1, 3, 144, 144]), torch.ones([1, 3, 144, 144]))
 
 if __name__ == "__main__":
     unittest.main()

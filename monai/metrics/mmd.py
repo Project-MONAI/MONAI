@@ -47,6 +47,8 @@ def compute_mmd(y: torch.Tensor, y_pred: torch.Tensor, y_mapping: Callable | Non
         y_pred: second sample (e.g., the reconstructed image). It has similar shape as y.
         y_mapping: Callable to transform the y tensors before computing the metric.
     """
+    if y_pred.shape[0] == 1 or y.shape[0] == 1:
+        raise ValueError("MMD metric requires at least two samples in y and y_pred.")
 
     if y_mapping is not None:
         y = y_mapping(y)
