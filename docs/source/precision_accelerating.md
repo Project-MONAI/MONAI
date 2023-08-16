@@ -1,4 +1,4 @@
-# Precision and Performance
+# Precision and Accelerating
 
 Modern GPU architectures usually can use reduced precision tensor data or computational operations to save memory and increase throughput. However, in some cases, the reduced precision will cause numerical stability issues, and further cause reproducibility issues. Therefore, please ensure that you are using appropriate precision.
 
