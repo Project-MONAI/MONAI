@@ -565,7 +565,7 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
 ]
 
 
-TEST_COMPOSE_LAZY_ON_CALL_EXECUTE_LOGGING_TEST_CASES = [
+TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES = [
     [
         mt.Compose,
         (
@@ -579,6 +579,42 @@ TEST_COMPOSE_LAZY_ON_CALL_EXECUTE_LOGGING_TEST_CASES = [
             "INFO - Accumulate pending transforms - lazy: True, pending: 1, "
             "upcoming 'Spacing', transform.lazy: False (overridden)\n"
             "INFO - Pending transforms applied: applied_operations: 2\n"
+        ),
+    ],
+    [
+        mt.SomeOf,
+        (
+            mt.Flip(0),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: applied_operations: 1\n"
+        ),
+    ],
+    [
+        mt.RandomOrder,
+        (
+            mt.Flip(0),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: applied_operations: 1\n"
+        ),
+    ],
+    [
+        mt.OneOf,
+        (
+            mt.Flip(0),
+        ),
+        True,
+        (
+            "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
+            "upcoming 'Flip', transform.lazy: False (overridden)\n"
+            "INFO - Pending transforms applied: applied_operations: 1\n"
         ),
     ],
 ]
@@ -611,8 +647,7 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
         actual = stream.getvalue()
         self.assertEqual(actual, expected)
 
-    @parameterized.expand(TEST_COMPOSE_LAZY_ON_CALL_EXECUTE_LOGGING_TEST_CASES)
-    # todo test other compose types
+    @parameterized.expand(TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES)
     def test_compose_lazy_on_call_with_logging(self, compose_type, pipeline, lazy_on_call, expected):
         handler, stream = self.init_logger(name=self.LOGGER_NAME)
 
