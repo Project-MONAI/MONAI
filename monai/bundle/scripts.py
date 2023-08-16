@@ -1523,6 +1523,7 @@ def init_bundle(
 
 def _add_model_card_metadata(new_modelcard_path):
     # Extract license from LICENSE file
+    license_name = "unknown"
     license_path = os.path.join(os.path.dirname(new_modelcard_path), "LICENSE")
     if os.path.exists(license_path):
         with open(license_path, "r") as file:
@@ -1531,8 +1532,6 @@ def _add_model_card_metadata(new_modelcard_path):
             license_name = "apache-2.0"
         elif "MIT License" in content:
             license_name = "mit"
-        else:
-            license_name = "unknown"
     # Add relevant tags
     tags = "- monai\n- medical\nlibrary_name: monai\n"
     # Create tag section
