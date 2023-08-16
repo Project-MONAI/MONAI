@@ -1207,7 +1207,7 @@ class MapLabelValue:
 
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(self, orig_labels: Sequence, target_labels: Sequence, dtype: DtypeLike = np.float32) -> None:
         """
@@ -1215,33 +1215,42 @@ class MapLabelValue:
             orig_labels: original labels that map to others.
             target_labels: expected label values, 1: 1 map to the `orig_labels`.
             dtype: convert the output data to dtype, default to float32.
+                if dtype is from PyTorch, the transform will use the pytorch backend, else with numpy backend.
 
         """
         if len(orig_labels) != len(target_labels):
             raise ValueError("orig_labels and target_labels must have the same length.")
-        if all(o == z for o, z in zip(orig_labels, target_labels)):
-            raise ValueError("orig_labels and target_labels are exactly the same, should be different to map.")
 
         self.orig_labels = orig_labels
         self.target_labels = target_labels
-        self.dtype = get_equivalent_dtype(dtype, data_type=np.ndarray)
+        self.pair = tuple((o, t) for o, t in zip(self.orig_labels, self.target_labels) if o != t)
+        type_dtype = type(dtype)
+        if getattr(type_dtype, "__module__", "") == "torch":
+            self.use_numpy = False
+            self.dtype = get_equivalent_dtype(dtype, data_type=torch.Tensor)
+        else:
+            self.use_numpy = True
+            self.dtype = get_equivalent_dtype(dtype, data_type=np.ndarray)
 
     def __call__(self, img: NdarrayOrTensor):
-        img_np, *_ = convert_data_type(img, np.ndarray)
-        img_flat = img_np.flatten()
-        try:
-            out_flat = np.array(img_flat, dtype=self.dtype)
-        except ValueError:
-            # can't copy unchanged labels as the expected dtype is not supported, must map all the label values
-            out_flat = np.zeros(shape=img_flat.shape, dtype=self.dtype)
-
-        for o, t in zip(self.orig_labels, self.target_labels):
-            if o == t:
-                continue
-            np.place(out_flat, img_flat == o, t)
-
-        reshaped = out_flat.reshape(img_np.shape)
-        out, *_ = convert_to_dst_type(src=reshaped, dst=img, dtype=self.dtype)
+        if self.use_numpy:
+            img_np, *_ = convert_data_type(img, np.ndarray)
+            _out_shape = img_np.shape
+            img_flat = img_np.flatten()
+            try:
+                out_flat = img_flat.astype(self.dtype)
+            except ValueError:
+                # can't copy unchanged labels as the expected dtype is not supported, must map all the label values
+                out_flat = np.zeros(shape=img_flat.shape, dtype=self.dtype)
+            for o, t in self.pair:
+                out_flat[img_flat == o] = t
+            out_t = out_flat.reshape(_out_shape)
+        else:
+            img_t, *_ = convert_data_type(img, torch.Tensor)
+            out_t = img_t.detach().clone().to(self.dtype)  # type: ignore
+            for o, t in self.pair:
+                out_t[img_t == o] = t
+        out, *_ = convert_to_dst_type(src=out_t, dst=img, dtype=self.dtype)
         return out
 
 

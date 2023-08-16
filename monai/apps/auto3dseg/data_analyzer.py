@@ -70,7 +70,7 @@ class DataAnalyzer:
             the DataAnalyzer will skip looking for labels and all label-related operations.
         hist_bins: bins to compute histogram for each image channel.
         hist_range: ranges to compute histogram for each image channel.
-        fmt: format used to save the analysis results. Defaults to "yaml".
+        fmt: format used to save the analysis results. Currently support ``"json"`` and ``"yaml"``, defaults to "yaml".
         histogram_only: whether to only compute histograms. Defaults to False.
         extra_params: other optional arguments. Currently supported arguments are :
             'allowed_shape_difference' (default 5) can be used to change the default tolerance of
@@ -164,6 +164,7 @@ class DataAnalyzer:
         constant_props = [result[DataStatsKeys.SUMMARY][DataStatsKeys.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
             if "stdev" in prop and np.any(prop["stdev"]):
+                logger.debug(f"summary image_stats {prop} has non-zero stdev {prop['stdev']}.")
                 return False
 
         return True
@@ -242,15 +243,16 @@ class DataAnalyzer:
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             logger.info("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
         if self.output_path:
+            logger.info(f"Writing data stats to {self.output_path}.")
             ConfigParser.export_config_file(
                 result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
+            by_case_path = self.output_path.replace(f".{self.fmt}", f"_by_case.{self.fmt}")
+            if by_case_path == self.output_path:  # self.output_path not ended with self.fmt?
+                by_case_path += f".by_case.{self.fmt}"
+            logger.info(f"Writing by-case data stats to {by_case_path}, this may take a while.")
             ConfigParser.export_config_file(
-                result_bycase,
-                self.output_path.replace(".yaml", "_by_case.yaml"),
-                fmt=self.fmt,
-                default_flow_style=None,
-                sort_keys=False,
+                result_bycase, by_case_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
         # release memory
         if self.device.type == "cuda":
@@ -320,6 +322,9 @@ class DataAnalyzer:
         )
         result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         device = self.device if self.device.type == "cpu" else torch.device("cuda", rank)
+        if device.type == "cuda" and not (torch.cuda.is_available() and torch.cuda.device_count() > 0):
+            logger.info(f"device={device} but CUDA device is not available, using CPU instead.")
+            device = torch.device("cpu")
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
@@ -327,23 +332,26 @@ class DataAnalyzer:
             batch_data = batch_data[0]
             try:
                 batch_data[self.image_key] = batch_data[self.image_key].to(device)
+                _label_argmax = False
                 if self.label_key is not None:
                     label = batch_data[self.label_key]
                     label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                    _label_argmax = True  # track if label is argmaxed
                     batch_data[self.label_key] = label.to(device)
                 d = summarizer(batch_data)
-            except BaseException:
+            except BaseException as err:
                 if "image_meta_dict" in batch_data.keys():
                     filename = batch_data["image_meta_dict"]["filename_or_obj"]
                 else:
                     filename = batch_data[self.image_key].meta["filename_or_obj"]
-                logger.info(f"Unable to process data {filename} on {device}.")
+                logger.info(f"Unable to process data {filename} on {device}. {err}")
                 if self.device.type == "cuda":
                     logger.info("DataAnalyzer `device` set to GPU execution hit an exception. Falling back to `cpu`.")
                     batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
                     if self.label_key is not None:
                         label = batch_data[self.label_key]
-                        label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                        if not _label_argmax:
+                            label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
                         batch_data[self.label_key] = label.to("cpu")
                     d = summarizer(batch_data)
 

@@ -45,6 +45,8 @@ doIsortFormat=false
 doIsortFix=false
 doFlake8Format=false
 doPylintFormat=false
+doRuffFormat=false
+doRuffFix=false
 doClangFormat=false
 doCopyRight=false
 doPytypeFormat=false
@@ -58,9 +60,10 @@ NUM_PARALLEL=1
 PY_EXE=${MONAI_PY_EXE:-$(which python)}
 
 function print_usage {
-    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--clangformat] [--pytype] [--mypy]"
-    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--dryrun] [-j number] [--list_tests]"
-    echo "            [--copyright] [--build] [--clean] [--precommit] [--help] [--version]"
+    echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--ruff]"
+    echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy]"
+    echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
+    echo "            [--dryrun] [--copyright] [--clean] [--help] [--version]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -73,18 +76,19 @@ function print_usage {
     echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
     echo ""
     echo "Code style check options:"
-    echo "    --black           : perform \"black\" code format checks"
     echo "    --autofix         : format code using \"isort\" and \"black\""
+    echo "    --black           : perform \"black\" code format checks"
     echo "    --isort           : perform \"isort\" import sort checks"
     echo "    --flake8          : perform \"flake8\" code format checks"
     echo "    --pylint          : perform \"pylint\" code format checks"
+    echo "    --ruff            : perform \"ruff\" code format checks"
     echo "    --clangformat     : format csrc code using \"clang-format\""
     echo "    --precommit       : perform source code format check and fix using \"pre-commit\""
     echo ""
     echo "Python type check options:"
     echo "    --pytype          : perform \"pytype\" static type checks"
-    echo "    --mypy            : perform \"mypy\" static type checks"
     echo "    -j, --jobs        : number of parallel jobs to run \"pytype\" (default $NUM_PARALLEL)"
+    echo "    --mypy            : perform \"mypy\" static type checks"
     echo ""
     echo "MONAI unit testing options:"
     echo "    -u, --unittests   : perform unit testing"
@@ -258,6 +262,7 @@ do
             doIsortFormat=true
             doFlake8Format=true
             doPylintFormat=true
+            doRuffFormat=true
             doCopyRight=true
         ;;
         --disttests)
@@ -269,8 +274,10 @@ do
         --autofix)
             doIsortFix=true
             doBlackFix=true
+            doRuffFix=true
             doIsortFormat=true
             doBlackFormat=true
+            doRuffFormat=true
             doCopyRight=true
         ;;
         --clangformat)
@@ -284,6 +291,9 @@ do
         ;;
         --pylint)
             doPylintFormat=true
+        ;;
+        --ruff)
+            doRuffFormat=true
         ;;
         --precommit)
             doPrecommit=true
@@ -546,6 +556,42 @@ then
     then
         print_style_fail_msg
         exit ${pylint_status}
+    else
+        echo "${green}passed!${noColor}"
+    fi
+    set -e # enable exit on failure
+fi
+
+
+if [ $doRuffFormat = true ]
+then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
+    if [ $doRuffFix = true ]
+    then
+        echo "${separator}${blue}ruff-fix${noColor}"
+    else
+        echo "${separator}${blue}ruff${noColor}"
+    fi
+
+    # ensure that the necessary packages for code format testing are installed
+    if ! is_pip_installed ruff
+    then
+        install_deps
+    fi
+    ruff --version
+
+    if [ $doRuffFix = true ]
+    then
+        ruff check --fix "$(pwd)"
+    else
+        ruff check "$(pwd)"
+    fi
+
+    ruff_status=$?
+    if [ ${ruff_status} -ne 0 ]
+    then
+        print_style_fail_msg
+        exit ${ruff_status}
     else
         echo "${green}passed!${noColor}"
     fi

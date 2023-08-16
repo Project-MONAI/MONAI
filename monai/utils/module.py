@@ -25,7 +25,7 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, cast
+from typing import Any, Iterable, cast
 
 import torch
 
@@ -55,6 +55,7 @@ __all__ = [
     "get_package_version",
     "get_torch_version_tuple",
     "version_leq",
+    "version_geq",
     "pytorch_after",
 ]
 
@@ -518,23 +519,10 @@ def get_torch_version_tuple():
     return tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
-def version_leq(lhs: str, rhs: str) -> bool:
+def parse_version_strs(lhs: str, rhs: str) -> tuple[Iterable[int | str], Iterable[int | str]]:
     """
-    Returns True if version `lhs` is earlier or equal to `rhs`.
-
-    Args:
-        lhs: version name to compare with `rhs`, return True if earlier or equal to `rhs`.
-        rhs: version name to compare with `lhs`, return True if later or equal to `lhs`.
-
+    Parse the version strings.
     """
-
-    lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
-    if has_ver:
-        try:
-            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
-        except pkging.version.InvalidVersion:
-            return True
 
     def _try_cast(val: str) -> int | str:
         val = val.strip()
@@ -554,12 +542,60 @@ def version_leq(lhs: str, rhs: str) -> bool:
     # parse the version strings in this basic way without `packaging` package
     lhs_ = map(_try_cast, lhs.split("."))
     rhs_ = map(_try_cast, rhs.split("."))
+    return lhs_, rhs_
 
+
+def version_leq(lhs: str, rhs: str) -> bool:
+    """
+    Returns True if version `lhs` is earlier or equal to `rhs`.
+
+    Args:
+        lhs: version name to compare with `rhs`, return True if earlier or equal to `rhs`.
+        rhs: version name to compare with `lhs`, return True if later or equal to `lhs`.
+
+    """
+
+    lhs, rhs = str(lhs), str(rhs)
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    if has_ver:
+        try:
+            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
+        except pkging.version.InvalidVersion:
+            return True
+
+    lhs_, rhs_ = parse_version_strs(lhs, rhs)
     for l, r in zip(lhs_, rhs_):
         if l != r:
             if isinstance(l, int) and isinstance(r, int):
                 return l < r
             return f"{l}" < f"{r}"
+
+    return True
+
+
+def version_geq(lhs: str, rhs: str) -> bool:
+    """
+    Returns True if version `lhs` is later or equal to `rhs`.
+
+    Args:
+        lhs: version name to compare with `rhs`, return True if later or equal to `rhs`.
+        rhs: version name to compare with `lhs`, return True if earlier or equal to `lhs`.
+
+    """
+    lhs, rhs = str(lhs), str(rhs)
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    if has_ver:
+        try:
+            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
+        except pkging.version.InvalidVersion:
+            return True
+
+    lhs_, rhs_ = parse_version_strs(lhs, rhs)
+    for l, r in zip(lhs_, rhs_):
+        if l != r:
+            if isinstance(l, int) and isinstance(r, int):
+                return l > r
+            return f"{l}" > f"{r}"
 
     return True
 

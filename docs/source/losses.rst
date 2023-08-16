@@ -99,6 +99,21 @@ Reconstruction Losses
 .. autoclass:: monai.losses.ssim_loss.SSIMLoss
     :members:
 
+`PatchAdversarialLoss`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PatchAdversarialLoss
+    :members:
+
+`PerceptualLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: PerceptualLoss
+    :members:
+
+`JukeboxLoss`
+~~~~~~~~~~~~~~
+.. autoclass:: JukeboxLoss
+    :members:
+
 
 Loss Wrappers
 -------------
@@ -111,4 +126,9 @@ Loss Wrappers
 `MaskedLoss`
 ~~~~~~~~~~~~
 .. autoclass:: MaskedLoss
+    :members:
+
+`DeepSupervisionLoss`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DeepSupervisionLoss
     :members:

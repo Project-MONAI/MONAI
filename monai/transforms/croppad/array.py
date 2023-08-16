@@ -819,6 +819,7 @@ class CropForeground(Crop):
 
     """
 
+    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
     def __init__(
         self,
         select_fn: Callable = is_positive,
@@ -837,9 +838,9 @@ class CropForeground(Crop):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is larger than image size, will pad with
-                specified `mode`.
+            allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
+                the image edges will be used as the box edges. Default to `True`.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.

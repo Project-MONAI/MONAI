@@ -52,6 +52,12 @@ TEST_CASE_4 = [
 ]
 
 TEST_CASE_5 = [
+    ["models/model.pt", "models/model.ts", "configs/train.json"],
+    "brats_mri_segmentation",
+    "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/brats_mri_segmentation/versions/0.3.9/files/brats_mri_segmentation_v0.3.9.zip",
+]
+
+TEST_CASE_6 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
@@ -59,7 +65,7 @@ TEST_CASE_5 = [
     "model.pt",
 ]
 
-TEST_CASE_6 = [
+TEST_CASE_7 = [
     ["test_output.pt", "test_input.pt"],
     "test_bundle",
     "0.1.1",
@@ -101,7 +107,7 @@ class TestDownload(unittest.TestCase):
                 parser = ConfigParser()
                 parser.export_config_file(config=def_args, filepath=def_args_file)
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
-                cmd += ["--url", url]
+                cmd += ["--url", url, "--source", "github"]
                 command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
@@ -132,9 +138,26 @@ class TestDownload(unittest.TestCase):
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
 
+    @parameterized.expand([TEST_CASE_5])
+    @skip_if_quick
+    def test_monaihosting_download_bundle(self, bundle_files, bundle_name, url):
+        with skip_if_downloading_fails():
+            # download a single file from url, also use `args_file`
+            with tempfile.TemporaryDirectory() as tempdir:
+                def_args = {"name": bundle_name, "bundle_dir": tempdir, "url": ""}
+                def_args_file = os.path.join(tempdir, "def_args.json")
+                parser = ConfigParser()
+                parser.export_config_file(config=def_args, filepath=def_args_file)
+                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
+                cmd += ["--url", url, "--progress", "False", "--source", "monaihosting"]
+                command_line_tests(cmd)
+                for file in bundle_files:
+                    file_path = os.path.join(tempdir, bundle_name, file)
+                    self.assertTrue(os.path.exists(file_path))
+
 
 class TestLoad(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
@@ -146,6 +169,7 @@ class TestLoad(unittest.TestCase):
                     model_file=model_file,
                     bundle_dir=tempdir,
                     repo=repo,
+                    source="github",
                     progress=False,
                     device=device,
                 )
@@ -175,13 +199,14 @@ class TestLoad(unittest.TestCase):
                     progress=False,
                     device=device,
                     net_name=model_name,
+                    source="github",
                     **net_args,
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-    @parameterized.expand([TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_7])
     @skip_if_quick
     @SkipIfBeforePyTorchVersion((1, 7, 1))
     def test_load_ts_module(self, bundle_files, bundle_name, version, repo, device, model_file):
@@ -198,6 +223,7 @@ class TestLoad(unittest.TestCase):
                     repo=repo,
                     progress=False,
                     device=device,
+                    source="github",
                     config_files=("network.json",),
                 )
 

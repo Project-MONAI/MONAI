@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import importlib
 import os
+import re
 import shutil
 import subprocess
 import sys
 import time
 import warnings
-from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -30,14 +30,21 @@ import torch
 from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
-from monai.auto3dseg.utils import algo_to_pickle
+from monai.auto3dseg.utils import (
+    _prepare_cmd_bcprun,
+    _prepare_cmd_default,
+    _prepare_cmd_torchrun,
+    _run_cmd_bcprun,
+    _run_cmd_torchrun,
+    algo_to_pickle,
+)
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, look_up_option, run_cmd
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "b5c01d4")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "e01d67a")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -88,7 +95,7 @@ class BundleAlgo(Algo):
             "n_devices": int(torch.cuda.device_count()),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
             "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
-            "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
+            "CMD_PREFIX": os.environ.get("CMD_PREFIX", ""),
         }
 
     def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
@@ -175,36 +182,45 @@ class BundleAlgo(Algo):
         train_py = os.path.join(self.output_path, "scripts", "train.py")
         config_dir = os.path.join(self.output_path, "configs")
 
+        config_files = []
         if os.path.isdir(config_dir):
-            base_cmd = ""
             for file in sorted(os.listdir(config_dir)):
-                if not (file.endswith("yaml") or file.endswith("json")):
-                    continue
-                base_cmd += f"{train_py} run --config_file=" if len(base_cmd) == 0 else ","
-                # Python Fire may be confused by single-quoted WindowsPath
-                config_yaml = Path(os.path.join(config_dir, file)).as_posix()
-                base_cmd += f"'{config_yaml}'"
-        cmd: str | None = self.device_setting["CMD_PREFIX"]  # type: ignore
-        # make sure cmd end with a space
-        if cmd is not None and not cmd.endswith(" "):
-            cmd += " "
-        if (int(self.device_setting["NUM_NODES"]) > 1 and self.device_setting["MN_START_METHOD"] == "bcprun") or (
-            int(self.device_setting["NUM_NODES"]) <= 1 and int(self.device_setting["n_devices"]) <= 1
-        ):
-            cmd = "python " if cmd is None else cmd
-        elif int(self.device_setting["NUM_NODES"]) > 1:
-            raise NotImplementedError(
-                f"{self.device_setting['MN_START_METHOD']} is not supported yet."
-                "Try modify BundleAlgo._create_cmd for your cluster."
+                if file.endswith("yaml") or file.endswith("json"):
+                    # Python Fire may be confused by single-quoted WindowsPath
+                    config_files.append(Path(os.path.join(config_dir, file)).as_posix())
+
+        if int(self.device_setting["NUM_NODES"]) > 1:
+            # multi-node command
+            # only bcprun is supported for now
+            try:
+                look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
+            except ValueError as err:
+                raise NotImplementedError(
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet."
+                    "Try modify BundleAlgo._create_cmd for your cluster."
+                ) from err
+
+            return (
+                _prepare_cmd_bcprun(
+                    f"{train_py} run",
+                    cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
+                    config_file=config_files,
+                    **params,
+                ),
+                "",
             )
+        elif int(self.device_setting["n_devices"]) > 1:
+            return _prepare_cmd_torchrun(f"{train_py} run", config_file=config_files, **params), ""
         else:
-            if cmd is None:
-                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
-        cmd += base_cmd
-        if params and isinstance(params, Mapping):
-            for k, v in params.items():
-                cmd += f" --{k}={v}"
-        return cmd, ""
+            return (
+                _prepare_cmd_default(
+                    f"{train_py} run",
+                    cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
+                    config_file=config_files,
+                    **params,
+                ),
+                "",
+            )
 
     def _run_cmd(self, cmd: str, devices_info: str = "") -> subprocess.CompletedProcess:
         """
@@ -216,34 +232,26 @@ class BundleAlgo(Algo):
 
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
+
+        # delete pattern "VAR=VALUE" at the beginning of the string, with optional leading/trailing whitespaces
+        cmd = re.sub(r"^\s*\w+=.*?\s+", "", cmd)
+
         if int(self.device_setting["NUM_NODES"]) > 1:
-            if self.device_setting["MN_START_METHOD"] == "bcprun":
-                cmd_list = [
-                    "bcprun",
-                    "-n",
-                    str(self.device_setting["NUM_NODES"]),
-                    "-p",
-                    str(self.device_setting["n_devices"]),
-                    "-c",
-                    cmd,
-                ]
-            else:
+            try:
+                look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
+            except ValueError as err:
                 raise NotImplementedError(
-                    f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet."
                     "Try modify BundleAlgo._run_cmd for your cluster."
-                )
+                ) from err
+
+            return _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
+        elif int(self.device_setting["n_devices"]) > 1:
+            return _run_cmd_torchrun(
+                cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
+            )
         else:
-            cmd_list = cmd.split()
-
-        _idx = 0
-        for _idx, c in enumerate(cmd_list):
-            if "=" not in c:  # remove variable assignments before the command such as "OMP_NUM_THREADS=1"
-                break
-        cmd_list = cmd_list[_idx:]
-
-        logger.info(f"Launching: {' '.join(cmd_list)}")
-
-        return subprocess.run(cmd_list, env=ps_environ, check=True)
+            return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
