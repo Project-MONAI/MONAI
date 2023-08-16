@@ -100,9 +100,9 @@ class SegSummarizer(Compose):
         self.summary_analyzers: list[Any] = []
         super().__init__()
 
+        self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
+        self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
         if not self.histogram_only:
-            self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
-            self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
             self.add_analyzer(ImageStats(image_key), ImageStatsSumm(average=average))
 
             if label_key is None:
