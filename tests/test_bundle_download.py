@@ -48,24 +48,24 @@ TEST_CASE_3 = [
 TEST_CASE_4 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
+    "monai-test/test_bundle",
+]
+
+TEST_CASE_5 = [
+    ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
+    "test_bundle",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
     "cuda" if torch.cuda.is_available() else "cpu",
     "model.pt",
 ]
 
-TEST_CASE_5 = [
+TEST_CASE_6 = [
     ["test_output.pt", "test_input.pt"],
     "test_bundle",
     "0.1.1",
     "Project-MONAI/MONAI-extra-test-data/0.8.1",
     "cuda" if torch.cuda.is_available() else "cpu",
     "model.ts",
-]
-
-TEST_CASE_6 = [
-    ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
-    "test_bundle",
-    "monai-test/test_bundle",
 ]
 
 
@@ -109,9 +109,32 @@ class TestDownload(unittest.TestCase):
                 if file == "network.json":
                     self.assertTrue(check_hash(filepath=file_path, val=hash_val))
 
+    @parameterized.expand([TEST_CASE_4])
+    @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
+    def test_hf_hub_download_bundle(self, bundle_files, bundle_name, repo):
+        with skip_if_downloading_fails():
+            with tempfile.TemporaryDirectory() as tempdir:
+                cmd = [
+                    "coverage",
+                    "run",
+                    "-m",
+                    "monai.bundle",
+                    "download",
+                    "--name",
+                    bundle_name,
+                    "--source",
+                    "huggingface_hub",
+                ]
+                cmd += ["--bundle_dir", tempdir, "--repo", repo, "--progress", "False"]
+                command_line_tests(cmd)
+                for file in bundle_files:
+                    file_path = os.path.join(tempdir, bundle_name, file)
+                    self.assertTrue(os.path.exists(file_path))
+
 
 class TestLoad(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_4])
+    @parameterized.expand([TEST_CASE_5])
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
         with skip_if_downloading_fails():
@@ -158,7 +181,7 @@ class TestLoad(unittest.TestCase):
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-    @parameterized.expand([TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
     @SkipIfBeforePyTorchVersion((1, 7, 1))
     def test_load_ts_module(self, bundle_files, bundle_name, version, repo, device, model_file):
@@ -187,29 +210,6 @@ class TestLoad(unittest.TestCase):
                 self.assertTrue(metadata["pytorch_version"] == "1.7.1")
                 # test extra_file_dict
                 self.assertTrue("network.json" in extra_file_dict.keys())
-
-    @parameterized.expand([TEST_CASE_6])
-    @skip_if_quick
-    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
-    def test_hf_hub_download_bundle(self, bundle_files, bundle_name, repo):
-        with skip_if_downloading_fails():
-            with tempfile.TemporaryDirectory() as tempdir:
-                cmd = [
-                    "coverage",
-                    "run",
-                    "-m",
-                    "monai.bundle",
-                    "download",
-                    "--name",
-                    bundle_name,
-                    "--source",
-                    "huggingface_hub",
-                ]
-                cmd += ["--bundle_dir", tempdir, "--repo", repo, "--progress", "False"]
-                command_line_tests(cmd)
-                for file in bundle_files:
-                    file_path = os.path.join(tempdir, bundle_name, file)
-                    self.assertTrue(os.path.exists(file_path))
 
 
 if __name__ == "__main__":

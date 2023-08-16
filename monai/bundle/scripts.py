@@ -208,7 +208,7 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
         refs = huggingface_hub.list_repo_refs(repo_id=repo)
         if len(refs.tags) > 0:
             all_versions = [t.name for t in refs.tags]  # git tags, not to be confused with `tag`
-            latest_version = ['latest_version' if 'latest_version' in all_versions else all_versions[-1]][0]
+            latest_version = ["latest_version" if "latest_version" in all_versions else all_versions[-1]][0]
         else:
             latest_version = [b.name for b in refs.branches][0]  # use the branch that was last updated
         return latest_version
@@ -1521,16 +1521,41 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
+def _add_model_card_metadata(new_modelcard_path):
+    # Extract license from LICENSE file
+    license_path = os.path.join(os.path.dirname(new_modelcard_path), 'LICENSE')
+    if os.path.exists(license_path):
+        with open(license_path, 'r') as file:
+            content = file.read()
+        if 'Apache License' in content and 'Version 2.0' in content:
+            license_name = 'apache-2.0'
+        elif 'MIT License' in content:
+            license_name = 'mit'
+        else:
+            license_name = 'unknown'
+    # Add relevant tags
+    tags = '- monai\n- medical\nlibrary_name: monai\n'
+    # Create tag section
+    tag_content = f"---\ntags:\n{tags}license: {license_name}\n---"
+
+    # Update model card
+    with open(new_modelcard_path, 'r') as file:
+        content = file.read()
+    new_content = tag_content + '\n' + content
+    with open(new_modelcard_path, 'w') as file:
+        file.write(new_content)
+
+
 def push_to_hf_hub(
     repo: str,
-    bundle_name: str,
+    name: str,
     bundle_dir: str,
     token: str | None = None,
     private: bool | None = True,
-    version_name: str | None = None,
+    version: str | None = None,
     tag_as_latest_version: bool | None = False,
     **upload_folder_kwargs: Any,
-    ) -> str:
+) -> str:
     """
     Push a MONAI bundle to the Hugging Face Hub.
 
@@ -1541,7 +1566,7 @@ def push_to_hf_hub(
         token: Hugging Face authentication token. Default is `None` (will default to the stored token).
         private: Private visibility of the repository on Hugging Face. Default is `True`.
         version_name: Name of the version tag to create. Default is `None` (no version tag is created).
-        tag_as_latest_version: Whether to tag the commit as `latest_version`. 
+        tag_as_latest_version: Whether to tag the commit as `latest_version`.
             This version will downloaded by default when using `bundle.download()`. Default is `False`.
         upload_folder_kwargs: Keyword arguments to pass to `HfApi.upload_folder`.
 
@@ -1553,30 +1578,22 @@ def push_to_hf_hub(
     hf_api.create_repo(repo_id=repo, private=private, exist_ok=True)
 
     # Create model card in bundle directory
-    new_modelcard_path = os.path.join(bundle_dir, bundle_name, "README.md")
-    modelcard_path = os.path.join(bundle_dir, bundle_name, "docs", "README.md")
+    new_modelcard_path = os.path.join(bundle_dir, name, "README.md")
+    modelcard_path = os.path.join(bundle_dir, name, "docs", "README.md")
     if os.path.exists(modelcard_path):
         # Copy README from old path if it exists
         copyfile(modelcard_path, new_modelcard_path)
-    
+        _add_model_card_metadata(new_modelcard_path)
+
     # Upload bundle folder to repo
-    repo_url = hf_api.upload_folder(
-        repo_id=repo,
-        folder_path=os.path.join(bundle_dir, bundle_name),
-        **upload_folder_kwargs)
+    repo_url = hf_api.upload_folder(repo_id=repo, folder_path=os.path.join(bundle_dir, name), **upload_folder_kwargs)
 
     # Create version tag if specified
-    if version_name is not None:
-        hf_api.create_tag(
-            repo_id = repo,
-            tag = version_name,
-            exist_ok = True)
-    
+    if version is not None:
+        hf_api.create_tag(repo_id=repo, tag=version, exist_ok=True)
+
     # Optionally tag as `latest_version`
     if tag_as_latest_version:
-        hf_api.create_tag(
-            repo_id = repo,
-            tag = "latest_version",
-            exist_ok = True)
+        hf_api.create_tag(repo_id=repo, tag="latest_version", exist_ok=True)
 
     return repo_url
