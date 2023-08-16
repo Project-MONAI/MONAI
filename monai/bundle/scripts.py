@@ -1523,26 +1523,26 @@ def init_bundle(
 
 def _add_model_card_metadata(new_modelcard_path):
     # Extract license from LICENSE file
-    license_path = os.path.join(os.path.dirname(new_modelcard_path), 'LICENSE')
+    license_path = os.path.join(os.path.dirname(new_modelcard_path), "LICENSE")
     if os.path.exists(license_path):
-        with open(license_path, 'r') as file:
+        with open(license_path, "r") as file:
             content = file.read()
-        if 'Apache License' in content and 'Version 2.0' in content:
-            license_name = 'apache-2.0'
-        elif 'MIT License' in content:
-            license_name = 'mit'
+        if "Apache License" in content and "Version 2.0" in content:
+            license_name = "apache-2.0"
+        elif "MIT License" in content:
+            license_name = "mit"
         else:
-            license_name = 'unknown'
+            license_name = "unknown"
     # Add relevant tags
-    tags = '- monai\n- medical\nlibrary_name: monai\n'
+    tags = "- monai\n- medical\nlibrary_name: monai\n"
     # Create tag section
     tag_content = f"---\ntags:\n{tags}license: {license_name}\n---"
 
     # Update model card
-    with open(new_modelcard_path, 'r') as file:
+    with open(new_modelcard_path, "r") as file:
         content = file.read()
-    new_content = tag_content + '\n' + content
-    with open(new_modelcard_path, 'w') as file:
+    new_content = tag_content + "\n" + content
+    with open(new_modelcard_path, "w") as file:
         file.write(new_content)
 
 
