@@ -1559,6 +1559,13 @@ def push_to_hf_hub(
     """
     Push a MONAI bundle to the Hugging Face Hub.
 
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle push_to_hf_hub --repo <HF repository id> --name <bundle name> \
+            --bundle_dir <bundle directory> --version <version> ...
+
     Args:
         repo: namespace (user or organization) and a repo name separated by a /, e.g. `hf_username/bundle_name`
         bundle_name: name of the bundle directory to push.
