@@ -568,10 +568,7 @@ TEST_COMPOSE_EXECUTE_LOGGING_TEST_CASES = [
 TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES = [
     [
         mt.Compose,
-        (
-            mt.Flip(0),
-            mt.Spacing((1.2, 1.2))
-        ),
+        (mt.Flip(0), mt.Spacing((1.2, 1.2))),
         True,
         (
             "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
@@ -583,9 +580,7 @@ TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES = [
     ],
     [
         mt.SomeOf,
-        (
-            mt.Flip(0),
-        ),
+        (mt.Flip(0),),
         True,
         (
             "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
@@ -595,9 +590,7 @@ TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES = [
     ],
     [
         mt.RandomOrder,
-        (
-            mt.Flip(0),
-        ),
+        (mt.Flip(0),),
         True,
         (
             "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
@@ -607,9 +600,7 @@ TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES = [
     ],
     [
         mt.OneOf,
-        (
-            mt.Flip(0),
-        ),
+        (mt.Flip(0),),
         True,
         (
             "INFO - Accumulate pending transforms - lazy: True, pending: 0, "
@@ -623,7 +614,7 @@ TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES = [
 class TestComposeExecuteWithLogging(unittest.TestCase):
     LOGGER_NAME = "a_logger_name"
 
-    def init_logger(self, name = LOGGER_NAME):
+    def init_logger(self, name=LOGGER_NAME):
         stream = StringIO()
         handler = logging.StreamHandler(stream)
         formatter = logging.Formatter("%(levelname)s - %(message)s")
