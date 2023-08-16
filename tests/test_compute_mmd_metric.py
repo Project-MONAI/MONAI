@@ -50,5 +50,6 @@ class TestMMDMetric(unittest.TestCase):
         with self.assertRaises(ValueError):
             MMDMetric()(torch.ones([1, 3, 144, 144]), torch.ones([1, 3, 144, 144]))
 
+
 if __name__ == "__main__":
     unittest.main()
