@@ -95,15 +95,14 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         even_divisible: bool = True,
         num_replicas: int | None = None,
         rank: int | None = None,
-        shuffle: bool = True,
         **kwargs,
     ):
+        kwargs.setdefault("shuffle", True)
         super().__init__(
             dataset=dataset,
             even_divisible=even_divisible,
             num_replicas=num_replicas,
             rank=rank,
-            shuffle=shuffle,
             **kwargs,
         )
         self.weights = weights
