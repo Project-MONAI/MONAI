@@ -97,13 +97,7 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         **kwargs,
     ):
         kwargs.setdefault("shuffle", True)
-        super().__init__(
-            dataset=dataset,
-            even_divisible=even_divisible,
-            num_replicas=num_replicas,
-            rank=rank,
-            **kwargs,
-        )
+        super().__init__(dataset=dataset, even_divisible=even_divisible, num_replicas=num_replicas, rank=rank, **kwargs)
         self.weights = weights
         self.num_samples_per_rank = num_samples_per_rank if num_samples_per_rank is not None else self.num_samples
         self.generator = generator
