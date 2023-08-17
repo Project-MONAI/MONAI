@@ -238,7 +238,7 @@ class Compose(Randomizable, InvertibleTransform):
 
         if not isinstance(map_items, bool):
             raise ValueError(
-                f"Argument 'map_items' should be a boolean. Got {type(map_items)}."
+                f"Argument 'map_items' should be boolean. Got {type(map_items)}."
                 "Check brackets when passing a sequence of callables."
             )
 
