@@ -81,7 +81,6 @@ class DistributedWeightedRandomSampler(DistributedSampler):
             by default, `world_size` is retrieved from the current distributed group.
         rank: rank of the current process within `num_replicas`. by default,
             `rank` is retrieved from the current distributed group.
-        shuffle: if `True`, sampler will shuffle the indices, default to True.
         kwargs: additional arguments for `DistributedSampler` super class, can be `seed` and `drop_last`.
 
     """
