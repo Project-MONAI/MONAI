@@ -12,11 +12,14 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
+import tempfile
 import unittest
 from copy import deepcopy
 from io import StringIO
 
+import nibabel as nib
 import numpy as np
 import torch
 from parameterized import parameterized
@@ -639,6 +642,22 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                     self.assertTrue(expected[k], actual[k])
             else:
                 self.assertTrue(expected, actual)
+
+
+class TestComposeCallableInput(unittest.TestCase):
+    def test_value_error_when_not_sequence(self):
+        np_img = np.random.randn(1, 5, 5)
+        test_image = nib.Nifti1Image(np_img, np.eye(4))
+        with tempfile.TemporaryDirectory() as tempdir:
+            test_image_path = os.path.join(tempdir, "test_image.nii.gz")
+            nib.save(test_image, test_image_path)
+
+            xform = mt.Compose([mt.LoadImage(image_only=True), mt.Flip(0), mt.Flip(0)])
+            data = xform(test_image_path)
+            np.testing.assert_allclose(np_img, data, atol=1e-3)
+
+            with self.assertRaises(ValueError):
+                mt.Compose(mt.LoadImage(image_only=True), mt.Flip(0), mt.Flip(0))(test_image_path)
 
 
 if __name__ == "__main__":
