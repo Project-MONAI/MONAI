@@ -198,7 +198,7 @@ class ImageStats(Analyzer):
 
     """
 
-    def __init__(self, image_key: str, stats_name: str = "image_stats") -> None:
+    def __init__(self, image_key: str, stats_name: str = DataStatsKeys.IMAGE_STATS) -> None:
         if not isinstance(image_key, str):
             raise ValueError("image_key input must be str")
 
@@ -296,7 +296,7 @@ class FgImageStats(Analyzer):
 
     """
 
-    def __init__(self, image_key: str, label_key: str, stats_name: str = "image_foreground_stats"):
+    def __init__(self, image_key: str, label_key: str, stats_name: str = DataStatsKeys.FG_IMAGE_STATS):
         self.image_key = image_key
         self.label_key = label_key
 
@@ -378,7 +378,9 @@ class LabelStats(Analyzer):
 
     """
 
-    def __init__(self, image_key: str, label_key: str, stats_name: str = "label_stats", do_ccp: bool | None = True):
+    def __init__(
+        self, image_key: str, label_key: str, stats_name: str = DataStatsKeys.LABEL_STATS, do_ccp: bool | None = True
+    ):
         self.image_key = image_key
         self.label_key = label_key
         self.do_ccp = do_ccp
@@ -533,7 +535,7 @@ class ImageStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "image_stats", average: bool | None = True):
+    def __init__(self, stats_name: str = DataStatsKeys.IMAGE_STATS, average: bool | None = True):
         self.summary_average = average
         report_format = {
             ImageStatsKeys.SHAPE: None,
@@ -623,7 +625,7 @@ class FgImageStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "image_foreground_stats", average: bool | None = True):
+    def __init__(self, stats_name: str = DataStatsKeys.FG_IMAGE_STATS, average: bool | None = True):
         self.summary_average = average
 
         report_format = {ImageStatsKeys.INTENSITY: None}
@@ -687,7 +689,9 @@ class LabelStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "label_stats", average: bool | None = True, do_ccp: bool | None = True):
+    def __init__(
+        self, stats_name: str = DataStatsKeys.LABEL_STATS, average: bool | None = True, do_ccp: bool | None = True
+    ):
         self.summary_average = average
         self.do_ccp = do_ccp
 
