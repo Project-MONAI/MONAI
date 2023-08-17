@@ -237,6 +237,13 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
 
         if transforms is None:
             transforms = []
+
+        if not isinstance(map_items, bool):
+            raise ValueError(
+                f"Argument 'map_items' should be boolean. Got {type(map_items)}."
+                "Check brackets when passing a sequence of callables."
+            )
+
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
