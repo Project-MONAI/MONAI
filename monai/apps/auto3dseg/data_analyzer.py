@@ -161,6 +161,8 @@ class DataAnalyzer:
 
         """
 
+        if DataStatsKeys.SUMMARY not in result or DataStatsKeys.IMAGE_STATS not in result[DataStatsKeys.SUMMARY]:
+            return True
         constant_props = [result[DataStatsKeys.SUMMARY][DataStatsKeys.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
             if "stdev" in prop and np.any(prop["stdev"]):
@@ -332,9 +334,11 @@ class DataAnalyzer:
             batch_data = batch_data[0]
             try:
                 batch_data[self.image_key] = batch_data[self.image_key].to(device)
+                _label_argmax = False
                 if self.label_key is not None:
                     label = batch_data[self.label_key]
                     label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                    _label_argmax = True  # track if label is argmaxed
                     batch_data[self.label_key] = label.to(device)
                 d = summarizer(batch_data)
             except BaseException as err:
@@ -348,17 +352,19 @@ class DataAnalyzer:
                     batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
                     if self.label_key is not None:
                         label = batch_data[self.label_key]
-                        label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                        if not _label_argmax:
+                            label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
                         batch_data[self.label_key] = label.to("cpu")
                     d = summarizer(batch_data)
 
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
                 DataStatsKeys.BY_CASE_LABEL_PATH: d[DataStatsKeys.BY_CASE_LABEL_PATH],
-                DataStatsKeys.IMAGE_STATS: d[DataStatsKeys.IMAGE_STATS],
             }
+            if not self.histogram_only:
+                stats_by_cases[DataStatsKeys.IMAGE_STATS] = d[DataStatsKeys.IMAGE_STATS]
             if self.hist_bins != 0:
-                stats_by_cases.update({DataStatsKeys.IMAGE_HISTOGRAM: d[DataStatsKeys.IMAGE_HISTOGRAM]})
+                stats_by_cases[DataStatsKeys.IMAGE_HISTOGRAM] = d[DataStatsKeys.IMAGE_HISTOGRAM]
 
             if self.label_key is not None:
                 stats_by_cases.update(
