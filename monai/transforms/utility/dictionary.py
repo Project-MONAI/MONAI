@@ -830,6 +830,7 @@ class FlattenSubKeysd(MapTransform):
                 del d[key]
         return d
 
+
 class ExtendSubKeysd(MapTransform):
     """
     If an item is dictionary and the value is a list of Tensor, it maps the elements in the Tensor list with a key.
@@ -844,10 +845,7 @@ class ExtendSubKeysd(MapTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        map_names: list[Hashable] | None = None,
-        prefix: str | None = None,
+        self, keys: KeysCollection, map_names: list[Hashable] | None = None, prefix: str | None = None
     ) -> None:
         super().__init__(keys)
         self.map_names = map_names
@@ -860,7 +858,9 @@ class ExtendSubKeysd(MapTransform):
             map_names_size = len(self.map_names)
             tensor_list_size = len(tensor_list)
             if map_names_size < tensor_list_size:
-                raise AttributeError(f"The map names must be longer than the output list. But got {map_names_size} map names and {tensor_list_size} tensor list")
+                raise AttributeError(
+                    f"The map names' size {map_names_size} must be longer than the output list's {tensor_list_size}."
+                )
             self.map_names = self.map_names[:tensor_list_size]
             self.map_names = [f"{self.prefix}_{x}" for x in self.map_names] if self.prefix else self.map_names
             extend_dict = dict(zip(self.map_names, tensor_list))
