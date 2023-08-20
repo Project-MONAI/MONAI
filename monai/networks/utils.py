@@ -775,9 +775,9 @@ def convert_to_torchscript(
 
 def _onnx_trt_compile(
     onnx_model,
-    min_shape: Sequence[int],
-    opt_shape: Sequence[int],
-    max_shape: Sequence[int],
+    min_shape: Sequence[Any],
+    opt_shape: Sequence[Any],
+    max_shape: Sequence[Any],
     device: int,
     precision: str,
     input_names: Sequence[str] | None,
@@ -806,7 +806,7 @@ def _onnx_trt_compile(
     trt, _ = optional_import("tensorrt", "8.5.3")
     torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
-    input_shapes = (min_shape, opt_shape, max_shape)
+    input_shapes = list(zip(min_shape, opt_shape, max_shape))
     # default to an empty list to fit the `torch_tensorrt.ts.embed_engine_in_new_module` function.
     input_names = [] if not input_names else input_names
     output_names = [] if not output_names else output_names
@@ -817,8 +817,8 @@ def _onnx_trt_compile(
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
-    if input_names:
-        profile.set_shape(input_names[0], *input_shapes)
+    for index, input_name in enumerate(input_names):
+        profile.set_shape(input_name, *(input_shapes[index]))
 
     # parse the ONNX model
     parser = trt.OnnxParser(network, logger)
