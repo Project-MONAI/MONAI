@@ -45,9 +45,20 @@ class DistributedRankFilterTest(DistTestCase):
             log_message = " ".join(lines)
             self.assertEqual(log_message.count("test_warnings"), 1)
 
+    def tearDown(self) -> None:
+        self.log_dir.cleanup()
+
+
+class SingleRankFilterTest(unittest.TestCase):
+    def tearDown(self) -> None:
+        self.log_dir.cleanup()
+
+    def setUp(self):
+        self.log_dir = tempfile.TemporaryDirectory()
+
     def test_rankfilter_single_proc(self):
         logger = logging.getLogger(__name__)
-        log_filename = os.path.join(self.log_dir.name, "records.log")
+        log_filename = os.path.join(self.log_dir.name, "records_sp.log")
         h1 = logging.FileHandler(filename=log_filename)
         h1.setLevel(logging.WARNING)
         logger.addHandler(h1)
@@ -56,11 +67,10 @@ class DistributedRankFilterTest(DistTestCase):
 
         with open(log_filename) as file:
             lines = [line.rstrip() for line in file]
+        logger.removeHandler(h1)
+        h1.close()
         log_message = " ".join(lines)
         self.assertEqual(log_message.count("test_warnings"), 1)
-
-    def tearDown(self) -> None:
-        self.log_dir.cleanup()
 
 
 if __name__ == "__main__":
