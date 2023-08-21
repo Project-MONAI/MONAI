@@ -197,11 +197,13 @@ class RankFilter(Filter):
         if dist.is_available() and dist.is_initialized():
             self.rank: int = rank if rank is not None else dist.get_rank()
         else:
-            warnings.warn(
-                "The torch.distributed is either unavailable and uninitiated when RankFilter is instantiated. "
-                "If torch.distributed is used, please ensure that the RankFilter() is called "
-                "after torch.distributed.init_process_group() in the script."
-            )
+            if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+                warnings.warn(
+                    "The torch.distributed is either unavailable and uninitiated when RankFilter is instantiated.\n"
+                    "If torch.distributed is used, please ensure that the RankFilter() is called\n"
+                    "after torch.distributed.init_process_group() in the script.\n"
+                )
+            self.rank = 0
 
     def filter(self, *_args):
         return self.filter_fn(self.rank)
