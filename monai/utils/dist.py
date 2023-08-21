@@ -201,7 +201,7 @@ class RankFilter(Filter):
                 warnings.warn(
                     "The torch.distributed is either unavailable and uninitiated when RankFilter is instantiated.\n"
                     "If torch.distributed is used, please ensure that the RankFilter() is called\n"
-                    "after torch.distributed.init_process_group() in the script.\n",
+                    "after torch.distributed.init_process_group() in the script.\n"
                 )
             self.rank = 0
 
