@@ -697,6 +697,7 @@ class DiceCELoss(_Loss):
         self.lambda_dice = lambda_dice
         self.lambda_ce = lambda_ce
         self.old_pt_ver = not pytorch_after(1, 10)
+        self.include_background = include_background
 
     def ce(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -706,6 +707,7 @@ class DiceCELoss(_Loss):
 
         """
         n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
+
         if n_pred_ch != n_target_ch and n_target_ch == 1:
             target = torch.squeeze(target, dim=1)
             target = target.long()
@@ -717,6 +719,19 @@ class DiceCELoss(_Loss):
             target = torch.argmax(target, dim=1)
         elif not torch.is_floating_point(target):
             target = target.to(dtype=input.dtype)
+
+        if not self.include_background:
+            if n_pred_ch == 1:
+                warnings.warn("single channel prediction, `include_background=False` ignored.")
+            else:
+                print(input.shape, target.shape)
+                if len(target.shape) == len(input.shape) - 1:
+                    target = target.unsqueeze(1)
+                valid_mask = target > 0
+                input = input[:, 1:, ...]
+                target = target - 1
+                input = input * valid_mask.unsqueeze(1).float()
+                target = target * valid_mask.long()
 
         return self.cross_entropy(input, target)  # type: ignore[no-any-return]
 
@@ -736,7 +751,6 @@ class DiceCELoss(_Loss):
                 "the number of dimensions for input and target should be the same, "
                 f"got shape {input.shape} and {target.shape}."
             )
-
         dice_loss = self.dice(input, target)
         ce_loss = self.ce(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_ce * ce_loss
