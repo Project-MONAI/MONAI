@@ -226,21 +226,36 @@ MetaProterties = {
     "version": {
         BundleProperty.DESC: "bundle version",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "version",
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}version",
     },
     "monai_version": {
         BundleProperty.DESC: "required monai version used for bundle",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "monai_version",
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}monai_version",
     },
     "pytorch_version": {
         BundleProperty.DESC: "required pytorch version used for bundle",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "pytorch_version",
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}pytorch_version",
     },
     "numpy_version": {
         BundleProperty.DESC: "required numpy version used for bundle",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: "numpy_version",
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}numpy_version",
+    },
+    "description": {
+        BundleProperty.DESC: "description for bundle",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}description",
+    },
+    "spatial_shape": {
+        BundleProperty.DESC: "spatial shape for the inputs",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}network_data_format{ID_SEP_KEY}inputs{ID_SEP_KEY}image{ID_SEP_KEY}spatial_shape",
+    },
+    "channel_def": {
+        BundleProperty.DESC: "channel definition for the prediction",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}network_data_format{ID_SEP_KEY}outputs{ID_SEP_KEY}pred{ID_SEP_KEY}channel_def",
     },
 }
