@@ -614,10 +614,10 @@ class RandSpatialCrop(Randomizable, Crop):
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
             if any(i > j for i, j in zip(self._size, max_size)):
                 raise ValueError(f"min ROI size: {self._size} is larger than max ROI size: {max_size}.")
-            self._size = tuple(self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+            self._size = tuple(self.R.integers(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = get_random_patch(img_size, valid_size, self.R)
+            self._slices = get_random_patch(img_size, valid_size, generator=self.R)
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:  # type: ignore
         """
@@ -1167,8 +1167,8 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             _shape,
             fg_indices_,
             bg_indices_,
-            self.R,
             self.allow_smaller,
+            generator=self.R,
         )
 
     @LazyTransform.lazy.setter  # type: ignore
@@ -1350,7 +1350,14 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         if _shape is None:
             raise ValueError("label or image must be provided to infer the output spatial shape.")
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller, self.warn
+            self.spatial_size,
+            self.num_samples,
+            _shape,
+            indices_,
+            self.ratios,
+            self.allow_smaller,
+            self.warn,
+            generator=self.R,
         )
 
     @LazyTransform.lazy.setter  # type: ignore

@@ -132,7 +132,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
             yield from IterableDataset(self.generate_item(), transform=self.transform)
 
     def randomize(self, size: int) -> None:
-        self._idx = self.R.randint(size)
+        self._idx = self.R.integers(size)
 
 
 class CSVIterableDataset(IterableDataset):

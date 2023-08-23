@@ -60,7 +60,7 @@ class TestDataLoader(unittest.TestCase):
 
 class _RandomDataset(torch.utils.data.Dataset, Randomizable):
     def __getitem__(self, index):
-        return self.R.randint(0, 1000, (1,))
+        return self.R.integers(0, 1000, (1,))
 
     def __len__(self):
         return 8

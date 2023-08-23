@@ -40,7 +40,7 @@ def data_from_keys(keys, h, w):
 
 class _RandXform(Randomizable):
     def randomize(self):
-        self.val = self.R.random_sample()
+        self.val = self.R.random()
 
     def __call__(self, __unused):
         self.randomize()
@@ -167,7 +167,7 @@ class TestCompose(unittest.TestCase):
             self.rand = 0.0
 
             def randomize(self, data=None):
-                self.rand = self.R.rand()
+                self.rand = self.R.random()
 
             def __call__(self, data):
                 self.randomize()

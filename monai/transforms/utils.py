@@ -65,8 +65,10 @@ from monai.utils import (
     optional_import,
     pytorch_after,
 )
+from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration, handle_legacy_random_state
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
@@ -517,6 +519,9 @@ def correct_crop_centers(
     return ensure_tuple(valid_centers)  # type: ignore
 
 
+@deprecated_arg(
+    "rand_state", since="1.3.0", removed="1.5.0", new_name="generator", msg_suffix="Please use `generator` instead."
+)
 def generate_pos_neg_label_crop_centers(
     spatial_size: Sequence[int] | int,
     num_samples: int,
@@ -526,6 +531,8 @@ def generate_pos_neg_label_crop_centers(
     bg_indices: NdarrayOrTensor,
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
+    generator: SupportsRandomGeneration
+    | None = None,  # TODO How to handle the positional arguments to be backward compatible? Should we have keyword-only arguments?
 ) -> tuple[tuple]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
@@ -548,9 +555,10 @@ def generate_pos_neg_label_crop_centers(
         ValueError: When the foreground and background indices lengths are 0.
 
     """
-    if rand_state is None:
-        rand_state = np.random.random.__self__  # type: ignore
-
+    generator = handle_legacy_random_state(
+        rand_state=rand_state, generator=generator, return_legacy_default_random=True
+    )
+    del rand_state
     centers = []
     fg_indices = np.asarray(fg_indices) if isinstance(fg_indices, Sequence) else fg_indices
     bg_indices = np.asarray(bg_indices) if isinstance(bg_indices, Sequence) else bg_indices
@@ -565,8 +573,8 @@ def generate_pos_neg_label_crop_centers(
         )
 
     for _ in range(num_samples):
-        indices_to_use = fg_indices if rand_state.rand() < pos_ratio else bg_indices
-        random_int = rand_state.randint(len(indices_to_use))
+        indices_to_use = fg_indices if generator.random() < pos_ratio else bg_indices
+        random_int = generator.integers(len(indices_to_use))
         idx = indices_to_use[random_int]
         center = unravel_index(idx, label_spatial_shape).tolist()
         # shift center to range of valid centers
@@ -575,6 +583,9 @@ def generate_pos_neg_label_crop_centers(
     return ensure_tuple(centers)  # type: ignore
 
 
+@deprecated_arg(
+    "rand_state", since="1.3.0", removed="1.5.0", new_name="generator", msg_suffix="Please use `generator` instead."
+)
 def generate_label_classes_crop_centers(
     spatial_size: Sequence[int] | int,
     num_samples: int,
@@ -584,6 +595,8 @@ def generate_label_classes_crop_centers(
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
     warn: bool = True,
+    generator: SupportsRandomGeneration
+    | None = None,  # TODO How to handle the positional arguments to be backward compatible? Should we have keyword-only arguments?
 ) -> tuple[tuple]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
@@ -603,8 +616,10 @@ def generate_label_classes_crop_centers(
         warn: if `True` prints a warning if a class is not present in the label.
 
     """
-    if rand_state is None:
-        rand_state = np.random.random.__self__  # type: ignore
+    generator = handle_legacy_random_state(
+        rand_state=rand_state, generator=generator, return_legacy_default_random=True
+    )
+    del rand_state
 
     if num_samples < 1:
         raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
@@ -623,11 +638,11 @@ def generate_label_classes_crop_centers(
                 warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
 
     centers = []
-    classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
+    classes = generator.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
     for i in classes:
         # randomly select the indices of a class based on the ratios
         indices_to_use = indices[i]
-        random_int = rand_state.randint(len(indices_to_use))
+        random_int = generator.integers(len(indices_to_use))
         center = unravel_index(indices_to_use[random_int], label_spatial_shape).tolist()
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
@@ -1193,7 +1208,11 @@ def fill_holes(
 
 
 def get_extreme_points(
-    img: NdarrayOrTensor, rand_state: np.random.RandomState | None = None, background: int = 0, pert: float = 0.0
+    img: NdarrayOrTensor,
+    rand_state: np.random.RandomState | None = None,
+    background: int = 0,
+    pert: float = 0.0,
+    generator: SupportsRandomGeneration | None = None,
 ) -> list[tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
@@ -1216,8 +1235,10 @@ def get_extreme_points(
         ValueError: When the input image does not have any foreground pixel.
     """
     check_non_lazy_pending_ops(img, name="get_extreme_points")
-    if rand_state is None:
-        rand_state = np.random.random.__self__  # type: ignore
+    generator = handle_legacy_random_state(
+        generator=generator, rand_state=rand_state, return_legacy_default_random=True
+    )
+    del rand_state
     indices = where(img != background)
     if np.size(indices[0]) == 0:
         raise ValueError("get_extreme_points: no foreground object in mask!")
@@ -1232,11 +1253,13 @@ def get_extreme_points(
         """
         idx = where(indices[dim] == val)[0]
         idx = idx.cpu() if isinstance(idx, torch.Tensor) else idx
-        idx = rand_state.choice(idx) if rand_state is not None else idx
+        idx = generator.choice(
+            idx
+        )  # TODO: Since this was using the default is rand_state was None, this condition is not needed, right?
         pt = []
         for j in range(img.ndim):
             # add +- pert to each dimension
-            val = int(indices[j][idx] + 2.0 * pert * (rand_state.rand() if rand_state is not None else 0.5 - 0.5))
+            val = int(indices[j][idx] + 2.0 * pert * (generator.random() - 0.5))
             val = max(val, 0)
             val = min(val, img.shape[j] - 1)
             pt.append(val)

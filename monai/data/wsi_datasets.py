@@ -281,7 +281,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
                 offset_limits = tuple((-s, s) for s in self._get_size(sample))
             else:
                 offset_limits = self.offset_limits
-            return tuple(self.R.randint(low, high) for low, high in offset_limits)
+            return tuple(self.R.integers(low, high) for low, high in offset_limits)
         return self.offset
 
     def _evaluate_patch_locations(self, sample):

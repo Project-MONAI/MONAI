@@ -1228,7 +1228,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._rand_k = self.R.randint(self.max_k) + 1
+        self._rand_k = self.R.integers(self.max_k) + 1
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -1481,7 +1481,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._axis = self.R.randint(data.ndim - 1)
+        self._axis = self.R.integers(data.ndim - 1)
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -3439,7 +3439,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         else:
             max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
 
-        self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
+        self.offset = tuple(self.R.integers(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
 
     def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         if self.sort_fn == GridPatchSort.RANDOM:

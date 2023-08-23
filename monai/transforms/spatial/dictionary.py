@@ -713,7 +713,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         self._rand_k = 0
 
     def randomize(self, data: Any | None = None) -> None:
-        self._rand_k = self.R.randint(self.max_k) + 1
+        self._rand_k = self.R.integers(self.max_k) + 1
         super().randomize(None)
 
     def __call__(

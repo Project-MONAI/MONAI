@@ -1371,7 +1371,7 @@ class RandRotateBox90d(RandomizableTransform, MapTransform, InvertibleTransform)
         return d
 
     def randomize(self, data: Any | None = None) -> None:
-        self._rand_k = self.R.randint(self.max_k) + 1
+        self._rand_k = self.R.integers(self.max_k) + 1
         super().randomize(None)
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:

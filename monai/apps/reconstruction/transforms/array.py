@@ -98,7 +98,7 @@ class KspaceMask(RandomizableTransform):
                 lines to exclude from under-sampling
                 (2) acceleration: chosen acceleration factor
         """
-        choice = self.R.randint(0, len(self.accelerations))
+        choice = self.R.integers(0, len(self.accelerations))
         center_fraction = self.center_fractions[choice]
         acceleration = self.accelerations[choice]
         return center_fraction, acceleration
@@ -257,7 +257,7 @@ class EquispacedKspaceMask(KspaceMask):
         # Determine acceleration rate by adjusting for the
         # number of low frequencies
         adjusted_accel = (acceleration * (num_low_freqs - num_cols)) / (num_low_freqs * acceleration - num_cols)
-        offset = self.R.randint(0, round(adjusted_accel))
+        offset = self.R.integers(0, round(adjusted_accel))
 
         accel_samples = np.arange(offset, num_cols - 1, adjusted_accel)
         accel_samples = np.around(accel_samples).astype(np.uint)

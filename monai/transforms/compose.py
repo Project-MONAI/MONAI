@@ -260,7 +260,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
-            _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
+            _transform.set_random_state(seed=self.R.integers(MAX_SEED, dtype="uint32"))
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -731,7 +731,7 @@ class SomeOf(Compose):
         if len(self.transforms) == 0:
             return data
 
-        sample_size = self.R.randint(self.min_num_transforms, self.max_num_transforms + 1)
+        sample_size = self.R.integers(self.min_num_transforms, self.max_num_transforms + 1)
         applied_order = self.R.choice(len(self.transforms), sample_size, replace=self.replace, p=self.weights).tolist()
         _lazy = self._lazy if lazy is None else lazy
 

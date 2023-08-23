@@ -26,9 +26,10 @@ from monai import config, transforms
 from monai.config import KeysCollection
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
-from monai.utils import MAX_SEED, ensure_tuple, first
+from monai.utils import MAX_SEED, deprecated_arg, ensure_tuple, first
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import MONAIEnvVars
+from monai.utils.utils_random_generator_adaptor import LegacyRandomStateAdaptor, SupportsRandomGeneration
 
 __all__ = [
     "ThreadUnsafe",
@@ -171,6 +172,9 @@ def apply_transform(
         raise RuntimeError(f"applying transform {transform}") from e
 
 
+_default_random_generator_factory: Callable[[Any | None], SupportsRandomGeneration] = LegacyRandomStateAdaptor
+
+
 class Randomizable(ThreadUnsafe, RandomizableTrait):
     """
     An interface for handling random state locally, currently based on a class
@@ -183,9 +187,17 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
     the random states will be duplicated.
     """
 
-    R: np.random.RandomState = np.random.RandomState()
+    R: SupportsRandomGeneration = LegacyRandomStateAdaptor()  # FIXME Why is this initialized here?
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Randomizable:
+    @deprecated_arg(
+        "state", since="1.3.0", removed="1.5.0", new_name="generator", msg_suffix="Please use `generator` instead."
+    )
+    def set_random_state(
+        self,
+        seed: int | None = None,
+        state: np.random.RandomState | None = None,
+        generator: SupportsRandomGeneration | None = None,
+    ) -> Randomizable:
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
@@ -194,7 +206,7 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
         Args:
             seed: set the random state with an integer seed.
             state: set the random state with a `np.random.RandomState` object.
-
+            generator: the random generator
         Raises:
             TypeError: When ``state`` is not an ``Optional[np.random.RandomState]``.
 
@@ -202,19 +214,31 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
             a Randomizable instance.
 
         """
+        if sum(x is not None for x in (seed, state, generator)) > 1:
+            raise ValueError("Only one of `seed`, `state` or `generator` can be set.")
+
         if seed is not None:
             _seed = id(seed) if not isinstance(seed, (int, np.integer)) else seed
             _seed = _seed % MAX_SEED
-            self.R = np.random.RandomState(_seed)
+            self.R = _default_random_generator_factory(seed=_seed)
             return self
 
         if state is not None:
             if not isinstance(state, np.random.RandomState):
                 raise TypeError(f"state must be None or a np.random.RandomState but is {type(state).__name__}.")
-            self.R = state
+            self.R = LegacyRandomStateAdaptor(random_state=state)
             return self
 
-        self.R = np.random.RandomState()
+        if generator is not None:
+            if not isinstance(generator, SupportsRandomGeneration):
+                raise TypeError(
+                    "generator must be None or a class implementing the protocol "
+                    f"SupportsRandomGeneration but is {type(generator).__name__}."
+                )
+            self.R = generator
+            return self
+
+        self.R = _default_random_generator_factory()
         return self
 
     def randomize(self, data: Any) -> None:
@@ -357,7 +381,7 @@ class RandomizableTransform(Randomizable, Transform):
 
         This method can generate the random factors based on properties of the input data.
         """
-        self._do_transform = self.R.rand() < self.prob
+        self._do_transform = self.R.random() < self.prob
 
 
 class MapTransform(Transform):
