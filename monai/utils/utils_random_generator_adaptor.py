@@ -33,7 +33,7 @@ class SupportsRandomGeneration(Protocol):
     def choice(
         self,
         a: NdarrayTensor,
-        size: ShapeLike | None,
+        size: ShapeLike | None = None,
         replace: bool = True,
         p: NdarrayTensor | None = None,
         axis: int = 0,
@@ -85,7 +85,7 @@ class LegacyRandomStateAdaptor(SupportsRandomGeneration):
     def choice(
         self,
         a: NdarrayTensor,
-        size: ShapeLike | None,
+        size: ShapeLike | None = None,
         replace: bool = True,
         p: NdarrayTensor | None = None,
         axis: int = 0,
