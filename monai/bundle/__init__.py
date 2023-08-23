@@ -29,6 +29,7 @@ from .scripts import (
     trt_export,
     verify_metadata,
     verify_net_in_out,
+    create_workflow
 )
 from .utils import (
     DEFAULT_EXP_MGMT_SETTINGS,

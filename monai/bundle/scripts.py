@@ -431,6 +431,14 @@ def load(
             weights. if not nested checkpoint, no need to set.
         config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
             see `_extra_files` in `torch.jit.load` for more details.
+        dst_prefix: used in `copy_model_state`, `dst` key prefix, so that `dst[dst_prefix + src_key]`
+            will be assigned to the value of `src[src_key]`.
+        mapping: used in `copy_model_state`, a `{"src_key": "dst_key"}` dict, indicating that `dst[dst_prefix + dst_key]`
+            to be assigned to the value of `src[src_key]`.
+        exclude_vars: used in `copy_model_state`, a regular expression to match the `dst` variable names,
+            so that their values are not overwritten by `src`.
+        inplace: used in `copy_model_state`, whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
+            This option is only available when `dst` is a `torch.nn.Module`.
 
     Returns:
         1. If `load_ts_module` is `False` and `net_name` is `None`, return model weights.
@@ -1529,6 +1537,29 @@ def init_bundle(
 
 
 def create_workflow(workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+    """
+    Specify `bundle workflow` to create monai bundle workflows.
+    The workflow should be subclass of `BundleWorkflow` and be available to import.
+    It can be MONAI existing bundle workflows or user customized workflows.
+
+    Typical usage examples:
+
+    .. code-block:: python
+
+        # Specify config_file path to create workflow:
+        workflow = create_workflow(config_file="/workspace/spleen_ct_segmentation/configs/train.json", workflow="train")
+
+        # Set the workflow to other customized BundleWorkflow subclass to create workflow:
+        workflow = create_workflow(workflow_name=CustomizedWorkflow)
+
+    Args:
+        workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        args_file: a JSON or YAML file to provide default values for this API.
+            so that the command line inputs can be simplified.
+        kwargs: arguments to instantiate the workflow class.
+
+    """
+
     _args = _update_args(args=args_file, workflow_name=workflow_name, **kwargs)
     _log_input_summary(tag="run", args=_args)
     (workflow_name,) = _pop_args(_args, workflow_name=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
