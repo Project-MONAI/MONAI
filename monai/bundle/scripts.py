@@ -378,6 +378,7 @@ def download(
 
 def load(
     name: str,
+    model: str | None = None,
     version: str | None = None,
     model_file: str | None = None,
     load_ts_module: bool = False,
@@ -389,8 +390,13 @@ def load(
     device: str | None = None,
     key_in_ckpt: str | None = None,
     config_files: Sequence[str] = (),
-    net_name: str | None = None,
-    **net_kwargs: Any,
+    dst_prefix: str = "",
+    mapping: dict = None,
+    exclude_vars: str = None,
+    inplace: bool = True,
+    workflow_name: str | BundleWorkflow | None = None,
+    args_file: str | None = None,
+    **override: Any
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -425,9 +431,6 @@ def load(
             weights. if not nested checkpoint, no need to set.
         config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
             see `_extra_files` in `torch.jit.load` for more details.
-        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
-            This argument only works when loading weights.
-        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     Returns:
         1. If `load_ts_module` is `False` and `net_name` is `None`, return model weights.
@@ -439,15 +442,12 @@ def load(
 
     """
     bundle_dir_ = _process_bundle_dir(bundle_dir)
-
+    if device is None:
+        device = "cuda:0" if is_available() else "cpu"
     if model_file is None:
         model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
-    if source == "ngc":
-        name = _add_ngc_prefix(name)
-        if remove_prefix:
-            name = _remove_ngc_prefix(name, prefix=remove_prefix)
     full_path = os.path.join(bundle_dir_, name, model_file)
-    if not os.path.exists(full_path):
+    if not os.path.exists(full_path) or model is None:
         download(
             name=name,
             version=version,
@@ -457,9 +457,10 @@ def load(
             remove_prefix=remove_prefix,
             progress=progress,
         )
+        train_config_file = str(bundle_dir_ / name / "configs" / "train.json")
+        _override = {f"network_def#{key}": value for key, value in override.items()}
+        workflow = create_workflow(workflow_name=workflow_name, args_file=args_file, config_file=train_config_file, workflow="train", **_override)
 
-    if device is None:
-        device = "cuda:0" if is_available() else "cpu"
     # loading with `torch.jit.load`
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
@@ -469,13 +470,17 @@ def load(
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    if net_name is None:
-        return model_dict
-    net_kwargs["_target_"] = net_name
-    configer = ConfigComponent(config=net_kwargs)
-    model = configer.instantiate()
-    model.to(device)  # type: ignore
-    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
+    model = workflow.network_def if model is None else model
+    model.to(device)
+
+    copy_model_state(
+        dst=model,
+        src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt],
+        dst_prefix=dst_prefix,
+        mapping=mapping,
+        exclude_vars=exclude_vars,
+        inplace=inplace,
+    )
     return model
 
 
@@ -734,7 +739,7 @@ def run(
     workflow.finalize()
 
 
-def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+def run_workflow(workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
     The workflow should be subclass of `BundleWorkflow` and be available to import.
@@ -748,35 +753,17 @@ def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | 
         python -m monai.bundle run_workflow --meta_file <meta path> --config_file <config path>
 
         # Set the workflow to other customized BundleWorkflow subclass:
-        python -m monai.bundle run_workflow --workflow CustomizedWorkflow ...
+        python -m monai.bundle run_workflow --workflow_name CustomizedWorkflow ...
 
     Args:
-        workflow: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for this API.
             so that the command line inputs can be simplified.
         kwargs: arguments to instantiate the workflow class.
 
     """
 
-    _args = _update_args(args=args_file, workflow=workflow, **kwargs)
-    _log_input_summary(tag="run", args=_args)
-    (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
-    if isinstance(workflow_name, str):
-        workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
-        if not has_built_in:
-            workflow_class = locate(str(workflow_name))  # search dotted path
-        if workflow_class is None:
-            raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
-    elif issubclass(workflow_name, BundleWorkflow):
-        workflow_class = workflow_name
-    else:
-        raise ValueError(
-            "Argument `workflow` must be a bundle workflow class name"
-            f"or subclass of BundleWorkflow, got: {workflow_name}."
-        )
-
-    workflow_ = workflow_class(**_args)
-    workflow_.initialize()
+    workflow_ = create_workflow(workflow_name=workflow_name, args_file=args_file, **kwargs)
     workflow_.run()
     workflow_.finalize()
 
@@ -1548,3 +1535,27 @@ def _find_config_file(root_dir: Path, file_name: str, suffix: Sequence[str] = ("
         if full_name.is_file():
             return full_name
     return None
+
+
+def create_workflow(workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+    _args = _update_args(args=args_file, workflow_name=workflow_name, **kwargs)
+    _log_input_summary(tag="run", args=_args)
+    (workflow_name,) = _pop_args(_args, workflow_name=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
+    if isinstance(workflow_name, str):
+        workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
+        if not has_built_in:
+            workflow_class = locate(str(workflow_name))  # search dotted path
+        if workflow_class is None:
+            raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
+    elif issubclass(workflow_name, BundleWorkflow):
+        workflow_class = workflow_name
+    else:
+        raise ValueError(
+            "Argument `workflow` must be a bundle workflow class name"
+            f"or subclass of BundleWorkflow, got: {workflow_name}."
+        )
+
+    workflow_ = workflow_class(**_args)
+    workflow_.initialize()
+
+    return workflow_
