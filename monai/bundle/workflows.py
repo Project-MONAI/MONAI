@@ -22,7 +22,7 @@ from typing import Any, Sequence
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.properties import InferProperties, TrainProperties, MetaProterties
+from monai.bundle.properties import InferProperties, MetaProterties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
 from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg_default, ensure_tuple
 

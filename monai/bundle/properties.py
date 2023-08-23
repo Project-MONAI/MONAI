@@ -251,7 +251,8 @@ MetaProterties = {
     "spatial_shape": {
         BundleProperty.DESC: "spatial shape for the inputs",
         BundleProperty.REQUIRED: False,
-        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}network_data_format{ID_SEP_KEY}inputs{ID_SEP_KEY}image{ID_SEP_KEY}spatial_shape",
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}network_data_format{ID_SEP_KEY}inputs{ID_SEP_KEY}image"
+        f"{ID_SEP_KEY}spatial_shape",
     },
     "channel_def": {
         BundleProperty.DESC: "channel definition for the prediction",
