@@ -1528,15 +1528,6 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
-def _find_config_file(root_dir: Path, file_name: str, suffix: Sequence[str] = ("json", "yaml", "yml")) -> Path | None:
-    # find bundle file with possible suffix
-    for _suffix in suffix:
-        full_name = root_dir / f"{file_name}.{_suffix}"
-        if full_name.is_file():
-            return full_name
-    return None
-
-
 def create_workflow(workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
     _args = _update_args(args=args_file, workflow_name=workflow_name, **kwargs)
     _log_input_summary(tag="run", args=_args)
