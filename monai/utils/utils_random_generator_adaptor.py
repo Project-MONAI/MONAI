@@ -73,7 +73,12 @@ class LegacyRandomStateAdaptor(SupportsRandomGeneration):
     def integers(
         self, low: int, high: int | None = None, size: ShapeLike | None = None, dtype=DtypeLike, endpoint: bool = False
     ) -> NdarrayTensor:
-        return self.random_state.randint(low=low, high=high if endpoint else high + 1, size=size, dtype=dtype)
+        if endpoint:
+            if high is not None:
+                high += 1
+            else:
+                low += 1
+        return self.random_state.randint(low=low, high=high, size=size, dtype=dtype)
 
     def random(self, size: ShapeLike | None = None, dtype=DtypeLike, out: NdarrayTensor | None = None) -> NdarrayTensor:
         if out is not None:
