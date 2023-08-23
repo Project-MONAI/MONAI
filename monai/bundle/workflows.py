@@ -218,26 +218,28 @@ class ConfigWorkflow(BundleWorkflow):
         else:
             raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
 
-        if logging_file is None:
-            logging_file = config_root_path / "logging.conf"
-            if not logging_file.is_file():
-                warnings.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
-        else:
-            if not Path(logging_file).is_file():
-                raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
-            logger.info(f"Setting logging properties based on config: {logging_file}.")
-            fileConfig(logging_file, disable_existing_loggers=False)
+        logging_file = config_root_path / "logging.conf" if logging_file is None else logging_file
+        if logging_file is not None:
+            if not os.path.exists(logging_file):
+                if logging_file == config_root_path / "logging.conf":
+                    warnings.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
+                else:
+                    raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
+            else:
+                logger.info(f"Setting logging properties based on config: {logging_file}.")
+                fileConfig(logging_file, disable_existing_loggers=False)
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
-        if meta_file is None:
-            meta_file = config_root_path / "metadata.json"
-            if not meta_file.is_file():
-                warnings.warn(f"Default metadata file in {meta_file} does not exist, skipping loading.")
-        else:
-            if not Path(ensure_tuple(meta_file)[0]).is_file():
-                raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
-            self.parser.read_meta(f=meta_file)
+        meta_file = config_root_path / "metadata.json" if meta_file is None else meta_file
+        if meta_file is not None:
+            if isinstance(meta_file, str) and not os.path.exists(meta_file):
+                if meta_file == config_root_path / "metadata.json":
+                    warnings.warn(f"Default metadata file in {meta_file} does not exist, skipping loading.")
+                else:
+                    raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+            else:
+                self.parser.read_meta(f=meta_file)
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
