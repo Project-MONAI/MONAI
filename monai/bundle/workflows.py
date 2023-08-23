@@ -24,6 +24,7 @@ from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProterties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
+from monai.config import PathLike
 from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg_default, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
@@ -200,8 +201,8 @@ class ConfigWorkflow(BundleWorkflow):
     def __init__(
         self,
         config_file: str | Sequence[str],
-        meta_file: str | Sequence[str] | None = None,
-        logging_file: str | None = None,
+        meta_file: PathLike | Sequence[PathLike] | None = None,
+        logging_file: PathLike | None = None,
         init_id: str = "initialize",
         run_id: str = "run",
         final_id: str = "finalize",
@@ -221,9 +222,9 @@ class ConfigWorkflow(BundleWorkflow):
             logging_file = config_root_path / "logging.conf"
             if not logging_file.is_file():
                 warnings.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
-        if not os.path.exists(logging_file):
-            raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
         else:
+            if not Path(logging_file).is_file():
+                raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             logger.info(f"Setting logging properties based on config: {logging_file}.")
             fileConfig(logging_file, disable_existing_loggers=False)
 
@@ -232,10 +233,10 @@ class ConfigWorkflow(BundleWorkflow):
         if meta_file is None:
             meta_file = config_root_path / "metadata.json"
             if not meta_file.is_file():
-                warnings.warn(f"Default metadata file in {meta_file} does not exist, skipping logging.")
-        if not os.path.exists(meta_file):
-            raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+                warnings.warn(f"Default metadata file in {meta_file} does not exist, skipping loading.")
         else:
+            if not Path(ensure_tuple(meta_file)[0]).is_file():
+                raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
             self.parser.read_meta(f=meta_file)
 
         # the rest key-values in the _args are to override config content
