@@ -24,7 +24,7 @@ from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, TrainProperties, MetaProterties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
-from monai.utils import BundleProperty, BundlePropertyConfig
+from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg_default, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -168,18 +168,18 @@ class ConfigWorkflow(BundleWorkflow):
     For more information: https://docs.monai.io/en/latest/mb_specification.html.
 
     Args:
-        run_id: ID name of the expected config expression to run, default to "run".
-            to run the config, the target config must contain this ID.
-        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
-            allow a config to have no `initialize` logic and the ID.
-        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
-            allow a config to have no `finalize` logic and the ID.
-        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
+        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            If None, default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+            If None, default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+            allow a config to have no `initialize` logic and the ID.
+        run_id: ID name of the expected config expression to run, default to "run".
+            to run the config, the target config must contain this ID.
+        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+            allow a config to have no `finalize` logic and the ID.
         tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
             if other string, treat it as file path to load the tracking settings.
@@ -190,17 +190,18 @@ class ConfigWorkflow(BundleWorkflow):
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
+            default to `train` for training workflow.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
     """
 
+    @deprecated_arg_default("workflow", None, "train", since="1.3", replaced="1.4")
     def __init__(
         self,
         config_file: str | Sequence[str],
-        meta_file: str | Sequence[str] | None = "configs/metadata.json",
-        logging_file: str | None = "configs/logging.conf",
+        meta_file: str | Sequence[str] | None = None,
+        logging_file: str | None = None,
         init_id: str = "initialize",
         run_id: str = "run",
         final_id: str = "finalize",
@@ -209,26 +210,33 @@ class ConfigWorkflow(BundleWorkflow):
         **override: Any,
     ) -> None:
         super().__init__(workflow=workflow)
-        if logging_file is not None:
-            if not os.path.exists(logging_file):
-                if logging_file == "configs/logging.conf":
-                    warnings.warn("Default logging file in 'configs/logging.conf' does not exist, skipping logging.")
-                else:
-                    raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
-            else:
-                logger.info(f"Setting logging properties based on config: {logging_file}.")
-                fileConfig(logging_file, disable_existing_loggers=False)
+        _config_path = Path(ensure_tuple(config_file)[0])
+        if _config_path.is_file():
+            config_file = config_file
+            config_root_path = _config_path.parent
+        else:
+            raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
+
+        if logging_file is None:
+            logging_file = config_root_path / "logging.conf"
+            if not logging_file.is_file():
+                warnings.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
+        if not os.path.exists(logging_file):
+            raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
+        else:
+            logger.info(f"Setting logging properties based on config: {logging_file}.")
+            fileConfig(logging_file, disable_existing_loggers=False)
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
-        if meta_file is not None:
-            if isinstance(meta_file, str) and not os.path.exists(meta_file):
-                if meta_file == "configs/metadata.json":
-                    warnings.warn("Default metadata file in 'configs/metadata.json' does not exist, skipping loading.")
-                else:
-                    raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
-            else:
-                self.parser.read_meta(f=meta_file)
+        if meta_file is None:
+            meta_file = config_root_path / "metadata.json"
+            if not meta_file.is_file():
+                warnings.warn(f"Default metadata file in {meta_file} does not exist, skipping logging.")
+        if not os.path.exists(meta_file):
+            raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+        else:
+            self.parser.read_meta(f=meta_file)
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
