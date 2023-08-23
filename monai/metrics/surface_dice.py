@@ -36,7 +36,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
     predicted segmentations `y_pred` and corresponding reference segmentations `y` according to equation :eq:`nsd`.
     This implementation is based on https://arxiv.org/abs/2111.05408 and supports 2D and 3D images.
     Be aware that by default (`use_subvoxels=False`), the computation of boundaries is different from DeepMind's
-    mplementation https://github.com/deepmind/surface-distance.
+    implementation https://github.com/deepmind/surface-distance.
     In this implementation, the length/area of a segmentation boundary is
     interpreted as the number of its edge pixels. In DeepMind's implementation, the length of a segmentation boundary
     depends on the local neighborhood (cf. https://arxiv.org/abs/1809.04430).
@@ -63,6 +63,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             `not_nans` is the number of batch samples for which not all class-specific NSD values were nan values.
             If set to ``True``, the function `aggregate` will return both the aggregated NSD and the `not_nans` count.
             If set to ``False``, `aggregate` will only return the aggregated NSD.
+        use_subvoxels: Whether to use subvoxel distances. Defaults to ``False``.
     """
 
     def __init__(
@@ -72,6 +73,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         distance_metric: str = "euclidean",
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
+        use_subvoxels: bool = False,
     ) -> None:
         super().__init__()
         self.class_thresholds = class_thresholds
@@ -79,6 +81,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
         self.distance_metric = distance_metric
         self.reduction = reduction
         self.get_not_nans = get_not_nans
+        self.use_subvoxels = use_subvoxels
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor, **kwargs: Any) -> torch.Tensor:  # type: ignore[override]
         r"""
@@ -111,7 +114,7 @@ class SurfaceDiceMetric(CumulativeIterationMetric):
             include_background=self.include_background,
             distance_metric=self.distance_metric,
             spacing=kwargs.get("spacing"),
-            use_subvoxels=kwargs.get("use_subvoxels", False),
+            use_subvoxels=self.use_subvoxels,
         )
 
     def aggregate(

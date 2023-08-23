@@ -1523,6 +1523,7 @@ class MapLabelValued(MapTransform):
             orig_labels: original labels that map to others.
             target_labels: expected label values, 1: 1 map to the `orig_labels`.
             dtype: convert the output data to dtype, default to float32.
+                if dtype is from PyTorch, the transform will use the pytorch backend, else with numpy backend.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
