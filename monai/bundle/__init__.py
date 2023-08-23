@@ -16,7 +16,6 @@ from .config_parser import ConfigParser
 from .properties import InferProperties, TrainProperties
 from .reference_resolver import ReferenceResolver
 from .scripts import (
-    BundleManager,
     ckpt_export,
     download,
     get_all_bundles_list,
