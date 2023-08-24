@@ -210,12 +210,15 @@ class ConfigWorkflow(BundleWorkflow):
         **override: Any,
     ) -> None:
         super().__init__(workflow=workflow)
-        _config_path = Path(ensure_tuple(config_file)[0])
-        if _config_path.is_file():
-            config_file = config_file
-            config_root_path = _config_path.parent
+        if config_file is not None:
+            _config_path = Path(ensure_tuple(config_file)[0])
+            if _config_path.is_file():
+                config_file = config_file
+                config_root_path = _config_path.parent
+            else:
+                raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
         else:
-            raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
+            config_root_path = Path("configs")
 
         logging_file = str(config_root_path / "logging.conf") if logging_file is None else logging_file
         if logging_file is not None:
