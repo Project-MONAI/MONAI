@@ -377,8 +377,9 @@ def download(
 
 def load(
     name: str,
-    model: str | None = None,
+    model: torch.nn.Module | None = None,
     version: str | None = None,
+    workflow: str = "train",
     model_file: str | None = None,
     load_ts_module: bool = False,
     bundle_dir: PathLike | None = None,
@@ -395,7 +396,7 @@ def load(
     inplace: bool = True,
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
-    **override: Any
+    **net_override: Any
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -407,8 +408,15 @@ def load(
             https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
             "monai_brats_mri_segmentation" in ngc:
             https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
+            "mednist_gan" in monaihosting:
+            https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/mednist_gan/versions/0.2.0/files/mednist_gan_v0.2.0.zip
+        model: a pytorch module to be updated. Default to None, using the "network_def" in the bundle.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
             the latest version.
+        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `train` for training workflow.
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
@@ -438,10 +446,15 @@ def load(
             so that their values are not overwritten by `src`.
         inplace: used in `copy_model_state`, whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
             This option is only available when `dst` is a `torch.nn.Module`.
+        workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        args_file: a JSON or YAML file to provide default values for all the args in "download" function.
+        net_override: id-value pairs to override the parameters in the network of the bundle.
 
     Returns:
-        1. If `load_ts_module` is `False` and `net_name` is `None`, return model weights.
-        2. If `load_ts_module` is `False` and `net_name` is not `None`,
+        1. If `load_ts_module` is `False` and `model` is `None`,
+            return model weights if can't find "network_def" in the bundle,
+            else return an instantiated network that loaded the weights.
+        2. If `load_ts_module` is `False` and `model` is not `None`,
             return an instantiated network that loaded the weights.
         3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
@@ -463,10 +476,14 @@ def load(
             repo=repo,
             remove_prefix=remove_prefix,
             progress=progress,
+            args_file=args_file,
         )
-        train_config_file = str(bundle_dir_ / name / "configs" / "train.json")
-        _override = {f"network_def#{key}": value for key, value in override.items()}
-        workflow = create_workflow(workflow_name=workflow_name, args_file=args_file, config_file=train_config_file, workflow="train", **_override)
+        train_config_file = bundle_dir_ / name / "configs" / f"{workflow}.json"
+        if train_config_file.is_file():
+            _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
+            _workflow = create_workflow(workflow_name=workflow_name, args_file=args_file, config_file=str(train_config_file), workflow=workflow, **_net_override)
+        else:
+            _workflow = None
 
     # loading with `torch.jit.load`
     if load_ts_module is True:
@@ -477,7 +494,10 @@ def load(
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    model = workflow.network_def if model is None else model
+    if model is None and _workflow is None:
+        return model_dict
+
+    model = _workflow.network_def if model is None else model
     model.to(device)
 
     copy_model_state(
@@ -1535,7 +1555,12 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
-def create_workflow(workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+def create_workflow(
+    workflow_name: str | BundleWorkflow | None = None,
+    config_file: str | Sequence[str] | None = None,
+    args_file: str | None = None,
+    **kwargs: Any
+) -> None:
     """
     Specify `bundle workflow` to create monai bundle workflows.
     The workflow should be subclass of `BundleWorkflow` and be available to import.
@@ -1553,13 +1578,13 @@ def create_workflow(workflow_name: str | BundleWorkflow | None = None, args_file
 
     Args:
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
         args_file: a JSON or YAML file to provide default values for this API.
             so that the command line inputs can be simplified.
         kwargs: arguments to instantiate the workflow class.
 
     """
-
-    _args = _update_args(args=args_file, workflow_name=workflow_name, **kwargs)
+    _args = _update_args(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
     _log_input_summary(tag="run", args=_args)
     (workflow_name,) = _pop_args(_args, workflow_name=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
     if isinstance(workflow_name, str):
