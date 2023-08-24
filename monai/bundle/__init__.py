@@ -13,10 +13,11 @@ from __future__ import annotations
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
-from .properties import InferProperties, TrainProperties
+from .properties import InferProperties, MetaProterties, TrainProperties
 from .reference_resolver import ReferenceResolver
 from .scripts import (
     ckpt_export,
+    create_workflow,
     download,
     get_all_bundles_list,
     get_bundle_info,
@@ -29,7 +30,6 @@ from .scripts import (
     trt_export,
     verify_metadata,
     verify_net_in_out,
-    create_workflow
 )
 from .utils import (
     DEFAULT_EXP_MGMT_SETTINGS,

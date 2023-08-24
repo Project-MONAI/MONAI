@@ -396,7 +396,7 @@ def load(
     inplace: bool = True,
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
-    **net_override: Any
+    **net_override: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -481,7 +481,13 @@ def load(
         train_config_file = bundle_dir_ / name / "configs" / f"{workflow}.json"
         if train_config_file.is_file():
             _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
-            _workflow = create_workflow(workflow_name=workflow_name, args_file=args_file, config_file=str(train_config_file), workflow=workflow, **_net_override)
+            _workflow = create_workflow(
+                workflow_name=workflow_name,
+                args_file=args_file,
+                config_file=str(train_config_file),
+                workflow=workflow,
+                **_net_override,
+            )
         else:
             _workflow = None
 
@@ -766,7 +772,9 @@ def run(
     workflow.finalize()
 
 
-def run_workflow(workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+def run_workflow(
+    workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any
+) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
     The workflow should be subclass of `BundleWorkflow` and be available to import.
@@ -1559,7 +1567,7 @@ def create_workflow(
     workflow_name: str | BundleWorkflow | None = None,
     config_file: str | Sequence[str] | None = None,
     args_file: str | None = None,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> None:
     """
     Specify `bundle workflow` to create monai bundle workflows.

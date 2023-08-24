@@ -16,14 +16,14 @@ import os
 import tempfile
 import unittest
 
-import torch
 import numpy as np
+import torch
 from parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.apps import check_hash
+from monai.bundle import ConfigParser, create_workflow, load
 from monai.utils import set_determinism
-from monai.bundle import ConfigParser, load, create_workflow
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     assert_allclose,
@@ -69,7 +69,7 @@ TEST_CASE_6 = [
 TEST_CASE_7 = [
     "spleen_ct_segmentation",
     "cuda" if torch.cuda.is_available() else "cpu",
-    {"spatial_dims": 3, "out_channels": 5}
+    {"spatial_dims": 3, "out_channels": 5},
 ]
 
 
@@ -189,19 +189,15 @@ class TestLoad(unittest.TestCase):
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 # load weights
-                model = load(
-                    name=bundle_name,
-                    bundle_dir=tempdir,
-                    source="monaihosting",
-                    progress=False,
-                    device=device,
-                )
+                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device)
 
                 # prepare data and test
                 input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
                 output = model(input_tensor)
                 model_path = f"{tempdir}/spleen_ct_segmentation/models/model.pt"
-                workflow = create_workflow(config_file=f"{tempdir}/spleen_ct_segmentation/configs/train.json", workflow="train")
+                workflow = create_workflow(
+                    config_file=f"{tempdir}/spleen_ct_segmentation/configs/train.json", workflow="train"
+                )
                 expected_model = workflow.network_def.to(device)
                 expected_model.load_state_dict(torch.load(model_path))
                 expected_output = expected_model(input_tensor)
@@ -214,7 +210,7 @@ class TestLoad(unittest.TestCase):
                     source="monaihosting",
                     progress=False,
                     device=device,
-                    **net_override
+                    **net_override,
                 )
 
                 # prepare data and test
