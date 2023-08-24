@@ -391,8 +391,8 @@ def load(
     key_in_ckpt: str | None = None,
     config_files: Sequence[str] = (),
     dst_prefix: str = "",
-    mapping: dict = None,
-    exclude_vars: str = None,
+    mapping: dict | None = None,
+    exclude_vars: str | None = None,
     inplace: bool = True,
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
@@ -502,8 +502,7 @@ def load(
 
     if model is None and _workflow is None:
         return model_dict
-
-    model = _workflow.network_def if model is None else model
+    model = _workflow.network_def if model is None else model  # type: ignore
     model.to(device)
 
     copy_model_state(
@@ -1568,7 +1567,7 @@ def create_workflow(
     config_file: str | Sequence[str] | None = None,
     args_file: str | None = None,
     **kwargs: Any,
-) -> None:
+) -> Any:
     """
     Specify `bundle workflow` to create monai bundle workflows.
     The workflow should be subclass of `BundleWorkflow` and be available to import.
@@ -1601,7 +1600,7 @@ def create_workflow(
             workflow_class = locate(str(workflow_name))  # search dotted path
         if workflow_class is None:
             raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
-    elif issubclass(workflow_name, BundleWorkflow):
+    elif issubclass(type(workflow_name), BundleWorkflow):
         workflow_class = workflow_name
     else:
         raise ValueError(
