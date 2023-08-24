@@ -712,12 +712,12 @@ def run(
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".
             it's optional for both configs and this `run` function.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
+            Default to None.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+            Default to None.
         tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
             if other string, treat it as file path to load the tracking settings.
@@ -749,11 +749,11 @@ def run(
     config_file_, meta_file_, init_id_, run_id_, final_id_, logging_file_, tracking_ = _pop_args(
         _args,
         config_file=None,
-        meta_file="configs/metadata.json",
+        meta_file=None,
         init_id="initialize",
         run_id="run",
         final_id="finalize",
-        logging_file="configs/logging.conf",
+        logging_file=None,
         tracking=None,
     )
     workflow = ConfigWorkflow(
@@ -1600,7 +1600,7 @@ def create_workflow(
             workflow_class = locate(str(workflow_name))  # search dotted path
         if workflow_class is None:
             raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
-    elif issubclass(type(workflow_name), BundleWorkflow):
+    elif issubclass(workflow_name, BundleWorkflow):  # type: ignore
         workflow_class = workflow_name
     else:
         raise ValueError(
