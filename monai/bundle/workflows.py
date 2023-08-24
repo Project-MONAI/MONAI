@@ -191,7 +191,7 @@ class ConfigWorkflow(BundleWorkflow):
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
-            default to `train` for training workflow.
+            default to `None` for common workflow.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
