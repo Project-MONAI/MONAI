@@ -147,7 +147,7 @@ class TestBundleRun(unittest.TestCase):
         filename = os.path.join(self.data_dir, "image.nii")
         nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
-        cmd = "-m fire monai.bundle.scripts run_workflow --workflow tests.nonconfig_workflow.NonConfigWorkflow"
+        cmd = "-m fire monai.bundle.scripts run_workflow --workflow_name tests.nonconfig_workflow.NonConfigWorkflow"
         cmd += f" --filename {filename} --output_dir {self.data_dir}"
         command_line_tests(["coverage", "run"] + cmd.split(" "))
         loader = LoadImage(image_only=True)
