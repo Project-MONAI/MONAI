@@ -495,11 +495,7 @@ def load(
     model = _workflow.network_def if model is None else model  # type: ignore
     model.to(device)
 
-    copy_model_state(
-        dst=model,
-        src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt],
-        **copy_model_args
-    )
+    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt], **copy_model_args)
     return model
 
 
