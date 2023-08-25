@@ -1752,10 +1752,6 @@ def attach_hook(func, hook, mode="pre"):
     """
     supported = {"pre", "post"}
     _mode = look_up_option(mode, supported)
-    if _mode == "pre":
-        _hook, _func = hook, func
-    else:
-        _hook, _func = func, hook
 
     def key_in_args(args, k):
         return any(k == a for a in args.args)
@@ -1803,17 +1799,15 @@ def attach_hook(func, hook, mode="pre"):
         # handle the corner case where there is a parameter without a default on _hook that has a default on _func, but that hasn't
         # been set by the caller. In this case, we get the default for that parameter on _func and pass it to _hook
         for k in h_args.args:
-            if param_has_default(h_args, k) is False:
-                if k not in h_kwargs:
-                    if param_has_default(f_args, k) is True:
-                        h_kwargs[k] = param_default(f_args, k)
+            if param_has_default(h_args, k) is False and k not in h_kwargs and param_has_default(f_args, k) is True:
+                h_kwargs[k] = param_default(f_args, k)
 
         if _mode == "pre":
-          data = _hook(inst, data, **h_kwargs)
-          data = _func(inst, data, *args, **kwargs)
+          data = hook(inst, data, **h_kwargs)
+          data = func(inst, data, *args, **kwargs)
         else:
-          data = _hook(inst, data, *args, **kwargs)
-          data = _func(inst, data, **h_kwargs)
+          data = func(inst, data, *args, **kwargs)
+          data = hook(inst, data, **h_kwargs)
 
         return data
 
