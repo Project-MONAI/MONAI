@@ -13,7 +13,7 @@ The predefined properties for a bundle workflow, other applications can leverage
 to interact with the bundle workflow.
 Some properties are required and some are optional, optional properties mean: if some component of the
 bundle workflow refer to the property, the property must be defined, otherwise, the property can be None.
-Every item in this `TrainProperties` or `InferProperties` or `MetaProterties` dictionary is a property,
+Every item in this `TrainProperties` or `InferProperties` or `MetaProperties` dictionary is a property,
 the key is the property name and the values include:
 1. description.
 2. whether it's a required property.
@@ -222,7 +222,7 @@ InferProperties = {
     },
 }
 
-MetaProterties = {
+MetaProperties = {
     "version": {
         BundleProperty.DESC: "bundle version",
         BundleProperty.REQUIRED: False,

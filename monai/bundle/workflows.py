@@ -22,7 +22,7 @@ from typing import Any, Sequence
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.properties import InferProperties, MetaProterties, TrainProperties
+from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
 from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg_default, ensure_tuple
 
@@ -50,16 +50,16 @@ class BundleWorkflow(ABC):
 
     def __init__(self, workflow: str | None = None):
         if workflow is None:
-            self.properties = copy(MetaProterties)
+            self.properties = copy(MetaProperties)
             self.workflow = None
             return
         if workflow.lower() in self.supported_train_type:
             self.properties = copy(TrainProperties)
-            self.properties.update(copy(MetaProterties))
+            self.properties.update(copy(MetaProperties))
             self.workflow = "train"
         elif workflow.lower() in self.supported_infer_type:
             self.properties = copy(InferProperties)
-            self.properties.update(copy(MetaProterties))
+            self.properties.update(copy(MetaProperties))
             self.workflow = "infer"
         else:
             raise ValueError(f"Unsupported workflow type: '{workflow}'.")
