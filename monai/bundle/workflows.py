@@ -166,8 +166,8 @@ class ConfigWorkflow(BundleWorkflow):
     For more information: https://docs.monai.io/en/latest/mb_specification.html.
 
     Args:
-        config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
-        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file, if this is a list of file paths, their contents will be merged in order.
+        meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
             If None, default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
