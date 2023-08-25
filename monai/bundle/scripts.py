@@ -390,12 +390,9 @@ def load(
     device: str | None = None,
     key_in_ckpt: str | None = None,
     config_files: Sequence[str] = (),
-    dst_prefix: str = "",
-    mapping: dict | None = None,
-    exclude_vars: str | None = None,
-    inplace: bool = True,
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
+    copy_model_args: dict = {},
     **net_override: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
@@ -438,16 +435,9 @@ def load(
             weights. if not nested checkpoint, no need to set.
         config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
             see `_extra_files` in `torch.jit.load` for more details.
-        dst_prefix: used in `copy_model_state`, `dst` key prefix, so that `dst[dst_prefix + src_key]`
-            will be assigned to the value of `src[src_key]`.
-        mapping: used in `copy_model_state`, a `{"src_key": "dst_key"}` dict, indicating that `dst[dst_prefix + dst_key]`
-            to be assigned to the value of `src[src_key]`.
-        exclude_vars: used in `copy_model_state`, a regular expression to match the `dst` variable names,
-            so that their values are not overwritten by `src`.
-        inplace: used in `copy_model_state`, whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
-            This option is only available when `dst` is a `torch.nn.Module`.
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
+        copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
         net_override: id-value pairs to override the parameters in the network of the bundle.
 
     Returns:
@@ -508,10 +498,7 @@ def load(
     copy_model_state(
         dst=model,
         src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt],
-        dst_prefix=dst_prefix,
-        mapping=mapping,
-        exclude_vars=exclude_vars,
-        inplace=inplace,
+        **copy_model_args
     )
     return model
 

@@ -153,7 +153,7 @@ class TestLoad(unittest.TestCase):
                     net_args = json.load(f)["network_def"]
                 model_name = net_args["_target_"]
                 del net_args["_target_"]
-                model = nets.__dict__[model_name](**net_args)
+                model = getattr(nets, model_name)(**net_args)
                 model.to(device)
                 model.load_state_dict(weights)
                 model.eval()
@@ -166,7 +166,7 @@ class TestLoad(unittest.TestCase):
 
                 # load instantiated model directly and test, since the bundle has been downloaded,
                 # there is no need to input `repo`
-                _model_2 = nets.__dict__[model_name](**net_args)
+                _model_2 = getattr(nets, model_name)(**net_args)
                 model_2 = load(
                     name=bundle_name,
                     model=_model_2,

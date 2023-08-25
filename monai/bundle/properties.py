@@ -225,7 +225,7 @@ InferProperties = {
 MetaProperties = {
     "version": {
         BundleProperty.DESC: "bundle version",
-        BundleProperty.REQUIRED: False,
+        BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}version",
     },
     "monai_version": {

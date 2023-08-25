@@ -54,12 +54,10 @@ class BundleWorkflow(ABC):
             self.workflow = None
             return
         if workflow.lower() in self.supported_train_type:
-            self.properties = copy(TrainProperties)
-            self.properties.update(copy(MetaProperties))
+            self.properties = {**TrainProperties, **MetaProperties}
             self.workflow = "train"
         elif workflow.lower() in self.supported_infer_type:
-            self.properties = copy(InferProperties)
-            self.properties.update(copy(MetaProperties))
+            self.properties = {**InferProperties, **MetaProperties}
             self.workflow = "infer"
         else:
             raise ValueError(f"Unsupported workflow type: '{workflow}'.")
