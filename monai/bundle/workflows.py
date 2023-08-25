@@ -211,7 +211,6 @@ class ConfigWorkflow(BundleWorkflow):
         if config_file is not None:
             _config_path = Path(ensure_tuple(config_file)[0])
             if _config_path.is_file():
-                config_file = config_file
                 config_root_path = _config_path.parent
             else:
                 raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
