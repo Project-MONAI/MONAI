@@ -1801,7 +1801,7 @@ def attach_hook(func, hook, mode="pre"):
                 h_kwargs[k] = param_default(f_args, k)
 
         if _mode == "pre":
-          return func(inst, hook(inst, data, **h_kwargs), *args, **kwargs)
+            return func(inst, hook(inst, data, **h_kwargs), *args, **kwargs)
         return hook(inst, func(inst, data, *args, **kwargs), **h_kwargs)
 
     return wrapper
