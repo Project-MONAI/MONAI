@@ -1760,16 +1760,14 @@ def attach_hook(func, hook, mode="pre"):
         return args.args.index(k)
 
     def param_has_default(args, k):
-        i_k = index_of_key(args, k)
         if args.defaults is None:
             return False
-        return i_k >= len(args.args) - len(args.defaults)
+        return index_of_key(args, k) >= len(args.args) - len(args.defaults)
 
     def param_default(args, k):
-        i_k = index_of_key(args, k)
         if args.defaults is None:
             raise ValueError(f"Parameter {k} has no default")
-        d_k = len(args.args) - i_k - 1
+        d_k = len(args.args) - index_of_key(args, k) - 1
         if d_k >= len(args.defaults):
             raise ValueError(f"Parameter {k} has no default")
         return args.defaults[d_k]
@@ -1803,13 +1801,8 @@ def attach_hook(func, hook, mode="pre"):
                 h_kwargs[k] = param_default(f_args, k)
 
         if _mode == "pre":
-          data = hook(inst, data, **h_kwargs)
-          data = func(inst, data, *args, **kwargs)
-        else:
-          data = func(inst, data, *args, **kwargs)
-          data = hook(inst, data, **h_kwargs)
-
-        return data
+          return func(inst, hook(inst, data, **h_kwargs), *args, **kwargs)
+        return hook(inst, func(inst, data, *args, **kwargs), **h_kwargs)
 
     return wrapper
 
