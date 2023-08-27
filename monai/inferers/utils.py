@@ -278,8 +278,8 @@ def sliding_window_inference(
                 else:
                     output_image_list[0][o_slice] += sw_device_buffer[0].to(device=device)
             else:
-                sw_device_buffer[ss] *= w_t
                 sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
+                sw_device_buffer[ss] *= w_t
                 _compute_coords(unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
         sw_device_buffer = []
         if buffered:
