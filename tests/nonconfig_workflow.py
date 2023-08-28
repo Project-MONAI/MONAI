@@ -51,11 +51,23 @@ class NonConfigWorkflow(BundleWorkflow):
         self._postprocessing = None
         self._evaluator = None
         self._version = None
+        self._monai_version = None
+        self._pytorch_version = None
+        self._numpy_version = None
 
     def initialize(self):
         set_determinism(0)
         if self._version is None:
             self._version = "0.1.0"
+
+        if self._monai_version is None:
+            self._monai_version = "1.1.0"
+
+        if self._pytorch_version is None:
+            self._pytorch_version = "1.13.1"
+
+        if self._numpy_version is None:
+            self._numpy_version = "1.22.2"
 
         if self._preprocessing is None:
             self._preprocessing = Compose(

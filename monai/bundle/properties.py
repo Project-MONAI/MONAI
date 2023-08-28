@@ -230,17 +230,17 @@ MetaProperties = {
     },
     "monai_version": {
         BundleProperty.DESC: "required monai version used for bundle",
-        BundleProperty.REQUIRED: False,
+        BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}monai_version",
     },
     "pytorch_version": {
         BundleProperty.DESC: "required pytorch version used for bundle",
-        BundleProperty.REQUIRED: False,
+        BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}pytorch_version",
     },
     "numpy_version": {
         BundleProperty.DESC: "required numpy version used for bundle",
-        BundleProperty.REQUIRED: False,
+        BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}numpy_version",
     },
     "description": {

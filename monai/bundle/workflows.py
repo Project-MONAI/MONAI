@@ -231,14 +231,10 @@ class ConfigWorkflow(BundleWorkflow):
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
         meta_file = str(config_root_path / "metadata.json") if meta_file is None else meta_file
-        if meta_file is not None:
-            if isinstance(meta_file, str) and not os.path.exists(meta_file):
-                if meta_file == str(config_root_path / "metadata.json"):
-                    warnings.warn(f"Default metadata file in {meta_file} does not exist, skipping loading.")
-                else:
-                    raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
-            else:
-                self.parser.read_meta(f=meta_file)
+        if isinstance(meta_file, str) and not os.path.exists(meta_file):
+            raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+        else:
+            self.parser.read_meta(f=meta_file)
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
