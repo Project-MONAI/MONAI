@@ -52,7 +52,7 @@ def has_ampere_or_later() -> bool:
 @functools.lru_cache(None)
 def detect_default_tf32() -> bool:
     """
-    Dectect if there is anything that may enable TF32 mode by default.
+    Detect if there is anything that may enable TF32 mode by default.
     If any, show a warning message.
     """
     may_enable_tf32 = False
