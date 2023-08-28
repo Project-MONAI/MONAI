@@ -392,7 +392,7 @@ def load(
     config_files: Sequence[str] = (),
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
-    copy_model_args: dict = {},
+    copy_model_args: dict | None = None,
     **net_override: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
@@ -452,6 +452,8 @@ def load(
 
     """
     bundle_dir_ = _process_bundle_dir(bundle_dir)
+    copy_model_args = {} if copy_model_args is None else copy_model_args
+
     if device is None:
         device = "cuda:0" if is_available() else "cpu"
     if model_file is None:
