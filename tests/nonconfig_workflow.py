@@ -136,6 +136,12 @@ class NonConfigWorkflow(BundleWorkflow):
             return self._postprocessing
         if name == "version":
             return self._version
+        if name == "monai_version":
+            return self._monai_version
+        if name == "pytorch_version":
+            return self._pytorch_version
+        if name == "numpy_version":
+            return self._numpy_version
         if property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
@@ -162,5 +168,11 @@ class NonConfigWorkflow(BundleWorkflow):
             self._postprocessing = value
         elif name == "version":
             self._version = value
+        elif name == "monai_version":
+            self._monai_version = value
+        elif name == "pytorch_version":
+            self._pytorch_version = value
+        elif name == "numpy_version":
+            self._numpy_version = value
         elif property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
