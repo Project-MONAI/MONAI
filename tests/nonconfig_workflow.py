@@ -50,9 +50,13 @@ class NonConfigWorkflow(BundleWorkflow):
         self._preprocessing = None
         self._postprocessing = None
         self._evaluator = None
+        self._version = None
 
     def initialize(self):
         set_determinism(0)
+        if self._version is None:
+            self._version = "0.1.0"
+
         if self._preprocessing is None:
             self._preprocessing = Compose(
                 [LoadImaged(keys="image"), EnsureChannelFirstd(keys="image"), ScaleIntensityd(keys="image")]
@@ -118,6 +122,8 @@ class NonConfigWorkflow(BundleWorkflow):
             return self._preprocessing
         if name == "postprocessing":
             return self._postprocessing
+        if name == "version":
+            return self._version
         if property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
@@ -142,5 +148,7 @@ class NonConfigWorkflow(BundleWorkflow):
             self._preprocessing = value
         elif name == "postprocessing":
             self._postprocessing = value
+        elif name == "version":
+            self._version = value
         elif property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
