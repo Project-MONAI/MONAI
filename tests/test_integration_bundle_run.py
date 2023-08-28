@@ -65,18 +65,15 @@ class TestBundleRun(unittest.TestCase):
             )
         with open(meta_file, "w") as f:
             json.dump(
-                {
-                    "version": "0.1.0",
-                    "monai_version": "1.1.0",
-                    "pytorch_version": "1.13.1",
-                    "numpy_version": "1.22.2",
-                },
+                {"version": "0.1.0", "monai_version": "1.1.0", "pytorch_version": "1.13.1", "numpy_version": "1.22.2"},
                 f,
             )
         cmd = ["coverage", "run", "-m", "monai.bundle"]
         # test both CLI entry "run" and "run_workflow"
         command_line_tests(cmd + ["run", "training", "--config_file", config_file, "--meta_file", meta_file])
-        command_line_tests(cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file])
+        command_line_tests(
+            cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file]
+        )
         with self.assertRaises(RuntimeError):
             # test wrong run_id="run"
             command_line_tests(cmd + ["run", "run", "--config_file", config_file])
