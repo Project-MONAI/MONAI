@@ -33,6 +33,9 @@ Please note that there are environment variables that can override the flags abo
 
 If you are using an [NGC PyTorch container](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch), the container includes a layer `ENV TORCH_ALLOW_TF32_CUBLAS_OVERRIDE=1`.
 The default value `torch.backends.cuda.matmul.allow_tf32` will be overridden to `True`.
+To restore the upstream default value, please run `unset TORCH_ALLOW_TF32_CUBLAS_OVERRIDE` in the container,
+and use the Pytorch API `torch.set_float32_matmul_precision`, `torch.backends.cudnn.allow_tf32=False` accordingly.
+
 
 We recommend that users print out these two flags for confirmation when unsure.
 
