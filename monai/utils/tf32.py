@@ -70,7 +70,7 @@ def detect_default_tf32() -> bool:
             )
             may_enable_tf32 = True
 
-        override_tf32_env_vars = {"NVIDIA_TF32_OVERRIDE": "1", "TORCH_ALLOW_TF32_CUBLAS_OVERRIDE": "1"}
+        override_tf32_env_vars = {"NVIDIA_TF32_OVERRIDE": "1"}  # TORCH_ALLOW_TF32_CUBLAS_OVERRIDE not checked #6907
         for name, override_val in override_tf32_env_vars.items():
             if os.environ.get(name) == override_val:
                 warnings.warn(
