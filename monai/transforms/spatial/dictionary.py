@@ -501,13 +501,13 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
             if self.ensure_same_shape and isinstance(d[key], MetaTensor):
-                if _init_shape is None and _pixdim is None:
-                    _init_shape, _pixdim = d[key].peek_pending_shape(), d[key].pixdim
+                if _init_shape is None:
+                    _init_shape = d[key].peek_pending_shape()
                 else:
                     should_match = np.allclose(_init_shape, d[key].peek_pending_shape()) and np.allclose(
                         _pixdim, d[key].pixdim, atol=1e-3
                     )
-                    _pixdim = d[key].pixdim
+                _pixdim = d[key].pixdim
             d[key] = self.spacing_transform(
                 data_array=d[key],
                 mode=mode,
