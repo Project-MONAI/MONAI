@@ -109,6 +109,8 @@ class TestLoadBundleConfig(unittest.TestCase):
                 "test",
                 "--test",
                 "$print('hello world')",
+                "--config_file",
+                self.test_name,
                 "--meta_file",
                 self.metadata_name,
             ]
