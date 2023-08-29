@@ -507,7 +507,6 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
                     should_match = np.allclose(_init_shape, d[key].peek_pending_shape()) and np.allclose(
                         _pixdim, d[key].pixdim, atol=1e-3
                     )
-                    _pixdim = d[key].pixdim
             d[key] = self.spacing_transform(
                 data_array=d[key],
                 mode=mode,
