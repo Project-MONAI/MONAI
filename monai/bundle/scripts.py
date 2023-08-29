@@ -741,7 +741,7 @@ def run(
         logging_file=None,
         tracking=None,
     )
-    workflow = ConfigWorkflow(
+    workflow = create_workflow(
         config_file=config_file_,
         meta_file=meta_file_,
         logging_file=logging_file_,
@@ -751,7 +751,6 @@ def run(
         tracking=tracking_,
         **_args,
     )
-    workflow.initialize()
     workflow.run()
     workflow.finalize()
 
@@ -1589,7 +1588,7 @@ def create_workflow(
         workflow_class = workflow_name
     else:
         raise ValueError(
-            "Argument `workflow` must be a bundle workflow class name"
+            "Argument `workflow_name` must be a bundle workflow class name"
             f"or subclass of BundleWorkflow, got: {workflow_name}."
         )
 
