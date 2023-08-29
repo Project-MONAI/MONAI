@@ -1554,7 +1554,9 @@ def create_workflow(
     """
     _args = _update_args(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
     _log_input_summary(tag="run", args=_args)
-    (workflow_name, config_file) = _pop_args(_args, workflow_name=ConfigWorkflow, config_file=None)  # the default workflow name is "ConfigWorkflow"
+    (workflow_name, config_file) = _pop_args(
+        _args, workflow_name=ConfigWorkflow, config_file=None
+    )  # the default workflow name is "ConfigWorkflow"
     if isinstance(workflow_name, str):
         workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
         if not has_built_in:
