@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 import warnings
 from abc import ABC, abstractmethod
@@ -207,10 +208,20 @@ class ConfigWorkflow(BundleWorkflow):
         **override: Any,
     ) -> None:
         super().__init__(workflow=workflow)
+        if config_file is not None:
+            _config_path = Path(ensure_tuple(config_file)[0])
+            if _config_path.is_file():
+                self.config_root_path = _config_path.parent
+            else:
+                raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
+        else:
+            self.config_root_path = Path("configs")
+
+        logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
         if logging_file is not None:
             if not os.path.exists(logging_file):
-                if logging_file == "configs/logging.conf":
-                    warnings.warn("Default logging file in 'configs/logging.conf' does not exist, skipping logging.")
+                if logging_file == str(self.config_root_path / "logging.conf"):
+                    warnings.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
@@ -219,14 +230,11 @@ class ConfigWorkflow(BundleWorkflow):
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
-        if meta_file is not None:
-            if isinstance(meta_file, str) and not os.path.exists(meta_file):
-                if meta_file == "configs/metadata.json":
-                    warnings.warn("Default metadata file in 'configs/metadata.json' does not exist, skipping loading.")
-                else:
-                    raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
-            else:
-                self.parser.read_meta(f=meta_file)
+        meta_file = str(self.config_root_path / "metadata.json") if meta_file is None else meta_file
+        if isinstance(meta_file, str) and not os.path.exists(meta_file):
+            raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+        else:
+            self.parser.read_meta(f=meta_file)
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
@@ -257,6 +265,12 @@ class ConfigWorkflow(BundleWorkflow):
         Run the bundle workflow, it can be a training, evaluation or inference.
 
         """
+        _bundle_root_path = (
+            self.config_root_path.parent if self.config_root_path.name == "configs" else self.config_root_path
+        )
+        _scripts_fold = _bundle_root_path / "scripts"
+        if _scripts_fold.is_dir():
+            sys.path.append(_scripts_fold)
         if self.run_id not in self.parser:
             raise ValueError(f"run ID '{self.run_id}' doesn't exist in the config file.")
         return self._run_expr(id=self.run_id)
