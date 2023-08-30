@@ -317,12 +317,12 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         config_train_filename: bundle training config path relative to bundle_root. can be a list of files.
             defaults to "configs/train.json". only useful when `train_workflow` is None.
         train_kwargs: other args of the `ConfigWorkflow` of train, except for `config_file`, `meta_file`,
-            `logging_file`, `workflow`. only useful when `train_workflow` is None.
+            `logging_file`, `workflow_type`. only useful when `train_workflow` is None.
         config_evaluate_filename: bundle evaluation config path relative to bundle_root. can be a list of files.
             if "default", ["configs/train.json", "configs/evaluate.json"] will be used.
             this arg is only useful when `eval_workflow` is None.
         eval_kwargs: other args of the `ConfigWorkflow` of evaluation, except for `config_file`, `meta_file`,
-            `logging_file`, `workflow`. only useful when `eval_workflow` is None.
+            `logging_file`, `workflow_type`. only useful when `eval_workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
@@ -459,7 +459,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 config_file=config_eval_files,
                 meta_file=None,
                 logging_file=None,
-                workflow=self.eval_workflow_name,
+                workflow_type=self.eval_workflow_name,
                 **self.eval_kwargs,
             )
         if self.eval_workflow is not None:
