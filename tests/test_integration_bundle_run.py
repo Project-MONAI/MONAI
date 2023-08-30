@@ -56,7 +56,6 @@ class _Runnable43:
 class TestBundleRun(unittest.TestCase):
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
-        # self.data_dir = "/workspace/Code/MONAI/tests/testing_data"
 
     def tearDown(self):
         shutil.rmtree(self.data_dir)
