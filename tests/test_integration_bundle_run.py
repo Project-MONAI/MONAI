@@ -14,8 +14,8 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sys
 import subprocess
+import sys
 import tempfile
 import unittest
 from glob import glob
@@ -102,8 +102,11 @@ class TestBundleRun(unittest.TestCase):
         with open(config_file, "w") as f:
             json.dump(
                 {
-                    "imports": ["$import scripts",],
-                    "trainer": {"_target_": "tests.test_integration_bundle_run._Runnable43", "func": "$scripts.tiny_test"},
+                    "imports": ["$import scripts"],
+                    "trainer": {
+                        "_target_": "tests.test_integration_bundle_run._Runnable43",
+                        "func": "$scripts.tiny_test",
+                    },
                     # keep this test case to cover the "runner_id" arg
                     "training": "$@trainer.run()",
                 },
@@ -118,10 +121,10 @@ class TestBundleRun(unittest.TestCase):
         os.mkdir(scripts_dir)
         Lines = ["def tiny_test():\n", "    print('successfully added scripts fold!') \n"]
         Line = "from .test_scripts_fold import tiny_test\n"
-        with open(script_file, 'w') as f:
+        with open(script_file, "w") as f:
             f.writelines(Lines)
             f.close()
-        with open(init_file, 'w') as f:
+        with open(init_file, "w") as f:
             f.write(Line)
             f.close()
 
@@ -134,7 +137,15 @@ class TestBundleRun(unittest.TestCase):
         print(output)
 
         self.assertTrue(expected_condition in output)
-        command_run_workflow = cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file]
+        command_run_workflow = cmd + [
+            "run_workflow",
+            "--run_id",
+            "training",
+            "--config_file",
+            config_file,
+            "--meta_file",
+            meta_file,
+        ]
         completed_process = subprocess.run(command_run_workflow, check=True, capture_output=True, text=True)
         output = repr(completed_process.stdout).replace("\\n", "\n").replace("\\t", "\t")  # Get the captured output
         print(output)
