@@ -24,7 +24,7 @@ from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
-from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg_default, ensure_tuple, deprecated_arg
+from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, deprecated_arg_default, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -48,7 +48,13 @@ class BundleWorkflow(ABC):
     supported_train_type: tuple = ("train", "training")
     supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
 
-    @deprecated_arg("workflow", since="1.3", removed="1.5", new_name="workflow_type", msg_suffix="please use `workflow_type` instead.")
+    @deprecated_arg(
+        "workflow",
+        since="1.3",
+        removed="1.5",
+        new_name="workflow_type",
+        msg_suffix="please use `workflow_type` instead.",
+    )
     def __init__(self, workflow_type: str | None = None):
         if workflow_type is None:
             self.properties = copy(MetaProperties)
@@ -195,7 +201,13 @@ class ConfigWorkflow(BundleWorkflow):
 
     """
 
-    @deprecated_arg("workflow", since="1.3", removed="1.5", new_name="workflow_type", msg_suffix="please use `workflow_type` instead.")
+    @deprecated_arg(
+        "workflow",
+        since="1.3",
+        removed="1.5",
+        new_name="workflow_type",
+        msg_suffix="please use `workflow_type` instead.",
+    )
     @deprecated_arg_default("workflow_type", None, "train", since="1.3", replaced="1.4")
     def __init__(
         self,
