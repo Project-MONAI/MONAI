@@ -223,11 +223,17 @@ class ConfigWorkflow(BundleWorkflow):
     ) -> None:
         super().__init__(workflow_type=workflow_type)
         if config_file is not None:
-            _config_path = Path(ensure_tuple(config_file)[0])
-            if _config_path.is_file():
-                config_root_path = _config_path.parent
-            else:
-                raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
+            _config_files = ensure_tuple(config_file)
+            config_root_path = Path(_config_files[0]).parent
+            for _config_file in _config_files:
+                _config_file = Path(_config_file)
+                if _config_file.parent != config_root_path:
+                    warnings.warn(
+                        f"Not all config files are in {config_root_path}. If logging_file and meta_file are"
+                        f"not specified, {config_root_path} will be used as the default config root directory."
+                    )
+                if not _config_file.is_file():
+                    raise FileNotFoundError(f"Cannot find the config file: {_config_file}.")
         else:
             config_root_path = Path("configs")
 
