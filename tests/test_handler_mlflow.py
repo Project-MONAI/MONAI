@@ -255,7 +255,7 @@ class TestHandlerMLFlow(unittest.TestCase):
                 meta_file = os.path.join(bundle_root, "configs/metadata.json")
                 logging_file = os.path.join(bundle_root, "configs/logging.conf")
                 workflow = ConfigWorkflow(
-                    workflow="infer",
+                    workflow_type="infer",
                     config_file=config_file,
                     meta_file=meta_file,
                     logging_file=logging_file,

@@ -381,7 +381,7 @@ def load(
     name: str,
     model: torch.nn.Module | None = None,
     version: str | None = None,
-    workflow: str = "train",
+    workflow_type: str = "train",
     model_file: str | None = None,
     load_ts_module: bool = False,
     bundle_dir: PathLike | None = None,
@@ -413,7 +413,7 @@ def load(
         model: a pytorch module to be updated. Default to None, using the "network_def" in the bundle.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
             the latest version.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `train` for training workflow.
@@ -473,14 +473,14 @@ def load(
             progress=progress,
             args_file=args_file,
         )
-        train_config_file = bundle_dir_ / name / "configs" / f"{workflow}.json"
+        train_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
         if train_config_file.is_file():
             _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
             _workflow = create_workflow(
                 workflow_name=workflow_name,
                 args_file=args_file,
                 config_file=str(train_config_file),
-                workflow=workflow,
+                workflow_type=workflow_type,
                 **_net_override,
             )
         else:
@@ -1542,7 +1542,7 @@ def create_workflow(
     .. code-block:: python
 
         # Specify config_file path to create workflow:
-        workflow = create_workflow(config_file="/workspace/spleen_ct_segmentation/configs/train.json", workflow="train")
+        workflow = create_workflow(config_file="/workspace/spleen_ct_segmentation/configs/train.json", workflow_type="train")
 
         # Set the workflow to other customized BundleWorkflow subclass to create workflow:
         workflow = create_workflow(workflow_name=CustomizedWorkflow)

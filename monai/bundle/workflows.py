@@ -24,7 +24,7 @@ from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
-from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg_default, ensure_tuple
+from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg_default, ensure_tuple, deprecated_arg
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -38,7 +38,7 @@ class BundleWorkflow(ABC):
     And also provides the interface to get / set public properties to interact with a bundle workflow.
 
     Args:
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
@@ -48,19 +48,20 @@ class BundleWorkflow(ABC):
     supported_train_type: tuple = ("train", "training")
     supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
 
-    def __init__(self, workflow: str | None = None):
-        if workflow is None:
+    @deprecated_arg("workflow", since="1.3", removed="1.5", new_name="workflow_type", msg_suffix="please use `workflow_type` instead.")
+    def __init__(self, workflow_type: str | None = None):
+        if workflow_type is None:
             self.properties = copy(MetaProperties)
-            self.workflow = None
+            self.workflow_type = None
             return
-        if workflow.lower() in self.supported_train_type:
+        if workflow_type.lower() in self.supported_train_type:
             self.properties = {**TrainProperties, **MetaProperties}
-            self.workflow = "train"
-        elif workflow.lower() in self.supported_infer_type:
+            self.workflow_type = "train"
+        elif workflow_type.lower() in self.supported_infer_type:
             self.properties = {**InferProperties, **MetaProperties}
-            self.workflow = "infer"
+            self.workflow_type = "infer"
         else:
-            raise ValueError(f"Unsupported workflow type: '{workflow}'.")
+            raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
 
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
@@ -128,7 +129,7 @@ class BundleWorkflow(ABC):
         Get the workflow type, it can be `None`, "train", or "infer".
 
         """
-        return self.workflow
+        return self.workflow_type
 
     def add_property(self, name: str, required: str, desc: str | None = None) -> None:
         """
@@ -185,7 +186,7 @@ class ConfigWorkflow(BundleWorkflow):
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
@@ -194,7 +195,8 @@ class ConfigWorkflow(BundleWorkflow):
 
     """
 
-    @deprecated_arg_default("workflow", None, "train", since="1.3", replaced="1.4")
+    @deprecated_arg("workflow", since="1.3", removed="1.5", new_name="workflow_type", msg_suffix="please use `workflow_type` instead.")
+    @deprecated_arg_default("workflow_type", None, "train", since="1.3", replaced="1.4")
     def __init__(
         self,
         config_file: str | Sequence[str],
@@ -204,10 +206,10 @@ class ConfigWorkflow(BundleWorkflow):
         run_id: str = "run",
         final_id: str = "finalize",
         tracking: str | dict | None = None,
-        workflow: str | None = None,
+        workflow_type: str | None = None,
         **override: Any,
     ) -> None:
-        super().__init__(workflow=workflow)
+        super().__init__(workflow_type=workflow_type)
         if config_file is not None:
             _config_path = Path(ensure_tuple(config_file)[0])
             if _config_path.is_file():

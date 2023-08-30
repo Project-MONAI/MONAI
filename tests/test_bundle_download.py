@@ -195,7 +195,7 @@ class TestLoad(unittest.TestCase):
                 output = model(input_tensor)
                 model_path = f"{tempdir}/spleen_ct_segmentation/models/model.pt"
                 workflow = create_workflow(
-                    config_file=f"{tempdir}/spleen_ct_segmentation/configs/train.json", workflow="train"
+                    config_file=f"{tempdir}/spleen_ct_segmentation/configs/train.json", workflow_type="train"
                 )
                 expected_model = workflow.network_def.to(device)
                 expected_model.load_state_dict(torch.load(model_path))

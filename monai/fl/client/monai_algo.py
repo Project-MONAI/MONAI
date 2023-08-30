@@ -149,7 +149,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         if self.workflow is None:
             config_train_files = self._add_config_files(self.config_train_filename)
             self.workflow = ConfigWorkflow(
-                config_file=config_train_files, meta_file=None, logging_file=None, workflow="train"
+                config_file=config_train_files, meta_file=None, logging_file=None, workflow_type="train"
             )
         self.workflow.initialize()
         self.workflow.bundle_root = self.bundle_root
@@ -431,7 +431,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if "run_name" not in self.train_kwargs:
                 self.train_kwargs["run_name"] = f"{self.client_name}_{timestamp}"
             self.train_workflow = ConfigWorkflow(
-                config_file=config_train_files, meta_file=None, logging_file=None, workflow="train", **self.train_kwargs
+                config_file=config_train_files, meta_file=None, logging_file=None, workflow_type="train", **self.train_kwargs
             )
         if self.train_workflow is not None:
             self.train_workflow.initialize()
