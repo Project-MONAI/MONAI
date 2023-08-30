@@ -13,7 +13,7 @@ The predefined properties for a bundle workflow, other applications can leverage
 to interact with the bundle workflow.
 Some properties are required and some are optional, optional properties mean: if some component of the
 bundle workflow refer to the property, the property must be defined, otherwise, the property can be None.
-Every item in this `TrainProperties` or `InferProperties` dictionary is a property,
+Every item in this `TrainProperties` or `InferProperties` or `MetaProperties` dictionary is a property,
 the key is the property name and the values include:
 1. description.
 2. whether it's a required property.
@@ -47,6 +47,11 @@ TrainProperties = {
         BundleProperty.DESC: "training workflow engine.",
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"train{ID_SEP_KEY}trainer",
+    },
+    "network_def": {
+        BundleProperty.DESC: "network module for the training.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: "network_def",
     },
     "max_epochs": {
         BundleProperty.DESC: "max number of epochs to execute the training.",
@@ -214,5 +219,44 @@ InferProperties = {
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: "key_metric",
         BundlePropertyConfig.REF_ID: f"evaluator{ID_SEP_KEY}key_val_metric",
+    },
+}
+
+MetaProperties = {
+    "version": {
+        BundleProperty.DESC: "bundle version",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}version",
+    },
+    "monai_version": {
+        BundleProperty.DESC: "required monai version used for bundle",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}monai_version",
+    },
+    "pytorch_version": {
+        BundleProperty.DESC: "required pytorch version used for bundle",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}pytorch_version",
+    },
+    "numpy_version": {
+        BundleProperty.DESC: "required numpy version used for bundle",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}numpy_version",
+    },
+    "description": {
+        BundleProperty.DESC: "description for bundle",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}description",
+    },
+    "spatial_shape": {
+        BundleProperty.DESC: "spatial shape for the inputs",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}network_data_format{ID_SEP_KEY}inputs{ID_SEP_KEY}image"
+        f"{ID_SEP_KEY}spatial_shape",
+    },
+    "channel_def": {
+        BundleProperty.DESC: "channel definition for the prediction",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}network_data_format{ID_SEP_KEY}outputs{ID_SEP_KEY}pred{ID_SEP_KEY}channel_def",
     },
 }

@@ -23,9 +23,9 @@ from typing import Any, Sequence
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.properties import InferProperties, TrainProperties
+from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
-from monai.utils import BundleProperty, BundlePropertyConfig
+from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, deprecated_arg_default, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -39,7 +39,7 @@ class BundleWorkflow(ABC):
     And also provides the interface to get / set public properties to interact with a bundle workflow.
 
     Args:
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
@@ -49,19 +49,26 @@ class BundleWorkflow(ABC):
     supported_train_type: tuple = ("train", "training")
     supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
 
-    def __init__(self, workflow: str | None = None):
-        if workflow is None:
-            self.properties = None
-            self.workflow = None
+    @deprecated_arg(
+        "workflow",
+        since="1.3",
+        removed="1.5",
+        new_name="workflow_type",
+        msg_suffix="please use `workflow_type` instead.",
+    )
+    def __init__(self, workflow_type: str | None = None):
+        if workflow_type is None:
+            self.properties = copy(MetaProperties)
+            self.workflow_type = None
             return
-        if workflow.lower() in self.supported_train_type:
-            self.properties = copy(TrainProperties)
-            self.workflow = "train"
-        elif workflow.lower() in self.supported_infer_type:
-            self.properties = copy(InferProperties)
-            self.workflow = "infer"
+        if workflow_type.lower() in self.supported_train_type:
+            self.properties = {**TrainProperties, **MetaProperties}
+            self.workflow_type = "train"
+        elif workflow_type.lower() in self.supported_infer_type:
+            self.properties = {**InferProperties, **MetaProperties}
+            self.workflow_type = "infer"
         else:
-            raise ValueError(f"Unsupported workflow type: '{workflow}'.")
+            raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
 
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
@@ -129,7 +136,7 @@ class BundleWorkflow(ABC):
         Get the workflow type, it can be `None`, "train", or "infer".
 
         """
-        return self.workflow
+        return self.workflow_type
 
     def add_property(self, name: str, required: str, desc: str | None = None) -> None:
         """
@@ -167,18 +174,18 @@ class ConfigWorkflow(BundleWorkflow):
     For more information: https://docs.monai.io/en/latest/mb_specification.html.
 
     Args:
-        run_id: ID name of the expected config expression to run, default to "run".
-            to run the config, the target config must contain this ID.
-        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
-            allow a config to have no `initialize` logic and the ID.
-        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
-            allow a config to have no `finalize` logic and the ID.
-        meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
-        config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
+        config_file: filepath of the config file, if this is a list of file paths, their contents will be merged in order.
+        meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
+            If None, default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+            If None, default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+        init_id: ID name of the expected config expression to initialize before running, default to "initialize".
+            allow a config to have no `initialize` logic and the ID.
+        run_id: ID name of the expected config expression to run, default to "run".
+            to run the config, the target config must contain this ID.
+        final_id: ID name of the expected config expression to finalize after running, default to "finalize".
+            allow a config to have no `finalize` logic and the ID.
         tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
             if other string, treat it as file path to load the tracking settings.
@@ -186,7 +193,7 @@ class ConfigWorkflow(BundleWorkflow):
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
-        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
@@ -195,25 +202,39 @@ class ConfigWorkflow(BundleWorkflow):
 
     """
 
+    @deprecated_arg(
+        "workflow",
+        since="1.3",
+        removed="1.5",
+        new_name="workflow_type",
+        msg_suffix="please use `workflow_type` instead.",
+    )
+    @deprecated_arg_default("workflow_type", None, "train", since="1.3", replaced="1.4")
     def __init__(
         self,
         config_file: str | Sequence[str],
-        meta_file: str | Sequence[str] | None = "configs/metadata.json",
-        logging_file: str | None = "configs/logging.conf",
+        meta_file: str | Sequence[str] | None = None,
+        logging_file: str | None = None,
         init_id: str = "initialize",
         run_id: str = "run",
         final_id: str = "finalize",
         tracking: str | dict | None = None,
-        workflow: str | None = None,
+        workflow_type: str | None = None,
         **override: Any,
     ) -> None:
-        super().__init__(workflow=workflow)
+        super().__init__(workflow_type=workflow_type)
         if config_file is not None:
-            _config_path = Path(ensure_tuple(config_file)[0])
-            if _config_path.is_file():
-                self.config_root_path = _config_path.parent
-            else:
-                raise FileNotFoundError(f"Cannot find the config file: {config_file}.")
+            _config_files = ensure_tuple(config_file)
+            self.config_root_path = Path(_config_files[0]).parent
+            for _config_file in _config_files:
+                _config_file = Path(_config_file)
+                if _config_file.parent != self.config_root_path:
+                    warnings.warn(
+                        f"Not all config files are in {self.config_root_path}. If logging_file and meta_file are"
+                        f"not specified, {self.config_root_path} will be used as the default config root directory."
+                    )
+                if not _config_file.is_file():
+                    raise FileNotFoundError(f"Cannot find the config file: {_config_file}.")
         else:
             self.config_root_path = Path("configs")
 
