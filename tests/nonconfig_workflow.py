@@ -37,7 +37,7 @@ class NonConfigWorkflow(BundleWorkflow):
     """
 
     def __init__(self, filename, output_dir):
-        super().__init__(workflow="inference")
+        super().__init__(workflow_type="inference")
         self.filename = filename
         self.output_dir = output_dir
         self._bundle_root = "will override"
@@ -50,9 +50,25 @@ class NonConfigWorkflow(BundleWorkflow):
         self._preprocessing = None
         self._postprocessing = None
         self._evaluator = None
+        self._version = None
+        self._monai_version = None
+        self._pytorch_version = None
+        self._numpy_version = None
 
     def initialize(self):
         set_determinism(0)
+        if self._version is None:
+            self._version = "0.1.0"
+
+        if self._monai_version is None:
+            self._monai_version = "1.1.0"
+
+        if self._pytorch_version is None:
+            self._pytorch_version = "1.13.1"
+
+        if self._numpy_version is None:
+            self._numpy_version = "1.22.2"
+
         if self._preprocessing is None:
             self._preprocessing = Compose(
                 [LoadImaged(keys="image"), EnsureChannelFirstd(keys="image"), ScaleIntensityd(keys="image")]
@@ -118,6 +134,14 @@ class NonConfigWorkflow(BundleWorkflow):
             return self._preprocessing
         if name == "postprocessing":
             return self._postprocessing
+        if name == "version":
+            return self._version
+        if name == "monai_version":
+            return self._monai_version
+        if name == "pytorch_version":
+            return self._pytorch_version
+        if name == "numpy_version":
+            return self._numpy_version
         if property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
@@ -142,5 +166,13 @@ class NonConfigWorkflow(BundleWorkflow):
             self._preprocessing = value
         elif name == "postprocessing":
             self._postprocessing = value
+        elif name == "version":
+            self._version = value
+        elif name == "monai_version":
+            self._monai_version = value
+        elif name == "pytorch_version":
+            self._pytorch_version = value
+        elif name == "numpy_version":
+            self._numpy_version = value
         elif property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")

@@ -28,7 +28,6 @@ from torch.cuda import is_available
 
 from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
-from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -63,7 +62,7 @@ logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
 # set BUNDLE_DOWNLOAD_SRC="monaihosting" to use monaihosting source in default for bundle download
-download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 PPRINT_CONFIG_N = 5
 
 
@@ -253,7 +252,7 @@ def download(
     name: str | None = None,
     version: str | None = None,
     bundle_dir: PathLike | None = None,
-    source: str = download_source,
+    source: str = DEFAULT_DOWNLOAD_SOURCE,
     repo: str | None = None,
     url: str | None = None,
     remove_prefix: str | None = "monai_",
@@ -376,21 +375,28 @@ def download(
             )
 
 
+@deprecated_arg("net_name", since="1.3", removed="1.4", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("net_kwargs", since="1.3", removed="1.3", msg_suffix="please use ``model`` instead.")
 def load(
     name: str,
+    model: torch.nn.Module | None = None,
     version: str | None = None,
+    workflow_type: str = "train",
     model_file: str | None = None,
     load_ts_module: bool = False,
     bundle_dir: PathLike | None = None,
-    source: str = download_source,
+    source: str = DEFAULT_DOWNLOAD_SOURCE,
     repo: str | None = None,
     remove_prefix: str | None = "monai_",
     progress: bool = True,
     device: str | None = None,
     key_in_ckpt: str | None = None,
     config_files: Sequence[str] = (),
+    workflow_name: str | BundleWorkflow | None = None,
+    args_file: str | None = None,
+    copy_model_args: dict | None = None,
     net_name: str | None = None,
-    **net_kwargs: Any,
+    **net_override: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -402,8 +408,15 @@ def load(
             https://github.com/Project-MONAI/model-zoo/releases/tag/hosting_storage_v1.
             "monai_brats_mri_segmentation" in ngc:
             https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
+            "mednist_gan" in monaihosting:
+            https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/mednist_gan/versions/0.2.0/files/mednist_gan_v0.2.0.zip
+        model: a pytorch module to be updated. Default to None, using the "network_def" in the bundle.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
             the latest version.
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `train` for training workflow.
         model_file: the relative path of the model weights or TorchScript module within bundle.
             If `None`, "models/model.pt" or "models/model.ts" will be used.
         load_ts_module: a flag to specify if loading the TorchScript module.
@@ -417,7 +430,7 @@ def load(
             If used, it should be in the form of "repo_owner/repo_name/release_tag".
         remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
             have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
-            maintain the consistency between these two sources, remove prefix is necessary.
+            maintain the consistency between these three sources, remove prefix is necessary.
             Therefore, if specified, downloaded folder name will remove the prefix.
         progress: whether to display a progress bar when downloading.
         device: target device of returned weights or module, if `None`, prefer to "cuda" if existing.
@@ -425,13 +438,16 @@ def load(
             weights. if not nested checkpoint, no need to set.
         config_files: extra filenames would be loaded. The argument only works when loading a TorchScript module,
             see `_extra_files` in `torch.jit.load` for more details.
-        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
-            This argument only works when loading weights.
-        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
+        workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        args_file: a JSON or YAML file to provide default values for all the args in "download" function.
+        copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
+        net_override: id-value pairs to override the parameters in the network of the bundle.
 
     Returns:
-        1. If `load_ts_module` is `False` and `net_name` is `None`, return model weights.
-        2. If `load_ts_module` is `False` and `net_name` is not `None`,
+        1. If `load_ts_module` is `False` and `model` is `None`,
+            return model weights if can't find "network_def" in the bundle,
+            else return an instantiated network that loaded the weights.
+        2. If `load_ts_module` is `False` and `model` is not `None`,
             return an instantiated network that loaded the weights.
         3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
@@ -439,15 +455,14 @@ def load(
 
     """
     bundle_dir_ = _process_bundle_dir(bundle_dir)
+    copy_model_args = {} if copy_model_args is None else copy_model_args
 
+    if device is None:
+        device = "cuda:0" if is_available() else "cpu"
     if model_file is None:
         model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
-    if source == "ngc":
-        name = _add_ngc_prefix(name)
-        if remove_prefix:
-            name = _remove_ngc_prefix(name, prefix=remove_prefix)
     full_path = os.path.join(bundle_dir_, name, model_file)
-    if not os.path.exists(full_path):
+    if not os.path.exists(full_path) or model is None:
         download(
             name=name,
             version=version,
@@ -456,10 +471,21 @@ def load(
             repo=repo,
             remove_prefix=remove_prefix,
             progress=progress,
+            args_file=args_file,
         )
+        train_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
+        if train_config_file.is_file():
+            _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
+            _workflow = create_workflow(
+                workflow_name=workflow_name,
+                args_file=args_file,
+                config_file=str(train_config_file),
+                workflow_type=workflow_type,
+                **_net_override,
+            )
+        else:
+            _workflow = None
 
-    if device is None:
-        device = "cuda:0" if is_available() else "cpu"
     # loading with `torch.jit.load`
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
@@ -469,13 +495,12 @@ def load(
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    if net_name is None:
+    if model is None and _workflow is None:
         return model_dict
-    net_kwargs["_target_"] = net_name
-    configer = ConfigComponent(config=net_kwargs)
-    model = configer.instantiate()
-    model.to(device)  # type: ignore
-    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt])  # type: ignore
+    model = _workflow.network_def if model is None else model  # type: ignore
+    model.to(device)
+
+    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt], **copy_model_args)
     return model
 
 
@@ -675,12 +700,12 @@ def run(
         final_id: ID name of the expected config expression to finalize after running, default to "finalize".
             it's optional for both configs and this `run` function.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
-            Default to "configs/metadata.json", which is commonly used for bundles in MONAI model zoo.
+            Default to None.
         config_file: filepath of the config file, if `None`, must be provided in `args_file`.
             if it is a list of file paths, the content of them will be merged.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
-            Default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+            Default to None.
         tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
             if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
             if other string, treat it as file path to load the tracking settings.
@@ -695,46 +720,24 @@ def run(
 
     """
 
-    _args = _update_args(
-        args=args_file,
-        run_id=run_id,
-        init_id=init_id,
-        final_id=final_id,
-        meta_file=meta_file,
+    workflow = create_workflow(
         config_file=config_file,
+        args_file=args_file,
+        meta_file=meta_file,
         logging_file=logging_file,
+        init_id=init_id,
+        run_id=run_id,
+        final_id=final_id,
         tracking=tracking,
         **override,
     )
-    if "config_file" not in _args:
-        warnings.warn("`config_file` not provided for 'monai.bundle run'.")
-    _log_input_summary(tag="run", args=_args)
-    config_file_, meta_file_, init_id_, run_id_, final_id_, logging_file_, tracking_ = _pop_args(
-        _args,
-        config_file=None,
-        meta_file="configs/metadata.json",
-        init_id="initialize",
-        run_id="run",
-        final_id="finalize",
-        logging_file="configs/logging.conf",
-        tracking=None,
-    )
-    workflow = ConfigWorkflow(
-        config_file=config_file_,
-        meta_file=meta_file_,
-        logging_file=logging_file_,
-        init_id=init_id_,
-        run_id=run_id_,
-        final_id=final_id_,
-        tracking=tracking_,
-        **_args,
-    )
-    workflow.initialize()
     workflow.run()
     workflow.finalize()
 
 
-def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any) -> None:
+def run_workflow(
+    workflow_name: str | BundleWorkflow | None = None, args_file: str | None = None, **kwargs: Any
+) -> None:
     """
     Specify `bundle workflow` to run monai bundle components and workflows.
     The workflow should be subclass of `BundleWorkflow` and be available to import.
@@ -748,35 +751,17 @@ def run_workflow(workflow: str | BundleWorkflow | None = None, args_file: str | 
         python -m monai.bundle run_workflow --meta_file <meta path> --config_file <config path>
 
         # Set the workflow to other customized BundleWorkflow subclass:
-        python -m monai.bundle run_workflow --workflow CustomizedWorkflow ...
+        python -m monai.bundle run_workflow --workflow_name CustomizedWorkflow ...
 
     Args:
-        workflow: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for this API.
             so that the command line inputs can be simplified.
         kwargs: arguments to instantiate the workflow class.
 
     """
 
-    _args = _update_args(args=args_file, workflow=workflow, **kwargs)
-    _log_input_summary(tag="run", args=_args)
-    (workflow_name,) = _pop_args(_args, workflow=ConfigWorkflow)  # the default workflow name is "ConfigWorkflow"
-    if isinstance(workflow_name, str):
-        workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
-        if not has_built_in:
-            workflow_class = locate(str(workflow_name))  # search dotted path
-        if workflow_class is None:
-            raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
-    elif issubclass(workflow_name, BundleWorkflow):
-        workflow_class = workflow_name
-    else:
-        raise ValueError(
-            "Argument `workflow` must be a bundle workflow class name"
-            f"or subclass of BundleWorkflow, got: {workflow_name}."
-        )
-
-    workflow_ = workflow_class(**_args)
-    workflow_.initialize()
+    workflow_ = create_workflow(workflow_name=workflow_name, args_file=args_file, **kwargs)
     workflow_.run()
     workflow_.finalize()
 
@@ -1539,3 +1524,61 @@ def init_bundle(
         copyfile(str(ckpt_file), str(models_dir / "model.pt"))
     elif network is not None:
         save_state(network, str(models_dir / "model.pt"))
+
+
+def create_workflow(
+    workflow_name: str | BundleWorkflow | None = None,
+    config_file: str | Sequence[str] | None = None,
+    args_file: str | None = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Specify `bundle workflow` to create monai bundle workflows.
+    The workflow should be subclass of `BundleWorkflow` and be available to import.
+    It can be MONAI existing bundle workflows or user customized workflows.
+
+    Typical usage examples:
+
+    .. code-block:: python
+
+        # Specify config_file path to create workflow:
+        workflow = create_workflow(config_file="/workspace/spleen_ct_segmentation/configs/train.json", workflow_type="train")
+
+        # Set the workflow to other customized BundleWorkflow subclass to create workflow:
+        workflow = create_workflow(workflow_name=CustomizedWorkflow)
+
+    Args:
+        workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
+        config_file: filepath of the config file, if it is a list of file paths, the content of them will be merged.
+        args_file: a JSON or YAML file to provide default values for this API.
+            so that the command line inputs can be simplified.
+        kwargs: arguments to instantiate the workflow class.
+
+    """
+    _args = _update_args(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
+    _log_input_summary(tag="run", args=_args)
+    (workflow_name, config_file) = _pop_args(
+        _args, workflow_name=ConfigWorkflow, config_file=None
+    )  # the default workflow name is "ConfigWorkflow"
+    if isinstance(workflow_name, str):
+        workflow_class, has_built_in = optional_import("monai.bundle", name=str(workflow_name))  # search built-in
+        if not has_built_in:
+            workflow_class = locate(str(workflow_name))  # search dotted path
+        if workflow_class is None:
+            raise ValueError(f"cannot locate specified workflow class: {workflow_name}.")
+    elif issubclass(workflow_name, BundleWorkflow):  # type: ignore
+        workflow_class = workflow_name
+    else:
+        raise ValueError(
+            "Argument `workflow_name` must be a bundle workflow class name"
+            f"or subclass of BundleWorkflow, got: {workflow_name}."
+        )
+
+    if config_file is not None:
+        workflow_ = workflow_class(config_file=config_file, **_args)
+    else:
+        workflow_ = workflow_class(**_args)
+
+    workflow_.initialize()
+
+    return workflow_
