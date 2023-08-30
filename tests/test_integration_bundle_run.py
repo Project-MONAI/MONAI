@@ -118,13 +118,13 @@ class TestBundleRun(unittest.TestCase):
             )
 
         os.mkdir(scripts_dir)
-        Lines = ["def tiny_test():\n", "    print('successfully added scripts fold!') \n"]
-        Line = "from .test_scripts_fold import tiny_test\n"
+        script_file_lines = ["def tiny_test():\n", "    print('successfully added scripts fold!') \n"]
+        init_file_line = "from .test_scripts_fold import tiny_test\n"
         with open(script_file, "w") as f:
-            f.writelines(Lines)
+            f.writelines(script_file_lines)
             f.close()
         with open(init_file, "w") as f:
-            f.write(Line)
+            f.write(init_file_line)
             f.close()
 
         cmd = ["coverage", "run", "-m", "monai.bundle"]
