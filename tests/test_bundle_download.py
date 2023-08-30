@@ -16,12 +16,13 @@ import os
 import tempfile
 import unittest
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.apps import check_hash
-from monai.bundle import ConfigParser, load
+from monai.bundle import ConfigParser, create_workflow, load
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     assert_allclose,
@@ -62,6 +63,12 @@ TEST_CASE_6 = [
     ["models/model.pt", "models/model.ts", "configs/train.json"],
     "brats_mri_segmentation",
     "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/brats_mri_segmentation/versions/0.3.9/files/brats_mri_segmentation_v0.3.9.zip",
+]
+
+TEST_CASE_7 = [
+    "spleen_ct_segmentation",
+    "cuda" if torch.cuda.is_available() else "cpu",
+    {"spatial_dims": 3, "out_channels": 5},
 ]
 
 
@@ -146,7 +153,7 @@ class TestLoad(unittest.TestCase):
                     net_args = json.load(f)["network_def"]
                 model_name = net_args["_target_"]
                 del net_args["_target_"]
-                model = nets.__dict__[model_name](**net_args)
+                model = getattr(nets, model_name)(**net_args)
                 model.to(device)
                 model.load_state_dict(weights)
                 model.eval()
@@ -159,19 +166,57 @@ class TestLoad(unittest.TestCase):
 
                 # load instantiated model directly and test, since the bundle has been downloaded,
                 # there is no need to input `repo`
+                _model_2 = getattr(nets, model_name)(**net_args)
                 model_2 = load(
                     name=bundle_name,
+                    model=_model_2,
                     model_file=model_file,
                     bundle_dir=tempdir,
                     progress=False,
                     device=device,
                     net_name=model_name,
                     source="github",
-                    **net_args,
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+
+    @parameterized.expand([TEST_CASE_7])
+    @skip_if_quick
+    def test_load_weights_with_net_override(self, bundle_name, device, net_override):
+        with skip_if_downloading_fails():
+            # download bundle, and load weights from the downloaded path
+            with tempfile.TemporaryDirectory() as tempdir:
+                # load weights
+                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device)
+
+                # prepare data and test
+                input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
+                output = model(input_tensor)
+                model_path = f"{tempdir}/spleen_ct_segmentation/models/model.pt"
+                workflow = create_workflow(
+                    config_file=f"{tempdir}/spleen_ct_segmentation/configs/train.json", workflow_type="train"
+                )
+                expected_model = workflow.network_def.to(device)
+                expected_model.load_state_dict(torch.load(model_path))
+                expected_output = expected_model(input_tensor)
+                assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+
+                # using net_override to override kwargs in network directly
+                model_2 = load(
+                    name=bundle_name,
+                    bundle_dir=tempdir,
+                    source="monaihosting",
+                    progress=False,
+                    device=device,
+                    **net_override,
+                )
+
+                # prepare data and test
+                input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
+                output = model_2(input_tensor)
+                expected_shape = (1, 5, 96, 96, 96)
+                np.testing.assert_equal(output.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_5])
     @skip_if_quick

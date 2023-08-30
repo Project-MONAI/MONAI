@@ -41,15 +41,15 @@ class TestFLMonaiAlgo(DistTestCase):
             pathjoin(_data_dir, "config_fl_evaluate.json"),
             pathjoin(_data_dir, "multi_gpu_evaluate.json"),
         ]
-        train_workflow = ConfigWorkflow(config_file=train_configs, workflow="train", logging_file=_logging_file)
+        train_workflow = ConfigWorkflow(config_file=train_configs, workflow_type="train", logging_file=_logging_file)
         # simulate the case that this application has specific requirements for a bundle workflow
         train_workflow.add_property(name="loader", required=True, config_id="train#training_transforms#0", desc="NA")
 
         # initialize algo
         algo = MonaiAlgo(
             bundle_root=_data_dir,
-            train_workflow=ConfigWorkflow(config_file=train_configs, workflow="train", logging_file=_logging_file),
-            eval_workflow=ConfigWorkflow(config_file=eval_configs, workflow="train", logging_file=_logging_file),
+            train_workflow=ConfigWorkflow(config_file=train_configs, workflow_type="train", logging_file=_logging_file),
+            eval_workflow=ConfigWorkflow(config_file=eval_configs, workflow_type="train", logging_file=_logging_file),
             config_filters_filename=pathjoin(_root_dir, "testing_data", "config_fl_filters.json"),
         )
         algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
@@ -90,7 +90,7 @@ class TestFLMonaiAlgo(DistTestCase):
         algo = MonaiAlgo(
             bundle_root=_data_dir,
             config_train_filename=None,
-            eval_workflow=ConfigWorkflow(config_file=config_file, workflow="train", logging_file=_logging_file),
+            eval_workflow=ConfigWorkflow(config_file=config_file, workflow_type="train", logging_file=_logging_file),
             config_filters_filename=pathjoin(_data_dir, "config_fl_filters.json"),
         )
         algo.initialize(extra={ExtraItems.CLIENT_NAME: "test_fl"})
