@@ -15,6 +15,7 @@ import json
 import os
 import shutil
 import sys
+import subprocess
 import tempfile
 import unittest
 from glob import glob
@@ -44,9 +45,18 @@ class _Runnable42:
         return self.val
 
 
+class _Runnable43:
+    def __init__(self, func):
+        self.func = func
+
+    def run(self):
+        self.func()
+
+
 class TestBundleRun(unittest.TestCase):
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
+        # self.data_dir = "/workspace/Code/MONAI/tests/testing_data"
 
     def tearDown(self):
         shutil.rmtree(self.data_dir)
@@ -71,16 +81,61 @@ class TestBundleRun(unittest.TestCase):
         cmd = ["coverage", "run", "-m", "monai.bundle"]
         # test both CLI entry "run" and "run_workflow"
         command_line_tests(cmd + ["run", "training", "--config_file", config_file, "--meta_file", meta_file])
-        command_line_tests(
-            cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file]
-        )
+        command_line_tests(cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file])
         with self.assertRaises(RuntimeError):
             # test wrong run_id="run"
             command_line_tests(cmd + ["run", "run", "--config_file", config_file])
-
         with self.assertRaises(RuntimeError):
             # test missing meta file
             command_line_tests(cmd + ["run", "training", "--config_file", config_file])
+
+    def test_scripts_fold(self):
+        # test scripts directory has been added to Python search directories automatically
+        config_file = os.path.join(self.data_dir, "tiny_config.json")
+        meta_file = os.path.join(self.data_dir, "tiny_meta.json")
+        scripts_dir = os.path.join(self.data_dir, "scripts")
+        script_file = os.path.join(scripts_dir, "test_scripts_fold.py")
+        init_file = os.path.join(scripts_dir, "__init__.py")
+
+        with open(config_file, "w") as f:
+            json.dump(
+                {
+                    "imports": ["$import scripts",],
+                    "trainer": {"_target_": "tests.test_integration_bundle_run._Runnable43", "func": "$scripts.tiny_test"},
+                    # keep this test case to cover the "runner_id" arg
+                    "training": "$@trainer.run()",
+                },
+                f,
+            )
+        with open(meta_file, "w") as f:
+            json.dump(
+                {"version": "0.1.0", "monai_version": "1.1.0", "pytorch_version": "1.13.1", "numpy_version": "1.22.2"},
+                f,
+            )
+
+        os.mkdir(scripts_dir)
+        Lines = ["def tiny_test():\n", "    print('successfully added scripts fold!') \n"]
+        Line = "from .test_scripts_fold import tiny_test\n"
+        with open(script_file, 'w') as f:
+            f.writelines(Lines)
+            f.close()
+        with open(init_file, 'w') as f:
+            f.write(Line)
+            f.close()
+
+        cmd = ["coverage", "run", "-m", "monai.bundle"]
+        # test both CLI entry "run" and "run_workflow"
+        expected_condition = "successfully added scripts fold!"
+        command_run = cmd + ["run", "training", "--config_file", config_file, "--meta_file", meta_file]
+        completed_process = subprocess.run(command_run, check=True, capture_output=True, text=True)
+        output = repr(completed_process.stdout).replace("\\n", "\n").replace("\\t", "\t")  # Get the captured output
+        print(output)
+        self.assertTrue(expected_condition in output)
+        command_run_workflow = cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file]
+        completed_process = subprocess.run(command_run_workflow, check=True, capture_output=True, text=True)
+        output = repr(completed_process.stdout).replace("\\n", "\n").replace("\\t", "\t")  # Get the captured output
+        print(output)
+        self.assertTrue(expected_condition in output)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, config_file, expected_shape):

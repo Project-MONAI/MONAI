@@ -289,7 +289,7 @@ class ConfigWorkflow(BundleWorkflow):
         _bundle_root_path = (
             self.config_root_path.parent if self.config_root_path.name == "configs" else self.config_root_path
         )
-        sys.path.append(_bundle_root_path)
+        sys.path.append(str(_bundle_root_path))
         if self.run_id not in self.parser:
             raise ValueError(f"run ID '{self.run_id}' doesn't exist in the config file.")
         return self._run_expr(id=self.run_id)
