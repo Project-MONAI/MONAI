@@ -501,13 +501,12 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
         ):
             if self.ensure_same_shape and isinstance(d[key], MetaTensor):
-                if _init_shape is None:
-                    _init_shape = d[key].peek_pending_shape()
+                if _init_shape is None and _pixdim is None:
+                    _init_shape, _pixdim = d[key].peek_pending_shape(), d[key].pixdim
                 else:
                     should_match = np.allclose(_init_shape, d[key].peek_pending_shape()) and np.allclose(
                         _pixdim, d[key].pixdim, atol=1e-3
                     )
-                _pixdim = d[key].pixdim
             d[key] = self.spacing_transform(
                 data_array=d[key],
                 mode=mode,
@@ -518,7 +517,8 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
                 output_spatial_shape=output_shape_k if should_match else None,
                 lazy=lazy_,
             )
-            output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
+            if output_shape_k is None:
+                output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
