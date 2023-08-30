@@ -375,6 +375,8 @@ def download(
             )
 
 
+@deprecated_arg("net_name", since="1.3", removed="1.4", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("net_kwargs", since="1.3", removed="1.3", msg_suffix="please use ``model`` instead.")
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -393,6 +395,7 @@ def load(
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
     copy_model_args: dict | None = None,
+    net_name: str | None = None,
     **net_override: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
