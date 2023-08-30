@@ -81,7 +81,9 @@ class TestBundleRun(unittest.TestCase):
         cmd = ["coverage", "run", "-m", "monai.bundle"]
         # test both CLI entry "run" and "run_workflow"
         command_line_tests(cmd + ["run", "training", "--config_file", config_file, "--meta_file", meta_file])
-        command_line_tests(cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file])
+        command_line_tests(
+            cmd + ["run_workflow", "--run_id", "training", "--config_file", config_file, "--meta_file", meta_file]
+        )
         with self.assertRaises(RuntimeError):
             # test wrong run_id="run"
             command_line_tests(cmd + ["run", "run", "--config_file", config_file])
@@ -136,6 +138,10 @@ class TestBundleRun(unittest.TestCase):
         output = repr(completed_process.stdout).replace("\\n", "\n").replace("\\t", "\t")  # Get the captured output
         print(output)
         self.assertTrue(expected_condition in output)
+
+        with self.assertRaises(RuntimeError):
+            # test missing meta file
+            command_line_tests(cmd + ["run", "training", "--config_file", config_file])
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, config_file, expected_shape):
