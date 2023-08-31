@@ -59,13 +59,12 @@ def generate_apidocs(*args):
     import pandas as pd
     from monai.bundle.properties import TrainProperties, InferProperties, MetaProperties
 
-    csv_file = os.path.join(os.path.dirname(__file__), "train_properties.csv")   # used in mb_properties.rst
+    csv_file = os.path.join(os.path.dirname(__file__), "train_properties.csv")  # used in mb_properties.rst
     pd.DataFrame.from_dict(TrainProperties, orient="index").iloc[:, :3].to_csv(csv_file)
     csv_file = os.path.join(os.path.dirname(__file__), "infer_properties.csv")
     pd.DataFrame.from_dict(InferProperties, orient="index").iloc[:, :3].to_csv(csv_file)
     csv_file = os.path.join(os.path.dirname(__file__), "meta_properties.csv")
     pd.DataFrame.from_dict(MetaProperties, orient="index").iloc[:, :3].to_csv(csv_file)
-
 
     module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "monai"))
     output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "apidocs"))
