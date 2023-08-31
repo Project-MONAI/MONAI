@@ -1182,8 +1182,8 @@ class RandCropBoxByPosNegLabeld(Randomizable, MapTransform):
             image_size,
             fg_indices_,
             bg_indices_,
-            self.R,
-            self.allow_smaller,
+            allow_smaller=self.allow_smaller,
+            generator=self.R,
         )
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:

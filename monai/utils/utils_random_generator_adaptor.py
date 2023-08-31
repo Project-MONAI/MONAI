@@ -80,7 +80,7 @@ def _generate_legacy_random_state_deprecation_message(new_method_name: str) -> s
 class _LegacyRandomStateAdaptor(SupportsRandomGeneration):
     random_staters: np.random.RandomState
 
-    def __init__(self, seed: int | None = None, random_state: np.random.RandomState | None = None):
+    def __init__(self, /, seed: int | None = None, random_state: np.random.RandomState | None = None):
         if random_state is not None and seed is not None:
             raise ValueError("Cannot specify both rs and seed.")
         self.random_state = np.random.RandomState(seed=seed) if random_state is None else random_state
@@ -182,9 +182,9 @@ def _handle_legacy_random_state(
         generator = rand_state
         rand_state = None
     if isinstance(generator, np.random.RandomState):
-        generator = _LegacyRandomStateAdaptor(generator)
+        generator = _LegacyRandomStateAdaptor(random_state=generator)
 
     if generator is None and return_legacy_default_random:
-        generator = _LegacyRandomStateAdaptor(np.random.random.__self__)
+        generator = _LegacyRandomStateAdaptor(random_state=np.random.random.__self__)
 
     return generator

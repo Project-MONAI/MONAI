@@ -1168,7 +1168,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             _shape,
             fg_indices_,
             bg_indices_,
-            self.allow_smaller,
+            allow_smaller=self.allow_smaller,
             generator=self.R,
         )
 
@@ -1356,8 +1356,8 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             _shape,
             indices_,
             self.ratios,
-            self.allow_smaller,
-            self.warn,
+            allow_smaller=self.allow_smaller,
+            warn=self.warn,
             generator=self.R,
         )
 

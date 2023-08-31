@@ -68,7 +68,11 @@ from monai.utils import (
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
-from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration, _handle_legacy_random_state
+from monai.utils.utils_random_generator_adaptor import (
+    _LegacyRandomStateAdaptor,
+    SupportsRandomGeneration,
+    _handle_legacy_random_state,
+)
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
@@ -427,11 +431,15 @@ def map_classes_to_indices(
     return indices
 
 
+@deprecated_arg(
+    "r_state", since="1.3.0", removed="1.5.0", new_name="generator", msg_suffix="Please use `generator` instead."
+)
 def weighted_patch_samples(
     spatial_size: int | Sequence[int],
     w: NdarrayOrTensor,
     n_samples: int = 1,
     r_state: np.random.RandomState | None = None,
+    generator: SupportsRandomGeneration | None = None,
 ) -> list:
     """
     Computes `n_samples` of random patch sampling locations, given the sampling weight map `w` and patch `spatial_size`.
@@ -443,6 +451,7 @@ def weighted_patch_samples(
             The weight map shape is assumed ``(spatial_dim_0, spatial_dim_1, ..., spatial_dim_n)``.
         n_samples: number of patch samples
         r_state: a random state container
+        generator: a random number generator
 
     Returns:
         a list of `n_samples` N-D integers representing the spatial sampling location of patches.
@@ -451,8 +460,10 @@ def weighted_patch_samples(
     check_non_lazy_pending_ops(w, name="weighted_patch_samples")
     if w is None:
         raise ValueError("w must be an ND array, got None.")
-    if r_state is None:
-        r_state = np.random.RandomState()
+    generator = _handle_legacy_random_state(rand_state=r_state, generator=generator, return_legacy_default_random=False)
+    del r_state
+    if generator is None:
+        generator = _LegacyRandomStateAdaptor()
     img_size = np.asarray(w.shape, dtype=int)
     win_size = np.asarray(fall_back_tuple(spatial_size, img_size), dtype=int)
 
@@ -464,9 +475,9 @@ def weighted_patch_samples(
         v -= v.min()  # shifting to non-negative
     v = cumsum(v)
     if not v[-1] or not isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
-        idx = r_state.randint(0, len(v), size=n_samples)
+        idx = generator.integers(0, len(v), size=n_samples)
     else:
-        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)
+        r, *_ = convert_to_dst_type(generator.random(n_samples), v)
         idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
