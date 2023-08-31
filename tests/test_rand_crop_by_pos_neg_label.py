@@ -111,7 +111,7 @@ class TestRandCropByPosNegLabel(unittest.TestCase):
             input_param_mod = self.convert_data_type(p, input_param)
             input_data_mod = self.convert_data_type(p, input_data)
             cropper = RandCropByPosNegLabel(**input_param_mod)
-            cropper.set_random_state(0)
+            cropper.set_random_generator(0)
             result = cropper(**input_data_mod)
             self.assertListEqual(cropper.spatial_size, input_param["spatial_size"])
 
@@ -131,11 +131,11 @@ class TestRandCropByPosNegLabel(unittest.TestCase):
             input_data_mod = self.convert_data_type(p, input_data)
             cropper = RandCropByPosNegLabel(**input_param_mod)
             # non-lazy
-            cropper.set_random_state(0)
+            cropper.set_random_generator(0)
             expected = cropper(**input_data_mod)
             self.assertIsInstance(expected[0], MetaTensor)
             # lazy
-            cropper.set_random_state(0)
+            cropper.set_random_generator(0)
             cropper.lazy = True
             pending_result = cropper(**input_data_mod)
             for i, _pending_result in enumerate(pending_result):

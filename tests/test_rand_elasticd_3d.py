@@ -142,7 +142,7 @@ class TestRand3DElasticd(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_3d_elasticd(self, input_param, input_data, expected_val):
         g = Rand3DElasticd(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         if input_param.get("device", None) is None and isinstance(input_data["img"], torch.Tensor):
             input_data["img"].to("cuda:0" if torch.cuda.is_available() else "cpu")
         res = g(input_data)

@@ -24,7 +24,7 @@ class TestRandScaleIntensity(NumpyImageTestCase2D):
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_value(self, p):
         scaler = RandScaleIntensity(factors=0.5, prob=1.0)
-        scaler.set_random_state(seed=0)
+        scaler.set_random_generator(seed=0)
         im = p(self.imt)
         result = scaler(im)
         np.random.seed(0)
@@ -36,7 +36,7 @@ class TestRandScaleIntensity(NumpyImageTestCase2D):
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_channel_wise(self, p):
         scaler = RandScaleIntensity(factors=0.5, channel_wise=True, prob=1.0)
-        scaler.set_random_state(seed=0)
+        scaler.set_random_generator(seed=0)
         im = p(self.imt)
         result = scaler(im)
         np.random.seed(0)

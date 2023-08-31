@@ -90,12 +90,12 @@ class TestRand3DElastic(unittest.TestCase):
     def test_rand_3d_elastic(self, input_param, input_data, expected_val):
         g = Rand3DElastic(**input_param)
         set_track_meta(False)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         result = g(**input_data)
         self.assertNotIsInstance(result, MetaTensor)
         self.assertIsInstance(result, torch.Tensor)
         set_track_meta(True)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         result = g(**input_data)
         assert_allclose(result, expected_val, type_test=False, rtol=1e-1, atol=1e-1)
 

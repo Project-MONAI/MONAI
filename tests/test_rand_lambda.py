@@ -64,9 +64,9 @@ class TestRandLambda(unittest.TestCase):
         img_t = type(img)
 
         test_func = RandTest()
-        test_func.set_random_state(seed=134)
+        test_func.set_random_generator(seed=134)
         expected = test_func(img)
-        test_func.set_random_state(seed=134)
+        test_func.set_random_generator(seed=134)
 
         # default prob
         tr = RandLambda(func=test_func)
@@ -78,7 +78,7 @@ class TestRandLambda(unittest.TestCase):
         self.check(tr, img, img_t, ret, expected=img)
 
         trans = RandLambda(func=test_func, prob=0.5)
-        trans.set_random_state(seed=123)
+        trans.set_random_generator(seed=123)
         ret = trans(img)
         self.check(trans, img, img_t, ret, expected=img)
 

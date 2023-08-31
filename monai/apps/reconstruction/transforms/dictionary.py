@@ -26,6 +26,7 @@ from monai.transforms.intensity.array import NormalizeIntensity
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import FastMRIKeys
 from monai.utils.type_conversion import convert_to_tensor
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 
 class ExtractDataKeyFromMetaKeyd(MapTransform):
@@ -114,11 +115,11 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
             is_complex=is_complex,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandomKspaceMaskd:
-        super().set_random_state(seed, state)
-        self.masker.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.masker.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, Tensor]:
@@ -182,11 +183,11 @@ class EquispacedKspaceMaskd(RandomKspaceMaskd):
             is_complex=is_complex,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> EquispacedKspaceMaskd:
-        super().set_random_state(seed, state)
-        self.masker.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.masker.set_random_generator(seed, generator)
         return self
 
 

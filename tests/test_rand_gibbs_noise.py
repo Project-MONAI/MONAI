@@ -58,9 +58,9 @@ class TestRandGibbsNoise(unittest.TestCase):
         im = self.get_data(im_shape, input_type)
         alpha = [0.5, 0.8]
         t = RandGibbsNoise(1.0, alpha)
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out1 = t(deepcopy(im))
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out2 = t(deepcopy(im))
         assert_allclose(out1, out2, rtol=1e-7, atol=1e-2, type_test="tensor")
 

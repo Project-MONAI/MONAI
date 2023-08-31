@@ -29,7 +29,7 @@ class TestRandStdShiftIntensityd(NumpyImageTestCase2D):
             factor = np.random.uniform(low=-1.0, high=1.0)
             expected = self.imt + factor * np.std(self.imt)
             shifter = RandStdShiftIntensityd(keys=[key], factors=1.0, prob=1.0)
-            shifter.set_random_state(seed=0)
+            shifter.set_random_generator(seed=0)
             result = shifter({key: p(self.imt)})[key]
             assert_allclose(result, expected, rtol=1e-5, type_test="tensor")
 

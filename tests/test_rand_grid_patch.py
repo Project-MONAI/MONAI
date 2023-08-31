@@ -116,7 +116,7 @@ class TestRandGridPatch(unittest.TestCase):
     def test_rand_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = RandGridPatch(**input_parameters)
-        splitter.set_random_state(1234)
+        splitter.set_random_generator(1234)
         output = splitter(input_image)
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
@@ -132,7 +132,7 @@ class TestRandGridPatch(unittest.TestCase):
     def test_rand_grid_patch_meta(self, input_parameters, image, expected, expected_meta):
         set_track_meta(True)
         splitter = RandGridPatch(**input_parameters)
-        splitter.set_random_state(1234)
+        splitter.set_random_generator(1234)
         output = splitter(image)
         self.assertEqual(len(output), len(expected))
         if "path" in expected_meta[0]:

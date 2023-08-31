@@ -71,7 +71,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
             RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
         ]
     )
-    train_transforms.set_random_state(1234)
+    train_transforms.set_random_generator(1234)
     val_transforms = Compose(
         [
             LoadImage(image_only=True, simple_keys=True),

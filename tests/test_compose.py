@@ -175,9 +175,9 @@ class TestCompose(unittest.TestCase):
 
         c = mt.Compose([_Acc(), _Acc()])
         self.assertNotAlmostEqual(c(0), c(0))
-        c.set_random_state(123)
+        c.set_random_generator(123)
         self.assertAlmostEqual(c(1), 1.61381597)
-        c.set_random_state(223)
+        c.set_random_generator(223)
         c.randomize()
         self.assertAlmostEqual(c(1), 1.90734751)
 
@@ -202,7 +202,7 @@ class TestCompose(unittest.TestCase):
         xform_1 = mt.Compose([_RandXform()])
         train_ds = Dataset([1], transform=xform_1)
 
-        xform_1.set_random_state(123)
+        xform_1.set_random_generator(123)
         out_1 = train_ds[0]
         self.assertAlmostEqual(out_1, 0.2045649)
 

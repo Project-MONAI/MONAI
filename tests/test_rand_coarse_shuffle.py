@@ -55,7 +55,7 @@ class TestRandCoarseShuffle(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shuffle(self, input_param, input_data, expected_val):
         g = RandCoarseShuffle(**input_param)
-        g.set_random_state(seed=12)
+        g.set_random_generator(seed=12)
         result = g(**input_data)
         np.testing.assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4)
 

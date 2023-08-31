@@ -74,7 +74,7 @@ class TestRandGaussianSmooth(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         randsimlowres = RandSimulateLowResolution(**arguments)
-        randsimlowres.set_random_state(seed=0)
+        randsimlowres.set_random_generator(seed=0)
         result = randsimlowres(image)
         assert_allclose(result, expected_data, rtol=1e-4, type_test="tensor")
 

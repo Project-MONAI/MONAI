@@ -70,6 +70,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TraceKeys
 from monai.utils.module import optional_import
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 nib, _ = optional_import("nibabel")
 
@@ -1102,9 +1103,11 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         self._lazy = val
         self.rand_affine.lazy = val
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffined:
-        self.rand_affine.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandAffined:
+        self.rand_affine.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def __call__(
@@ -1267,9 +1270,11 @@ class Rand2DElasticd(RandomizableTransform, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand2DElasticd:
-        self.rand_2d_elastic.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Rand2DElasticd:
+        self.rand_2d_elastic.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1418,9 +1423,11 @@ class Rand3DElasticd(RandomizableTransform, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand3DElasticd:
-        self.rand_3d_elastic.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Rand3DElasticd:
+        self.rand_3d_elastic.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1565,8 +1572,10 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         self.flipper.lazy = val
         self._lazy = val
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandFlipd:
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandFlipd:
+        super().set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
@@ -1638,9 +1647,11 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
         self.flipper.lazy = val
         self._lazy = val
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAxisFlipd:
-        super().set_random_state(seed, state)
-        self.flipper.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandAxisFlipd:
+        super().set_random_generator(seed, generator)
+        self.flipper.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
@@ -1849,9 +1860,11 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         self.rand_rotate.lazy = val
         self._lazy = val
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRotated:
-        super().set_random_state(seed, state)
-        self.rand_rotate.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandRotated:
+        super().set_random_generator(seed, generator)
+        self.rand_rotate.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
@@ -2077,9 +2090,11 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         self.rand_zoom.lazy = val
         self._lazy = val
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomd:
-        super().set_random_state(seed, state)
-        self.rand_zoom.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandZoomd:
+        super().set_random_generator(seed, generator)
+        self.rand_zoom.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
@@ -2249,11 +2264,11 @@ class RandGridDistortiond(RandomizableTransform, MapTransform):
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandGridDistortiond:
-        super().set_random_state(seed, state)
-        self.rand_grid_distortion.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.rand_grid_distortion.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -2497,9 +2512,11 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
             **pad_kwargs,
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGridPatchd:
-        super().set_random_state(seed, state)
-        self.patcher.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandGridPatchd:
+        super().set_random_generator(seed, generator)
+        self.patcher.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -2580,10 +2597,10 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
             device=self.device,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSimulateLowResolutiond:
-        super().set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:

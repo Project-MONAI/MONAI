@@ -72,7 +72,7 @@ class TestMatshow3d(unittest.TestCase):
             ]
         )
         image_path = os.path.join(testing_dir, "anatomical.nii")
-        xforms.set_random_state(0)
+        xforms.set_random_generator(0)
         ims = xforms({keys: image_path})
         fig, mat = matshow3d(
             [im[keys] for im in ims], title=f"testing {keys}", figsize=(2, 2), frames_per_row=5, every_n=2, show=False

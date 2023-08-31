@@ -30,6 +30,6 @@ class TestRandomizableTransformType(unittest.TestCase):
         inst = InheritsInterface()
         self.assertIsInstance(inst, RandomizableTrait)
 
-    def test_set_random_state_randomizable_transform(self):
+    def test_set_random_generator_randomizable_transform(self):
         inst = InheritsImplementation()
-        inst.set_random_state(0)
+        inst.set_random_generator(0)

@@ -129,7 +129,7 @@ class TestRandDeformGrid(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_rand_deform_grid(self, input_param, input_data, expected_val):
         g = RandDeformGrid(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         result = g(**input_data)
         assert_allclose(result, expected_val, type_test=False, rtol=1e-3, atol=1e-3)
 

@@ -81,7 +81,7 @@ class CropTest(unittest.TestCase):
     def multi_inverse(self, input_shape, init_params):
         input_data = np.arange(np.prod(input_shape)).reshape(*input_shape) + 1
         xform = self.Cropper(**init_params)
-        xform.set_random_state(1234)
+        xform.set_random_generator(1234)
         out = xform(input_data)
         if "num_samples" in init_params:
             self.assertEqual(len(out), init_params["num_samples"])
@@ -148,7 +148,7 @@ class CropTest(unittest.TestCase):
         non_lazy_result = input_data
         for _func in _funcs:
             if isinstance(_func, Randomizable):
-                _func.set_random_state(seed=123)
+                _func.set_random_generator(seed=123)
             non_lazy_result = _func(non_lazy_result)
         expected = non_lazy_result["img"] if is_map else non_lazy_result
         self.assertIsInstance(expected, MetaTensor)
@@ -158,7 +158,7 @@ class CropTest(unittest.TestCase):
         for _func in _funcs:
             _func.lazy = True
             if isinstance(_func, Randomizable):
-                _func.set_random_state(seed=123)
+                _func.set_random_generator(seed=123)
             pending_result = _func(pending_result)
         pending_result = pending_result["img"] if is_map else pending_result
         self.assertIsInstance(pending_result, MetaTensor)

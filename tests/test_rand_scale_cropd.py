@@ -84,7 +84,7 @@ class TestRandScaleCropd(CropTest):
         for im_type in TEST_NDARRAYS_ALL:
             with self.subTest(im_type=im_type):
                 cropper = self.Cropper(**input_param)
-                cropper.set_random_state(seed=123)
+                cropper.set_random_generator(seed=123)
                 input_data = {"img": im_type(np.random.randint(0, 2, input_shape))}
                 result = cropper(input_data)["img"]
                 self.assertTupleEqual(result.shape, expected_shape)

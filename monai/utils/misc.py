@@ -334,7 +334,7 @@ def set_determinism(
     Note:
 
         This function will not affect the randomizable objects in :py:class:`monai.transforms.Randomizable`, which
-        have independent random states. For those objects, the ``set_random_state()`` method should be used to
+        have independent random states. For those objects, the ``set_random_generator()`` method should be used to
         ensure the deterministic behavior (alternatively, :py:class:`monai.data.DataLoader` by default sets the seeds
         according to the global random state, please see also: :py:class:`monai.data.utils.worker_init_fn` and
         :py:class:`monai.data.utils.set_rnd`).

@@ -239,7 +239,7 @@ class SlidingPatchWSIDataset(Randomizable, PatchWSIDataset):
             **kwargs,
         )
         self.overlap = overlap
-        self.set_random_state(seed)
+        self.set_random_generator(seed)
         # Set the offset config
         self.random_offset = False
         if isinstance(offset, str):

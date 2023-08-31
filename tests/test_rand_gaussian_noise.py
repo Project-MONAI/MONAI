@@ -31,7 +31,7 @@ class TestRandGaussianNoise(NumpyImageTestCase2D):
     def test_correct_results(self, _, im_type, mean, std):
         seed = 0
         gaussian_fn = RandGaussianNoise(prob=1.0, mean=mean, std=std)
-        gaussian_fn.set_random_state(seed)
+        gaussian_fn.set_random_generator(seed)
         im = im_type(self.imt)
         noised = gaussian_fn(im)
         np.random.seed(seed)

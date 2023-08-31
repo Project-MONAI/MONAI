@@ -90,7 +90,7 @@ class ImageDataset(Dataset, Randomizable):
         self.image_only = image_only
         self.transform_with_metadata = transform_with_metadata
         self.loader = LoadImage(reader, image_only, dtype, *args, **kwargs)
-        self.set_random_state(seed=get_seed())
+        self.set_random_generator(seed=get_seed())
         self._seed = 0  # transform synchronization seed
 
     def __len__(self) -> int:
@@ -116,7 +116,7 @@ class ImageDataset(Dataset, Randomizable):
         # apply the transforms
         if self.transform is not None:
             if isinstance(self.transform, Randomizable):
-                self.transform.set_random_state(seed=self._seed)
+                self.transform.set_random_generator(seed=self._seed)
 
             if self.transform_with_metadata:
                 img, meta_data = apply_transform(self.transform, (img, meta_data), map_items=False, unpack_items=True)
@@ -125,7 +125,7 @@ class ImageDataset(Dataset, Randomizable):
 
         if self.seg_files is not None and self.seg_transform is not None:
             if isinstance(self.seg_transform, Randomizable):
-                self.seg_transform.set_random_state(seed=self._seed)
+                self.seg_transform.set_random_generator(seed=self._seed)
 
             if self.transform_with_metadata:
                 seg, seg_meta_data = apply_transform(

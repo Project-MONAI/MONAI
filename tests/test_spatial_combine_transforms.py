@@ -155,7 +155,7 @@ class CombineLazyTest(unittest.TestCase):
                 non_lazy_result = input_data
                 for _func in _funcs:
                     if isinstance(_func, mt.Randomizable):
-                        _func.set_random_state(seed=seed)
+                        _func.set_random_generator(seed=seed)
                     non_lazy_result = _func(non_lazy_result)
                 expected = non_lazy_result["img"] if is_map else non_lazy_result
 
@@ -164,7 +164,7 @@ class CombineLazyTest(unittest.TestCase):
                 for _func in _funcs:
                     _func.lazy = True
                     if isinstance(_func, mt.Randomizable):
-                        _func.set_random_state(seed=seed)
+                        _func.set_random_generator(seed=seed)
                     pending_result = _func(pending_result)
                 pending_result = pending_result["img"] if is_map else pending_result
 

@@ -26,7 +26,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
     def test_default(self):
         rotate = RandRotate90()
         for p in TEST_NDARRAYS_ALL:
-            rotate.set_random_state(123)
+            rotate.set_random_generator(123)
             im = p(self.imt[0])
             call_param = {"img": im}
             rotated = rotate(**call_param)
@@ -50,7 +50,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             self.assertIsInstance(rotated, torch.Tensor)
 
             set_track_meta(True)
-            rotate.set_random_state(123)
+            rotate.set_random_generator(123)
             call_param = {"img": im}
             rotated = rotate(**call_param)
             test_local_inversion(rotate, rotated, im)
@@ -65,7 +65,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
     def test_spatial_axes(self):
         rotate = RandRotate90(spatial_axes=(0, 1), prob=1.0)
         for p in TEST_NDARRAYS_ALL:
-            rotate.set_random_state(1234)
+            rotate.set_random_generator(1234)
             im = p(self.imt[0])
             call_param = {"img": im}
             rotated = rotate(**call_param)
@@ -82,7 +82,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
     def test_prob_k_spatial_axes(self):
         rotate = RandRotate90(prob=1.0, max_k=2, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS_ALL:
-            rotate.set_random_state(234)
+            rotate.set_random_generator(234)
             im = p(self.imt[0])
             call_param = {"img": im}
             rotated = rotate(**call_param)

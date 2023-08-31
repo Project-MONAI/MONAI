@@ -15,7 +15,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-import numpy as np
 import torch
 from torch.nn.functional import grid_sample, interpolate
 
@@ -28,6 +27,7 @@ from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode
 from monai.utils.enums import TransformBackends
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 __all__ = ["SmoothField", "RandSmoothFieldAdjustContrast", "RandSmoothFieldAdjustIntensity", "RandSmoothDeform"]
 
@@ -200,11 +200,11 @@ class RandSmoothFieldAdjustContrast(RandomizableTransform):
             device=device,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSmoothFieldAdjustContrast:
-        super().set_random_state(seed, state)
-        self.sfield.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.sfield.set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -301,11 +301,11 @@ class RandSmoothFieldAdjustIntensity(RandomizableTransform):
             device=device,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSmoothFieldAdjustIntensity:
-        super().set_random_state(seed, state)
-        self.sfield.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.sfield.set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -415,9 +415,11 @@ class RandSmoothDeform(RandomizableTransform):
 
         self.grid = torch.stack(grid).unsqueeze(0).to(self.device, self.grid_dtype)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Randomizable:
-        super().set_random_state(seed, state)
-        self.sfield.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Randomizable:
+        super().set_random_generator(seed, generator)
+        self.sfield.set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:

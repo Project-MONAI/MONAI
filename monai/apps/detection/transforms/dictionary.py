@@ -50,6 +50,7 @@ from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_bina
 from monai.utils import InterpolateMode, NumpyPadMode, ensure_tuple, ensure_tuple_rep, fall_back_tuple
 from monai.utils.enums import PostFix, TraceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 __all__ = [
     "StandardizeEmptyBoxd",
@@ -566,9 +567,11 @@ class RandZoomBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.align_corners = ensure_tuple_rep(align_corners, len(self.image_keys))
         self.keep_size = keep_size
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomBoxd:
-        super().set_random_state(seed, state)
-        self.rand_zoom.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Randomizable:
+        super().set_random_generator(seed, generator=generator)
+        self.rand_zoom.set_random_generator(seed, generator=generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -735,8 +738,10 @@ class RandFlipBoxd(RandomizableTransform, MapTransform, InvertibleTransform):
         self.flipper = Flip(spatial_axis=spatial_axis)
         self.box_flipper = FlipBox(spatial_axis=spatial_axis)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandFlipBoxd:
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandFlipBoxd:
+        super().set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:

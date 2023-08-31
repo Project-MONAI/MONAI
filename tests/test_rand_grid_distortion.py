@@ -87,7 +87,7 @@ class TestRandGridDistortion(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_grid_distortion(self, input_param, seed, input_data, expected_val):
         g = RandGridDistortion(**input_param)
-        g.set_random_state(seed=seed)
+        g.set_random_generator(seed=seed)
         result = g(input_data)
         if input_param["padding_mode"] != "reflection":
             assert_allclose(result, expected_val, type_test="tensor", rtol=1e-4, atol=1e-4)

@@ -58,6 +58,7 @@ from monai.utils import (
     look_up_option,
     pytorch_after,
 )
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 __all__ = [
     "Pad",
@@ -753,11 +754,11 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         self.num_samples = num_samples
         self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSpatialCropSamples:
-        super().set_random_state(seed, state)
-        self.cropper.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.cropper.set_random_generator(seed, generator)
         return self
 
     @LazyTransform.lazy.setter  # type: ignore
@@ -996,7 +997,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.centers = weighted_patch_samples(
-            spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
+            spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, generator=self.R
         )  # using only the first channel as weight map
 
     @LazyTransform.lazy.setter  # type: ignore

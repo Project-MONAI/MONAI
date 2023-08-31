@@ -94,7 +94,7 @@ class TestArrayDataset(unittest.TestCase):
             test_labels = [1, 1]
             dataset = ArrayDataset(test_images, img_transform, test_segs, label_transform, test_labels, None)
             self.assertEqual(len(dataset), 2)
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             data1 = dataset[0]
             data2 = dataset[1]
 
@@ -106,7 +106,7 @@ class TestArrayDataset(unittest.TestCase):
             np.testing.assert_allclose(data2[indices[0]], data2[indices[0]])
 
             dataset = ArrayDataset(test_images, img_transform, test_segs, label_transform, test_labels, None)
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             _ = dataset[0]
             data2_new = dataset[1]
             np.testing.assert_allclose(data2[indices[0]], data2_new[indices[0]], atol=1e-3)
@@ -122,14 +122,14 @@ class TestArrayDataset(unittest.TestCase):
             test_images = [test_image1, test_image2]
             dataset = ArrayDataset(test_images, img_transform)
             self.assertEqual(len(dataset), 2)
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             data1 = dataset[0]
             data2 = dataset[1]
             self.assertTupleEqual(data1.shape, expected_shape)
             self.assertTupleEqual(data2.shape, expected_shape)
 
             dataset = ArrayDataset(test_images, img_transform)
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             _ = dataset[0]
             data2_new = dataset[1]
             np.testing.assert_allclose(data2, data2_new, atol=1e-3)
@@ -145,13 +145,13 @@ class TestArrayDataset(unittest.TestCase):
             test_images = [test_image1, test_image2]
             dataset = ArrayDataset(test_images, img_transform)
             self.assertEqual(len(dataset), 2)
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             n_workers = 0 if sys.platform == "win32" else 2
             loader = DataLoader(dataset, batch_size=10, num_workers=n_workers)
             imgs = next(iter(loader))  # test batching
             np.testing.assert_allclose(imgs.shape, [2] + list(expected_shape))
 
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             new_imgs = next(iter(loader))  # test batching
             np.testing.assert_allclose(imgs, new_imgs, atol=1e-3)
 
@@ -171,13 +171,13 @@ class TestArrayDataset(unittest.TestCase):
             test_labels = [test_label1, test_label2]
             dataset = ArrayDataset(test_images, img_transform, test_labels, img_transform)
             self.assertEqual(len(dataset), 2)
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             n_workers = 0 if sys.platform == "win32" else 2
             loader = DataLoader(dataset, batch_size=10, num_workers=n_workers)
             data = next(iter(loader))  # test batching
             np.testing.assert_allclose(data[0].shape, [2] + list(expected_shape))
 
-            dataset.set_random_state(1234)
+            dataset.set_random_generator(1234)
             new_data = next(iter(loader))  # test batching
             np.testing.assert_allclose(data[0], new_data[0], atol=1e-3)
 

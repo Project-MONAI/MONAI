@@ -77,6 +77,7 @@ from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBack
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -2464,9 +2465,11 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             else self._cached_grid
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffine:
-        self.rand_affine_grid.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandAffine:
+        self.rand_affine_grid.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -2670,10 +2673,12 @@ class Rand2DElastic(RandomizableTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand2DElastic:
-        self.deform_grid.set_random_state(seed, state)
-        self.rand_affine_grid.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Rand2DElastic:
+        self.deform_grid.set_random_generator(seed, generator)
+        self.rand_affine_grid.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def set_device(self, device):
@@ -2844,9 +2849,11 @@ class Rand3DElastic(RandomizableTransform):
         self.magnitude = 1.0
         self.sigma = 1.0
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand3DElastic:
-        self.rand_affine_grid.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Rand3DElastic:
+        self.rand_affine_grid.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def set_device(self, device):

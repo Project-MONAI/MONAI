@@ -76,14 +76,14 @@ class TestRandSpatialCrop(CropTest):
         for im_type in TEST_NDARRAYS_ALL:
             with self.subTest(im_type=im_type):
                 cropper = RandSpatialCrop(**input_param)
-                cropper.set_random_state(seed=123)
+                cropper.set_random_generator(seed=123)
                 input_data = im_type(np.random.randint(0, 2, input_shape))
                 expected = cropper(input_data)
                 self.assertTupleEqual(expected.shape, expected_shape)
 
                 # lazy
                 # reset random seed to ensure the same results
-                cropper.set_random_state(seed=123)
+                cropper.set_random_generator(seed=123)
                 cropper.lazy = True
                 pending_result = cropper(input_data)
                 self.assertIsInstance(pending_result, MetaTensor)

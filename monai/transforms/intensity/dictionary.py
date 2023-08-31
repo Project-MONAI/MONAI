@@ -63,6 +63,7 @@ from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.transforms.utils import is_positive
 from monai.utils import convert_to_tensor, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 __all__ = [
     "RandGaussianNoised",
@@ -200,11 +201,11 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0, dtype=dtype)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandGaussianNoised:
-        super().set_random_state(seed, state)
-        self.rand_gaussian_noise.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.rand_gaussian_noise.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -279,9 +280,11 @@ class RandRicianNoised(RandomizableTransform, MapTransform):
             dtype=dtype,
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRicianNoised:
-        super().set_random_state(seed, state)
-        self.rand_rician_noise.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandRicianNoised:
+        super().set_random_generator(seed, generator)
+        self.rand_rician_noise.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -411,11 +414,11 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.shifter = RandShiftIntensity(offsets=offsets, safe=safe, prob=1.0)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandShiftIntensityd:
-        super().set_random_state(seed, state)
-        self.shifter.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.shifter.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data) -> dict[Hashable, NdarrayOrTensor]:
@@ -509,11 +512,11 @@ class RandStdShiftIntensityd(RandomizableTransform, MapTransform):
             factors=factors, nonzero=nonzero, channel_wise=channel_wise, dtype=dtype, prob=1.0
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandStdShiftIntensityd:
-        super().set_random_state(seed, state)
-        self.shifter.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.shifter.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -608,11 +611,11 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0, channel_wise=channel_wise)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandScaleIntensityd:
-        super().set_random_state(seed, state)
-        self.scaler.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.scaler.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -680,11 +683,11 @@ class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
             factors=factors, fixed_mean=self.fixed_mean, preserve_range=preserve_range, dtype=dtype, prob=1.0
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandScaleIntensityFixedMeand:
-        super().set_random_state(seed, state)
-        self.scaler.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.scaler.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -735,9 +738,11 @@ class RandBiasFieldd(RandomizableTransform, MapTransform):
 
         self.rand_bias_field = RandBiasField(degree=degree, coeff_range=coeff_range, dtype=dtype, prob=1.0)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandBiasFieldd:
-        super().set_random_state(seed, state)
-        self.rand_bias_field.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandBiasFieldd:
+        super().set_random_generator(seed, generator)
+        self.rand_bias_field.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -962,11 +967,11 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0, invert_image=invert_image, retain_stats=retain_stats)
         self.invert_image = invert_image
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandAdjustContrastd:
-        super().set_random_state(seed, state)
-        self.adjuster.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.adjuster.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1204,11 +1209,11 @@ class RandGaussianSmoothd(RandomizableTransform, MapTransform):
             sigma_x=sigma_x, sigma_y=sigma_y, sigma_z=sigma_z, approx=approx, prob=1.0
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandGaussianSmoothd:
-        super().set_random_state(seed, state)
-        self.rand_smooth.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.rand_smooth.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1321,11 +1326,11 @@ class RandGaussianSharpend(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandGaussianSharpend:
-        super().set_random_state(seed, state)
-        self.rand_sharpen.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.rand_sharpen.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1371,11 +1376,11 @@ class RandHistogramShiftd(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob)
         self.shifter = RandHistogramShift(num_control_points=num_control_points, prob=1.0)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandHistogramShiftd:
-        super().set_random_state(seed, state)
-        self.shifter.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.shifter.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1431,9 +1436,11 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob=prob)
         self.rand_gibbs_noise = RandGibbsNoise(alpha=alpha, prob=1.0)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandGibbsNoised:
-        super().set_random_state(seed, state)
-        self.rand_gibbs_noise.set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandGibbsNoised:
+        super().set_random_generator(seed, generator)
+        self.rand_gibbs_noise.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1599,11 +1606,11 @@ class RandKSpaceSpikeNoised(RandomizableTransform, MapTransform):
         RandomizableTransform.__init__(self, prob=prob)
         self.rand_noise = RandKSpaceSpikeNoise(prob=1.0, intensity_range=intensity_range, channel_wise=channel_wise)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandKSpaceSpikeNoised:
-        super().set_random_state(seed, state)
-        self.rand_noise.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.rand_noise.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: dict[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1677,11 +1684,11 @@ class RandCoarseDropoutd(RandomizableTransform, MapTransform):
             prob=1.0,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandCoarseDropoutd:
-        super().set_random_state(seed, state)
-        self.dropper.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.dropper.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1750,11 +1757,11 @@ class RandCoarseShuffled(RandomizableTransform, MapTransform):
             holes=holes, spatial_size=spatial_size, max_holes=max_holes, max_spatial_size=max_spatial_size, prob=1.0
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandCoarseShuffled:
-        super().set_random_state(seed, state)
-        self.shuffle.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.shuffle.set_random_generator(seed, generator)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:

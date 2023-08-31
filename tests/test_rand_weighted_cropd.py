@@ -151,7 +151,7 @@ class TestRandWeightedCrop(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_weighted_cropd(self, _, init_params, input_data, expected_shape, expected_centers):
         crop = RandWeightedCropd(**init_params)
-        crop.set_random_state(10)
+        crop.set_random_generator(10)
         result = crop(input_data)
         self.assertTrue(len(result) == init_params["num_samples"])
         _len = len(tuple(input_data.keys()))
@@ -161,11 +161,11 @@ class TestRandWeightedCrop(unittest.TestCase):
     def test_pending_ops(self, _, input_param, input_data, expected_shape, expected_centers):
         crop = RandWeightedCropd(**input_param)
         # non-lazy
-        crop.set_random_state(10)
+        crop.set_random_generator(10)
         expected = crop(input_data)
         self.assertIsInstance(expected[0]["img"], MetaTensor)
         # lazy
-        crop.set_random_state(10)
+        crop.set_random_generator(10)
         crop.lazy = True
         pending_result = crop(input_data)
         for i, _pending_result in enumerate(pending_result):

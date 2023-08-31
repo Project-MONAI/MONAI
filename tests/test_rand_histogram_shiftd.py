@@ -64,7 +64,7 @@ class TestRandHistogramShiftD(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_histogram_shiftd(self, input_param, input_data, expected_val):
         g = RandHistogramShiftd(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         res = g(input_data)
         for key in ("img",):
             result = res[key]

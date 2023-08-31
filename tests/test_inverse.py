@@ -435,7 +435,7 @@ class TestInverse(unittest.TestCase):
         # Apply forwards
         for t in transforms:
             if isinstance(t, Randomizable):
-                t.set_random_state(seed=get_seed())
+                t.set_random_generator(seed=get_seed())
             forwards.append(t(forwards[-1]))
 
         # Apply inverses

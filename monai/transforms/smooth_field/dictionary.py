@@ -14,7 +14,6 @@ from __future__ import annotations
 from collections.abc import Hashable, Mapping, Sequence
 from typing import Any
 
-import numpy as np
 import torch
 
 from monai.config import KeysCollection, SequenceStr
@@ -27,6 +26,7 @@ from monai.transforms.smooth_field.array import (
 )
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import GridSampleMode, GridSamplePadMode, InterpolateMode, convert_to_tensor, ensure_tuple_rep
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 __all__ = [
     "RandSmoothFieldAdjustContrastd",
@@ -91,11 +91,11 @@ class RandSmoothFieldAdjustContrastd(RandomizableTransform, MapTransform):
             device=device,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSmoothFieldAdjustContrastd:
-        super().set_random_state(seed, state)
-        self.trans.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.trans.set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -169,11 +169,11 @@ class RandSmoothFieldAdjustIntensityd(RandomizableTransform, MapTransform):
             device=device,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSmoothFieldAdjustIntensityd:
-        super().set_random_state(seed, state)
-        self.trans.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.trans.set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -259,11 +259,11 @@ class RandSmoothDeformd(RandomizableTransform, MapTransform):
             device=device,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSmoothDeformd:
-        super().set_random_state(seed, state)
-        self.trans.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.trans.set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:

@@ -52,7 +52,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration, handle_legacy_random_state
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration, _handle_legacy_random_state
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -129,7 +129,7 @@ def get_random_patch(
         (tuple of slice): a tuple of slice objects defining the patch
     """
 
-    generator = handle_legacy_random_state(
+    generator = _handle_legacy_random_state(
         rand_state=rand_state, generator=generator, return_legacy_default_random=True
     )
 
@@ -714,8 +714,8 @@ def set_rnd(obj, seed: int) -> int:
         return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
-    if hasattr(obj, "set_random_state"):
-        obj.set_random_state(seed=seed % MAX_SEED)
+    if hasattr(obj, "set_random_generator"):
+        obj.set_random_generator(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
         if key.startswith("__"):  # skip the private methods

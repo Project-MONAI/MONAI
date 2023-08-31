@@ -426,7 +426,7 @@ def create_transform_im(
     if isinstance(transform, Randomizable):
         # increment the seed for map transforms so they're different to the array versions.
         seed = seed + 1 if isinstance(transform, MapTransform) else seed
-        transform.set_random_state(seed)
+        transform.set_random_generator(seed)
 
     out_dir = MONAIEnvVars.doc_images()
     if out_dir is None:

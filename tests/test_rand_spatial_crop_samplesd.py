@@ -87,7 +87,7 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, *TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape, expected_last):
         xform = RandSpatialCropSamplesd(**input_param)
-        xform.set_random_state(1234)
+        xform.set_random_generator(1234)
         result = xform(input_data)
         _len = len(tuple(input_data.keys()))
         self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
@@ -116,12 +116,12 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
     def test_pending_ops(self, input_param, input_data, _expected_shape, _expected_last):
         xform = RandSpatialCropSamplesd(**input_param)
         # non-lazy
-        xform.set_random_state(1234)
+        xform.set_random_generator(1234)
         expected = xform(input_data)
         self.assertIsInstance(expected[0]["img"], MetaTensor)
 
         # lazy
-        xform.set_random_state(1234)
+        xform.set_random_generator(1234)
         xform.lazy = True
         pending_result = xform(input_data)
         for i, _pending_result in enumerate(pending_result):

@@ -54,9 +54,9 @@ class TestRandLambdad(unittest.TestCase):
         data = {"img": img, "prop": 1.0}
 
         test_func = RandTest()
-        test_func.set_random_state(seed=134)
+        test_func.set_random_generator(seed=134)
         expected = {"img": test_func(data["img"]), "prop": 1.0}
-        test_func.set_random_state(seed=134)
+        test_func.set_random_generator(seed=134)
 
         # default prob
         tr = RandLambdad(keys=["img", "prop"], func=test_func, overwrite=[True, False])
@@ -68,7 +68,7 @@ class TestRandLambdad(unittest.TestCase):
         self.check(tr, data, ret, expected=data)
 
         trans = RandLambdad(keys=["img", "prop"], func=test_func, prob=0.5)
-        trans.set_random_state(seed=123)
+        trans.set_random_generator(seed=123)
         ret = trans(deepcopy(data))
         self.check(trans, data, ret, expected=data)
 

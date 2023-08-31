@@ -200,7 +200,7 @@ class TestOneOf(unittest.TestCase):
                 ),
             ]
         )
-        transform.set_random_state(seed=0)
+        transform.set_random_generator(seed=0)
         result = transform({"img": np.ones((1, 101, 102, 103))})
         result = transform.inverse(result)
         # invert to the original spatial shape
@@ -214,7 +214,7 @@ class TestOneOf(unittest.TestCase):
                 OneOf([RandScaleIntensity(factors=0.5, prob=1.0), RandShiftIntensity(offsets=0.5, prob=1.0)]),
             ]
         )
-        transform.set_random_state(seed=0)
+        transform.set_random_generator(seed=0)
         result = transform(np.ones((1, 101, 102, 103)))
         self.assertTupleEqual(result.shape, (1, 100, 100, 100))
         result = transform.inverse(result)

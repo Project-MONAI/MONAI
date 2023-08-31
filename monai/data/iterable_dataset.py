@@ -127,7 +127,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         Multiple dataloader workers sharing this dataset will generate identical item sequences.
         """
         self.seed += 1
-        super().set_random_state(seed=self.seed)  # make all workers in sync
+        super().set_random_generator(seed=self.seed)  # make all workers in sync
         for _ in range(self.epochs) if self.epochs >= 0 else iter(int, 1):
             yield from IterableDataset(self.generate_item(), transform=self.transform)
 

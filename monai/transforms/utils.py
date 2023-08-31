@@ -68,7 +68,7 @@ from monai.utils import (
 from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
-from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration, handle_legacy_random_state
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration, _handle_legacy_random_state
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
@@ -555,7 +555,7 @@ def generate_pos_neg_label_crop_centers(
         ValueError: When the foreground and background indices lengths are 0.
 
     """
-    generator = handle_legacy_random_state(
+    generator = _handle_legacy_random_state(
         rand_state=rand_state, generator=generator, return_legacy_default_random=True
     )
     del rand_state
@@ -616,7 +616,7 @@ def generate_label_classes_crop_centers(
         warn: if `True` prints a warning if a class is not present in the label.
 
     """
-    generator = handle_legacy_random_state(
+    generator = _handle_legacy_random_state(
         rand_state=rand_state, generator=generator, return_legacy_default_random=True
     )
     del rand_state
@@ -1235,7 +1235,7 @@ def get_extreme_points(
         ValueError: When the input image does not have any foreground pixel.
     """
     check_non_lazy_pending_ops(img, name="get_extreme_points")
-    generator = handle_legacy_random_state(
+    generator = _handle_legacy_random_state(
         generator=generator, rand_state=rand_state, return_legacy_default_random=True
     )
     del rand_state
