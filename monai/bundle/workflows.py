@@ -171,6 +171,7 @@ class ConfigWorkflow(BundleWorkflow):
     """
     Specification for the config-based bundle workflow.
     Standardized the `initialize`, `run`, `finalize` behavior in a config-based training, evaluation, or inference.
+    Before `run`, we add bundle root directory to Python search directories automatically.
     For more information: https://docs.monai.io/en/latest/mb_specification.html.
 
     Args:
@@ -284,12 +285,13 @@ class ConfigWorkflow(BundleWorkflow):
     def run(self) -> Any:
         """
         Run the bundle workflow, it can be a training, evaluation or inference.
+        Before run, we add bundle root directory to Python search directories automatically.
 
         """
         _bundle_root_path = (
             self.config_root_path.parent if self.config_root_path.name == "configs" else self.config_root_path
         )
-        sys.path.append(str(_bundle_root_path))
+        sys.path.insert(1, str(_bundle_root_path))
         if self.run_id not in self.parser:
             raise ValueError(f"run ID '{self.run_id}' doesn't exist in the config file.")
         return self._run_expr(id=self.run_id)
