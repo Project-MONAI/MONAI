@@ -839,29 +839,33 @@ class NormalizeIntensity(Transform):
 
         if self.nonzero:
             slices = img != 0
+            masked_img = img[slices]
+            if not slices.any():
+                return img
         else:
-            if isinstance(img, np.ndarray):
-                slices = np.ones_like(img, dtype=bool)
-            else:
-                slices = torch.ones_like(img, dtype=torch.bool)
-        if not slices.any():
-            return img
+            slices = None
+            masked_img = img
 
-        _sub = sub if sub is not None else self._mean(img[slices])
+        _sub = sub if sub is not None else self._mean(masked_img)
         if isinstance(_sub, (torch.Tensor, np.ndarray)):
             _sub, *_ = convert_to_dst_type(_sub, img)
-            _sub = _sub[slices]
+            if slices is not None:
+                _sub = _sub[slices]
 
-        _div = div if div is not None else self._std(img[slices])
+        _div = div if div is not None else self._std(masked_img)
         if np.isscalar(_div):
             if _div == 0.0:
                 _div = 1.0
         elif isinstance(_div, (torch.Tensor, np.ndarray)):
             _div, *_ = convert_to_dst_type(_div, img)
-            _div = _div[slices]
+            if slices is not None:
+                _div = _div[slices]
             _div[_div == 0.0] = 1.0
 
-        img[slices] = (img[slices] - _sub) / _div
+        if slices is not None:
+            img[slices] = (masked_img - _sub) / _div
+        else:
+            img = (img - _sub) / _div
         return img
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:

@@ -518,7 +518,8 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
                 output_spatial_shape=output_shape_k if should_match else None,
                 lazy=lazy_,
             )
-            output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
+            if output_shape_k is None:
+                output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
