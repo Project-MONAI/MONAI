@@ -21,7 +21,6 @@ help:
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile
 	PIP_ROOT_USER_ACTION=ignore pip install -r requirements.txt
-	python -m monai.bundle.properties   # generate bundle properties markdown
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 clean:

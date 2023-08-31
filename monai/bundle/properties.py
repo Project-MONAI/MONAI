@@ -260,19 +260,3 @@ MetaProperties = {
         BundlePropertyConfig.ID: f"_meta_{ID_SEP_KEY}network_data_format{ID_SEP_KEY}outputs{ID_SEP_KEY}pred{ID_SEP_KEY}channel_def",
     },
 }
-
-
-if __name__ == "__main__":
-    import os
-
-    import pandas as pd
-
-    html_path = os.path.join("docs", "source")
-    csv_file = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, html_path, "train_properties.csv")
-    pd.DataFrame.from_dict(TrainProperties, orient="index").iloc[:, :3].to_csv(csv_file)
-
-    csv_file = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, html_path, "infer_properties.csv")
-    pd.DataFrame.from_dict(InferProperties, orient="index").iloc[:, :3].to_csv(csv_file)
-
-    csv_file = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, html_path, "meta_properties.csv")
-    pd.DataFrame.from_dict(MetaProperties, orient="index").iloc[:, :3].to_csv(csv_file)
