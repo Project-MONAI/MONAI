@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import getpass
 import os
 import platform
 import re
@@ -100,15 +101,8 @@ def print_config(file=sys.stdout):
         print(f"{k} version: {v}", file=file, flush=True)
     print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, USE_META_DICT = {USE_META_DICT}")
     print(f"MONAI rev id: {monai.__revision_id__}")
-    masked_file_path = re.sub(
-        r"/home/\w+/",
-        "/home/<username>/",
-        re.sub(
-            r"/Users/\w+/",
-            "/Users/<username>/",
-            re.sub(r"C:\\Users\\\w+\\", r"C:\\Users\\<username>\\", monai.__file__),
-        ),
-    )
+    username = getpass.getuser()
+    masked_file_path = re.sub(username, "<username>", monai.__file__)
     print(f"MONAI __file__: {masked_file_path}", file=file, flush=True)
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
