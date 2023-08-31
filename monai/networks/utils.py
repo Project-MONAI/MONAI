@@ -531,11 +531,13 @@ def copy_model_state(
             updated_keys.append(dst_key)
     for s in mapping if mapping else {}:
         dst_key = f"{dst_prefix}{mapping[s]}"
-        if dst_key in dst_dict and dst_key not in to_skip:
-            if dst_dict[dst_key].shape != src_dict[s].shape:
-                warnings.warn(f"Param. shape changed from {dst_dict[dst_key].shape} to {src_dict[s].shape}.")
-            dst_dict[dst_key] = src_dict[s]
-            updated_keys.append(dst_key)
+        src_keys = sorted(set(s_key for s_key in src_dict if s_key not in to_skip and re.compile(s).search(s_key)))
+        dst_keys = sorted(set(d_key for d_key in dst_dict if d_key not in to_skip and re.compile(dst_key).search(d_key)))
+        for _src_key, _dst_key in zip(src_keys, dst_keys):
+            if dst_dict[_dst_key].shape != src_dict[_src_key].shape:
+                warnings.warn(f"Param. shape changed from {dst_dict[_dst_key].shape} to {src_dict[_src_key].shape}.")
+            dst_dict[_dst_key] = src_dict[_src_key]
+            updated_keys.append(_dst_key)
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))

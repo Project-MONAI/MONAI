@@ -134,7 +134,7 @@ class TestModuleState(unittest.TestCase):
         model_two.to(device_1)
         # test weight map
         model_dict, ch, unch = copy_model_state(
-            model_one, model_two, mapping={"layer_1.weight": "layer.weight", "layer_1.bias": "layer_1.weight"}
+            model_one, model_two, mapping={"layer_1.weight": "^layer.weight", "layer_1.bias": "layer_1.weight"}
         )
         model_one.load_state_dict(model_dict)
         x = np.random.randn(4, 10)
