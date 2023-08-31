@@ -69,9 +69,9 @@ from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
 from monai.utils.utils_random_generator_adaptor import (
-    _LegacyRandomStateAdaptor,
     SupportsRandomGeneration,
     _handle_legacy_random_state,
+    _LegacyRandomStateAdaptor,
 )
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)

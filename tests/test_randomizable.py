@@ -14,9 +14,9 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-from monai.utils.utils_random_generator_adaptor import _LegacyRandomStateAdaptor
 
 from monai.transforms.transform import Randomizable
+from monai.utils.utils_random_generator_adaptor import _LegacyRandomStateAdaptor
 
 
 class RandTest(Randomizable):
