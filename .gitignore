@@ -70,6 +70,7 @@ instance/
 # Sphinx documentation
 docs/build/
 docs/source/_gen
+docs/source/*_properties.csv
 _build/
 
 # PyBuilder
