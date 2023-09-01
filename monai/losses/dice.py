@@ -666,7 +666,8 @@ class DiceCELoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
-            ce_weight: a rescaling weight given to each class for cross entropy loss.
+            ce_weight: a rescaling weight given to each class for cross entropy loss for `CrossEntropyLoss`.
+                or a rescaling weight given to the loss of each batch element for `BCEWithLogitsLoss`.
                 See ``torch.nn.CrossEntropyLoss()`` or ``torch.nn.BCEWithLogitsLoss()`` for more information.
             lambda_dice: the trade-off weight value for dice loss. The value should be no less than 0.0.
                 Defaults to 1.0.
@@ -729,7 +730,7 @@ class DiceCELoss(_Loss):
         if not torch.is_floating_point(target):
             target = target.to(dtype=input.dtype)
 
-        return self.binary_cross_entropy(input, target)
+        return self.binary_cross_entropy(input, target)  # type: ignore[no-any-return]
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
