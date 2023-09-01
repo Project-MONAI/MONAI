@@ -97,7 +97,7 @@ class TestDiceCELoss(unittest.TestCase):
 
     def test_script(self):
         loss = DiceCELoss()
-        test_input = torch.ones(2, 1, 8, 8)
+        test_input = torch.ones(2, 2, 8, 8)
         test_script_save(loss, test_input, test_input)
 
 
