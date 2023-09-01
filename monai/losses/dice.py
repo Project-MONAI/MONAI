@@ -729,12 +729,18 @@ class DiceCELoss(_Loss):
         Raises:
             ValueError: When number of dimensions for input and target are different.
             ValueError: When number of channels for target is neither 1 nor the same as input.
+            ValueError: When number of channels for input is equal to 1.
 
         """
         if len(input.shape) != len(target.shape):
             raise ValueError(
                 "the number of dimensions for input and target should be the same, "
                 f"got shape {input.shape} and {target.shape}."
+            )
+        if input.shape[1] == 1:
+            raise ValueError(
+                "the number of channels for input should be larger than 1,"
+                f"got shape {input.shape}."
             )
 
         dice_loss = self.dice(input, target)
