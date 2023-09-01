@@ -738,10 +738,7 @@ class DiceCELoss(_Loss):
                 f"got shape {input.shape} and {target.shape}."
             )
         if input.shape[1] == 1:
-            raise ValueError(
-                "the number of channels for input should be larger than 1,"
-                f"got shape {input.shape}."
-            )
+            raise ValueError("the number of channels for input should be larger than 1," f"got shape {input.shape}.")
 
         dice_loss = self.dice(input, target)
         ce_loss = self.ce(input, target)
