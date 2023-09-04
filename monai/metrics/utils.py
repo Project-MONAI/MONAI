@@ -176,7 +176,7 @@ def get_mask_edges(
         else:  # pytorch subvoxel, maybe on gpu, but croppad boolean values on GPU is not supported
             seg_pred, seg_gt, or_vol = convert_to_tensor(channel_first, dtype=torch.float16)
         cropper = CropForegroundD(
-            ["pred", "gt"], source_key="src", margin=1, allow_smaller=True, start_coord_key=None, end_coord_key=None
+            ["pred", "gt"], source_key="src", margin=1, allow_smaller=False, start_coord_key=None, end_coord_key=None
         )
         cropped = cropper({"pred": seg_pred, "gt": seg_gt, "src": or_vol})  # type: ignore
         seg_pred, seg_gt = cropped["pred"][0], cropped["gt"][0]
