@@ -62,7 +62,7 @@ def get_foreground_image(image: MetaTensor) -> np.ndarray:
         the size of the output is smaller than the input.
     """
 
-    copper = CropForeground(select_fn=lambda x: x > 0, allow_smaller=False)
+    copper = CropForeground(select_fn=lambda x: x > 0, allow_smaller=True)
     image_foreground = copper(image)
     return cast(np.ndarray, image_foreground)
 
