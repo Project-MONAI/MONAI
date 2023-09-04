@@ -767,7 +767,7 @@ class PydicomReader(ImageReader):
 
         for i, (frames, description) in enumerate(self._get_frame_data(img)):
             class_name = (
-                description.SegmentLabel if hasattr(description, "SegmentLabel") else description.SegmentDescription
+                description.SegmentDescription if hasattr(description, "SegmentDescription") else description.SegmentLabel
             )
             if class_name not in metadata["labels"].keys():
                 metadata["labels"][class_name] = i
