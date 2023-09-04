@@ -461,6 +461,10 @@ def load(
         device = "cuda:0" if is_available() else "cpu"
     if model_file is None:
         model_file = os.path.join("models", "model.ts" if load_ts_module is True else "model.pt")
+    if source == "ngc":
+        name = _add_ngc_prefix(name)
+        if remove_prefix:
+            name = _remove_ngc_prefix(name, prefix=remove_prefix)
     full_path = os.path.join(bundle_dir_, name, model_file)
     if not os.path.exists(full_path) or model is None:
         download(
@@ -497,7 +501,7 @@ def load(
 
     if model is None and _workflow is None:
         return model_dict
-    model = _workflow.network_def if model is None else model  # type: ignore
+    model = _workflow.network_def if model is None else model
     model.to(device)
 
     copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt], **copy_model_args)

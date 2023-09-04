@@ -88,6 +88,9 @@ where `#` indicates a sub-structure of this configuration file.
 
 _Description:_ `1` is referencing as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
 
+Relative reference is supported by starting the reference with `#`. For example, `@#A` is to use `A` at the
+same config structure level, and `@##A` refers to `A` at one level above.
+
 ### To evaluate as Python expressions
 
 ```json

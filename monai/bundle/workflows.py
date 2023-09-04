@@ -387,7 +387,7 @@ class ConfigWorkflow(BundleWorkflow):
 
         """
         super().add_property(name=name, required=required, desc=desc)
-        self.properties[name][BundlePropertyConfig.ID] = config_id  # type: ignore[index]
+        self.properties[name][BundlePropertyConfig.ID] = config_id
 
     def _check_optional_id(self, name: str, property: dict) -> bool:
         """
