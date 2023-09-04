@@ -86,7 +86,11 @@ class TestNgcBundleDownload(unittest.TestCase):
                     name=bundle_name, source="ngc", version=version, bundle_dir=tempdir, remove_prefix=remove_prefix
                 )
                 assert_allclose(
-                    model.state_dict()[TESTCASE_WEIGHTS["key"]], TESTCASE_WEIGHTS["value"], atol=1e-4, rtol=1e-4, type_test=False
+                    model.state_dict()[TESTCASE_WEIGHTS["key"]],
+                    TESTCASE_WEIGHTS["value"],
+                    atol=1e-4,
+                    rtol=1e-4,
+                    type_test=False,
                 )
 
 
