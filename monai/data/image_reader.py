@@ -764,6 +764,7 @@ class PydicomReader(ImageReader):
         else:
             metadata["labels"] = {}
             all_segs = np.zeros([*spatial_shape, n_classes])
+
         for i, (frames, description) in enumerate(self._get_frame_data(img)):
             class_name = description.SegmentDescription if hasattr(description, "SegmentDescription") else f"label_{i}"
             if class_name not in metadata["labels"].keys():
