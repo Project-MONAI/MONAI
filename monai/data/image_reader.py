@@ -244,6 +244,7 @@ class ITKReader(ImageReader):
                 series_identifier = series_uid[0] if not self.series_name else self.series_name
                 name = names_generator.GetFileNames(series_identifier)
 
+                name = name[0] if len(name) == 1 else name  # type: ignore
                 _obj = itk.imread(name, **kwargs_)
                 if self.series_meta:
                     _reader = itk.ImageSeriesReader.New(FileNames=name)
@@ -631,7 +632,7 @@ class PydicomReader(ImageReader):
 
         if self.prune_metadata:
             prune_metadata = {}
-            for key in ["00200037", "00200032", "52009229", "52009230"]:
+            for key in ["00200037", "00200032", "00280030", "52009229", "52009230"]:
                 if key in metadata.keys():
                     prune_metadata[key] = metadata[key]
             return prune_metadata
@@ -661,7 +662,9 @@ class PydicomReader(ImageReader):
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
-        dr, dc = metadata.get("spacing", (1.0, 1.0))[:2]
+        # "00280030" is the tag of `PixelSpacing`
+        spacing = metadata["00280030"]["Value"]
+        dr, dc = metadata.get("spacing", spacing)[:2]
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -670,7 +673,7 @@ class PydicomReader(ImageReader):
         affine[1, 3] = sy
         affine[2, 0] = cz * dr
         affine[2, 1] = rz * dc
-        affine[2, 2] = 0
+        affine[2, 2] = 1.0
         affine[2, 3] = sz
 
         # 3d
