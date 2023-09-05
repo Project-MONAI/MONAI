@@ -151,6 +151,11 @@ TEST_CASE_21 = [
 # test reader consistency between PydicomReader and ITKReader on dicom data
 TEST_CASE_22 = ["tests/testing_data/CT_DICOM"]
 
+TEST_CASE_23 = ["tests/testing_data/CT_DICOM_SINGLE"]
+
+# test ITKReader with only one file in a folder
+TEST_CASE_24 = [{"reader": "ITKReader"}, "tests/testing_data/CT_DICOM_SINGLE", (16, 16, 1)]
+
 TESTS_META = []
 for track_meta in (False, True):
     TESTS_META.append([{}, (128, 128, 128), track_meta])
@@ -206,6 +211,23 @@ class TestLoadImage(unittest.TestCase):
         )
         self.assertTupleEqual(result.shape, expected_np_shape)
 
+    @parameterized.expand([TEST_CASE_24])
+    def test_itk_dicom_series_reader_single(self, input_param, filenames, expected_shape):
+        result = LoadImage(image_only=True, **input_param)(filenames)
+        self.assertEqual(result.meta["filename_or_obj"], f"{Path(filenames)}")
+        assert_allclose(
+            result.affine,
+            torch.tensor(
+                [
+                    [-0.488281, 0.0, 0.0, 125.0],
+                    [0.0, -0.488281, 0.0, 128.100006],
+                    [0.0, 0.0, 1.0, -99.480003],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
+        self.assertTupleEqual(result.shape, expected_shape)
+
     def test_itk_reader_multichannel(self):
         test_image = np.random.randint(0, 256, size=(256, 224, 3)).astype("uint8")
         with tempfile.TemporaryDirectory() as tempdir:
@@ -230,6 +252,19 @@ class TestLoadImage(unittest.TestCase):
             pydicom_result = LoadImage(image_only=True, **pydicom_param)(filenames)
             np.testing.assert_allclose(pydicom_result, itk_result)
             np.testing.assert_allclose(pydicom_result.affine, itk_result.affine)
+
+    @parameterized.expand([TEST_CASE_23])
+    def test_dicom_reader_consistency_single(self, filenames):
+        itk_param = {"reader": "ITKReader"}
+        pydicom_param = {"reader": "PydicomReader"}
+        for affine_flag in [True, False]:
+            itk_param["affine_lps_to_ras"] = affine_flag
+            pydicom_param["affine_lps_to_ras"] = affine_flag
+            itk_result = LoadImage(image_only=True, **itk_param)(filenames)
+            pydicom_result = LoadImage(image_only=True, **pydicom_param)(filenames)
+            np.testing.assert_allclose(pydicom_result, itk_result.squeeze())
+            np.testing.assert_allclose(pydicom_result.affine[:2, :2], itk_result.affine[:2, :2])
+            np.testing.assert_allclose(pydicom_result.affine[..., 3], itk_result.affine[..., 3])
 
     def test_load_nifti_multichannel(self):
         test_image = np.random.randint(0, 256, size=(31, 64, 16, 2)).astype(np.float32)
