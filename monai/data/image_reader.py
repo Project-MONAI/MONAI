@@ -244,6 +244,7 @@ class ITKReader(ImageReader):
                 series_identifier = series_uid[0] if not self.series_name else self.series_name
                 name = names_generator.GetFileNames(series_identifier)
 
+                name = name[0] if len(name) == 1 else name
                 _obj = itk.imread(name, **kwargs_)
                 if self.series_meta:
                     _reader = itk.ImageSeriesReader.New(FileNames=name)
