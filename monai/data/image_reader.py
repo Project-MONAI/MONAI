@@ -663,7 +663,7 @@ class PydicomReader(ImageReader):
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
         # "00280030" is the tag of `PixelSpacing`
-        spacing = metadata["00280030"]["Value"]
+        spacing = metadata["00280030"]["Value"] if "00280030" in metadata else (1.0, 1.0)
         dr, dc = metadata.get("spacing", spacing)[:2]
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
