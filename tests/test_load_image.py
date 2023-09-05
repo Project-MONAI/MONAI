@@ -276,8 +276,7 @@ class TestLoadImage(unittest.TestCase):
             itk_result = LoadImage(image_only=True, **itk_param)(self.data_dir)
             pydicom_result = LoadImage(image_only=True, **pydicom_param)(self.data_dir)
             np.testing.assert_allclose(pydicom_result, itk_result.squeeze())
-            np.testing.assert_allclose(pydicom_result.affine[:2, :2], itk_result.affine[:2, :2])
-            np.testing.assert_allclose(pydicom_result.affine[..., 3], itk_result.affine[..., 3])
+            np.testing.assert_allclose(pydicom_result.affine, itk_result.affine)
 
     def test_load_nifti_multichannel(self):
         test_image = np.random.randint(0, 256, size=(31, 64, 16, 2)).astype(np.float32)
