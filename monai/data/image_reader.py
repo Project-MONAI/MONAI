@@ -673,7 +673,7 @@ class PydicomReader(ImageReader):
         affine[1, 3] = sy
         affine[2, 0] = cz * dr
         affine[2, 1] = rz * dc
-        affine[2, 2] = 0
+        affine[2, 2] = 1.0
         affine[2, 3] = sz
 
         # 3d
