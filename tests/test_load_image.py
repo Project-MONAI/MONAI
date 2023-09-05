@@ -29,7 +29,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
 from monai.utils import optional_import
-from tests.utils import assert_allclose, testing_data_config, skip_if_downloading_fails
+from tests.utils import assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 ITKReader, _ = optional_import("monai.data", name="ITKReader", as_type="decorator")
@@ -170,11 +170,7 @@ class TestLoadImage(unittest.TestCase):
             hash_type = testing_data_config("images", key, "hash_type")
             hash_val = testing_data_config("images", key, "hash_val")
             download_and_extract(
-                url=url,
-                output_dir=cls.tmpdir,
-                hash_val=hash_val,
-                hash_type=hash_type,
-                file_type="zip",
+                url=url, output_dir=cls.tmpdir, hash_val=hash_val, hash_type=hash_type, file_type="zip"
             )
             cls.data_dir = os.path.join(cls.tmpdir, "CT_DICOM_SINGLE")
 
