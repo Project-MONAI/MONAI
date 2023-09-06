@@ -400,7 +400,7 @@ def load(
     return_state_dict: bool = True,
     net_override: dict = {},
     net_name: str | None = None,
-    **net_kwargs: Any
+    **net_kwargs: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.

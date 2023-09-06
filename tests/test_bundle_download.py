@@ -205,7 +205,14 @@ class TestLoad(unittest.TestCase):
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 # load weights
-                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device, return_state_dict=False)
+                model = load(
+                    name=bundle_name,
+                    bundle_dir=tempdir,
+                    source="monaihosting",
+                    progress=False,
+                    device=device,
+                    return_state_dict=False,
+                )
 
                 # prepare data and test
                 input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
