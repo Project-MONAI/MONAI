@@ -498,19 +498,6 @@ def load(
     # loading with `torch.load`
     model_dict = torch.load(full_path, map_location=torch.device(device))
 
-    _workflow = None
-    if (model is None and not return_state_dict) or net_name is None:
-        train_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
-        if train_config_file.is_file():
-            _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
-            _workflow = create_workflow(
-                workflow_name=workflow_name,
-                args_file=args_file,
-                config_file=str(train_config_file),
-                workflow_type=workflow_type,
-                **_net_override,
-            )
-
     if not isinstance(model_dict, Mapping):
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
@@ -518,17 +505,31 @@ def load(
     if return_state_dict:
         return model_dict
 
-    if model is None:
+    _workflow = None
+    if model is None and net_name is None:
+        bundle_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
+        if bundle_config_file.is_file():
+            _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
+            _workflow = create_workflow(
+                workflow_name=workflow_name,
+                args_file=args_file,
+                config_file=str(bundle_config_file),
+                workflow_type=workflow_type,
+                **_net_override,
+            )
+        else:
+            warnings.warn(f"Cannot find the config file: {bundle_config_file}, return state dict instead.")
+            return model_dict
         if _workflow is not None:
             if getattr(_workflow, "network_def") is None:
                 warnings.warn("No available network definition in the bundle, return state dict instead.")
                 return model_dict
             else:
                 model = _workflow.network_def
-        elif net_name is not None:
-            net_kwargs["_target_"] = net_name
-            configer = ConfigComponent(config=net_kwargs)
-            model = configer.instantiate()  # type: ignore
+    elif net_name is not None:
+        net_kwargs["_target_"] = net_name
+        configer = ConfigComponent(config=net_kwargs)
+        model = configer.instantiate()  # type: ignore
 
     model.to(device)  # type: ignore
 
