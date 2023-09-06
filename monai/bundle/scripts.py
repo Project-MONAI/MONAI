@@ -378,7 +378,7 @@ def download(
 
 @deprecated_arg("net_name", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
 @deprecated_arg("net_kwargs", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg_default("return_state_dict", "True", "False", since="1.3", replaced="1.5")
+@deprecated_arg("return_state_dict", since="1.3", removed="1.5")
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -528,11 +528,11 @@ def load(
         elif net_name is not None:
             net_kwargs["_target_"] = net_name
             configer = ConfigComponent(config=net_kwargs)
-            model = configer.instantiate()
+            model = configer.instantiate()  # type: ignore
 
-    model.to(device)
+    model.to(device)  # type: ignore
 
-    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt], **copy_model_args)
+    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt], **copy_model_args)  # type: ignore
 
     return model
 
