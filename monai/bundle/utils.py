@@ -24,7 +24,7 @@ yaml, _ = optional_import("yaml")
 __all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
-ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
+ID_SEP_KEY = os.environ.get("MONAI_BUNDLE_SEP", "#")  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
 
