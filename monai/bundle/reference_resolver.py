@@ -101,6 +101,7 @@ class ReferenceResolver:
         """
         if resolve and id not in self.resolved_content:
             self._resolve_one_item(id=id, **kwargs)
+        id = str(id).replace("#", self.sep)
         return self.items.get(id)
 
     def _resolve_one_item(
@@ -121,6 +122,7 @@ class ReferenceResolver:
                 if the `id` is not in the config content, must be a `ConfigItem` object.
 
         """
+        id = str(id).replace("#", self.sep)
         if id in self.resolved_content:
             return self.resolved_content[id]
         try:
@@ -202,6 +204,7 @@ class ReferenceResolver:
         """
         refs: dict[str, int] = {}
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
+        value = str(value).replace("#", cls.sep)
         result = cls.id_matcher.findall(value)
         value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
@@ -224,6 +227,7 @@ class ReferenceResolver:
 
         """
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
+        value = str(value).replace("#", cls.sep)
         result = cls.id_matcher.findall(value)
         # reversely sort the matched references by length
         # and handle the longer first in case a reference item is substring of another longer item

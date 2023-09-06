@@ -150,6 +150,7 @@ class ConfigParser:
         if id == "":
             return self.config
         config = self.config
+        id = str(id).replace("#", ID_SEP_KEY)
         for k in str(id).split(ID_SEP_KEY):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
@@ -178,7 +179,8 @@ class ConfigParser:
             self.config = config
             self.ref_resolver.reset()
             return
-        keys = str(id).split(ID_SEP_KEY)
+        id = str(id).replace("#", ID_SEP_KEY)
+        keys = id.split(ID_SEP_KEY)
         # get the last parent level config item and replace it
         last_id = ID_SEP_KEY.join(keys[:-1])
         conf_ = self[last_id]
@@ -213,7 +215,8 @@ class ConfigParser:
                 default to `True`. for the nested id, only support `dict` for the missing section.
 
         """
-        keys = str(id).split(ID_SEP_KEY)
+        id = str(id).replace("#", ID_SEP_KEY)
+        keys = id.split(ID_SEP_KEY)
         conf_ = self.get()
         if recursive:
             if conf_ is None:
@@ -458,6 +461,7 @@ class ConfigParser:
             src: source string to split.
 
         """
+        src = str(src).replace("#", ID_SEP_KEY)
         result = re.compile(rf"({cls.suffix_match}(?=(?:{ID_SEP_KEY}.*)|$))", re.IGNORECASE).findall(src)
         if not result:
             return "", src  # the src is a pure id
@@ -488,6 +492,7 @@ class ConfigParser:
 
         """
         # get the prefixes like: "@####", "%###", "@#"
+        value = str(value).replace("#", ID_SEP_KEY)
         prefixes = sorted(set().union(cls.relative_id_prefix.findall(value)), reverse=True)
         current_id = id.split(ID_SEP_KEY)
 

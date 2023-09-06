@@ -76,6 +76,7 @@ class TestReferenceResolver(unittest.TestCase):
         resolver = ReferenceResolver()
         # add items to resolver
         for k, v in configs.items():
+            k = k.replace("#", "::")
             if ConfigComponent.is_instantiable(v):
                 resolver.add_item(ConfigComponent(config=v, id=k, locator=locator))
             elif ConfigExpression.is_expression(v):
