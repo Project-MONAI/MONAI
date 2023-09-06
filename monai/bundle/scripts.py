@@ -28,6 +28,7 @@ from torch.cuda import is_available
 
 from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
+from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -247,7 +248,7 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
-@deprecated_arg_default("source", "github", "monaihosting", since="1.3", replaced="1.4")
+@deprecated_arg_default("source", "github", "monaihosting", since="1.3", replaced="1.5")
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -375,8 +376,9 @@ def download(
             )
 
 
-@deprecated_arg("net_name", since="1.3", removed="1.4", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("net_kwargs", since="1.3", removed="1.3", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("net_name", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("net_kwargs", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
+@deprecated_arg_default("return_state_dict", "True", "False", since="1.3", replaced="1.5")
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -395,8 +397,10 @@ def load(
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
     copy_model_args: dict | None = None,
+    return_state_dict: bool = True,
+    net_override: dict = {},
     net_name: str | None = None,
-    **net_override: Any,
+    **net_kwargs: Any
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -441,7 +445,12 @@ def load(
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
+        return_state_dict: whether to return state dict, if True, return state_dict, else a corresponding network
+            from `_workflow.network_def` will be instantiated and load the achieved weights.
         net_override: id-value pairs to override the parameters in the network of the bundle.
+        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
+            This argument only works when loading weights.
+        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     Returns:
         1. If `load_ts_module` is `False` and `model` is `None`,
@@ -449,9 +458,10 @@ def load(
             else return an instantiated network that loaded the weights.
         2. If `load_ts_module` is `False` and `model` is not `None`,
             return an instantiated network that loaded the weights.
-        3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
+        1. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
             please check `monai.data.load_net_with_metadata` for more details.
+        2. If `model` is `None`,
 
     """
     bundle_dir_ = _process_bundle_dir(bundle_dir)
@@ -466,7 +476,7 @@ def load(
         if remove_prefix:
             name = _remove_ngc_prefix(name, prefix=remove_prefix)
     full_path = os.path.join(bundle_dir_, name, model_file)
-    if not os.path.exists(full_path) or model is None:
+    if not os.path.exists(full_path):
         download(
             name=name,
             version=version,
@@ -477,6 +487,14 @@ def load(
             progress=progress,
             args_file=args_file,
         )
+
+    # loading with `torch.jit.load`
+    if load_ts_module is True:
+        return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
+    # loading with `torch.load`
+    model_dict = torch.load(full_path, map_location=torch.device(device))
+
+    if model is None and not return_state_dict:
         train_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
         if train_config_file.is_file():
             _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
@@ -490,21 +508,31 @@ def load(
         else:
             _workflow = None
 
-    # loading with `torch.jit.load`
-    if load_ts_module is True:
-        return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
-    # loading with `torch.load`
-    model_dict = torch.load(full_path, map_location=torch.device(device))
     if not isinstance(model_dict, Mapping):
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    if model is None and _workflow is None:
+    if (model is None and _workflow is None) or return_state_dict:
         return model_dict
-    model = _workflow.network_def if model is None else model
+
+    if model is None:
+        if return_state_dict:
+            return model_dict
+        elif _workflow is not None:
+            if getattr(_workflow, "network_def") is None:
+                warnings.warn("No available network definition in the bundle, return state dict instead.")
+                return model_dict
+            else:
+                model = _workflow.network_def
+        elif net_name is not None:
+            net_kwargs["_target_"] = net_name
+            configer = ConfigComponent(config=net_kwargs)
+            model = configer.instantiate()
+
     model.to(device)
 
     copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt], **copy_model_args)
+
     return model
 
 

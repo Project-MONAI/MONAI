@@ -146,6 +146,7 @@ class TestLoad(unittest.TestCase):
                     source="github",
                     progress=False,
                     device=device,
+                    return_state_dict=False,
                 )
 
                 # prepare network
@@ -176,10 +177,26 @@ class TestLoad(unittest.TestCase):
                     device=device,
                     net_name=model_name,
                     source="github",
+                    return_state_dict=False,
                 )
                 model_2.eval()
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+
+                # test forward compatibility with return_state_dict=True.
+                model_3 = load(
+                    name=bundle_name,
+                    model_file=model_file,
+                    bundle_dir=tempdir,
+                    progress=False,
+                    device=device,
+                    net_name=model_name,
+                    source="github",
+                    **net_args,
+                )
+                model_3.eval()
+                output_3 = model_3.forward(input_tensor)
+                assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
     @parameterized.expand([TEST_CASE_7])
     @skip_if_quick
@@ -188,7 +205,7 @@ class TestLoad(unittest.TestCase):
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
                 # load weights
-                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device)
+                model = load(name=bundle_name, bundle_dir=tempdir, source="monaihosting", progress=False, device=device, return_state_dict=False)
 
                 # prepare data and test
                 input_tensor = torch.rand(1, 1, 96, 96, 96).to(device)
@@ -209,7 +226,8 @@ class TestLoad(unittest.TestCase):
                     source="monaihosting",
                     progress=False,
                     device=device,
-                    **net_override,
+                    return_state_dict=False,
+                    net_override=net_override,
                 )
 
                 # prepare data and test
