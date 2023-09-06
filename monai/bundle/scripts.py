@@ -533,7 +533,11 @@ def load(
 
     model.to(device)  # type: ignore
 
-    copy_model_state(dst=model, src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt], **copy_model_args)  # type: ignore
+    copy_model_state(  # type: ignore
+        dst=model,
+        src=model_dict if key_in_ckpt is None else model_dict[key_in_ckpt],
+        **copy_model_args
+    )
 
     return model
 
