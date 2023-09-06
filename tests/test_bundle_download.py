@@ -146,7 +146,7 @@ class TestLoad(unittest.TestCase):
                     source="github",
                     progress=False,
                     device=device,
-                    return_state_dict=False,
+                    return_state_dict=True,
                 )
 
                 # prepare network
@@ -175,7 +175,6 @@ class TestLoad(unittest.TestCase):
                     bundle_dir=tempdir,
                     progress=False,
                     device=device,
-                    net_name=model_name,
                     source="github",
                     return_state_dict=False,
                 )
@@ -183,7 +182,7 @@ class TestLoad(unittest.TestCase):
                 output_2 = model_2.forward(input_tensor)
                 assert_allclose(output_2, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-                # test forward compatibility with return_state_dict=True.
+                # test compatibility with return_state_dict=True.
                 model_3 = load(
                     name=bundle_name,
                     model_file=model_file,
@@ -192,6 +191,7 @@ class TestLoad(unittest.TestCase):
                     device=device,
                     net_name=model_name,
                     source="github",
+                    return_state_dict=False,
                     **net_args,
                 )
                 model_3.eval()

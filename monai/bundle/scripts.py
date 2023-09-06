@@ -458,12 +458,16 @@ def load(
             else return an instantiated network that loaded the weights.
         2. If `load_ts_module` is `False` and `model` is not `None`,
             return an instantiated network that loaded the weights.
-        1. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
+        3. If `load_ts_module` is `True`, return a triple that include a TorchScript module,
             the corresponding metadata dict, and extra files dict.
             please check `monai.data.load_net_with_metadata` for more details.
-        2. If `model` is `None`,
+        4. If `return_state_dict` is True, return model weights, only used for compatibility
+            when `model` and `net_name` are all `None`.
 
     """
+    if return_state_dict and (model is not None or net_name is not None):
+        warnings.warn("Incompatible values: model and net_name are all specified, return state dict instead.")
+
     bundle_dir_ = _process_bundle_dir(bundle_dir)
     copy_model_args = {} if copy_model_args is None else copy_model_args
 
@@ -494,7 +498,8 @@ def load(
     # loading with `torch.load`
     model_dict = torch.load(full_path, map_location=torch.device(device))
 
-    if model is None and not return_state_dict:
+    _workflow = None
+    if (model is None and not return_state_dict) or net_name is None:
         train_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
         if train_config_file.is_file():
             _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
@@ -505,20 +510,16 @@ def load(
                 workflow_type=workflow_type,
                 **_net_override,
             )
-        else:
-            _workflow = None
 
     if not isinstance(model_dict, Mapping):
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    if (model is None and _workflow is None) or return_state_dict:
+    if return_state_dict:
         return model_dict
 
     if model is None:
-        if return_state_dict:
-            return model_dict
-        elif _workflow is not None:
+        if _workflow is not None:
             if getattr(_workflow, "network_def") is None:
                 warnings.warn("No available network definition in the bundle, return state dict instead.")
                 return model_dict
