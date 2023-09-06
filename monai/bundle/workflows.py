@@ -43,6 +43,10 @@ class BundleWorkflow(ABC):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `None` for common workflow.
 
     """
 
@@ -56,7 +60,8 @@ class BundleWorkflow(ABC):
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
     )
-    def __init__(self, workflow_type: str | None = None):
+    def __init__(self, workflow_type: str | None = None, workflow: str | None = None):
+        workflow_type = workflow if workflow is not None else workflow_type
         if workflow_type is None:
             self.properties = copy(MetaProperties)
             self.workflow_type = None
@@ -198,6 +203,10 @@ class ConfigWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `None` for common workflow.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
@@ -221,8 +230,10 @@ class ConfigWorkflow(BundleWorkflow):
         final_id: str = "finalize",
         tracking: str | dict | None = None,
         workflow_type: str | None = None,
+        workflow: str | None = None,
         **override: Any,
     ) -> None:
+        workflow_type = workflow if workflow is not None else workflow_type
         super().__init__(workflow_type=workflow_type)
         if config_file is not None:
             _config_files = ensure_tuple(config_file)
