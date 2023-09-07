@@ -521,7 +521,7 @@ def load(
             warnings.warn(f"Cannot find the config file: {bundle_config_file}, return state dict instead.")
             return model_dict
         if _workflow is not None:
-            if getattr(_workflow, "network_def") is None:
+            if not hasattr(_workflow, "network_def"):
                 warnings.warn("No available network definition in the bundle, return state dict instead.")
                 return model_dict
             else:
