@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 import warnings
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Iterator
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
@@ -101,7 +101,7 @@ class ReferenceResolver:
         """
         if resolve and id not in self.resolved_content:
             self._resolve_one_item(id=id, **kwargs)
-        id = str(id).replace("#", self.sep)
+        id = self.normalize_id(id)
         return self.items.get(id)
 
     def _resolve_one_item(
@@ -122,7 +122,7 @@ class ReferenceResolver:
                 if the `id` is not in the config content, must be a `ConfigItem` object.
 
         """
-        id = str(id).replace("#", self.sep)
+        id = self.normalize_id(id)
         if id in self.resolved_content:
             return self.resolved_content[id]
         try:
@@ -193,6 +193,44 @@ class ReferenceResolver:
         return self._resolve_one_item(id=id, **kwargs)
 
     @classmethod
+    def normalize_id(cls, id: str | int) -> str:
+        """
+        Normalize the id string to consistently use `cls.sep`.
+
+        Args:
+            id: id string to be normalized.
+
+        """
+        return str(id).replace("#", cls.sep)  # backward compatibility `#` is the old separator
+
+    @classmethod
+    def split_id(cls, id: str | int, last: bool = False) -> list[str]:
+        """
+        Split the id string into a tuple of strings.
+
+        Args:
+            id: id string to be split.
+            last: whether to split the rightmost part of the id. default is False (split all parts).
+        """
+        if not last:
+            return cls.normalize_id(id).split(cls.sep)
+        res = cls.normalize_id(id).rsplit(cls.sep, 1)
+        return ["".join(res[:-1]), res[-1]]
+
+    @classmethod
+    def iter_subconfigs(cls, id: str, config: Any) -> Iterator[tuple[str, str, Any]]:
+        """
+        Iterate over the sub-configs of the input config.
+
+        Args:
+            id: id string of the current input config.
+            config: input config to be iterated.
+        """
+        for k, v in config.items() if isinstance(config, dict) else enumerate(config):
+            sub_id = f"{id}{cls.sep}{k}" if id != "" else f"{k}"
+            yield k, sub_id, v
+
+    @classmethod
     def match_refs_pattern(cls, value: str) -> dict[str, int]:
         """
         Match regular expression for the input string to find the references.
@@ -204,7 +242,7 @@ class ReferenceResolver:
         """
         refs: dict[str, int] = {}
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        value = str(value).replace("#", cls.sep)
+        value = cls.normalize_id(value)
         result = cls.id_matcher.findall(value)
         value_is_expr = ConfigExpression.is_expression(value)
         for item in result:
@@ -227,7 +265,7 @@ class ReferenceResolver:
 
         """
         # regular expression pattern to match "@XXX" or "@XXX#YYY"
-        value = str(value).replace("#", cls.sep)
+        value = cls.normalize_id(value)
         result = cls.id_matcher.findall(value)
         # reversely sort the matched references by length
         # and handle the longer first in case a reference item is substring of another longer item
@@ -273,8 +311,7 @@ class ReferenceResolver:
                 refs_[id] = refs_.get(id, 0) + count
         if not isinstance(config, (list, dict)):
             return refs_
-        for k, v in config.items() if isinstance(config, dict) else enumerate(config):
-            sub_id = f"{id}{cls.sep}{k}" if id != "" else f"{k}"
+        for _, sub_id, v in cls.iter_subconfigs(id, config):
             if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v) and sub_id not in refs_:
                 refs_[sub_id] = 1
             refs_ = cls.find_refs_in_config(v, sub_id, refs_)
@@ -298,8 +335,7 @@ class ReferenceResolver:
         if not isinstance(config, (list, dict)):
             return config
         ret = type(config)()
-        for idx, v in config.items() if isinstance(config, dict) else enumerate(config):
-            sub_id = f"{id}{cls.sep}{idx}" if id != "" else f"{idx}"
+        for idx, sub_id, v in cls.iter_subconfigs(id, config):
             if ConfigComponent.is_instantiable(v) or ConfigExpression.is_expression(v):
                 updated = refs_[sub_id]
                 if ConfigComponent.is_instantiable(v) and updated is None:

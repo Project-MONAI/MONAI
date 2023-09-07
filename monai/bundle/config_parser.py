@@ -150,8 +150,7 @@ class ConfigParser:
         if id == "":
             return self.config
         config = self.config
-        id = str(id).replace("#", ID_SEP_KEY)
-        for k in str(id).split(ID_SEP_KEY):
+        for k in ReferenceResolver.split_id(id):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
             try:
@@ -179,13 +178,11 @@ class ConfigParser:
             self.config = config
             self.ref_resolver.reset()
             return
-        id = str(id).replace("#", ID_SEP_KEY)
-        keys = id.split(ID_SEP_KEY)
+        last_id, base_id = ReferenceResolver.split_id(id, last=True)
         # get the last parent level config item and replace it
-        last_id = ID_SEP_KEY.join(keys[:-1])
         conf_ = self[last_id]
 
-        indexing = keys[-1] if isinstance(conf_, dict) else int(keys[-1])
+        indexing = base_id if isinstance(conf_, dict) else int(base_id)
         conf_[indexing] = config
         self.ref_resolver.reset()
         return
@@ -215,8 +212,7 @@ class ConfigParser:
                 default to `True`. for the nested id, only support `dict` for the missing section.
 
         """
-        id = str(id).replace("#", ID_SEP_KEY)
-        keys = id.split(ID_SEP_KEY)
+        keys = ReferenceResolver.split_id(id)
         conf_ = self.get()
         if recursive:
             if conf_ is None:
@@ -225,7 +221,7 @@ class ConfigParser:
                 if isinstance(conf_, dict) and k not in conf_:
                     conf_[k] = {}
                 conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
-        self[id] = config
+        self[ReferenceResolver.normalize_id(id)] = config
 
     def update(self, pairs: dict[str, Any]) -> None:
         """
@@ -340,9 +336,8 @@ class ConfigParser:
 
         """
         if isinstance(config, (dict, list)):
-            for k, v in enumerate(config) if isinstance(config, list) else config.items():
-                sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
-                config[k] = self._do_resolve(v, sub_id)
+            for k, sub_id, v in self.ref_resolver.iter_subconfigs(id=id, config=config):
+                config[k] = self._do_resolve(v, sub_id)  # type: ignore
         if isinstance(config, str):
             config = self.resolve_relative_ids(id, config)
             if config.startswith(MACRO_KEY):
@@ -375,8 +370,7 @@ class ConfigParser:
 
         """
         if isinstance(config, (dict, list)):
-            for k, v in enumerate(config) if isinstance(config, list) else config.items():
-                sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
+            for _, sub_id, v in self.ref_resolver.iter_subconfigs(id=id, config=config):
                 self._do_parse(config=v, id=sub_id)
 
         if ConfigComponent.is_instantiable(config):
@@ -461,7 +455,7 @@ class ConfigParser:
             src: source string to split.
 
         """
-        src = str(src).replace("#", ID_SEP_KEY)
+        src = ReferenceResolver.normalize_id(src)
         result = re.compile(rf"({cls.suffix_match}(?=(?:{ID_SEP_KEY}.*)|$))", re.IGNORECASE).findall(src)
         if not result:
             return "", src  # the src is a pure id
@@ -492,7 +486,7 @@ class ConfigParser:
 
         """
         # get the prefixes like: "@####", "%###", "@#"
-        value = str(value).replace("#", ID_SEP_KEY)
+        value = ReferenceResolver.normalize_id(value)
         prefixes = sorted(set().union(cls.relative_id_prefix.findall(value)), reverse=True)
         current_id = id.split(ID_SEP_KEY)
 
