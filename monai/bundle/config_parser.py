@@ -141,10 +141,10 @@ class ConfigParser:
         Get the config by id.
 
         Args:
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if id == "":
@@ -167,10 +167,10 @@ class ConfigParser:
         to ensure the updates are included in the parsed content.
 
         Args:
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
             config: config to set at location ``id``.
 
         """
@@ -226,7 +226,7 @@ class ConfigParser:
     def update(self, pairs: dict[str, Any]) -> None:
         """
         Set the ``id`` and the corresponding config content in pairs, see also :py:meth:`__setitem__`.
-        For example, ``parser.update({"train#epoch": 100, "train#lr": 0.02})``
+        For example, ``parser.update({"train::epoch": 100, "train::lr": 0.02})``
 
         Args:
             pairs: dictionary of `id` and config pairs.
@@ -271,10 +271,10 @@ class ConfigParser:
             - Else, the result is the configuration content of `ConfigItem`.
 
         Args:
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
                 Currently support ``lazy`` (whether to retain the current config cache, default to `True`),
                 ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
@@ -329,10 +329,10 @@ class ConfigParser:
 
         Args:
             config: input config file to resolve.
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if isinstance(config, (dict, list)):
@@ -352,7 +352,7 @@ class ConfigParser:
         Recursively resolve `self.config` to replace the relative ids with absolute ids, for example,
         `@##A` means `A` in the upper level. and replace the macro tokens with target content,
         The macro tokens are marked as starting with "%", can be from another structured file, like:
-        ``"%default_net"``, ``"%/data/config.json#net"``.
+        ``"%default_net"``, ``"%/data/config.json::net"``.
 
         """
         self.set(self._do_resolve(config=self.get()))
@@ -363,10 +363,10 @@ class ConfigParser:
 
         Args:
             config: config source to parse.
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if isinstance(config, (dict, list)):
@@ -407,7 +407,7 @@ class ConfigParser:
         """
         Load config files into a single config dict.
         The latter config file in the list will override or add the former config file.
-        ``"#"`` in the config keys are interpreted as special characters to go one level
+        ``"::"`` (or ``"#"``) in the config keys are interpreted as special characters to go one level
         further into the nested structures.
 
         Args:
@@ -448,7 +448,7 @@ class ConfigParser:
     def split_path_id(cls, src: str) -> tuple[str, str]:
         """
         Split `src` string into two parts: a config file path and component id.
-        The file path should end with `(json|yaml|yml)`. The component id should be separated by `#` if it exists.
+        The file path should end with `(json|yaml|yml)`. The component id should be separated by `::` if it exists.
         If no path or no id, return "".
 
         Args:

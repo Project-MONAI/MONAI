@@ -31,7 +31,7 @@ class ReferenceResolver:
     The IDs must be unique within this set. A string in ``ConfigItem``
     starting with ``@`` will be treated as a reference to other ``ConfigItem`` objects by ID.
     Since ``ConfigItem`` may have a nested dictionary or list structure,
-    the reference string may also contain a ``#`` character to refer to a substructure by
+    the reference string may also contain the separator ``::`` to refer to a substructure by
     key indexing for a dictionary or integer indexing for a list.
 
     In this class, resolving references is essentially substitution of the reference strings with the
@@ -234,14 +234,14 @@ class ReferenceResolver:
     def match_refs_pattern(cls, value: str) -> dict[str, int]:
         """
         Match regular expression for the input string to find the references.
-        The reference string starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
+        The reference string starts with ``"@"``, like: ``"@XXX::YYY::ZZZ"``.
 
         Args:
             value: input value to match regular expression.
 
         """
         refs: dict[str, int] = {}
-        # regular expression pattern to match "@XXX" or "@XXX#YYY"
+        # regular expression pattern to match "@XXX" or "@XXX::YYY"
         value = cls.normalize_id(value)
         result = cls.id_matcher.findall(value)
         value_is_expr = ConfigExpression.is_expression(value)
@@ -256,7 +256,7 @@ class ReferenceResolver:
     def update_refs_pattern(cls, value: str, refs: dict) -> str:
         """
         Match regular expression for the input string to update content with the references.
-        The reference part starts with ``"@"``, like: ``"@XXX#YYY#ZZZ"``.
+        The reference part starts with ``"@"``, like: ``"@XXX::YYY::ZZZ"``.
         References dictionary must contain the referring IDs as keys.
 
         Args:
@@ -264,7 +264,7 @@ class ReferenceResolver:
             refs: all the referring components with ids as keys, default to `None`.
 
         """
-        # regular expression pattern to match "@XXX" or "@XXX#YYY"
+        # regular expression pattern to match "@XXX" or "@XXX::YYY"
         value = cls.normalize_id(value)
         result = cls.id_matcher.findall(value)
         # reversely sort the matched references by length

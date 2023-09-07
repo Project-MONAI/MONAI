@@ -58,11 +58,11 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {
         # all the recursively parsed config items
-        "transform#1": {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
-        "transform#1#_target_": "RandTorchVisiond",
-        "transform#1#keys": "image",
-        "transform#1#name": "ColorJitter",
-        "transform#1#brightness": 0.25,
+        "transform::1": {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
+        "transform#1::_target_": "RandTorchVisiond",
+        "transform::1::keys": "image",
+        "transform::1#name": "ColorJitter",
+        "transform::1::brightness": 0.25,
     },
     "transform#1",
     RandTorchVisiond,
