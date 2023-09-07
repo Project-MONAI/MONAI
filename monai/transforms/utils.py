@@ -1027,11 +1027,11 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
-    cucim, has_cucim = optional_import("cucim")
+    skimage, has_cucim = optional_import("cucim.skimage")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
-        label = cucim.skimage.measure.label
+        label = skimage.measure.label
         lib = cp
     else:
         if not has_measure:

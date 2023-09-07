@@ -94,11 +94,11 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> tuple[list[An
             regardless of this setting.
 
     """
-    cucim, has_cucim = optional_import("cucim")
+    skimage, has_cucim = optional_import("cucim.skimage")
     shape_list = []
     if mask_index.device.type == "cuda" and has_cp and has_cucim and use_gpu:
         mask_cupy = ToCupy()(mask_index.short())
-        labeled = cucim.skimage.measure.label(mask_cupy)
+        labeled = skimage.measure.label(mask_cupy)
         vals = cp.unique(labeled[cp.nonzero(labeled)])
 
         for ncomp in vals:
