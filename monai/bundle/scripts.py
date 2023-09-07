@@ -398,7 +398,7 @@ def load(
     args_file: str | None = None,
     copy_model_args: dict | None = None,
     return_state_dict: bool = True,
-    net_override: dict = {},
+    net_override: dict | None = None,
     net_name: str | None = None,
     **net_kwargs: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
@@ -447,7 +447,7 @@ def load(
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
         return_state_dict: whether to return state dict, if True, return state_dict, else a corresponding network
             from `_workflow.network_def` will be instantiated and load the achieved weights.
-        net_override: id-value pairs to override the parameters in the network of the bundle.
+        net_override: id-value pairs to override the parameters in the network of the bundle, default to `None`.
         net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
             This argument only works when loading weights.
         net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
@@ -469,6 +469,7 @@ def load(
         warnings.warn("Incompatible values: model and net_name are all specified, return state dict instead.")
 
     bundle_dir_ = _process_bundle_dir(bundle_dir)
+    net_override = {} if net_override is None else net_override
     copy_model_args = {} if copy_model_args is None else copy_model_args
 
     if device is None:
