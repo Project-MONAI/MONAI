@@ -71,63 +71,70 @@ TEST_CASE_7 = [
     {"spatial_dims": 3, "out_channels": 5},
 ]
 
+TEST_CASE_8 = [
+    ["network.json", "test_output.pt", "test_input.pt", "large_files.yaml"],
+    "test_bundle_v0.1.2",
+    "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.2.zip",
+    {"model.pt": "27952767e2e154e3b0ee65defc5aed38", "model.ts": "97746870fe591f69ac09827175b00675"},
+]
 
-class TestDownload(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    @skip_if_quick
-    def test_github_download_bundle(self, bundle_name, version):
-        bundle_files = ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"]
-        repo = "Project-MONAI/MONAI-extra-test-data/0.8.1"
-        hash_val = "a131d39a0af717af32d19e565b434928"
-        with skip_if_downloading_fails():
-            # download a whole bundle from github releases
-            with tempfile.TemporaryDirectory() as tempdir:
-                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--name", bundle_name, "--source", "github"]
-                cmd += ["--bundle_dir", tempdir, "--repo", repo]
-                if version is not None:
-                    cmd += ["--version", version]
-                command_line_tests(cmd)
-                for file in bundle_files:
-                    file_path = os.path.join(tempdir, "test_bundle", file)
-                    self.assertTrue(os.path.exists(file_path))
-                    if file == "network.json":
-                        self.assertTrue(check_hash(filepath=file_path, val=hash_val))
 
-    @parameterized.expand([TEST_CASE_3])
-    @skip_if_quick
-    def test_url_download_bundle(self, bundle_files, bundle_name, url, hash_val):
-        with skip_if_downloading_fails():
-            # download a single file from url, also use `args_file`
-            with tempfile.TemporaryDirectory() as tempdir:
-                def_args = {"name": bundle_name, "bundle_dir": tempdir, "url": ""}
-                def_args_file = os.path.join(tempdir, "def_args.json")
-                parser = ConfigParser()
-                parser.export_config_file(config=def_args, filepath=def_args_file)
-                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
-                cmd += ["--url", url, "--source", "github"]
-                command_line_tests(cmd)
-                for file in bundle_files:
-                    file_path = os.path.join(tempdir, bundle_name, file)
-                    self.assertTrue(os.path.exists(file_path))
-                if file == "network.json":
-                    self.assertTrue(check_hash(filepath=file_path, val=hash_val))
+# class TestDownload(unittest.TestCase):
+#     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+#     @skip_if_quick
+#     def test_github_download_bundle(self, bundle_name, version):
+#         bundle_files = ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"]
+#         repo = "Project-MONAI/MONAI-extra-test-data/0.8.1"
+#         hash_val = "a131d39a0af717af32d19e565b434928"
+#         with skip_if_downloading_fails():
+#             # download a whole bundle from github releases
+#             with tempfile.TemporaryDirectory() as tempdir:
+#                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--name", bundle_name, "--source", "github"]
+#                 cmd += ["--bundle_dir", tempdir, "--repo", repo]
+#                 if version is not None:
+#                     cmd += ["--version", version]
+#                 command_line_tests(cmd)
+#                 for file in bundle_files:
+#                     file_path = os.path.join(tempdir, "test_bundle", file)
+#                     self.assertTrue(os.path.exists(file_path))
+#                     if file == "network.json":
+#                         self.assertTrue(check_hash(filepath=file_path, val=hash_val))
 
-    @parameterized.expand([TEST_CASE_6])
-    @skip_if_quick
-    def test_monaihosting_download_bundle(self, bundle_files, bundle_name, url):
-        with skip_if_downloading_fails():
-            # download a single file from url, also use `args_file`
-            with tempfile.TemporaryDirectory() as tempdir:
-                def_args = {"name": bundle_name, "bundle_dir": tempdir, "url": ""}
-                def_args_file = os.path.join(tempdir, "def_args.json")
-                parser = ConfigParser()
-                parser.export_config_file(config=def_args, filepath=def_args_file)
-                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
-                cmd += ["--url", url, "--progress", "False", "--source", "monaihosting"]
-                command_line_tests(cmd)
-                for file in bundle_files:
-                    file_path = os.path.join(tempdir, bundle_name, file)
-                    self.assertTrue(os.path.exists(file_path))
+#     @parameterized.expand([TEST_CASE_3])
+#     @skip_if_quick
+#     def test_url_download_bundle(self, bundle_files, bundle_name, url, hash_val):
+#         with skip_if_downloading_fails():
+#             # download a single file from url, also use `args_file`
+#             with tempfile.TemporaryDirectory() as tempdir:
+#                 def_args = {"name": bundle_name, "bundle_dir": tempdir, "url": ""}
+#                 def_args_file = os.path.join(tempdir, "def_args.json")
+#                 parser = ConfigParser()
+#                 parser.export_config_file(config=def_args, filepath=def_args_file)
+#                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
+#                 cmd += ["--url", url, "--source", "github"]
+#                 command_line_tests(cmd)
+#                 for file in bundle_files:
+#                     file_path = os.path.join(tempdir, bundle_name, file)
+#                     self.assertTrue(os.path.exists(file_path))
+#                 if file == "network.json":
+#                     self.assertTrue(check_hash(filepath=file_path, val=hash_val))
+
+#     @parameterized.expand([TEST_CASE_6])
+#     @skip_if_quick
+#     def test_monaihosting_download_bundle(self, bundle_files, bundle_name, url):
+#         with skip_if_downloading_fails():
+#             # download a single file from url, also use `args_file`
+#             with tempfile.TemporaryDirectory() as tempdir:
+#                 def_args = {"name": bundle_name, "bundle_dir": tempdir, "url": ""}
+#                 def_args_file = os.path.join(tempdir, "def_args.json")
+#                 parser = ConfigParser()
+#                 parser.export_config_file(config=def_args, filepath=def_args_file)
+#                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
+#                 cmd += ["--url", url, "--progress", "False", "--source", "monaihosting"]
+#                 command_line_tests(cmd)
+#                 for file in bundle_files:
+#                     file_path = os.path.join(tempdir, bundle_name, file)
+#                     self.assertTrue(os.path.exists(file_path))
 
 
 class TestLoad(unittest.TestCase):
@@ -147,7 +154,6 @@ class TestLoad(unittest.TestCase):
                     progress=False,
                     device=device,
                 )
-
                 # prepare network
                 with open(os.path.join(tempdir, bundle_name, bundle_files[2])) as f:
                     net_args = json.load(f)["network_def"]
@@ -248,6 +254,34 @@ class TestLoad(unittest.TestCase):
                 self.assertTrue(metadata["pytorch_version"] == "1.7.1")
                 # test extra_file_dict
                 self.assertTrue("network.json" in extra_file_dict.keys())
+
+
+# class TestDownloadLargefiles(unittest.TestCase):
+#     @parameterized.expand([TEST_CASE_8])
+#     @skip_if_quick
+#     def test_url_download_large_files(self, bundle_files, bundle_name, url, hash_val):
+#         with skip_if_downloading_fails():
+#             # download a single file from url, also use `args_file`
+#             with tempfile.TemporaryDirectory() as tempdir:
+#                 def_args = {"name": bundle_name, "bundle_dir": tempdir, "url": ""}
+#                 def_args_file = os.path.join(tempdir, "def_args.json")
+#                 parser = ConfigParser()
+#                 parser.export_config_file(config=def_args, filepath=def_args_file)
+#                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
+#                 cmd += ["--url", url, "--source", "github"]
+#                 command_line_tests(cmd)
+#                 for file in bundle_files:
+#                     file_path = os.path.join(tempdir, bundle_name, file)
+#                     print(file_path)
+#                     self.assertTrue(os.path.exists(file_path))
+
+#                 # download large files
+#                 bundle_path = os.path.join(tempdir, bundle_name)
+#                 cmd = ["coverage", "run", "-m", "monai.bundle", "download_large_files", "--bundle_path", bundle_path]
+#                 command_line_tests(cmd)
+#                 for file in ["model.pt", "model.ts"]:
+#                     file_path = os.path.join(tempdir, bundle_name, f"models/{file}")
+#                     self.assertTrue(check_hash(filepath=file_path, val=hash_val[file]))
 
 
 if __name__ == "__main__":

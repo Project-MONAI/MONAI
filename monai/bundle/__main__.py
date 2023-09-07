@@ -21,6 +21,7 @@ from monai.bundle.scripts import (
     trt_export,
     verify_metadata,
     verify_net_in_out,
+    download_large_files,
 )
 
 if __name__ == "__main__":
