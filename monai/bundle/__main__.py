@@ -14,6 +14,7 @@ from __future__ import annotations
 from monai.bundle.scripts import (
     ckpt_export,
     download,
+    download_large_files,
     init_bundle,
     onnx_export,
     run,
@@ -21,7 +22,6 @@ from monai.bundle.scripts import (
     trt_export,
     verify_metadata,
     verify_net_in_out,
-    download_large_files,
 )
 
 if __name__ == "__main__":
