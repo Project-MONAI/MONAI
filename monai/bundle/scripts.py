@@ -1619,3 +1619,43 @@ def create_workflow(
     workflow_.initialize()
 
     return workflow_
+
+
+def download_large_files(bundle_path: str | None = None, large_file_name: str | None = None) -> None:
+    """
+    This utility allows you to download large files from a bundle. It supports file suffixes like ".yml", ".yaml", and ".json".
+    If you don't specify a `large_file_name`, it will automatically search for large files among the supported suffixes.
+
+    Typical usage examples:
+    .. code-block:: bash
+
+        # Execute this module as a CLI entry to download large files from a bundle path:
+        python -m monai.bundle download_large_files --bundle_path <bundle_path>
+
+        # Execute this module as a CLI entry to download large files from the bundle path with a specified `large_file_name`:
+        python -m monai.bundle download_large_files --bundle_path <bundle_path> --large_file_name large_files.yaml
+
+    Args:
+        bundle_path: (Optional) The path to the bundle where the files are located. Default is `os.getcwd()`.
+        large_file_name: (Optional) The name of the large file to be downloaded.
+
+    """
+    bundle_path = os.getcwd() if bundle_path is None else bundle_path
+    if large_file_name is None:
+        large_file_path = list(Path(bundle_path).glob("large_files*"))
+        large_file_path = list(filter(lambda x: x.suffix in [".yml", ".yaml", ".json"], large_file_path))
+        if len(large_file_path) == 0:
+            raise FileNotFoundError(f"Cannot find the large_files.yml/yaml/json under {bundle_path}.")
+
+    parser = ConfigParser()
+    parser.read_config(large_file_path)
+    large_files_list = parser.get()["large_files"]
+    for lf_data in large_files_list:
+        lf_data["fuzzy"] = True
+        if "hash_val" in lf_data and lf_data.get("hash_val", "") == "":
+            lf_data.pop("hash_val")
+        if "hash_type" in lf_data and lf_data.get("hash_type", "") == "":
+            lf_data.pop("hash_type")
+        lf_data["filepath"] = os.path.join(bundle_path, lf_data["path"])
+        lf_data.pop("path")
+        download_url(**lf_data)
