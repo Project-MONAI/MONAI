@@ -1641,14 +1641,13 @@ def download_large_files(bundle_path: str, large_file_name: str | None = None) -
 
     """
     if large_file_name is None:
-        for large_file_type in [".yml", ".yaml", ".json"]:
-            large_file_name = "large_files" + large_file_type
-            large_file_path = os.path.join(bundle_path, large_file_name)
-            if os.path.exists(large_file_path):
-                break
+        large_file_path = list(Path(bundle_path).glob("large_files*"))
+        large_file_path = list(filter(lambda x: x.suffix in [".yml", ".yaml", ".json"], large_file_path))
+        if len(large_file_path) == 0:
+            raise FileNotFoundError("Cannot find the large files.")
 
     parser = ConfigParser()
-    parser.read_config(os.path.join(bundle_path, large_file_name))
+    parser.read_config(large_file_path)
     large_files_list = parser.get()["large_files"]
     for lf_data in large_files_list:
         lf_data["fuzzy"] = True
