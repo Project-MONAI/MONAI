@@ -52,7 +52,7 @@ class ReferenceResolver:
     _vars = "__local_refs"
     sep = ID_SEP_KEY  # separator for key indexing
     ref = ID_REF_KEY  # reference prefix
-    # match a reference string, e.g. "@id#key", "@id#key#0", "@_target_#key"
+    # match a reference string, e.g. "@id::key", "@id::key::0", "@_target_::key"
     id_matcher = re.compile(rf"{ref}(?:\w*)(?:{sep}\w*)*")
     # if `allow_missing_reference` and can't find a reference ID, will just raise a warning and don't update the config
     allow_missing_reference = allow_missing_reference
@@ -99,9 +99,9 @@ class ReferenceResolver:
             kwargs: keyword arguments to pass to ``_resolve_one_item()``.
                 Currently support ``instantiate`` and ``eval_expr``. Both are defaulting to True.
         """
+        id = self.normalize_id(id)
         if resolve and id not in self.resolved_content:
             self._resolve_one_item(id=id, **kwargs)
-        id = self.normalize_id(id)
         return self.items.get(id)
 
     def _resolve_one_item(
@@ -199,14 +199,13 @@ class ReferenceResolver:
 
         Args:
             id: id string to be normalized.
-
         """
         return str(id).replace("#", cls.sep)  # backward compatibility `#` is the old separator
 
     @classmethod
     def split_id(cls, id: str | int, last: bool = False) -> list[str]:
         """
-        Split the id string into a tuple of strings.
+        Split the id string into a list of strings by `cls.sep`.
 
         Args:
             id: id string to be split.
@@ -220,7 +219,7 @@ class ReferenceResolver:
     @classmethod
     def iter_subconfigs(cls, id: str, config: Any) -> Iterator[tuple[str, str, Any]]:
         """
-        Iterate over the sub-configs of the input config.
+        Iterate over the sub-configs of the input config, the output `sub_id` uses `cls.sep` to denote substructure.
 
         Args:
             id: id string of the current input config.
@@ -277,11 +276,10 @@ class ReferenceResolver:
                 ref_id = item[len(cls.ref) :]  # remove the ref prefix "@"
                 if ref_id not in refs:
                     msg = f"can not find expected ID '{ref_id}' in the references."
-                    if cls.allow_missing_reference:
-                        warnings.warn(msg)
-                        continue
-                    else:
+                    if not cls.allow_missing_reference:
                         raise KeyError(msg)
+                    warnings.warn(msg)
+                    continue
                 if value_is_expr:
                     # replace with local code, `{"__local_refs": self.resolved_content}` will be added to
                     # the `globals` argument of python `eval` in the `evaluate`
@@ -307,7 +305,7 @@ class ReferenceResolver:
         """
         refs_: dict[str, int] = refs or {}
         if isinstance(config, str):
-            for id, count in cls.match_refs_pattern(value=config).items():
+            for id, count in cls.match_refs_pattern(value=config).items():  # ref count is not currently used
                 refs_[id] = refs_.get(id, 0) + count
         if not isinstance(config, (list, dict)):
             return refs_
