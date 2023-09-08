@@ -155,12 +155,12 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
 
 
 def _get_ngc_bundle_url(model_name: str, version: str) -> str:
-    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name}/versions/{version}/zip"
+    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name.lower()}/versions/{version}/zip"
 
 
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
     monaihosting_root_path = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-    return f"{monaihosting_root_path}/{model_name}/versions/{version}/files/{model_name}_v{version}.zip"
+    return f"{monaihosting_root_path}/{model_name}/versions/{version}/files/{model_name.lower()}_v{version}.zip"
 
 
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
