@@ -72,6 +72,12 @@ TEST_CASE_7 = [
 ]
 
 TEST_CASE_8 = [
+    "Spleen_CT_Segmentation",
+    "cuda" if torch.cuda.is_available() else "cpu",
+    {"spatial_dims": 3, "out_channels": 5},
+]
+
+TEST_CASE_9 = [
     ["network.json", "test_output.pt", "test_input.pt", "large_files.yaml"],
     "test_bundle",
     "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.2.zip",
@@ -204,7 +210,7 @@ class TestLoad(unittest.TestCase):
                 output_3 = model_3.forward(input_tensor)
                 assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-    @parameterized.expand([TEST_CASE_7])
+    @parameterized.expand([TEST_CASE_7, TEST_CASE_8])
     @skip_if_quick
     def test_load_weights_with_net_override(self, bundle_name, device, net_override):
         with skip_if_downloading_fails():
@@ -282,7 +288,7 @@ class TestLoad(unittest.TestCase):
 
 
 class TestDownloadLargefiles(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_8])
+    @parameterized.expand([TEST_CASE_9])
     @skip_if_quick
     def test_url_download_large_files(self, bundle_files, bundle_name, url, hash_val):
         with skip_if_downloading_fails():
