@@ -88,6 +88,9 @@ where `#` indicates a sub-structure of this configuration file.
 
 _Description:_ `1` is referencing as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
 
+Relative reference is supported by starting the reference with `#`. For example, `@#A` is to use `A` at the
+same config structure level, and `@##A` refers to `A` at one level above.
+
 ### To evaluate as Python expressions
 
 ```json
@@ -109,6 +112,12 @@ _Description:_ Create a list at runtime using the values in `datalist` as input.
 _Description:_ `$` followed by an import statement is handled slightly differently from the
 Python expressions. The imported module `resnet18` will be available as a global variable
 to the other configuration sections. This is to simplify the use of external modules in the configuration.
+
+The config expressions may use `@` to reference other config items. For example, in `$lambda x: x + @a + @b`,
+`@a` and `@b` are references to other Python objects and are made available to the anonymous function
+as 'globals'.
+It's therefore possible to modify the Python objects within an expression, for example,
+`$lambda x: @my_list.pop() + x` will pop the last element from `@my_list` and add it to `x`.
 
 ### To textually replace configuration elements
 
@@ -196,3 +205,4 @@ Details on the CLI argument parsing is provided in the
   the `<module>` if it is not a (optional) dependency of MONAI.
 - As "#" and "$" might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
   or quotes for them in the command line, like: `"\$torch.device('cuda:1')"`, `"'train_part#trainer'"`.
+- For more details and examples, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/bundle).

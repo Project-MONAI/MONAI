@@ -837,7 +837,7 @@ class Resize(InvertibleTransform, LazyTransform):
         lazy_ = self.lazy if lazy is None else lazy
         return resize(  # type: ignore
             img,
-            sp_size,
+            tuple(int(_s) for _s in sp_size),
             _mode,
             _align_corners,
             _dtype,

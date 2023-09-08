@@ -79,6 +79,11 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_moving.mha",
             "hash_type": "sha256",
             "hash_val": "a37c5fe388c38b3f4ac564f456277d09d3982eda58c4da05ead8ee2332360f47"
+        },
+        "DICOM_single": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_DICOM_SINGLE.zip",
+            "hash_type": "sha256",
+            "hash_val": "a41f6e93d2e3d68956144f9a847273041d36441da12377d6a1d5ae610e0a7023"
         }
     },
     "videos": {
