@@ -1191,10 +1191,10 @@ def onnx_export(
 
 
 def ckpt_export(
-    net_id: str | None = None,
-    filepath: PathLike | None = None,
-    ckpt_file: str | None = None,
-    meta_file: str | Sequence[str] | None = None,
+    net_id: str | None = "network_def",
+    filepath: PathLike | None = "models/model.ts",
+    ckpt_file: str | None = "models/model.pt",
+    meta_file: str | Sequence[str] | None = "configs/metadata.json",
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
     use_trace: bool | None = None,
@@ -1250,9 +1250,10 @@ def ckpt_export(
     )
     _log_input_summary(tag="ckpt_export", args=_args)
     (
+        config_file_,
         filepath_,
         ckpt_file_,
-        config_file_,
+        bundle_root_,
         net_id_,
         meta_file_,
         key_in_ckpt_,
@@ -1261,11 +1262,12 @@ def ckpt_export(
         converter_kwargs_,
     ) = _pop_args(
         _args,
-        "filepath",
-        "ckpt_file",
         "config_file",
-        net_id="",
-        meta_file=None,
+        filepath="models/model.ts",
+        ckpt_file="models/model.pt",
+        bundle_root=os.getcwd(),
+        net_id="network_def",
+        meta_file="configs/metadata.json",
         key_in_ckpt="",
         use_trace=False,
         input_shape=None,
@@ -1275,8 +1277,21 @@ def ckpt_export(
     parser = ConfigParser()
 
     parser.read_config(f=config_file_)
-    if meta_file_ is not None:
+    meta_file_ = (
+        os.path.join(bundle_root_, "configs/metadata.json") if meta_file_ == "configs/metadata.json" else meta_file_
+    )
+    filepath_ = os.path.join(bundle_root_, "models/model.ts") if filepath_ == "models/model.ts" else filepath_
+    ckpt_file_ = os.path.join(bundle_root_, "models/model.pt") if ckpt_file_ == "models/model.pt" else ckpt_file_
+    if not os.path.exists(ckpt_file_):
+        raise FileNotFoundError(f"ckpt_file in {ckpt_file_} does not exist, please specify it.")
+    if os.path.exists(meta_file_):
         parser.read_meta(f=meta_file_)
+
+    if net_id_ == "network_def":
+        try:
+            parser.get_parsed_content(net_id_)
+        except ValueError as e:
+            raise ValueError(f"Default net_id: network_def in {config_file_} does not exist. {e}")
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
