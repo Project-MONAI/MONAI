@@ -1192,9 +1192,9 @@ def onnx_export(
 
 def ckpt_export(
     net_id: str | None = "network_def",
-    filepath: PathLike | None = "models/model.ts",
-    ckpt_file: str | None = "models/model.pt",
-    meta_file: str | Sequence[str] | None = "configs/metadata.json",
+    filepath: PathLike | None = None,
+    ckpt_file: str | None = None,
+    meta_file: str | Sequence[str] | None = None,
     config_file: str | Sequence[str] | None = None,
     key_in_ckpt: str | None = None,
     use_trace: bool | None = None,
@@ -1267,11 +1267,11 @@ def ckpt_export(
     ) = _pop_args(
         _args,
         "config_file",
-        filepath="models/model.ts",
-        ckpt_file="models/model.pt",
+        filepath=None,
+        ckpt_file=None,
         bundle_root=os.getcwd(),
         net_id="network_def",
-        meta_file="configs/metadata.json",
+        meta_file=None,
         key_in_ckpt="",
         use_trace=False,
         input_shape=None,
@@ -1282,10 +1282,10 @@ def ckpt_export(
 
     parser.read_config(f=config_file_)
     meta_file_ = (
-        os.path.join(bundle_root_, "configs", "metadata.json") if meta_file_ == "configs/metadata.json" else meta_file_
+        os.path.join(bundle_root_, "configs", "metadata.json") if meta_file_ is None else meta_file_
     )
-    filepath_ = os.path.join(bundle_root_, "models", "model.ts") if filepath_ == "models/model.ts" else filepath_
-    ckpt_file_ = os.path.join(bundle_root_, "models", "model.pt") if ckpt_file_ == "models/model.pt" else ckpt_file_
+    filepath_ = os.path.join(bundle_root_, "models", "model.ts") if filepath_ is None else filepath_
+    ckpt_file_ = os.path.join(bundle_root_, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
     if not os.path.exists(ckpt_file_):
         raise FileNotFoundError(f"ckpt_file in {ckpt_file_} does not exist, please specify it.")
     if os.path.exists(meta_file_):
