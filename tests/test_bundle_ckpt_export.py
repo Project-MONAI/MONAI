@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
@@ -19,7 +18,6 @@ import unittest
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser
-from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from tests.utils import command_line_tests, skip_if_windows
 
