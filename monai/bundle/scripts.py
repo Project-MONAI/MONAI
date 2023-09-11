@@ -1281,9 +1281,7 @@ def ckpt_export(
     parser = ConfigParser()
 
     parser.read_config(f=config_file_)
-    meta_file_ = (
-        os.path.join(bundle_root_, "configs", "metadata.json") if meta_file_ is None else meta_file_
-    )
+    meta_file_ = os.path.join(bundle_root_, "configs", "metadata.json") if meta_file_ is None else meta_file_
     filepath_ = os.path.join(bundle_root_, "models", "model.ts") if filepath_ is None else filepath_
     ckpt_file_ = os.path.join(bundle_root_, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
     if not os.path.exists(ckpt_file_):
@@ -1295,7 +1293,9 @@ def ckpt_export(
     try:
         parser.get_parsed_content(net_id_)
     except ValueError as e:
-        raise ValueError(f'Network definition "{net_id_}" cannot be found in "{config_file_}", specify name with argument "net_id".') from e
+        raise ValueError(
+            f'Network definition "{net_id_}" cannot be found in "{config_file_}", specify name with argument "net_id".'
+        ) from e
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
