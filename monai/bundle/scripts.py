@@ -1191,7 +1191,7 @@ def onnx_export(
 
 
 def ckpt_export(
-    net_id: str | None = "network_def",
+    net_id: str | None = None,
     filepath: PathLike | None = None,
     ckpt_file: str | None = None,
     meta_file: str | Sequence[str] | None = None,
@@ -1270,7 +1270,7 @@ def ckpt_export(
         filepath=None,
         ckpt_file=None,
         bundle_root=os.getcwd(),
-        net_id="network_def",
+        net_id=None,
         meta_file=None,
         key_in_ckpt="",
         use_trace=False,
@@ -1291,11 +1291,11 @@ def ckpt_export(
     if os.path.exists(meta_file_):
         parser.read_meta(f=meta_file_)
 
-    if net_id_ == "network_def":
-        try:
-            parser.get_parsed_content(net_id_)
-        except ValueError as e:
-            raise ValueError(f"Default net_id: network_def in {config_file_} does not exist.") from e
+    net_id_ = "network_def" if net_id_ is None else net_id_
+    try:
+        parser.get_parsed_content(net_id_)
+    except ValueError as e:
+        raise ValueError(f"net_id: network_def in {config_file_} does not exist.") from e
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
