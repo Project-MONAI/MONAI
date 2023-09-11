@@ -136,7 +136,7 @@ class TestDownload(unittest.TestCase):
                 parser = ConfigParser()
                 parser.export_config_file(config=def_args, filepath=def_args_file)
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
-                cmd += ["--url", url, "--progress", "False", "--source", "monaihosting"]
+                cmd += ["--url", url, "--progress", "False"]
                 command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
