@@ -71,11 +71,7 @@ TEST_CASE_7 = [
     {"spatial_dims": 3, "out_channels": 5},
 ]
 
-TEST_CASE_8 = [
-    ["models/model.pt", "configs/train.json"],
-    "renalStructures_CECT_segmentation",
-    "0.1.0",
-]
+TEST_CASE_8 = [["models/model.pt", "configs/train.json"], "renalStructures_CECT_segmentation", "0.1.0"]
 
 TEST_CASE_9 = [
     ["network.json", "test_output.pt", "test_input.pt", "large_files.yaml"],
