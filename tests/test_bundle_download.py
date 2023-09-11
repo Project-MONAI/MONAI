@@ -72,9 +72,9 @@ TEST_CASE_7 = [
 ]
 
 TEST_CASE_8 = [
-    "Spleen_CT_Segmentation",
-    "cuda" if torch.cuda.is_available() else "cpu",
-    {"spatial_dims": 3, "out_channels": 5},
+    ["models/model.pt", "configs/train.json"],
+    "renalStructures_CECT_segmentation",
+    "0.1.0",
 ]
 
 TEST_CASE_9 = [
@@ -127,7 +127,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
-    def test_monaihosting_download_bundle(self, bundle_files, bundle_name, url):
+    def test_monaihosting_url_download_bundle(self, bundle_files, bundle_name, url):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
             with tempfile.TemporaryDirectory() as tempdir:
@@ -137,6 +137,23 @@ class TestDownload(unittest.TestCase):
                 parser.export_config_file(config=def_args, filepath=def_args_file)
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
                 cmd += ["--url", url, "--progress", "False", "--source", "monaihosting"]
+                command_line_tests(cmd)
+                for file in bundle_files:
+                    file_path = os.path.join(tempdir, bundle_name, file)
+                    self.assertTrue(os.path.exists(file_path))
+
+    @parameterized.expand([TEST_CASE_8])
+    @skip_if_quick
+    def test_monaihosting_source_download_bundle(self, bundle_files, bundle_name, version):
+        with skip_if_downloading_fails():
+            # download a single file from url, also use `args_file`
+            with tempfile.TemporaryDirectory() as tempdir:
+                def_args = {"name": bundle_name, "bundle_dir": tempdir, "version": version}
+                def_args_file = os.path.join(tempdir, "def_args.json")
+                parser = ConfigParser()
+                parser.export_config_file(config=def_args, filepath=def_args_file)
+                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
+                cmd += ["--progress", "False", "--source", "monaihosting"]
                 command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
@@ -210,7 +227,7 @@ class TestLoad(unittest.TestCase):
                 output_3 = model_3.forward(input_tensor)
                 assert_allclose(output_3, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-    @parameterized.expand([TEST_CASE_7, TEST_CASE_8])
+    @parameterized.expand([TEST_CASE_7])
     @skip_if_quick
     def test_load_weights_with_net_override(self, bundle_name, device, net_override):
         with skip_if_downloading_fails():
