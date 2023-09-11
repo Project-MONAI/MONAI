@@ -71,7 +71,9 @@ TEST_CASE_7 = [
     {"spatial_dims": 3, "out_channels": 5},
 ]
 
-TEST_CASE_8 = [
+TEST_CASE_8 = [["models/model.pt", "configs/train.json"], "renalStructures_CECT_segmentation", "0.1.0"]
+
+TEST_CASE_9 = [
     ["network.json", "test_output.pt", "test_input.pt", "large_files.yaml"],
     "test_bundle",
     "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.2.zip",
@@ -121,7 +123,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
-    def test_monaihosting_download_bundle(self, bundle_files, bundle_name, url):
+    def test_monaihosting_url_download_bundle(self, bundle_files, bundle_name, url):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
             with tempfile.TemporaryDirectory() as tempdir:
@@ -130,7 +132,24 @@ class TestDownload(unittest.TestCase):
                 parser = ConfigParser()
                 parser.export_config_file(config=def_args, filepath=def_args_file)
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
-                cmd += ["--url", url, "--progress", "False", "--source", "monaihosting"]
+                cmd += ["--url", url, "--progress", "False"]
+                command_line_tests(cmd)
+                for file in bundle_files:
+                    file_path = os.path.join(tempdir, bundle_name, file)
+                    self.assertTrue(os.path.exists(file_path))
+
+    @parameterized.expand([TEST_CASE_8])
+    @skip_if_quick
+    def test_monaihosting_source_download_bundle(self, bundle_files, bundle_name, version):
+        with skip_if_downloading_fails():
+            # download a single file from url, also use `args_file`
+            with tempfile.TemporaryDirectory() as tempdir:
+                def_args = {"name": bundle_name, "bundle_dir": tempdir, "version": version}
+                def_args_file = os.path.join(tempdir, "def_args.json")
+                parser = ConfigParser()
+                parser.export_config_file(config=def_args, filepath=def_args_file)
+                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
+                cmd += ["--progress", "False", "--source", "monaihosting"]
                 command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
@@ -282,7 +301,7 @@ class TestLoad(unittest.TestCase):
 
 
 class TestDownloadLargefiles(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_8])
+    @parameterized.expand([TEST_CASE_9])
     @skip_if_quick
     def test_url_download_large_files(self, bundle_files, bundle_name, url, hash_val):
         with skip_if_downloading_fails():

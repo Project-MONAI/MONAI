@@ -76,14 +76,15 @@ A few characters and keywords are interpreted beyond the plain texts, here are e
 ### To reference Python objects in configurations
 
 ```json
-"@preprocessing#transforms#keys"
+"@preprocessing::transforms::keys"
 ```
 
-_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing#transforms#keys`.
-where `#` indicates a sub-structure of this configuration file.
+_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing::transforms::keys`.
+where `::` indicates a sub-structure of this configuration file. (`#` is a synonym for `::`, `preprocessing#transforms#keys`
+refers to the same object.)
 
 ```json
-"@preprocessing#1"
+"@preprocessing::1"
 ```
 
 _Description:_ `1` is referencing as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
@@ -122,10 +123,10 @@ It's therefore possible to modify the Python objects within an expression, for e
 ### To textually replace configuration elements
 
 ```json
-"%demo_config.json#demo_net#in_channels"
+"%demo_config.json::demo_net::in_channels"
 ```
 
-_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net#in_channels` in the
+_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net::in_channels` in the
 `demo_config.json` file. The replacement is done before instantiating or evaluating the components.
 
 ### Instantiate a Python object
@@ -203,6 +204,6 @@ Details on the CLI argument parsing is provided in the
   simple structures with sparse uses of expressions or references are preferred.
 - For `$import <module>` in the configuration, please make sure there are instructions for the users to install
   the `<module>` if it is not a (optional) dependency of MONAI.
-- As "#" and "$" might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
+- As `#`, `::`, and `$` might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
   or quotes for them in the command line, like: `"\$torch.device('cuda:1')"`, `"'train_part#trainer'"`.
 - For more details and examples, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/bundle).
