@@ -1287,7 +1287,7 @@ def ckpt_export(
     filepath_ = os.path.join(bundle_root_, "models", "model.ts") if filepath_ is None else filepath_
     ckpt_file_ = os.path.join(bundle_root_, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
     if not os.path.exists(ckpt_file_):
-        raise FileNotFoundError(f"ckpt_file in {ckpt_file_} does not exist, please specify it.")
+        raise FileNotFoundError(f'Checkpoint file "{ckpt_file_}" not found, please specify it in argument "ckpt_file".')
     if os.path.exists(meta_file_):
         parser.read_meta(f=meta_file_)
 
