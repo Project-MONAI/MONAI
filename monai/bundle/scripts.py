@@ -1295,7 +1295,7 @@ def ckpt_export(
     try:
         parser.get_parsed_content(net_id_)
     except ValueError as e:
-        raise ValueError(f"net_id: network_def in {config_file_} does not exist.") from e
+        raise ValueError(f'Network definition "{net_id_}" cannot be found in "{config_file_}", specify name with argument "net_id".') from e
 
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
