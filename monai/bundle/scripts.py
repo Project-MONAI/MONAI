@@ -1214,9 +1214,13 @@ def ckpt_export(
 
     Args:
         net_id: ID name of the network component in the config, it must be `torch.nn.Module`.
+            Default to "network_def".
         filepath: filepath to export, if filename has no extension it becomes `.ts`.
+            Default to "models/model.ts" under "os.getcwd()" if `bundle_root` is not specified.
         ckpt_file: filepath of the model checkpoint to load.
+            Default to "models/model.pt" under "os.getcwd()" if `bundle_root` is not specified.
         meta_file: filepath of the metadata file, if it is a list of file paths, the content of them will be merged.
+            Default to "configs/metadata.json" under "os.getcwd()" if `bundle_root` is not specified.
         config_file: filepath of the config file to save in TorchScript model and extract network information,
             the saved key in the TorchScript model is the config filename without extension, and the saved config
             value is always serialized in JSON format no matter the original file format is JSON or YAML.
@@ -1278,10 +1282,10 @@ def ckpt_export(
 
     parser.read_config(f=config_file_)
     meta_file_ = (
-        os.path.join(bundle_root_, "configs/metadata.json") if meta_file_ == "configs/metadata.json" else meta_file_
+        os.path.join(bundle_root_, "configs", "metadata.json") if meta_file_ == "configs/metadata.json" else meta_file_
     )
-    filepath_ = os.path.join(bundle_root_, "models/model.ts") if filepath_ == "models/model.ts" else filepath_
-    ckpt_file_ = os.path.join(bundle_root_, "models/model.pt") if ckpt_file_ == "models/model.pt" else ckpt_file_
+    filepath_ = os.path.join(bundle_root_, "models", "model.ts") if filepath_ == "models/model.ts" else filepath_
+    ckpt_file_ = os.path.join(bundle_root_, "models", "model.pt") if ckpt_file_ == "models/model.pt" else ckpt_file_
     if not os.path.exists(ckpt_file_):
         raise FileNotFoundError(f"ckpt_file in {ckpt_file_} does not exist, please specify it.")
     if os.path.exists(meta_file_):
