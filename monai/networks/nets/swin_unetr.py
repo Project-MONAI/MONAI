@@ -1055,3 +1055,34 @@ class SwinTransformer(nn.Module):
         x4 = self.layers4[0](x3.contiguous())
         x4_out = self.proj_out(x4, normalize)
         return [x0_out, x1_out, x2_out, x3_out, x4_out]
+
+
+def filter_swinunetr(key, value):
+    """
+    A filter function used to filter the pretrained weights from [1], then the weights can be loaded into MONAI SwinUNETR Model.
+    [1] "Valanarasu JM et al., Disruptive Autoencoders: Leveraging Low-level features for 3D Medical Image Pre-training
+    <https://arxiv.org/abs/2307.16896>"
+
+    Args:
+        key: the key in the source state dict used for the update.
+        value: the value in the source state dict used for the update.
+
+    """
+    if key in [
+        "encoder.mask_token",
+        "encoder.norm.weight",
+        "encoder.norm.bias",
+        "out.conv.conv.weight",
+        "out.conv.conv.bias",
+    ]:
+        return None
+
+    if key[:8] == "encoder.":
+        if key[8:19] == "patch_embed":
+            new_key = "swinViT." + key[8:]
+        else:
+            new_key = "swinViT." + key[8:18] + key[20:]
+
+        return new_key, value
+    else:
+        return None
