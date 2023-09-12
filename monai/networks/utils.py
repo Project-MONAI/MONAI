@@ -1141,7 +1141,9 @@ def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
                 frozen_keys.append(name)
             elif not param.requires_grad:
                 param.requires_grad = True
-                warnings.warn(f"The freeze_vars does not include {param}, but requires_grad is False, change it to True.")
+                warnings.warn(
+                    f"The freeze_vars does not include {param}, but requires_grad is False, change it to True."
+                )
     if exclude_vars is not None:
         to_exclude = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
         for name, param in model.named_parameters():
