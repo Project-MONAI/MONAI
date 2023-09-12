@@ -1068,6 +1068,23 @@ def filter_swinunetr(key, value):
         key: the key in the source state dict used for the update.
         value: the value in the source state dict used for the update.
 
+    Examples::
+
+        import torch
+        from monai.apps import download_url
+        from monai.networks.utils import copy_model_state
+        from monai.networks.nets.swin_unetr import SwinUNETR, filter_swinunetr
+
+        model = SwinUNETR(img_size=(96, 96, 96), in_channels=1, out_channels=3, feature_size=48)
+        resource = (
+            "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth"
+        )
+        ssl_weights_path = "./ssl_pretrained_weights.pth"
+        download_url(resource, ssl_weights_path)
+        ssl_weights = torch.load(ssl_weights_path)["model"]
+
+        dst_dict, loaded, not_loaded = copy_model_state(model, ssl_weights, filter_func=filter_swinunetr)
+
     """
     if key in [
         "encoder.mask_token",

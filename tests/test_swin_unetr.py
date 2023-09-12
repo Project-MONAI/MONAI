@@ -58,16 +58,7 @@ for attn_drop_rate in [0.4]:
 
 TEST_CASE_FILTER = [
     [
-        {
-            "img_size": (96, 96, 96),
-            "in_channels": 1,
-            "out_channels": 14,
-            "feature_size": 48,
-            "drop_rate": 0.0,
-            "attn_drop_rate": 0.0,
-            "dropout_path_rate": 0.0,
-            "use_checkpoint": True,
-        },
+        {"img_size": (96, 96, 96), "in_channels": 1, "out_channels": 14, "feature_size": 48, "use_checkpoint": True},
         "swinViT.layers1.0.blocks.0.norm1.weight",
         torch.tensor([0.9473, 0.9343, 0.8566, 0.8487, 0.8065, 0.7779, 0.6333, 0.5555]),
     ]
