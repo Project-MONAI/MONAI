@@ -1111,3 +1111,12 @@ def replace_modules_temp(
         # revert
         for name, module in replaced:
             _replace_modules(parent, name, module, [], strict_match=True, match_device=match_device)
+
+
+def freeze_layers(model: nn.Module, freeze_var=None):
+    src_dict = get_state_dict(model)
+
+    to_freeze = {s_key for s_key in src_dict if freeze_var and re.compile(freeze_var).search(s_key)}
+    for name, param in model.named_parameters():
+        if name in to_freeze:
+            param.requires_grad = False
