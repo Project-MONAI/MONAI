@@ -478,6 +478,7 @@ def copy_model_state(
     mapping=None,
     exclude_vars=None,
     inplace=True,
+    filter_func=None,
 ):
     """
     Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
@@ -490,7 +491,7 @@ def copy_model_state(
 
     Args:
         dst: a pytorch module or state dict to be updated.
-        src: a pytorch module or state dist used to get the values used for the update.
+        src: a pytorch module or state dict used to get the values used for the update.
         dst_prefix: `dst` key prefix, so that `dst[dst_prefix + src_key]`
             will be assigned to the value of `src[src_key]`.
         mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[dst_prefix + dst_key]`
@@ -499,6 +500,8 @@ def copy_model_state(
             so that their values are not overwritten by `src`.
         inplace: whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
             This option is only available when `dst` is a `torch.nn.Module`.
+        filter_func: a filter function used to filter the weights to be loaded.
+            See 'filter_swinunetr' in "monai.networks.nets.swin_unetr.py".
 
     Examples:
         .. code-block:: python
@@ -536,6 +539,12 @@ def copy_model_state(
                 warnings.warn(f"Param. shape changed from {dst_dict[dst_key].shape} to {src_dict[s].shape}.")
             dst_dict[dst_key] = src_dict[s]
             updated_keys.append(dst_key)
+    if filter_func is not None:
+        for key, value in src_dict.items():
+            new_pair = filter_func(key, value)
+            if new_pair is not None and new_pair[0] not in to_skip:
+                dst_dict[new_pair[0]] = new_pair[1]
+                updated_keys.append(new_pair[0])
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
