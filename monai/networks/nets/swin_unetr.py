@@ -1060,6 +1060,7 @@ class SwinTransformer(nn.Module):
 def filter_swinunetr(key, value):
     """
     A filter function used to filter the pretrained weights from [1], then the weights can be loaded into MONAI SwinUNETR Model.
+    This function is typically used with `monai.networks.copy_model_state`
     [1] "Valanarasu JM et al., Disruptive Autoencoders: Leveraging Low-level features for 3D Medical Image Pre-training
     <https://arxiv.org/abs/2307.16896>"
 
