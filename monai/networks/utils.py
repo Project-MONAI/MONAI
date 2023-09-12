@@ -1114,9 +1114,20 @@ def replace_modules_temp(
 
 
 def freeze_layers(model: nn.Module, freeze_var=None):
+    """
+    A utilty function to help freeze specific layers.
+
+    Args:
+        model: a source PyTorch model to freeze layer.
+        freeze_vars: a regular expression to match the `model` variable names,
+            so that their `requires_grad` will set to `False`.
+    """
     src_dict = get_state_dict(model)
 
     to_freeze = {s_key for s_key in src_dict if freeze_var and re.compile(freeze_var).search(s_key)}
+    frozen_keys = list()
     for name, param in model.named_parameters():
         if name in to_freeze:
             param.requires_grad = False
+            frozen_keys.append(name)
+    logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")
