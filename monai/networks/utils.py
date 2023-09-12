@@ -1120,3 +1120,47 @@ def replace_modules_temp(
         # revert
         for name, module in replaced:
             _replace_modules(parent, name, module, [], strict_match=True, match_device=match_device)
+
+
+def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
+    """
+    A utilty function to help freeze specific layers.
+
+    Args:
+        model: a source PyTorch model to freeze layer.
+        freeze_vars: a regular expression to match the `model` variable names,
+            so that their `requires_grad` will set to `False`.
+        exclude_vars: a regular expression to match the `model` variable names,
+            except for matched variable names, other `requires_grad` will set to `False`.
+
+    Raises:
+        ValueError: when freeze_vars and exclude_vars are both specified.
+
+    """
+    if freeze_vars is not None and exclude_vars is not None:
+        raise ValueError("Incompatible values: freeze_vars and exclude_vars are both specified.")
+    src_dict = get_state_dict(model)
+
+    frozen_keys = list()
+    if freeze_vars is not None:
+        to_freeze = {s_key for s_key in src_dict if freeze_vars and re.compile(freeze_vars).search(s_key)}
+        for name, param in model.named_parameters():
+            if name in to_freeze:
+                param.requires_grad = False
+                frozen_keys.append(name)
+            elif not param.requires_grad:
+                param.requires_grad = True
+                warnings.warn(
+                    f"The freeze_vars does not include {param}, but requires_grad is False, change it to True."
+                )
+    if exclude_vars is not None:
+        to_exclude = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
+        for name, param in model.named_parameters():
+            if name not in to_exclude:
+                param.requires_grad = False
+                frozen_keys.append(name)
+            elif not param.requires_grad:
+                param.requires_grad = True
+                warnings.warn(f"The exclude_vars includes {param}, but requires_grad is False, change it to True.")
+
+    logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")
