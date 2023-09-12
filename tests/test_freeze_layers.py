@@ -24,7 +24,7 @@ from tests.test_copy_model_state import _TestModelOne
 TEST_CASES = []
 __devices = ("cpu", "cuda") if torch.cuda.is_available() else ("cpu",)
 for _x in __devices:
-    TEST_CASES.append((_x))
+    TEST_CASES.append(_x)
 
 
 class TestModuleState(unittest.TestCase):
