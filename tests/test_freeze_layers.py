@@ -18,8 +18,7 @@ from parameterized import parameterized
 
 from monai.networks.utils import freeze_layers
 from monai.utils import set_determinism
-from tests.test_copy_model_state import _TestModelOne
-
+from tests.test_copy_model_state import _TestModelOne, _TestModelTwo
 
 TEST_CASES = []
 __devices = ("cpu", "cuda") if torch.cuda.is_available() else ("cpu",)
@@ -32,7 +31,7 @@ class TestModuleState(unittest.TestCase):
         set_determinism(None)
 
     @parameterized.expand(TEST_CASES)
-    def test_set_state(self, device):
+    def test_freeze_vars(self, device):
         set_determinism(0)
         model = _TestModelOne(10, 20, 3)
         model.to(device)
@@ -43,6 +42,19 @@ class TestModuleState(unittest.TestCase):
                 self.assertEqual(param.requires_grad, False)
             else:
                 self.assertEqual(param.requires_grad, True)
+
+    @parameterized.expand(TEST_CASES)
+    def test_exclude_vars(self, device):
+        set_determinism(0)
+        model = _TestModelTwo(10, 20, 10, 4)
+        model.to(device)
+        freeze_layers(model, exclude_vars="class")
+
+        for name, param in model.named_parameters():
+            if "class_layer" in name:
+                self.assertEqual(param.requires_grad, True)
+            else:
+                self.assertEqual(param.requires_grad, False)
 
 
 if __name__ == "__main__":
