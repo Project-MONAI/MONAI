@@ -2069,9 +2069,8 @@ def distance_transform_edt(
     Args:
         img: Input image on which the distance transform shall be run
         sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
-        if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
-
-
+            if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+        force_scipy: Force the CPU based scipy implementation of the euclidean distance transform
     """
     distance_transform_edt, has_cucim = optional_import(
         "cucim.core.operations.morphology", name="distance_transform_edt"

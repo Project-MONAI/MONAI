@@ -16,7 +16,7 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import DistanceTransformEDT
+from monai.transforms import DistanceTransformEDT, DistanceTransformEDTd
 from tests.utils import HAS_CUPY, assert_allclose, optional_import, skip_if_no_cuda
 
 momorphology, has_cucim = optional_import("cucim.core.operations.morphology")
@@ -72,6 +72,14 @@ class TestDistanceTransformEDT(unittest.TestCase):
     def test_scipy_transform(self, input, expected_output):
         transform = DistanceTransformEDT(force_scipy=True)
         output = transform(input)
+        assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
+
+    @parameterized.expand(TEST_CASES)
+    def test_scipy_transformd(self, input, expected_output):
+        transform = DistanceTransformEDTd(keys=("to_transform",), force_scipy=True)
+        data = {"to_transform": input}
+        data_ = transform(data)
+        output = data_["to_transform"]
         assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
     @skip_if_no_cuda

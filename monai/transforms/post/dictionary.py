@@ -33,6 +33,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
+    DistanceTransformEDT,
     FillHoles,
     KeepLargestConnectedComponent,
     LabelFilter,
@@ -91,6 +92,9 @@ __all__ = [
     "VoteEnsembleD",
     "VoteEnsembleDict",
     "VoteEnsembled",
+    "DistanceTransformEDTd",
+    "DistanceTransformEDTD",
+    "DistanceTransformEDTDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -855,6 +859,41 @@ class SobelGradientsd(MapTransform):
         return d
 
 
+class DistanceTransformEDTd(MapTransform):
+    """
+    Applies the Euclidean distance transform on the input.
+
+    Either GPU based with CuPy / cuCIM or CPU based with scipy.ndimage.
+    Choice only depends on cuCIM being available.
+    Note that the calculations can deviate, for details look into the cuCIM about distance_transform_edt().
+
+    Args:
+        keys: keys of the corresponding items to model output.
+        allow_missing_keys: don't raise exception if key is missing.
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
+            if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+        force_scipy: Force the CPU based scipy implementation of the euclidean distance transform
+
+    """
+
+    backend = DistanceTransformEDT.backend
+
+    def __init__(
+        self, keys: KeysCollection, allow_missing_keys: bool = False, sampling=None, force_scipy=False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.force_scipy = force_scipy
+        self.sampling = sampling
+        self.distance_transform = DistanceTransformEDT(sampling=self.sampling, force_scipy=self.force_scipy)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> NdarrayOrTensor:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.distance_transform(img=d[key])
+
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
@@ -869,3 +908,4 @@ SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 EnsembleD = EnsembleDict = Ensembled
 SobelGradientsD = SobelGradientsDict = SobelGradientsd
+DistanceTransformEDTD = DistanceTransformEDTDict = DistanceTransformEDTd
