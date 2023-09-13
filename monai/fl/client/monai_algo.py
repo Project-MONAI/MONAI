@@ -390,6 +390,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if not isinstance(eval_workflow, BundleWorkflow) or eval_workflow.get_workflow_type() is None:
                 raise ValueError("train workflow must be BundleWorkflow and set type.")
             self.eval_workflow = eval_workflow
+        self.stats_sender = None
 
         self.app_root = ""
         self.filter_parser: ConfigParser | None = None
@@ -477,6 +478,12 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.filter_parser = ConfigParser()
         if len(config_filter_files) > 0:
             self.filter_parser.read_config(config_filter_files)
+
+        # set stats sender for nvflare
+        self.stats_sender = extra.get(ExtraItems.STATS_SENDER, self.stats_sender)
+        if self.stats_sender is not None:
+            self.stats_sender.attach(self.trainer)
+            self.stats_sender.attach(self.evaluator)
 
         # Get filters
         self.pre_filters = self.filter_parser.get_parsed_content(
