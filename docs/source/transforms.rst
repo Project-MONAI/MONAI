@@ -602,6 +602,12 @@ Post-processing
     :members:
     :special-members: __call__
 
+`DistanceTransformEDT`
+"""""""""""""""""""""""""""""""
+.. autoclass:: DistanceTransformEDT
+    :members:
+    :special-members: __call__
+
 `RemoveSmallObjects`
 """"""""""""""""""""
 .. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RemoveSmallObjects.png
@@ -1637,6 +1643,12 @@ Post-processing (Dict)
 .. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/KeepLargestConnectedComponentd.png
     :alt: example of KeepLargestConnectedComponentd
 .. autoclass:: KeepLargestConnectedComponentd
+    :members:
+    :special-members: __call__
+
+`DistanceTransformEDTd`
+""""""""""""""""""""""""""""""""
+.. autoclass:: DistanceTransformEDTd
     :members:
     :special-members: __call__
 
