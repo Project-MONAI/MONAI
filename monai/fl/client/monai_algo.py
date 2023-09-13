@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Mapping, MutableMapping
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 import torch
 import torch.distributed as dist
