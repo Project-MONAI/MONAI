@@ -119,8 +119,8 @@ class TestDatsesetWithLazy(unittest.TestCase):
 
         data = data_from_keys(None, 12, 16)
         c = compose_type(deepcopy(pipeline), log_stats=self.LOGGER_NAME, lazy=lazy)
-        x = Dataset([data], transform=c)
-        x[0]
+        ds = Dataset([data], transform=c)
+        ds[0]
 
         handler.flush()
         actual = stream.getvalue()
