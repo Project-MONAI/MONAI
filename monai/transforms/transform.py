@@ -104,7 +104,7 @@ def apply_transform(
     map_items: bool = True,
     unpack_items: bool = False,
     log_stats: bool | str = False,
-    lazy: bool | None = False,
+    lazy: bool | None = None,
     overrides: dict | None = None,
 ) -> list[ReturnType] | ReturnType:
     """
