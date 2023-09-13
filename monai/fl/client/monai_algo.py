@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import time
 from collections.abc import Mapping, MutableMapping
-from typing import Any, cast
+from typing import Any, Callable, cast
 
 import torch
 import torch.distributed as dist
@@ -359,6 +359,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         eval_workflow_name: str = "train",
         train_workflow: BundleWorkflow | None = None,
         eval_workflow: BundleWorkflow | None = None,
+        stats_sender: Callable | None = None,
     ):
         self.logger = logger
         self.bundle_root = bundle_root
@@ -390,6 +391,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if not isinstance(eval_workflow, BundleWorkflow) or eval_workflow.get_workflow_type() is None:
                 raise ValueError("train workflow must be BundleWorkflow and set type.")
             self.eval_workflow = eval_workflow
+        self.stats_sender = stats_sender
 
         self.app_root = ""
         self.filter_parser: ConfigParser | None = None
@@ -477,6 +479,12 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.filter_parser = ConfigParser()
         if len(config_filter_files) > 0:
             self.filter_parser.read_config(config_filter_files)
+
+        # set stats sender for nvflare
+        self.stats_sender = extra.get(ExtraItems.STATS_SENDER, self.stats_sender)
+        if self.stats_sender is not None:
+            self.stats_sender.attach(self.trainer)
+            self.stats_sender.attach(self.evaluator)
 
         # Get filters
         self.pre_filters = self.filter_parser.get_parsed_content(
