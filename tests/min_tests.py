@@ -61,6 +61,7 @@ def run_testsuit():
         "test_deepgrow_transforms",
         "test_detect_envelope",
         "test_dints_network",
+        "test_distance_transform_edt",
         "test_efficientnet",
         "test_ensemble_evaluator",
         "test_ensure_channel_first",
