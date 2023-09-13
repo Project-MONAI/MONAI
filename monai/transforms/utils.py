@@ -66,11 +66,11 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor, convert_to_numpy
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
-ndimage, _ = optional_import("scipy.ndimage")
+ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
@@ -124,6 +124,7 @@ __all__ = [
     "reset_ops_id",
     "resolves_modes",
     "has_status_keys",
+    "distance_transform_edt",
 ]
 
 
@@ -2012,7 +2013,7 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
 
     Status keys are defined in :class:`TraceStatusKeys<monai.utils.enums.TraceStatusKeys>`.
 
-    This function also accepts:
+    This fun    ction also accepts:
 
     * dictionaries of tensors
     * lists or tuples of tensors
@@ -2049,6 +2050,36 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
     if len(status_key_occurrences) > 0:
         return False, status_key_occurrences
     return True, None
+
+
+def distance_transform_edt(img: NdarrayOrTensor, sampling: float | list[float]=None, force_scipy: bool=False) -> NdarrayOrTensor:
+    """
+    Euclidean distance transform, either GPU based with CuPy / cuCIM 
+    or CPU based with scipy.ndimage.
+    Choice only depends on cuCIM being available. 
+
+    Args:
+        img: Input image on which the distance transform shall be run
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank; if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+
+
+    """
+    distance_transform_edt, has_cucim = optional_import("cucim.core.operations.morphology", name="distance_transform_edt")
+    
+    if has_cp and has_cucim and not force_scipy:
+        img_ = convert_to_cupy(img)
+        # Only accepts 2D and 3D input as of 09-2023
+        # TODO Add check and switch to scipy then?
+        distance = distance_transform_edt(img_, sampling=sampling)
+    else:
+        if not has_ndimage:
+            raise RuntimeError("scipy.ndimage required if cupy is not available")
+        img_ = convert_to_numpy(img)
+        distance = ndimage.distance_transform_edt(img_, sampling=sampling)
+
+    out = convert_to_dst_type(distance, dst=img, dtype=distance.dtype)[0]
+    return out
+
 
 
 if __name__ == "__main__":

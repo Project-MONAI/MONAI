@@ -287,6 +287,7 @@ from .post.array import (
     RemoveSmallObjects,
     SobelGradients,
     VoteEnsemble,
+    DistanceTransformEDT,
 )
 from .post.dictionary import (
     ActivationsD,
