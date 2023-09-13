@@ -31,11 +31,11 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import (
     convert_applied_interp_mode,
+    distance_transform_edt,
     fill_holes,
     get_largest_connected_component_mask,
     get_unique_labels,
     remove_small_objects,
-    distance_transform_edt,
 )
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
 from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option
@@ -54,7 +54,7 @@ __all__ = [
     "SobelGradients",
     "VoteEnsemble",
     "Invert",
-    "DistanceTransformEDT"
+    "DistanceTransformEDT",
 ]
 
 
@@ -939,26 +939,22 @@ class SobelGradients(Transform):
 
         return grads
 
+
 class DistanceTransformEDT(Transform):
     """
     Applies the Euclidean distance transform on the input.
 
     Either GPU based with CuPy / cuCIM or CPU based with scipy.ndimage.
     Choice only depends on cuCIM being available.
-    Note that the calculations can deviate, for details look into the cuCIM about distance_transform_edt().        
+    Note that the calculations can deviate, for details look into the cuCIM about distance_transform_edt().
     """
 
     backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
 
-    def __init__(
-        self,
-        sampling=None,
-        force_scipy=False,
-    ) -> None:
+    def __init__(self, sampling=None, force_scipy=False) -> None:
         super().__init__()
         self.force_scipy = force_scipy
         self.sampling = sampling
-
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -969,4 +965,3 @@ class DistanceTransformEDT(Transform):
             An array with the same shape and data type as img
         """
         return distance_transform_edt(img=img, sampling=self.sampling, force_scipy=self.force_scipy)
-

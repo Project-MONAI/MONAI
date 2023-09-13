@@ -277,6 +277,7 @@ from .nvtx import (
 from .post.array import (
     Activations,
     AsDiscrete,
+    DistanceTransformEDT,
     FillHoles,
     Invert,
     KeepLargestConnectedComponent,
@@ -287,7 +288,6 @@ from .post.array import (
     RemoveSmallObjects,
     SobelGradients,
     VoteEnsemble,
-    DistanceTransformEDT,
 )
 from .post.dictionary import (
     ActivationsD,
