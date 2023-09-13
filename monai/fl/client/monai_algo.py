@@ -359,7 +359,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         eval_workflow_name: str = "train",
         train_workflow: BundleWorkflow | None = None,
         eval_workflow: BundleWorkflow | None = None,
-        stats_sender: Callable | None = None,
     ):
         self.logger = logger
         self.bundle_root = bundle_root
@@ -391,7 +390,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             if not isinstance(eval_workflow, BundleWorkflow) or eval_workflow.get_workflow_type() is None:
                 raise ValueError("train workflow must be BundleWorkflow and set type.")
             self.eval_workflow = eval_workflow
-        self.stats_sender = stats_sender
+        self.stats_sender = None
 
         self.app_root = ""
         self.filter_parser: ConfigParser | None = None
