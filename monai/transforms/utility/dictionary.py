@@ -189,6 +189,9 @@ __all__ = [
     "ClassesToIndicesd",
     "ClassesToIndicesD",
     "ClassesToIndicesDict",
+    "NoOpD",
+    "NoOpDict",
+    "NoOpd",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1825,6 +1828,24 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
         return d
 
 
+class NoOpd(MapTransform):
+    def __init__(self):
+        """
+        A transform which does nothing.
+
+        Can be used to create transforms that are skipped under certain conditions.
+        See the two examples below for when this might be useful.
+
+        `CenterSpatialCropd(keys=input_keys, roi_size=args.val_crop_size) if args.val_crop_size is not None else NoOpd(),`
+
+        `DivisiblePadd(keys=input_keys, k=64, value=0) if args.inferer == "SimpleInferer" else NoOpd(),`
+        """
+        super().__init__(None)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
+        return data
+
+
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
@@ -1868,3 +1889,4 @@ CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
+NoOpD = NoOpDict = NoOpd
