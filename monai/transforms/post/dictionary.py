@@ -890,7 +890,7 @@ class DistanceTransformEDTd(MapTransform):
         self.sampling = sampling
         self.distance_transform = DistanceTransformEDT(sampling=self.sampling, force_scipy=self.force_scipy)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> NdarrayOrTensor:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.distance_transform(img=d[key])
