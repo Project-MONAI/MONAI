@@ -25,7 +25,8 @@ from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
-SUPPORTED_EMBEDDING_TYPES = {"conv", "perceptron"}
+SUPPORTED_PATCH_EMBEDDING_TYPES = {"conv", "perceptron"}
+SUPPORTED_POS_EMBEDDING_TYPES = {"none", "learnable", "sincos"}
 
 
 class PatchEmbeddingBlock(nn.Module):
@@ -49,7 +50,7 @@ class PatchEmbeddingBlock(nn.Module):
         hidden_size: int,
         num_heads: int,
         patch_embed: str,
-        pos_embed: str = "norm",
+        pos_embed: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
     ) -> None:
@@ -74,7 +75,8 @@ class PatchEmbeddingBlock(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError(f"hidden size {hidden_size} should be divisible by num_heads {num_heads}.")
 
-        self.patch_embed = look_up_option(patch_embed, SUPPORTED_EMBEDDING_TYPES)
+        self.patch_embed = look_up_option(patch_embed, SUPPORTED_PATCH_EMBEDDING_TYPES)
+        self.pos_embed = look_up_option(pos_embed, SUPPORTED_POS_EMBEDDING_TYPES)
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(patch_size, spatial_dims)
