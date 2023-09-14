@@ -879,7 +879,11 @@ class DistanceTransformEDTd(MapTransform):
     backend = DistanceTransformEDT.backend
 
     def __init__(
-        self, keys: KeysCollection, allow_missing_keys: bool = False, sampling=None, force_scipy=False
+        self,
+        keys: KeysCollection,
+        allow_missing_keys: bool = False,
+        sampling: float | list[float] = None,
+        force_scipy: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.force_scipy = force_scipy
