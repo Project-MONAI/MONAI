@@ -79,7 +79,8 @@ class ViT(nn.Module):
             >>> net = ViT(in_channels=3, img_size=(128,128,128), patch_embed='conv', pos_embed='sincos', classification=True)
 
             # for 3-channel with image size of (224,224), 12 layers and classification backbone
-            >>> net = ViT(in_channels=3, img_size=(224,224), patch_embed='conv', pos_embed='sincos', classification=True, spatial_dims=2)
+            >>> net = ViT(in_channels=3, img_size=(224,224), patch_embed='conv', pos_embed='sincos', classification=True,
+            >>>           spatial_dims=2)
 
         """
 

@@ -1,0 +1,26 @@
+{
+    "chunks": [
+        2,
+        3,
+        4,
+        4
+    ],
+    "compressor": {
+        "blocksize": 0,
+        "clevel": 5,
+        "cname": "lz4",
+        "id": "blosc",
+        "shuffle": 1
+    },
+    "dtype": "<f4",
+    "fill_value": null,
+    "filters": null,
+    "order": "C",
+    "shape": [
+        2,
+        3,
+        4,
+        4
+    ],
+    "zarr_format": 2
+}

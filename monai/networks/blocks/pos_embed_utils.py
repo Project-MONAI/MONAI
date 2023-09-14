@@ -19,6 +19,7 @@ from timm.models.layers import to_2tuple, to_3tuple
 
 __all__ = ["build_sincos_position_embedding"]
 
+
 def build_sincos_position_embedding(
     grid_size: Optional[int], embed_dim: int, spatial_dims: int = 3, temperature: float = 10000.0
 ) -> torch.nn.Parameter:
@@ -42,7 +43,7 @@ def build_sincos_position_embedding(
         grid_h = torch.arange(h, dtype=torch.float32)
         grid_w = torch.arange(w, dtype=torch.float32)
 
-        grid_h, grid_w = torch.meshgrid(grid_h, grid_w, indexing='ij')
+        grid_h, grid_w = torch.meshgrid(grid_h, grid_w, indexing="ij")
 
         assert embed_dim % 4 == 0, "Embed dimension must be divisible by 4 for 2D sin-cos position embedding"
 
@@ -59,7 +60,7 @@ def build_sincos_position_embedding(
         grid_w = torch.arange(w, dtype=torch.float32)
         grid_d = torch.arange(d, dtype=torch.float32)
 
-        grid_h, grid_w, grid_d = torch.meshgrid(grid_h, grid_w, grid_d, indexing='ij')
+        grid_h, grid_w, grid_d = torch.meshgrid(grid_h, grid_w, grid_d, indexing="ij")
 
         assert embed_dim % 6 == 0, "Embed dimension must be divisible by 6 for 3D sin-cos position embedding"
 
