@@ -36,7 +36,7 @@ class UNETR(nn.Module):
         hidden_size: int = 768,
         mlp_dim: int = 3072,
         num_heads: int = 12,
-        pos_embed: str = "conv",
+        patch_embed: str = "conv",
         norm_name: tuple | str = "instance",
         conv_block: bool = True,
         res_block: bool = True,
@@ -54,7 +54,7 @@ class UNETR(nn.Module):
             hidden_size: dimension of hidden layer. Defaults to 768.
             mlp_dim: dimension of feedforward layer. Defaults to 3072.
             num_heads: number of attention heads. Defaults to 12.
-            pos_embed: position embedding layer type. Defaults to "conv".
+            patch_embed: patch embedding layer type. Defaults to "conv".
             norm_name: feature normalization type and arguments. Defaults to "instance".
             conv_block: if convolutional block is used. Defaults to True.
             res_block: if residual block is used. Defaults to True.
@@ -72,7 +72,7 @@ class UNETR(nn.Module):
             >>> net = UNETR(in_channels=1, out_channels=4, img_size=96, feature_size=32, norm_name='batch', spatial_dims=2)
 
             # for 4-channel input 3-channel output with image size of (128,128,128), conv position embedding and instance norm
-            >>> net = UNETR(in_channels=4, out_channels=3, img_size=(128,128,128), pos_embed='conv', norm_name='instance')
+            >>> net = UNETR(in_channels=4, out_channels=3, img_size=(128,128,128), patch_embed='conv', norm_name='instance')
 
         """
 
@@ -98,7 +98,7 @@ class UNETR(nn.Module):
             mlp_dim=mlp_dim,
             num_layers=self.num_layers,
             num_heads=num_heads,
-            pos_embed=pos_embed,
+            patch_embed=patch_embed,
             classification=self.classification,
             dropout_rate=dropout_rate,
             spatial_dims=spatial_dims,

@@ -44,7 +44,7 @@ class ViTAutoEnc(nn.Module):
         mlp_dim: int = 3072,
         num_layers: int = 12,
         num_heads: int = 12,
-        pos_embed: str = "conv",
+        patch_embed: str = "conv",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
         qkv_bias: bool = False,
@@ -61,7 +61,7 @@ class ViTAutoEnc(nn.Module):
             mlp_dim: dimension of feedforward layer. Defaults to 3072.
             num_layers:  number of transformer blocks. Defaults to 12.
             num_heads: number of attention heads. Defaults to 12.
-            pos_embed: position embedding layer type. Defaults to "conv".
+            patch_embed: position embedding layer type. Defaults to "conv".
             dropout_rate: faction of the input units to drop. Defaults to 0.0.
             spatial_dims: number of spatial dimensions. Defaults to 3.
             qkv_bias: apply bias to the qkv linear layer in self attention block. Defaults to False.
@@ -71,10 +71,10 @@ class ViTAutoEnc(nn.Module):
 
             # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
             # It will provide an output of same size as that of the input
-            >>> net = ViTAutoEnc(in_channels=1, patch_size=(16,16,16), img_size=(96,96,96), pos_embed='conv')
+            >>> net = ViTAutoEnc(in_channels=1, patch_size=(16,16,16), img_size=(96,96,96), patch_embed='conv')
 
             # for 3-channel with image size of (128,128,128), output will be same size as of input
-            >>> net = ViTAutoEnc(in_channels=3, patch_size=(16,16,16), img_size=(128,128,128), pos_embed='conv')
+            >>> net = ViTAutoEnc(in_channels=3, patch_size=(16,16,16), img_size=(128,128,128), patch_embed='conv')
 
         """
 
@@ -94,7 +94,7 @@ class ViTAutoEnc(nn.Module):
             patch_size=patch_size,
             hidden_size=hidden_size,
             num_heads=num_heads,
-            pos_embed=pos_embed,
+            patch_embed=patch_embed,
             dropout_rate=dropout_rate,
             spatial_dims=self.spatial_dims,
         )

@@ -31,25 +31,27 @@ for dropout_rate in (0.5,):
             for img_size in [32, 64]:
                 for patch_size in [8, 16]:
                     for num_heads in [8, 12]:
-                        for pos_embed in ["conv", "perceptron"]:
-                            # for classification in (False, True):  # TODO: add classification tests
-                            for nd in (2, 3):
-                                test_case = [
-                                    {
-                                        "in_channels": in_channels,
-                                        "img_size": (img_size,) * nd,
-                                        "patch_size": (patch_size,) * nd,
-                                        "hidden_size": hidden_size,
-                                        "num_heads": num_heads,
-                                        "pos_embed": pos_embed,
-                                        "dropout_rate": dropout_rate,
-                                    },
-                                    (2, in_channels, *([img_size] * nd)),
-                                    (2, (img_size // patch_size) ** nd, hidden_size),
-                                ]
-                                if nd == 2:
-                                    test_case[0]["spatial_dims"] = 2  # type: ignore
-                                TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
+                        for patch_embed in ["conv", "perceptron"]:
+                            for pos_embed in ["none", "learnable", "sincos"]:
+                                # for classification in (False, True):  # TODO: add classification tests
+                                for nd in (2, 3):
+                                    test_case = [
+                                        {
+                                            "in_channels": in_channels,
+                                            "img_size": (img_size,) * nd,
+                                            "patch_size": (patch_size,) * nd,
+                                            "hidden_size": hidden_size,
+                                            "num_heads": num_heads,
+                                            "patch_embed": patch_embed,
+                                            "pos_embed": pos_embed,
+                                            "dropout_rate": dropout_rate,
+                                        },
+                                        (2, in_channels, *([img_size] * nd)),
+                                        (2, (img_size // patch_size) ** nd, hidden_size),
+                                    ]
+                                    if nd == 2:
+                                        test_case[0]["spatial_dims"] = 2  # type: ignore
+                                    TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
 
 TEST_CASE_PATCHEMBED = []
 for patch_size in [2]:
@@ -96,7 +98,8 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(16, 16, 16),
                 hidden_size=128,
                 num_heads=12,
-                pos_embed="conv",
+                patch_embed="conv",
+                pos_embed="sincos",
                 dropout_rate=5.0,
             )
 
@@ -107,7 +110,8 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(64, 64, 64),
                 hidden_size=512,
                 num_heads=8,
-                pos_embed="perceptron",
+                patch_embed="perceptron",
+                pos_embed="sincos",
                 dropout_rate=0.3,
             )
 
@@ -118,7 +122,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(8, 8, 8),
                 hidden_size=512,
                 num_heads=14,
-                pos_embed="conv",
+                patch_embed="conv",
                 dropout_rate=0.3,
             )
 
@@ -129,7 +133,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(4, 4, 4),
                 hidden_size=768,
                 num_heads=8,
-                pos_embed="perceptron",
+                patch_embed="perceptron",
                 dropout_rate=0.3,
             )
 
@@ -140,7 +144,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(16, 16, 16),
                 hidden_size=768,
                 num_heads=12,
-                pos_embed="perc",
+                patch_embed="perc",
                 dropout_rate=0.3,
             )
 
