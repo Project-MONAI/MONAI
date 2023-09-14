@@ -82,10 +82,10 @@ class TestDistanceTransformEDT(unittest.TestCase):
         output = data_["to_transform"]
         assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
+    @parameterized.expand(TEST_CASES)
     @skip_if_no_cuda
     @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
-    @parameterized.expand(TEST_CASES)
     def test_cucim_transform(self, input, expected_output):
         transform = DistanceTransformEDT()
         output = transform(input)
@@ -95,12 +95,12 @@ class TestDistanceTransformEDT(unittest.TestCase):
     def test_sampling(self, sampling, input, expected_output):
         transform = DistanceTransformEDT(force_scipy=True, sampling=sampling)
         output = transform(input)
-        assert_allclose(cp.asnumpy(output), cp.asnumpy(expected_output), atol=1e-4, rtol=1e-4, type_test=False)
+        assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
+    @parameterized.expand(SAMPLING_TEST_CASES)
     @skip_if_no_cuda
     @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
-    @parameterized.expand(SAMPLING_TEST_CASES)
     def test_cucim_sampling(self, sampling, input, expected_output):
         transform = DistanceTransformEDT(sampling=sampling)
         output = transform(input)
