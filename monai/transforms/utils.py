@@ -2059,7 +2059,7 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
 
 
 def distance_transform_edt(
-    img: NdarrayOrTensor, sampling: float | list[float] = None, force_scipy: bool = False
+    img: NdarrayOrTensor, sampling: None | float | list[float] = None, force_scipy: bool = False
 ) -> NdarrayOrTensor:
     """
     Euclidean distance transform, either GPU based with CuPy / cuCIM

@@ -951,7 +951,7 @@ class DistanceTransformEDT(Transform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
 
-    def __init__(self, sampling: float | list[float] = None, force_scipy: bool = False) -> None:
+    def __init__(self, sampling: None | float | list[float] = None, force_scipy: bool = False) -> None:
         super().__init__()
         self.force_scipy = force_scipy
         self.sampling = sampling

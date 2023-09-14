@@ -882,7 +882,7 @@ class DistanceTransformEDTd(MapTransform):
         self,
         keys: KeysCollection,
         allow_missing_keys: bool = False,
-        sampling: float | list[float] = None,
+        sampling: None | float | list[float] = None,
         force_scipy: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
