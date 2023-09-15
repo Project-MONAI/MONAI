@@ -64,8 +64,10 @@ class UNETR(nn.Module):
             spatial_dims: number of spatial dims. Defaults to 3.
             qkv_bias: apply the bias term for the qkv linear layer in self attention block. Defaults to False.
             save_attn: to make accessible the attention in self attention block. Defaults to False.
+            
         .. deprecated:: 1.4
             ``pos_embed`` is deprecated in favor of ``proj_type``.
+            
         Examples::
 
             # for single channel input 4-channel output with image size of (96,96,96), feature size of 32 and batch norm
