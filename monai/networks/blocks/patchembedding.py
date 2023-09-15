@@ -21,7 +21,7 @@ from torch.nn import LayerNorm
 
 from monai.networks.blocks.pos_embed_utils import build_sincos_position_embedding
 from monai.networks.layers import Conv, trunc_normal_
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import deprecated_arg, ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
@@ -38,10 +38,15 @@ class PatchEmbeddingBlock(nn.Module):
 
         >>> from monai.networks.blocks import PatchEmbeddingBlock
         >>> PatchEmbeddingBlock(in_channels=4, img_size=32, patch_size=8, hidden_size=32, num_heads=4,
-        >>>                     patch_embed="conv", pos_embed="sincos")
+        >>>                     proj_type="conv", pos_embed_type="sincos")
 
     """
-
+    @deprecated_arg(
+        name="pos_embed",
+        since="1.4",
+        new_name="proj_type",
+        msg_suffix="please use `proj_type` instead.",
+    )
     def __init__(
         self,
         in_channels: int,
@@ -49,8 +54,9 @@ class PatchEmbeddingBlock(nn.Module):
         patch_size: Sequence[int] | int,
         hidden_size: int,
         num_heads: int,
-        patch_embed: str,
-        pos_embed: str = "learnable",
+        pos_embed: str = "conv",
+        proj_type: str = "conv",
+        pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
     ) -> None:
@@ -61,10 +67,12 @@ class PatchEmbeddingBlock(nn.Module):
             patch_size: dimension of patch size.
             hidden_size: dimension of hidden layer.
             num_heads: number of attention heads.
-            patch_embed: patch embedding layer type.
-            pos_embed: position embedding layer type.
+            proj_type: patch embedding layer type.
+            pos_embed_type: position embedding layer type.
             dropout_rate: faction of the input units to drop.
             spatial_dims: number of spatial dimensions.
+        .. deprecated:: 1.4
+            ``pos_embed`` is deprecated in favor of ``proj_type``.
         """
 
         super().__init__()
@@ -75,8 +83,8 @@ class PatchEmbeddingBlock(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError(f"hidden size {hidden_size} should be divisible by num_heads {num_heads}.")
 
-        self.patch_embed = look_up_option(patch_embed, SUPPORTED_PATCH_EMBEDDING_TYPES)
-        self.pos_embed = look_up_option(pos_embed, SUPPORTED_POS_EMBEDDING_TYPES)
+        self.patch_embed = look_up_option(proj_type, SUPPORTED_PATCH_EMBEDDING_TYPES)
+        self.pos_embed = look_up_option(pos_embed_type, SUPPORTED_POS_EMBEDDING_TYPES)
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(patch_size, spatial_dims)
@@ -110,16 +118,16 @@ class PatchEmbeddingBlock(nn.Module):
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
 
-        if pos_embed == "none":
+        if pos_embed_type == "none":
             pass
-        elif pos_embed == "learnable":
+        elif pos_embed_type == "learnable":
             trunc_normal_(self.position_embeddings, mean=0.0, std=0.02, a=-2.0, b=2.0)
-        elif pos_embed == "sincos":
+        elif pos_embed_type == "sincos":
             with torch.no_grad():
                 pos_embed = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
                 self.position_embeddings.data.copy_(pos_embed.float())
         else:
-            raise ValueError(f"pos_embed type {pos_embed} not supported.")
+            raise ValueError(f"pos_embed_type {pos_embed_type} not supported.")
 
         self.apply(self._init_weights)
 

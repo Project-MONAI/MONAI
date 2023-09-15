@@ -15,10 +15,19 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from timm.models.layers import to_2tuple, to_3tuple
+
+from itertools import repeat
+import collections.abc
 
 __all__ = ["build_sincos_position_embedding"]
 
+# From PyTorch internals
+def _ntuple(n):
+    def parse(x):
+        if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
+            return tuple(x)
+        return tuple(repeat(x, n))
+    return parse
 
 def build_sincos_position_embedding(
     grid_size: Optional[int], embed_dim: int, spatial_dims: int = 3, temperature: float = 10000.0
@@ -38,6 +47,7 @@ def build_sincos_position_embedding(
     """
 
     if spatial_dims == 2:
+        to_2tuple = _ntuple(2)
         grid_size = to_2tuple(grid_size)
         h, w = grid_size
         grid_h = torch.arange(h, dtype=torch.float32)
@@ -54,6 +64,7 @@ def build_sincos_position_embedding(
         out_w = torch.einsum("m,d->md", [grid_w.flatten(), omega])
         pos_emb = torch.cat([torch.sin(out_w), torch.cos(out_w), torch.sin(out_h), torch.cos(out_h)], dim=1)[None, :, :]
     elif spatial_dims == 3:
+        to_3tuple = _ntuple(3)
         grid_size = to_3tuple(grid_size)
         h, w, d = grid_size
         grid_h = torch.arange(h, dtype=torch.float32)

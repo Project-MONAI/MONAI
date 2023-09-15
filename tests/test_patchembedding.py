@@ -31,8 +31,8 @@ for dropout_rate in (0.5,):
             for img_size in [32, 64]:
                 for patch_size in [8, 16]:
                     for num_heads in [8, 12]:
-                        for patch_embed in ["conv", "perceptron"]:
-                            for pos_embed in ["none", "learnable", "sincos"]:
+                        for proj_type in ["conv", "perceptron"]:
+                            for pos_embed_type in ["none", "learnable", "sincos"]:
                                 # for classification in (False, True):  # TODO: add classification tests
                                 for nd in (2, 3):
                                     test_case = [
@@ -42,8 +42,8 @@ for dropout_rate in (0.5,):
                                             "patch_size": (patch_size,) * nd,
                                             "hidden_size": hidden_size,
                                             "num_heads": num_heads,
-                                            "patch_embed": patch_embed,
-                                            "pos_embed": pos_embed,
+                                            "pos_embed": proj_type,
+                                            "pos_embed_type": pos_embed_type,
                                             "dropout_rate": dropout_rate,
                                         },
                                         (2, in_channels, *([img_size] * nd)),
@@ -98,8 +98,8 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(16, 16, 16),
                 hidden_size=128,
                 num_heads=12,
-                patch_embed="conv",
-                pos_embed="sincos",
+                pos_embed="conv",
+                pos_embed_type="sincos",
                 dropout_rate=5.0,
             )
 
@@ -110,8 +110,8 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(64, 64, 64),
                 hidden_size=512,
                 num_heads=8,
-                patch_embed="perceptron",
-                pos_embed="sincos",
+                pos_embed="perceptron",
+                pos_embed_type="sincos",
                 dropout_rate=0.3,
             )
 
@@ -122,7 +122,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(8, 8, 8),
                 hidden_size=512,
                 num_heads=14,
-                patch_embed="conv",
+                pos_embed="conv",
                 dropout_rate=0.3,
             )
 
@@ -133,7 +133,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(4, 4, 4),
                 hidden_size=768,
                 num_heads=8,
-                patch_embed="perceptron",
+                pos_embed="perceptron",
                 dropout_rate=0.3,
             )
 
@@ -144,7 +144,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(16, 16, 16),
                 hidden_size=768,
                 num_heads=12,
-                patch_embed="perc",
+                pos_embed="perc",
                 dropout_rate=0.3,
             )
 
