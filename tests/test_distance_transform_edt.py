@@ -58,8 +58,9 @@ SAMPLING_TEST_CASES = [
     ]
 ]
 
+
 RAISES_TEST_CASES = (
-    [
+    [  # Example 4D input. Should raise under CuPy
         np.array(
             [[[[0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 1, 1, 0, 0]]]], dtype=np.float32
         )
@@ -92,7 +93,7 @@ class TestDistanceTransformEDT(unittest.TestCase):
         assert_allclose(cp.asnumpy(output), cp.asnumpy(expected_output), atol=1e-4, rtol=1e-4, type_test=False)
 
     @parameterized.expand(SAMPLING_TEST_CASES)
-    def test_sampling(self, sampling, input, expected_output):
+    def test_scipy_sampling(self, sampling, input, expected_output):
         transform = DistanceTransformEDT(force_scipy=True, sampling=sampling)
         output = transform(input)
         assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
@@ -106,15 +107,15 @@ class TestDistanceTransformEDT(unittest.TestCase):
         output = transform(input)
         assert_allclose(cp.asnumpy(output), cp.asnumpy(expected_output), atol=1e-4, rtol=1e-4, type_test=False)
 
-    # @skip_if_no_cuda
-    # @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
-    # @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
-    # @parameterized.expand(RAISES_TEST_CASES)
-    # def test_cucim_raises(self, raises):
-    #     """Currently only 2D and 3D images are supported by CuPy. This test checks for the according error message"""
-    #     transform = DistanceTransformEDT()
-    #     with self.assertRaises(NotImplementedError):
-    #         output = transform(raises)
+    @parameterized.expand(RAISES_TEST_CASES)
+    @skip_if_no_cuda
+    @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
+    @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
+    def test_cucim_raises(self, raises):
+        """Currently only 2D and 3D images are supported by CuPy. This test checks for the according error message"""
+        transform = DistanceTransformEDT()
+        with self.assertRaises(NotImplementedError):
+            transform(raises)
 
 
 if __name__ == "__main__":

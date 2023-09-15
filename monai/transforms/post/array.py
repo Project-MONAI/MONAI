@@ -959,7 +959,9 @@ class DistanceTransformEDT(Transform):
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
         Args:
-            img: shape must 2D or 3D for cupy, otherwise no restrictions
+            img: Input image on which the distance transform shall be run.
+                For CuPy shape must be (spatial_dim1, spatial_dim2 [, spatial_dim3]), so 2D or 3D input only.
+                If you need to run the transform on other shapes, use the ``force_scipy`` flag.
 
         Returns:
             An array with the same shape and data type as img

@@ -2064,10 +2064,14 @@ def distance_transform_edt(
     """
     Euclidean distance transform, either GPU based with CuPy / cuCIM
     or CPU based with scipy.ndimage.
-    Choice only depends on cuCIM being available.
+    Choice depends on cuCIM being available or scipy can be forced with the ``force_scipy`` flag.
+
+    Note that the runtime running on the CPU may be really depending on the inputs size.
 
     Args:
-        img: Input image on which the distance transform shall be run
+        img: Input image on which the distance transform shall be run.
+            For CuPy shape must be (spatial_dim1, spatial_dim2 [, spatial_dim3]), so 2D or 3D input only.
+            If you need to run the transform on other shapes, use the ``force_scipy`` flag.
         sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
             if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
         force_scipy: Force the CPU based scipy implementation of the euclidean distance transform
@@ -2078,8 +2082,6 @@ def distance_transform_edt(
 
     if has_cp and has_cucim and not force_scipy:
         img_ = convert_to_cupy(img)
-        # Only accepts 2D and 3D input as of 09-2023
-        # TODO Add check and switch to scipy then?
         distance = distance_transform_edt(img_, sampling=sampling)
     else:
         if not has_ndimage:
