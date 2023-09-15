@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import collections.abc
 from itertools import repeat
-from typing import Optional
+from typing import List, Union
 
 import torch
 import torch.nn as nn
@@ -32,14 +32,14 @@ def _ntuple(n):
 
 
 def build_sincos_position_embedding(
-    grid_size: Optional[int], embed_dim: int, spatial_dims: int = 3, temperature: float = 10000.0
+    grid_size: Union[int, List[int]], embed_dim: int, spatial_dims: int = 3, temperature: float = 10000.0
 ) -> torch.nn.Parameter:
     """
     Builds a sin-cos position embedding based on the given grid size, embed dimension, spatial dimensions, and temperature.
     Reference: https://github.com/cvlab-stonybrook/SelfMedMAE/blob/68d191dfcc1c7d0145db93a6a570362de29e3b30/lib/models/mae3d.py
 
     Args:
-        grid_size (int or Tuple[int]): The size of the grid in each spatial dimension.
+        grid_size (List[int]): The size of the grid in each spatial dimension.
         embed_dim (int): The dimension of the embedding.
         spatial_dims (int): The number of spatial dimensions (2 for 2D, 3 for 3D).
         temperature (float): The temperature for the sin-cos position embedding.
@@ -50,8 +50,8 @@ def build_sincos_position_embedding(
 
     if spatial_dims == 2:
         to_2tuple = _ntuple(2)
-        grid_size = to_2tuple(grid_size)
-        h, w = grid_size
+        grid_size_t = to_2tuple(grid_size)
+        h, w = grid_size_t
         grid_h = torch.arange(h, dtype=torch.float32)
         grid_w = torch.arange(w, dtype=torch.float32)
 
@@ -67,8 +67,8 @@ def build_sincos_position_embedding(
         pos_emb = torch.cat([torch.sin(out_w), torch.cos(out_w), torch.sin(out_h), torch.cos(out_h)], dim=1)[None, :, :]
     elif spatial_dims == 3:
         to_3tuple = _ntuple(3)
-        grid_size = to_3tuple(grid_size)
-        h, w, d = grid_size
+        grid_size_t = to_3tuple(grid_size)
+        h, w, d = grid_size_t
         grid_h = torch.arange(h, dtype=torch.float32)
         grid_w = torch.arange(w, dtype=torch.float32)
         grid_d = torch.arange(d, dtype=torch.float32)

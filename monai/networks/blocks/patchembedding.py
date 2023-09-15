@@ -92,11 +92,6 @@ class PatchEmbeddingBlock(nn.Module):
         self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
         self.patch_dim = int(in_channels * np.prod(patch_size))
 
-        grid_size = []
-        for in_size, pa_size in zip(img_size, patch_size):
-            assert in_size % pa_size == 0, "input size and patch size are not proper"
-            grid_size.append(in_size // pa_size)
-
         self.patch_embeddings: nn.Module
         if self.proj_type == "conv":
             self.patch_embeddings = Conv[Conv.CONV, spatial_dims](
@@ -119,6 +114,10 @@ class PatchEmbeddingBlock(nn.Module):
         elif self.pos_embed_type == "learnable":
             trunc_normal_(self.position_embeddings, mean=0.0, std=0.02, a=-2.0, b=2.0)
         elif self.pos_embed_type == "sincos":
+            grid_size = []
+            for in_size, pa_size in zip(img_size, patch_size):
+                grid_size.append(in_size // pa_size)
+            
             with torch.no_grad():
                 pos_embeddings = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
                 self.position_embeddings.data.copy_(pos_embeddings.float())
