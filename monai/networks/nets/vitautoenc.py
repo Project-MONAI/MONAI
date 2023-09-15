@@ -32,12 +32,8 @@ class ViTAutoEnc(nn.Module):
 
     Modified to also give same dimension outputs as the input size of the image
     """
-    @deprecated_arg(
-        name="pos_embed",
-        since="1.4",
-        new_name="proj_type",
-        msg_suffix="please use `proj_type` instead.",
-    )
+
+    @deprecated_arg(name="pos_embed", since="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead.")
     def __init__(
         self,
         in_channels: int,

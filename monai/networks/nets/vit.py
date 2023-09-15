@@ -18,7 +18,6 @@ import torch.nn as nn
 
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
-
 from monai.utils import deprecated_arg
 
 __all__ = ["ViT"]
@@ -31,12 +30,8 @@ class ViT(nn.Module):
 
     ViT supports Torchscript but only works for Pytorch after 1.8.
     """
-    @deprecated_arg(
-        name="pos_embed",
-        since="1.4",
-        new_name="proj_type",
-        msg_suffix="please use `proj_type` instead.",
-    )
+
+    @deprecated_arg(name="pos_embed", since="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead.")
     def __init__(
         self,
         in_channels: int,

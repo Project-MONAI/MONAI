@@ -41,12 +41,8 @@ class PatchEmbeddingBlock(nn.Module):
         >>>                     proj_type="conv", pos_embed_type="sincos")
 
     """
-    @deprecated_arg(
-        name="pos_embed",
-        since="1.4",
-        new_name="proj_type",
-        msg_suffix="please use `proj_type` instead.",
-    )
+
+    @deprecated_arg(name="pos_embed", since="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead.")
     def __init__(
         self,
         in_channels: int,
@@ -83,15 +79,15 @@ class PatchEmbeddingBlock(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError(f"hidden size {hidden_size} should be divisible by num_heads {num_heads}.")
 
-        self.patch_embed = look_up_option(proj_type, SUPPORTED_PATCH_EMBEDDING_TYPES)
-        self.pos_embed = look_up_option(pos_embed_type, SUPPORTED_POS_EMBEDDING_TYPES)
+        self.proj_type = look_up_option(proj_type, SUPPORTED_PATCH_EMBEDDING_TYPES)
+        self.pos_embed_type = look_up_option(pos_embed_type, SUPPORTED_POS_EMBEDDING_TYPES)
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(patch_size, spatial_dims)
         for m, p in zip(img_size, patch_size):
             if m < p:
                 raise ValueError("patch_size should be smaller than img_size.")
-            if self.patch_embed == "perceptron" and m % p != 0:
+            if self.proj_type == "perceptron" and m % p != 0:
                 raise ValueError("patch_size should be divisible by img_size for perceptron.")
         self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
         self.patch_dim = int(in_channels * np.prod(patch_size))
@@ -102,11 +98,11 @@ class PatchEmbeddingBlock(nn.Module):
             grid_size.append(in_size // pa_size)
 
         self.patch_embeddings: nn.Module
-        if self.patch_embed == "conv":
+        if self.proj_type == "conv":
             self.patch_embeddings = Conv[Conv.CONV, spatial_dims](
                 in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size
             )
-        elif self.patch_embed == "perceptron":
+        elif self.proj_type == "perceptron":
             # for 3d: "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)"
             chars = (("h", "p1"), ("w", "p2"), ("d", "p3"))[:spatial_dims]
             from_chars = "b c " + " ".join(f"({k} {v})" for k, v in chars)
@@ -118,16 +114,16 @@ class PatchEmbeddingBlock(nn.Module):
         self.position_embeddings = nn.Parameter(torch.zeros(1, self.n_patches, hidden_size))
         self.dropout = nn.Dropout(dropout_rate)
 
-        if pos_embed_type == "none":
+        if self.pos_embed_type == "none":
             pass
-        elif pos_embed_type == "learnable":
+        elif self.pos_embed_type == "learnable":
             trunc_normal_(self.position_embeddings, mean=0.0, std=0.02, a=-2.0, b=2.0)
-        elif pos_embed_type == "sincos":
+        elif self.pos_embed_type == "sincos":
             with torch.no_grad():
-                pos_embed = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
-                self.position_embeddings.data.copy_(pos_embed.float())
+                pos_embeddings = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
+                self.position_embeddings.data.copy_(pos_embeddings.float())
         else:
-            raise ValueError(f"pos_embed_type {pos_embed_type} not supported.")
+            raise ValueError(f"pos_embed_type {self.pos_embed_type} not supported.")
 
         self.apply(self._init_weights)
 
@@ -142,7 +138,7 @@ class PatchEmbeddingBlock(nn.Module):
 
     def forward(self, x):
         x = self.patch_embeddings(x)
-        if self.patch_embed == "conv":
+        if self.proj_type == "conv":
             x = x.flatten(2).transpose(-1, -2)
         embeddings = x + self.position_embeddings
         embeddings = self.dropout(embeddings)

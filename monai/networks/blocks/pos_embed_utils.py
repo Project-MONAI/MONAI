@@ -11,15 +11,15 @@
 
 from __future__ import annotations
 
+import collections.abc
+from itertools import repeat
 from typing import Optional
 
 import torch
 import torch.nn as nn
 
-from itertools import repeat
-import collections.abc
-
 __all__ = ["build_sincos_position_embedding"]
+
 
 # From PyTorch internals
 def _ntuple(n):
@@ -27,7 +27,9 @@ def _ntuple(n):
         if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
             return tuple(x)
         return tuple(repeat(x, n))
+
     return parse
+
 
 def build_sincos_position_embedding(
     grid_size: Optional[int], embed_dim: int, spatial_dims: int = 3, temperature: float = 10000.0
