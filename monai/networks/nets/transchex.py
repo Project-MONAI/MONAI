@@ -314,7 +314,7 @@ class Transchex(torch.nn.Module):
             num_language_layers: number of language transformer layers.
             num_vision_layers: number of vision transformer layers.
             num_mixed_layers: number of mixed transformer layers.
-            drop_out: faction of the input units to drop.
+            drop_out: fraction of the input units to drop.
 
         The other parameters are part of the `bert_config` to `MultiModal.from_pretrained`.
 

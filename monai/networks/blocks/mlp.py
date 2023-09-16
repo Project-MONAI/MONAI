@@ -32,7 +32,7 @@ class MLPBlock(nn.Module):
         Args:
             hidden_size: dimension of hidden layer.
             mlp_dim: dimension of feedforward layer. If 0, `hidden_size` will be used.
-            dropout_rate: faction of the input units to drop.
+            dropout_rate: fraction of the input units to drop.
             act: activation type and arguments. Defaults to GELU. Also supports "GEGLU" and others.
             dropout_mode: dropout mode, can be "vit" or "swin".
                 "vit" mode uses two dropout instances as implemented in
