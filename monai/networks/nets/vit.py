@@ -65,7 +65,7 @@ class ViT(nn.Module):
             pos_embed_type (str, optional): position embedding type. Defaults to "learnable".
             classification (bool, optional): bool argument to determine if classification is used. Defaults to False.
             num_classes (int, optional): number of classes if classification is used. Defaults to 2.
-            dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
+            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             spatial_dims (int, optional): number of spatial dimensions. Defaults to 3.
             post_activation (str, optional): add a final acivation function to the classification head
                 when `classification` is True. Default to "Tanh" for `nn.Tanh()`.

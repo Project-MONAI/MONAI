@@ -65,7 +65,7 @@ class PatchEmbeddingBlock(nn.Module):
             num_heads: number of attention heads.
             proj_type: patch embedding layer type.
             pos_embed_type: position embedding layer type.
-            dropout_rate: faction of the input units to drop.
+            dropout_rate: fraction of the input units to drop.
             spatial_dims: number of spatial dimensions.
         .. deprecated:: 1.4
             ``pos_embed`` is deprecated in favor of ``proj_type``.

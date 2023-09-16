@@ -64,7 +64,7 @@ class ViTAutoEnc(nn.Module):
             num_layers:  number of transformer blocks. Defaults to 12.
             num_heads: number of attention heads. Defaults to 12.
             proj_type: position embedding layer type. Defaults to "conv".
-            dropout_rate: faction of the input units to drop. Defaults to 0.0.
+            dropout_rate: fraction of the input units to drop. Defaults to 0.0.
             spatial_dims: number of spatial dimensions. Defaults to 3.
             qkv_bias: apply bias to the qkv linear layer in self attention block. Defaults to False.
             save_attn: to make accessible the attention in self attention block. Defaults to False. Defaults to False.
