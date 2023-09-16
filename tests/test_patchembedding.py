@@ -136,6 +136,16 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 pos_embed="perceptron",
                 dropout_rate=0.3,
             )
+        with self.assertRaises(ValueError):
+            PatchEmbeddingBlock(
+                in_channels=1,
+                img_size=(97, 97, 97),
+                patch_size=(4, 4, 4),
+                hidden_size=768,
+                num_heads=8,
+                proj_type="perceptron",
+                dropout_rate=0.3,
+            )
 
         with self.assertRaises(ValueError):
             PatchEmbeddingBlock(
