@@ -73,6 +73,11 @@ Segmentation Losses
 .. autoclass:: ContrastiveLoss
     :members:
 
+`HausdorffDTLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: HausdorffDTLoss
+    :members:
+
 Registration Losses
 -------------------
 
