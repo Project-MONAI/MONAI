@@ -25,136 +25,168 @@ _, has_scipy = optional_import("scipy")
 
 TEST_CASES = []
 for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
-    TEST_CASES.append([  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=device)
-        },
-        0.509329,
-    ])
-    TEST_CASES.append([  # shape: (1, 1, 1, 2, 2), (1, 1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True},
-        {
-            "input": torch.tensor([[[[[1.0, -1.0], [-1.0, 1.0]]]]], device=device),
-            "target": torch.tensor([[[[[1.0, 0.0], [1.0, 1.0]]]]], device=device)
-        },
-        0.509329,
-    ])
-    TEST_CASES.append([  # shape: (1, 1, 2, 2, 2), (1, 1, 2, 2, 2)
-        {"include_background": True, "sigmoid": True},
-        {
-            "input": torch.tensor([[[[[1.0, -1.0], [1.0, -1.0]], [[-1.0, 1.0], [-1.0, 1.0]]]]], device=device),
-            "target": torch.tensor([[[[[1.0, 0.0], [1.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]]]]], device=device)
-        },
-        0.375718,
-    ])
-    TEST_CASES.append([  # shape: (1, 2, 2, 2), (1, 2, 2, 2)
-        {"include_background": True, "sigmoid": True},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]], [[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 1.0]]]], device=device),
-        },
-        0.326994,
-    ])
-    TEST_CASES.append([  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "sigmoid": True},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
-        },
-        0.758470,
-    ])
-    TEST_CASES.append([  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": False, "sigmoid": True},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]], [[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 1.0]]]], device=device),
-        },
-        0.144659,
-    ])
-    TEST_CASES.append([  # shape: (2, 2, 3, 1), (2, 1, 3, 1)
-        {"include_background": True, "to_onehot_y": True, "sigmoid": True, "reduction": "none"},
-        {
-            "input": torch.tensor(
-                [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
-                device=device
-            ),
-            "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
-        },
-        [[[[0.407765]], [[0.407765]]], [[[0.5000]], [[0.5000]]]],
-    ])
-    TEST_CASES.append([  # shape: (2, 2, 3, 1), (2, 1, 3, 1)
-        {"include_background": True, "to_onehot_y": True, "softmax": True},
-        {
-            "input": torch.tensor(
-                [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
-                device=device
-            ),
-            "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
-        },
-        0.357016,
-    ])
-    TEST_CASES.append([  # shape: (2, 2, 3, 1), (2, 1, 3, 1)
-        {"include_background": True, "to_onehot_y": True, "softmax": True, "reduction": "sum"},
-        {
-            "input": torch.tensor(
-                [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
-                device=device
-            ),
-            "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
-        },
-        1.428062,
-    ])
-    TEST_CASES.append([  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
-        {"include_background": True, "sigmoid": True},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=device)},
-        0.509329,
-    ])
-    TEST_CASES.append([  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "other_act": torch.tanh},
-        {
-            "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
-        },
-        3.450064,
-    ])
-    TEST_CASES.append([  # shape: (2, 2, 3), (2, 1, 3)
-        {"include_background": True, "to_onehot_y": True, "other_act": lambda x: torch.log_softmax(x, dim=1)},
-        {
-            "input": torch.tensor(
-                [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
-                device=device),
-            "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
-        },
-        4.366613,
-    ])
-    TEST_CASES.append([  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "other_act": torch.tanh, "batch": True},
-        {
-            "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
-        },
-        2.661359,
-    ])
-    TEST_CASES.append([  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "other_act": torch.tanh, "batch": True},
-        {
-            "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
-        },
-        2.661359,
-    ])
-    TEST_CASES.append([  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
-        {"include_background": True, "other_act": torch.tanh, "batch": False},
-        {
-            "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
-            "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
-        },
-        2.661359,
-    ])
+    TEST_CASES.append(
+        [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
+            {"include_background": True, "sigmoid": True},
+            {
+                "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=device),
+            },
+            0.509329,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (1, 1, 1, 2, 2), (1, 1, 1, 2, 2)
+            {"include_background": True, "sigmoid": True},
+            {
+                "input": torch.tensor([[[[[1.0, -1.0], [-1.0, 1.0]]]]], device=device),
+                "target": torch.tensor([[[[[1.0, 0.0], [1.0, 1.0]]]]], device=device),
+            },
+            0.509329,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (1, 1, 2, 2, 2), (1, 1, 2, 2, 2)
+            {"include_background": True, "sigmoid": True},
+            {
+                "input": torch.tensor([[[[[1.0, -1.0], [1.0, -1.0]], [[-1.0, 1.0], [-1.0, 1.0]]]]], device=device),
+                "target": torch.tensor([[[[[1.0, 0.0], [1.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]]]]], device=device),
+            },
+            0.375718,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (1, 2, 2, 2), (1, 2, 2, 2)
+            {"include_background": True, "sigmoid": True},
+            {
+                "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]], [[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 1.0]]]], device=device),
+            },
+            0.326994,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+            {"include_background": True, "sigmoid": True},
+            {
+                "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
+            },
+            0.758470,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
+            {"include_background": False, "sigmoid": True},
+            {
+                "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]], [[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 1.0]]]], device=device),
+            },
+            0.144659,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 2, 3, 1), (2, 1, 3, 1)
+            {"include_background": True, "to_onehot_y": True, "sigmoid": True, "reduction": "none"},
+            {
+                "input": torch.tensor(
+                    [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
+                    device=device,
+                ),
+                "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
+            },
+            [[[[0.407765]], [[0.407765]]], [[[0.5000]], [[0.5000]]]],
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 2, 3, 1), (2, 1, 3, 1)
+            {"include_background": True, "to_onehot_y": True, "softmax": True},
+            {
+                "input": torch.tensor(
+                    [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
+                    device=device,
+                ),
+                "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
+            },
+            0.357016,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 2, 3, 1), (2, 1, 3, 1)
+            {"include_background": True, "to_onehot_y": True, "softmax": True, "reduction": "sum"},
+            {
+                "input": torch.tensor(
+                    [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
+                    device=device,
+                ),
+                "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
+            },
+            1.428062,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)
+            {"include_background": True, "sigmoid": True},
+            {
+                "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=device),
+            },
+            0.509329,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+            {"include_background": True, "other_act": torch.tanh},
+            {
+                "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
+            },
+            3.450064,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 2, 3), (2, 1, 3)
+            {"include_background": True, "to_onehot_y": True, "other_act": lambda x: torch.log_softmax(x, dim=1)},
+            {
+                "input": torch.tensor(
+                    [[[[-1.0], [0.0], [1.0]], [[1.0], [0.0], [-1.0]]], [[[0.0], [0.0], [0.0]], [[0.0], [0.0], [0.0]]]],
+                    device=device,
+                ),
+                "target": torch.tensor([[[[1.0], [0.0], [0.0]]], [[[1.0], [1.0], [0.0]]]], device=device),
+            },
+            4.366613,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+            {"include_background": True, "other_act": torch.tanh, "batch": True},
+            {
+                "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
+            },
+            2.661359,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+            {"include_background": True, "other_act": torch.tanh, "batch": True},
+            {
+                "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
+            },
+            2.661359,
+        ]
+    )
+    TEST_CASES.append(
+        [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+            {"include_background": True, "other_act": torch.tanh, "batch": False},
+            {
+                "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
+                "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
+            },
+            2.661359,
+        ]
+    )
 
 
 @skipUnless(has_scipy, "Scipy required")
