@@ -571,15 +571,7 @@ def _get_all_bundles_info(
                     if asset_name not in bundles_info:
                         bundles_info[asset_name] = {}
                     asset_version = asset["name"].split(f"{asset_name}_v")[-1].replace(".zip", "")
-                    bundles_info[asset_name][asset_version] = {
-                        "id": asset["id"],
-                        "name": asset["name"],
-                        "size": asset["size"],
-                        "download_count": asset["download_count"],
-                        "browser_download_url": asset["browser_download_url"],
-                        "created_at": asset["created_at"],
-                        "updated_at": asset["updated_at"],
-                    }
+                    bundles_info[asset_name][asset_version] = dict(asset)
                 return bundles_info
     else:
         for asset in releases_list.keys():
