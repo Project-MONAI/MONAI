@@ -84,6 +84,11 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_DICOM_SINGLE.zip",
             "hash_type": "sha256",
             "hash_val": "a41f6e93d2e3d68956144f9a847273041d36441da12377d6a1d5ae610e0a7023"
+        },
+        "nrrd_example": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_IMAGE_cropped.nrrd",
+            "hash_type": "sha256",
+            "hash_val": "66971ad17f0bac50e6082ed6a4dc1ae7093c30517137e53327b15a752327a1c0"
         }
     },
     "videos": {
