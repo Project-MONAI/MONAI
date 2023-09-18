@@ -33,6 +33,22 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
         },
         0.509329,
     ])
+    TEST_CASES.append([  # shape: (1, 1, 1, 2, 2), (1, 1, 1, 2, 2)
+        {"include_background": True, "sigmoid": True},
+        {
+            "input": torch.tensor([[[[[1.0, -1.0], [-1.0, 1.0]]]]], device=device),
+            "target": torch.tensor([[[[[1.0, 0.0], [1.0, 1.0]]]]], device=device)
+        },
+        0.509329,
+    ])
+    TEST_CASES.append([  # shape: (1, 1, 2, 2, 2), (1, 1, 2, 2, 2)
+        {"include_background": True, "sigmoid": True},
+        {
+            "input": torch.tensor([[[[[1.0, -1.0], [1.0, -1.0]], [[-1.0, 1.0], [-1.0, 1.0]]]]], device=device),
+            "target": torch.tensor([[[[[1.0, 0.0], [1.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]]]]], device=device)
+        },
+        0.375718,
+    ])
     TEST_CASES.append([  # shape: (1, 2, 2, 2), (1, 2, 2, 2)
         {"include_background": True, "sigmoid": True},
         {
