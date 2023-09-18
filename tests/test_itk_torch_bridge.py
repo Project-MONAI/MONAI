@@ -11,13 +11,17 @@
 
 from __future__ import annotations
 
+import itertools
 import os
+import tempfile
 import unittest
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
+import monai
+import monai.transforms as mt
 from monai.apps import download_url
 from monai.data import ITKReader
 from monai.data.itk_torch_bridge import (
@@ -31,9 +35,10 @@ from monai.data.itk_torch_bridge import (
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
 from monai.utils import optional_import, set_determinism
-from tests.utils import skip_if_downloading_fails, skip_if_quick, test_is_quick, testing_data_config
+from tests.utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, test_is_quick, testing_data_config
 
 itk, has_itk = optional_import("itk")
+_, has_nib = optional_import("nibabel")
 
 TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha"]
 if not test_is_quick():
@@ -485,16 +490,35 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
+@unittest.skipUnless(has_nib, "Requires `nibabel` package.")
 class TestITKTorchRW(unittest.TestCase):
     def setUp(self):
-        TestITKTorchAffineMatrixBridge().setUp()
+        TestITKTorchAffineMatrixBridge.setUp(self)
 
     def tearDown(self):
-        TestITKTorchAffineMatrixBridge().setUp()
+        TestITKTorchAffineMatrixBridge.setUp(self)
 
-    @parameterized.expand(RW_TESTS)
-    def test_rw_itk(self, filepath):
-        print(f"called {filepath}")
+    @parameterized.expand(list(itertools.product(RW_TESTS, [True, False])))
+    def test_rw_itk(self, filepath, flip=False):
+        fname = os.path.join(self.data_dir, filepath)
+        xform = mt.LoadImageD(
+            keys="img", image_only=True, ensure_channel_first=True, affine_lps_to_ras=flip, reader="ITKReader"
+        )
+        out = xform({"img": fname})["img"]
+        itk_image = metatensor_to_itk_image(out, channel_dim=0, dtype=float)
+        with tempfile.TemporaryDirectory() as tempdir:
+            tname = os.path.join(tempdir, filepath)
+            if not tname.endswith(".nii.gz"):
+                tname += ".nii.gz"
+            itk.imwrite(itk_image, tname, True)
+            print(out.meta["space"], fname, tname)
+            xform = mt.LoadImageD(keys="img", image_only=True, ensure_channel_first=True, reader="NibabelReader")
+            ref = xform({"img": tname})["img"]
+        if out.meta["space"] != ref.meta["space"]:
+            ref.affine = monai.data.utils.orientation_ras_lps(ref.affine)
+        assert_allclose(
+            out.affine, monai.data.utils.to_affine_nd(len(out.affine) - 1, ref.affine), rtol=1e-3, atol=1e-3
+        )
 
 
 if __name__ == "__main__":
