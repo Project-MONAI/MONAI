@@ -546,10 +546,11 @@ def _get_all_bundles_info(
     repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
     if has_requests:
-        if tag == "dev":
-            request_url = f"https://raw.githubusercontent.com/{repo}/{tag}/models/model_info.json"
-        else:
+        if tag == "hosting_storage_v1":
             request_url = f"https://api.github.com/repos/{repo}/releases"
+        else:
+            request_url = f"https://raw.githubusercontent.com/{repo}/{tag}/models/model_info.json"
+            
         if auth_token is not None:
             headers = {"Authorization": f"Bearer {auth_token}"}
             resp = requests_get(request_url, headers=headers)
