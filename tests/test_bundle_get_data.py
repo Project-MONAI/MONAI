@@ -25,56 +25,38 @@ TEST_CASE_1 = [{"bundle_name": "brats_mri_segmentation"}]
 
 TEST_CASE_2 = [{"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": None}]
 
+TEST_CASE_3 = [{"tag": "hosting_storage_v1"}]
+
+TEST_CASE_4 = [{"tag": "dev"}]
+
+TEST_CASE_5 = [{"bundle_name": "brats_mri_segmentation", "tag": "dev"}]
+
+TEST_CASE_6 = [{"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": None, "tag": "dev"}]
+
 TEST_CASE_FAKE_TOKEN_1 = [{"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": "ghp_errortoken"}]
 
 TEST_CASE_FAKE_TOKEN_2 = [
-    {
-        "bundle_name": "spleen_ct_segmentation",
-        "version": "0.1.0",
-        "auth_token": "ghp_errortoken",
-        "model_info_url": "https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json",
-    }
+    {"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": "ghp_errortoken", "tag": "dev"}
 ]
 
 
 @skip_if_windows
 @SkipIfNoModule("requests")
 class TestGetBundleData(unittest.TestCase):
+    @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
     @skip_if_quick
-    def test_get_all_bundles_list(self):
+    def test_get_all_bundles_list(self, params):
         with skip_if_downloading_fails():
-            output = get_all_bundles_list()
+            output = get_all_bundles_list(**params)
             self.assertTrue(isinstance(output, list))
             self.assertTrue(isinstance(output[0], tuple))
             self.assertTrue(len(output[0]) == 2)
 
-    @skip_if_quick
-    def test_get_all_bundles_list_model_info_url(self):
-        with skip_if_downloading_fails():
-            output = get_all_bundles_list(
-                model_info_url="https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json"
-            )
-            self.assertTrue(isinstance(output, list))
-            self.assertTrue(isinstance(output[0], tuple))
-            self.assertTrue(len(output[0]) == 2)
-
-    @parameterized.expand([TEST_CASE_1])
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_5])
     @skip_if_quick
     def test_get_bundle_versions(self, params):
         with skip_if_downloading_fails():
             output = get_bundle_versions(**params)
-            self.assertTrue(isinstance(output, dict))
-            self.assertTrue("latest_version" in output and "all_versions" in output)
-            self.assertTrue("0.1.0" in output["all_versions"])
-
-    @parameterized.expand([TEST_CASE_1])
-    @skip_if_quick
-    def test_get_bundle_versions_model_info_url(self, params):
-        with skip_if_downloading_fails():
-            output = get_bundle_versions(
-                model_info_url="https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json",
-                **params,
-            )
             self.assertTrue(isinstance(output, dict))
             self.assertTrue("latest_version" in output and "all_versions" in output)
             self.assertTrue("0.1.0" in output["all_versions"])
@@ -88,14 +70,11 @@ class TestGetBundleData(unittest.TestCase):
             for key in ["id", "name", "size", "download_count", "browser_download_url"]:
                 self.assertTrue(key in output)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_5, TEST_CASE_6])
     @skip_if_quick
-    def test_get_bundle_info_model_info_url(self, params):
+    def test_get_bundle_info_monaihosting(self, params):
         with skip_if_downloading_fails():
-            output = get_bundle_info(
-                model_info_url="https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json",
-                **params,
-            )
+            output = get_bundle_info(**params)
             self.assertTrue(isinstance(output, dict))
             for key in ["name", "browser_download_url"]:
                 self.assertTrue(key in output)

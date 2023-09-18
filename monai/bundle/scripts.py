@@ -541,22 +541,13 @@ def load(
     return model
 
 
-@deprecated_arg_default(
-    "model_info_url",
-    None,
-    "https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json",
-    since="1.3",
-    replaced="1.5",
-)
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
 def _get_all_bundles_info(
-    repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
-    auth_token: str | None = None,
-    model_info_url: str | None = None,
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
     if has_requests:
-        if model_info_url is not None:
-            request_url = model_info_url
+        if tag == "dev":
+            request_url = f"https://raw.githubusercontent.com/{repo}/{tag}/models/model_info.json"
         else:
             request_url = f"https://api.github.com/repos/{repo}/releases"
         if auth_token is not None:
@@ -571,7 +562,7 @@ def _get_all_bundles_info(
     bundle_name_pattern = re.compile(r"_v\d*.")
     bundles_info: dict[str, dict[str, dict[str, Any]]] = {}
 
-    if model_info_url is not None:
+    if tag == "dev":
         for asset in releases_list.keys():
             asset_name = bundle_name_pattern.split(asset)[0]
             if asset_name not in bundles_info:
@@ -603,24 +594,16 @@ def _get_all_bundles_info(
     return bundles_info
 
 
-@deprecated_arg_default(
-    "model_info_url",
-    None,
-    "https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json",
-    since="1.3",
-    replaced="1.5",
-)
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
 def get_all_bundles_list(
-    repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
-    auth_token: str | None = None,
-    model_info_url: str | None = None,
+    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ) -> list[tuple[str, str]]:
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
-    with the provided tag or listed in `model_info_url`. The default values of arguments correspond to the
-    release of MONAI model zoo. In order to increase the rate limits of calling Github APIs, you can input
-    your personal access token.
+    with the provided tag. If tag is "dev", will get model information from
+    https://raw.githubusercontent.com/repo_owner/repo_name/dev/models/model_info.json.
+    The default values of arguments correspond to the release of MONAI model zoo. In order to increase the
+    rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
 
@@ -631,14 +614,13 @@ def get_all_bundles_list(
         repo: it should be in the form of "repo_owner/repo_name/".
         tag: the tag name of the release.
         auth_token: github personal access token.
-        model_info_url: a JSON file link containing all of the model information.
 
     Returns:
         a list of tuple in the form of (bundle name, latest version).
 
     """
 
-    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token, model_info_url=model_info_url)
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     bundles_list = []
     for bundle_name in bundles_info:
         latest_version = sorted(bundles_info[bundle_name].keys())[-1]
@@ -647,23 +629,17 @@ def get_all_bundles_list(
     return bundles_list
 
 
-@deprecated_arg_default(
-    "model_info_url",
-    None,
-    "https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json",
-    since="1.3",
-    replaced="1.5",
-)
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
 def get_bundle_versions(
     bundle_name: str,
     repo: str = "Project-MONAI/model-zoo",
     tag: str = "hosting_storage_v1",
     auth_token: str | None = None,
-    model_info_url: str | None = None,
 ) -> dict[str, list[str] | str]:
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
-    repository with the provided tag or listed in `model_info_url`.
+    repository with the provided tag. If tag is "dev", will get model information from
+    https://raw.githubusercontent.com/repo_owner/repo_name/dev/models/model_info.json.
     In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
@@ -676,14 +652,13 @@ def get_bundle_versions(
         repo: it should be in the form of "repo_owner/repo_name/".
         tag: the tag name of the release.
         auth_token: github personal access token.
-        model_info_url: a JSON file link containing all of the model information.
 
     Returns:
         a dictionary that contains the latest version and all versions of a bundle.
 
     """
 
-    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token, model_info_url=model_info_url)
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     if bundle_name not in bundles_info:
         raise ValueError(f"bundle: {bundle_name} is not existing in repo: {repo}.")
     bundle_info = bundles_info[bundle_name]
@@ -692,26 +667,19 @@ def get_bundle_versions(
     return {"latest_version": all_versions[-1], "all_versions": all_versions}
 
 
-@deprecated_arg_default(
-    "model_info_url",
-    None,
-    "https://raw.githubusercontent.com/Project-MONAI/model-zoo/dev/models/model_info.json",
-    since="1.3",
-    replaced="1.5",
-)
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
 def get_bundle_info(
     bundle_name: str,
     version: str | None = None,
     repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
+    tag: str | None = "hosting_storage_v1",
     auth_token: str | None = None,
-    model_info_url: str | None = None,
 ) -> dict[str, Any]:
     """
     Get all information
     (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
     with the specified bundle name and version which is stored in the release of specified repository with the provided tag.
-    Since v1.5, it has been deprecated in favor of'model_info_url', which contains only "name" and "browser_download_url"
+    Since v1.5, "hosting_storage_v1" will be deprecated in favor of 'dev', which contains only "name" and "browser_download_url".
     information about a bundle.
     In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
@@ -726,14 +694,13 @@ def get_bundle_info(
         repo: it should be in the form of "repo_owner/repo_name/".
         tag: the tag name of the release.
         auth_token: github personal access token.
-        model_info_url: a JSON file link containing all of the model information.
 
     Returns:
         a dictionary that contains the bundle's information.
 
     """
 
-    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token, model_info_url=model_info_url)
+    bundles_info = _get_all_bundles_info(repo=repo, tag=tag, auth_token=auth_token)
     if bundle_name not in bundles_info:
         raise ValueError(f"bundle: {bundle_name} is not existing.")
     bundle_info = bundles_info[bundle_name]
