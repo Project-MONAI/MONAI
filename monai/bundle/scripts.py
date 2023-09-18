@@ -672,7 +672,7 @@ def get_bundle_info(
     bundle_name: str,
     version: str | None = None,
     repo: str = "Project-MONAI/model-zoo",
-    tag: str | None = "hosting_storage_v1",
+    tag: str = "hosting_storage_v1",
     auth_token: str | None = None,
 ) -> dict[str, Any]:
     """
