@@ -23,7 +23,7 @@ TEST_CASE_RESBLOCK = []
 for spatial_dims in range(2, 4):
     for in_channels in range(1, 4):
         for kernel_size in [1, 3]:
-            for norm in ["group", "batch", "instance"]:
+            for norm in [("group", {"num_groups": 1}), "batch", "instance"]:
                 test_case = [
                     {
                         "spatial_dims": spatial_dims,
@@ -34,7 +34,7 @@ for spatial_dims in range(2, 4):
                     (2, in_channels, *([16] * spatial_dims)),
                     (2, in_channels, *([16] * spatial_dims)),
                 ]
-            TEST_CASE_RESBLOCK.append(test_case)
+                TEST_CASE_RESBLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
