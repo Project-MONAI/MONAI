@@ -563,18 +563,7 @@ def _get_all_bundles_info(
     bundle_name_pattern = re.compile(r"_v\d*.")
     bundles_info: dict[str, dict[str, dict[str, Any]]] = {}
 
-    if tag == "dev":
-        for asset in releases_list.keys():
-            asset_name = bundle_name_pattern.split(asset)[0]
-            if asset_name not in bundles_info:
-                bundles_info[asset_name] = {}
-            asset_version = asset.split(f"{asset_name}_v")[-1]
-            bundles_info[asset_name][asset_version] = {
-                "name": asset,
-                "browser_download_url": releases_list[asset]["source"],
-            }
-        return bundles_info
-    else:
+    if tag == "hosting_storage_v1":
         for release in releases_list:
             if release["tag_name"] == tag:
                 for asset in release["assets"]:
@@ -592,6 +581,17 @@ def _get_all_bundles_info(
                         "updated_at": asset["updated_at"],
                     }
                 return bundles_info
+    else:
+        for asset in releases_list.keys():
+            asset_name = bundle_name_pattern.split(asset)[0]
+            if asset_name not in bundles_info:
+                bundles_info[asset_name] = {}
+            asset_version = asset.split(f"{asset_name}_v")[-1]
+            bundles_info[asset_name][asset_version] = {
+                "name": asset,
+                "browser_download_url": releases_list[asset]["source"],
+            }
+        return bundles_info
     return bundles_info
 
 
