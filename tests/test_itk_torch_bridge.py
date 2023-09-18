@@ -491,6 +491,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 @unittest.skipUnless(has_nib, "Requires `nibabel` package.")
+@skip_if_quick
 class TestITKTorchRW(unittest.TestCase):
     def setUp(self):
         TestITKTorchAffineMatrixBridge.setUp(self)
@@ -498,22 +499,18 @@ class TestITKTorchRW(unittest.TestCase):
     def tearDown(self):
         TestITKTorchAffineMatrixBridge.setUp(self)
 
-    @parameterized.expand(list(itertools.product(RW_TESTS, [True, False])))
-    def test_rw_itk(self, filepath, flip=False):
+    @parameterized.expand(list(itertools.product(RW_TESTS, ["ITKReader", "NrrdReader"], [True, False])))
+    def test_rw_itk(self, filepath, reader, flip):
+        """reading and convert: filepath, reader, flip"""
+        print(filepath, reader, flip)
         fname = os.path.join(self.data_dir, filepath)
-        xform = mt.LoadImageD(
-            keys="img", image_only=True, ensure_channel_first=True, affine_lps_to_ras=flip, reader="ITKReader"
-        )
+        xform = mt.LoadImageD("img", image_only=True, ensure_channel_first=True, affine_lps_to_ras=flip, reader=reader)
         out = xform({"img": fname})["img"]
         itk_image = metatensor_to_itk_image(out, channel_dim=0, dtype=float)
         with tempfile.TemporaryDirectory() as tempdir:
-            tname = os.path.join(tempdir, filepath)
-            if not tname.endswith(".nii.gz"):
-                tname += ".nii.gz"
+            tname = os.path.join(tempdir, filepath) + (".nii.gz" if not filepath.endswith(".nii.gz") else "")
             itk.imwrite(itk_image, tname, True)
-            print(out.meta["space"], fname, tname)
-            xform = mt.LoadImageD(keys="img", image_only=True, ensure_channel_first=True, reader="NibabelReader")
-            ref = xform({"img": tname})["img"]
+            ref = mt.LoadImage(image_only=True, ensure_channel_first=True, reader="NibabelReader")(tname)
         if out.meta["space"] != ref.meta["space"]:
             ref.affine = monai.data.utils.orientation_ras_lps(ref.affine)
         assert_allclose(
