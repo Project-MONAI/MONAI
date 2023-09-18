@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.losses import HausdorffDTLoss
+from monai.losses import HausdorffDTLoss, LogHausdorffDTLoss
 from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
@@ -189,6 +189,9 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
     )
 
 
+TEST_CASES_LOG = [[*inputs, np.log(np.array(output) + 1)] for *inputs, output in TEST_CASES]
+
+
 @skipUnless(has_scipy, "Scipy required")
 class TestHausdorffDTLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
@@ -222,6 +225,42 @@ class TestHausdorffDTLoss(unittest.TestCase):
             loss.forward(chn_input, chn_target)
         with self.assertWarns(Warning):
             loss = HausdorffDTLoss(to_onehot_y=True)
+            loss.forward(chn_input, chn_target)
+
+
+@skipUnless(has_scipy, "Scipy required")
+class TesLogtHausdorffDTLoss(unittest.TestCase):
+    @parameterized.expand(TEST_CASES_LOG)
+    def test_shape(self, input_param, input_data, expected_val):
+        result = LogHausdorffDTLoss(**input_param).forward(**input_data)
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
+
+    def test_ill_shape(self):
+        loss = LogHausdorffDTLoss()
+        with self.assertRaisesRegex(AssertionError, ""):
+            loss.forward(torch.ones((1, 1, 2, 3)), torch.ones((1, 4, 5, 6)))
+
+    def test_ill_opts(self):
+        with self.assertRaisesRegex(ValueError, ""):
+            LogHausdorffDTLoss(sigmoid=True, softmax=True)
+        chn_input = torch.ones((1, 1, 3))
+        chn_target = torch.ones((1, 1, 3))
+        with self.assertRaisesRegex(ValueError, ""):
+            LogHausdorffDTLoss(reduction="unknown")(chn_input, chn_target)
+        with self.assertRaisesRegex(ValueError, ""):
+            LogHausdorffDTLoss(reduction=None)(chn_input, chn_target)
+
+    def test_input_warnings(self):
+        chn_input = torch.ones((1, 1, 1, 3))
+        chn_target = torch.ones((1, 1, 1, 3))
+        with self.assertWarns(Warning):
+            loss = LogHausdorffDTLoss(include_background=False)
+            loss.forward(chn_input, chn_target)
+        with self.assertWarns(Warning):
+            loss = LogHausdorffDTLoss(softmax=True)
+            loss.forward(chn_input, chn_target)
+        with self.assertWarns(Warning):
+            loss = LogHausdorffDTLoss(to_onehot_y=True)
             loss.forward(chn_input, chn_target)
 
 

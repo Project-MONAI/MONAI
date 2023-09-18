@@ -210,5 +210,5 @@ class HausdorffDTLoss(_Loss):
 
 
 class LogHausdorffDTLoss(HausdorffDTLoss):
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> torch.Tensor:
         return torch.log(super().forward(*args, **kwargs) + 1)
