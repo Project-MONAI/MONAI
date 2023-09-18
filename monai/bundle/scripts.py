@@ -583,7 +583,6 @@ def _get_all_bundles_info(
                 "name": asset,
                 "browser_download_url": releases_list[asset]["source"],
             }
-        return bundles_info
     return bundles_info
 
 
