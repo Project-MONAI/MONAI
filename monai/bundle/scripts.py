@@ -550,7 +550,7 @@ def _get_all_bundles_info(
             request_url = f"https://api.github.com/repos/{repo}/releases"
         else:
             request_url = f"https://raw.githubusercontent.com/{repo}/{tag}/models/model_info.json"
-            
+
         if auth_token is not None:
             headers = {"Authorization": f"Bearer {auth_token}"}
             resp = requests_get(request_url, headers=headers)
