@@ -39,6 +39,8 @@ TESTS = ["CT_2D_head_fixed.mha", "CT_2D_head_moving.mha"]
 if not test_is_quick():
     TESTS += ["copd1_highres_INSP_STD_COPD_img.nii.gz", "copd1_highres_EXP_STD_COPD_img.nii.gz"]
 
+RW_TESTS = TESTS + ["nrrd_example.nrrd"]
+
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
@@ -47,7 +49,7 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         self.reader = ITKReader(pixel_type=itk.F)
 
-        for file_name in TESTS:
+        for file_name in RW_TESTS:
             path = os.path.join(self.data_dir, file_name)
             if not os.path.exists(path):
                 with skip_if_downloading_fails():
@@ -480,6 +482,19 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 
         # Compare outputs
         np.testing.assert_allclose(output_array_monai, output_array_itk, rtol=1e-3, atol=1e-3)
+
+
+@unittest.skipUnless(has_itk, "Requires `itk` package.")
+class TestITKTorchRW(unittest.TestCase):
+    def setUp(self):
+        TestITKTorchAffineMatrixBridge().setUp()
+
+    def tearDown(self):
+        TestITKTorchAffineMatrixBridge().setUp()
+
+    @parameterized.expand(RW_TESTS)
+    def test_rw_itk(self, filepath):
+        print(f"called {filepath}")
 
 
 if __name__ == "__main__":
