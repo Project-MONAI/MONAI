@@ -12,12 +12,16 @@
 from __future__ import annotations
 
 import unittest
+from unittest.case import skipUnless
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.losses import HausdorffDTLoss
+from monai.utils import optional_import
+
+_, has_scipy = optional_import("scipy")
 
 TEST_CASES = []
 for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
@@ -137,6 +141,7 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
     ])
 
 
+@skipUnless(has_scipy, "Scipy required")
 class TestHausdorffDTLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
