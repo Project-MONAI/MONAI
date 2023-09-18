@@ -541,7 +541,7 @@ def load(
     return model
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def _get_all_bundles_info(
     repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
