@@ -187,12 +187,12 @@ class HausdorffDTLoss(_Loss):
             pred_error = (ch_input - ch_target) ** 2
             distance = pred_dt**self.alpha + target_dt**self.alpha
 
-            f = pred_error * distance.to(device)
+            running_f = pred_error * distance.to(device)
             reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
             if self.batch:
                 # reducing spatial dimensions and batch
                 reduce_axis = [0] + reduce_axis
-            all_f.append(f.mean(dim=reduce_axis, keepdim=True))
+            all_f.append(running_f.mean(dim=reduce_axis, keepdim=True))
         f = torch.cat(all_f, dim=1)
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -210,5 +210,32 @@ class HausdorffDTLoss(_Loss):
 
 
 class LogHausdorffDTLoss(HausdorffDTLoss):
-    def forward(self, *args, **kwargs) -> torch.Tensor:
-        return torch.log(super().forward(*args, **kwargs) + 1)
+    """
+    Compute the logarithm of the Hausdorff Distance Transform Loss.
+
+    This class computes the logarithm of the Hausdorff Distance Transform Loss, which is based on the distance transform.
+    The logarithm is computed to potentially stabilize and scale the loss values, especially when the original loss
+    values are very small.
+
+    The formula for the loss is given by:
+        log_loss = log(HausdorffDTLoss + 1)
+
+    Inherits from the HausdorffDTLoss class to utilize its distance transform computation.
+    """
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the logarithm of the Hausdorff Distance Transform Loss.
+
+        Args:
+            input (torch.Tensor): The shape should be BNHW[D], where N is the number of classes.
+            target (torch.Tensor): The shape should be BNHW[D] or B1HW[D], where N is the number of classes.
+
+        Returns:
+            torch.Tensor: The computed Log Hausdorff Distance Transform Loss for the given input and target.
+
+        Raises:
+            Any exceptions raised by the parent class HausdorffDTLoss.
+        """
+        log_loss: torch.Tensor = torch.log(super().forward(input, target) + 1)
+        return log_loss
