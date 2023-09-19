@@ -200,10 +200,10 @@ def get_mask_edges(
             edges_gt = binary_erosion(seg_gt) ^ seg_gt
             return edges_pred, edges_gt
         else:
-            seg_pred, seg_gt = convert_to_cupy([seg_pred, seg_gt], dtype=bool)
+            seg_pred, seg_gt = convert_to_cupy([seg_pred, seg_gt], dtype=bool)  # type: ignore[arg-type]
             edges_pred = cucim_binary_erosion(seg_pred) ^ seg_pred
             edges_gt = cucim_binary_erosion(seg_gt) ^ seg_gt
-            return convert_to_numpy([edges_pred, edges_gt], dtype=bool)
+            return convert_to_numpy([edges_pred, edges_gt], dtype=bool)  # type: ignore
     code_to_area_table, k = get_code_to_measure_table(spacing, device=seg_pred.device)  # type: ignore
     spatial_dims = len(spacing)
     conv = torch.nn.functional.conv3d if spatial_dims == 3 else torch.nn.functional.conv2d
