@@ -33,6 +33,7 @@ from .dice import (
 from .ds_loss import DeepSupervisionLoss
 from .focal_loss import FocalLoss
 from .giou_loss import BoxGIoULoss, giou
+from .hausdorff_loss import HausdorffDTLoss, LogHausdorffDTLoss
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
 from .perceptual import PerceptualLoss
