@@ -546,10 +546,10 @@ def _get_all_bundles_info(
     repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
     if has_requests:
-        if tag == "hosting_storage_v1":
-            request_url = f"https://api.github.com/repos/{repo}/releases"
-        else:
+        if tag == "dev":
             request_url = f"https://raw.githubusercontent.com/{repo}/{tag}/models/model_info.json"
+        else:
+            request_url = f"https://api.github.com/repos/{repo}/releases"
 
         if auth_token is not None:
             headers = {"Authorization": f"Bearer {auth_token}"}
@@ -563,17 +563,7 @@ def _get_all_bundles_info(
     bundle_name_pattern = re.compile(r"_v\d*.")
     bundles_info: dict[str, dict[str, dict[str, Any]]] = {}
 
-    if tag == "hosting_storage_v1":
-        for release in releases_list:
-            if release["tag_name"] == tag:
-                for asset in release["assets"]:
-                    asset_name = bundle_name_pattern.split(asset["name"])[0]
-                    if asset_name not in bundles_info:
-                        bundles_info[asset_name] = {}
-                    asset_version = asset["name"].split(f"{asset_name}_v")[-1].replace(".zip", "")
-                    bundles_info[asset_name][asset_version] = dict(asset)
-                return bundles_info
-    else:
+    if tag == "dev":
         for asset in releases_list.keys():
             asset_name = bundle_name_pattern.split(asset)[0]
             if asset_name not in bundles_info:
@@ -583,6 +573,16 @@ def _get_all_bundles_info(
                 "name": asset,
                 "browser_download_url": releases_list[asset]["source"],
             }
+    else:
+        for release in releases_list:
+            if release["tag_name"] == tag:
+                for asset in release["assets"]:
+                    asset_name = bundle_name_pattern.split(asset["name"])[0]
+                    if asset_name not in bundles_info:
+                        bundles_info[asset_name] = {}
+                    asset_version = asset["name"].split(f"{asset_name}_v")[-1].replace(".zip", "")
+                    bundles_info[asset_name][asset_version] = dict(asset)
+                return bundles_info
     return bundles_info
 
 
