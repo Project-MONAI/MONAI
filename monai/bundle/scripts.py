@@ -562,7 +562,7 @@ def _get_all_bundles_info(
     bundle_name_pattern = re.compile(r"_v\d*.")
     bundles_info: dict[str, dict[str, dict[str, Any]]] = {}
 
-    if request_url.endswith('json'):
+    if request_url.endswith("json"):
         for asset in releases_list.keys():
             asset_name = bundle_name_pattern.split(asset)[0]
             if asset_name not in bundles_info:
