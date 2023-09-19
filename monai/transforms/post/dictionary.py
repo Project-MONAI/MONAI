@@ -865,7 +865,9 @@ class DistanceTransformEDTd(MapTransform):
 
     Either GPU based with CuPy / cuCIM or CPU based with scipy.ndimage.
     Choice only depends on cuCIM being available.
-    Note that the calculations can deviate, for details look into the cuCIM about distance_transform_edt().
+    Note that the results of the two libraries can deviate, for details look into the cuCIM Docs about ``distance_transform_edt()``.
+
+    Input has to 2D, 3D or 4D for CuPy. For details look into :py:class:`monai.transforms.DistanceTransformEDT`.
 
     Args:
         keys: keys of the corresponding items to model output.

@@ -37,7 +37,25 @@ TEST_CASES = [
                 [0.0, 1.0, 1.0, 0.0, 0.0],
             ]
         ),
-    ]
+    ],
+    [  # Example 4D input to test channel-wise CuPy
+        np.array(
+            [[[[0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 1, 1, 0, 0]]]], dtype=np.float32
+        ),
+        np.array(
+            [
+                [
+                    [
+                        [0.0, 1.0, 1.4142, 2.2361, 3.0],
+                        [0.0, 0.0, 1.0, 2.0, 2.0],
+                        [0.0, 1.0, 1.4142, 1.4142, 1.0],
+                        [0.0, 1.0, 1.4142, 1.0, 0.0],
+                        [0.0, 1.0, 1.0, 0.0, 0.0],
+                    ]
+                ]
+            ]
+        ),
+    ],
 ]
 
 SAMPLING_TEST_CASES = [
@@ -62,7 +80,8 @@ SAMPLING_TEST_CASES = [
 RAISES_TEST_CASES = (
     [  # Example 4D input. Should raise under CuPy
         np.array(
-            [[[[0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 1, 1, 0, 0]]]], dtype=np.float32
+            [[[[[0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 1, 1, 0, 0]]]]],
+            dtype=np.float32,
         )
     ],
 )
@@ -112,7 +131,7 @@ class TestDistanceTransformEDT(unittest.TestCase):
     @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
     def test_cucim_raises(self, raises):
-        """Currently only 2D and 3D images are supported by CuPy. This test checks for the according error message"""
+        """Currently only 2D, 3D and 4D images are supported by CuPy. This test checks for the according error message"""
         transform = DistanceTransformEDT()
         with self.assertRaises(NotImplementedError):
             transform(raises)
