@@ -115,6 +115,7 @@ from .module import (
     require_pkg,
     run_debug,
     run_eval,
+    version_geq,
     version_leq,
 )
 from .nvtx import Range
@@ -128,6 +129,7 @@ from .profiling import (
     torch_profiler_time_end_to_end,
 )
 from .state_cacher import StateCacher
+from .tf32 import detect_default_tf32, has_ampere_or_later
 from .type_conversion import (
     convert_data_type,
     convert_to_cupy,

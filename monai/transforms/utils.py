@@ -1027,11 +1027,11 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
-    cucim, has_cucim = optional_import("cucim")
+    skimage, has_cucim = optional_import("cucim.skimage")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
-        label = cucim.skimage.measure.label
+        label = skimage.measure.label
         lib = cp
     else:
         if not has_measure:
@@ -1712,8 +1712,8 @@ def convert_to_contiguous(
         return ascontiguousarray(data, **kwargs)
     elif isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
-    elif isinstance(data, Sequence) and not isinstance(data, bytes):
-        return [convert_to_contiguous(i, **kwargs) for i in data]  # type: ignore
+    elif isinstance(data, Sequence):
+        return type(data)(convert_to_contiguous(i, **kwargs) for i in data)  # type: ignore
     else:
         return data
 

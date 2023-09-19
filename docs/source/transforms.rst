@@ -128,7 +128,7 @@ Crop and Pad
 
 `SpatialPad`
 """"""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPad.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/SpatialPad.png
     :alt: example of SpatialPad
 .. autoclass:: SpatialPad
     :members:
@@ -136,7 +136,7 @@ Crop and Pad
 
 `BorderPad`
 """""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/BorderPad.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/BorderPad.png
     :alt: example of BorderPad
 .. autoclass:: BorderPad
     :members:
@@ -144,7 +144,7 @@ Crop and Pad
 
 `DivisiblePad`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePad.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/DivisiblePad.png
     :alt: example of DivisiblePad
 .. autoclass:: DivisiblePad
     :members:
@@ -158,7 +158,7 @@ Crop and Pad
 
 `SpatialCrop`
 """""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCrop.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/SpatialCrop.png
     :alt: example of SpatialCrop
 .. autoclass:: SpatialCrop
     :members:
@@ -166,7 +166,7 @@ Crop and Pad
 
 `CenterSpatialCrop`
 """""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterSpatialCrop.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/CenterSpatialCrop.png
     :alt: example of CenterSpatialCrop
 .. autoclass:: CenterSpatialCrop
     :members:
@@ -174,7 +174,7 @@ Crop and Pad
 
 `RandSpatialCrop`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCrop.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSpatialCrop.png
     :alt: example of RandSpatialCrop
 .. autoclass:: RandSpatialCrop
     :members:
@@ -182,7 +182,7 @@ Crop and Pad
 
 `RandSpatialCropSamples`
 """"""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCropSamples.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSpatialCropSamples.png
     :alt: example of RandSpatialCropSamples
 .. autoclass:: RandSpatialCropSamples
     :members:
@@ -190,7 +190,7 @@ Crop and Pad
 
 `CropForeground`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CropForeground.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/CropForeground.png
     :alt: example of CropForeground
 .. autoclass:: CropForeground
     :members:
@@ -198,7 +198,7 @@ Crop and Pad
 
 `RandWeightedCrop`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandWeightedCrop.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandWeightedCrop.png
     :alt: example of RandWeightedCrop
 .. autoclass:: RandWeightedCrop
     :members:
@@ -206,7 +206,7 @@ Crop and Pad
 
 `RandCropByPosNegLabel`
 """""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByPosNegLabel.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCropByPosNegLabel.png
     :alt: example of RandCropByPosNegLabel
 .. autoclass:: RandCropByPosNegLabel
     :members:
@@ -214,7 +214,7 @@ Crop and Pad
 
 `RandCropByLabelClasses`
 """"""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByLabelClasses.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCropByLabelClasses.png
     :alt: example of RandCropByLabelClasses
 .. autoclass:: RandCropByLabelClasses
     :members:
@@ -222,7 +222,7 @@ Crop and Pad
 
 `ResizeWithPadOrCrop`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ResizeWithPadOrCrop.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ResizeWithPadOrCrop.png
     :alt: example of ResizeWithPadOrCrop
 .. autoclass:: ResizeWithPadOrCrop
     :members:
@@ -236,7 +236,7 @@ Crop and Pad
 
 `RandScaleCrop`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleCrop.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandScaleCrop.png
     :alt: example of RandScaleCrop
 .. autoclass:: RandScaleCrop
     :members:
@@ -244,7 +244,7 @@ Crop and Pad
 
 `CenterScaleCrop`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterScaleCrop.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/CenterScaleCrop.png
     :alt: example of CenterScaleCrop
 .. autoclass:: CenterScaleCrop
     :members:
@@ -255,7 +255,7 @@ Intensity
 
 `RandGaussianNoise`
 """""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGaussianNoise.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGaussianNoise.png
     :alt: example of RandGaussianNoise
 .. autoclass:: RandGaussianNoise
     :members:
@@ -263,7 +263,7 @@ Intensity
 
 `ShiftIntensity`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ShiftIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ShiftIntensity.png
     :alt: example of ShiftIntensity
 .. autoclass:: ShiftIntensity
     :members:
@@ -271,7 +271,7 @@ Intensity
 
 `RandShiftIntensity`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandShiftIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandShiftIntensity.png
     :alt: example of RandShiftIntensity
 .. autoclass:: RandShiftIntensity
     :members:
@@ -279,7 +279,7 @@ Intensity
 
 `StdShiftIntensity`
 """""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/StdShiftIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/StdShiftIntensity.png
     :alt: example of StdShiftIntensity
 .. autoclass:: StdShiftIntensity
     :members:
@@ -287,7 +287,7 @@ Intensity
 
 `RandStdShiftIntensity`
 """""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandStdShiftIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandStdShiftIntensity.png
     :alt: example of RandStdShiftIntensity
 .. autoclass:: RandStdShiftIntensity
     :members:
@@ -295,7 +295,7 @@ Intensity
 
 `RandBiasField`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandBiasField.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandBiasField.png
     :alt: example of RandBiasField
 .. autoclass:: RandBiasField
     :members:
@@ -303,7 +303,7 @@ Intensity
 
 `ScaleIntensity`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ScaleIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ScaleIntensity.png
     :alt: example of ScaleIntensity
 .. autoclass:: ScaleIntensity
     :members:
@@ -311,7 +311,7 @@ Intensity
 
 `RandScaleIntensity`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandScaleIntensity.png
     :alt: example of RandScaleIntensity
 .. autoclass:: RandScaleIntensity
     :members:
@@ -331,7 +331,7 @@ Intensity
 
 `NormalizeIntensity`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/NormalizeIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/NormalizeIntensity.png
     :alt: example of NormalizeIntensity
 .. autoclass:: NormalizeIntensity
     :members:
@@ -339,7 +339,7 @@ Intensity
 
 `ThresholdIntensity`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ThresholdIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ThresholdIntensity.png
     :alt: example of ThresholdIntensity
 .. autoclass:: ThresholdIntensity
     :members:
@@ -347,7 +347,7 @@ Intensity
 
 `ScaleIntensityRange`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ScaleIntensityRange.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ScaleIntensityRange.png
     :alt: example of ScaleIntensityRange
 .. autoclass:: ScaleIntensityRange
     :members:
@@ -355,7 +355,7 @@ Intensity
 
 `ScaleIntensityRangePercentiles`
 """"""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ScaleIntensityRangePercentiles.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ScaleIntensityRangePercentiles.png
     :alt: example of ScaleIntensityRangePercentiles
 .. autoclass:: ScaleIntensityRangePercentiles
     :members:
@@ -363,7 +363,7 @@ Intensity
 
 `AdjustContrast`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/AdjustContrast.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/AdjustContrast.png
     :alt: example of AdjustContrast
 .. autoclass:: AdjustContrast
     :members:
@@ -371,7 +371,7 @@ Intensity
 
 `RandAdjustContrast`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAdjustContrast.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandAdjustContrast.png
     :alt: example of RandAdjustContrast
 .. autoclass:: RandAdjustContrast
     :members:
@@ -379,7 +379,7 @@ Intensity
 
 `MaskIntensity`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MaskIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/MaskIntensity.png
     :alt: example of MaskIntensity
 .. autoclass:: MaskIntensity
     :members:
@@ -387,7 +387,7 @@ Intensity
 
 `SavitzkyGolaySmooth`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmooth.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/SavitzkyGolaySmooth.png
     :alt: example of SavitzkyGolaySmooth
 .. autoclass:: SavitzkyGolaySmooth
     :members:
@@ -395,7 +395,7 @@ Intensity
 
 `MedianSmooth`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MedianSmooth.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/MedianSmooth.png
     :alt: example of MedianSmooth
 .. autoclass:: MedianSmooth
     :members:
@@ -403,7 +403,7 @@ Intensity
 
 `GaussianSmooth`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSmooth.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GaussianSmooth.png
     :alt: example of GaussianSmooth
 .. autoclass:: GaussianSmooth
     :members:
@@ -411,7 +411,7 @@ Intensity
 
 `RandGaussianSmooth`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGaussianSmooth.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGaussianSmooth.png
     :alt: example of RandGaussianSmooth
 .. autoclass:: RandGaussianSmooth
     :members:
@@ -419,7 +419,7 @@ Intensity
 
 `GaussianSharpen`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSharpen.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GaussianSharpen.png
     :alt: example of GaussianSharpen
 .. autoclass:: GaussianSharpen
     :members:
@@ -427,7 +427,7 @@ Intensity
 
 `RandGaussianSharpen`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGaussianSharpen.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGaussianSharpen.png
     :alt: example of RandGaussianSharpen
 .. autoclass:: RandGaussianSharpen
     :members:
@@ -435,7 +435,7 @@ Intensity
 
 `RandHistogramShift`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandHistogramShift.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandHistogramShift.png
     :alt: example of RandHistogramShift
 .. autoclass:: RandHistogramShift
     :members:
@@ -449,7 +449,7 @@ Intensity
 
 `GibbsNoise`
 """"""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GibbsNoise.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GibbsNoise.png
     :alt: example of GibbsNoise
 .. autoclass:: GibbsNoise
     :members:
@@ -457,7 +457,7 @@ Intensity
 
 `RandGibbsNoise`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGibbsNoise.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGibbsNoise.png
     :alt: example of RandGibbsNoise
 .. autoclass:: RandGibbsNoise
     :members:
@@ -465,7 +465,7 @@ Intensity
 
 `KSpaceSpikeNoise`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KSpaceSpikeNoise.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/KSpaceSpikeNoise.png
     :alt: example of KSpaceSpikeNoise
 .. autoclass:: KSpaceSpikeNoise
     :members:
@@ -473,7 +473,7 @@ Intensity
 
 `RandKSpaceSpikeNoise`
 """"""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandKSpaceSpikeNoise.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandKSpaceSpikeNoise.png
     :alt: example of RandKSpaceSpikeNoise
 .. autoclass:: RandKSpaceSpikeNoise
     :members:
@@ -481,7 +481,7 @@ Intensity
 
 `RandRicianNoise`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRicianNoise.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandRicianNoise.png
     :alt: example of RandRicianNoise
 .. autoclass:: RandRicianNoise
     :members:
@@ -495,7 +495,7 @@ Intensity
 
 `RandCoarseDropout`
 """""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCoarseDropout.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCoarseDropout.png
     :alt: example of RandCoarseDropout
 .. autoclass:: RandCoarseDropout
     :members:
@@ -503,7 +503,7 @@ Intensity
 
 `RandCoarseShuffle`
 """""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCoarseShuffle.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCoarseShuffle.png
     :alt: example of RandCoarseShuffle
 .. autoclass:: RandCoarseShuffle
     :members:
@@ -511,7 +511,7 @@ Intensity
 
 `HistogramNormalize`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/HistogramNormalize.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/HistogramNormalize.png
     :alt: example of HistogramNormalize
 .. autoclass:: HistogramNormalize
     :members:
@@ -520,7 +520,7 @@ Intensity
 
 `ForegroundMask`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMask.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ForegroundMask.png
     :alt: example of ForegroundMask
 .. autoclass:: ForegroundMask
     :members:
@@ -588,7 +588,7 @@ Post-processing
 
 `AsDiscrete`
 """"""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/AsDiscrete.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/AsDiscrete.png
     :alt: example of AsDiscrete
 .. autoclass:: AsDiscrete
     :members:
@@ -596,7 +596,7 @@ Post-processing
 
 `KeepLargestConnectedComponent`
 """""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponent.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/KeepLargestConnectedComponent.png
     :alt: example of KeepLargestConnectedComponent
 .. autoclass:: KeepLargestConnectedComponent
     :members:
@@ -604,7 +604,7 @@ Post-processing
 
 `RemoveSmallObjects`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjects.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RemoveSmallObjects.png
     :alt: example of RemoveSmallObjects
 .. autoclass:: RemoveSmallObjects
     :members:
@@ -612,7 +612,7 @@ Post-processing
 
 `LabelFilter`
 """""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilter.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/LabelFilter.png
     :alt: example of LabelFilter
 .. autoclass:: LabelFilter
     :members:
@@ -626,7 +626,7 @@ Post-processing
 
 `LabelToContour`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelToContour.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/LabelToContour.png
     :alt: example of LabelToContour
 .. autoclass:: LabelToContour
     :members:
@@ -741,7 +741,7 @@ Spatial
 
 `Spacing`
 """""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Spacing.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Spacing.png
     :alt: example of Spacing
 .. autoclass:: Spacing
     :members:
@@ -749,7 +749,7 @@ Spatial
 
 `Orientation`
 """""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Orientation.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Orientation.png
     :alt: example of Orientation
 .. autoclass:: Orientation
     :members:
@@ -757,7 +757,7 @@ Spatial
 
 `RandRotate`
 """"""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRotate.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandRotate.png
     :alt: example of RandRotate
 .. autoclass:: RandRotate
     :members:
@@ -765,7 +765,7 @@ Spatial
 
 `RandFlip`
 """"""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandFlip.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandFlip.png
     :alt: example of RandFlip
 .. autoclass:: RandFlip
     :members:
@@ -773,7 +773,7 @@ Spatial
 
 `RandAxisFlip`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAxisFlip.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandAxisFlip.png
     :alt: example of RandAxisFlip
 .. autoclass:: RandAxisFlip
     :members:
@@ -781,7 +781,7 @@ Spatial
 
 `RandZoom`
 """"""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandZoom.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandZoom.png
     :alt: example of RandZoom
 .. autoclass:: RandZoom
     :members:
@@ -789,7 +789,7 @@ Spatial
 
 `Affine`
 """"""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Affine.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Affine.png
     :alt: example of Affine
 .. autoclass:: Affine
     :members:
@@ -803,7 +803,7 @@ Spatial
 
 `RandAffine`
 """"""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAffine.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandAffine.png
     :alt: example of RandAffine
 .. autoclass:: RandAffine
     :members:
@@ -829,7 +829,7 @@ Spatial
 
 `GridDistortion`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GridDistortion.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GridDistortion.png
     :alt: example of GridDistortion
 .. autoclass:: GridDistortion
     :members:
@@ -837,7 +837,7 @@ Spatial
 
 `RandGridDistortion`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGridDistortion.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGridDistortion.png
     :alt: example of RandGridDistortion
 .. autoclass:: RandGridDistortion
     :members:
@@ -845,7 +845,7 @@ Spatial
 
 `Rand2DElastic`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rand2DElastic.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rand2DElastic.png
     :alt: example of Rand2DElastic
 .. autoclass:: Rand2DElastic
     :members:
@@ -853,7 +853,7 @@ Spatial
 
 `Rand3DElastic`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rand3DElastic.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rand3DElastic.png
     :alt: example of Rand3DElastic
 .. autoclass:: Rand3DElastic
     :members:
@@ -861,7 +861,7 @@ Spatial
 
 `Rotate90`
 """"""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rotate90.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rotate90.png
     :alt: example of Rotate90
 .. autoclass:: Rotate90
     :members:
@@ -869,7 +869,7 @@ Spatial
 
 `RandRotate90`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRotate90.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandRotate90.png
     :alt: example of RandRotate90
 .. autoclass:: RandRotate90
     :members:
@@ -877,7 +877,7 @@ Spatial
 
 `Flip`
 """"""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Flip.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Flip.png
     :alt: example of Flip
 .. autoclass:: Flip
     :members:
@@ -885,7 +885,7 @@ Spatial
 
 `Resize`
 """"""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Resize.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Resize.png
     :alt: example of Resize
 .. autoclass:: Resize
     :members:
@@ -893,7 +893,7 @@ Spatial
 
 `Rotate`
 """"""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rotate.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rotate.png
     :alt: example of Rotate
 .. autoclass:: Rotate
     :members:
@@ -901,7 +901,7 @@ Spatial
 
 `Zoom`
 """"""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Zoom.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Zoom.png
     :alt: example of Zoom
 .. autoclass:: Zoom
     :members:
@@ -925,13 +925,19 @@ Spatial
     :members:
     :special-members: __call__
 
+`RandSimulateLowResolution`
+"""""""""""""""""""""""""""
+.. autoclass:: RandSimulateLowResolution
+    :members:
+    :special-members: __call__
+
 
 Smooth Field
 ^^^^^^^^^^^^
 
 `RandSmoothFieldAdjustContrast`
 """""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustContrast.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSmoothFieldAdjustContrast.png
     :alt: example of RandSmoothFieldAdjustContrast
 .. autoclass:: RandSmoothFieldAdjustContrast
     :members:
@@ -939,7 +945,7 @@ Smooth Field
 
 `RandSmoothFieldAdjustIntensity`
 """"""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensity.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSmoothFieldAdjustIntensity.png
     :alt: example of RandSmoothFieldAdjustIntensity
 .. autoclass:: RandSmoothFieldAdjustIntensity
     :members:
@@ -947,7 +953,7 @@ Smooth Field
 
 `RandSmoothDeform`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeform.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSmoothDeform.png
     :alt: example of RandSmoothDeform
 .. autoclass:: RandSmoothDeform
     :members:
@@ -1203,7 +1209,7 @@ Crop and Pad (Dict)
 
 `SpatialPadd`
 """""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialPadd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/SpatialPadd.png
     :alt: example of SpatialPadd
 .. autoclass:: SpatialPadd
     :members:
@@ -1211,7 +1217,7 @@ Crop and Pad (Dict)
 
 `BorderPadd`
 """"""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/BorderPadd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/BorderPadd.png
     :alt: example of BorderPadd
 .. autoclass:: BorderPadd
     :members:
@@ -1219,7 +1225,7 @@ Crop and Pad (Dict)
 
 `DivisiblePadd`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/DivisiblePadd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/DivisiblePadd.png
     :alt: example of DivisiblePadd
 .. autoclass:: DivisiblePadd
     :members:
@@ -1239,7 +1245,7 @@ Crop and Pad (Dict)
 
 `SpatialCropd`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SpatialCropd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/SpatialCropd.png
     :alt: example of SpatialCropd
 .. autoclass:: SpatialCropd
     :members:
@@ -1247,7 +1253,7 @@ Crop and Pad (Dict)
 
 `CenterSpatialCropd`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterSpatialCropd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/CenterSpatialCropd.png
     :alt: example of CenterSpatialCropd
 .. autoclass:: CenterSpatialCropd
     :members:
@@ -1255,7 +1261,7 @@ Crop and Pad (Dict)
 
 `RandSpatialCropd`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCropd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSpatialCropd.png
     :alt: example of RandSpatialCropd
 .. autoclass:: RandSpatialCropd
     :members:
@@ -1263,7 +1269,7 @@ Crop and Pad (Dict)
 
 `RandSpatialCropSamplesd`
 """""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSpatialCropSamplesd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSpatialCropSamplesd.png
     :alt: example of RandSpatialCropSamplesd
 .. autoclass:: RandSpatialCropSamplesd
     :members:
@@ -1271,7 +1277,7 @@ Crop and Pad (Dict)
 
 `CropForegroundd`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CropForegroundd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/CropForegroundd.png
     :alt: example of CropForegroundd
 .. autoclass:: CropForegroundd
     :members:
@@ -1279,7 +1285,7 @@ Crop and Pad (Dict)
 
 `RandWeightedCropd`
 """""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandWeightedCropd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandWeightedCropd.png
     :alt: example of RandWeightedCropd
 .. autoclass:: RandWeightedCropd
     :members:
@@ -1287,7 +1293,7 @@ Crop and Pad (Dict)
 
 `RandCropByPosNegLabeld`
 """"""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByPosNegLabeld.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCropByPosNegLabeld.png
     :alt: example of RandCropByPosNegLabeld
 .. autoclass:: RandCropByPosNegLabeld
     :members:
@@ -1295,7 +1301,7 @@ Crop and Pad (Dict)
 
 `RandCropByLabelClassesd`
 """""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCropByLabelClassesd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCropByLabelClassesd.png
     :alt: example of RandCropByLabelClassesd
 .. autoclass:: RandCropByLabelClassesd
     :members:
@@ -1303,7 +1309,7 @@ Crop and Pad (Dict)
 
 `ResizeWithPadOrCropd`
 """"""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ResizeWithPadOrCropd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ResizeWithPadOrCropd.png
     :alt: example of ResizeWithPadOrCropd
 .. autoclass:: ResizeWithPadOrCropd
     :members:
@@ -1317,7 +1323,7 @@ Crop and Pad (Dict)
 
 `RandScaleCropd`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleCropd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandScaleCropd.png
     :alt: example of RandScaleCropd
 .. autoclass:: RandScaleCropd
     :members:
@@ -1325,7 +1331,7 @@ Crop and Pad (Dict)
 
 `CenterScaleCropd`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/CenterScaleCropd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/CenterScaleCropd.png
     :alt: example of CenterScaleCropd
 .. autoclass:: CenterScaleCropd
     :members:
@@ -1336,7 +1342,7 @@ Intensity (Dict)
 
 `RandGaussianNoised`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGaussianNoised.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGaussianNoised.png
     :alt: example of RandGaussianNoised
 .. autoclass:: RandGaussianNoised
     :members:
@@ -1344,7 +1350,7 @@ Intensity (Dict)
 
 `ShiftIntensityd`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ShiftIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ShiftIntensityd.png
     :alt: example of ShiftIntensityd
 .. autoclass:: ShiftIntensityd
     :members:
@@ -1352,7 +1358,7 @@ Intensity (Dict)
 
 `RandShiftIntensityd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandShiftIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandShiftIntensityd.png
     :alt: example of RandShiftIntensityd
 .. autoclass:: RandShiftIntensityd
     :members:
@@ -1360,7 +1366,7 @@ Intensity (Dict)
 
 `StdShiftIntensityd`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/StdShiftIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/StdShiftIntensityd.png
     :alt: example of StdShiftIntensityd
 .. autoclass:: StdShiftIntensityd
     :members:
@@ -1368,7 +1374,7 @@ Intensity (Dict)
 
 `RandStdShiftIntensityd`
 """"""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandStdShiftIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandStdShiftIntensityd.png
     :alt: example of RandStdShiftIntensityd
 .. autoclass:: RandStdShiftIntensityd
     :members:
@@ -1376,7 +1382,7 @@ Intensity (Dict)
 
 `RandBiasFieldd`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandBiasFieldd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandBiasFieldd.png
     :alt: example of RandBiasFieldd
 .. autoclass:: RandBiasFieldd
     :members:
@@ -1384,7 +1390,7 @@ Intensity (Dict)
 
 `ScaleIntensityd`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ScaleIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ScaleIntensityd.png
     :alt: example of ScaleIntensityd
 .. autoclass:: ScaleIntensityd
     :members:
@@ -1392,7 +1398,7 @@ Intensity (Dict)
 
 `RandScaleIntensityd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandScaleIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandScaleIntensityd.png
     :alt: example of RandScaleIntensityd
 .. autoclass:: RandScaleIntensityd
     :members:
@@ -1406,7 +1412,7 @@ Intensity (Dict)
 
 `NormalizeIntensityd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/NormalizeIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/NormalizeIntensityd.png
     :alt: example of NormalizeIntensityd
 .. autoclass:: NormalizeIntensityd
     :members:
@@ -1414,7 +1420,7 @@ Intensity (Dict)
 
 `ThresholdIntensityd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ThresholdIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ThresholdIntensityd.png
     :alt: example of ThresholdIntensityd
 .. autoclass:: ThresholdIntensityd
     :members:
@@ -1422,7 +1428,7 @@ Intensity (Dict)
 
 `ScaleIntensityRanged`
 """"""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ScaleIntensityRanged.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ScaleIntensityRanged.png
     :alt: example of ScaleIntensityRanged
 .. autoclass:: ScaleIntensityRanged
     :members:
@@ -1430,7 +1436,7 @@ Intensity (Dict)
 
 `GibbsNoised`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GibbsNoised.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GibbsNoised.png
     :alt: example of GibbsNoised
 .. autoclass:: GibbsNoised
     :members:
@@ -1438,7 +1444,7 @@ Intensity (Dict)
 
 `RandGibbsNoised`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGibbsNoised.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGibbsNoised.png
     :alt: example of RandGibbsNoised
 .. autoclass:: RandGibbsNoised
     :members:
@@ -1446,7 +1452,7 @@ Intensity (Dict)
 
 `KSpaceSpikeNoised`
 """"""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KSpaceSpikeNoised.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/KSpaceSpikeNoised.png
     :alt: example of KSpaceSpikeNoised
 .. autoclass:: KSpaceSpikeNoised
     :members:
@@ -1454,7 +1460,7 @@ Intensity (Dict)
 
 `RandKSpaceSpikeNoised`
 """""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandKSpaceSpikeNoised.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandKSpaceSpikeNoised.png
     :alt: example of RandKSpaceSpikeNoised
 .. autoclass:: RandKSpaceSpikeNoised
     :members:
@@ -1462,7 +1468,7 @@ Intensity (Dict)
 
 `RandRicianNoised`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRicianNoised.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandRicianNoised.png
     :alt: example of RandRicianNoised
 .. autoclass:: RandRicianNoised
     :members:
@@ -1470,7 +1476,7 @@ Intensity (Dict)
 
 `ScaleIntensityRangePercentilesd`
 """""""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ScaleIntensityRangePercentilesd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ScaleIntensityRangePercentilesd.png
     :alt: example of ScaleIntensityRangePercentilesd
 .. autoclass:: ScaleIntensityRangePercentilesd
     :members:
@@ -1478,7 +1484,7 @@ Intensity (Dict)
 
 `AdjustContrastd`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/AdjustContrastd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/AdjustContrastd.png
     :alt: example of AdjustContrastd
 .. autoclass:: AdjustContrastd
     :members:
@@ -1486,7 +1492,7 @@ Intensity (Dict)
 
 `RandAdjustContrastd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAdjustContrastd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandAdjustContrastd.png
     :alt: example of RandAdjustContrastd
 .. autoclass:: RandAdjustContrastd
     :members:
@@ -1494,7 +1500,7 @@ Intensity (Dict)
 
 `MaskIntensityd`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MaskIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/MaskIntensityd.png
     :alt: example of MaskIntensityd
 .. autoclass:: MaskIntensityd
     :members:
@@ -1502,7 +1508,7 @@ Intensity (Dict)
 
 `SavitzkyGolaySmoothd`
 """"""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/SavitzkyGolaySmoothd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/SavitzkyGolaySmoothd.png
     :alt: example of SavitzkyGolaySmoothd
 .. autoclass:: SavitzkyGolaySmoothd
     :members:
@@ -1510,7 +1516,7 @@ Intensity (Dict)
 
 `MedianSmoothd`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/MedianSmoothd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/MedianSmoothd.png
     :alt: example of MedianSmoothd
 .. autoclass:: MedianSmoothd
     :members:
@@ -1518,7 +1524,7 @@ Intensity (Dict)
 
 `GaussianSmoothd`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSmoothd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GaussianSmoothd.png
     :alt: example of GaussianSmoothd
 .. autoclass:: GaussianSmoothd
     :members:
@@ -1526,7 +1532,7 @@ Intensity (Dict)
 
 `RandGaussianSmoothd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGaussianSmoothd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGaussianSmoothd.png
     :alt: example of RandGaussianSmoothd
 .. autoclass:: RandGaussianSmoothd
     :members:
@@ -1534,7 +1540,7 @@ Intensity (Dict)
 
 `GaussianSharpend`
 """"""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GaussianSharpend.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GaussianSharpend.png
     :alt: example of GaussianSharpend
 .. autoclass:: GaussianSharpend
     :members:
@@ -1542,7 +1548,7 @@ Intensity (Dict)
 
 `RandGaussianSharpend`
 """"""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGaussianSharpend.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGaussianSharpend.png
     :alt: example of RandGaussianSharpend
 .. autoclass:: RandGaussianSharpend
     :members:
@@ -1550,7 +1556,7 @@ Intensity (Dict)
 
 `RandHistogramShiftd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandHistogramShiftd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandHistogramShiftd.png
     :alt: example of RandHistogramShiftd
 .. autoclass:: RandHistogramShiftd
     :members:
@@ -1558,7 +1564,7 @@ Intensity (Dict)
 
 `RandCoarseDropoutd`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCoarseDropoutd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCoarseDropoutd.png
     :alt: example of RandCoarseDropoutd
 .. autoclass:: RandCoarseDropoutd
     :members:
@@ -1566,7 +1572,7 @@ Intensity (Dict)
 
 `RandCoarseShuffled`
 """"""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandCoarseShuffled.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandCoarseShuffled.png
     :alt: example of RandCoarseShuffled
 .. autoclass:: RandCoarseShuffled
     :members:
@@ -1574,7 +1580,7 @@ Intensity (Dict)
 
 `HistogramNormalized`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/HistogramNormalized.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/HistogramNormalized.png
     :alt: example of HistogramNormalized
 .. autoclass:: HistogramNormalized
     :members:
@@ -1582,7 +1588,7 @@ Intensity (Dict)
 
 `ForegroundMaskd`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/ForegroundMaskd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ForegroundMaskd.png
     :alt: example of ForegroundMaskd
 .. autoclass:: ForegroundMaskd
     :members:
@@ -1620,7 +1626,7 @@ Post-processing (Dict)
 
 `AsDiscreted`
 """""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/AsDiscreted.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/AsDiscreted.png
     :alt: example of AsDiscreted
 .. autoclass:: AsDiscreted
     :members:
@@ -1628,7 +1634,7 @@ Post-processing (Dict)
 
 `KeepLargestConnectedComponentd`
 """"""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/KeepLargestConnectedComponentd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/KeepLargestConnectedComponentd.png
     :alt: example of KeepLargestConnectedComponentd
 .. autoclass:: KeepLargestConnectedComponentd
     :members:
@@ -1636,7 +1642,7 @@ Post-processing (Dict)
 
 `RemoveSmallObjectsd`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RemoveSmallObjectsd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RemoveSmallObjectsd.png
     :alt: example of RemoveSmallObjectsd
 .. autoclass:: RemoveSmallObjectsd
     :members:
@@ -1644,7 +1650,7 @@ Post-processing (Dict)
 
 `LabelFilterd`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelFilterd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/LabelFilterd.png
     :alt: example of LabelFilterd
 .. autoclass:: LabelFilterd
     :members:
@@ -1658,7 +1664,7 @@ Post-processing (Dict)
 
 `LabelToContourd`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/LabelToContourd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/LabelToContourd.png
     :alt: example of LabelToContourd
 .. autoclass:: LabelToContourd
     :members:
@@ -1725,7 +1731,7 @@ Spatial (Dict)
 
 `Spacingd`
 """"""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Spacingd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Spacingd.png
     :alt: example of Spacingd
 .. autoclass:: Spacingd
     :members:
@@ -1733,7 +1739,7 @@ Spatial (Dict)
 
 `Orientationd`
 """"""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Orientationd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Orientationd.png
     :alt: example of Orientationd
 .. autoclass:: Orientationd
     :members:
@@ -1741,7 +1747,7 @@ Spatial (Dict)
 
 `Flipd`
 """""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Flipd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Flipd.png
     :alt: example of Flipd
 .. autoclass:: Flipd
     :members:
@@ -1749,7 +1755,7 @@ Spatial (Dict)
 
 `RandFlipd`
 """""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandFlipd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandFlipd.png
     :alt: example of RandFlipd
 .. autoclass:: RandFlipd
     :members:
@@ -1757,7 +1763,7 @@ Spatial (Dict)
 
 `RandAxisFlipd`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAxisFlipd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandAxisFlipd.png
     :alt: example of RandAxisFlipd
 .. autoclass:: RandAxisFlipd
     :members:
@@ -1765,7 +1771,7 @@ Spatial (Dict)
 
 `Rotated`
 """""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rotated.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rotated.png
     :alt: example of Rotated
 .. autoclass:: Rotated
     :members:
@@ -1773,7 +1779,7 @@ Spatial (Dict)
 
 `RandRotated`
 """""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRotated.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandRotated.png
     :alt: example of RandRotated
 .. autoclass:: RandRotated
     :members:
@@ -1781,7 +1787,7 @@ Spatial (Dict)
 
 `Zoomd`
 """""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Zoomd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Zoomd.png
     :alt: example of Zoomd
 .. autoclass:: Zoomd
     :members:
@@ -1789,7 +1795,7 @@ Spatial (Dict)
 
 `RandZoomd`
 """""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandZoomd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandZoomd.png
     :alt: example of RandZoomd
 .. autoclass:: RandZoomd
     :members:
@@ -1816,7 +1822,7 @@ Spatial (Dict)
 
 `RandRotate90d`
 """""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandRotate90d.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandRotate90d.png
     :alt: example of RandRotate90d
 .. autoclass:: RandRotate90d
     :members:
@@ -1824,7 +1830,7 @@ Spatial (Dict)
 
 `Rotate90d`
 """""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rotate90d.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rotate90d.png
     :alt: example of Rotate90d
 .. autoclass:: Rotate90d
     :members:
@@ -1832,7 +1838,7 @@ Spatial (Dict)
 
 `Resized`
 """""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Resized.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Resized.png
     :alt: example of Resized
 .. autoclass:: Resized
     :members:
@@ -1840,7 +1846,7 @@ Spatial (Dict)
 
 `Affined`
 """""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Affined.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Affined.png
     :alt: example of Affined
 .. autoclass:: Affined
     :members:
@@ -1848,7 +1854,7 @@ Spatial (Dict)
 
 `RandAffined`
 """""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandAffined.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandAffined.png
     :alt: example of RandAffined
 .. autoclass:: RandAffined
     :members:
@@ -1856,7 +1862,7 @@ Spatial (Dict)
 
 `Rand2DElasticd`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rand2DElasticd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rand2DElasticd.png
     :alt: example of Rand2DElasticd
 .. autoclass:: Rand2DElasticd
     :members:
@@ -1864,7 +1870,7 @@ Spatial (Dict)
 
 `Rand3DElasticd`
 """"""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/Rand3DElasticd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/Rand3DElasticd.png
     :alt: example of Rand3DElasticd
 .. autoclass:: Rand3DElasticd
     :members:
@@ -1872,7 +1878,7 @@ Spatial (Dict)
 
 `GridDistortiond`
 """""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/GridDistortiond.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/GridDistortiond.png
     :alt: example of GridDistortiond
 .. autoclass:: GridDistortiond
     :members:
@@ -1880,18 +1886,25 @@ Spatial (Dict)
 
 `RandGridDistortiond`
 """""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandGridDistortiond.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandGridDistortiond.png
     :alt: example of RandGridDistortiond
 .. autoclass:: RandGridDistortiond
     :members:
     :special-members: __call__
+
+`RandSimulateLowResolutiond`
+""""""""""""""""""""""""""""
+.. autoclass:: RandSimulateLowResolutiond
+    :members:
+    :special-members: __call__
+
 
 Smooth Field (Dict)
 ^^^^^^^^^^^^^^^^^^^
 
 `RandSmoothFieldAdjustContrastd`
 """"""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustContrastd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSmoothFieldAdjustContrastd.png
     :alt: example of RandSmoothFieldAdjustContrastd
 .. autoclass:: RandSmoothFieldAdjustContrastd
     :members:
@@ -1899,7 +1912,7 @@ Smooth Field (Dict)
 
 `RandSmoothFieldAdjustIntensityd`
 """""""""""""""""""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothFieldAdjustIntensityd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSmoothFieldAdjustIntensityd.png
     :alt: example of RandSmoothFieldAdjustIntensityd
 .. autoclass:: RandSmoothFieldAdjustIntensityd
     :members:
@@ -1907,7 +1920,7 @@ Smooth Field (Dict)
 
 `RandSmoothDeformd`
 """""""""""""""""""
-.. image:: https://github.com/Project-MONAI/DocImages/raw/main/transforms/RandSmoothDeformd.png
+.. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandSmoothDeformd.png
     :alt: example of RandSmoothDeformd
 .. autoclass:: RandSmoothDeformd
     :members:

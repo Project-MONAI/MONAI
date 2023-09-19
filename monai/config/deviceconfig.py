@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import getpass
 import os
 import platform
 import re
@@ -84,6 +85,7 @@ def get_optional_config_values():
     output["transformers"] = get_package_version("transformers")
     output["mlflow"] = get_package_version("mlflow")
     output["pynrrd"] = get_package_version("nrrd")
+    output["clearml"] = get_package_version("clearml")
 
     return output
 
@@ -99,8 +101,9 @@ def print_config(file=sys.stdout):
         print(f"{k} version: {v}", file=file, flush=True)
     print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, USE_META_DICT = {USE_META_DICT}")
     print(f"MONAI rev id: {monai.__revision_id__}")
-    print(f"MONAI __file__: {monai.__file__}")
-
+    username = getpass.getuser()
+    masked_file_path = re.sub(username, "<username>", monai.__file__)
+    print(f"MONAI __file__: {masked_file_path}", file=file, flush=True)
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
@@ -204,6 +207,8 @@ def get_gpu_info() -> OrderedDict:
         _dict_append(output, "CUDA version", lambda: torch.version.cuda)
     cudnn_ver = torch.backends.cudnn.version()
     _dict_append(output, "cuDNN enabled", lambda: bool(cudnn_ver))
+    _dict_append(output, "NVIDIA_TF32_OVERRIDE", os.environ.get("NVIDIA_TF32_OVERRIDE"))
+    _dict_append(output, "TORCH_ALLOW_TF32_CUBLAS_OVERRIDE", os.environ.get("TORCH_ALLOW_TF32_CUBLAS_OVERRIDE"))
 
     if cudnn_ver:
         _dict_append(output, "cuDNN version", lambda: cudnn_ver)
@@ -214,12 +219,12 @@ def get_gpu_info() -> OrderedDict:
 
     for gpu in range(num_gpus):
         gpu_info = torch.cuda.get_device_properties(gpu)
-        _dict_append(output, f"GPU {gpu} Name", lambda: gpu_info.name)
-        _dict_append(output, f"GPU {gpu} Is integrated", lambda: bool(gpu_info.is_integrated))
-        _dict_append(output, f"GPU {gpu} Is multi GPU board", lambda: bool(gpu_info.is_multi_gpu_board))
-        _dict_append(output, f"GPU {gpu} Multi processor count", lambda: gpu_info.multi_processor_count)
-        _dict_append(output, f"GPU {gpu} Total memory (GB)", lambda: round(gpu_info.total_memory / 1024**3, 1))
-        _dict_append(output, f"GPU {gpu} CUDA capability (maj.min)", lambda: f"{gpu_info.major}.{gpu_info.minor}")
+        _dict_append(output, f"GPU {gpu} Name", gpu_info.name)
+        _dict_append(output, f"GPU {gpu} Is integrated", bool(gpu_info.is_integrated))
+        _dict_append(output, f"GPU {gpu} Is multi GPU board", bool(gpu_info.is_multi_gpu_board))
+        _dict_append(output, f"GPU {gpu} Multi processor count", gpu_info.multi_processor_count)
+        _dict_append(output, f"GPU {gpu} Total memory (GB)", round(gpu_info.total_memory / 1024**3, 1))
+        _dict_append(output, f"GPU {gpu} CUDA capability (maj.min)", f"{gpu_info.major}.{gpu_info.minor}")
 
     return output
 

@@ -78,3 +78,13 @@ __all__ = [
     "utils",
     "visualize",
 ]
+
+try:
+    from .utils.tf32 import detect_default_tf32
+
+    detect_default_tf32()
+except BaseException:
+    from .utils.misc import MONAIEnvVars
+
+    if MONAIEnvVars.debug():
+        raise

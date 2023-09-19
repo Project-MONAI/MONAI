@@ -115,7 +115,7 @@ def execute_compose(
     return data
 
 
-class Compose(Randomizable, InvertibleTransform):
+class Compose(Randomizable, InvertibleTransform, LazyTransform):
     """
     ``Compose`` provides the ability to chain a series of callables together in
     a sequential manner. Each transform in the sequence must take a single
@@ -233,15 +233,27 @@ class Compose(Randomizable, InvertibleTransform):
         lazy: bool | None = False,
         overrides: dict | None = None,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
+
         if transforms is None:
             transforms = []
+
+        if not isinstance(map_items, bool):
+            raise ValueError(
+                f"Argument 'map_items' should be boolean. Got {type(map_items)}."
+                "Check brackets when passing a sequence of callables."
+            )
+
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
         self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
-        self.lazy = lazy
         self.overrides = overrides
+
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self._lazy = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -319,6 +331,7 @@ class Compose(Randomizable, InvertibleTransform):
         return len(self.flatten().transforms)
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
+        _lazy = self._lazy if lazy is None else lazy
         result = execute_compose(
             input_,
             transforms=self.transforms,
@@ -326,7 +339,7 @@ class Compose(Randomizable, InvertibleTransform):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,
+            lazy=_lazy,
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
@@ -341,9 +354,9 @@ class Compose(Randomizable, InvertibleTransform):
         if not invertible_transforms:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
 
-        if self.lazy is not False:
+        if self._lazy is True:
             warnings.warn(
-                f"'lazy' is set to {self.lazy} but lazy execution is not supported when inverting. "
+                f"'lazy' is set to {self._lazy} but lazy execution is not supported when inverting. "
                 f"'lazy' has been overridden to False for the call to inverse"
             )
         # loop backwards over transforms
@@ -447,7 +460,7 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data, start=0, end=None, threading=False, lazy: str | bool | None = None):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
         if start != 0:
             raise ValueError(f"OneOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -458,6 +471,7 @@ class OneOf(Compose):
 
         index = self.R.multinomial(1, self.weights).argmax()
         _transform = self.transforms[index]
+        _lazy = self._lazy if lazy is None else lazy
 
         data = execute_compose(
             data,
@@ -466,7 +480,7 @@ class OneOf(Compose):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,
+            lazy=_lazy,
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
@@ -553,6 +567,7 @@ class RandomOrder(Compose):
 
         num = len(self.transforms)
         applied_order = self.R.permutation(range(num))
+        _lazy = self._lazy if lazy is None else lazy
 
         input_ = execute_compose(
             input_,
@@ -561,7 +576,7 @@ class RandomOrder(Compose):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,
+            lazy=_lazy,
             threading=threading,
             log_stats=self.log_stats,
         )
@@ -718,6 +733,7 @@ class SomeOf(Compose):
 
         sample_size = self.R.randint(self.min_num_transforms, self.max_num_transforms + 1)
         applied_order = self.R.choice(len(self.transforms), sample_size, replace=self.replace, p=self.weights).tolist()
+        _lazy = self._lazy if lazy is None else lazy
 
         data = execute_compose(
             data,
@@ -726,7 +742,7 @@ class SomeOf(Compose):
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy=self.lazy,
+            lazy=_lazy,
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,

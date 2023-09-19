@@ -1,4 +1,4 @@
-# Precision and Performance
+# Precision and Accelerating
 
 Modern GPU architectures usually can use reduced precision tensor data or computational operations to save memory and increase throughput. However, in some cases, the reduced precision will cause numerical stability issues, and further cause reproducibility issues. Therefore, please ensure that you are using appropriate precision.
 
@@ -29,11 +29,14 @@ by TF32 mode so the impact is very wide.
 torch.backends.cuda.matmul.allow_tf32 = False # in PyTorch 1.12 and later.
 torch.backends.cudnn.allow_tf32 = True
 ```
-Please note that there are environment variables that can override the flags above. For example, the environment variables mentioned in [Accelerating AI Training with NVIDIA TF32 Tensor Cores](https://developer.nvidia.com/blog/accelerating-ai-training-with-tf32-tensor-cores/) and `TORCH_ALLOW_TF32_CUBLAS_OVERRIDE` used by PyTorch. Thus, in some cases, the flags may be accidentally changed or overridden.
-
-We recommend that users print out these two flags for confirmation when unsure.
+Please note that there are environment variables that can override the flags above. For example, the environment variable `NVIDIA_TF32_OVERRIDE` mentioned in [Accelerating AI Training with NVIDIA TF32 Tensor Cores](https://developer.nvidia.com/blog/accelerating-ai-training-with-tf32-tensor-cores/) and `TORCH_ALLOW_TF32_CUBLAS_OVERRIDE` used by PyTorch. Thus, in some cases, the flags may be accidentally changed or overridden.
 
 If you are using an [NGC PyTorch container](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch), the container includes a layer `ENV TORCH_ALLOW_TF32_CUBLAS_OVERRIDE=1`.
 The default value `torch.backends.cuda.matmul.allow_tf32` will be overridden to `True`.
+To restore the upstream default value, please run `unset TORCH_ALLOW_TF32_CUBLAS_OVERRIDE` in the container,
+and use the Pytorch API `torch.set_float32_matmul_precision`, `torch.backends.cudnn.allow_tf32=False` accordingly.
+
+
+We recommend that users print out these two flags for confirmation when unsure.
 
 If you can confirm through experiments that your model has no accuracy or convergence issues in TF32 mode and you have NVIDIA Ampere GPUs or above, you can set the two flags above to `True` to speed up your model.

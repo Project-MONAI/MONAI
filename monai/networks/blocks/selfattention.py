@@ -37,7 +37,7 @@ class SABlock(nn.Module):
         Args:
             hidden_size (int): dimension of hidden layer.
             num_heads (int): number of attention heads.
-            dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
+            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
 

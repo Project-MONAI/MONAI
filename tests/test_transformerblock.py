@@ -66,7 +66,7 @@ class TestTransformerBlock(unittest.TestCase):
             hidden_size=hidden_size, mlp_dim=mlp_dim, num_heads=num_heads, dropout_rate=dropout_rate
         )
         no_matrix_acess_blk(torch.randn(input_shape))
-        assert type(no_matrix_acess_blk.attn.att_mat) == torch.Tensor
+        assert isinstance(no_matrix_acess_blk.attn.att_mat, torch.Tensor)
         # no of elements is zero
         assert no_matrix_acess_blk.attn.att_mat.nelement() == 0
 

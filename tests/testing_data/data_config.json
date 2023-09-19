@@ -79,6 +79,16 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_moving.mha",
             "hash_type": "sha256",
             "hash_val": "a37c5fe388c38b3f4ac564f456277d09d3982eda58c4da05ead8ee2332360f47"
+        },
+        "DICOM_single": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_DICOM_SINGLE.zip",
+            "hash_type": "sha256",
+            "hash_val": "a41f6e93d2e3d68956144f9a847273041d36441da12377d6a1d5ae610e0a7023"
+        },
+        "nrrd_example": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_IMAGE_cropped.nrrd",
+            "hash_type": "sha256",
+            "hash_val": "66971ad17f0bac50e6082ed6a4dc1ae7093c30517137e53327b15a752327a1c0"
         }
     },
     "videos": {
@@ -123,6 +133,11 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/se_resnext50_32x4d-a260b3a4.pth",
             "hash_type": "sha256",
             "hash_val": "a260b3a40f82dfe37c58d26a612bcf7bef0d27c6fed096226b0e4e9fb364168e"
+        },
+        "ssl_pretrained_weights": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth",
+            "hash_type": "sha256",
+            "hash_val": "c3564f40a6a051d3753a6d8fae5cc8eaf21ce8d82a9a3baf80748d15664055e8"
         }
     },
     "configs": {

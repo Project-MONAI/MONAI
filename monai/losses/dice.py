@@ -614,8 +614,8 @@ class DiceCELoss(_Loss):
     """
     Compute both Dice loss and Cross Entropy Loss, and return the weighted sum of these two losses.
     The details of Dice loss is shown in ``monai.losses.DiceLoss``.
-    The details of Cross Entropy Loss is shown in ``torch.nn.CrossEntropyLoss``. In this implementation,
-    two deprecated parameters ``size_average`` and ``reduce``, and the parameter ``ignore_index`` are
+    The details of Cross Entropy Loss is shown in ``torch.nn.CrossEntropyLoss`` and ``torch.nn.BCEWithLogitsLoss()``.
+    In this implementation, two deprecated parameters ``size_average`` and ``reduce``, and the parameter ``ignore_index`` are
     not supported.
 
     """
@@ -646,11 +646,11 @@ class DiceCELoss(_Loss):
             to_onehot_y: whether to convert the ``target`` into the one-hot format,
                 using the number of classes inferred from `input` (``input.shape[1]``). Defaults to False.
             sigmoid: if True, apply a sigmoid function to the prediction, only used by the `DiceLoss`,
-                don't need to specify activation function for `CrossEntropyLoss`.
+                don't need to specify activation function for `CrossEntropyLoss` and `BCEWithLogitsLoss`.
             softmax: if True, apply a softmax function to the prediction, only used by the `DiceLoss`,
-                don't need to specify activation function for `CrossEntropyLoss`.
+                don't need to specify activation function for `CrossEntropyLoss` and `BCEWithLogitsLoss`.
             other_act: callable function to execute other activation layers, Defaults to ``None``. for example:
-                ``other_act = torch.tanh``. only used by the `DiceLoss`, not for the `CrossEntropyLoss`.
+                ``other_act = torch.tanh``. only used by the `DiceLoss`, not for the `CrossEntropyLoss` and `BCEWithLogitsLoss`.
             squared_pred: use squared versions of targets and predictions in the denominator or not.
             jaccard: compute Jaccard Index (soft IoU) instead of dice or not.
             reduction: {``"mean"``, ``"sum"``}
@@ -666,8 +666,9 @@ class DiceCELoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
-            ce_weight: a rescaling weight given to each class for cross entropy loss.
-                See ``torch.nn.CrossEntropyLoss()`` for more information.
+            ce_weight: a rescaling weight given to each class for cross entropy loss for `CrossEntropyLoss`.
+                or a rescaling weight given to the loss of each batch element for `BCEWithLogitsLoss`.
+                See ``torch.nn.CrossEntropyLoss()`` or ``torch.nn.BCEWithLogitsLoss()`` for more information.
             lambda_dice: the trade-off weight value for dice loss. The value should be no less than 0.0.
                 Defaults to 1.0.
             lambda_ce: the trade-off weight value for cross entropy loss. The value should be no less than 0.0.
@@ -690,6 +691,7 @@ class DiceCELoss(_Loss):
             batch=batch,
         )
         self.cross_entropy = nn.CrossEntropyLoss(weight=ce_weight, reduction=reduction)
+        self.binary_cross_entropy = nn.BCEWithLogitsLoss(weight=ce_weight, reduction=reduction)
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
         if lambda_ce < 0.0:
@@ -700,7 +702,7 @@ class DiceCELoss(_Loss):
 
     def ce(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
-        Compute CrossEntropy loss for the input and target.
+        Compute CrossEntropy loss for the input logits and target.
         Will remove the channel dim according to PyTorch CrossEntropyLoss:
         https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html?#torch.nn.CrossEntropyLoss.
 
@@ -720,6 +722,16 @@ class DiceCELoss(_Loss):
 
         return self.cross_entropy(input, target)  # type: ignore[no-any-return]
 
+    def bce(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """
+        Compute Binary CrossEntropy loss for the input logits and target in one single class.
+
+        """
+        if not torch.is_floating_point(target):
+            target = target.to(dtype=input.dtype)
+
+        return self.binary_cross_entropy(input, target)  # type: ignore[no-any-return]
+
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
@@ -738,7 +750,7 @@ class DiceCELoss(_Loss):
             )
 
         dice_loss = self.dice(input, target)
-        ce_loss = self.ce(input, target)
+        ce_loss = self.ce(input, target) if input.shape[1] != 1 else self.bce(input, target)
         total_loss: torch.Tensor = self.lambda_dice * dice_loss + self.lambda_ce * ce_loss
 
         return total_loss

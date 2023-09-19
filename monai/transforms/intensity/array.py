@@ -493,8 +493,8 @@ class ScaleIntensityFixedMean(Transform):
             fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
                 to ensure that the output has the same mean as the input.
             channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
-            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
-            channel of the image if True.
+                on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+                channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
         self.factor = factor
@@ -633,12 +633,20 @@ class RandScaleIntensity(RandomizableTransform):
 
     backend = ScaleIntensity.backend
 
-    def __init__(self, factors: tuple[float, float] | float, prob: float = 0.1, dtype: DtypeLike = np.float32) -> None:
+    def __init__(
+        self,
+        factors: tuple[float, float] | float,
+        prob: float = 0.1,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         """
         Args:
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
+            channel_wise: if True, scale on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
 
         """
@@ -650,13 +658,17 @@ class RandScaleIntensity(RandomizableTransform):
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.channel_wise = channel_wise
         self.dtype = dtype
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+        if self.channel_wise:
+            self.factor = [self.R.uniform(low=self.factors[0], high=self.factors[1]) for _ in range(data.shape[0])]  # type: ignore
+        else:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
 
     def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -664,12 +676,21 @@ class RandScaleIntensity(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
 
-        return ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
+        ret: NdarrayOrTensor
+        if self.channel_wise:
+            out = []
+            for i, d in enumerate(img):
+                out_channel = ScaleIntensity(minv=None, maxv=None, factor=self.factor[i], dtype=self.dtype)(d)  # type: ignore
+                out.append(out_channel)
+            ret = torch.stack(out)  # type: ignore
+        else:
+            ret = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
+        return ret
 
 
 class RandBiasField(RandomizableTransform):
@@ -818,29 +839,33 @@ class NormalizeIntensity(Transform):
 
         if self.nonzero:
             slices = img != 0
+            masked_img = img[slices]
+            if not slices.any():
+                return img
         else:
-            if isinstance(img, np.ndarray):
-                slices = np.ones_like(img, dtype=bool)
-            else:
-                slices = torch.ones_like(img, dtype=torch.bool)
-        if not slices.any():
-            return img
+            slices = None
+            masked_img = img
 
-        _sub = sub if sub is not None else self._mean(img[slices])
+        _sub = sub if sub is not None else self._mean(masked_img)
         if isinstance(_sub, (torch.Tensor, np.ndarray)):
             _sub, *_ = convert_to_dst_type(_sub, img)
-            _sub = _sub[slices]
+            if slices is not None:
+                _sub = _sub[slices]
 
-        _div = div if div is not None else self._std(img[slices])
+        _div = div if div is not None else self._std(masked_img)
         if np.isscalar(_div):
             if _div == 0.0:
                 _div = 1.0
         elif isinstance(_div, (torch.Tensor, np.ndarray)):
             _div, *_ = convert_to_dst_type(_div, img)
-            _div = _div[slices]
+            if slices is not None:
+                _div = _div[slices]
             _div[_div == 0.0] = 1.0
 
-        img[slices] = (img[slices] - _sub) / _div
+        if slices is not None:
+            img[slices] = (masked_img - _sub) / _div
+        else:
+            img = (img - _sub) / _div
         return img
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -1111,7 +1136,7 @@ class ScaleIntensityRangePercentiles(Transform):
     .. code-block:: python
         :emphasize-lines: 11, 22
 
-        image = np.array(
+        image = torch.Tensor(
             [[[1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
@@ -1123,23 +1148,24 @@ class ScaleIntensityRangePercentiles(Transform):
         # to output range [b_min, b_max]
         scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, False)
         print(scaler(image))
-        [[[0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.]]]
+        metatensor([[[  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.]]])
+
 
         # Scale from lower and upper image intensity percentiles
         # to lower and upper percentiles of the output range [b_min, b_max]
         rel_scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, True)
         print(rel_scaler(image))
-        [[[20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.]]]
+        metatensor([[[ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.]]])
 
     See Also:
 

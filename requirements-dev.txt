@@ -19,6 +19,7 @@ pycodestyle
 pyflakes
 black>=22.12
 isort>=5.1
+ruff
 pytype>=2020.6.1; platform_system != "Windows"
 types-pkg_resources
 mypy>=0.790
@@ -53,3 +54,5 @@ onnxruntime; python_version <= '3.10'
 typeguard<3  # https://github.com/microsoft/nni/issues/5457
 filelock!=3.12.0  # https://github.com/microsoft/nni/issues/5523
 zarr
+lpips==0.1.4
+nvidia-ml-py

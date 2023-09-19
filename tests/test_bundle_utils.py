@@ -100,7 +100,21 @@ class TestLoadBundleConfig(unittest.TestCase):
         self.assertEqual(p["test_dict"]["b"], "c")
 
     def test_run(self):
-        command_line_tests(["python", "-m", "monai.bundle", "run", "test", "--test", "$print('hello world')"])
+        command_line_tests(
+            [
+                "python",
+                "-m",
+                "monai.bundle",
+                "run",
+                "test",
+                "--test",
+                "$print('hello world')",
+                "--config_file",
+                self.test_name,
+                "--meta_file",
+                self.metadata_name,
+            ]
+        )
 
     def test_load_config_ts(self):
         # create a Torchscript zip of the bundle

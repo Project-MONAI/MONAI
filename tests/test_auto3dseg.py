@@ -190,6 +190,21 @@ class TestDataAnalyzer(unittest.TestCase):
 
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
+    def test_data_analyzer_histogram(self):
+        create_sim_data(
+            self.dataroot_dir, sim_datalist, [32] * 3, image_only=True, rad_max=8, rad_min=1, num_seg_classes=1
+        )
+        analyser = DataAnalyzer(
+            self.datalist_file,
+            self.dataroot_dir,
+            output_path=self.datastat_file,
+            label_key=None,
+            device=device,
+            histogram_only=True,
+        )
+        datastat = analyser.get_all_case_stats()
+        assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
+
     @parameterized.expand(SIM_GPU_TEST_CASES)
     @skip_if_no_cuda
     def test_data_analyzer_gpu(self, input_params):

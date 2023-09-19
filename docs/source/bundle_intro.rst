@@ -8,6 +8,7 @@ Bundle
 
    mb_specification
    config_syntax.md
+   mb_properties
 
 Detailed bundle examples and get started tutorial: https://github.com/Project-MONAI/tutorials/tree/main/bundle
 
