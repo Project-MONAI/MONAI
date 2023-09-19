@@ -134,7 +134,8 @@ class HausdorffDTLoss(_Loss):
 
         Example:
             >>> import torch
-            >>> from monai.losses.hausdorff_loss import HausdorffDTLoss, one_hot
+            >>> from monai.losses.hausdorff_loss import HausdorffDTLoss
+            >>> from monai.networks.utils import one_hot
             >>> B, C, H, W = 7, 5, 3, 2
             >>> input = torch.rand(B, C, H, W)
             >>> target_idx = torch.randint(low=0, high=C - 1, size=(B, H, W)).long()
