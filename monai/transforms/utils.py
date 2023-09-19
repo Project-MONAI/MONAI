@@ -2096,8 +2096,7 @@ def distance_transform_edt(
         img_ = convert_to_numpy(img)
         distance = ndimage.distance_transform_edt(img_, sampling=sampling)
 
-    out = convert_to_dst_type(distance, dst=img, dtype=distance.dtype)[0]
-    return out
+    return convert_to_dst_type(distance, dst=img, dtype=distance.dtype)[0]
 
 
 if __name__ == "__main__":
