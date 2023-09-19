@@ -19,7 +19,9 @@ from parameterized import parameterized
 
 from monai.metrics import HausdorffDistanceMetric
 
-_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+_devices = ["cpu"]
+if torch.cuda.is_available():
+    _devices.append("cuda")
 
 
 def create_spherical_seg_3d(
@@ -160,23 +162,25 @@ class TestHausdorffDistance(unittest.TestCase):
         else:
             [seg_1, seg_2, spacing] = input_data
         ct = 0
-        seg_1 = torch.tensor(seg_1, device=_device)
-        seg_2 = torch.tensor(seg_2, device=_device)
-        for metric in ["euclidean", "chessboard", "taxicab"]:
-            for directed in [True, False]:
-                hd_metric = HausdorffDistanceMetric(
-                    include_background=False, distance_metric=metric, percentile=percentile, directed=directed
-                )
-                # shape of seg_1, seg_2 are: HWD, converts to BNHWD
-                batch, n_class = 2, 3
-                batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
-                batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
-                hd_metric(batch_seg_1, batch_seg_2, spacing=spacing)
-                result = hd_metric.aggregate(reduction="mean")
-                expected_value_curr = expected_value[ct]
-                np.testing.assert_allclose(expected_value_curr, result.cpu(), rtol=1e-7)
-                np.testing.assert_equal(result.device, seg_1.device)
-                ct += 1
+
+        for _device in _devices:
+            seg_1 = torch.tensor(seg_1, device=_device)
+            seg_2 = torch.tensor(seg_2, device=_device)
+            for metric in ["euclidean", "chessboard", "taxicab"]:
+                for directed in [True, False]:
+                    hd_metric = HausdorffDistanceMetric(
+                        include_background=False, distance_metric=metric, percentile=percentile, directed=directed
+                    )
+                    # shape of seg_1, seg_2 are: HWD, converts to BNHWD
+                    batch, n_class = 2, 3
+                    batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
+                    batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
+                    hd_metric(batch_seg_1, batch_seg_2, spacing=spacing)
+                    result = hd_metric.aggregate(reduction="mean")
+                    expected_value_curr = expected_value[ct]
+                    np.testing.assert_allclose(expected_value_curr, result.cpu(), rtol=1e-7)
+                    np.testing.assert_equal(result.device, seg_1.device)
+                    ct += 1
 
     @parameterized.expand(TEST_CASES_NANS)
     def test_nans(self, input_data):

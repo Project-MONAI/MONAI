@@ -22,6 +22,7 @@ from monai.config import NdarrayOrTensor, NdarrayTensor
 from monai.transforms.croppad.dictionary import CropForegroundD
 from monai.utils import (
     MetricReduction,
+    convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
     ensure_tuple_rep,
@@ -32,6 +33,10 @@ from monai.utils import (
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+cucim_binary_erosion, has_cucim_binary_erosion = optional_import("cucim.skimage.morphology", name="binary_erosion")
+cucim_distance_transform_edt, has_cucim_distance_transform_edt = optional_import(
+    "cucim.core.operations.morphology", name="distance_transform_edt"
+)
 
 __all__ = [
     "ignore_background",
@@ -160,6 +165,13 @@ def get_mask_edges(
     if seg_pred.shape != seg_gt.shape:
         raise ValueError(f"seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
 
+    use_cucim = (
+        spacing is None
+        and has_cucim_binary_erosion
+        and isinstance(seg_pred, torch.Tensor)
+        and seg_pred.device != torch.device("cpu")
+    )
+
     # If not binary images, convert them
     if seg_pred.dtype not in (bool, torch.bool):
         seg_pred = seg_pred == label_idx
@@ -171,7 +183,7 @@ def get_mask_edges(
             pred, gt = np.zeros(seg_pred.shape, dtype=bool), np.zeros(seg_gt.shape, dtype=bool)
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
         channel_first = [seg_pred[None], seg_gt[None], or_vol[None]]
-        if spacing is None:  # cpu only erosion
+        if spacing is None and not use_cucim:  # cpu only erosion
             seg_pred, seg_gt, or_vol = convert_to_tensor(channel_first, device="cpu", dtype=bool)
         else:  # pytorch subvoxel, maybe on gpu, but croppad boolean values on GPU is not supported
             seg_pred, seg_gt, or_vol = convert_to_tensor(channel_first, dtype=torch.float16)
@@ -182,10 +194,16 @@ def get_mask_edges(
         seg_pred, seg_gt = cropped["pred"][0], cropped["gt"][0]
 
     if spacing is None:  # Do binary erosion and use XOR to get edges
-        seg_pred, seg_gt = convert_to_numpy([seg_pred, seg_gt], dtype=bool)
-        edges_pred = binary_erosion(seg_pred) ^ seg_pred
-        edges_gt = binary_erosion(seg_gt) ^ seg_gt
-        return edges_pred, edges_gt
+        if not use_cucim:
+            seg_pred, seg_gt = convert_to_numpy([seg_pred, seg_gt], dtype=bool)
+            edges_pred = binary_erosion(seg_pred) ^ seg_pred
+            edges_gt = binary_erosion(seg_gt) ^ seg_gt
+            return edges_pred, edges_gt
+        else:
+            seg_pred, seg_gt = convert_to_cupy([seg_pred, seg_gt], dtype=bool)
+            edges_pred = cucim_binary_erosion(seg_pred) ^ seg_pred
+            edges_gt = cucim_binary_erosion(seg_gt) ^ seg_gt
+            return convert_to_numpy([edges_pred, edges_gt], dtype=bool)
     code_to_area_table, k = get_code_to_measure_table(spacing, device=seg_pred.device)  # type: ignore
     spatial_dims = len(spacing)
     conv = torch.nn.functional.conv3d if spatial_dims == 3 else torch.nn.functional.conv2d
@@ -207,6 +225,8 @@ def get_surface_distance(
     seg_gt: np.ndarray,
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
+    *,
+    allow_cucim: bool = True,
 ) -> np.ndarray:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
@@ -227,6 +247,7 @@ def get_surface_distance(
             Several input options are allowed: (1) If a single number, isotropic spacing with that value is used.
             (2) If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
             (3) If ``None``, spacing of unity is used. Defaults to ``None``.
+        allow_cucim: whether to use cucim if available. Defaults to ``True``.
 
     Note:
         If seg_pred or seg_gt is all 0, may result in nan/inf distance.
@@ -240,7 +261,13 @@ def get_surface_distance(
             dis = np.inf * np.ones_like(seg_gt)
             return np.asarray(dis[seg_gt])
         if distance_metric == "euclidean":
-            dis = distance_transform_edt(~seg_gt, sampling=spacing)
+            use_cucim = has_cucim_distance_transform_edt and allow_cucim
+            if use_cucim:
+                cupy_input = convert_to_cupy(~seg_gt)
+                dis = cucim_distance_transform_edt(cupy_input, sampling=spacing)
+                dis = convert_to_numpy(dis)
+            else:
+                dis = distance_transform_edt(~seg_gt, sampling=spacing)
         elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(~seg_gt, metric=distance_metric)
         else:
