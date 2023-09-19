@@ -73,8 +73,12 @@ class ResBlock(nn.Module):
         self.norm1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.norm2 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.act = get_act_layer(act)
-        self.conv1 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
-        self.conv2 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
+        self.conv1 = get_conv_layer(
+            spatial_dims, in_channels=in_channels, out_channels=in_channels, kernel_size=kernel_size
+        )
+        self.conv2 = get_conv_layer(
+            spatial_dims, in_channels=in_channels, out_channels=in_channels, kernel_size=kernel_size
+        )
 
     def forward(self, x):
         identity = x

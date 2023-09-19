@@ -48,7 +48,30 @@ class EarlyStopHandler:
 
     Note:
         If in distributed training and uses loss value of every iteration to detect early stopping,
-        the values may be different in different ranks.
+        the values may be different in different ranks. When using this handler with distributed training,
+        please also note that to prevent "dist.destroy_process_group()" hangs, you can use an "all_reduce" operation
+        to synchronize the stop signal across all ranks. The mechanism can be implemented in the `score_function`. The following
+        is an example:
+
+        .. code-block:: python
+
+            import os
+
+            import torch
+            import torch.distributed as dist
+
+
+            def score_function(engine):
+                val_metric = engine.state.metrics["val_mean_dice"]
+                if dist.is_initialized():
+                    device = torch.device("cuda:" + os.environ["LOCAL_RANK"])
+                    val_metric = torch.tensor([val_metric]).to(device)
+                    dist.all_reduce(val_metric, op=dist.ReduceOp.SUM)
+                    val_metric /= dist.get_world_size()
+                    return val_metric.item()
+                return val_metric
+
+
         User may attach this handler to validator engine to detect validation metrics and stop the training,
         in this case, the `score_function` is executed on validator engine and `trainer` is the trainer engine.
 

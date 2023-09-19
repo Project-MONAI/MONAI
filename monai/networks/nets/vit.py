@@ -18,6 +18,7 @@ import torch.nn as nn
 
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
+from monai.utils import deprecated_arg
 
 __all__ = ["ViT"]
 
@@ -30,6 +31,7 @@ class ViT(nn.Module):
     ViT supports Torchscript but only works for Pytorch after 1.8.
     """
 
+    @deprecated_arg(name="pos_embed", since="1.2", new_name="proj_type", msg_suffix="please use `proj_type` instead.")
     def __init__(
         self,
         in_channels: int,
@@ -40,6 +42,8 @@ class ViT(nn.Module):
         num_layers: int = 12,
         num_heads: int = 12,
         pos_embed: str = "conv",
+        proj_type: str = "conv",
+        pos_embed_type: str = "learnable",
         classification: bool = False,
         num_classes: int = 2,
         dropout_rate: float = 0.0,
@@ -57,10 +61,11 @@ class ViT(nn.Module):
             mlp_dim (int, optional): dimension of feedforward layer. Defaults to 3072.
             num_layers (int, optional): number of transformer blocks. Defaults to 12.
             num_heads (int, optional): number of attention heads. Defaults to 12.
-            pos_embed (str, optional): position embedding layer type. Defaults to "conv".
+            proj_type (str, optional): patch embedding layer type. Defaults to "conv".
+            pos_embed_type (str, optional): position embedding type. Defaults to "learnable".
             classification (bool, optional): bool argument to determine if classification is used. Defaults to False.
             num_classes (int, optional): number of classes if classification is used. Defaults to 2.
-            dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
+            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             spatial_dims (int, optional): number of spatial dimensions. Defaults to 3.
             post_activation (str, optional): add a final acivation function to the classification head
                 when `classification` is True. Default to "Tanh" for `nn.Tanh()`.
@@ -68,16 +73,20 @@ class ViT(nn.Module):
             qkv_bias (bool, optional): apply bias to the qkv linear layer in self attention block. Defaults to False.
             save_attn (bool, optional): to make accessible the attention in self attention block. Defaults to False.
 
+        .. deprecated:: 1.4
+            ``pos_embed`` is deprecated in favor of ``proj_type``.
+
         Examples::
 
             # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
-            >>> net = ViT(in_channels=1, img_size=(96,96,96), pos_embed='conv')
+            >>> net = ViT(in_channels=1, img_size=(96,96,96), proj_type='conv', pos_embed_type='sincos')
 
             # for 3-channel with image size of (128,128,128), 24 layers and classification backbone
-            >>> net = ViT(in_channels=3, img_size=(128,128,128), pos_embed='conv', classification=True)
+            >>> net = ViT(in_channels=3, img_size=(128,128,128), proj_type='conv', pos_embed_type='sincos', classification=True)
 
             # for 3-channel with image size of (224,224), 12 layers and classification backbone
-            >>> net = ViT(in_channels=3, img_size=(224,224), pos_embed='conv', classification=True, spatial_dims=2)
+            >>> net = ViT(in_channels=3, img_size=(224,224), proj_type='conv', pos_embed_type='sincos', classification=True,
+            >>>           spatial_dims=2)
 
         """
 
@@ -96,7 +105,8 @@ class ViT(nn.Module):
             patch_size=patch_size,
             hidden_size=hidden_size,
             num_heads=num_heads,
-            pos_embed=pos_embed,
+            proj_type=proj_type,
+            pos_embed_type=pos_embed_type,
             dropout_rate=dropout_rate,
             spatial_dims=spatial_dims,
         )

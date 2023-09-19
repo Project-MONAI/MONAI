@@ -1316,6 +1316,8 @@ class NrrdReader(ImageReader):
 
             if self.affine_lps_to_ras:
                 header = self._switch_lps_ras(header)
+            if header.get(MetaKeys.SPACE, "left-posterior-superior") == "left-posterior-superior":
+                header[MetaKeys.SPACE] = SpaceKeys.LPS  # assuming LPS if not specified
 
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
