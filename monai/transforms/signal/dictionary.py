@@ -14,19 +14,16 @@ A collection of dictionary-based wrappers around the signal operations defined i
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from __future__ import annotations
+
 from collections.abc import Hashable, Mapping
 
-import torch
-
-from monai.transforms.transform import MapTransform
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor
 from monai.transforms.signal.array import SignalFillEmpty
+from monai.transforms.transform import MapTransform
 
-__all__ = [
-    "SignalFillEmptyd",
-    "SignalFillEmptyD",
-    "SignalFillEmptyDict",
-]
+__all__ = ["SignalFillEmptyd", "SignalFillEmptyD", "SignalFillEmptyDict"]
+
 
 class SignalFillEmptyd(MapTransform):
     """
@@ -48,7 +45,8 @@ class SignalFillEmptyd(MapTransform):
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         for key in self.key_iterator(data):
             data[key] = self.signal_fill_empty(data[key])
-        
+
         return data
+
 
 SignalFillEmptyD = SignalFillEmptyDict = SignalFillEmptyd
