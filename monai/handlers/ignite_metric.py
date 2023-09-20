@@ -155,7 +155,7 @@ class IgniteMetricHandler(Metric):
             engine.state.metric_details = {}  # type: ignore
 
 
-@deprecated(since="1.3", removed="1.4", msg_suffix="Use IgniteMetricHandler instead of IgniteMetric.")
+@deprecated(since="1.2", removed="1.4", msg_suffix="Use IgniteMetricHandler instead of IgniteMetric.")
 class IgniteMetric(IgniteMetricHandler):
     def __init__(
         self,
