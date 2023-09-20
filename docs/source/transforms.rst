@@ -1717,7 +1717,7 @@ Signal (Dict)
 ^^^^^^^^^^^^^
 
 `SignalFillEmptyd`
-"""""""""""""""""
+""""""""""""""""""
 .. autoclass:: SignalFillEmptyd
     :members:
     :special-members: __call__
