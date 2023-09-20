@@ -248,7 +248,7 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
-@deprecated_arg_default("source", "github", "monaihosting", since="1.3", replaced="1.5")
+@deprecated_arg_default("source", "github", "monaihosting", since="1.2", replaced="1.5")
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -376,9 +376,9 @@ def download(
             )
 
 
-@deprecated_arg("net_name", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("net_kwargs", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("return_state_dict", since="1.3", removed="1.5")
+@deprecated_arg("net_name", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("net_kwargs", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("return_state_dict", since="1.2", removed="1.5")
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -586,7 +586,7 @@ def _get_all_bundles_info(
     return bundles_info
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def get_all_bundles_list(
     repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
 ) -> list[tuple[str, str]]:
@@ -621,7 +621,7 @@ def get_all_bundles_list(
     return bundles_list
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def get_bundle_versions(
     bundle_name: str,
     repo: str = "Project-MONAI/model-zoo",
@@ -659,7 +659,7 @@ def get_bundle_versions(
     return {"latest_version": all_versions[-1], "all_versions": all_versions}
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
+@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def get_bundle_info(
     bundle_name: str,
     version: str | None = None,
