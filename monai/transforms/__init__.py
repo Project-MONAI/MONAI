@@ -345,6 +345,7 @@ from .signal.array import (
     SignalRandShift,
     SignalRemoveFrequency,
 )
+from .signal.dictionary import SignalFillEmptyd, SignalFillEmptyD, SignalFillEmptyDict
 from .smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
