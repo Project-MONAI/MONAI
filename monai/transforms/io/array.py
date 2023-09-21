@@ -127,11 +127,10 @@ class LoadImage(Transform):
 
     """
 
-    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         reader=None,
-        image_only: bool = False,
+        image_only: bool = True,
         dtype: DtypeLike | None = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
@@ -380,14 +379,13 @@ class SaveImage(Transform):
             to where the input image has been saved.
     """
 
-    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         output_dtype: DtypeLike | None = np.float32,
-        resample: bool = True,
+        resample: bool = False,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
         scale: int | None = None,

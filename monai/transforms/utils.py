@@ -946,13 +946,12 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
-@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
     channel_indices: IndexSelection | None = None,
     margin: Sequence[int] | int = 0,
-    allow_smaller: bool = True,
+    allow_smaller: bool = False,
 ) -> tuple[list[int], list[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
@@ -973,7 +972,7 @@ def generate_spatial_bounding_box(
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
         allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
                 final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
-                the bounding boxes edges are aligned with the final box edges. Default to `True`.
+                the bounding boxes edges are aligned with the final box edges. Default to `False`.
 
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")

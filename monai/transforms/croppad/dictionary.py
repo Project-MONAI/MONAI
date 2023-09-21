@@ -559,14 +559,13 @@ class RandSpatialCropd(RandCropd):
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
         roi_size: Sequence[int] | int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -603,14 +602,13 @@ class RandScaleCropd(RandCropd):
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
         roi_scale: Sequence[float] | float,
         max_roi_scale: Sequence[float] | float | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -660,7 +658,6 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
 
     backend = RandSpatialCropSamples.backend
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -668,7 +665,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         num_samples: int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -722,7 +719,6 @@ class CropForegroundd(Cropd):
     for more information.
     """
 
-    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -730,7 +726,7 @@ class CropForegroundd(Cropd):
         select_fn: Callable = is_positive,
         channel_indices: IndexSelection | None = None,
         margin: Sequence[int] | int = 0,
-        allow_smaller: bool = True,
+        allow_smaller: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         start_coord_key: str | None = "foreground_start_coord",
@@ -750,7 +746,7 @@ class CropForegroundd(Cropd):
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
                 final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
-                the image edges will be used as the box edges. Default to `True`.
+                the image edges will be used as the box edges. Default to `False`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,

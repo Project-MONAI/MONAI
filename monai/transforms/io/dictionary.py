@@ -72,7 +72,6 @@ class LoadImaged(MapTransform):
 
     """
 
-    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -81,7 +80,7 @@ class LoadImaged(MapTransform):
         meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
-        image_only: bool = False,
+        image_only: bool = True,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
         prune_meta_pattern: str | None = None,
@@ -259,7 +258,6 @@ class SaveImaged(MapTransform):
             to where the input image has been saved.
     """
 
-    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -268,7 +266,7 @@ class SaveImaged(MapTransform):
         output_dir: Path | str = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
-        resample: bool = True,
+        resample: bool = False,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
         scale: int | None = None,
