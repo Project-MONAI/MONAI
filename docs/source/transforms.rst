@@ -1713,6 +1713,15 @@ Post-processing (Dict)
   :members:
   :special-members: __call__
 
+Signal (Dict)
+^^^^^^^^^^^^^
+
+`SignalFillEmptyd`
+""""""""""""""""""
+.. autoclass:: SignalFillEmptyd
+    :members:
+    :special-members: __call__
+
 
 Spatial (Dict)
 ^^^^^^^^^^^^^^
