@@ -44,7 +44,7 @@ class SignalFillEmptyd(MapTransform):
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         for key in self.key_iterator(data):
-            data[key] = self.signal_fill_empty(data[key])
+            data[key] = self.signal_fill_empty(data[key])  # type: ignore
 
         return data
 
