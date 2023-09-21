@@ -76,16 +76,13 @@ cp, has_cp = optional_import("cupy")
 __all__ = [
     "Identity",
     "RandIdentity",
-    "AsChannelFirst",
     "AsChannelLast",
-    "AddChannel",
     "AddCoordinateChannels",
     "EnsureChannelFirst",
     "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitDim",
-    "SplitChannel",
     "CastToType",
     "ToTensor",
     "ToNumpy",
@@ -233,54 +230,6 @@ class EnsureChannelFirst(Transform):
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
-@deprecated(
-    since="0.8",
-    removed="1.3",
-    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.",
-)
-class AsChannelFirst(EnsureChannelFirst):
-    """
-    Change the channel dimension of the image to the first dimension.
-    Most of the image transformations in ``monai.transforms``
-    assume the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-    This transform could be used to convert, for example, a channel-last image array in shape
-    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
-    so that the multidimensional image array can be correctly interpreted by the other transforms.
-    Args:
-        channel_dim: which dimension of input image is the channel, default is the last dimension.
-    """
-
-    def __init__(self, channel_dim: int = -1) -> None:
-        super().__init__(channel_dim=channel_dim)
-
-
-@deprecated(
-    since="0.8",
-    removed="1.3",
-    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead"
-    " with `channel_dim='no_channel'`.",
-)
-class AddChannel(EnsureChannelFirst):
-    """
-    Adds a 1-length channel dimension to the input image.
-
-    Most of the image transformations in ``monai.transforms``
-    assumes the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-
-    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
-    spatial image into the channel-first format so that the
-    multidimensional image array can be correctly interpreted by the other
-    transforms.
-    """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self) -> None:
-        super().__init__(channel_dim="no_channel")
-
-
 class RepeatChannel(Transform):
     """
     Repeat channel data to construct expected input shape for models.
@@ -379,23 +328,6 @@ class SplitDim(Transform, MultiSampleTrait):
                 shift[self.dim - 1, -1] = idx
                 item.affine = item.affine @ shift
         return outputs
-
-
-@deprecated(since="0.8", removed="1.3", msg_suffix="please use `SplitDim` instead.")
-class SplitChannel(SplitDim):
-    """
-    Split Numpy array or PyTorch Tensor data according to the channel dim.
-    It can help applying different following transforms to different channels.
-
-    Note: `torch.split`/`np.split` is used, so the outputs are views of the input (shallow copy).
-
-    Args:
-        channel_dim: which dimension of input image is the channel, default to 0.
-
-    """
-
-    def __init__(self, channel_dim: int = 0) -> None:
-        super().__init__(channel_dim)
 
 
 class CastToType(Transform):

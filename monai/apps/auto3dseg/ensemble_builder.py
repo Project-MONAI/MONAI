@@ -332,13 +332,6 @@ class AlgoEnsembleBuilder:
 
     """
 
-    @deprecated_arg(
-        "data_src_cfg_filename",
-        since="1.2",
-        removed="1.3",
-        new_name="data_src_cfg_name",
-        msg_suffix="please use `data_src_cfg_name` instead.",
-    )
     def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_name: str | None = None):
         self.infer_algos: list[dict[AlgoKeys, Any]] = []
         self.ensemble: AlgoEnsemble

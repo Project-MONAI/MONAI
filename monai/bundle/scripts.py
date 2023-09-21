@@ -704,7 +704,6 @@ def get_bundle_info(
     return bundle_info[version]  # type: ignore[no-any-return]
 
 
-@deprecated_arg("runner_id", since="1.1", removed="1.3", new_name="run_id", msg_suffix="please use `run_id` instead.")
 def run(
     run_id: str | None = None,
     init_id: str | None = None,
@@ -766,7 +765,7 @@ def run(
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
-        args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
+        args_file: a JSON or YAML file to provide default values for `run_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``.
