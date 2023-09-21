@@ -65,7 +65,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import deprecated, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
