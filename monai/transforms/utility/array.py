@@ -59,7 +59,6 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
-    deprecated,
     ensure_tuple,
     look_up_option,
     min_version,
