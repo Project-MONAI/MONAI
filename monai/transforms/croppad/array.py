@@ -51,7 +51,6 @@ from monai.utils import (
     TransformBackends,
     convert_data_type,
     convert_to_tensor,
-    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     fall_back_tuple,

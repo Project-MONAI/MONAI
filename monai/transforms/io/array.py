@@ -48,7 +48,6 @@ from monai.utils import ImageMetaKey as Key
 from monai.utils import (
     OptionalImportError,
     convert_to_dst_type,
-    deprecated_arg_default,
     ensure_tuple,
     look_up_option,
     optional_import,
