@@ -47,10 +47,10 @@ class Warp(nn.Module):
             - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``, 0, 1, ...
 
         See also: :py:class:`monai.networks.layers.grid_pull`
-        
+
         - jitter: bool, default=False
             Define reference grid on non-integer values
-            Reference: B. Likar and F. Pernus. A heirarchical approach to elastic registration 
+            Reference: B. Likar and F. Pernus. A heirarchical approach to elastic registration
             based on mutual information. Image and Vision Computing, 19:33-44, 2001.
         """
         super().__init__()
@@ -104,7 +104,7 @@ class Warp(nn.Module):
         self.ref_grid = grid.to(ddf)
         if jitter:
             # Define reference grid on non-integer values
-            with torch.random.fork_rng(enabled=seed):        
+            with torch.random.fork_rng(enabled=seed):
                 torch.random.manual_seed(seed)
                 grid += torch.rand_like(grid)
         self.ref_grid.requires_grad = False
