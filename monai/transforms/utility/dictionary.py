@@ -70,12 +70,18 @@ from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
+    "AddChannelD",
+    "AddChannelDict",
+    "AddChanneld",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
     "AddCoordinateChannelsd",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
+    "AsChannelFirstD",
+    "AsChannelFirstDict",
+    "AsChannelFirstd",
     "AsChannelLastD",
     "AsChannelLastDict",
     "AsChannelLastd",
@@ -265,6 +271,37 @@ class EnsureChannelFirstd(MapTransform):
             meta_dict = d[key].meta if isinstance(d[key], MetaTensor) else None  # type: ignore[attr-defined]
             d[key] = self.adjuster(d[key], meta_dict)  # type: ignore
         return d
+
+
+class AsChannelFirstd(EnsureChannelFirstd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
+    """
+
+    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            channel_dim: which dimension of input image is the channel, default is the last dimension.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys=keys, channel_dim=channel_dim, allow_missing_keys=allow_missing_keys)
+
+
+class AddChanneld(EnsureChannelFirstd):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
+    """
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys, channel_dim="no_channel")
 
 
 class RepeatChanneld(MapTransform):
@@ -1740,7 +1777,9 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
+AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
+AddChannelD = AddChannelDict = AddChanneld
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld

@@ -75,7 +75,9 @@ cp, has_cp = optional_import("cupy")
 __all__ = [
     "Identity",
     "RandIdentity",
+    "AsChannelFirst",
     "AsChannelLast",
+    "AddChannel",
     "AddCoordinateChannels",
     "EnsureChannelFirst",
     "EnsureType",
@@ -227,6 +229,40 @@ class EnsureChannelFirst(Transform):
             result = moveaxis(img, int(channel_dim), 0)  # type: ignore
 
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
+
+
+class AsChannelFirst(EnsureChannelFirst):
+    """
+    Change the channel dimension of the image to the first dimension.
+    Most of the image transformations in ``monai.transforms``
+    assume the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+    This transform could be used to convert, for example, a channel-last image array in shape
+    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
+    so that the multidimensional image array can be correctly interpreted by the other transforms.
+
+    Args:
+        channel_dim: which dimension of input image is the channel, default is the last dimension.
+    """
+
+    def __init__(self, channel_dim: int = -1) -> None:
+        super().__init__(channel_dim=channel_dim)
+
+
+class AddChannel(EnsureChannelFirst):
+    """
+    Adds a 1-length channel dimension to the input image.
+    Most of the image transformations in ``monai.transforms``
+    assumes the input image is in the channel-first format, which has the shape
+    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
+    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
+    spatial image into the channel-first format so that the
+    multidimensional image array can be correctly interpreted by the other
+    transforms.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(channel_dim="no_channel")
 
 
 class RepeatChannel(Transform):
