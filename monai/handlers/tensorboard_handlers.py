@@ -116,7 +116,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 Event filter function accepts as input engine and event value (iteration) and should return True/False.
             epoch_log: whether to write data to TensorBoard when epoch completed, default to `True`.
                 ``epoch_log`` can be also a function or int. If it is an int, it will be interpreted as the epoch interval
-                at which the iteration_event_writer is called. If it is a function, it will be interpreted as an event filter
+                at which the epoch_event_writer is called. If it is a function, it will be interpreted as an event filter.
                 See ``iteration_log`` argument for more details.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
