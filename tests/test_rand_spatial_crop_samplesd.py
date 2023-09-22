@@ -22,7 +22,7 @@ from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
-    {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True},
+    {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True, "random_size": True},
     {"img": np.arange(81).reshape(3, 3, 3, 3), "seg": np.arange(81, 0, -1).reshape(3, 3, 3, 3)},
     [(3, 2, 2, 2), (3, 2, 3, 3), (3, 2, 3, 2), (3, 2, 3, 2)],
     {
@@ -47,7 +47,7 @@ TEST_CASE_2 = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASE_2.append(
         [
-            {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [2, 2, 3], "random_center": False},
+            {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [2, 2, 3], "random_center": False, "random_size": True},
             {"img": p(np.arange(81).reshape(3, 3, 3, 3)), "seg": p(np.arange(81, 0, -1).reshape(3, 3, 3, 3))},
             [
                 (3, 2, 2, 3),
