@@ -141,6 +141,7 @@ jobs:
           RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
         shell: bash
         run: |
+          rm -rf /opt/hostedtoolcache
           # get tag info for versioning
           mv _version.py monai/
           # version checks
