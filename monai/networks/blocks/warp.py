@@ -155,7 +155,7 @@ class DVF2DDF(nn.Module):
     """
 
     def __init__(
-        self, num_steps: int = 7, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.ZEROS.value,
+        self, num_steps: int = 7, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.ZEROS.value
     ):
         super().__init__()
         if num_steps <= 0:
