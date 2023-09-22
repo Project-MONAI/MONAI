@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background
-from monai.utils import MetricReduction, deprecated
+from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
 
