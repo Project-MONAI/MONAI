@@ -309,7 +309,7 @@ class RandShiftIntensity(RandomizableTransform):
         if self.channel_wise:
             out = []
             for i, d in enumerate(img):
-                out_channel = self._shifter(d, self._offset[i] if factor is None else self._offset[i] * factor)
+                out_channel = self._shifter(d, self._offset[i] if factor is None else self._offset[i] * factor)  # type: ignore
                 out.append(out_channel)
             ret = torch.stack(out)  # type: ignore
         else:
