@@ -603,7 +603,7 @@ class LabelStatsKeys(StrEnum):
     LABEL_NCOMP = "ncomponents"
 
 
-@deprecated(since="1.2", msg_suffix="please use `AlgoKeys` instead.")
+@deprecated(since="1.2", removed="1.4", msg_suffix="please use `AlgoKeys` instead.")
 class AlgoEnsembleKeys(StrEnum):
     """
     Default keys for Mixed Ensemble

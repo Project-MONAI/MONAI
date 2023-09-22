@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 from monai.config import IgniteInfo
-from monai.utils import deprecated_arg, is_scalar, min_version, optional_import
+from monai.utils import is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -87,8 +87,6 @@ class TensorBoardStatsHandler(TensorBoardHandler):
 
     """
 
-    @deprecated_arg("epoch_interval", since="1.1", removed="1.3")
-    @deprecated_arg("iteration_interval", since="1.1", removed="1.3")
     def __init__(
         self,
         summary_writer: SummaryWriter | SummaryWriterX | None = None,
@@ -96,9 +94,7 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         iteration_log: bool | Callable[[Engine, int], bool] | int = True,
         epoch_log: bool | Callable[[Engine, int], bool] | int = True,
         epoch_event_writer: Callable[[Engine, Any], Any] | None = None,
-        epoch_interval: int = 1,
         iteration_event_writer: Callable[[Engine, Any], Any] | None = None,
-        iteration_interval: int = 1,
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
@@ -120,12 +116,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 See ``iteration_log`` argument for more details.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
-            epoch_interval: the epoch interval at which the epoch_event_writer is called. Defaults to 1.
-                ``epoch_interval`` must be 1 if ``epoch_log`` is callable.
             iteration_event_writer: customized callable TensorBoard writer for iteration level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
-            iteration_interval: the iteration interval at which the iteration_event_writer is called. Defaults to 1.
-                ``iteration_interval`` must be 1 if ``iteration_log`` is callable.
             output_transform: a callable that is used to transform the
                 ``ignite.engine.state.output`` into a scalar to plot, or a dictionary of {key: scalar}.
                 In the latter case, the output string will be formatted as key: value.
@@ -142,19 +134,12 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 when epoch completed.
             tag_name: when iteration output is a scalar, tag_name is used to plot, defaults to ``'Loss'``.
         """
-        if callable(iteration_log) and iteration_interval > 1:
-            raise ValueError("If iteration_log is callable, then iteration_interval should be 1")
-
-        if callable(epoch_log) and epoch_interval > 1:
-            raise ValueError("If epoch_log is callable, then epoch_interval should be 1")
 
         super().__init__(summary_writer=summary_writer, log_dir=log_dir)
         self.iteration_log = iteration_log
         self.epoch_log = epoch_log
         self.epoch_event_writer = epoch_event_writer
-        self.epoch_interval = epoch_interval
         self.iteration_event_writer = iteration_event_writer
-        self.iteration_interval = iteration_interval
         self.output_transform = output_transform
         self.global_epoch_transform = global_epoch_transform
         self.state_attributes = state_attributes
@@ -172,15 +157,15 @@ class TensorBoardStatsHandler(TensorBoardHandler):
             event = Events.ITERATION_COMPLETED
             if callable(self.iteration_log):  # substitute event with new one using filter callable
                 event = event(event_filter=self.iteration_log)
-            elif self.iteration_interval > 1:
-                event = event(every=self.iteration_interval)
+            elif self.iteration_log > 1:
+                event = event(every=self.iteration_log)
             engine.add_event_handler(event, self.iteration_completed)
         if self.epoch_log and not engine.has_event_handler(self.epoch_completed, Events.EPOCH_COMPLETED):
             event = Events.EPOCH_COMPLETED
             if callable(self.epoch_log):  # substitute event with new one using filter callable
                 event = event(event_filter=self.epoch_log)
             elif self.epoch_log > 1:
-                event = event(every=self.epoch_interval)
+                event = event(every=self.epoch_log)
             engine.add_event_handler(event, self.epoch_completed)
 
     def epoch_completed(self, engine: Engine) -> None:

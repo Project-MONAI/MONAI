@@ -471,10 +471,8 @@ from .spatial.functional import spatial_resample
 from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ThreadUnsafe
 from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
-    AddChannel,
     AddCoordinateChannels,
     AddExtremePointsChannel,
-    AsChannelFirst,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -497,7 +495,6 @@ from .utility.array import (
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
-    SplitChannel,
     SplitDim,
     SqueezeDim,
     ToCupy,
@@ -509,18 +506,12 @@ from .utility.array import (
     Transpose,
 )
 from .utility.dictionary import (
-    AddChanneld,
-    AddChannelD,
-    AddChannelDict,
     AddCoordinateChannelsd,
     AddCoordinateChannelsD,
     AddCoordinateChannelsDict,
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
-    AsChannelFirstd,
-    AsChannelFirstD,
-    AsChannelFirstDict,
     AsChannelLastd,
     AsChannelLastD,
     AsChannelLastDict,
@@ -602,9 +593,6 @@ from .utility.dictionary import (
     SimulateDelayd,
     SimulateDelayD,
     SimulateDelayDict,
-    SplitChanneld,
-    SplitChannelD,
-    SplitChannelDict,
     SplitDimd,
     SplitDimD,
     SplitDimDict,

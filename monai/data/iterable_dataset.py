@@ -195,9 +195,6 @@ class CSVIterableDataset(IterableDataset):
         kwargs_read_csv: dictionary args to pass to pandas `read_csv` function. Default to ``{"chunksize": chunksize}``.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
-    .. deprecated:: 0.8.0
-        ``filename`` is deprecated, use ``src`` instead.
-
     """
 
     def __init__(
@@ -223,8 +220,6 @@ class CSVIterableDataset(IterableDataset):
         self.shuffle = shuffle
         self.seed = seed
         self.kwargs_read_csv = kwargs_read_csv or {"chunksize": chunksize}
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
-        kwargs.pop("filename", None)
         self.kwargs = kwargs
 
         self.iters: list[Iterable] = self.reset()

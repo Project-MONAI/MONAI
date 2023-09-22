@@ -441,8 +441,8 @@ class SpatialCropForegroundd(MapTransform):
 
         if np.all(np.less(current_size, self.spatial_size)):
             cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
-            box_start = np.array([s.start for s in cropper.slices])
-            box_end = np.array([s.stop for s in cropper.slices])
+            box_start = np.array([s.start for s in cropper.slices])  # type: ignore[assignment]
+            box_end = np.array([s.stop for s in cropper.slices])  # type: ignore[assignment]
         else:
             cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
 
@@ -491,9 +491,6 @@ class AddGuidanceFromPointsd(Transform):
             to the key data, default is `meta_dict`, the metadata is a dictionary object.
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
-
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
 
     """
 

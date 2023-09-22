@@ -65,23 +65,17 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import deprecated, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
-    "AddChannelD",
-    "AddChannelDict",
-    "AddChanneld",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
     "AddCoordinateChannelsd",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
-    "AsChannelFirstD",
-    "AsChannelFirstDict",
-    "AsChannelFirstd",
     "AsChannelLastD",
     "AsChannelLastDict",
     "AsChannelLastd",
@@ -156,9 +150,6 @@ __all__ = [
     "SimulateDelayD",
     "SimulateDelayDict",
     "SimulateDelayd",
-    "SplitChannelD",
-    "SplitChannelDict",
-    "SplitChanneld",
     "SplitDimD",
     "SplitDimDict",
     "SplitDimd",
@@ -251,16 +242,8 @@ class EnsureChannelFirstd(MapTransform):
 
     backend = EnsureChannelFirst.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
-    @deprecated_arg(name="meta_key_postfix", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
     def __init__(
-        self,
-        keys: KeysCollection,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
-        strict_check: bool = True,
-        allow_missing_keys: bool = False,
-        channel_dim=None,
+        self, keys: KeysCollection, strict_check: bool = True, allow_missing_keys: bool = False, channel_dim=None
     ) -> None:
         """
         Args:
@@ -275,58 +258,13 @@ class EnsureChannelFirstd(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.adjuster = EnsureChannelFirst(strict_check=strict_check, channel_dim=channel_dim)
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
+        for key in self.key_iterator(d):
+            meta_dict = d[key].meta if isinstance(d[key], MetaTensor) else None  # type: ignore[attr-defined]
+            d[key] = self.adjuster(d[key], meta_dict)  # type: ignore
         return d
-
-
-@deprecated(
-    since="0.8",
-    removed="1.3",
-    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstd instead.",
-)
-class AsChannelFirstd(EnsureChannelFirstd):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
-    """
-
-    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            channel_dim: which dimension of input image is the channel, default is the last dimension.
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys=keys, channel_dim=channel_dim, allow_missing_keys=allow_missing_keys)
-
-
-@deprecated(
-    since="0.8",
-    removed="1.3",
-    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirstd instead"
-    " with `channel_dim='no_channel'`.",
-)
-class AddChanneld(EnsureChannelFirstd):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
-    """
-
-    backend = EnsureChannelFirstd.backend
-
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys, channel_dim="no_channel")
 
 
 class RepeatChanneld(MapTransform):
@@ -443,29 +381,6 @@ class SplitDimd(MapTransform, MultiSampleTrait):
                     raise RuntimeError(f"input data already contains key {split_key}.")
                 d[split_key] = r
         return d
-
-
-@deprecated(since="0.8", removed="1.3", msg_suffix="please use `SplitDimd` instead.")
-class SplitChanneld(SplitDimd):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
-    All the input specified by `keys` should be split into same count of data.
-    """
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        output_postfixes: Sequence[str] | None = None,
-        channel_dim: int = 0,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(
-            keys,
-            output_postfixes=output_postfixes,
-            dim=channel_dim,
-            update_meta=False,  # for backwards compatibility
-            allow_missing_keys=allow_missing_keys,
-        )
 
 
 class CastToTyped(MapTransform):
@@ -1725,9 +1640,6 @@ class AddCoordinateChannelsd(MapTransform):
             to the input image, encoding the coordinates of the input's three spatial dimensions.
         allow_missing_keys: don't raise exception if key is missing.
 
-    .. deprecated:: 0.8.0
-        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
-
     """
 
     backend = AddCoordinateChannels.backend
@@ -1828,13 +1740,10 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
-AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
-AddChannelD = AddChannelDict = AddChanneld
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
-SplitChannelD = SplitChannelDict = SplitChanneld
 SplitDimD = SplitDimDict = SplitDimd
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord

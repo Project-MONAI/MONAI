@@ -61,7 +61,7 @@ Metrics
 
 `Mean IoU`
 ----------
-.. autofunction:: compute_meaniou
+.. autofunction:: compute_iou
 
 .. autoclass:: MeanIoU
     :members:

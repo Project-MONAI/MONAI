@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import DtypeLike, KeysCollection, PathLike
+from monai.config import KeysCollection, PathLike
 from monai.data.utils import (
     affine_to_spacing,
     correct_nifti_header_if_necessary,
@@ -31,7 +31,7 @@ from monai.data.utils import (
     is_supported_format,
     orientation_ras_lps,
 )
-from monai.utils import MetaKeys, SpaceKeys, TraceKeys, deprecated_arg, ensure_tuple, optional_import, require_pkg
+from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
 
 if TYPE_CHECKING:
     import itk
@@ -861,20 +861,17 @@ class NibabelReader(ImageReader):
 
     """
 
-    @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
         channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
-        dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
-        self.dtype = dtype  # deprecated
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:

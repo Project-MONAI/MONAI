@@ -175,7 +175,7 @@ def compute_roc_auc(
     if average == Average.NONE:
         return auc_values
     if average == Average.MACRO:
-        return np.mean(auc_values)
+        return np.mean(auc_values)  # type: ignore[no-any-return]
     if average == Average.WEIGHTED:
         weights = [sum(y_) for y_ in y]
         return np.average(auc_values, weights=weights)  # type: ignore[no-any-return]
