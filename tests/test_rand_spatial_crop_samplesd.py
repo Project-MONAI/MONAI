@@ -47,7 +47,13 @@ TEST_CASE_2 = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASE_2.append(
         [
-            {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [2, 2, 3], "random_center": False, "random_size": True},
+            {
+                "keys": ["img", "seg"],
+                "num_samples": 8,
+                "roi_size": [2, 2, 3],
+                "random_center": False,
+                "random_size": True,
+            },
             {"img": p(np.arange(81).reshape(3, 3, 3, 3)), "seg": p(np.arange(81, 0, -1).reshape(3, 3, 3, 3))},
             [
                 (3, 2, 2, 3),
