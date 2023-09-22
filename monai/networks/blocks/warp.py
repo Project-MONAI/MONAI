@@ -91,7 +91,7 @@ class Warp(nn.Module):
         self.ref_grid = None
         self.jitter = jitter
 
-    def get_reference_grid(self, ddf: torch.Tensor, jitter: bool=False, seed: int=0) -> torch.Tensor:
+    def get_reference_grid(self, ddf: torch.Tensor, jitter: bool = False, seed: int = 0) -> torch.Tensor:
         if (
             self.ref_grid is not None
             and self.ref_grid.shape[0] == ddf.shape[0]
