@@ -187,7 +187,7 @@ def rescale_array(
     Args:
         arr: input array to rescale.
         minv: minimum value of target rescaled array.
-        maxv: maxmum value of target rescaled array.
+        maxv: maximum value of target rescaled array.
         dtype: if not None, convert input array to dtype before computation.
 
     """
