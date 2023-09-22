@@ -1649,9 +1649,6 @@ class AddCoordinateChannelsd(MapTransform):
             to the input image, encoding the coordinates of the input's three spatial dimensions.
         allow_missing_keys: don't raise exception if key is missing.
 
-    .. deprecated:: 0.8.0
-        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
-
     """
 
     backend = AddCoordinateChannels.backend

@@ -45,13 +45,7 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import (
-    OptionalImportError,
-    convert_to_dst_type,
-    ensure_tuple,
-    look_up_option,
-    optional_import,
-)
+from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")

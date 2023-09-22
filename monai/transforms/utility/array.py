@@ -1364,9 +1364,6 @@ class AddCoordinateChannels(Transform):
             appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
             to the input image, encoding the coordinates of the input's three spatial dimensions.
 
-    .. deprecated:: 0.8.0
-        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
-
     """
 
     backend = [TransformBackends.NUMPY]
