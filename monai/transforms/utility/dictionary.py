@@ -65,7 +65,7 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
@@ -242,16 +242,8 @@ class EnsureChannelFirstd(MapTransform):
 
     backend = EnsureChannelFirst.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
-    @deprecated_arg(name="meta_key_postfix", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
     def __init__(
-        self,
-        keys: KeysCollection,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
-        strict_check: bool = True,
-        allow_missing_keys: bool = False,
-        channel_dim=None,
+        self, keys: KeysCollection, strict_check: bool = True, allow_missing_keys: bool = False, channel_dim=None
     ) -> None:
         """
         Args:
@@ -266,13 +258,12 @@ class EnsureChannelFirstd(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.adjuster = EnsureChannelFirst(strict_check=strict_check, channel_dim=channel_dim)
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
+        for key in self.key_iterator(d):
+            meta_dict = d[key].meta if isinstance(d[key], MetaTensor) else None
+            d[key] = self.adjuster(d[key], meta_dict)  # type: ignore
         return d
 
 
