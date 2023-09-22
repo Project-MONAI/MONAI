@@ -91,8 +91,8 @@ class TensorBoardStatsHandler(TensorBoardHandler):
         self,
         summary_writer: SummaryWriter | SummaryWriterX | None = None,
         log_dir: str = "./runs",
-        iteration_log: bool | Callable[[Engine, int], bool] = True,
-        epoch_log: bool | Callable[[Engine, int], bool] = True,
+        iteration_log: bool | Callable[[Engine, int], bool] | int = True,
+        epoch_log: bool | Callable[[Engine, int], bool] | int = True,
         epoch_event_writer: Callable[[Engine, Any], Any] | None = None,
         iteration_event_writer: Callable[[Engine, Any], Any] | None = None,
         output_transform: Callable = lambda x: x[0],
@@ -106,11 +106,13 @@ class TensorBoardStatsHandler(TensorBoardHandler):
                 default to create a new TensorBoard writer.
             log_dir: if using default SummaryWriter, write logs to this directory, default is `./runs`.
             iteration_log: whether to write data to TensorBoard when iteration completed, default to `True`.
-                ``iteration_log`` can be also a function and it will be interpreted as an event filter
+                ``iteration_log`` can be also a function or int. If it is an int, it will be interpreted as the iteration interval
+                at which the iteration_event_writer is called. If it is a function, it will be interpreted as an event filter
                 (see https://pytorch.org/ignite/generated/ignite.engine.events.Events.html for details).
                 Event filter function accepts as input engine and event value (iteration) and should return True/False.
             epoch_log: whether to write data to TensorBoard when epoch completed, default to `True`.
-                ``epoch_log`` can be also a function and it will be interpreted as an event filter.
+                ``epoch_log`` can be also a function or int. If it is an int, it will be interpreted as the epoch interval
+                at which the epoch_event_writer is called. If it is a function, it will be interpreted as an event filter.
                 See ``iteration_log`` argument for more details.
             epoch_event_writer: customized callable TensorBoard writer for epoch level.
                 Must accept parameter "engine" and "summary_writer", use default event writer if None.
