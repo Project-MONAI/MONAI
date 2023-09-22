@@ -262,7 +262,7 @@ class EnsureChannelFirstd(MapTransform):
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
-            meta_dict = d[key].meta if isinstance(d[key], MetaTensor) else None
+            meta_dict = d[key].meta if isinstance(d[key], MetaTensor) else None  # type: ignore[attr-defined]
             d[key] = self.adjuster(d[key], meta_dict)  # type: ignore
         return d
 
