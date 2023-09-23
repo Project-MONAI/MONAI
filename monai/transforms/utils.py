@@ -2019,7 +2019,7 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
 
     Status keys are defined in :class:`TraceStatusKeys<monai.utils.enums.TraceStatusKeys>`.
 
-    This fun    ction also accepts:
+    This function also accepts:
 
     * dictionaries of tensors
     * lists or tuples of tensors
@@ -2070,7 +2070,7 @@ def distance_transform_edt(
 
     Args:
         img: Input image on which the distance transform shall be run.
-            For CuPy shape must be ([channel, ]spatial_dim1, spatial_dim2 [, spatial_dim3]), so 2D, 3D and 4D input only.
+            channel first array, must have shape: (num_channels, H[, W, ..., ])
             If you need to run the transform on other shapes, use the ``force_scipy`` flag.
             4D input gets passed channel-wise to cupy.
         sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
