@@ -960,7 +960,7 @@ class DistanceTransformEDT(Transform):
         """
         Args:
             img: Input image on which the distance transform shall be run.
-                For CuPy shape must be ([channel, ]spatial_dim1, spatial_dim2 [, spatial_dim3]), so 2D, 3D and 4D input only.
+                channel first array, must have shape: (num_channels, H[, W, ..., ])
                 If you need to run the transform on other shapes, use the ``force_scipy`` flag.
                 4D input gets passed channel-wise to cupy.
 
