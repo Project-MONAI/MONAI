@@ -951,9 +951,8 @@ class DistanceTransformEDT(Transform):
 
     backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
 
-    def __init__(self, sampling: None | float | list[float] = None, force_scipy: bool = False) -> None:
+    def __init__(self, sampling: None | float | list[float] = None) -> None:
         super().__init__()
-        self.force_scipy = force_scipy
         self.sampling = sampling
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -961,10 +960,11 @@ class DistanceTransformEDT(Transform):
         Args:
             img: Input image on which the distance transform shall be run.
                 channel first array, must have shape: (num_channels, H[, W, ..., ])
-                If you need to run the transform on other shapes, use the ``force_scipy`` flag.
-                4D input gets passed channel-wise to cupy.
+                Input gets passed channel-wise to the distance-transform, thus results from this function may differ
+                from directly calling ``distance_transform_edt()`` in CuPy or scipy.
+
 
         Returns:
             An array with the same shape and data type as img
         """
-        return distance_transform_edt(img=img, sampling=self.sampling, force_scipy=self.force_scipy)
+        return distance_transform_edt(img=img, sampling=self.sampling)

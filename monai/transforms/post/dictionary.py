@@ -874,7 +874,6 @@ class DistanceTransformEDTd(MapTransform):
         allow_missing_keys: don't raise exception if key is missing.
         sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
             if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
-        force_scipy: Force the CPU based scipy implementation of the euclidean distance transform
 
     """
 
@@ -885,12 +884,10 @@ class DistanceTransformEDTd(MapTransform):
         keys: KeysCollection,
         allow_missing_keys: bool = False,
         sampling: None | float | list[float] = None,
-        force_scipy: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.force_scipy = force_scipy
         self.sampling = sampling
-        self.distance_transform = DistanceTransformEDT(sampling=self.sampling, force_scipy=self.force_scipy)
+        self.distance_transform = DistanceTransformEDT(sampling=self.sampling)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
         d = dict(data)
