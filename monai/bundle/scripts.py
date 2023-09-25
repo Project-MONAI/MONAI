@@ -45,7 +45,6 @@ from monai.networks import (
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
-    deprecated_arg_default,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -62,8 +61,8 @@ onnx, _ = optional_import("onnx")
 logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
-# set BUNDLE_DOWNLOAD_SRC="monaihosting" to use monaihosting source in default for bundle download
-DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+# set BUNDLE_DOWNLOAD_SRC="github" to use github source in default for bundle download
+DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
 
 
@@ -248,7 +247,6 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
-@deprecated_arg_default("source", "github", "monaihosting", since="1.2", replaced="1.5")
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -541,9 +539,8 @@ def load(
     return model
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def _get_all_bundles_info(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
+    repo: str = "Project-MONAI/model-zoo", tag: str = "dev", auth_token: str | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
     if has_requests:
         if tag == "hosting_storage_v1":
@@ -586,9 +583,8 @@ def _get_all_bundles_info(
     return bundles_info
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def get_all_bundles_list(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
+    repo: str = "Project-MONAI/model-zoo", tag: str = "dev", auth_token: str | None = None
 ) -> list[tuple[str, str]]:
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
@@ -621,11 +617,10 @@ def get_all_bundles_list(
     return bundles_list
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def get_bundle_versions(
     bundle_name: str,
     repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
+    tag: str = "dev",
     auth_token: str | None = None,
 ) -> dict[str, list[str] | str]:
     """
@@ -659,20 +654,16 @@ def get_bundle_versions(
     return {"latest_version": all_versions[-1], "all_versions": all_versions}
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def get_bundle_info(
     bundle_name: str,
     version: str | None = None,
     repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
+    tag: str = "dev",
     auth_token: str | None = None,
 ) -> dict[str, Any]:
     """
-    Get all information
-    (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
+    Get all information (include "name" and "browser_download_url") of a bundle
     with the specified bundle name and version which is stored in the release of specified repository with the provided tag.
-    Since v1.5, "hosting_storage_v1" will be deprecated in favor of 'dev', which contains only "name" and "browser_download_url".
-    information about a bundle.
     In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
