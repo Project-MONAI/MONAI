@@ -618,10 +618,7 @@ def get_all_bundles_list(
 
 
 def get_bundle_versions(
-    bundle_name: str,
-    repo: str = "Project-MONAI/model-zoo",
-    tag: str = "dev",
-    auth_token: str | None = None,
+    bundle_name: str, repo: str = "Project-MONAI/model-zoo", tag: str = "dev", auth_token: str | None = None
 ) -> dict[str, list[str] | str]:
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
