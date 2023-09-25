@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - dev
+      - temp-test
   # Allows you to run this workflow manually from the Actions tab
   # This is to trigger building/testing docker image from dev only.
   workflow_dispatch:
@@ -17,7 +18,8 @@ jobs:
   versioning_dev:
     # compute versioning file from python setup.py
     # upload as artifact
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -48,8 +50,9 @@ jobs:
 
   docker_build_dev:
     # builds projectmonai/monai:latest
-    if: github.repository == 'Project-MONAI/MONAI'
-    needs: versioning_dev
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}
+    # needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -80,8 +83,9 @@ jobs:
         docker image prune -f
 
   docker_test_dockerhub:
-    if: github.repository == 'Project-MONAI/MONAI'
-    needs: docker_build_dev
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ true }}
+    # needs: docker_build_dev
     container:
       image: docker://projectmonai/monai:latest
       options: "--ipc=host"
