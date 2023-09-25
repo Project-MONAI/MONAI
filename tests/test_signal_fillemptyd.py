@@ -17,7 +17,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.transforms import SignalFillEmpty
+from monai.transforms import SignalFillEmptyd
 from monai.utils.type_conversion import convert_to_tensor
 from tests.utils import SkipIfBeforePyTorchVersion
 
@@ -27,23 +27,31 @@ TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.np
 @SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalFillEmptyNumpy(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
-        self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
+        self.assertIsInstance(SignalFillEmptyd(replacement=0.0), SignalFillEmptyd)
         sig = np.load(TEST_SIGNAL)
         sig[:, 123] = np.NAN
-        fillempty = SignalFillEmpty(replacement=0.0)
-        fillemptysignal = fillempty(sig)
-        self.assertTrue(not np.isnan(fillemptysignal).any())
+        data = {}
+        data["signal"] = sig
+        fillempty = SignalFillEmptyd(keys=("signal",), replacement=0.0)
+        data_ = fillempty(data)
+
+        self.assertTrue(np.isnan(sig).any())
+        self.assertTrue(not np.isnan(data_["signal"]).any())
 
 
 @SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalFillEmptyTorch(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
-        self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
+        self.assertIsInstance(SignalFillEmptyd(replacement=0.0), SignalFillEmptyd)
         sig = convert_to_tensor(np.load(TEST_SIGNAL))
         sig[:, 123] = convert_to_tensor(np.NAN)
-        fillempty = SignalFillEmpty(replacement=0.0)
-        fillemptysignal = fillempty(sig)
-        self.assertTrue(not torch.isnan(fillemptysignal).any())
+        data = {}
+        data["signal"] = sig
+        fillempty = SignalFillEmptyd(keys=("signal",), replacement=0.0)
+        data_ = fillempty(data)
+
+        self.assertTrue(np.isnan(sig).any())
+        self.assertTrue(not torch.isnan(data_["signal"]).any())
 
 
 if __name__ == "__main__":

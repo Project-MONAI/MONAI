@@ -559,14 +559,13 @@ class RandSpatialCropd(RandCropd):
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
         roi_size: Sequence[int] | int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -603,14 +602,13 @@ class RandScaleCropd(RandCropd):
         lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
         roi_scale: Sequence[float] | float,
         max_roi_scale: Sequence[float] | float | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -660,7 +658,6 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
 
     backend = RandSpatialCropSamples.backend
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -668,7 +665,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         num_samples: int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
@@ -722,7 +719,7 @@ class CropForegroundd(Cropd):
     for more information.
     """
 
-    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
+    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
     def __init__(
         self,
         keys: KeysCollection,

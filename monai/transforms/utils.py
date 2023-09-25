@@ -187,7 +187,7 @@ def rescale_array(
     Args:
         arr: input array to rescale.
         minv: minimum value of target rescaled array.
-        maxv: maxmum value of target rescaled array.
+        maxv: maximum value of target rescaled array.
         dtype: if not None, convert input array to dtype before computation.
 
     """
@@ -946,7 +946,7 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
-@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
+@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
