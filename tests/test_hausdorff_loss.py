@@ -188,7 +188,6 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
         ]
     )
 
-
 TEST_CASES_LOG = [[*inputs, np.log(np.array(output) + 1)] for *inputs, output in TEST_CASES]
 
 
