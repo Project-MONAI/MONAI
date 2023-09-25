@@ -14,7 +14,6 @@
 
 # Repo: https://github.com/PatRyg99/HausdorffLoss
 
-
 from __future__ import annotations
 
 import warnings
