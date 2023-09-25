@@ -18,7 +18,7 @@ concurrency:
 jobs:
   GPU-quick-py3:  # GPU with full dependencies
     # if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
-    if: ${{ false }}  # disable self-hosted job
+    if: ${{ false }}  # disable self-hosted job project-monai/monai#7039
     strategy:
       matrix:
         environment:

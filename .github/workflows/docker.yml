@@ -81,7 +81,7 @@ jobs:
 
   docker_test_dockerhub:
     # if: github.repository == 'Project-MONAI/MONAI'
-    if: ${{ false }}  # disable self-hosted job
+    if: ${{ false }}  # disable self-hosted job  project-monai/monai#7039
     needs: docker_build_dev
     container:
       image: docker://projectmonai/monai:latest
