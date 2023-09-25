@@ -84,11 +84,12 @@ jobs:
     needs: docker_build_dev
     container:
       image: docker://projectmonai/monai:latest
-      options: "--shm-size=4g --ipc=host"
-    runs-on: [self-hosted, linux, X64, docker]
+      options: "--ipc=host"
+    runs-on: ubuntu-latest
     steps:
     - name: Import
       run: |
+        rm -rf /opt/hostedtoolcache
         export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=  # cpu-only
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai

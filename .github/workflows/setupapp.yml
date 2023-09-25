@@ -21,7 +21,8 @@ jobs:
   #   - ubuntu 37 38 39 310-pip-
   #   - os-latest-pip (shared)
   coverage-py3:
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable self-hosted job
     container:
       image: nvcr.io/nvidia/pytorch:22.04-py3
       options: --gpus all
