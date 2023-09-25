@@ -80,16 +80,16 @@ jobs:
         docker image prune -f
 
   docker_test_dockerhub:
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable self-hosted job
     needs: docker_build_dev
     container:
       image: docker://projectmonai/monai:latest
-      options: "--ipc=host"
-    runs-on: ubuntu-latest
+      options: "--shm-size=4g --ipc=host"
+    runs-on: [self-hosted, linux, X64, docker]
     steps:
     - name: Import
       run: |
-        rm -rf /opt/hostedtoolcache
         export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=  # cpu-only
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai
