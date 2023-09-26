@@ -18,7 +18,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from functools import lru_cache, wraps
 from inspect import getmembers, isclass
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 import torch
@@ -2065,9 +2065,9 @@ def distance_transform_edt(
     return_indices: bool = False,
     distances: NdarrayOrTensor | None = None,
     indices: NdarrayOrTensor | None = None,
-    block_params: Tuple[int, int, int] | None = None,
+    block_params: tuple[int, int, int] | None = None,
     float64_distances: bool = False,
-) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Euclidean distance transform, either GPU based with CuPy / cuCIM
     or CPU based with scipy.
