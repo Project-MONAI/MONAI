@@ -135,7 +135,6 @@ SAMPLING_TEST_CASES = [
     ]
 ]
 
-
 RAISES_TEST_CASES = (
     [  # Example 4D input. Should raise under CuPy
         np.array(
