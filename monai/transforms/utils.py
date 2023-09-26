@@ -2063,18 +2063,18 @@ def distance_transform_edt(
     sampling: None | float | list[float] = None,
     return_distances: bool = True,
     return_indices: bool = False,
-    distances: NdarrayOrTensor | None=None,
-    indices: NdarrayOrTensor | None=None,
-    block_params:Tuple[int,int,int] | None=None,
-    float64_distances: bool=False,
+    distances: NdarrayOrTensor | None = None,
+    indices: NdarrayOrTensor | None = None,
+    block_params: Tuple[int, int, int] | None = None,
+    float64_distances: bool = False,
 ) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Euclidean distance transform, either GPU based with CuPy / cuCIM
     or CPU based with scipy.
     To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
 
-    For details about the implementation, check out the 
-    `SciPy<https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html/>`_ 
+    For details about the implementation, check out the
+    `SciPy<https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html/>`_
     and `cuCIM<https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt/>`_ docs.
 
     Args:
@@ -2086,19 +2086,20 @@ def distance_transform_edt(
             if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
         return_distances: Whether to calculate the distance transform.
         return_indices: Whether to calculate the feature transform.
-        distances: An output array to store the calculated distance transform, instead of returning it. `return_distances` must be True.
+        distances: An output array to store the calculated distance transform, instead of returning it.
+            `return_distances` must be True.
         indices: An output array to store the calculated feature transform, instead of returning it. `return_indicies` must be True.
-        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look here 
+        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look here
             `distance_transform_edt<https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt/>`_
-        float64_distances: This parameter is specific to cuCIM and does not exist in SciPy. 
-            If True, use double precision in the distance computation (to match SciPy behavior). 
-            Otherwise, single precision will be used for efficiency. 
+        float64_distances: This parameter is specific to cuCIM and does not exist in SciPy.
+            If True, use double precision in the distance computation (to match SciPy behavior).
+            Otherwise, single precision will be used for efficiency.
 
     Returns:
-        distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied. 
-            It will have the same shape as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True, otherwise it will have dtype torch.float32.
-            For scipy: Will have dtype np.float64.
-        indices: The calculated feature transform. It has an image-shaped array for each dimension of the image. 
+        distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied.
+            It will have the same shape as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
+            otherwise it will have dtype torch.float32. For scipy: Will have dtype np.float64.
+        indices: The calculated feature transform. It has an image-shaped array for each dimension of the image.
             Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
 
     """
@@ -2186,7 +2187,6 @@ def distance_transform_edt(
     if len(r_vals) == 1:
         return r_vals[0]
     return tuple(r_vals)
-
 
 
 if __name__ == "__main__":

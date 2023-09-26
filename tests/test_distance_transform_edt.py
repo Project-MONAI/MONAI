@@ -14,9 +14,8 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-from parameterized import parameterized
-
 import torch
+from parameterized import parameterized
 
 from monai.transforms import DistanceTransformEDT, DistanceTransformEDTd
 from tests.utils import HAS_CUPY, assert_allclose, optional_import, skip_if_no_cuda
@@ -31,13 +30,15 @@ TEST_CASES = [
             ([[0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 1, 1, 0, 0]],), dtype=np.float32
         ),
         np.array(
-            [[
-                [0.0, 1.0, 1.4142, 2.2361, 3.0],
-                [0.0, 0.0, 1.0, 2.0, 2.0],
-                [0.0, 1.0, 1.4142, 1.4142, 1.0],
-                [0.0, 1.0, 1.4142, 1.0, 0.0],
-                [0.0, 1.0, 1.0, 0.0, 0.0],
-            ]]
+            [
+                [
+                    [0.0, 1.0, 1.4142, 2.2361, 3.0],
+                    [0.0, 0.0, 1.0, 2.0, 2.0],
+                    [0.0, 1.0, 1.4142, 1.4142, 1.0],
+                    [0.0, 1.0, 1.4142, 1.0, 0.0],
+                    [0.0, 1.0, 1.0, 0.0, 0.0],
+                ]
+            ]
         ),
     ],
     [  # Example 4D input to test channel-wise CuPy
@@ -121,13 +122,15 @@ SAMPLING_TEST_CASES = [
             ([[0, 1, 1, 1, 1], [0, 0, 1, 1, 1], [0, 1, 1, 1, 1], [0, 1, 1, 1, 0], [0, 1, 1, 0, 0]],), dtype=np.float32
         ),
         np.array(
-            [[
-                [0.0, 2.0, 2.828427, 4.472136, 6.0],
-                [0.0, 0.0, 2.0, 4.0, 4.0],
-                [0.0, 2.0, 2.828427, 2.828427, 2.0],
-                [0.0, 2.0, 2.828427, 2.0, 0.0],
-                [0.0, 2.0, 2.0, 0.0, 0.0],
-            ]]
+            [
+                [
+                    [0.0, 2.0, 2.828427, 4.472136, 6.0],
+                    [0.0, 0.0, 2.0, 4.0, 4.0],
+                    [0.0, 2.0, 2.828427, 2.828427, 2.0],
+                    [0.0, 2.0, 2.828427, 2.0, 0.0],
+                    [0.0, 2.0, 2.0, 0.0, 0.0],
+                ]
+            ]
         ),
     ]
 ]
@@ -164,24 +167,22 @@ class TestDistanceTransformEDT(unittest.TestCase):
         output = transform(input)
         assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
-
     @parameterized.expand(TEST_CASES)
     @skip_if_no_cuda
     @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
     def test_cucim_transform(self, input, expected_output):
-        input_ = torch.tensor(input, device='cuda')
+        input_ = torch.tensor(input, device="cuda")
         transform = DistanceTransformEDT()
         output = transform(input_)
         assert_allclose(cp.asnumpy(output), cp.asnumpy(expected_output), atol=1e-4, rtol=1e-4, type_test=False)
-
 
     @parameterized.expand(SAMPLING_TEST_CASES)
     @skip_if_no_cuda
     @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
     def test_cucim_sampling(self, sampling, input, expected_output):
-        input_ = torch.tensor(input, device='cuda')
+        input_ = torch.tensor(input, device="cuda")
         transform = DistanceTransformEDT(sampling=sampling)
         output = transform(input_)
         assert_allclose(cp.asnumpy(output), cp.asnumpy(expected_output), atol=1e-4, rtol=1e-4, type_test=False)
@@ -192,7 +193,7 @@ class TestDistanceTransformEDT(unittest.TestCase):
     @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
     def test_cucim_raises(self, raises):
         """Currently only 2D, 3D and 4D images are supported by CuPy. This test checks for the according error message"""
-        input_ = torch.tensor(raises, device='cuda')
+        input_ = torch.tensor(raises, device="cuda")
         transform = DistanceTransformEDT()
         with self.assertRaises(NotImplementedError):
             transform(input_)

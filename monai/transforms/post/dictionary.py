@@ -880,10 +880,7 @@ class DistanceTransformEDTd(MapTransform):
     backend = DistanceTransformEDT.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        allow_missing_keys: bool = False,
-        sampling: None | float | list[float] = None,
+        self, keys: KeysCollection, allow_missing_keys: bool = False, sampling: None | float | list[float] = None
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.sampling = sampling
