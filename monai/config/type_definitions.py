@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import os
-from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
+from typing import Collection, Hashable, Iterable, Sequence, SupportsIndex, Tuple, TypeVar, Union
 
 import numpy as np
 import torch
@@ -83,3 +83,8 @@ PathLike = Union[str, os.PathLike]
 #: SequenceStr
 # string or a sequence of strings for `mode` types.
 SequenceStr = Union[Sequence[str], str]
+
+Shape = Tuple[int, ...]
+
+# Anything that can be coerced to a shape tuple
+ShapeLike = Union[SupportsIndex, Sequence[SupportsIndex]]

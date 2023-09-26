@@ -46,7 +46,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
         }
         random_zoom = RandZoomd(**init_param)
         for p in TEST_NDARRAYS_ALL:
-            random_zoom.set_random_state(1234)
+            random_zoom.set_random_generator(1234)
 
             im = p(self.imt[0])
             call_param = {"data": {key: im}}
@@ -97,7 +97,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
             keys="img", prob=1.0, min_zoom=[0.8, 0.7], max_zoom=[1.2, 1.3], mode="nearest", keep_size=False
         )
         for p in TEST_NDARRAYS_ALL:
-            random_zoom.set_random_state(1234)
+            random_zoom.set_random_generator(1234)
             test_data = {"img": p(np.random.randint(0, 2, size=[2, 2, 3, 4]))}
             zoomed = random_zoom(test_data)
             assert_allclose(random_zoom.rand_zoom._zoom, (1.048844, 1.048844, 0.962637), atol=1e-2)

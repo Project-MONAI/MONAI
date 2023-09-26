@@ -1706,7 +1706,7 @@ class RandHistogramShift(RandomizableTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
-        num_control_point = self.R.randint(self.num_control_points[0], self.num_control_points[1] + 1)
+        num_control_point = self.R.integers(self.num_control_points[0], self.num_control_points[1] + 1)
         self.reference_control_points = np.linspace(0, 1, num_control_point)
         self.floating_control_points = np.copy(self.reference_control_points)
         for i in range(1, num_control_point - 1):
@@ -2100,11 +2100,11 @@ class RandKSpaceSpikeNoise(RandomizableTransform, Fourier):
         if self.channel_wise:
             # randomizing per channel
             for i, chan in enumerate(img):
-                self.sampled_locs.append((i,) + tuple(self.R.randint(0, k) for k in chan.shape))
+                self.sampled_locs.append((i,) + tuple(self.R.integers(0, k) for k in chan.shape))
                 self.sampled_k_intensity.append(self.R.uniform(intensity_range[i][0], intensity_range[i][1]))
         else:
             # working with all channels together
-            spatial = tuple(self.R.randint(0, k) for k in img.shape[1:])
+            spatial = tuple(self.R.integers(0, k) for k in img.shape[1:])
             self.sampled_locs = [(i,) + spatial for i in range(img.shape[0])]
             if isinstance(intensity_range[0], Sequence):
                 self.sampled_k_intensity = [self.R.uniform(p[0], p[1]) for p in intensity_range]
@@ -2189,13 +2189,13 @@ class RandCoarseTransform(RandomizableTransform):
             return None
         size = fall_back_tuple(self.spatial_size, img_size)
         self.hole_coords = []  # clear previously computed coords
-        num_holes = self.holes if self.max_holes is None else self.R.randint(self.holes, self.max_holes + 1)
+        num_holes = self.holes if self.max_holes is None else self.R.integers(self.holes, self.max_holes + 1)
         for _ in range(num_holes):
             if self.max_spatial_size is not None:
                 max_size = fall_back_tuple(self.max_spatial_size, img_size)
-                size = tuple(self.R.randint(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+                size = tuple(self.R.integers(low=size[i], high=max_size[i] + 1) for i in range(len(img_size)))
             valid_size = get_valid_patch_size(img_size, size)
-            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, self.R))
+            self.hole_coords.append((slice(None),) + get_random_patch(img_size, valid_size, generator=self.R))
 
     @abstractmethod
     def _transform_holes(self, img: np.ndarray) -> np.ndarray:

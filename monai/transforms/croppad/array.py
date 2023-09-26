@@ -58,6 +58,7 @@ from monai.utils import (
     look_up_option,
     pytorch_after,
 )
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 __all__ = [
     "Pad",
@@ -613,10 +614,10 @@ class RandSpatialCrop(Randomizable, Crop):
             max_size = img_size if self.max_roi_size is None else fall_back_tuple(self.max_roi_size, img_size)
             if any(i > j for i, j in zip(self._size, max_size)):
                 raise ValueError(f"min ROI size: {self._size} is larger than max ROI size: {max_size}.")
-            self._size = tuple(self.R.randint(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
+            self._size = tuple(self.R.integers(low=self._size[i], high=max_size[i] + 1) for i in range(len(img_size)))
         if self.random_center:
             valid_size = get_valid_patch_size(img_size, self._size)
-            self._slices = get_random_patch(img_size, valid_size, self.R)
+            self._slices = get_random_patch(img_size, valid_size, generator=self.R)
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:  # type: ignore
         """
@@ -750,11 +751,11 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         self.num_samples = num_samples
         self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandSpatialCropSamples:
-        super().set_random_state(seed, state)
-        self.cropper.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.cropper.set_random_generator(seed, generator)
         return self
 
     @LazyTransform.lazy.setter  # type: ignore
@@ -993,7 +994,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.centers = weighted_patch_samples(
-            spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
+            spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, generator=self.R
         )  # using only the first channel as weight map
 
     @LazyTransform.lazy.setter  # type: ignore
@@ -1164,8 +1165,8 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             _shape,
             fg_indices_,
             bg_indices_,
-            self.R,
-            self.allow_smaller,
+            allow_smaller=self.allow_smaller,
+            generator=self.R,
         )
 
     @LazyTransform.lazy.setter  # type: ignore
@@ -1347,7 +1348,14 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         if _shape is None:
             raise ValueError("label or image must be provided to infer the output spatial shape.")
         self.centers = generate_label_classes_crop_centers(
-            self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller, self.warn
+            self.spatial_size,
+            self.num_samples,
+            _shape,
+            indices_,
+            self.ratios,
+            allow_smaller=self.allow_smaller,
+            warn=self.warn,
+            generator=self.R,
         )
 
     @LazyTransform.lazy.setter  # type: ignore

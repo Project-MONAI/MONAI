@@ -31,7 +31,7 @@ class TestRandStdShiftIntensity(NumpyImageTestCase2D):
         offset = factor * np.std(self.imt)
         expected = p(self.imt + offset)
         shifter = RandStdShiftIntensity(factors=1.0, prob=1.0)
-        shifter.set_random_state(seed=0)
+        shifter.set_random_generator(seed=0)
         _imt = p(self.imt)
         result = shifter(_imt)
         if isinstance(_imt, torch.Tensor):

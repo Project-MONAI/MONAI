@@ -24,7 +24,7 @@ class TestRandScaleIntensityFixedMeand(NumpyImageTestCase2D):
         key = "img"
         for p in TEST_NDARRAYS:
             scaler = RandScaleIntensityFixedMeand(keys=[key], factors=0.5, prob=1.0)
-            scaler.set_random_state(seed=0)
+            scaler.set_random_generator(seed=0)
             result = scaler({key: p(self.imt)})
             np.random.seed(0)
             # simulate the randomize function of transform

@@ -26,7 +26,7 @@ class TestRandAxisFlip(NumpyImageTestCase2D):
     def test_correct_results(self):
         for p in TEST_NDARRAYS_ALL:
             flip = RandAxisFlip(prob=1.0)
-            flip.set_random_state(seed=321)
+            flip.set_random_generator(seed=321)
             im = p(self.imt[0])
             call_param = {"img": im}
             result = flip(**call_param)

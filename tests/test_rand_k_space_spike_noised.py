@@ -49,10 +49,10 @@ class TestKSpaceSpikeNoised(unittest.TestCase):
         data = self.get_data(im_shape, im_type)
 
         t = RandKSpaceSpikeNoised(KEYS, prob=1.0, intensity_range=(13, 15), channel_wise=True)
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out1 = t(deepcopy(data))
 
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out2 = t(deepcopy(data))
 
         for k in KEYS:

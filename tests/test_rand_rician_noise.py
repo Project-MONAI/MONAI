@@ -31,7 +31,7 @@ class TestRandRicianNoise(NumpyImageTestCase2D):
     def test_correct_results(self, _, in_type, mean, std):
         seed = 0
         rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
-        rician_fn.set_random_state(seed)
+        rician_fn.set_random_generator(seed)
         im = in_type(self.imt)
         noised = rician_fn(im)
         if isinstance(im, torch.Tensor):

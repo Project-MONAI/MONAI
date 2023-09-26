@@ -219,7 +219,7 @@ class TestRandAffined(unittest.TestCase):
     @parameterized.expand(x + [y] for x, y in itertools.product(TESTS, (False, True)))
     def test_rand_affined(self, input_param, input_data, expected_val, track_meta):
         set_track_meta(track_meta)
-        g = RandAffined(**input_param).set_random_state(123)
+        g = RandAffined(**input_param).set_random_generator(123)
         call_param = {"data": input_data}
         res = g(**call_param)
         # test lazy
@@ -231,7 +231,7 @@ class TestRandAffined(unittest.TestCase):
             lazy_init_param = input_param.copy()
             for key, mode in zip(input_param["keys"], input_param["mode"]):
                 lazy_init_param["keys"], lazy_init_param["mode"] = key, mode
-                resampler = RandAffined(**lazy_init_param).set_random_state(123)
+                resampler = RandAffined(**lazy_init_param).set_random_generator(123)
                 expected_output = resampler(**call_param)
                 test_resampler_lazy(resampler, expected_output, lazy_init_param, call_param, seed=123, output_key=key)
             resampler.lazy = False
@@ -248,7 +248,7 @@ class TestRandAffined(unittest.TestCase):
             expected = expected_val[key] if isinstance(expected_val, dict) else expected_val
             assert_allclose(result, expected, rtol=_rtol, atol=1e-3, type_test=False)
 
-        g.set_random_state(4)
+        g.set_random_generator(4)
         res = g(**call_param)
         if not track_meta:
             return

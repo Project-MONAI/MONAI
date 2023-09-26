@@ -372,7 +372,7 @@ class TestAddInitialSeedPointd(unittest.TestCase):
     def test_correct_results(self, arguments, input_data, expected_result):
         seed = 0
         add_fn = AddInitialSeedPointd(**arguments)
-        add_fn.set_random_state(seed)
+        add_fn.set_random_generator(seed)
         result = add_fn(input_data)
         self.assertEqual(result[arguments["guidance"]], expected_result)
 
@@ -396,7 +396,7 @@ class TestAddRandomGuidanced(unittest.TestCase):
     def test_correct_results(self, arguments, input_data, expected_result):
         seed = 0
         add_fn = AddRandomGuidanced(**arguments)
-        add_fn.set_random_state(seed)
+        add_fn.set_random_generator(seed)
         result = add_fn(input_data)
         self.assertEqual(result[arguments["guidance"]], expected_result)
 

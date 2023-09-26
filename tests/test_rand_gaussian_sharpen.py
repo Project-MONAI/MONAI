@@ -131,7 +131,7 @@ class TestRandGaussianSharpen(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         converter = RandGaussianSharpen(**arguments)
-        converter.set_random_state(seed=0)
+        converter.set_random_generator(seed=0)
         result = converter(image)
         assert_allclose(result, expected_data, atol=0, rtol=1e-4, type_test="tensor")
 

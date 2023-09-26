@@ -1057,7 +1057,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
         self._points: list[tuple[int, ...]] = []
 
     def randomize(self, label: NdarrayOrTensor) -> None:
-        self._points = get_extreme_points(label, rand_state=self.R, background=self._background, pert=self._pert)
+        self._points = get_extreme_points(label, generator=self.R, background=self._background, pert=self._pert)
 
     def __call__(
         self,

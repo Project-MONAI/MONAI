@@ -65,9 +65,9 @@ class TestRandKSpaceSpikeNoise(unittest.TestCase):
         im = self.get_data(im_shape, im_type)
         intensity_range = [14, 15]
         t = RandKSpaceSpikeNoise(0.0, intensity_range, channel_wise)
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out1 = t(deepcopy(im))
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out2 = t(deepcopy(im))
         assert_allclose(out1, out2, type_test="tensor")
 

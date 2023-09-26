@@ -21,7 +21,6 @@ from collections.abc import Callable, Hashable, Mapping, Sequence
 from copy import deepcopy
 from typing import Any
 
-import numpy as np
 import torch
 
 from monai.config import IndexSelection, KeysCollection, SequenceStr
@@ -51,6 +50,7 @@ from monai.transforms.traits import LazyTrait, MultiSampleTrait
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 __all__ = [
     "Padd",
@@ -391,10 +391,12 @@ class RandCropd(Cropd, Randomizable):
     def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy: bool = False):
         super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandCropd:
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandCropd:
+        super().set_random_generator(seed, generator)
         if isinstance(self.cropper, Randomizable):
-            self.cropper.set_random_state(seed, state)
+            self.cropper.set_random_generator(seed, generator)
         return self
 
     def randomize(self, img_size: Sequence[int]) -> None:
@@ -681,7 +683,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self.cropper.lazy = value
 
     def randomize(self, data: Any | None = None) -> None:
-        self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
+        self.sub_seed = self.R.integers(MAX_SEED, dtype="uint32")
 
     def __call__(
         self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
@@ -697,7 +699,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
 
         lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(dict(data)):
-            self.cropper.set_random_state(seed=self.sub_seed)
+            self.cropper.set_random_generator(seed=self.sub_seed)
             for i, im in enumerate(self.cropper(data[key], lazy=lazy_)):
                 ret[i][key] = im
         return ret
@@ -842,11 +844,11 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
         self.w_key = w_key
         self.cropper = RandWeightedCrop(spatial_size, num_samples, lazy=lazy)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandWeightedCropd:
-        super().set_random_state(seed, state)
-        self.cropper.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.cropper.set_random_generator(seed, generator)
         return self
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
@@ -965,11 +967,11 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
             lazy=lazy,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandCropByPosNegLabeld:
-        super().set_random_state(seed, state)
-        self.cropper.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.cropper.set_random_generator(seed, generator)
         return self
 
     def randomize(
@@ -1127,11 +1129,11 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             lazy=lazy,
         )
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
     ) -> RandCropByLabelClassesd:
-        super().set_random_state(seed, state)
-        self.cropper.set_random_state(seed, state)
+        super().set_random_generator(seed, generator)
+        self.cropper.set_random_generator(seed, generator)
         return self
 
     def randomize(

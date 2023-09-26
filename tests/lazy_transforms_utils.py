@@ -59,7 +59,7 @@ def test_resampler_lazy(
 
     """
     if isinstance(resampler, Randomizable):
-        resampler.set_random_state(seed=seed)
+        resampler.set_random_generator(seed=seed)
     set_track_meta(True)
     resampler.lazy = True
     pending_output = resampler(**deepcopy(call_param))

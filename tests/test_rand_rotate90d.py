@@ -27,7 +27,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = RandRotate90d(keys=key)
         for p in TEST_NDARRAYS_ALL:
-            rotate.set_random_state(1323)
+            rotate.set_random_generator(1323)
             im = {key: p(self.imt[0])}
             call_param = {"data": im}
             rotated = rotate(**call_param)
@@ -51,7 +51,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = RandRotate90d(keys=key, max_k=2)
         for p in TEST_NDARRAYS_ALL:
-            rotate.set_random_state(234)
+            rotate.set_random_generator(234)
             im = {key: p(self.imt[0])}
             call_param = {"data": im}
             rotated = rotate(**call_param)
@@ -69,7 +69,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = RandRotate90d(keys=key, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS_ALL:
-            rotate.set_random_state(234)
+            rotate.set_random_generator(234)
             im = {key: p(self.imt[0])}
             call_param = {"data": im}
             rotated = rotate(**call_param)
@@ -87,7 +87,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
         key = "test"
         rotate = RandRotate90d(keys=key, prob=1.0, max_k=2, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS_ALL:
-            rotate.set_random_state(234)
+            rotate.set_random_generator(234)
             im = {key: p(self.imt[0])}
             call_param = {"data": im}
             rotated = rotate(**call_param)

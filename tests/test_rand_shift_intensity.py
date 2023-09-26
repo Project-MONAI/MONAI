@@ -24,7 +24,7 @@ class TestRandShiftIntensity(NumpyImageTestCase2D):
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_value(self, p):
         shifter = RandShiftIntensity(offsets=1.0, prob=1.0)
-        shifter.set_random_state(seed=0)
+        shifter.set_random_generator(seed=0)
         im = p(self.imt)
         result = shifter(im, factor=1.0)
         np.random.seed(0)

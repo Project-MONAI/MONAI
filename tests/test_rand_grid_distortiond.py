@@ -80,7 +80,7 @@ class TestRandGridDistortiond(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_grid_distortiond(self, input_param, seed, input_data, expected_val_img, expected_val_mask):
         g = RandGridDistortiond(**input_param)
-        g.set_random_state(seed=seed)
+        g.set_random_generator(seed=seed)
         result = g(input_data)
         assert_allclose(result["img"], expected_val_img, type_test=False, rtol=1e-4, atol=1e-4)
         assert_allclose(result["mask"], expected_val_mask, type_test=False, rtol=1e-4, atol=1e-4)

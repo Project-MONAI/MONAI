@@ -121,7 +121,7 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
             input_param_mod = self.convert_data_type(p, input_param)
             input_data_mod = self.convert_data_type(p, input_data)
             cropper = RandCropByPosNegLabeld(**input_param_mod)
-            cropper.set_random_state(0)
+            cropper.set_random_generator(0)
             result = cropper(input_data_mod)
             self.assertListEqual(cropper.cropper.spatial_size, input_param["spatial_size"])
 
@@ -136,7 +136,7 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
 
     def test_correct_center(self):
         cropper = RandCropByPosNegLabeld(keys="label", label_key="label", spatial_size=[3, 3])
-        cropper.set_random_state(0)
+        cropper.set_random_generator(0)
         test_image = {"label": np.asarray([[[1, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1]]])}
         result = cropper(test_image)
         np.testing.assert_allclose(result[0]["label"], np.asarray([[[0, 0, 1], [0, 0, 0], [0, 0, 0]]]))
@@ -148,11 +148,11 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
             input_data_mod = self.convert_data_type(p, input_data)
             cropper = RandCropByPosNegLabeld(**input_param_mod)
             # non-lazy
-            cropper.set_random_state(0)
+            cropper.set_random_generator(0)
             expected = cropper(input_data_mod)
             self.assertIsInstance(expected[0]["image"], MetaTensor)
             # lazy
-            cropper.set_random_state(0)
+            cropper.set_random_generator(0)
             cropper.lazy = True
             pending_result = cropper(input_data_mod)
             for i, _pending_result in enumerate(pending_result):

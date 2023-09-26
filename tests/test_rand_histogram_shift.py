@@ -59,7 +59,7 @@ class TestRandHistogramShift(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_histogram_shift(self, input_param, input_data, expected_val):
         g = RandHistogramShift(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         result = g(**input_data)
         assert_allclose(result, expected_val, rtol=1e-4, atol=1e-4, type_test="tensor")
 

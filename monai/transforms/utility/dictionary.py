@@ -1320,7 +1320,7 @@ class AddExtremePointsChanneld(Randomizable, MapTransform):
         self.rescale_max = rescale_max
 
     def randomize(self, label: NdarrayOrTensor) -> None:
-        self.points = get_extreme_points(label, rand_state=self.R, background=self.background, pert=self.pert)
+        self.points = get_extreme_points(label, generator=self.R, background=self.background, pert=self.pert)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

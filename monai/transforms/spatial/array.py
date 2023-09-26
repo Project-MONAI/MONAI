@@ -76,6 +76,7 @@ from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBack
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -1223,7 +1224,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._rand_k = self.R.randint(self.max_k) + 1
+        self._rand_k = self.R.integers(self.max_k) + 1
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -1476,7 +1477,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._axis = self.R.randint(data.ndim - 1)
+        self._axis = self.R.integers(data.ndim - 1)
 
     def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
@@ -2459,9 +2460,11 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             else self._cached_grid
         )
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffine:
-        self.rand_affine_grid.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> RandAffine:
+        self.rand_affine_grid.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -2665,10 +2668,12 @@ class Rand2DElastic(RandomizableTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand2DElastic:
-        self.deform_grid.set_random_state(seed, state)
-        self.rand_affine_grid.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Rand2DElastic:
+        self.deform_grid.set_random_generator(seed, generator)
+        self.rand_affine_grid.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def set_device(self, device):
@@ -2839,9 +2844,11 @@ class Rand3DElastic(RandomizableTransform):
         self.magnitude = 1.0
         self.sigma = 1.0
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Rand3DElastic:
-        self.rand_affine_grid.set_random_state(seed, state)
-        super().set_random_state(seed, state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Rand3DElastic:
+        self.rand_affine_grid.set_random_generator(seed, generator)
+        super().set_random_generator(seed, generator)
         return self
 
     def set_device(self, device):
@@ -3434,7 +3441,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         else:
             max_offset = ensure_tuple_rep(self.max_offset, len(self.patch_size))
 
-        self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
+        self.offset = tuple(self.R.integers(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
 
     def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         if self.sort_fn == GridPatchSort.RANDOM:

@@ -51,6 +51,8 @@ from monai.utils import (
     look_up_option,
     optional_import,
 )
+from monai.utils.deprecate_utils import deprecated_arg
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration, _handle_legacy_random_state
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -104,8 +106,14 @@ SUPPORTED_PICKLE_MOD = {"pickle": pickle}
 AFFINE_TOL = 1e-3
 
 
+@deprecated_arg(
+    "rand_state", since="1.3.0", removed="1.5.0", new_name="generator", msg_suffix="Please use `generator` instead."
+)
 def get_random_patch(
-    dims: Sequence[int], patch_size: Sequence[int], rand_state: np.random.RandomState | None = None
+    dims: Sequence[int],
+    patch_size: Sequence[int],
+    rand_state: np.random.RandomState | None = None,
+    generator: SupportsRandomGeneration | None = None,
 ) -> tuple[slice, ...]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
@@ -121,9 +129,12 @@ def get_random_patch(
         (tuple of slice): a tuple of slice objects defining the patch
     """
 
+    generator = _handle_legacy_random_state(
+        rand_state=rand_state, generator=generator, return_legacy_default_random=True
+    )
+
     # choose the minimal corner of the patch
-    rand_int = np.random.randint if rand_state is None else rand_state.randint
-    min_corner = tuple(rand_int(0, ms - ps + 1) if ms > ps else 0 for ms, ps in zip(dims, patch_size))
+    min_corner = tuple(generator.integers(0, ms - ps + 1) if ms > ps else 0 for ms, ps in zip(dims, patch_size))
 
     # create the slices for each dimension which define the patch in the source array
     return tuple(slice(mc, mc + ps) for mc, ps in zip(min_corner, patch_size))
@@ -703,8 +714,8 @@ def set_rnd(obj, seed: int) -> int:
         return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
-    if hasattr(obj, "set_random_state"):
-        obj.set_random_state(seed=seed % MAX_SEED)
+    if hasattr(obj, "set_random_generator"):
+        obj.set_random_generator(seed=seed % MAX_SEED)
         return seed + 1  # a different seed for the next component
     for key in obj.__dict__:
         if key.startswith("__"):  # skip the private methods

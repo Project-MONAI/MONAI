@@ -30,7 +30,7 @@ class TestMRIUtils(unittest.TestCase):
     def test_mask(self, test_data):
         # random mask
         masker = RandomKspaceMask(center_fractions=[0.08], accelerations=[4.0], spatial_dims=1, is_complex=True)
-        masker.set_random_state(seed=0)
+        masker.set_random_generator(seed=0)
         result, _ = masker(test_data)
         mask = masker.mask
         result = result[..., mask.squeeze() == 0, :].sum()
@@ -38,7 +38,7 @@ class TestMRIUtils(unittest.TestCase):
 
         # equispaced mask
         masker = EquispacedKspaceMask(center_fractions=[0.08], accelerations=[4.0], spatial_dims=1, is_complex=True)
-        masker.set_random_state(seed=0)
+        masker.set_random_generator(seed=0)
         result, _ = masker(test_data)
         mask = masker.mask
         result = result[..., mask.squeeze() == 0, :].sum()

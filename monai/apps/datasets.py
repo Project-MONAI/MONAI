@@ -110,7 +110,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self.section = section
         self.val_frac = val_frac
         self.test_frac = test_frac
-        self.set_random_state(seed=seed)
+        self.set_random_generator(seed=seed)
         tarfile_name = root_dir / self.compressed_file_name
         dataset_dir = root_dir / self.dataset_folder_name
         self.num_class = 0
@@ -306,7 +306,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
             raise ValueError("Root directory root_dir must be a directory.")
         self.section = section
         self.val_frac = val_frac
-        self.set_random_state(seed=seed)
+        self.set_random_generator(seed=seed)
         if task not in self.resource:
             raise ValueError(f"Unsupported task: {task}, available options are: {list(self.resource.keys())}.")
         dataset_dir = root_dir / task
@@ -530,7 +530,7 @@ class TciaDataset(Randomizable, CacheDataset):
         self.ref_series_uid_tag = ref_series_uid_tag
         self.ref_sop_uid_tag = ref_sop_uid_tag
 
-        self.set_random_state(seed=seed)
+        self.set_random_generator(seed=seed)
         download_dir = os.path.join(root_dir, collection)
         load_tags = list(specific_tags)
         load_tags += [modality_tag]

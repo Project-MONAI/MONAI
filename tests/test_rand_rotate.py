@@ -85,7 +85,7 @@ class TestRandRotate2D(NumpyImageTestCase2D):
             "dtype": np.float64,
         }
         rotate_fn = RandRotate(**init_param)
-        rotate_fn.set_random_state(243)
+        rotate_fn.set_random_generator(243)
         call_param = {"img": im_type(self.imt[0])}
         rotated = rotate_fn(**call_param)
 
@@ -126,7 +126,7 @@ class TestRandRotate3D(NumpyImageTestCase3D):
             "dtype": np.float64,
         }
         rotate_fn = RandRotate(**init_param)
-        rotate_fn.set_random_state(243)
+        rotate_fn.set_random_generator(243)
         im = im_type(self.imt[0])
         call_param = {"img": im}
         rotated = rotate_fn(**call_param)

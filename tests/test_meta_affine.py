@@ -141,7 +141,7 @@ class TestAffineConsistencyITK(unittest.TestCase):
                 args_dict.update({"keys": keys})
             xform = xform_cls(**args_dict)
             if isinstance(xform, Randomizable):
-                xform.set_random_state(5)
+                xform.set_random_generator(5)
             output = xform(img)
         return output
 

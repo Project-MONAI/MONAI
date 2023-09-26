@@ -46,7 +46,7 @@ class TestRandZoom(NumpyImageTestCase2D):
                 "align_corners": align_corners,
             }
             random_zoom = RandZoom(**init_param)
-            random_zoom.set_random_state(1234)
+            random_zoom.set_random_generator(1234)
             im = p(self.imt[0])
             call_param = {"img": im}
             zoomed = random_zoom(**call_param)
@@ -71,7 +71,7 @@ class TestRandZoom(NumpyImageTestCase2D):
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
             random_zoom = RandZoom(prob=1.0, min_zoom=0.6, max_zoom=0.7, keep_size=True)
-            random_zoom.set_random_state(12)
+            random_zoom.set_random_generator(12)
             zoomed = random_zoom(im)
             test_local_inversion(random_zoom, zoomed, im)
             self.assertTrue(np.array_equal(zoomed.shape, self.imt.shape[1:]))
@@ -94,7 +94,7 @@ class TestRandZoom(NumpyImageTestCase2D):
     def test_auto_expand_3d(self):
         for p in TEST_NDARRAYS_ALL:
             random_zoom = RandZoom(prob=1.0, min_zoom=[0.8, 0.7], max_zoom=[1.2, 1.3], mode="nearest", keep_size=False)
-            random_zoom.set_random_state(1234)
+            random_zoom.set_random_generator(1234)
             test_data = p(np.random.randint(0, 2, size=[2, 2, 3, 4]))
             zoomed = random_zoom(test_data)
             assert_allclose(random_zoom._zoom, (1.048844, 1.048844, 0.962637), atol=1e-2, type_test=False)

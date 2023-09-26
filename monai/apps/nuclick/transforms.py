@@ -345,7 +345,7 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
                 indices = np.argwhere(convert_to_numpy(label) > 0)
 
             if len(indices) > 0:
-                index = self.R.randint(0, len(indices))
+                index = self.R.integers(0, len(indices))
                 return indices[index, 0], indices[index, 1]
             return None
 
@@ -382,8 +382,8 @@ class AddPointGuidanceSignald(Randomizable, MapTransform):
             x = int(math.floor(x))
             y = int(math.floor(y))
             if jitter_range:
-                x = x + self.R.randint(low=-jitter_range, high=jitter_range)
-                y = y + self.R.randint(low=-jitter_range, high=jitter_range)
+                x = x + self.R.integers(low=-jitter_range, high=jitter_range)
+                y = y + self.R.integers(low=-jitter_range, high=jitter_range)
                 x = min(max(0, x), max_x)
                 y = min(max(0, y), max_y)
             point_mask[x, y] = 1

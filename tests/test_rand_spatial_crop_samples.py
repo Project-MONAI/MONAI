@@ -90,7 +90,7 @@ class TestRandSpatialCropSamples(CropTest):
 
         for p in TEST_NDARRAYS_ALL:
             xform = RandSpatialCropSamples(**input_param)
-            xform.set_random_state(1234)
+            xform.set_random_generator(1234)
             result = xform(p(input_data))
 
             np.testing.assert_equal(len(result), input_param["num_samples"])
@@ -107,11 +107,11 @@ class TestRandSpatialCropSamples(CropTest):
             xform = RandSpatialCropSamples(**input_param)
             image = p(input_data)
             # non-lazy
-            xform.set_random_state(1234)
+            xform.set_random_generator(1234)
             expected = xform(image)
             self.assertIsInstance(expected[0], MetaTensor)
             # lazy
-            xform.set_random_state(1234)
+            xform.set_random_generator(1234)
             xform.lazy = True
             pending_result = xform(image)
             for i, _pending_result in enumerate(pending_result):

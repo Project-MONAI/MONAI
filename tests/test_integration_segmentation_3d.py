@@ -71,7 +71,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             RandRotate90d(keys=["img", "seg"], prob=0.8, spatial_axes=[0, 2]),
         ]
     )
-    train_transforms.set_random_state(1234)
+    train_transforms.set_random_generator(1234)
     val_transforms = Compose(
         [
             LoadImaged(keys=["img", "seg"], reader=readers[1]),

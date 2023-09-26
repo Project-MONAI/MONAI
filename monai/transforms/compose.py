@@ -38,6 +38,7 @@ from monai.transforms.transform import (  # noqa: F401
     apply_transform,
 )
 from monai.utils import MAX_SEED, TraceKeys, TraceStatusKeys, ensure_tuple, get_seed
+from monai.utils.utils_random_generator_adaptor import SupportsRandomGeneration
 
 logger = get_logger(__name__)
 
@@ -248,19 +249,21 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         self.map_items = map_items
         self.unpack_items = unpack_items
         self.log_stats = log_stats
-        self.set_random_state(seed=get_seed())
+        self.set_random_generator(seed=get_seed())
         self.overrides = overrides
 
     @LazyTransform.lazy.setter  # type: ignore
     def lazy(self, val: bool):
         self._lazy = val
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
-        super().set_random_state(seed=seed, state=state)
+    def set_random_generator(
+        self, seed: int | None = None, generator: SupportsRandomGeneration | None = None
+    ) -> Compose:
+        super().set_random_generator(seed=seed, generator=generator)
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
-            _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
+            _transform.set_random_generator(seed=self.R.integers(MAX_SEED, dtype="uint32"))
         return self
 
     def randomize(self, data: Any | None = None) -> None:
@@ -731,7 +734,7 @@ class SomeOf(Compose):
         if len(self.transforms) == 0:
             return data
 
-        sample_size = self.R.randint(self.min_num_transforms, self.max_num_transforms + 1)
+        sample_size = self.R.integers(self.min_num_transforms, self.max_num_transforms + 1)
         applied_order = self.R.choice(len(self.transforms), sample_size, replace=self.replace, p=self.weights).tolist()
         _lazy = self._lazy if lazy is None else lazy
 

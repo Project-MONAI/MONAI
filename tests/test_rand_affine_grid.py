@@ -201,7 +201,7 @@ class TestRandAffineGrid(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_rand_affine_grid(self, input_param, input_data, expected_val):
         g = RandAffineGrid(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         result = g(**input_data)
         if "device" in input_data:
             self.assertEqual(result.device, input_data[device])

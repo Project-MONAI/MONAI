@@ -1020,7 +1020,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         runtime_cache=False,
     ) -> None:
         if shuffle:
-            self.set_random_state(seed=seed)
+            self.set_random_generator(seed=seed)
         self.shuffle = shuffle
 
         self._start_pos: int = 0
@@ -1354,7 +1354,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
 
         """
         items = [(img, img_transform), (seg, seg_transform), (labels, label_transform)]
-        self.set_random_state(seed=get_seed())
+        self.set_random_generator(seed=get_seed())
         datasets = [Dataset(x[0], x[1]) for x in items if x[0] is not None]
         self.dataset = datasets[0] if len(datasets) == 1 else ZipDataset(datasets)
 
@@ -1364,7 +1364,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         return len(self.dataset)
 
     def randomize(self, data: Any | None = None) -> None:
-        self._seed = self.R.randint(MAX_SEED, dtype="uint32")
+        self._seed = self.R.integers(MAX_SEED, dtype="uint32")
 
     def __getitem__(self, index: int):
         self.randomize()
@@ -1373,10 +1373,10 @@ class ArrayDataset(Randomizable, _TorchDataset):
             for dataset in self.dataset.data:
                 transform = getattr(dataset, "transform", None)
                 if isinstance(transform, Randomizable):
-                    transform.set_random_state(seed=self._seed)
+                    transform.set_random_generator(seed=self._seed)
         transform = getattr(self.dataset, "transform", None)
         if isinstance(transform, Randomizable):
-            transform.set_random_state(seed=self._seed)
+            transform.set_random_generator(seed=self._seed)
         return self.dataset[index]
 
 

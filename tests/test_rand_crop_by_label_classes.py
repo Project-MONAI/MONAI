@@ -149,11 +149,11 @@ class TestRandCropByLabelClasses(unittest.TestCase):
     def test_pending_ops(self, input_param, input_data, _expected_type, _expected_shape):
         cropper = RandCropByLabelClasses(**input_param)
         # non-lazy
-        cropper.set_random_state(0)
+        cropper.set_random_generator(0)
         expected = cropper(**input_data)
         self.assertIsInstance(expected[0], MetaTensor)
         # lazy
-        cropper.set_random_state(0)
+        cropper.set_random_generator(0)
         cropper.lazy = True
         pending_result = cropper(**input_data)
         for i, _pending_result in enumerate(pending_result):

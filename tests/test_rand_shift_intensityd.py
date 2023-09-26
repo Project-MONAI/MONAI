@@ -25,7 +25,7 @@ class TestRandShiftIntensityd(NumpyImageTestCase2D):
         key = "img"
         for p in TEST_NDARRAYS:
             shifter = RandShiftIntensityd(keys=[key], offsets=1.0, prob=1.0)
-            shifter.set_random_state(seed=0)
+            shifter.set_random_generator(seed=0)
             result = shifter({key: p(self.imt)})
             np.random.seed(0)
             # simulate the randomize() of transform
@@ -38,7 +38,7 @@ class TestRandShiftIntensityd(NumpyImageTestCase2D):
         stats = IntensityStatsd(keys=key, ops="max", key_prefix="orig")
         shifter = RandShiftIntensityd(keys=[key], offsets=1.0, factor_key=["orig_max"], prob=1.0)
         data = {key: self.imt, PostFix.meta(key): {"affine": None}}
-        shifter.set_random_state(seed=0)
+        shifter.set_random_generator(seed=0)
         result = shifter(stats(data))
         np.random.seed(0)
         # simulate the randomize() of transform

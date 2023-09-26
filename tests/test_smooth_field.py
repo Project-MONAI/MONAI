@@ -91,7 +91,7 @@ class TestSmoothField(unittest.TestCase):
     @parameterized.expand(TESTS_CONTRAST)
     def test_rand_smooth_field_adjust_contrastd(self, input_param, input_data, expected_val):
         g = RandSmoothFieldAdjustContrastd(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
 
         res = g(input_data)
         for key, result in res.items():
@@ -102,7 +102,7 @@ class TestSmoothField(unittest.TestCase):
         input_param, input_data, expected_val = TESTS_CONTRAST[0]
 
         g = RandSmoothFieldAdjustContrastd(pad=1, **input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
 
         res = g(input_data)
         for key, result in res.items():
@@ -112,7 +112,7 @@ class TestSmoothField(unittest.TestCase):
     @parameterized.expand(TESTS_INTENSITY)
     def test_rand_smooth_field_adjust_intensityd(self, input_param, input_data, expected_val):
         g = RandSmoothFieldAdjustIntensityd(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
 
         res = g(input_data)
         for key, result in res.items():
@@ -123,7 +123,7 @@ class TestSmoothField(unittest.TestCase):
         input_param, input_data, expected_val = TESTS_INTENSITY[0]
 
         g = RandSmoothFieldAdjustIntensityd(pad=1, **input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
 
         res = g(input_data)
         for key, result in res.items():
@@ -133,7 +133,7 @@ class TestSmoothField(unittest.TestCase):
     @parameterized.expand(TESTS_DEFORM)
     def test_rand_smooth_deformd(self, input_param, input_data, expected_val):
         g = RandSmoothDeformd(**input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
 
         res = g(input_data)
         for key, result in res.items():
@@ -149,7 +149,7 @@ class TestSmoothField(unittest.TestCase):
                 g = RandSmoothDeformd(
                     keys=(KEY,), spatial_size=im.shape, rand_size=rsize, prob=1.0, device=device, def_range=1e-20
                 )
-                g.set_random_state(123)
+                g.set_random_generator(123)
 
                 expected_val = {KEY: im[None]}
 
@@ -165,7 +165,7 @@ class TestSmoothField(unittest.TestCase):
         input_param, input_data, expected_val = TESTS_DEFORM[0]
 
         g = RandSmoothDeformd(pad=1, **input_param)
-        g.set_random_state(123)
+        g.set_random_generator(123)
 
         res = g(input_data)
         for key, result in res.items():

@@ -118,7 +118,7 @@ class TestRand2DElastic(unittest.TestCase):
         self.assertNotIsInstance(result, MetaTensor)
         self.assertIsInstance(result, torch.Tensor)
         set_track_meta(True)
-        g.set_random_state(123)
+        g.set_random_generator(123)
         result = g(**input_data)
         assert_allclose(result, expected_val, type_test=False, rtol=_rtol, atol=1e-4)
 

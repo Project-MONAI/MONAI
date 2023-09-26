@@ -61,9 +61,9 @@ class TestRandGibbsNoised(unittest.TestCase):
         data = self.get_data(im_shape, input_type)
         alpha = [0.5, 0.8]
         t = RandGibbsNoised(KEYS, 1.0, alpha)
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out1 = t(deepcopy(data))
-        t.set_random_state(42)
+        t.set_random_generator(42)
         out2 = t(deepcopy(data))
         for k in KEYS:
             assert_allclose(out1[k], out2[k], rtol=1e-7, atol=0, type_test="tensor")
