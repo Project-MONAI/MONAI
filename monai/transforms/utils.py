@@ -18,7 +18,7 @@ from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from functools import lru_cache, wraps
 from inspect import getmembers, isclass
-from typing import Any
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -2059,44 +2059,134 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
 
 
 def distance_transform_edt(
-    img: NdarrayOrTensor, sampling: None | float | list[float] = None, force_scipy: bool = False
-) -> NdarrayOrTensor:
+    img: NdarrayOrTensor,
+    sampling: None | float | list[float] = None,
+    return_distances: bool = True,
+    return_indices: bool = False,
+    distances: NdarrayOrTensor | None=None,
+    indices: NdarrayOrTensor | None=None,
+    block_params:Tuple[int,int,int] | None=None,
+    float64_distances: bool=False,
+) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Euclidean distance transform, either GPU based with CuPy / cuCIM
-    or CPU based with scipy.ndimage.
-    Choice depends on cuCIM being available or scipy can be forced with the ``force_scipy`` flag.
+    or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
 
-    Note that the runtime running on the CPU may be really depending on the inputs size.
+    For details about the implementation, check out the 
+    `SciPy<https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html/>`_ 
+    and `cuCIM<https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt/>`_ docs.
 
     Args:
         img: Input image on which the distance transform shall be run.
             channel first array, must have shape: (num_channels, H[, W, ..., ])
-            If you need to run the transform on other shapes, use the ``force_scipy`` flag.
-            4D input gets passed channel-wise to cupy.
+            Input gets passed channel-wise to the distance-transform, thus results from this function may differ
+            from directly calling ``distance_transform_edt()`` in CuPy or scipy.
         sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
             if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
-        force_scipy: Force the CPU based scipy implementation of the euclidean distance transform
+        return_distances: Whether to calculate the distance transform.
+        return_indices: Whether to calculate the feature transform.
+        distances: An output array to store the calculated distance transform, instead of returning it. `return_distances` must be True.
+        indices: An output array to store the calculated feature transform, instead of returning it. `return_indicies` must be True.
+        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look here 
+            `distance_transform_edt<https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt/>`_
+        float64_distances: This parameter is specific to cuCIM and does not exist in SciPy. 
+            If True, use double precision in the distance computation (to match SciPy behavior). 
+            Otherwise, single precision will be used for efficiency. 
+
+    Returns:
+        distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied. 
+            It will have the same shape as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True, otherwise it will have dtype torch.float32.
+            For scipy: Will have dtype np.float64.
+        indices: The calculated feature transform. It has an image-shaped array for each dimension of the image. 
+            Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
+
     """
     distance_transform_edt, has_cucim = optional_import(
         "cucim.core.operations.morphology", name="distance_transform_edt"
     )
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == torch.device("cuda").type
 
-    if has_cp and has_cucim and not force_scipy:
+    if not return_distances and not return_indices:
+        raise RuntimeError("Neither return_distances nor return_indices True")
+    distances_original, indices_original = distances, indices
+    distances, indices = None, None
+    if use_cp:
+        distances_, indices_ = None, None
+        if return_distances:
+            dtype = torch.float64 if float64_distances else torch.float32
+            if distances is None:
+                distances = torch.zeros_like(img, dtype=dtype)
+            else:
+                if not isinstance(distances, torch.Tensor) and distances.device != img.device:
+                    raise TypeError("distances must be a torch.Tensor on the same device as img")
+                if not distances.dtype == dtype:
+                    raise TypeError("distances must be a torch.Tensor of dtype float32 or float64")
+            distances_ = convert_to_cupy(distances)
+        if return_indices:
+            dtype = torch.int32
+            if indices is None:
+                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)
+            else:
+                if not isinstance(indices, torch.Tensor) and indices.device != img.device:
+                    raise TypeError("indices must be a torch.Tensor on the same device as img")
+                if not indices.dtype == dtype:
+                    raise TypeError("indices must be a torch.Tensor of dtype int32")
+            indices_ = convert_to_cupy(indices)
         img_ = convert_to_cupy(img)
-        if img_.ndim == 4:
-            out = []
-            for channel in img_:
-                out.append(distance_transform_edt(channel, sampling=sampling))
-            distance = cp.stack(out)
-        else:
-            distance = distance_transform_edt(img_, sampling=sampling)
+        for channel_idx in range(img_.shape[0]):
+            distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances_[channel_idx] if distances_ is not None else None,
+                indices=indices_[channel_idx] if indices_ is not None else None,
+                block_params=block_params,
+                float64_distances=float64_distances,
+            )
     else:
         if not has_ndimage:
             raise RuntimeError("scipy.ndimage required if cupy is not available")
         img_ = convert_to_numpy(img)
-        distance = ndimage.distance_transform_edt(img_, sampling=sampling)
+        if return_distances:
+            if distances is None:
+                distances = np.zeros_like(img_, dtype=np.float64)
+            else:
+                if not isinstance(distances, np.ndarray):
+                    raise TypeError("distances must be a numpy.ndarray")
+                if not distances.dtype == np.float64:
+                    raise TypeError("distances must be a numpy.ndarray of dtype float64")
+        if return_indices:
+            if indices is None:
+                indices = np.zeros((img_.ndim,) + img_.shape, dtype=np.int32)
+            else:
+                if not isinstance(indices, np.ndarray):
+                    raise TypeError("indices must be a numpy.ndarray")
+                if not indices.dtype == np.int32:
+                    raise TypeError("indices must be a numpy.ndarray of dtype int32")
 
-    return convert_to_dst_type(distance, dst=img, dtype=distance.dtype)[0]
+        for channel_idx in range(img_.shape[0]):
+            ndimage.distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances[channel_idx] if distances is not None else None,
+                indices=indices[channel_idx] if indices is not None else None,
+            )
+
+    r_vals = []
+    if return_distances and distances_original is None:
+        r_vals.append(distances)
+    if return_indices and indices_original is None:
+        r_vals.append(indices)
+    if not r_vals:
+        return None
+    if len(r_vals) == 1:
+        return r_vals[0]
+    return tuple(r_vals)
+
 
 
 if __name__ == "__main__":

@@ -962,6 +962,8 @@ class DistanceTransformEDT(Transform):
                 channel first array, must have shape: (num_channels, H[, W, ..., ])
                 Input gets passed channel-wise to the distance-transform, thus results from this function may differ
                 from directly calling ``distance_transform_edt()`` in CuPy or scipy.
+            sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
+                if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
 
 
         Returns:
