@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for IO functions
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for IO functions.
 """
 
 from __future__ import annotations
@@ -46,14 +45,7 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import (
-    OptionalImportError,
-    convert_to_dst_type,
-    deprecated_arg_default,
-    ensure_tuple,
-    look_up_option,
-    optional_import,
-)
+from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -128,11 +120,10 @@ class LoadImage(Transform):
 
     """
 
-    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         reader=None,
-        image_only: bool = False,
+        image_only: bool = True,
         dtype: DtypeLike | None = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
@@ -381,14 +372,13 @@ class SaveImage(Transform):
             to where the input image has been saved.
     """
 
-    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         output_dtype: DtypeLike | None = np.float32,
-        resample: bool = True,
+        resample: bool = False,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
         scale: int | None = None,

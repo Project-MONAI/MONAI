@@ -17,7 +17,8 @@ concurrency:
 
 jobs:
   GPU-quick-py3:  # GPU with full dependencies
-    if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
+    # if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
+    if: ${{ false }}  # disable self-hosted job project-monai/monai#7039
     strategy:
       matrix:
         environment:
@@ -25,6 +26,7 @@ jobs:
           - "PT110+CUDA111"
           - "PT112+CUDA118DOCKER"
           - "PT113+CUDA116"
+          - "PT210+CUDA121DOCKER"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
           - environment: PT19+CUDA114DOCKER
@@ -41,10 +43,10 @@ jobs:
           - environment: PT113+CUDA116
             pytorch: "torch==1.13.1 torchvision==0.14.1"
             base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
-          - environment: PT114+CUDA120DOCKER
-            # 23.02: 1.14.0a0+44dac51
+          - environment: PT210+CUDA121DOCKER
+            # 23.08: 2.1.0a0+29c30b1
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
-            base: "nvcr.io/nvidia/pytorch:23.02-py3"
+            base: "nvcr.io/nvidia/pytorch:23.08-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
@@ -102,12 +104,10 @@ jobs:
         python -m pip install --upgrade pip wheel
         # fixes preinstalled ruamel_yaml error from the docker image
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
+        rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/llvmlite*  #6377
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list
-        DRIVER_VERSION=$(cat /proc/driver/nvidia/version | head -1 | awk -F' ' '{print $8}')
-        ls -ltr /usr/lib/x86_64-linux-gnu/libcuda* && ln -fs /usr/lib/x86_64-linux-gnu/libcuda.so.$DRIVER_VERSION /usr/lib/x86_64-linux-gnu/libcuda.so.1 || true
-        ls -ltr /usr/lib64/libcuda* && ln -fs /usr/lib64/libcuda.so.$DRIVER_VERSION /usr/lib64/libcuda.so.1 || true
     - name: Run quick tests (GPU)
       if: github.event.pull_request.merged != true
       run: |

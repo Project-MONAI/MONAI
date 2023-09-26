@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-from .data import MaskedInferenceWSIDataset, PatchWSIDataset, SmartCachePatchWSIDataset
-from .handlers import ProbMapProducer
 from .losses import HoVerNetLoss
 from .metrics import LesionFROC
 from .transforms.stain.array import ExtractHEStains, NormalizeHEStains

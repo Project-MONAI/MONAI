@@ -22,125 +22,18 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.bundle import BundleWorkflow, ConfigWorkflow
-from monai.data import DataLoader, Dataset
-from monai.engines import SupervisedEvaluator
+from monai.bundle import ConfigWorkflow
+from monai.data import Dataset
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.networks.nets import UNet
-from monai.transforms import (
-    Activationsd,
-    AsDiscreted,
-    Compose,
-    EnsureChannelFirstd,
-    LoadImage,
-    LoadImaged,
-    SaveImaged,
-    ScaleIntensityd,
-)
-from monai.utils import BundleProperty, set_determinism
+from monai.transforms import Compose, LoadImage
+from tests.nonconfig_workflow import NonConfigWorkflow
 
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")]
 
 TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml")]
 
 TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
-
-
-class NonConfigWorkflow(BundleWorkflow):
-    """
-    Test class simulates the bundle workflow defined by Python script directly.
-
-    """
-
-    def __init__(self, filename, output_dir):
-        super().__init__(workflow="inference")
-        self.filename = filename
-        self.output_dir = output_dir
-        self._bundle_root = "will override"
-        self._device = torch.device("cpu")
-        self._network_def = None
-        self._inferer = None
-        self._preprocessing = None
-        self._postprocessing = None
-        self._evaluator = None
-
-    def initialize(self):
-        set_determinism(0)
-        if self._preprocessing is None:
-            self._preprocessing = Compose(
-                [LoadImaged(keys="image"), EnsureChannelFirstd(keys="image"), ScaleIntensityd(keys="image")]
-            )
-        dataset = Dataset(data=[{"image": self.filename}], transform=self._preprocessing)
-        dataloader = DataLoader(dataset, batch_size=1, num_workers=4)
-
-        if self._network_def is None:
-            self._network_def = UNet(
-                spatial_dims=3,
-                in_channels=1,
-                out_channels=2,
-                channels=[2, 2, 4, 8, 4],
-                strides=[2, 2, 2, 2],
-                num_res_units=2,
-                norm="batch",
-            )
-        if self._inferer is None:
-            self._inferer = SlidingWindowInferer(roi_size=(64, 64, 32), sw_batch_size=4, overlap=0.25)
-
-        if self._postprocessing is None:
-            self._postprocessing = Compose(
-                [
-                    Activationsd(keys="pred", softmax=True),
-                    AsDiscreted(keys="pred", argmax=True),
-                    SaveImaged(keys="pred", output_dir=self.output_dir, output_postfix="seg"),
-                ]
-            )
-
-        self._evaluator = SupervisedEvaluator(
-            device=self._device,
-            val_data_loader=dataloader,
-            network=self._network_def.to(self._device),
-            inferer=self._inferer,
-            postprocessing=self._postprocessing,
-            amp=False,
-        )
-
-    def run(self):
-        self._evaluator.run()
-
-    def finalize(self):
-        return True
-
-    def _get_property(self, name, property):
-        if name == "bundle_root":
-            return self._bundle_root
-        if name == "device":
-            return self._device
-        if name == "network_def":
-            return self._network_def
-        if name == "inferer":
-            return self._inferer
-        if name == "preprocessing":
-            return self._preprocessing
-        if name == "postprocessing":
-            return self._postprocessing
-        if property[BundleProperty.REQUIRED]:
-            raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
-
-    def _set_property(self, name, property, value):
-        if name == "bundle_root":
-            self._bundle_root = value
-        elif name == "device":
-            self._device = value
-        elif name == "network_def":
-            self._network_def = value
-        elif name == "inferer":
-            self._inferer = value
-        elif name == "preprocessing":
-            self._preprocessing = value
-        elif name == "postprocessing":
-            self._postprocessing = value
-        elif property[BundleProperty.REQUIRED]:
-            raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
 
 class TestBundleWorkflow(unittest.TestCase):
@@ -202,7 +95,7 @@ class TestBundleWorkflow(unittest.TestCase):
         }
         # test standard MONAI model-zoo config workflow
         inferer = ConfigWorkflow(
-            workflow="infer",
+            workflow_type="infer",
             config_file=config_file,
             logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
             **override,
@@ -213,7 +106,7 @@ class TestBundleWorkflow(unittest.TestCase):
     def test_train_config(self, config_file):
         # test standard MONAI model-zoo config workflow
         trainer = ConfigWorkflow(
-            workflow="train",
+            workflow_type="train",
             config_file=config_file,
             logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
             init_id="initialize",
@@ -223,6 +116,12 @@ class TestBundleWorkflow(unittest.TestCase):
         # should initialize before parsing any bundle content
         trainer.initialize()
         # test required and optional properties
+        self.assertListEqual(trainer.check_properties(), [])
+        # test override optional properties
+        trainer.parser.update(
+            pairs={"validate#evaluator#postprocessing": "$@validate#postprocessing if @val_interval > 0 else None"}
+        )
+        trainer.initialize()
         self.assertListEqual(trainer.check_properties(), [])
         # test read / write the properties
         dataset = trainer.train_dataset

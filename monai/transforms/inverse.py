@@ -23,8 +23,17 @@ from monai import transforms
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
-from monai.transforms.transform import LazyTransform, Transform
-from monai.utils import LazyAttr, MetaKeys, TraceKeys, convert_to_dst_type, convert_to_numpy, convert_to_tensor
+from monai.transforms.traits import InvertibleTrait
+from monai.transforms.transform import Transform
+from monai.utils import (
+    LazyAttr,
+    MetaKeys,
+    TraceKeys,
+    TraceStatusKeys,
+    convert_to_dst_type,
+    convert_to_numpy,
+    convert_to_tensor,
+)
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -77,13 +86,7 @@ class TraceableTransform(Transform):
     @staticmethod
     def transform_info_keys():
         """The keys to store necessary info of an applied transform."""
-        return (
-            TraceKeys.CLASS_NAME,
-            TraceKeys.ID,
-            TraceKeys.TRACING,
-            TraceKeys.LAZY_EVALUATION,
-            TraceKeys.DO_TRANSFORM,
-        )
+        return (TraceKeys.CLASS_NAME, TraceKeys.ID, TraceKeys.TRACING, TraceKeys.DO_TRANSFORM)
 
     def get_transform_info(self) -> dict:
         """
@@ -93,7 +96,6 @@ class TraceableTransform(Transform):
             self.__class__.__name__,
             id(self),
             self.tracing,
-            self.lazy_evaluation if isinstance(self, LazyTransform) else False,
             self._do_transform if hasattr(self, "_do_transform") else True,
         )
         return dict(zip(self.transform_info_keys(), vals))
@@ -109,8 +111,8 @@ class TraceableTransform(Transform):
                 set ``replace=True`` (default False) to rewrite the last transform infor in
                 applied_operation/pending_operation based on ``self.get_transform_info()``.
         """
+        lazy_eval = kwargs.get("lazy", False)
         transform_info = self.get_transform_info()
-        lazy_eval = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
         do_transform = transform_info.get(TraceKeys.DO_TRANSFORM, True)
         kwargs = kwargs or {}
         replace = kwargs.pop("replace", False)  # whether to rewrite the most recently pushed transform info
@@ -123,10 +125,11 @@ class TraceableTransform(Transform):
                 xform = data.pending_operations.pop()
                 extra = xform.copy()
                 xform.update(transform_info)
-                meta_obj = self.push_transform(data, transform_info=xform, lazy_evaluation=lazy_eval, extra_info=extra)
-                return data.copy_meta_from(meta_obj)
-            return data
-        kwargs["lazy_evaluation"] = lazy_eval
+            else:  # lazy, replace=True, do_transform=False
+                xform, extra = transform_info, {}
+            meta_obj = self.push_transform(data, transform_info=xform, lazy=True, extra_info=extra)
+            return data.copy_meta_from(meta_obj)
+        kwargs["lazy"] = lazy_eval
         if "transform_info" in kwargs and isinstance(kwargs["transform_info"], dict):
             kwargs["transform_info"].update(transform_info)
         else:
@@ -144,7 +147,7 @@ class TraceableTransform(Transform):
         extra_info: dict | None = None,
         orig_size: tuple | None = None,
         transform_info=None,
-        lazy_evaluation=False,
+        lazy=False,
     ):
         """
         Update a stack of applied/pending transforms metadata of ``data``.
@@ -162,7 +165,7 @@ class TraceableTransform(Transform):
             orig_size: sometimes during the inverse it is useful to know what the size
                 of the original image was, in which case it can be supplied here.
             transform_info: info from self.get_transform_info().
-            lazy_evaluation: whether to push the transform to pending_operations or applied_operations.
+            lazy: whether to push the transform to pending_operations or applied_operations.
 
         Returns:
 
@@ -175,10 +178,10 @@ class TraceableTransform(Transform):
         if isinstance(data_t, MetaTensor):
             out_obj.copy_meta_from(data_t, keys=out_obj.__dict__.keys())
 
-        if lazy_evaluation and (not get_track_meta()):
+        if lazy and (not get_track_meta()):
             warnings.warn("metadata is not tracked, please call 'set_track_meta(True)' if doing lazy evaluation.")
 
-        if not lazy_evaluation and affine is not None and isinstance(data_t, MetaTensor):
+        if not lazy and affine is not None and isinstance(data_t, MetaTensor):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()
             orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
@@ -201,6 +204,10 @@ class TraceableTransform(Transform):
             info[TraceKeys.ORIG_SIZE] = data_t.peek_pending_shape()
         elif hasattr(data_t, "shape"):
             info[TraceKeys.ORIG_SIZE] = data_t.shape[1:]
+
+        # add lazy status to the transform info
+        info[TraceKeys.LAZY] = lazy
+
         # include extra_info
         if extra_info is not None:
             extra_info.pop(LazyAttr.SHAPE, None)
@@ -208,19 +215,36 @@ class TraceableTransform(Transform):
             info[TraceKeys.EXTRA_INFO] = extra_info
 
         # push the transform info to the applied_operation or pending_operation stack
-        if lazy_evaluation:
+        if lazy:
             if sp_size is None:
                 if LazyAttr.SHAPE not in info:
-                    warnings.warn("spatial size is None in push transform.")
+                    info[LazyAttr.SHAPE] = info.get(TraceKeys.ORIG_SIZE, [])
             else:
-                info[LazyAttr.SHAPE] = tuple(convert_to_numpy(sp_size, wrap_sequence=True).tolist())
+                info[LazyAttr.SHAPE] = sp_size
+            info[LazyAttr.SHAPE] = tuple(convert_to_numpy(info[LazyAttr.SHAPE], wrap_sequence=True).tolist())
             if affine is None:
                 if LazyAttr.AFFINE not in info:
-                    warnings.warn("affine is None in push transform.")
+                    info[LazyAttr.AFFINE] = MetaTensor.get_default_affine()
             else:
-                info[LazyAttr.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"))
+                info[LazyAttr.AFFINE] = affine
+            info[LazyAttr.AFFINE] = convert_to_tensor(info[LazyAttr.AFFINE], device=torch.device("cpu"))
             out_obj.push_pending_operation(info)
         else:
+            if out_obj.pending_operations:
+                transform_name = info.get(TraceKeys.CLASS_NAME, "") if isinstance(info, dict) else ""
+                msg = (
+                    f"Transform {transform_name} has been applied to a MetaTensor with pending operations: "
+                    f"{[x.get(TraceKeys.CLASS_NAME) for x in out_obj.pending_operations]}"
+                )
+                if key is not None:
+                    msg += f" for key {key}"
+
+                pend = out_obj.pending_operations[-1]
+                statuses = pend.get(TraceKeys.STATUSES, dict())
+                messages = statuses.get(TraceStatusKeys.PENDING_DURING_APPLY, list())
+                messages.append(msg)
+                statuses[TraceStatusKeys.PENDING_DURING_APPLY] = messages
+                info[TraceKeys.STATUSES] = statuses
             out_obj.push_applied_operation(info)
         if isinstance(data, Mapping):
             if not isinstance(data, dict):
@@ -244,6 +268,9 @@ class TraceableTransform(Transform):
         if xform_id == TraceKeys.NONE:
             return
         xform_name = transform.get(TraceKeys.CLASS_NAME, "")
+        warning_msg = transform.get(TraceKeys.EXTRA_INFO, {}).get("warn")
+        if warning_msg:
+            warnings.warn(warning_msg)
         # basic check if multiprocessing uses 'spawn' (objects get recreated so don't have same ID)
         if torch.multiprocessing.get_start_method() in ("spawn", None) and xform_name == self.__class__.__name__:
             return
@@ -309,7 +336,7 @@ class TraceableTransform(Transform):
         self.tracing = prev
 
 
-class InvertibleTransform(TraceableTransform):
+class InvertibleTransform(TraceableTransform, InvertibleTrait):
     """Classes for invertible transforms.
 
     This class exists so that an ``invert`` method can be implemented. This allows, for

@@ -55,7 +55,18 @@ exclude_patterns = [
 
 def generate_apidocs(*args):
     """Generate API docs automatically by trawling the available modules"""
-    module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "monai"))
+
+    import pandas as pd
+    from monai.bundle.properties import TrainProperties, InferProperties, MetaProperties
+
+    csv_file = os.path.join(os.path.dirname(__file__), "train_properties.csv")  # used in mb_properties.rst
+    pd.DataFrame.from_dict(TrainProperties, orient="index").iloc[:, :3].to_csv(csv_file)
+    csv_file = os.path.join(os.path.dirname(__file__), "infer_properties.csv")
+    pd.DataFrame.from_dict(InferProperties, orient="index").iloc[:, :3].to_csv(csv_file)
+    csv_file = os.path.join(os.path.dirname(__file__), "meta_properties.csv")
+    pd.DataFrame.from_dict(MetaProperties, orient="index").iloc[:, :3].to_csv(csv_file)
+
+    module_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "monai"))
     output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "apidocs"))
     apidoc_command_path = "sphinx-apidoc"
     if hasattr(sys, "real_prefix"):  # called from a virtualenv
@@ -86,6 +97,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosectionlabel",
+    "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
 ]
 
@@ -114,7 +126,7 @@ html_theme_options = {
         {"name": "Twitter", "url": "https://twitter.com/projectmonai", "icon": "fab fa-twitter-square"},
     ],
     "collapse_navigation": True,
-    "navigation_depth": 3,
+    "navigation_depth": 1,
     "show_toc_level": 1,
     "footer_start": ["copyright"],
     "navbar_align": "content",

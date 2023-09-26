@@ -22,41 +22,58 @@ from parameterized import parameterized
 from torch.utils.data import DataLoader
 
 from monai.data import ArrayDataset
-from monai.transforms import AddChannel, Compose, LoadImage, RandAdjustContrast, RandGaussianNoise, Spacing
+from monai.transforms import Compose, EnsureChannelFirst, LoadImage, RandAdjustContrast, RandGaussianNoise, Spacing
 
 TEST_CASE_1 = [
-    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
-    Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), RandGaussianNoise(prob=1.0)]),
+    Compose([LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), RandGaussianNoise(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
 
 TEST_CASE_2 = [
-    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
-    Compose([LoadImage(image_only=True), AddChannel(), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), RandAdjustContrast(prob=1.0)]),
+    Compose([LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), RandAdjustContrast(prob=1.0)]),
     (0, 1),
     (1, 128, 128, 128),
 ]
 
 
 class TestCompose(Compose):
-    def __call__(self, input_):
+    def __call__(self, input_, lazy):
         img = self.transforms[0](input_)
         metadata = img.meta
         img = self.transforms[1](img)
-        img = self.transforms[2](img, metadata["affine"])
+        img = self.transforms[2](img, lazy=lazy)
         metadata = img.meta
         return self.transforms[3](img), metadata
 
 
 TEST_CASE_3 = [
-    TestCompose([LoadImage(image_only=True), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
-    TestCompose([LoadImage(image_only=True), AddChannel(), Spacing(pixdim=(2, 2, 4)), RandAdjustContrast(prob=1.0)]),
+    TestCompose(
+        [
+            LoadImage(image_only=True),
+            EnsureChannelFirst(channel_dim="no_channel"),
+            Spacing(pixdim=(2, 2, 4)),
+            RandAdjustContrast(prob=1.0),
+        ]
+    ),
+    TestCompose(
+        [
+            LoadImage(image_only=True),
+            EnsureChannelFirst(channel_dim="no_channel"),
+            Spacing(pixdim=(2, 2, 4)),
+            RandAdjustContrast(prob=1.0),
+        ]
+    ),
     (0, 2),
     (1, 64, 64, 33),
 ]
 
-TEST_CASE_4 = [Compose([LoadImage(image_only=True), AddChannel(), RandGaussianNoise(prob=1.0)]), (1, 128, 128, 128)]
+TEST_CASE_4 = [
+    Compose([LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), RandGaussianNoise(prob=1.0)]),
+    (1, 128, 128, 128),
+]
 
 
 class TestArrayDataset(unittest.TestCase):

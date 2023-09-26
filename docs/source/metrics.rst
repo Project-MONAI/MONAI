@@ -61,7 +61,7 @@ Metrics
 
 `Mean IoU`
 ----------
-.. autofunction:: compute_meaniou
+.. autofunction:: compute_iou
 
 .. autoclass:: MeanIoU
     :members:
@@ -141,6 +141,24 @@ Metrics
 -------------------------------------
 .. autoclass:: monai.metrics.regression.SSIMMetric
 
+`Multi-scale structural similarity index measure`
+-------------------------------------------------
+.. autoclass:: MultiScaleSSIMMetric
+
+`Fréchet Inception Distance`
+------------------------------
+.. autofunction:: compute_frechet_distance
+
+.. autoclass:: FIDMetric
+    :members:
+
+`Maximum Mean Discrepancy`
+------------------------------
+.. autofunction:: compute_mmd
+
+.. autoclass:: MMDMetric
+    :members:
+
 `Cumulative average`
 --------------------
 .. autoclass:: CumulativeAverage
@@ -155,6 +173,8 @@ Metrics
 ------------------------------
 .. autoclass:: MetricsReloadedCategorical
     :members:
+
+
 
 Utilities
 ---------

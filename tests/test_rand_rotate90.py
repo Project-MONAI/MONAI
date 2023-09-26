@@ -37,7 +37,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=123)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
     def test_k(self):
         init_param = {"max_k": 2}
@@ -60,7 +60,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=123)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
     def test_spatial_axes(self):
         rotate = RandRotate90(spatial_axes=(0, 1), prob=1.0)
@@ -71,7 +71,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             rotated = rotate(**call_param)
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=1234)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             self.assertEqual(len(rotated.applied_operations), 1)
             expected = [np.rot90(channel, rotate._rand_k, (0, 1)) for channel in self.imt[0]]
@@ -88,7 +88,7 @@ class TestRandRotate90(NumpyImageTestCase2D):
             rotated = rotate(**call_param)
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=234)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]

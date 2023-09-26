@@ -38,7 +38,7 @@ class Filter(abc.ABC):
 
 class SummaryFilter(Filter):
     """
-    Summary filter to content of ExchangeObject.
+    Summary filter to show content of ExchangeObject.
     """
 
     def __call__(self, data: ExchangeObject, extra: dict | None = None) -> ExchangeObject:

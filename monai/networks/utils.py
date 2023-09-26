@@ -14,6 +14,7 @@ Utilities and types for defining networks, these depend on PyTorch.
 
 from __future__ import annotations
 
+import io
 import re
 import warnings
 from collections import OrderedDict
@@ -26,11 +27,15 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from monai.apps.utils import get_logger, optional_import
+from monai.apps.utils import get_logger
 from monai.config import PathLike
 from monai.utils.misc import ensure_tuple, save_obj, set_determinism
-from monai.utils.module import look_up_option, pytorch_after
+from monai.utils.module import look_up_option, optional_import, pytorch_after
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
+
+onnx, _ = optional_import("onnx")
+onnxreference, _ = optional_import("onnx.reference")
+onnxruntime, _ = optional_import("onnxruntime")
 
 __all__ = [
     "one_hot",
@@ -45,6 +50,7 @@ __all__ = [
     "get_state_dict",
     "copy_model_state",
     "save_state",
+    "convert_to_onnx",
     "convert_to_torchscript",
     "convert_to_trt",
     "meshgrid_ij",
@@ -53,9 +59,32 @@ __all__ = [
     "replace_modules_temp",
     "look_up_named_module",
     "set_named_module",
+    "has_nvfuser_instance_norm",
 ]
 
 logger = get_logger(module_name=__name__)
+
+_has_nvfuser = None
+
+
+def has_nvfuser_instance_norm():
+    """whether the current environment has InstanceNorm3dNVFuser
+    https://github.com/NVIDIA/apex/blob/23.05-devel/apex/normalization/instance_norm.py#L15-L16
+    """
+    global _has_nvfuser
+    if _has_nvfuser is not None:
+        return _has_nvfuser
+
+    _, _has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
+    if not _has_nvfuser:
+        return False
+    try:
+        import importlib
+
+        importlib.import_module("instance_norm_nvfuser_cuda")
+    except ImportError:
+        _has_nvfuser = False
+    return _has_nvfuser
 
 
 def look_up_named_module(name: str, mod, print_all_options=False):
@@ -449,6 +478,7 @@ def copy_model_state(
     mapping=None,
     exclude_vars=None,
     inplace=True,
+    filter_func=None,
 ):
     """
     Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
@@ -461,7 +491,7 @@ def copy_model_state(
 
     Args:
         dst: a pytorch module or state dict to be updated.
-        src: a pytorch module or state dist used to get the values used for the update.
+        src: a pytorch module or state dict used to get the values used for the update.
         dst_prefix: `dst` key prefix, so that `dst[dst_prefix + src_key]`
             will be assigned to the value of `src[src_key]`.
         mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[dst_prefix + dst_key]`
@@ -470,6 +500,8 @@ def copy_model_state(
             so that their values are not overwritten by `src`.
         inplace: whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
             This option is only available when `dst` is a `torch.nn.Module`.
+        filter_func: a filter function used to filter the weights to be loaded.
+            See 'filter_swinunetr' in "monai.networks.nets.swin_unetr.py".
 
     Examples:
         .. code-block:: python
@@ -507,6 +539,12 @@ def copy_model_state(
                 warnings.warn(f"Param. shape changed from {dst_dict[dst_key].shape} to {src_dict[s].shape}.")
             dst_dict[dst_key] = src_dict[s]
             updated_keys.append(dst_key)
+    if filter_func is not None:
+        for key, value in src_dict.items():
+            new_pair = filter_func(key, value)
+            if new_pair is not None and new_pair[0] not in to_skip:
+                dst_dict[new_pair[0]] = new_pair[1]
+                updated_keys.append(new_pair[0])
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
@@ -552,6 +590,127 @@ def save_state(src: torch.nn.Module | dict, path: PathLike, **kwargs):
     save_obj(obj=ckpt, path=path, **kwargs)
 
 
+def convert_to_onnx(
+    model: nn.Module,
+    inputs: Sequence[Any],
+    input_names: Sequence[str] | None = None,
+    output_names: Sequence[str] | None = None,
+    opset_version: int | None = None,
+    dynamic_axes: Mapping[str, Mapping[int, str]] | Mapping[str, Sequence[int]] | None = None,
+    filename: Any | None = None,
+    verify: bool = False,
+    device: torch.device | None = None,
+    use_ort: bool = False,
+    ort_provider: Sequence[str] | None = None,
+    rtol: float = 1e-4,
+    atol: float = 0.0,
+    use_trace: bool = True,
+    **kwargs,
+):
+    """
+    Utility to convert a model into ONNX model and optionally verify with ONNX or onnxruntime.
+    See also: https://pytorch.org/docs/stable/onnx.html for how to convert a PyTorch model to ONNX.
+
+    Args:
+        model: source PyTorch model to save.
+        inputs: input sample data used by pytorch.onnx.export. It is also used in ONNX model verification.
+        input_names: optional input names of the ONNX model.
+        output_names: optional output names of the ONNX model.
+        opset_version: version of the (ai.onnx) opset to target. Must be >= 7 and not exceed
+        the latest opset version supported by PyTorch, for more details:
+            https://github.com/onnx/onnx/blob/main/docs/Operators.md and
+            https://github.com/pytorch/pytorch/blob/master/torch/onnx/_constants.py
+        dynamic_axes: specifies axes of tensors as dynamic (i.e. known only at run-time). If set to None,
+            the exported model will have the shapes of all input and output tensors set to match given
+            ones, for more details: https://pytorch.org/docs/stable/onnx.html#torch.onnx.export.
+        filename: optional filename to save the ONNX model, if None, don't save the ONNX model.
+        verify: whether to verify the ONNX model with ONNX or onnxruntime.
+        device: target PyTorch device to verify the model, if None, use CUDA if available.
+        use_ort: whether to use onnxruntime to verify the model.
+        ort_provider": onnxruntime provider to use, default is ["CPUExecutionProvider"].
+        rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
+        use_trace: whether to use `torch.jit.trace` to export the torchscript model.
+        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+            https://pytorch.org/docs/master/generated/torch.jit.script.html.
+
+    """
+    model.eval()
+    with torch.no_grad():
+        torch_versioned_kwargs = {}
+        if use_trace:
+            # let torch.onnx.export to trace the model.
+            mode_to_export = model
+        else:
+            if not pytorch_after(1, 10):
+                if "example_outputs" not in kwargs:
+                    # https://github.com/pytorch/pytorch/blob/release/1.9/torch/onnx/__init__.py#L182
+                    raise TypeError(
+                        "example_outputs is required in scripting mode before PyTorch 1.10."
+                        "Please provide example outputs or use trace mode to export onnx model."
+                    )
+                torch_versioned_kwargs["example_outputs"] = kwargs["example_outputs"]
+                del kwargs["example_outputs"]
+            mode_to_export = torch.jit.script(model, **kwargs)
+
+        if filename is None:
+            f = io.BytesIO()
+            torch.onnx.export(
+                mode_to_export,
+                tuple(inputs),
+                f=f,
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                opset_version=opset_version,
+                **torch_versioned_kwargs,
+            )
+            onnx_model = onnx.load_model_from_string(f.getvalue())
+        else:
+            torch.onnx.export(
+                mode_to_export,
+                tuple(inputs),
+                f=filename,
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                opset_version=opset_version,
+                **torch_versioned_kwargs,
+            )
+            onnx_model = onnx.load(filename)
+
+    if verify:
+        if device is None:
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        inputs = [i.to(device) if isinstance(i, torch.Tensor) else i for i in inputs]
+        model = model.to(device)
+
+        with torch.no_grad():
+            set_determinism(seed=0)
+            torch_out = ensure_tuple(model(*inputs), True)
+
+        set_determinism(seed=0)
+        model_input_names = [i.name for i in onnx_model.graph.input]
+        input_dict = dict(zip(model_input_names, [i.cpu().numpy() for i in inputs]))
+        if use_ort:
+            ort_sess = onnxruntime.InferenceSession(
+                onnx_model.SerializeToString(), providers=ort_provider if ort_provider else ["CPUExecutionProvider"]
+            )
+            onnx_out = ort_sess.run(None, input_dict)
+        else:
+            sess = onnxreference.ReferenceEvaluator(onnx_model)
+            onnx_out = sess.run(None, input_dict)
+        set_determinism(seed=None)
+        # compare onnx/ort and PyTorch results
+        for r1, r2 in zip(torch_out, onnx_out):
+            if isinstance(r1, torch.Tensor):
+                assert_fn = torch.testing.assert_close if pytorch_after(1, 11) else torch.testing.assert_allclose
+                assert_fn(r1.cpu(), convert_to_tensor(r2, dtype=r1.dtype), rtol=rtol, atol=atol)  # type: ignore
+
+    return onnx_model
+
+
 def convert_to_torchscript(
     model: nn.Module,
     filename_or_obj: Any | None = None,
@@ -581,10 +740,9 @@ def convert_to_torchscript(
         device: target device to verify the model, if None, use CUDA if available.
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
-        use_trace: whether to use `torch.jit.trace` to export the torchscript model.
-
-        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
-            https://pytorch.org/docs/master/generated/torch.jit.script.html.
+        use_trace: whether to use `torch.jit.trace` to export the TorchScript model.
+        kwargs: other arguments except `obj` for `torch.jit.script()` or `torch.jit.trace()` (if use_trace is True)
+            to convert model, for more details: https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
     model.eval()
@@ -592,7 +750,7 @@ def convert_to_torchscript(
         if use_trace:
             if inputs is None:
                 raise ValueError("Missing input data for tracing convert.")
-            script_module = torch.jit.trace(model, example_inputs=inputs)
+            script_module = torch.jit.trace(model, example_inputs=inputs, **kwargs)
         else:
             script_module = torch.jit.script(model, **kwargs)
         if filename_or_obj is not None:
@@ -624,6 +782,79 @@ def convert_to_torchscript(
     return script_module
 
 
+def _onnx_trt_compile(
+    onnx_model,
+    min_shape: Sequence[int],
+    opt_shape: Sequence[int],
+    max_shape: Sequence[int],
+    device: int,
+    precision: str,
+    input_names: Sequence[str] | None,
+    output_names: Sequence[str] | None,
+):
+    """
+    This function takes an ONNX model as input, exports it to a TensorRT engine, wraps the TensorRT engine
+    to a TensorRT engine-based TorchScript model and return the TorchScript model.
+
+    Args:
+        onnx_model: the source ONNX model to compile.
+        min_shape: the minimum input shape of the converted TensorRT model.
+        opt_shape: the optimization input shape of the model, on which the TensorRT optimizes.
+        max_shape: the maximum input shape of the converted TensorRT model.
+        device: the target GPU index to convert and verify the model.
+        precision: the weight precision of the converted TensorRT engine-based TorchScript model.
+            Should be 'fp32' or 'fp16'.
+        input_names: optional input names of the ONNX model. Should be a sequence like
+            `['input_0', 'input_1', ..., 'input_N']` where N equals to the number of the
+            model inputs.
+        output_names: optional output names of the ONNX model. Should be a sequence like
+            `['output_0', 'output_1', ..., 'output_N']` where N equals to the number of
+            the model outputs.
+
+    """
+    trt, _ = optional_import("tensorrt", "8.5.3")
+    torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
+
+    input_shapes = (min_shape, opt_shape, max_shape)
+    # default to an empty list to fit the `torch_tensorrt.ts.embed_engine_in_new_module` function.
+    input_names = [] if not input_names else input_names
+    output_names = [] if not output_names else output_names
+
+    # set up the TensorRT builder
+    torch_tensorrt.set_device(device)
+    logger = trt.Logger(trt.Logger.WARNING)
+    builder = trt.Builder(logger)
+    network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    profile = builder.create_optimization_profile()
+    if input_names:
+        profile.set_shape(input_names[0], *input_shapes)
+
+    # parse the ONNX model
+    parser = trt.OnnxParser(network, logger)
+    success = parser.parse(onnx_model.SerializeToString())
+    if not success:
+        parser_error_message = ""
+        for idx in range(parser.num_errors):
+            parser_error_message += parser.get_error(idx).desc() + "\n"
+        raise Exception(f"TensorRT cannot parse the ONNX model, due to:\n{parser_error_message}")
+
+    # set up the conversion configuration
+    config = builder.create_builder_config()
+    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 31)
+    config.add_optimization_profile(profile)
+    if precision == "fp16":
+        config.set_flag(trt.BuilderFlag.FP16)
+    serialized_engine = builder.build_serialized_network(network, config)
+    f = io.BytesIO()
+    f.write(serialized_engine)
+
+    # wrap the serialized TensorRT engine back to a TorchScript module.
+    trt_model = torch_tensorrt.ts.embed_engine_in_new_module(
+        f.getvalue(), torch.device(f"cuda:{device}"), input_names, output_names
+    )
+    return trt_model
+
+
 def convert_to_trt(
     model: nn.Module,
     precision: str,
@@ -633,29 +864,53 @@ def convert_to_trt(
     filename_or_obj: Any | None = None,
     verify: bool = False,
     device: int | None = None,
+    use_onnx: bool | None = False,
+    onnx_input_names: Sequence[str] | None = ("input_0",),
+    onnx_output_names: Sequence[str] | None = ("output_0",),
     rtol: float = 1e-2,
     atol: float = 0.0,
+    **kwargs,
 ):
     """
-    Utility to convert a model into a TensorRT engine based torchscript model with optional input / output data verification.
+    Utility to export a model into a TensorRT engine-based TorchScript model with optional input / output data verification.
+
+    There are two ways to export a model:
+    1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
+    2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
+    TensorRT engine-based TorchScript.
+
+    When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
+    may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
+    the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
+    not supported by the ONNX if exported through `torch.jit.script`.
 
     Args:
         model: a source PyTorch model to convert.
-        precision: the weight precision of the converted TensorRT engine based torchscript models. Should be 'fp32' or 'fp16'.
+        precision: the weight precision of the converted TensorRT engine based TorchScript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D].
-        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be converted.
-            Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model input should
-            between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best peformance batchsize that the TensorRT trys to fit.
-            We suggest the `OPT_BATCH` to be the most frequently used input batchsize in your application, default to None.
-        use_trace: whether using `torch.jit.trace` to convert the pytorch model to torchscript model and then convert to
-            a TensorRT engine based torchscript model, default to False.
+        dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
+            converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH]. After converted, the batchsize of model
+            input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the
+            TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in the application,
+            default to None.
+        use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
+            a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True), default to False.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
-            file path name to load the TensorRT engine based torchscript model for verifying.
-        verify: whether to verify the input and output of the TensorRT engine based torchscript model.
+            file path name to load the TensorRT engine based TorchScript model for verifying.
+        verify: whether to verify the input and output of the TensorRT engine based TorchScript model.
         device: the target GPU index to convert and verify the model. If None, use #0 GPU.
+        use_onnx: whether to use the ONNX-TensorRT way to export the TensorRT engine-based TorchScript model.
+        onnx_input_names: optional input names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `('input_0', 'input_1', ..., 'input_N')` where N equals to the number of the model inputs. If not
+            given, will use `('input_0',)`, which supposes the model only has one input.
+        onnx_output_names: optional output names of the ONNX model. This arg is only useful when `use_onnx` is True. Should be
+            a sequence like `('output_0', 'output_1', ..., 'output_N')` where N equals to the number of the model outputs. If
+            not given, will use `('output_0',)`, which supposes the model only has one output.
         rtol: the relative tolerance when comparing the outputs between the PyTorch model and TensorRT model.
         atol: the absolute tolerance when comparing the outputs between the PyTorch model and TensorRT model.
+        kwargs: other arguments except `module`, `inputs`, `enabled_precisions` and `device` for `torch_tensorrt.compile()`
+            to compile model, for more details: https://pytorch.org/TensorRT/py_api/torch_tensorrt.html#torch-tensorrt-py.
     """
 
     torch_tensorrt, _ = optional_import("torch_tensorrt", version="1.4.0")
@@ -669,7 +924,7 @@ def convert_to_trt(
     if not dynamic_batchsize:
         warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
 
-    if (not (dynamic_batchsize is None)) and (len(dynamic_batchsize) != 3):
+    if (dynamic_batchsize is not None) and (len(dynamic_batchsize) != 3):
         warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
 
     device = device if device else 0
@@ -677,17 +932,12 @@ def convert_to_trt(
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
-    # convert the torch model, torchscript model and input to target device
-    model = model.eval().to(target_device)
-    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
-    ir_model.eval().to(target_device)
-
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
         scale_shape = [*input_shape]
         scale_shape[0] *= scale_num
         return scale_shape
 
-    # Use the dynamic batchsize range to generate compiler input and compile the model
+    # Use the dynamic batchsize range to generate the min, opt and max model input shape
     if dynamic_batchsize:
         min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
         opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
@@ -695,16 +945,49 @@ def convert_to_trt(
     else:
         min_input_shape = opt_input_shape = max_input_shape = input_shape
 
-    with torch.no_grad():
-        with torch.cuda.device(device=device):
-            input_placeholder = [
-                torch_tensorrt.Input(min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape)
-            ]
-            trt_model = torch_tensorrt.compile(
-                ir_model, inputs=input_placeholder, enabled_precisions=convert_precision, device=target_device
-            )
+    # convert the torch model to a TorchScript model on target device
+    model = model.eval().to(target_device)
+    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+    ir_model.eval()
 
-    # verify the outputs between the trt model and torch model
+    if use_onnx:
+        # set the batch dim as dynamic
+        dynamic_axes = {k: {0: "batchsize"} for k in onnx_input_names} if onnx_input_names else {}
+        dynamic_axes.update({k: {0: "batchsize"} for k in onnx_output_names} if onnx_output_names else {})
+        ir_model = convert_to_onnx(
+            model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
+        )
+
+        # convert the model through the ONNX-TensorRT way
+        trt_model = _onnx_trt_compile(
+            ir_model,
+            min_shape=min_input_shape,
+            opt_shape=opt_input_shape,
+            max_shape=max_input_shape,
+            device=device,
+            precision=precision,
+            input_names=onnx_input_names,
+            output_names=onnx_output_names,
+        )
+    else:
+        # convert the model through the Torch-TensorRT way
+        ir_model.to(target_device)
+        with torch.no_grad():
+            with torch.cuda.device(device=device):
+                input_placeholder = [
+                    torch_tensorrt.Input(
+                        min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape
+                    )
+                ]
+                trt_model = torch_tensorrt.compile(
+                    ir_model,
+                    inputs=input_placeholder,
+                    enabled_precisions=convert_precision,
+                    device=target_device,
+                    **kwargs,
+                )
+
+    # verify the outputs between the TensorRT model and PyTorch model
     if verify:
         if inputs is None:
             raise ValueError("Missing input data for verification.")
@@ -837,3 +1120,47 @@ def replace_modules_temp(
         # revert
         for name, module in replaced:
             _replace_modules(parent, name, module, [], strict_match=True, match_device=match_device)
+
+
+def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
+    """
+    A utilty function to help freeze specific layers.
+
+    Args:
+        model: a source PyTorch model to freeze layer.
+        freeze_vars: a regular expression to match the `model` variable names,
+            so that their `requires_grad` will set to `False`.
+        exclude_vars: a regular expression to match the `model` variable names,
+            except for matched variable names, other `requires_grad` will set to `False`.
+
+    Raises:
+        ValueError: when freeze_vars and exclude_vars are both specified.
+
+    """
+    if freeze_vars is not None and exclude_vars is not None:
+        raise ValueError("Incompatible values: freeze_vars and exclude_vars are both specified.")
+    src_dict = get_state_dict(model)
+
+    frozen_keys = list()
+    if freeze_vars is not None:
+        to_freeze = {s_key for s_key in src_dict if freeze_vars and re.compile(freeze_vars).search(s_key)}
+        for name, param in model.named_parameters():
+            if name in to_freeze:
+                param.requires_grad = False
+                frozen_keys.append(name)
+            elif not param.requires_grad:
+                param.requires_grad = True
+                warnings.warn(
+                    f"The freeze_vars does not include {param}, but requires_grad is False, change it to True."
+                )
+    if exclude_vars is not None:
+        to_exclude = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
+        for name, param in model.named_parameters():
+            if name not in to_exclude:
+                param.requires_grad = False
+                frozen_keys.append(name)
+            elif not param.requires_grad:
+                param.requires_grad = True
+                warnings.warn(f"The exclude_vars includes {param}, but requires_grad is False, change it to True.")
+
+    logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")

@@ -37,7 +37,7 @@ class DiceMetric(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip Dice computation on the first channel of
+        include_background: whether to include Dice computation on the first channel of
             the predicted output. Defaults to ``True``.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -47,6 +47,9 @@ class DiceMetric(CumulativeIterationMetric):
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
+        num_classes: number of input channels (always including the background). When this is None,
+            ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
+            single-channel class indices and the number of classes is not automatically inferred from data.
 
     """
 
@@ -56,18 +59,21 @@ class DiceMetric(CumulativeIterationMetric):
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
         ignore_empty: bool = True,
+        num_classes: int | None = None,
     ) -> None:
         super().__init__()
         self.include_background = include_background
         self.reduction = reduction
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
+        self.num_classes = num_classes
         self.dice_helper = DiceHelper(
             include_background=self.include_background,
             reduction=MetricReduction.NONE,
             get_not_nans=False,
             softmax=False,
             ignore_empty=self.ignore_empty,
+            num_classes=self.num_classes,
         )
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
@@ -110,20 +116,26 @@ class DiceMetric(CumulativeIterationMetric):
 
 
 def compute_dice(
-    y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True, ignore_empty: bool = True
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    include_background: bool = True,
+    ignore_empty: bool = True,
+    num_classes: int | None = None,
 ) -> torch.Tensor:
     """Computes Dice score metric for a batch of predictions.
 
     Args:
         y_pred: input data to compute, typical segmentation model output.
-            It must be one-hot format and first dim is batch, example shape: [16, 3, 32, 32]. The values
-            should be binarized.
+            `y_pred` can be single-channel class indices or in the one-hot format.
         y: ground truth to compute mean dice metric. `y` can be single-channel class indices or in the one-hot format.
-        include_background: whether to skip Dice computation on the first channel of
+        include_background: whether to include Dice computation on the first channel of
             the predicted output. Defaults to True.
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
             If `False`, 1 will be set if the predictions of empty ground truth cases are also empty.
+        num_classes: number of input channels (always including the background). When this is None,
+            ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
+            single-channel class indices and the number of classes is not automatically inferred from data.
 
     Returns:
         Dice scores per batch and per class, (shape: [batch_size, num_classes]).
@@ -135,13 +147,14 @@ def compute_dice(
         get_not_nans=False,
         softmax=False,
         ignore_empty=ignore_empty,
+        num_classes=num_classes,
     )(y_pred=y_pred, y=y)
 
 
 class DiceHelper:
     """
     Compute Dice score between two tensors `y_pred` and `y`.
-    `y_pred` must have N channels, `y` can be single-channel class indices or in the one-hot format.
+    `y_pred` and `y` can be single-channel class indices or in the one-hot format.
 
     Example:
 
@@ -170,11 +183,12 @@ class DiceHelper:
         get_not_nans: bool = True,
         reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
         ignore_empty: bool = True,
+        num_classes: int | None = None,
     ) -> None:
         """
 
         Args:
-            include_background: whether to skip the score on the first channel
+            include_background: whether to include the score on the first channel
                 (default to the value of `sigmoid`, False).
             sigmoid: whether ``y_pred`` are/will be sigmoid activated outputs. If True, thresholding at 0.5
                 will be performed to get the discrete prediction. Defaults to False.
@@ -186,6 +200,9 @@ class DiceHelper:
             reduction: define mode of reduction to the metrics
             ignore_empty: if `True`, NaN value will be set for empty ground truth cases.
                 If `False`, 1 will be set if the Union of ``y_pred`` and ``y`` is empty.
+            num_classes: number of input channels (always including the background). When this is None,
+                ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
+                single-channel class indices and the number of classes is not automatically inferred from data.
         """
         self.sigmoid = sigmoid
         self.reduction = reduction
@@ -194,6 +211,7 @@ class DiceHelper:
         self.softmax = not sigmoid if softmax is None else softmax
         self.activate = activate
         self.ignore_empty = ignore_empty
+        self.num_classes = num_classes
 
     def compute_channel(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """"""
@@ -211,17 +229,23 @@ class DiceHelper:
         """
 
         Args:
-            y_pred: input predictions with shape (batch_size, num_classes, spatial_dims...).
-                the number of channels is inferred from ``y_pred.shape[1]``.
+            y_pred: input predictions with shape (batch_size, num_classes or 1, spatial_dims...).
+                the number of channels is inferred from ``y_pred.shape[1]`` when ``num_classes is None``.
             y: ground truth with shape (batch_size, num_classes or 1, spatial_dims...).
         """
-        n_pred_ch = y_pred.shape[1]
+        _softmax, _sigmoid = self.softmax, self.sigmoid
+        if self.num_classes is None:
+            n_pred_ch = y_pred.shape[1]  # y_pred is in one-hot format or multi-channel scores
+        else:
+            n_pred_ch = self.num_classes
+            if y_pred.shape[1] == 1 and self.num_classes > 1:  # y_pred is single-channel class indices
+                _softmax = _sigmoid = False
 
-        if self.softmax:
+        if _softmax:
             if n_pred_ch > 1:
                 y_pred = torch.argmax(y_pred, dim=1, keepdim=True)
 
-        elif self.sigmoid:
+        elif _sigmoid:
             if self.activate:
                 y_pred = torch.sigmoid(y_pred)
             y_pred = y_pred > 0.5

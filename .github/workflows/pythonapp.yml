@@ -64,8 +64,8 @@ jobs:
       name: Config pagefile (Windows only)
       uses: al-cheb/configure-pagefile-action@v1.3
       with:
-        minimum-size: 8
-        maximum-size: 16
+        minimum-size: 8GB
+        maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v3
     - name: Set up Python 3.8

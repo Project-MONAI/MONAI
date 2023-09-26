@@ -23,7 +23,7 @@ from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacingd
 from monai.utils import ensure_tuple_rep
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_DEVICES, assert_allclose
+from tests.utils import TEST_DEVICES, assert_allclose, skip_if_quick
 
 TESTS: list[tuple] = []
 for device in TEST_DEVICES:
@@ -83,6 +83,20 @@ for device in TEST_DEVICES:
             *device,
         )
     )
+    TESTS.append(
+        (
+            "interp sep",
+            {
+                "image": MetaTensor(torch.ones((2, 1, 10)), affine=torch.eye(4)),
+                "seg1": MetaTensor(torch.ones((2, 1, 10)), affine=torch.diag(torch.tensor([2, 2, 2, 1]))),
+                "seg2": MetaTensor(torch.ones((2, 1, 10)), affine=torch.eye(4)),
+            },
+            dict(keys=("image", "seg1", "seg2"), mode=("bilinear", "nearest", "nearest"), pixdim=(1, 1, 1)),
+            (2, 1, 10),
+            torch.as_tensor(np.diag((1, 1, 1, 1))),
+            *device,
+        )
+    )
 
 TESTS_TORCH = []
 for track_meta in (False, True):
@@ -134,6 +148,7 @@ class TestSpacingDCase(unittest.TestCase):
             self.assertNotIsInstance(res, MetaTensor)
             self.assertNotEqual(img.shape, res.shape)
 
+    @skip_if_quick
     def test_space_same_shape(self):
         affine_1 = np.array(
             [

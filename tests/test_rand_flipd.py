@@ -37,7 +37,7 @@ class TestRandFlipd(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(flip, result, init_param, call_param, output_key="img")
-            flip.lazy_evaluation = False
+            flip.lazy = False
 
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)

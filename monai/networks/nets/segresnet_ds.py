@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Union
 
 import numpy as np
 import torch
@@ -126,7 +127,7 @@ class SegResBlock(nn.Module):
 
 class SegResEncoder(nn.Module):
     """
-    SegResEncoder based on the econder structure in `3D MRI brain tumor segmentation using autoencoder regularization
+    SegResEncoder based on the encoder structure in `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
 
     Args:
@@ -387,7 +388,7 @@ class SegResNetDS(nn.Module):
         a = [i % j == 0 for i, j in zip(x.shape[2:], self.shape_factor())]
         return all(a)
 
-    def _forward(self, x: torch.Tensor) -> torch.Tensor | list[torch.Tensor]:
+    def _forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
         if self.preprocess is not None:
             x = self.preprocess(x)
 
@@ -423,5 +424,5 @@ class SegResNetDS(nn.Module):
         # return a list of DS outputs
         return outputs
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor | list[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
         return self._forward(x)

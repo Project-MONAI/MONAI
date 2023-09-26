@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for crop and pad operations
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for crop and pad operations.
 """
 
 from __future__ import annotations
@@ -88,6 +87,9 @@ class Pad(InvertibleTransform, LazyTransform):
     `torch.nn.functional.pad` is used unless the mode or kwargs are not available in torch,
     in which case `np.pad` will be used.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         to_pad: the amount to pad in each dimension (including the channel) [(low_H, high_H), (low_W, high_W), ...].
             if None, must provide in the `__call__` at runtime.
@@ -98,6 +100,7 @@ class Pad(InvertibleTransform, LazyTransform):
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             requires pytorch >= 1.10 for best compatibility.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -106,8 +109,13 @@ class Pad(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self, to_pad: tuple[tuple[int, int]] | None = None, mode: str = PytorchPadMode.CONSTANT, **kwargs
+        self,
+        to_pad: tuple[tuple[int, int]] | None = None,
+        mode: str = PytorchPadMode.CONSTANT,
+        lazy: bool = False,
+        **kwargs,
     ) -> None:
+        LazyTransform.__init__(self, lazy)
         self.to_pad = to_pad
         self.mode = mode
         self.kwargs = kwargs
@@ -124,7 +132,12 @@ class Pad(InvertibleTransform, LazyTransform):
         raise NotImplementedError(f"subclass {self.__class__.__name__} must implement this method.")
 
     def __call__(  # type: ignore[override]
-        self, img: torch.Tensor, to_pad: tuple[tuple[int, int]] | None = None, mode: str | None = None, **kwargs
+        self,
+        img: torch.Tensor,
+        to_pad: tuple[tuple[int, int]] | None = None,
+        mode: str | None = None,
+        lazy: bool | None = None,
+        **kwargs,
     ) -> torch.Tensor:
         """
         Args:
@@ -137,6 +150,7 @@ class Pad(InvertibleTransform, LazyTransform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -150,7 +164,8 @@ class Pad(InvertibleTransform, LazyTransform):
         kwargs_.update(kwargs)
 
         img_t = convert_to_tensor(data=img, track_meta=get_track_meta())
-        return pad_func(img_t, to_pad_, mode_, self.get_transform_info(), kwargs_)
+        lazy_ = self.lazy if lazy is None else lazy
+        return pad_func(img_t, to_pad_, self.get_transform_info(), mode_, lazy_, **kwargs_)
 
     def inverse(self, data: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(data)
@@ -170,6 +185,9 @@ class SpatialPad(Pad):
     """
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of output data after padding, if a dimension of the input
             data size is larger than the pad size, will not pad that dimension.
@@ -184,6 +202,7 @@ class SpatialPad(Pad):
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -194,11 +213,12 @@ class SpatialPad(Pad):
         spatial_size: Sequence[int] | int | tuple[tuple[int, ...] | int, ...],
         method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
+        lazy: bool = False,
         **kwargs,
     ) -> None:
         self.spatial_size = spatial_size
         self.method: Method = look_up_option(method, Method)
-        super().__init__(mode=mode, **kwargs)
+        super().__init__(mode=mode, lazy=lazy, **kwargs)
 
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         """
@@ -223,6 +243,9 @@ class BorderPad(Pad):
     """
     Pad the input data by adding specified borders to every dimension.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_border: specified size for every spatial border. Any -ve values will be set to 0. It can be 3 shapes:
 
@@ -240,14 +263,17 @@ class BorderPad(Pad):
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
             See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
     """
 
-    def __init__(self, spatial_border: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT, **kwargs) -> None:
+    def __init__(
+        self, spatial_border: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT, lazy: bool = False, **kwargs
+    ) -> None:
         self.spatial_border = spatial_border
-        super().__init__(mode=mode, **kwargs)
+        super().__init__(mode=mode, lazy=lazy, **kwargs)
 
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         spatial_border = ensure_tuple(self.spatial_border)
@@ -274,12 +300,20 @@ class BorderPad(Pad):
 class DivisiblePad(Pad):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = SpatialPad.backend
 
     def __init__(
-        self, k: Sequence[int] | int, mode: str = PytorchPadMode.CONSTANT, method: str = Method.SYMMETRIC, **kwargs
+        self,
+        k: Sequence[int] | int,
+        mode: str = PytorchPadMode.CONSTANT,
+        method: str = Method.SYMMETRIC,
+        lazy: bool = False,
+        **kwargs,
     ) -> None:
         """
         Args:
@@ -294,6 +328,7 @@ class DivisiblePad(Pad):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -301,7 +336,7 @@ class DivisiblePad(Pad):
         """
         self.k = k
         self.method: Method = Method(method)
-        super().__init__(mode=mode, **kwargs)
+        super().__init__(mode=mode, lazy=lazy, **kwargs)
 
     def compute_pad_width(self, spatial_shape: Sequence[int]) -> tuple[tuple[int, int]]:
         new_size = compute_divisible_spatial_size(spatial_shape=spatial_shape, k=self.k)
@@ -313,9 +348,17 @@ class Crop(InvertibleTransform, LazyTransform):
     """
     Perform crop operations on the input image.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
+    Args:
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = [TransformBackends.TORCH]
+
+    def __init__(self, lazy: bool = False):
+        LazyTransform.__init__(self, lazy)
 
     @staticmethod
     def compute_slices(
@@ -370,7 +413,9 @@ class Crop(InvertibleTransform, LazyTransform):
                 [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
             )
 
-    def __call__(self, img: torch.Tensor, slices: tuple[slice, ...]) -> torch.Tensor:  # type: ignore[override]
+    def __call__(  # type: ignore[override]
+        self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None
+    ) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -384,7 +429,8 @@ class Crop(InvertibleTransform, LazyTransform):
         slices_ = list([slice(None)] + slices_[:sd])
 
         img_t: MetaTensor = convert_to_tensor(data=img, track_meta=get_track_meta())
-        return crop_func(img_t, tuple(slices_), self.get_transform_info())
+        lazy_ = self.lazy if lazy is None else lazy
+        return crop_func(img_t, tuple(slices_), lazy_, self.get_transform_info())
 
     def inverse(self, img: MetaTensor) -> MetaTensor:
         transform = self.pop_transform(img)
@@ -408,6 +454,9 @@ class SpatialCrop(Crop):
         - a list of slices for each spatial dimension (allows for use of negative indexing and `None`)
         - a spatial center and size
         - the start and end coordinates of the ROI
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     def __init__(
@@ -417,6 +466,7 @@ class SpatialCrop(Crop):
         roi_start: Sequence[int] | NdarrayOrTensor | None = None,
         roi_end: Sequence[int] | NdarrayOrTensor | None = None,
         roi_slices: Sequence[slice] | None = None,
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -427,18 +477,22 @@ class SpatialCrop(Crop):
             roi_end: voxel coordinates for end of the crop ROI, if a coordinate is out of image,
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
+
         """
+        super().__init__(lazy)
         self.slices = self.compute_slices(
             roi_center=roi_center, roi_size=roi_size, roi_start=roi_start, roi_end=roi_end, roi_slices=roi_slices
         )
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
-        return super().__call__(img=img, slices=ensure_tuple(self.slices))
+        lazy_ = self.lazy if lazy is None else lazy
+        return super().__call__(img=img, slices=ensure_tuple(self.slices), lazy=lazy_)
 
 
 class CenterSpatialCrop(Crop):
@@ -448,15 +502,20 @@ class CenterSpatialCrop(Crop):
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         roi_size: the spatial size of the crop region e.g. [224,224,128]
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
             If its components have non-positive values, the corresponding size of input image will be used.
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    def __init__(self, roi_size: Sequence[int] | int) -> None:
+    def __init__(self, roi_size: Sequence[int] | int, lazy: bool = False) -> None:
+        super().__init__(lazy=lazy)
         self.roi_size = roi_size
 
     def compute_slices(self, spatial_size: Sequence[int]) -> tuple[slice]:  # type: ignore[override]
@@ -464,15 +523,17 @@ class CenterSpatialCrop(Crop):
         roi_center = [i // 2 for i in spatial_size]
         return super().compute_slices(roi_center=roi_center, roi_size=roi_size)
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
+        lazy_ = self.lazy if lazy is None else lazy
         return super().__call__(
             img=img,
             slices=self.compute_slices(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]),
+            lazy=lazy_,
         )
 
 
@@ -480,21 +541,26 @@ class CenterScaleCrop(Crop):
     """
     Crop at the center of image with specified scale of ROI size.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
             If its components have non-positive values, will use `1.0` instead, which means the input image size.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    def __init__(self, roi_scale: Sequence[float] | float):
+    def __init__(self, roi_scale: Sequence[float] | float, lazy: bool = False):
+        super().__init__(lazy=lazy)
         self.roi_scale = roi_scale
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[override]
         img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         ndim = len(img_size)
         roi_size = [ceil(r * s) for r, s in zip(ensure_tuple_rep(self.roi_scale, ndim), img_size)]
-        cropper = CenterSpatialCrop(roi_size=roi_size)
-        return super().__call__(img=img, slices=cropper.compute_slices(img_size))
+        lazy_ = self.lazy if lazy is None else lazy
+        cropper = CenterSpatialCrop(roi_size=roi_size, lazy=lazy_)
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size), lazy=lazy_)
 
 
 class RandSpatialCrop(Randomizable, Crop):
@@ -505,6 +571,9 @@ class RandSpatialCrop(Randomizable, Crop):
     Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped results
     of several images may not have exactly the same shape.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
@@ -519,16 +588,18 @@ class RandSpatialCrop(Randomizable, Crop):
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             if True, the actual size is sampled from `randint(roi_size, max_roi_size + 1)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
+        lazy: bool = False,
     ) -> None:
+        super().__init__(lazy)
         self.roi_size = roi_size
         self.max_roi_size = max_roi_size
         self.random_center = random_center
@@ -547,7 +618,7 @@ class RandSpatialCrop(Randomizable, Crop):
             valid_size = get_valid_patch_size(img_size, self._size)
             self._slices = get_random_patch(img_size, valid_size, self.R)
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
@@ -558,10 +629,11 @@ class RandSpatialCrop(Randomizable, Crop):
             self.randomize(img_size)
         if self._size is None:
             raise RuntimeError("self._size not specified.")
+        lazy_ = self.lazy if lazy is None else lazy
         if self.random_center:
-            return super().__call__(img=img, slices=self._slices)
-        cropper = CenterSpatialCrop(self._size)
-        return super().__call__(img=img, slices=cropper.compute_slices(img_size))
+            return super().__call__(img=img, slices=self._slices, lazy=lazy_)
+        cropper = CenterSpatialCrop(self._size, lazy=lazy_)
+        return super().__call__(img=img, slices=cropper.compute_slices(img_size), lazy=lazy_)
 
 
 class RandScaleCrop(RandSpatialCrop):
@@ -570,6 +642,9 @@ class RandScaleCrop(RandSpatialCrop):
     random size or specific size ROI.  It can crop at a random position as
     center or at the image center.  And allows to set the minimum and maximum
     scale of image size to limit the randomly generated ROI.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         roi_scale: if `random_size` is True, it specifies the minimum crop size: `roi_scale * image spatial size`.
@@ -583,17 +658,20 @@ class RandScaleCrop(RandSpatialCrop):
         random_size: crop with random size or specified size ROI by `roi_scale * image spatial size`.
             if True, the actual size is sampled from
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_scale: Sequence[float] | float,
         max_roi_scale: Sequence[float] | float | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
+        lazy: bool = False,
     ) -> None:
-        super().__init__(roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size)
+        super().__init__(
+            roi_size=-1, max_roi_size=None, random_center=random_center, random_size=random_size, lazy=lazy
+        )
         self.roi_scale = roi_scale
         self.max_roi_scale = max_roi_scale
 
@@ -609,14 +687,15 @@ class RandScaleCrop(RandSpatialCrop):
         self.get_max_roi_size(img_size)
         super().randomize(img_size)
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:  # type: ignore
+    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:  # type: ignore
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't apply to the channel dim.
 
         """
         self.get_max_roi_size(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
-        return super().__call__(img=img, randomize=randomize)
+        lazy_ = self.lazy if lazy is None else lazy
+        return super().__call__(img=img, randomize=randomize, lazy=lazy_)
 
 
 class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, MultiSampleTrait):
@@ -629,6 +708,9 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
     Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         roi_size: if `random_size` is True, it specifies the minimum crop region.
@@ -644,6 +726,7 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         random_center: crop at random position as center or the image center.
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
@@ -652,19 +735,20 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
 
     backend = RandSpatialCrop.backend
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         roi_size: Sequence[int] | int,
         num_samples: int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
+        lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy)
         if num_samples < 1:
             raise ValueError(f"num_samples must be positive, got {num_samples}.")
         self.num_samples = num_samples
-        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
+        self.cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -673,25 +757,26 @@ class RandSpatialCropSamples(Randomizable, TraceableTransform, LazyTransform, Mu
         self.cropper.set_random_state(seed, state)
         return self
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
+        self.cropper.lazy = value
 
     def randomize(self, data: Any | None = None) -> None:
         pass
 
-    def __call__(self, img: torch.Tensor) -> list[torch.Tensor]:
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> list[torch.Tensor]:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         cropping doesn't change the channel dim.
         """
         ret = []
+        lazy_ = self.lazy if lazy is None else lazy
         for i in range(self.num_samples):
-            cropped = self.cropper(img)
+            cropped = self.cropper(img, lazy=lazy_)
             if get_track_meta():
                 cropped.meta[Key.PATCH_INDEX] = i  # type: ignore
-                self.push_transform(cropped, replace=True)  # track as this class instead of RandSpatialCrop
+                self.push_transform(cropped, replace=True, lazy=lazy_)  # track as this class instead of RandSpatialCrop
             ret.append(cropped)
         return ret
 
@@ -726,8 +811,12 @@ class CropForeground(Crop):
           [3, 2],
           [2, 1]]]
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     """
 
+    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
     def __init__(
         self,
         select_fn: Callable = is_positive,
@@ -737,6 +826,7 @@ class CropForeground(Crop):
         return_coords: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: str = PytorchPadMode.CONSTANT,
+        lazy: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -745,9 +835,9 @@ class CropForeground(Crop):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is larger than image size, will pad with
-                specified `mode`.
+            allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
+                the image edges will be used as the box edges. Default to `True`.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
@@ -757,22 +847,28 @@ class CropForeground(Crop):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
+        LazyTransform.__init__(self, lazy)
         self.select_fn = select_fn
         self.channel_indices = ensure_tuple(channel_indices) if channel_indices is not None else None
         self.margin = margin
         self.allow_smaller = allow_smaller
         self.return_coords = return_coords
         self.k_divisible = k_divisible
-        self.padder = Pad(mode=mode, **pad_kwargs)
+        self.padder = Pad(mode=mode, lazy=lazy, **pad_kwargs)
 
-    @Crop.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, _val: bool):
-        self._lazy_evaluation = _val
-        self.padder.lazy_evaluation = _val
+    @Crop.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
+        self.padder.lazy = _val
+
+    @property
+    def requires_current_data(self):
+        return False
 
     def compute_bounding_box(self, img: torch.Tensor) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -780,8 +876,6 @@ class CropForeground(Crop):
         And adjust bounding box coords to be divisible by `k`.
 
         """
-        if isinstance(img, MetaTensor) and img.pending_operations:
-            warnings.warn("foreground computation may not be accurate if the image has pending operations.")
         box_start, box_end = generate_spatial_bounding_box(
             img, self.select_fn, self.channel_indices, self.margin, self.allow_smaller
         )
@@ -796,14 +890,20 @@ class CropForeground(Crop):
         return box_start_, box_end_
 
     def crop_pad(
-        self, img: torch.Tensor, box_start: np.ndarray, box_end: np.ndarray, mode: str | None = None, **pad_kwargs
+        self,
+        img: torch.Tensor,
+        box_start: np.ndarray,
+        box_end: np.ndarray,
+        mode: str | None = None,
+        lazy: bool = False,
+        **pad_kwargs,
     ) -> torch.Tensor:
         """
         Crop and pad based on the bounding box.
 
         """
         slices = self.compute_slices(roi_start=box_start, roi_end=box_end)
-        cropped = super().__call__(img=img, slices=slices)
+        cropped = super().__call__(img=img, slices=slices, lazy=lazy)
         pad_to_start = np.maximum(-box_start, 0)
         pad_to_end = np.maximum(
             box_end - np.asarray(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]), 0
@@ -812,23 +912,37 @@ class CropForeground(Crop):
         pad_width = BorderPad(spatial_border=pad).compute_pad_width(
             cropped.peek_pending_shape() if isinstance(cropped, MetaTensor) else cropped.shape[1:]
         )
-        ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, **pad_kwargs)
+        ret = self.padder.__call__(img=cropped, to_pad=pad_width, mode=mode, lazy=lazy, **pad_kwargs)
         # combine the traced cropping and padding into one transformation
         # by taking the padded info and placing it in a key inside the crop info.
         if get_track_meta() and isinstance(ret, MetaTensor):
-            if not self.lazy_evaluation:
+            if not lazy:
                 ret.applied_operations[-1][TraceKeys.EXTRA_INFO]["pad_info"] = ret.applied_operations.pop()
+            else:
+                pad_info = ret.pending_operations.pop()
+                crop_info = ret.pending_operations.pop()
+                extra = crop_info[TraceKeys.EXTRA_INFO]
+                extra["pad_info"] = pad_info
+                self.push_transform(
+                    ret,
+                    orig_size=crop_info.get(TraceKeys.ORIG_SIZE),
+                    sp_size=pad_info[LazyAttr.SHAPE],
+                    affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
+                    lazy=lazy,
+                    extra_info=extra,
+                )
         return ret
 
     def __call__(  # type: ignore[override]
-        self, img: torch.Tensor, mode: str | None = None, **pad_kwargs
+        self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs
     ) -> torch.Tensor:
         """
         Apply the transform to `img`, assuming `img` is channel-first and
         slicing doesn't change the channel dim.
         """
         box_start, box_end = self.compute_bounding_box(img)
-        cropped = self.crop_pad(img, box_start, box_end, mode, **pad_kwargs)
+        lazy_ = self.lazy if lazy is None else lazy
+        cropped = self.crop_pad(img, box_start, box_end, mode, lazy=lazy_, **pad_kwargs)
 
         if self.return_coords:
             return cropped, box_start, box_end  # type: ignore[return-value]
@@ -849,6 +963,9 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of the image patch e.g. [224, 224, 128].
             If its components have non-positive values, the corresponding size of `img` will be used.
@@ -856,31 +973,39 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
         weight_map: weight map used to generate patch samples. The weights must be non-negative.
             Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
             It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = SpatialCrop.backend
 
     def __init__(
-        self, spatial_size: Sequence[int] | int, num_samples: int = 1, weight_map: NdarrayOrTensor | None = None
+        self,
+        spatial_size: Sequence[int] | int,
+        num_samples: int = 1,
+        weight_map: NdarrayOrTensor | None = None,
+        lazy: bool = False,
     ):
+        LazyTransform.__init__(self, lazy)
         self.spatial_size = ensure_tuple(spatial_size)
         self.num_samples = int(num_samples)
         self.weight_map = weight_map
         self.centers: list[np.ndarray] = []
 
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
-        if isinstance(weight_map, MetaTensor) and weight_map.pending_operations:
-            warnings.warn("weight map has pending operations, the sampling may not be correct.")
         self.centers = weighted_patch_samples(
             spatial_size=self.spatial_size, w=weight_map[0], n_samples=self.num_samples, r_state=self.R
         )  # using only the first channel as weight map
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, _val: bool):
-        self._lazy_evaluation = _val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
 
     def __call__(
-        self, img: torch.Tensor, weight_map: NdarrayOrTensor | None = None, randomize: bool = True
+        self,
+        img: torch.Tensor,
+        weight_map: NdarrayOrTensor | None = None,
+        randomize: bool = True,
+        lazy: bool | None = None,
     ) -> list[torch.Tensor]:
         """
         Args:
@@ -889,6 +1014,7 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
                 Each element denotes a sampling weight of the spatial location. 0 indicates no sampling.
                 It should be a single-channel array in shape, for example, `(1, spatial_dim_0, spatial_dim_1, ...)`
             randomize: whether to execute random operations, default to `True`.
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
 
         Returns:
             A list of image patches
@@ -907,15 +1033,15 @@ class RandWeightedCrop(Randomizable, TraceableTransform, LazyTransform, MultiSam
 
         _spatial_size = fall_back_tuple(self.spatial_size, img_shape)
         results: list[torch.Tensor] = []
+        lazy_ = self.lazy if lazy is None else lazy
         for i, center in enumerate(self.centers):
-            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size)
-            cropper.lazy_evaluation = self.lazy_evaluation
+            cropper = SpatialCrop(roi_center=center, roi_size=_spatial_size, lazy=lazy_)
             cropped = cropper(img)
             if get_track_meta():
                 ret_: MetaTensor = cropped  # type: ignore
                 ret_.meta[Key.PATCH_INDEX] = i
                 ret_.meta["crop_center"] = center
-                self.push_transform(ret_, replace=True)
+                self.push_transform(ret_, replace=True, lazy=lazy_)
             results.append(cropped)
         return results
 
@@ -938,6 +1064,9 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
     results of several images may not have exactly same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
     valid crop ROI.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
@@ -968,6 +1097,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -989,7 +1119,9 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         allow_smaller: bool = False,
+        lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
         self.label = label
         if pos < 0 or neg < 0:
@@ -1015,10 +1147,6 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices_ = self.fg_indices if fg_indices is None else fg_indices
         bg_indices_ = self.bg_indices if bg_indices is None else bg_indices
         if fg_indices_ is None or bg_indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must be provided.")
             fg_indices_, bg_indices_ = map_binary_to_indices(label, image, self.image_threshold)
@@ -1040,9 +1168,13 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             self.allow_smaller,
         )
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, _val: bool):
-        self._lazy_evaluation = _val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
+
+    @property
+    def requires_current_data(self):
+        return False
 
     def __call__(
         self,
@@ -1052,6 +1184,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         fg_indices: NdarrayOrTensor | None = None,
         bg_indices: NdarrayOrTensor | None = None,
         randomize: bool = True,
+        lazy: bool | None = None,
     ) -> list[torch.Tensor]:
         """
         Args:
@@ -1066,6 +1199,7 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
             bg_indices: background indices to randomly select crop centers,
                 need to provide `fg_indices` and `bg_indices` together.
             randomize: whether to execute the random operations, default to `True`.
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
 
         """
         if image is None:
@@ -1078,15 +1212,15 @@ class RandCropByPosNegLabel(Randomizable, TraceableTransform, LazyTransform, Mul
         if self.centers is not None:
             img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
             roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
+            lazy_ = self.lazy if lazy is None else lazy
             for i, center in enumerate(self.centers):
-                cropper = SpatialCrop(roi_center=center, roi_size=roi_size)
-                cropper.lazy_evaluation = self.lazy_evaluation
+                cropper = SpatialCrop(roi_center=center, roi_size=roi_size, lazy=lazy_)
                 cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, replace=True)
+                    self.push_transform(ret_, replace=True, lazy=lazy_)
                 results.append(cropped)
         return results
 
@@ -1130,6 +1264,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
     valid crop ROI.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_size: the spatial size of the crop region e.g. [224, 224, 128].
             if a dimension of ROI size is larger than image size, will not crop that dimension of the image.
@@ -1153,7 +1290,9 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             the requested ROI in any dimension. If `True`, any smaller dimensions will remain
             unchanged.
         warn: if `True` prints a warning if a class is not present in the label.
-
+        max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+            Default is None, no subsampling.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = SpatialCrop.backend
@@ -1170,7 +1309,10 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         indices: list[NdarrayOrTensor] | None = None,
         allow_smaller: bool = False,
         warn: bool = True,
+        max_samples_per_class: int | None = None,
+        lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy)
         self.spatial_size = spatial_size
         self.ratios = ratios
         self.label = label
@@ -1182,6 +1324,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         self.indices = indices
         self.allow_smaller = allow_smaller
         self.warn = warn
+        self.max_samples_per_class = max_samples_per_class
 
     def randomize(
         self,
@@ -1191,13 +1334,11 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
     ) -> None:
         indices_ = self.indices if indices is None else indices
         if indices_ is None:
-            if isinstance(label, MetaTensor) and label.pending_operations:
-                warnings.warn("label has pending operations, the fg/bg indices may be incorrect.")
-            if isinstance(image, MetaTensor) and image.pending_operations:
-                warnings.warn("image has pending operations, the fg/bg indices may be incorrect.")
             if label is None:
                 raise ValueError("label must not be None.")
-            indices_ = map_classes_to_indices(label, self.num_classes, image, self.image_threshold)
+            indices_ = map_classes_to_indices(
+                label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+            )
         _shape = None
         if label is not None:
             _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
@@ -1209,9 +1350,13 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
             self.spatial_size, self.num_samples, _shape, indices_, self.ratios, self.R, self.allow_smaller, self.warn
         )
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, _val: bool):
-        self._lazy_evaluation = _val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, _val: bool):
+        self._lazy = _val
+
+    @property
+    def requires_current_data(self):
+        return False
 
     def __call__(
         self,
@@ -1220,6 +1365,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         image: torch.Tensor | None = None,
         indices: list[NdarrayOrTensor] | None = None,
         randomize: bool = True,
+        lazy: bool | None = None,
     ) -> list[torch.Tensor]:
         """
         Args:
@@ -1230,7 +1376,7 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
                 use ``image > image_threshold`` to select the centers only in valid region. if None, use `self.image`.
             indices: list of indices for every class in the image, used to randomly select crop centers.
             randomize: whether to execute the random operations, default to `True`.
-
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
         """
         if image is None:
             image = self.image
@@ -1242,15 +1388,15 @@ class RandCropByLabelClasses(Randomizable, TraceableTransform, LazyTransform, Mu
         if self.centers is not None:
             img_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
             roi_size = fall_back_tuple(self.spatial_size, default=img_shape)
+            lazy_ = self.lazy if lazy is None else lazy
             for i, center in enumerate(self.centers):
-                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size)
-                cropper.lazy_evaluation = self.lazy_evaluation
+                cropper = SpatialCrop(roi_center=tuple(center), roi_size=roi_size, lazy=lazy_)
                 cropped = cropper(img)
                 if get_track_meta():
                     ret_: MetaTensor = cropped  # type: ignore
                     ret_.meta[Key.PATCH_INDEX] = i
                     ret_.meta["crop_center"] = center
-                    self.push_transform(ret_, replace=True)
+                    self.push_transform(ret_, replace=True, lazy=lazy_)
                 results.append(cropped)
 
         return results
@@ -1262,6 +1408,9 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
     padding it evenly with a user-specified mode.
     When the dimension is smaller than the target size, do symmetric padding along that dim.
     When the dimension is larger than the target size, do central cropping along that dim.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         spatial_size: the spatial size of output data after padding or crop.
@@ -1276,6 +1425,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     """
 
@@ -1286,18 +1436,22 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
         spatial_size: Sequence[int] | int,
         method: str = Method.SYMMETRIC,
         mode: str = PytorchPadMode.CONSTANT,
+        lazy: bool = False,
         **pad_kwargs,
     ):
-        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, **pad_kwargs)
-        self.cropper = CenterSpatialCrop(roi_size=spatial_size)
+        LazyTransform.__init__(self, lazy)
+        self.padder = SpatialPad(spatial_size=spatial_size, method=method, mode=mode, lazy=lazy, **pad_kwargs)
+        self.cropper = CenterSpatialCrop(roi_size=spatial_size, lazy=lazy)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool):
-        self.padder.lazy_evaluation = val
-        self.cropper.lazy_evaluation = val
-        self._lazy_evaluation = val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self.padder.lazy = val
+        self.cropper.lazy = val
+        self._lazy = val
 
-    def __call__(self, img: torch.Tensor, mode: str | None = None, **pad_kwargs) -> torch.Tensor:  # type: ignore
+    def __call__(  # type: ignore[override]
+        self, img: torch.Tensor, mode: str | None = None, lazy: bool | None = None, **pad_kwargs
+    ) -> torch.Tensor:
         """
         Args:
             img: data to pad or crop, assuming `img` is channel-first and
@@ -1308,20 +1462,22 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                 One of the listed string values or a user supplied function. Defaults to ``"constant"``.
                 See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
-            kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            lazy: a flag to override the lazy behaviour for this call, if set. Defaults to None.
+            pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        ret = self.padder(self.cropper(img), mode=mode, **pad_kwargs)
+        lazy_ = self.lazy if lazy is None else lazy
+        ret = self.padder(self.cropper(img, lazy_), mode=mode, lazy=lazy_, **pad_kwargs)
         # remove the individual info and combine
         if get_track_meta():
             ret_: MetaTensor = ret  # type: ignore
-            if not self.lazy_evaluation:
+            if not lazy_:
                 pad_info = ret_.applied_operations.pop()
                 crop_info = ret_.applied_operations.pop()
                 orig_size = crop_info.get(TraceKeys.ORIG_SIZE)
                 self.push_transform(
-                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}
+                    ret_, orig_size=orig_size, extra_info={"pad_info": pad_info, "crop_info": crop_info}, lazy=lazy_
                 )
             else:
                 pad_info = ret_.pending_operations.pop()
@@ -1333,6 +1489,7 @@ class ResizeWithPadOrCrop(InvertibleTransform, LazyTransform):
                     sp_size=pad_info[LazyAttr.SHAPE],
                     affine=crop_info[LazyAttr.AFFINE] @ pad_info[LazyAttr.AFFINE],
                     extra_info={"pad_info": pad_info, "crop_info": crop_info},
+                    lazy=lazy_,
                 )
 
         return ret

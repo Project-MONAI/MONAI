@@ -14,14 +14,13 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms.spatial.array import RandGridPatch
 from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, SkipIfBeforePyTorchVersion, assert_allclose
-
-set_determinism(1234)
 
 A = np.arange(16).repeat(3).reshape(4, 4, 3).transpose(2, 0, 1)
 A11 = A[:, :2, :2]
@@ -53,21 +52,29 @@ TEST_CASE_9 = [
         "max_offset": -1,
         "sort_fn": "min",
         "num_patches": 1,
+        "pad_mode": "constant",
         "constant_values": 255,
     },
     A,
     [np.pad(A[:, :2, 1:], ((0, 0), (1, 0), (0, 0)), mode="constant", constant_values=255)],
 ]
 TEST_CASE_10 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "threshold": 50.0}, A, [A11]]
+TEST_CASE_11 = [{"patch_size": (2, 2), "sort_fn": "random", "num_patches": 2}, A, [A11, A12]]
+TEST_CASE_12 = [{"patch_size": (2, 2), "sort_fn": "random", "num_patches": 4}, A, [A11, A12, A21, A22]]
+TEST_CASE_13 = [
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "sort_fn": "random"},
+    A,
+    [A[:, 1:3, 1:3]],
+]
 
-TEST_CASE_MEAT_0 = [
+TEST_CASE_META_0 = [
     {"patch_size": (2, 2)},
     A,
     [A11, A12, A21, A22],
     [{"location": [0, 0]}, {"location": [0, 2]}, {"location": [2, 0]}, {"location": [2, 2]}],
 ]
 
-TEST_CASE_MEAT_1 = [
+TEST_CASE_META_1 = [
     {"patch_size": (2, 2)},
     MetaTensor(x=A, meta={"path": "path/to/file"}),
     [A11, A12, A21, A22],
@@ -92,10 +99,20 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_8])
     TEST_SINGLE.append([p, *TEST_CASE_9])
     TEST_SINGLE.append([p, *TEST_CASE_10])
+    TEST_SINGLE.append([p, *TEST_CASE_11])
+    TEST_SINGLE.append([p, *TEST_CASE_12])
+    TEST_SINGLE.append([p, *TEST_CASE_13])
 
 
 class TestRandGridPatch(unittest.TestCase):
+    def setUp(self):
+        set_determinism(seed=1234)
+
+    def tearDown(self):
+        set_determinism(None)
+
     @parameterized.expand(TEST_SINGLE)
+    @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_rand_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = RandGridPatch(**input_parameters)
@@ -103,9 +120,14 @@ class TestRandGridPatch(unittest.TestCase):
         output = splitter(input_image)
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
-            assert_allclose(output_patch, expected_patch, type_test=False)
+            assert_allclose(
+                output_patch,
+                in_type(expected_patch),
+                type_test=False,
+                device_test=bool(isinstance(in_type(expected_patch), torch.Tensor)),
+            )
 
-    @parameterized.expand([TEST_CASE_MEAT_0, TEST_CASE_MEAT_1])
+    @parameterized.expand([TEST_CASE_META_0, TEST_CASE_META_1])
     @SkipIfBeforePyTorchVersion((1, 9, 1))
     def test_rand_grid_patch_meta(self, input_parameters, image, expected, expected_meta):
         set_track_meta(True)

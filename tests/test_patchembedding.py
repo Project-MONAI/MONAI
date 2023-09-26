@@ -21,35 +21,38 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.patchembedding import PatchEmbed, PatchEmbeddingBlock
 from monai.utils import optional_import
+from tests.utils import SkipIfBeforePyTorchVersion
 
 einops, has_einops = optional_import("einops")
 
 TEST_CASE_PATCHEMBEDDINGBLOCK = []
 for dropout_rate in (0.5,):
     for in_channels in [1, 4]:
-        for hidden_size in [360, 768]:
-            for img_size in [96, 128]:
+        for hidden_size in [96, 288]:
+            for img_size in [32, 64]:
                 for patch_size in [8, 16]:
                     for num_heads in [8, 12]:
-                        for pos_embed in ["conv", "perceptron"]:
-                            # for classification in (False, True):  # TODO: add classification tests
-                            for nd in (2, 3):
-                                test_case = [
-                                    {
-                                        "in_channels": in_channels,
-                                        "img_size": (img_size,) * nd,
-                                        "patch_size": (patch_size,) * nd,
-                                        "hidden_size": hidden_size,
-                                        "num_heads": num_heads,
-                                        "pos_embed": pos_embed,
-                                        "dropout_rate": dropout_rate,
-                                    },
-                                    (2, in_channels, *([img_size] * nd)),
-                                    (2, (img_size // patch_size) ** nd, hidden_size),
-                                ]
-                                if nd == 2:
-                                    test_case[0]["spatial_dims"] = 2  # type: ignore
-                                TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
+                        for proj_type in ["conv", "perceptron"]:
+                            for pos_embed_type in ["none", "learnable", "sincos"]:
+                                # for classification in (False, True):  # TODO: add classification tests
+                                for nd in (2, 3):
+                                    test_case = [
+                                        {
+                                            "in_channels": in_channels,
+                                            "img_size": (img_size,) * nd,
+                                            "patch_size": (patch_size,) * nd,
+                                            "hidden_size": hidden_size,
+                                            "num_heads": num_heads,
+                                            "pos_embed": proj_type,
+                                            "pos_embed_type": pos_embed_type,
+                                            "dropout_rate": dropout_rate,
+                                        },
+                                        (2, in_channels, *([img_size] * nd)),
+                                        (2, (img_size // patch_size) ** nd, hidden_size),
+                                    ]
+                                    if nd == 2:
+                                        test_case[0]["spatial_dims"] = 2  # type: ignore
+                                    TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
 
 TEST_CASE_PATCHEMBED = []
 for patch_size in [2]:
@@ -72,7 +75,15 @@ for patch_size in [2]:
                         TEST_CASE_PATCHEMBED.append(test_case)
 
 
+@SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestPatchEmbeddingBlock(unittest.TestCase):
+    def setUp(self):
+        self.threads = torch.get_num_threads()
+        torch.set_num_threads(4)
+
+    def tearDown(self):
+        torch.set_num_threads(self.threads)
+
     @parameterized.expand(TEST_CASE_PATCHEMBEDDINGBLOCK)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -90,6 +101,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=128,
                 num_heads=12,
                 pos_embed="conv",
+                pos_embed_type="sincos",
                 dropout_rate=5.0,
             )
 
@@ -101,6 +113,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 hidden_size=512,
                 num_heads=8,
                 pos_embed="perceptron",
+                pos_embed_type="sincos",
                 dropout_rate=0.3,
             )
 
@@ -125,6 +138,16 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 pos_embed="perceptron",
                 dropout_rate=0.3,
             )
+        with self.assertRaises(ValueError):
+            PatchEmbeddingBlock(
+                in_channels=1,
+                img_size=(97, 97, 97),
+                patch_size=(4, 4, 4),
+                hidden_size=768,
+                num_heads=8,
+                proj_type="perceptron",
+                dropout_rate=0.3,
+            )
 
         with self.assertRaises(ValueError):
             PatchEmbeddingBlock(
@@ -139,6 +162,13 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
 
 
 class TestPatchEmbed(unittest.TestCase):
+    def setUp(self):
+        self.threads = torch.get_num_threads()
+        torch.set_num_threads(4)
+
+    def tearDown(self):
+        torch.set_num_threads(self.threads)
+
     @parameterized.expand(TEST_CASE_PATCHEMBED)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):

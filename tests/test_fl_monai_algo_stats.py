@@ -16,6 +16,7 @@ import unittest
 
 from parameterized import parameterized
 
+from monai.bundle import ConfigWorkflow
 from monai.fl.client import MonaiAlgoStats
 from monai.fl.utils.constants import ExtraItems, FlStatistics
 from monai.fl.utils.exchange_object import ExchangeObject
@@ -23,11 +24,17 @@ from tests.utils import SkipIfNoModule
 
 _root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 _data_dir = os.path.join(_root_dir, "testing_data")
+_logging_file = os.path.join(_data_dir, "logging.conf")
 
 TEST_GET_DATA_STATS_1 = [
     {
         "bundle_root": _data_dir,
-        "config_train_filename": os.path.join(_data_dir, "config_fl_stats_1.json"),
+        "workflow": ConfigWorkflow(
+            workflow_type="train",
+            config_file=os.path.join(_data_dir, "config_fl_stats_1.json"),
+            logging_file=_logging_file,
+            meta_file=None,
+        ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
@@ -41,14 +48,16 @@ TEST_GET_DATA_STATS_2 = [
 TEST_GET_DATA_STATS_3 = [
     {
         "bundle_root": _data_dir,
-        "config_train_filename": [
-            os.path.join(_data_dir, "config_fl_stats_1.json"),
-            os.path.join(_data_dir, "config_fl_stats_2.json"),
-        ],
-        "config_filters_filename": [
-            os.path.join(_data_dir, "config_fl_filters.json"),
-            os.path.join(_data_dir, "config_fl_filters.json"),
-        ],
+        "workflow": ConfigWorkflow(
+            workflow_type="train",
+            config_file=[
+                os.path.join(_data_dir, "config_fl_stats_1.json"),
+                os.path.join(_data_dir, "config_fl_stats_2.json"),
+            ],
+            logging_file=_logging_file,
+            meta_file=None,
+        ),
+        "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
     }
 ]
 

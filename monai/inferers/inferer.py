@@ -20,14 +20,26 @@ from typing import Any
 import torch
 import torch.nn as nn
 
+from monai.apps.utils import get_logger
 from monai.data.meta_tensor import MetaTensor
+from monai.data.thread_buffer import ThreadBuffer
 from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
 
-__all__ = ["Inferer", "PatchInferer", "SimpleInferer", "SlidingWindowInferer", "SaliencyInferer", "SliceInferer"]
+logger = get_logger(__name__)
+
+__all__ = [
+    "Inferer",
+    "PatchInferer",
+    "SimpleInferer",
+    "SlidingWindowInferer",
+    "SaliencyInferer",
+    "SliceInferer",
+    "SlidingWindowInfererAdapt",
+]
 
 
 class Inferer(ABC):
@@ -76,6 +88,8 @@ class PatchInferer(Inferer):
     Args:
         splitter: a `Splitter` object that split the inputs into patches. Defaults to None.
             If not provided or None, the inputs are considered to be already split into patches.
+            In this case, the output `merged_shape` and the optional `cropped_shape` cannot be inferred
+            and should be explicitly provided.
         merger_cls: a `Merger` subclass that can be instantiated to merges patch outputs.
             It can also be a string that matches the name of a class inherited from `Merger` class.
             Defaults to `AvgMerger`.
@@ -89,34 +103,31 @@ class PatchInferer(Inferer):
         output_keys: if the network output is a dictionary, this defines the keys of
             the output dictionary to be used for merging.
             Defaults to None, where all the keys are used.
+        match_spatial_shape: whether to crop the output to match the input shape. Defaults to True.
+        buffer_size: number of patches to be held in the buffer with a separate thread for batch sampling. Defaults to 0.
         merger_kwargs: arguments to be passed to `merger_cls` for instantiation.
-            `output_shape` is calculated automatically based on the input shape and
+            `merged_shape` is calculated automatically based on the input shape and
             the output patch shape unless it is passed here.
     """
 
     def __init__(
         self,
-        splitter: Splitter | Callable | None = None,
+        splitter: Splitter | None = None,
         merger_cls: type[Merger] | str = AvgMerger,
         batch_size: int = 1,
         preprocessing: Callable | None = None,
         postprocessing: Callable | None = None,
         output_keys: Sequence | None = None,
+        match_spatial_shape: bool = True,
+        buffer_size: int = 0,
         **merger_kwargs: Any,
     ) -> None:
         Inferer.__init__(self)
-
         # splitter
-        if splitter is not None and not isinstance(splitter, Splitter):
-            if callable(splitter):
-                warnings.warn(
-                    "`splitter` is a callable instead of `Splitter` object, please make sure that it returns "
-                    "the correct values. Either Iterable[tuple[torch.Tensor, Sequence[int]]], or "
-                    "a MetaTensor with defined `PatchKey.LOCATION` metadata."
-                )
-            else:
+        if not isinstance(splitter, (Splitter, type(None))):
+            if not isinstance(splitter, Splitter):
                 raise TypeError(
-                    f"'splitter' should be a `Splitter` object  (or a callable that returns "
+                    f"'splitter' should be a `Splitter` object that returns: "
                     "an iterable of pairs of (patch, location) or a MetaTensor that has `PatchKeys.LOCATION` metadata)."
                     f"{type(splitter)} is given."
                 )
@@ -149,10 +160,18 @@ class PatchInferer(Inferer):
         self.postprocessing = postprocessing
 
         # batch size for patches
+        if batch_size < 1:
+            raise ValueError(f"`batch_size` must be a positive number, {batch_size} is given.")
         self.batch_size = batch_size
 
         # model output keys
         self.output_keys = output_keys
+
+        # whether to crop the output to match the input shape
+        self.match_spatial_shape = match_spatial_shape
+
+        # buffer size for multithreaded batch sampling
+        self.buffer_size = buffer_size
 
     def _batch_sampler(
         self, patches: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
@@ -171,10 +190,16 @@ class PatchInferer(Inferer):
                 batch_size = min(self.batch_size, total_size - i)
                 yield patches[i : i + batch_size], patches[i : i + batch_size].meta[PatchKeys.LOCATION], batch_size  # type: ignore
         else:
+            buffer: Iterable | ThreadBuffer
+            if self.buffer_size > 0:
+                # Use multi-threading to sample patches with a buffer
+                buffer = ThreadBuffer(patches, buffer_size=self.buffer_size, timeout=0.1)
+            else:
+                buffer = patches
             patch_batch: list[Any] = [None] * self.batch_size
             location_batch: list[Any] = [None] * self.batch_size
             idx_in_batch = 0
-            for sample in patches:
+            for sample in buffer:
                 patch_batch[idx_in_batch] = sample[0]
                 location_batch[idx_in_batch] = sample[1]
                 idx_in_batch += 1
@@ -215,14 +240,24 @@ class PatchInferer(Inferer):
             out_patch = torch.chunk(out_patch_batch, batch_size)[0]
             # calculate the ratio of input and output patch sizes
             ratio = tuple(op / ip for ip, op in zip(in_patch.shape[2:], out_patch.shape[2:]))
-            ratios.append(ratio)
-            # calculate output_shape only if it is not provided and splitter is not None.
-            if self.splitter is not None and "output_shape" not in self.merger_kwargs:
-                output_shape = self._get_output_shape(inputs, out_patch, ratio)
-                merger = self.merger_cls(output_shape=output_shape, **self.merger_kwargs)
-            else:
-                merger = self.merger_cls(**self.merger_kwargs)
+
+            # calculate merged_shape and cropped_shape
+            merger_kwargs = self.merger_kwargs.copy()
+            cropped_shape, merged_shape = self._get_merged_shapes(inputs, out_patch, ratio)
+            if "merged_shape" not in merger_kwargs:
+                merger_kwargs["merged_shape"] = merged_shape
+                if merger_kwargs["merged_shape"] is None:
+                    raise ValueError("`merged_shape` cannot be `None`.")
+            if "cropped_shape" not in merger_kwargs:
+                merger_kwargs["cropped_shape"] = cropped_shape
+
+            # initialize the merger
+            merger = self.merger_cls(**merger_kwargs)
+
+            # store mergers and input/output ratios
             mergers.append(merger)
+            ratios.append(ratio)
+
         return mergers, ratios
 
     def _aggregate(self, outputs, locations, batch_size, mergers, ratios):
@@ -232,12 +267,27 @@ class PatchInferer(Inferer):
                 out_loc = [round(l * r) for l, r in zip(in_loc, ratio)]
                 merger.aggregate(out_patch, out_loc)
 
-    def _get_output_shape(self, inputs, out_patch, ratio):
-        """Define the shape of output merged tensors"""
-        in_spatial_shape = inputs.shape[2:]
-        out_spatial_shape = tuple(round(s * r) for s, r in zip(in_spatial_shape, ratio))
-        output_shape = out_patch.shape[:2] + out_spatial_shape
-        return output_shape
+    def _get_merged_shapes(self, inputs, out_patch, ratio):
+        """Define the shape of merged tensors (non-padded and padded)"""
+        if self.splitter is None:
+            return None, None
+
+        # input spatial shapes
+        original_spatial_shape = self.splitter.get_input_shape(inputs)
+        padded_spatial_shape = self.splitter.get_padded_shape(inputs)
+
+        # output spatial shapes
+        output_spatial_shape = tuple(round(s * r) for s, r in zip(original_spatial_shape, ratio))
+        padded_output_spatial_shape = tuple(round(s * r) for s, r in zip(padded_spatial_shape, ratio))
+
+        # output shapes
+        cropped_shape = out_patch.shape[:2] + output_spatial_shape
+        merged_shape = out_patch.shape[:2] + padded_output_spatial_shape
+
+        if not self.match_spatial_shape:
+            cropped_shape = merged_shape
+
+        return cropped_shape, merged_shape
 
     def __call__(
         self,
@@ -259,6 +309,7 @@ class PatchInferer(Inferer):
         """
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
+            # handle situations where the splitter is not provided
             if isinstance(inputs, torch.Tensor):
                 if isinstance(inputs, MetaTensor):
                     if PatchKeys.LOCATION not in inputs.meta:
@@ -277,6 +328,7 @@ class PatchInferer(Inferer):
                     )
             patches_locations = inputs
         else:
+            # apply splitter
             patches_locations = self.splitter(inputs)
 
         ratios: list[float] = []
@@ -291,7 +343,8 @@ class PatchInferer(Inferer):
             self._aggregate(outputs, locations, batch_size, mergers, ratios)
 
         # finalize the mergers and get the results
-        merged_outputs = tuple(merger.finalize() for merger in mergers)
+        merged_outputs = [merger.finalize() for merger in mergers]
+
         # return according to the model output
         if self.output_keys:
             return dict(zip(self.output_keys, merged_outputs))
@@ -339,7 +392,7 @@ class SlidingWindowInferer(Inferer):
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
-        overlap: Amount of overlap between scans.
+        overlap: Amount of overlap between scans along each spatial dimension, defaults to ``0.25``.
         mode: {``"constant"``, ``"gaussian"``}
             How to blend output of overlapping windows. Defaults to ``"constant"``.
 
@@ -366,6 +419,15 @@ class SlidingWindowInferer(Inferer):
         cpu_thresh: when provided, dynamically switch to stitching on cpu (to save gpu memory)
             when input image volume is larger than this threshold (in pixels/voxels).
             Otherwise use ``"device"``. Thus, the output may end-up on either cpu or gpu.
+        buffer_steps: the number of sliding window iterations along the ``buffer_dim``
+            to be buffered on ``sw_device`` before writing to ``device``.
+            (Typically, ``sw_device`` is ``cuda`` and ``device`` is ``cpu``.)
+            default is None, no buffering. For the buffer dim, when spatial size is divisible by buffer_steps*roi_size,
+            (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
+        buffer_dim: the spatial dimension along which the buffers are created.
+            0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
+        with_coord: whether to pass the window coordinates to ``network``. Defaults to False.
+            If True, the ``network``'s 2nd input argument should accept the window coordinates.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -377,7 +439,7 @@ class SlidingWindowInferer(Inferer):
         self,
         roi_size: Sequence[int] | int,
         sw_batch_size: int = 1,
-        overlap: float = 0.25,
+        overlap: Sequence[float] | float = 0.25,
         mode: BlendMode | str = BlendMode.CONSTANT,
         sigma_scale: Sequence[float] | float = 0.125,
         padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
@@ -387,6 +449,9 @@ class SlidingWindowInferer(Inferer):
         progress: bool = False,
         cache_roi_weight_map: bool = False,
         cpu_thresh: int | None = None,
+        buffer_steps: int | None = None,
+        buffer_dim: int = -1,
+        with_coord: bool = False,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -400,6 +465,9 @@ class SlidingWindowInferer(Inferer):
         self.device = device
         self.progress = progress
         self.cpu_thresh = cpu_thresh
+        self.buffer_steps = buffer_steps
+        self.buffer_dim = buffer_dim
+        self.with_coord = with_coord
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -415,7 +483,8 @@ class SlidingWindowInferer(Inferer):
                 warnings.warn("cache_roi_weight_map=True, but cache is not created. (dynamic roi_size?)")
         except BaseException as e:
             raise RuntimeError(
-                "Seems to be OOM. Please try smaller roi_size, or use mode='constant' instead of mode='gaussian'. "
+                f"roi size {self.roi_size}, mode={mode}, sigma_scale={sigma_scale}, device={device}\n"
+                "Seems to be OOM. Please try smaller patch size or mode='constant' instead of mode='gaussian'."
             ) from e
 
     def __call__(
@@ -436,7 +505,10 @@ class SlidingWindowInferer(Inferer):
 
         """
 
-        device = self.device
+        device = kwargs.pop("device", self.device)
+        buffer_steps = kwargs.pop("buffer_steps", self.buffer_steps)
+        buffer_dim = kwargs.pop("buffer_dim", self.buffer_dim)
+
         if device is None and self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh:
             device = "cpu"  # stitch in cpu memory if image is too large
 
@@ -455,8 +527,100 @@ class SlidingWindowInferer(Inferer):
             self.progress,
             self.roi_weight_map,
             None,
+            buffer_steps,
+            buffer_dim,
+            self.with_coord,
             *args,
             **kwargs,
+        )
+
+
+class SlidingWindowInfererAdapt(SlidingWindowInferer):
+    """
+    SlidingWindowInfererAdapt extends SlidingWindowInferer to automatically switch to buffered and then to CPU stitching,
+    when OOM on GPU. It also records a size of such large images to automatically
+    try CPU stitching for the next large image of a similar size.  If the stitching 'device' input parameter is provided,
+    automatic adaptation won't be attempted, please keep the default option device = None for adaptive behavior.
+    Note: the output might be on CPU (even if the input was on GPU), if the GPU memory was not sufficient.
+
+    """
+
+    def __call__(
+        self,
+        inputs: torch.Tensor,
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
+        *args: Any,
+        **kwargs: Any,
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
+        """
+
+        Args:
+            inputs: model input data for inference.
+            network: target model to execute inference.
+                supports callables such as ``lambda x: my_torch_model(x, additional_config)``
+            args: optional args to be passed to ``network``.
+            kwargs: optional keyword args to be passed to ``network``.
+
+        """
+
+        # if device is provided, use without any adaptations
+        if self.device is not None:
+            return super().__call__(inputs, network, *args, **kwargs)
+
+        skip_buffer = self.buffer_steps is not None and self.buffer_steps <= 0
+        cpu_cond = self.cpu_thresh is not None and inputs.shape[2:].numel() > self.cpu_thresh
+        gpu_stitching = inputs.is_cuda and not cpu_cond
+        buffered_stitching = inputs.is_cuda and cpu_cond and not skip_buffer
+        buffer_steps = max(1, self.buffer_steps) if self.buffer_steps is not None else 1
+        buffer_dim = -1
+
+        sh = list(inputs.shape[2:])
+        max_dim = sh.index(max(sh))
+        if inputs.shape[max_dim + 2] / inputs.shape[-1] >= 2:
+            buffer_dim = max_dim
+
+        for _ in range(10):  # at most 10 trials
+            try:
+                return super().__call__(
+                    inputs,
+                    network,
+                    device=inputs.device if gpu_stitching else torch.device("cpu"),
+                    buffer_steps=buffer_steps if buffered_stitching else None,
+                    buffer_dim=buffer_dim,
+                    *args,
+                    **kwargs,
+                )
+            except RuntimeError as e:
+                if not gpu_stitching and not buffered_stitching or "OutOfMemoryError" not in str(type(e).__name__):
+                    raise e
+
+                logger.info(e)
+
+                if gpu_stitching:  # if failed on gpu
+                    gpu_stitching = False
+                    self.cpu_thresh = inputs.shape[2:].numel() - 1  # update thresh
+
+                    if skip_buffer:
+                        buffered_stitching = False
+                        logger.warning(f"GPU stitching failed, attempting on CPU, image dim {inputs.shape}.")
+
+                    else:
+                        buffered_stitching = True
+                        self.buffer_steps = buffer_steps
+                        logger.warning(
+                            f"GPU stitching failed, buffer {buffer_steps} dim {buffer_dim}, image dim {inputs.shape}."
+                        )
+                elif buffer_steps > 1:
+                    buffer_steps = max(1, buffer_steps // 2)
+                    self.buffer_steps = buffer_steps
+                    logger.warning(
+                        f"GPU buffered stitching failed, image dim {inputs.shape} reducing buffer to {buffer_steps}."
+                    )
+                else:
+                    buffered_stitching = False
+                    logger.warning(f"GPU buffered stitching failed, attempting on CPU, image dim {inputs.shape}.")
+        raise RuntimeError(  # not possible to finish after the trials
+            f"SlidingWindowInfererAdapt {skip_buffer} {cpu_cond} {gpu_stitching} {buffered_stitching} {buffer_steps}"
         )
 
 

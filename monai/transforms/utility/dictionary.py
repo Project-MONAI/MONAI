@@ -33,10 +33,8 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import MultiSampleTrait, RandomizableTrait
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utility.array import (
-    AddChannel,
     AddCoordinateChannels,
     AddExtremePointsChannel,
-    AsChannelFirst,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -67,23 +65,17 @@ from monai.transforms.utility.array import (
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
-from monai.utils import deprecated, deprecated_arg, ensure_tuple, ensure_tuple_rep
+from monai.utils import ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
-    "AddChannelD",
-    "AddChannelDict",
-    "AddChanneld",
     "AddCoordinateChannelsD",
     "AddCoordinateChannelsDict",
     "AddCoordinateChannelsd",
     "AddExtremePointsChannelD",
     "AddExtremePointsChannelDict",
     "AddExtremePointsChanneld",
-    "AsChannelFirstD",
-    "AsChannelFirstDict",
-    "AsChannelFirstd",
     "AsChannelLastD",
     "AsChannelLastDict",
     "AsChannelLastd",
@@ -158,9 +150,6 @@ __all__ = [
     "SimulateDelayD",
     "SimulateDelayDict",
     "SimulateDelayd",
-    "SplitChannelD",
-    "SplitChannelDict",
-    "SplitChanneld",
     "SplitDimD",
     "SplitDimDict",
     "SplitDimd",
@@ -221,31 +210,6 @@ class Identityd(MapTransform):
         return d
 
 
-class AsChannelFirstd(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelFirst`.
-    """
-
-    backend = AsChannelFirst.backend
-
-    def __init__(self, keys: KeysCollection, channel_dim: int = -1, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            channel_dim: which dimension of input image is the channel, default is the last dimension.
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.converter = AsChannelFirst(channel_dim=channel_dim)
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.converter(d[key])
-        return d
-
-
 class AsChannelLastd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AsChannelLast`.
@@ -271,30 +235,6 @@ class AsChannelLastd(MapTransform):
         return d
 
 
-class AddChanneld(MapTransform):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.AddChannel`.
-    """
-
-    backend = AddChannel.backend
-
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        """
-        Args:
-            keys: keys of the corresponding items to be transformed.
-                See also: :py:class:`monai.transforms.compose.MapTransform`
-            allow_missing_keys: don't raise exception if key is missing.
-        """
-        super().__init__(keys, allow_missing_keys)
-        self.adder = AddChannel()
-
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.adder(d[key])
-        return d
-
-
 class EnsureChannelFirstd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.EnsureChannelFirst`.
@@ -302,16 +242,8 @@ class EnsureChannelFirstd(MapTransform):
 
     backend = EnsureChannelFirst.backend
 
-    @deprecated_arg(name="meta_keys", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
-    @deprecated_arg(name="meta_key_postfix", since="0.9", msg_suffix="not needed if image is type `MetaTensor`.")
     def __init__(
-        self,
-        keys: KeysCollection,
-        meta_keys: KeysCollection | None = None,
-        meta_key_postfix: str = DEFAULT_POST_FIX,
-        strict_check: bool = True,
-        allow_missing_keys: bool = False,
-        channel_dim=None,
+        self, keys: KeysCollection, strict_check: bool = True, allow_missing_keys: bool = False, channel_dim=None
     ) -> None:
         """
         Args:
@@ -326,13 +258,12 @@ class EnsureChannelFirstd(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
         self.adjuster = EnsureChannelFirst(strict_check=strict_check, channel_dim=channel_dim)
-        self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
-        self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
-        for key, meta_key, meta_key_postfix in self.key_iterator(d, self.meta_keys, self.meta_key_postfix):
-            d[key] = self.adjuster(d[key], d.get(meta_key or f"{key}_{meta_key_postfix}"))  # type: ignore
+        for key in self.key_iterator(d):
+            meta_dict = d[key].meta if isinstance(d[key], MetaTensor) else None  # type: ignore[attr-defined]
+            d[key] = self.adjuster(d[key], meta_dict)
         return d
 
 
@@ -452,29 +383,6 @@ class SplitDimd(MapTransform, MultiSampleTrait):
         return d
 
 
-@deprecated(since="0.8", msg_suffix="please use `SplitDimd` instead.")
-class SplitChanneld(SplitDimd):
-    """
-    Dictionary-based wrapper of :py:class:`monai.transforms.SplitChannel`.
-    All the input specified by `keys` should be split into same count of data.
-    """
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        output_postfixes: Sequence[str] | None = None,
-        channel_dim: int = 0,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(
-            keys,
-            output_postfixes=output_postfixes,
-            dim=channel_dim,
-            update_meta=False,  # for backwards compatibility
-            allow_missing_keys=allow_missing_keys,
-        )
-
-
 class CastToTyped(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CastToType`.
@@ -521,7 +429,7 @@ class ToTensord(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         dtype: torch.dtype | None = None,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
         allow_missing_keys: bool = False,
@@ -1088,6 +996,8 @@ class Lambdad(MapTransform, InvertibleTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
         overwrite: whether to overwrite the original data in the input dictionary with lambda function output. it
             can be bool or str, when setting to str, it will create a new key for the output and keep the value of
             key intact. default to True. it also can be a sequence of bool or str, each element corresponds to a key
@@ -1106,6 +1016,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         keys: KeysCollection,
         func: Sequence[Callable] | Callable,
         inv_func: Sequence[Callable] | Callable = no_collation,
+        track_meta: bool = True,
         overwrite: Sequence[bool] | bool | Sequence[str] | str = True,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -1113,7 +1024,7 @@ class Lambdad(MapTransform, InvertibleTransform):
         self.func = ensure_tuple_rep(func, len(self.keys))
         self.inv_func = ensure_tuple_rep(inv_func, len(self.keys))
         self.overwrite = ensure_tuple_rep(overwrite, len(self.keys))
-        self._lambd = Lambda()
+        self._lambd = Lambda(track_meta=track_meta)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
@@ -1146,6 +1057,8 @@ class RandLambdad(Lambdad, RandomizableTransform):
             each element corresponds to a key in ``keys``.
         inv_func: Lambda/function of inverse operation if want to invert transforms, default to `lambda x: x`.
             It also can be a sequence of Callable, each element corresponds to a key in ``keys``.
+        track_meta:  If `False`, then standard data objects will be returned (e.g., torch.Tensor` and `np.ndarray`)
+            as opposed to MONAI's enhanced objects. By default, this is `True`.
         overwrite: whether to overwrite the original data in the input dictionary with lambda function output.
             default to True. it also can be a sequence of bool, each element corresponds to a key in ``keys``.
         prob: probability of executing the random function, default to 1.0, with 100% probability to execute.
@@ -1165,6 +1078,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
         keys: KeysCollection,
         func: Sequence[Callable] | Callable,
         inv_func: Sequence[Callable] | Callable = no_collation,
+        track_meta: bool = True,
         overwrite: Sequence[bool] | bool = True,
         prob: float = 1.0,
         allow_missing_keys: bool = False,
@@ -1174,6 +1088,7 @@ class RandLambdad(Lambdad, RandomizableTransform):
             keys=keys,
             func=func,
             inv_func=inv_func,
+            track_meta=track_meta,
             overwrite=overwrite,
             allow_missing_keys=allow_missing_keys,
         )
@@ -1306,6 +1221,8 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
         image_threshold: if enabled image_key, use ``image > image_threshold`` to determine the valid image content
             area and select only the indices of classes in this area.
         output_shape: expected shape of output indices. if not None, unravel indices to specified shape.
+        max_samples_per_class: maximum length of indices to sample in each class to reduce memory consumption.
+            Default is None, no subsampling.
         allow_missing_keys: don't raise exception if key is missing.
 
     """
@@ -1320,12 +1237,13 @@ class ClassesToIndicesd(MapTransform, MultiSampleTrait):
         image_key: str | None = None,
         image_threshold: float = 0.0,
         output_shape: Sequence[int] | None = None,
+        max_samples_per_class: int | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.indices_postfix = indices_postfix
         self.image_key = image_key
-        self.converter = ClassesToIndices(num_classes, image_threshold, output_shape)
+        self.converter = ClassesToIndices(num_classes, image_threshold, output_shape, max_samples_per_class)
 
     def __call__(self, data: Mapping[Hashable, Any]):
         d = dict(data)
@@ -1520,6 +1438,7 @@ class MapLabelValued(MapTransform):
             orig_labels: original labels that map to others.
             target_labels: expected label values, 1: 1 map to the `orig_labels`.
             dtype: convert the output data to dtype, default to float32.
+                if dtype is from PyTorch, the transform will use the pytorch backend, else with numpy backend.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
@@ -1721,9 +1640,6 @@ class AddCoordinateChannelsd(MapTransform):
             to the input image, encoding the coordinates of the input's three spatial dimensions.
         allow_missing_keys: don't raise exception if key is missing.
 
-    .. deprecated:: 0.8.0
-        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
-
     """
 
     backend = AddCoordinateChannels.backend
@@ -1824,13 +1740,10 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
 ImageFilterD = ImageFilterDict = ImageFilterd
 IdentityD = IdentityDict = Identityd
-AsChannelFirstD = AsChannelFirstDict = AsChannelFirstd
 AsChannelLastD = AsChannelLastDict = AsChannelLastd
-AddChannelD = AddChannelDict = AddChanneld
 EnsureChannelFirstD = EnsureChannelFirstDict = EnsureChannelFirstd
 RemoveRepeatedChannelD = RemoveRepeatedChannelDict = RemoveRepeatedChanneld
 RepeatChannelD = RepeatChannelDict = RepeatChanneld
-SplitChannelD = SplitChannelDict = SplitChanneld
 SplitDimD = SplitDimDict = SplitDimd
 CastToTypeD = CastToTypeDict = CastToTyped
 ToTensorD = ToTensorDict = ToTensord

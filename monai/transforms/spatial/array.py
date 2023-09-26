@@ -9,13 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for spatial operations
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for spatial operations.
 """
 
 from __future__ import annotations
 
-import functools
 import warnings
 from collections.abc import Callable
 from copy import deepcopy
@@ -27,7 +25,7 @@ import torch
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_obj import get_track_meta
+from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
 from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
@@ -47,7 +45,6 @@ from monai.transforms.spatial.functional import (
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
 from monai.transforms.utils import (
-    convert_pad_mode,
     create_control_grid,
     create_grid,
     create_rotate,
@@ -55,16 +52,15 @@ from monai.transforms.utils import (
     create_shear,
     create_translate,
     map_spatial_axes,
+    resolves_modes,
     scale_affine,
 )
-from monai.transforms.utils_pytorch_numpy_unification import linalg_inv, moveaxis
+from monai.transforms.utils_pytorch_numpy_unification import argsort, argwhere, linalg_inv, moveaxis
 from monai.utils import (
     GridSampleMode,
     GridSamplePadMode,
     InterpolateMode,
-    NdimageMode,
     NumpyPadMode,
-    SplineMode,
     convert_to_cupy,
     convert_to_dst_type,
     convert_to_numpy,
@@ -76,8 +72,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.deprecate_utils import deprecated_arg
-from monai.utils.enums import GridPatchSort, PatchKeys, PytorchPadMode, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -115,6 +110,7 @@ __all__ = [
     "RandAffine",
     "Rand2DElastic",
     "Rand3DElastic",
+    "RandSimulateLowResolution",
 ]
 
 RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
@@ -127,6 +123,9 @@ class SpatialResample(InvertibleTransform, LazyTransform):
 
     Internally this transform computes the affine transform matrix from ``src_affine`` to ``dst_affine``,
     by ``xform = linalg.solve(src_affine, dst_affine)``, and call ``monai.transforms.Affine`` with ``xform``.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
@@ -137,6 +136,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
+        lazy: bool = False,
     ):
         """
         Args:
@@ -155,7 +155,10 @@ class SpatialResample(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
@@ -170,6 +173,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         padding_mode: str | None = None,
         align_corners: bool | None = None,
         dtype: DtypeLike = None,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -201,7 +205,9 @@ class SpatialResample(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         The spatial rank is determined by the smallest among ``img.ndim -1``, ``len(src_affine) - 1``, and ``3``.
 
         When both ``monai.config.USE_COMPILED`` and ``align_corners`` are set to ``True``,
@@ -213,8 +219,17 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         align_corners = align_corners if align_corners is not None else self.align_corners
         mode = mode if mode is not None else self.mode
         padding_mode = padding_mode if padding_mode is not None else self.padding_mode
+        lazy_ = self.lazy if lazy is None else lazy
         return spatial_resample(
-            img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, self.get_transform_info()
+            img,
+            dst_affine,
+            spatial_size,
+            mode,
+            padding_mode,
+            align_corners,
+            dtype_pt,
+            lazy=lazy_,
+            transform_info=self.get_transform_info(),
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -231,12 +246,18 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         with self.trace_transform(False):
             # we can't use `self.__call__` in case a child class calls this inverse.
             out: torch.Tensor = SpatialResample.__call__(self, data, **kw_args)
+        kw_args["src_affine"] = kw_args.get("dst_affine")
         return out
 
 
 class ResampleToMatch(SpatialResample):
-    """Resample an image to match given metadata. The affine matrix will be aligned,
-    and the size of the output image will match."""
+    """
+    Resample an image to match given metadata. The affine matrix will be aligned,
+    and the size of the output image will match.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+    """
 
     def __call__(  # type: ignore
         self,
@@ -246,6 +267,7 @@ class ResampleToMatch(SpatialResample):
         padding_mode: str | None = None,
         align_corners: bool | None = None,
         dtype: DtypeLike = None,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -269,6 +291,10 @@ class ResampleToMatch(SpatialResample):
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
+
         Raises:
             ValueError: When the affine matrix of the source image is not invertible.
         Returns:
@@ -277,6 +303,7 @@ class ResampleToMatch(SpatialResample):
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
         dst_affine = img_dst.peek_pending_affine() if isinstance(img_dst, MetaTensor) else torch.eye(4)
+        lazy_ = self.lazy if lazy is None else lazy
         img = super().__call__(
             img=img,
             dst_affine=dst_affine,
@@ -285,8 +312,9 @@ class ResampleToMatch(SpatialResample):
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
+            lazy=lazy_,
         )
-        if not self.lazy_evaluation:
+        if not lazy_:
             if isinstance(img, MetaTensor):
                 img.affine = dst_affine
                 if isinstance(img_dst, MetaTensor):
@@ -307,6 +335,9 @@ class ResampleToMatch(SpatialResample):
 class Spacing(InvertibleTransform, LazyTransform):
     """
     Resample input image into the specified `pixdim`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = SpatialResample.backend
@@ -323,6 +354,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         recompute_affine: bool = False,
         min_pixdim: Sequence[float] | float | np.ndarray | None = None,
         max_pixdim: Sequence[float] | float | np.ndarray | None = None,
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -375,8 +407,10 @@ class Spacing(InvertibleTransform, LazyTransform):
             max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
                 value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
                 value of `pixdim`. Default to `None`.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.min_pixdim = np.array(ensure_tuple(min_pixdim), dtype=np.float64)
         self.max_pixdim = np.array(ensure_tuple(max_pixdim), dtype=np.float64)
@@ -389,25 +423,24 @@ class Spacing(InvertibleTransform, LazyTransform):
                 raise ValueError(f"min_pixdim {self.min_pixdim} must be positive, smaller than max {self.max_pixdim}.")
 
         self.sp_resample = SpatialResample(
-            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype
+            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy
         )
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool) -> None:
-        self._lazy_evaluation = val
-        self.sp_resample.lazy_evaluation = val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool) -> None:
+        self._lazy = val
+        self.sp_resample.lazy = val
 
-    @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
         self,
         data_array: torch.Tensor,
-        affine: NdarrayOrTensor | None = None,
         mode: str | int | None = None,
         padding_mode: str | None = None,
         align_corners: bool | None = None,
         dtype: DtypeLike = None,
         scale_extent: bool | None = None,
         output_spatial_shape: Sequence[int] | np.ndarray | int | None = None,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -437,6 +470,9 @@ class Spacing(InvertibleTransform, LazyTransform):
             output_spatial_shape: specify the shape of the output data_array. This is typically useful for
                 the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
                 error with the affine.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
@@ -453,9 +489,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         if sr <= 0:
             raise ValueError(f"data_array must have at least one spatial dimension, got {original_spatial_shape}.")
         affine_: np.ndarray
-        if affine is not None:
-            warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
-        input_affine = data_array.peek_pending_affine() if isinstance(data_array, MetaTensor) else affine
+        input_affine = data_array.peek_pending_affine() if isinstance(data_array, MetaTensor) else None
         if input_affine is None:
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity
@@ -487,6 +521,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         new_affine[:sr, -1] = offset[:sr]
 
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
+        lazy_ = self.lazy if lazy is None else lazy
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
@@ -495,9 +530,10 @@ class Spacing(InvertibleTransform, LazyTransform):
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
+            lazy=lazy_,
         )
         if self.recompute_affine and isinstance(data_array, MetaTensor):
-            if self.lazy_evaluation:
+            if lazy_:
                 raise NotImplementedError("recompute_affine is not supported with lazy evaluation.")
             a = scale_affine(original_spatial_shape, actual_shape)
             data_array.affine = convert_to_dst_type(a, affine_)[0]  # type: ignore
@@ -510,6 +546,9 @@ class Spacing(InvertibleTransform, LazyTransform):
 class Orientation(InvertibleTransform, LazyTransform):
     """
     Change the input image's orientation into the specified based on `axcodes`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
@@ -519,6 +558,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
         labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -531,6 +571,8 @@ class Orientation(InvertibleTransform, LazyTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
 
         Raises:
             ValueError: When ``axcodes=None`` and ``as_closest_canonical=True``. Incompatible values.
@@ -538,6 +580,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         See Also: `nibabel.orientations.ornt2axcodes`.
 
         """
+        LazyTransform.__init__(self, lazy=lazy)
         if axcodes is None and not as_closest_canonical:
             raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
         if axcodes is not None and as_closest_canonical:
@@ -546,13 +589,16 @@ class Orientation(InvertibleTransform, LazyTransform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array: torch.Tensor) -> torch.Tensor:
+    def __call__(self, data_array: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
         """
         If input type is `MetaTensor`, original affine is extracted with `data_array.affine`.
         If input type is `torch.Tensor`, original affine is assumed to be identity.
 
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
 
         Raises:
             ValueError: When ``data_array`` has no spatial dimensions.
@@ -597,7 +643,8 @@ class Orientation(InvertibleTransform, LazyTransform):
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
-        return orientation(data_array, affine_np, spatial_ornt, self.get_transform_info())  # type: ignore
+        lazy_ = self.lazy if lazy is None else lazy
+        return orientation(data_array, affine_np, spatial_ornt, lazy=lazy_, transform_info=self.get_transform_info())
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -618,27 +665,37 @@ class Flip(InvertibleTransform, LazyTransform):
     See `torch.flip` documentation for additional details:
     https://pytorch.org/docs/stable/generated/torch.flip.html
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         spatial_axis: spatial axes along which to flip over. Default is None.
             The default `axis=None` will flip over all of the axes of the input array.
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
 
     """
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
+    def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        return flip(img, self.spatial_axis, transform_info=self.get_transform_info())  # type: ignore
+        lazy_ = self.lazy if lazy is None else lazy
+        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         self.pop_transform(data)
@@ -651,6 +708,9 @@ class Resize(InvertibleTransform, LazyTransform):
     """
     Resize the input image to given spatial size (with scaling, not cropping/padding).
     Implemented using :py:class:`torch.nn.functional.interpolate`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         spatial_size: expected shape of spatial dimensions after resize operation.
@@ -679,6 +739,8 @@ class Resize(InvertibleTransform, LazyTransform):
             anti-aliasing is performed prior to rescaling.
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
     """
 
     backend = [TransformBackends.TORCH]
@@ -692,10 +754,12 @@ class Resize(InvertibleTransform, LazyTransform):
         anti_aliasing: bool = False,
         anti_aliasing_sigma: Sequence[float] | float | None = None,
         dtype: DtypeLike | torch.dtype = torch.float32,
+        lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
-        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.mode = mode
         self.align_corners = align_corners
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
@@ -709,6 +773,7 @@ class Resize(InvertibleTransform, LazyTransform):
         anti_aliasing: bool | None = None,
         anti_aliasing_sigma: Sequence[float] | float | None = None,
         dtype: DtypeLike | torch.dtype = None,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -731,7 +796,9 @@ class Resize(InvertibleTransform, LazyTransform):
                 anti-aliasing is performed prior to rescaling.
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         Raises:
             ValueError: When ``self.spatial_size`` length is less than ``img`` spatial dimensions.
 
@@ -759,18 +826,20 @@ class Resize(InvertibleTransform, LazyTransform):
             scale = self.spatial_size / max(img_size)
             sp_size = tuple(int(round(s * scale)) for s in img_size)
 
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode)
+        _mode = self.mode if mode is None else mode
         _align_corners = self.align_corners if align_corners is None else align_corners
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
+        lazy_ = self.lazy if lazy is None else lazy
         return resize(  # type: ignore
             img,
-            sp_size,
+            tuple(int(_s) for _s in sp_size),
             _mode,
             _align_corners,
             _dtype,
             input_ndim,
             anti_aliasing,
             anti_aliasing_sigma,
+            lazy_,
             self.get_transform_info(),
         )
 
@@ -800,6 +869,9 @@ class Rotate(InvertibleTransform, LazyTransform):
     """
     Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
         keep_size: If it is True, the output shape is kept the same as the input.
@@ -816,6 +888,8 @@ class Rotate(InvertibleTransform, LazyTransform):
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``float32``.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
     """
 
     backend = [TransformBackends.TORCH]
@@ -828,11 +902,13 @@ class Rotate(InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike | torch.dtype = torch.float32,
+        lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.angle = angle
         self.keep_size = keep_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = mode
+        self.padding_mode: str = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -843,6 +919,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         padding_mode: str | None = None,
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = None,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -860,6 +937,9 @@ class Rotate(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
 
         Raises:
             ValueError: When ``img`` spatially is not one of [2D, 3D].
@@ -867,13 +947,22 @@ class Rotate(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
-        _mode = look_up_option(mode or self.mode, GridSampleMode)
-        _padding_mode = look_up_option(padding_mode or self.padding_mode, GridSamplePadMode)
+        _mode = mode or self.mode
+        _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners
         im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         output_shape = im_shape if self.keep_size else None
+        lazy_ = self.lazy if lazy is None else lazy
         return rotate(  # type: ignore
-            img, self.angle, output_shape, _mode, _padding_mode, _align_corners, _dtype, self.get_transform_info()
+            img,
+            self.angle,
+            output_shape,
+            _mode,
+            _padding_mode,
+            _align_corners,
+            _dtype,
+            lazy=lazy_,
+            transform_info=self.get_transform_info(),
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -888,10 +977,11 @@ class Rotate(InvertibleTransform, LazyTransform):
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         inv_rot_mat = linalg_inv(convert_to_numpy(fwd_rot_mat))
 
+        _, _m, _p, _ = resolves_modes(mode, padding_mode)
         xform = AffineTransform(
             normalized=False,
-            mode=mode,
-            padding_mode=padding_mode,
+            mode=_m,
+            padding_mode=_p,
             align_corners=False if align_corners == TraceKeys.NONE else align_corners,
             reverse_indexing=True,
         )
@@ -915,6 +1005,9 @@ class Zoom(InvertibleTransform, LazyTransform):
     Different from :py:class:`monai.transforms.resize`, this transform takes scaling factors
     as input, and provides an option of preserving the input spatial size.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         zoom: The zoom factor along the spatial axes.
             If a float, zoom is the same for each spatial axis.
@@ -935,9 +1028,10 @@ class Zoom(InvertibleTransform, LazyTransform):
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data.
         keep_size: Should keep original size (padding/slicing if needed), default is True.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
-
     """
 
     backend = [TransformBackends.TORCH]
@@ -950,10 +1044,12 @@ class Zoom(InvertibleTransform, LazyTransform):
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = torch.float32,
         keep_size: bool = True,
+        lazy: bool = False,
         **kwargs,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.zoom = zoom
-        self.mode: InterpolateMode = InterpolateMode(mode)
+        self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
@@ -967,6 +1063,7 @@ class Zoom(InvertibleTransform, LazyTransform):
         padding_mode: str | None = None,
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = None,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -987,16 +1084,27 @@ class Zoom(InvertibleTransform, LazyTransform):
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
-        _mode = look_up_option(self.mode if mode is None else mode, InterpolateMode).value
+        _mode = self.mode if mode is None else mode
         _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
+        lazy_ = self.lazy if lazy is None else lazy
         return zoom(  # type: ignore
-            img, _zoom, self.keep_size, _mode, _padding_mode, _align_corners, _dtype, self.get_transform_info()
+            img,
+            _zoom,
+            self.keep_size,
+            _mode,
+            _padding_mode,
+            _align_corners,
+            _dtype,
+            lazy=lazy_,
+            transform_info=self.get_transform_info(),
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1031,32 +1139,41 @@ class Rotate90(InvertibleTransform, LazyTransform):
     See `torch.rot90` for additional details:
     https://pytorch.org/docs/stable/generated/torch.rot90.html#torch-rot90.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, k: int = 1, spatial_axes: tuple[int, int] = (0, 1)) -> None:
+    def __init__(self, k: int = 1, spatial_axes: tuple[int, int] = (0, 1), lazy: bool = False) -> None:
         """
         Args:
             k: number of times to rotate by 90 degrees.
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
                 If axis is negative it counts from the last to the first axis.
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
         spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
             raise ValueError(f"spatial_axes must be 2 numbers to define the plane to rotate, got {spatial_axes_}.")
         self.spatial_axes = spatial_axes_
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         axes = map_spatial_axes(img.ndim, self.spatial_axes)
-        return rotate90(img, axes, self.k, self.get_transform_info())  # type: ignore
+        lazy_ = self.lazy if lazy is None else lazy
+        return rotate90(img, axes, self.k, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -1075,11 +1192,16 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Rotate90.backend
 
-    def __init__(self, prob: float = 0.1, max_k: int = 3, spatial_axes: tuple[int, int] = (0, 1)) -> None:
+    def __init__(
+        self, prob: float = 0.1, max_k: int = 3, spatial_axes: tuple[int, int] = (0, 1), lazy: bool = False
+    ) -> None:
         """
         Args:
             prob: probability of rotating.
@@ -1087,8 +1209,11 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`, (Default 3).
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
         """
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.max_k = max_k
         self.spatial_axes = spatial_axes
 
@@ -1100,23 +1225,27 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             return None
         self._rand_k = self.R.randint(self.max_k) + 1
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
+
         if randomize:
             self.randomize()
 
+        lazy_ = self.lazy if lazy is None else lazy
         if self._do_transform:
-            xform = Rotate90(self._rand_k, self.spatial_axes)
-            xform.lazy_evaluation = self.lazy_evaluation
+            xform = Rotate90(self._rand_k, self.spatial_axes, lazy=lazy_)
             out = xform(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
 
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy=lazy_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1130,6 +1259,9 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
 class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly rotate the input arrays.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         range_x: Range of rotation angle in radians in the plane defined by the first and second axes.
@@ -1153,6 +1285,8 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``float32``.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
     """
 
     backend = Rotate.backend
@@ -1168,8 +1302,10 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike | torch.dtype = np.float32,
+        lazy: bool = False,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.range_x = ensure_tuple(range_x)
         if len(self.range_x) == 1:
             self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
@@ -1181,8 +1317,8 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
 
         self.keep_size = keep_size
-        self.mode: str = look_up_option(mode, GridSampleMode)
-        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
+        self.mode: str = mode
+        self.padding_mode: str = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
 
@@ -1206,6 +1342,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = None,
         randomize: bool = True,
+        lazy: bool | None = None,
     ):
         """
         Args:
@@ -1222,25 +1359,29 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
             randomize: whether to execute `randomize()` function first, default to True.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         if randomize:
             self.randomize()
 
+        lazy_ = self.lazy if lazy is None else lazy
         if self._do_transform:
             ndim = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
             rotator = Rotate(
                 angle=self.x if ndim == 2 else (self.x, self.y, self.z),
                 keep_size=self.keep_size,
-                mode=look_up_option(mode or self.mode, GridSampleMode),
-                padding_mode=look_up_option(padding_mode or self.padding_mode, GridSamplePadMode),
+                mode=mode or self.mode,
+                padding_mode=padding_mode or self.padding_mode,
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype or img.dtype,
+                lazy=lazy_,
             )
-            rotator.lazy_evaluation = self.lazy_evaluation
             out = rotator(img)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy=lazy_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1256,33 +1397,43 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         prob: Probability of flipping.
         spatial_axis: Spatial axes along which to flip over. Default is None.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
     """
 
     backend = Flip.backend
 
-    def __init__(self, prob: float = 0.1, spatial_axis: Sequence[int] | int | None = None) -> None:
+    def __init__(self, prob: float = 0.1, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
         RandomizableTransform.__init__(self, prob)
-        self.flipper = Flip(spatial_axis=spatial_axis)
+        LazyTransform.__init__(self, lazy=lazy)
+        self.flipper = Flip(spatial_axis=spatial_axis, lazy=lazy)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool):
-        self.flipper.lazy_evaluation = val
-        self._lazy_evaluation = val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self.flipper.lazy = val
+        self._lazy = val
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         if randomize:
             self.randomize(None)
-        out = self.flipper(img) if self._do_transform else img
+        lazy_ = self.lazy if lazy is None else lazy
+        out = self.flipper(img, lazy=lazy_) if self._do_transform else img
         out = convert_to_tensor(out, track_meta=get_track_meta())
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy=lazy_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1299,22 +1450,27 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     See numpy.flip for additional details.
     https://docs.scipy.org/doc/numpy/reference/generated/numpy.flip.html
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         prob: Probability of flipping.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
     """
 
     backend = Flip.backend
 
-    def __init__(self, prob: float = 0.1) -> None:
+    def __init__(self, prob: float = 0.1, lazy: bool = False) -> None:
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self._axis: int | None = None
         self.flipper = Flip(spatial_axis=self._axis)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool):
-        self.flipper.lazy_evaluation = val
-        self._lazy_evaluation = val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self.flipper.lazy = val
+        self._lazy = val
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
@@ -1322,21 +1478,25 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             return None
         self._axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
             randomize: whether to execute `randomize()` function first, default to True.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         if randomize:
             self.randomize(data=img)
 
+        lazy_ = self.lazy if lazy is None else lazy
         if self._do_transform:
             self.flipper.spatial_axis = self._axis
-            out = self.flipper(img)
+            out = self.flipper(img, lazy=lazy_)
         else:
             out = convert_to_tensor(img, track_meta=get_track_meta())
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy=lazy_)
         return out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1351,6 +1511,9 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     Randomly zooms input arrays with given probability within given zoom range.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         prob: Probability of zooming.
@@ -1380,6 +1543,8 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -1397,16 +1562,18 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = torch.float32,
         keep_size: bool = True,
+        lazy: bool = False,
         **kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
+        LazyTransform.__init__(self, lazy=lazy)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
             raise ValueError(
                 f"min_zoom and max_zoom must have same length, got {len(self.min_zoom)} and {len(self.max_zoom)}."
             )
-        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
+        self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.dtype = dtype
@@ -1435,6 +1602,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         align_corners: bool | None = None,
         dtype: DtypeLike | torch.dtype = None,
         randomize: bool = True,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1455,27 +1623,30 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data.
             randomize: whether to execute `randomize()` function first, default to True.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         # match the spatial image dim
         if randomize:
             self.randomize(img=img)
 
+        lazy_ = self.lazy if lazy is None else lazy
         if not self._do_transform:
             out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
         else:
             xform = Zoom(
                 self._zoom,
                 keep_size=self.keep_size,
-                mode=look_up_option(mode or self.mode, InterpolateMode),
+                mode=mode or self.mode,
                 padding_mode=padding_mode or self.padding_mode,
                 align_corners=self.align_corners if align_corners is None else align_corners,
                 dtype=dtype or self.dtype,
+                lazy=lazy_,
                 **self.kwargs,
             )
-            xform.lazy_evaluation = self.lazy_evaluation
             out = xform(img)
-        self.push_transform(out, replace=True)
+        self.push_transform(out, replace=True, lazy=lazy_)
         return out  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -1488,6 +1659,9 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
 class AffineGrid(LazyTransform):
     """
     Affine transforms on the coordinates.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         rotate_params: a rotation angle in radians, a scalar for 2D image, a tuple of 3 floats for 3D.
@@ -1514,7 +1688,8 @@ class AffineGrid(LazyTransform):
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
     """
 
     backend = [TransformBackends.TORCH]
@@ -1529,7 +1704,9 @@ class AffineGrid(LazyTransform):
         dtype: DtypeLike = np.float32,
         align_corners: bool = False,
         affine: NdarrayOrTensor | None = None,
+        lazy: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
         self.rotate_params = rotate_params
         self.shear_params = shear_params
         self.translate_params = translate_params
@@ -1541,7 +1718,7 @@ class AffineGrid(LazyTransform):
         self.affine = affine
 
     def __call__(
-        self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None
+        self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None, lazy: bool | None = None
     ) -> tuple[torch.Tensor | None, torch.Tensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
@@ -1551,12 +1728,15 @@ class AffineGrid(LazyTransform):
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         Raises:
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
 
         """
-        if not self.lazy_evaluation:
+        lazy_ = self.lazy if lazy is None else lazy
+        if not lazy_:
             if grid is None:  # create grid from spatial_size
                 if spatial_size is None:
                     raise ValueError("Incompatible values: grid=None and spatial_size=None.")
@@ -1585,7 +1765,7 @@ class AffineGrid(LazyTransform):
         else:
             affine = self.affine  # type: ignore
         affine = to_affine_nd(spatial_dims, affine)
-        if self.lazy_evaluation:
+        if lazy_:
             return None, affine
 
         affine = convert_to_tensor(affine, device=grid_.device, dtype=grid_.dtype, track_meta=False)  # type: ignore
@@ -1604,6 +1784,8 @@ class RandAffineGrid(Randomizable, LazyTransform):
     """
     Generate randomised affine grid.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = AffineGrid.backend
@@ -1616,6 +1798,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
         scale_range: RandRange = None,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -1644,6 +1827,8 @@ class RandAffineGrid(Randomizable, LazyTransform):
             device: device to store the output grid data.
             dtype: data type for the grid computation. Defaults to ``np.float32``.
                 If ``None``, use the data type of input data (if `grid` is provided).
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
 
         See also:
             - :py:meth:`monai.transforms.utils.create_rotate`
@@ -1652,6 +1837,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
             - :py:meth:`monai.transforms.utils.create_scale`
 
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.rotate_range = ensure_tuple(rotate_range)
         self.shear_range = ensure_tuple(shear_range)
         self.translate_range = ensure_tuple(translate_range)
@@ -1684,19 +1870,27 @@ class RandAffineGrid(Randomizable, LazyTransform):
         self.scale_params = self._get_rand_param(self.scale_range, 1.0)
 
     def __call__(
-        self, spatial_size: Sequence[int] | None = None, grid: NdarrayOrTensor | None = None, randomize: bool = True
+        self,
+        spatial_size: Sequence[int] | None = None,
+        grid: NdarrayOrTensor | None = None,
+        randomize: bool = True,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
             randomize: boolean as to whether the grid parameters governing the grid should be randomized.
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
 
         Returns:
             a 2D (3xHxW) or 3D (4xHxWxD) grid.
         """
         if randomize:
             self.randomize()
+        lazy_ = self.lazy if lazy is None else lazy
         affine_grid = AffineGrid(
             rotate_params=self.rotate_params,
             shear_params=self.shear_params,
@@ -1704,9 +1898,9 @@ class RandAffineGrid(Randomizable, LazyTransform):
             scale_params=self.scale_params,
             device=self.device,
             dtype=self.dtype,
+            lazy=lazy_,
         )
-        affine_grid.lazy_evaluation = self.lazy_evaluation
-        if self.lazy_evaluation:  # return the affine only, don't construct the grid
+        if lazy_:  # return the affine only, don't construct the grid
             self.affine = affine_grid(spatial_size, grid)[1]  # type: ignore
             return None  # type: ignore
         _grid: torch.Tensor
@@ -1815,35 +2009,6 @@ class Resample(Transform):
         self.align_corners = align_corners
         self.dtype = dtype
 
-    @staticmethod
-    @functools.lru_cache(None)
-    def resolve_modes(interp_mode, padding_mode):
-        """compute the backend and the corresponding mode for the given interpolation mode and padding mode."""
-        _interp_mode = None
-        _padding_mode = None
-        if look_up_option(str(interp_mode), SplineMode, default=None) is not None:
-            backend = TransformBackends.NUMPY
-        else:
-            backend = TransformBackends.TORCH
-
-        if (not USE_COMPILED) and (backend == TransformBackends.TORCH):
-            if str(interp_mode).lower().endswith("linear"):
-                _interp_mode = GridSampleMode("bilinear")
-            _interp_mode = GridSampleMode(interp_mode)
-            _padding_mode = GridSamplePadMode(padding_mode)
-        elif USE_COMPILED and backend == TransformBackends.TORCH:  # compiled is using torch backend param name
-            _padding_mode = 1 if padding_mode == "reflection" else padding_mode  # type: ignore
-            if interp_mode == "bicubic":
-                _interp_mode = 3  # type: ignore
-            elif interp_mode == "bilinear":
-                _interp_mode = 1  # type: ignore
-            else:
-                _interp_mode = GridSampleMode(interp_mode)
-        else:  # TransformBackends.NUMPY
-            _interp_mode = int(interp_mode)  # type: ignore
-            _padding_mode = look_up_option(padding_mode, NdimageMode)
-        return backend, _interp_mode, _padding_mode
-
     def __call__(
         self,
         img: torch.Tensor,
@@ -1894,8 +2059,11 @@ class Resample(Transform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=_dtype, device=_device)
         sr = min(len(img_t.peek_pending_shape() if isinstance(img_t, MetaTensor) else img_t.shape[1:]), 3)
-        backend, _interp_mode, _padding_mode = Resample.resolve_modes(
-            self.mode if mode is None else mode, self.padding_mode if padding_mode is None else padding_mode
+        backend, _interp_mode, _padding_mode, _ = resolves_modes(
+            self.mode if mode is None else mode,
+            self.padding_mode if padding_mode is None else padding_mode,
+            backend=None,
+            use_compiled=USE_COMPILED,
         )
 
         if USE_COMPILED or backend == TransformBackends.NUMPY:
@@ -1951,6 +2119,8 @@ class Affine(InvertibleTransform, LazyTransform):
     Transform ``img`` given the affine parameters.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = list(set(AffineGrid.backend) & set(Resample.backend))
@@ -1970,6 +2140,7 @@ class Affine(InvertibleTransform, LazyTransform):
         dtype: DtypeLike = np.float32,
         align_corners: bool = False,
         image_only: bool = False,
+        lazy: bool = False,
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
@@ -2024,8 +2195,10 @@ class Affine(InvertibleTransform, LazyTransform):
             align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             image_only: if True return only the image volume, otherwise return (image, affine).
-
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
         """
+        LazyTransform.__init__(self, lazy=lazy)
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
             shear_params=shear_params,
@@ -2035,6 +2208,7 @@ class Affine(InvertibleTransform, LazyTransform):
             dtype=dtype,
             align_corners=align_corners,
             device=device,
+            lazy=lazy,
         )
         self.image_only = image_only
         self.norm_coord = not normalized
@@ -2043,10 +2217,10 @@ class Affine(InvertibleTransform, LazyTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool) -> None:
-        self.affine_grid.lazy_evaluation = val
-        self._lazy_evaluation = val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool) -> None:
+        self.affine_grid.lazy = val
+        self._lazy = val
 
     def __call__(
         self,
@@ -2054,6 +2228,7 @@ class Affine(InvertibleTransform, LazyTransform):
         spatial_size: Sequence[int] | int | None = None,
         mode: str | int | None = None,
         padding_mode: str | None = None,
+        lazy: bool | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, NdarrayOrTensor]:
         """
         Args:
@@ -2075,13 +2250,17 @@ class Affine(InvertibleTransform, LazyTransform):
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
+        lazy_ = self.lazy if lazy is None else lazy
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        grid, affine = self.affine_grid(spatial_size=sp_size)
+        grid, affine = self.affine_grid(spatial_size=sp_size, lazy=lazy_)
 
         return affine_func(  # type: ignore
             img,
@@ -2093,7 +2272,8 @@ class Affine(InvertibleTransform, LazyTransform):
             _padding_mode,
             True,
             self.image_only,
-            self.get_transform_info(),
+            lazy=lazy_,
+            transform_info=self.get_transform_info(),
         )
 
     @classmethod
@@ -2136,6 +2316,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
     Random affine transform.
     A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/0.6.0/modules/transforms_demo_2d.ipynb.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Affine.backend
@@ -2152,6 +2334,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
         device: torch.device | None = None,
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -2201,6 +2384,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
             device: device on which the tensor will be allocated.
+            lazy: a flag to indicate whether this transform should execute lazily or not.
+                Defaults to False
 
         See also:
             - :py:class:`RandAffineGrid` for the random affine parameters configurations.
@@ -2208,32 +2393,33 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
 
         """
         RandomizableTransform.__init__(self, prob)
-
+        LazyTransform.__init__(self, lazy=lazy)
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
             shear_range=shear_range,
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
+            lazy=lazy,
         )
         self.resampler = Resample(device=device)
 
         self.spatial_size = spatial_size
         self.cache_grid = cache_grid
-        self._cached_grid = self._init_identity_cache()
+        self._cached_grid = self._init_identity_cache(lazy)
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, val: bool) -> None:
-        self._lazy_evaluation = val
-        self.rand_affine_grid.lazy_evaluation = val
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool) -> None:
+        self._lazy = val
+        self.rand_affine_grid.lazy = val
 
-    def _init_identity_cache(self):
+    def _init_identity_cache(self, lazy: bool):
         """
         Create cache of the identity grid if cache_grid=True and spatial_size is known.
         """
-        if self.lazy_evaluation:
+        if lazy:
             return None
         if self.spatial_size is None:
             if self.cache_grid:
@@ -2253,14 +2439,14 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             return None
         return create_grid(spatial_size=_sp_size, device=self.rand_affine_grid.device, backend="torch")
 
-    def get_identity_grid(self, spatial_size: Sequence[int]):
+    def get_identity_grid(self, spatial_size: Sequence[int], lazy: bool):
         """
         Return a cached or new identity grid depends on the availability.
 
         Args:
             spatial_size: non-dynamic spatial size
         """
-        if self.lazy_evaluation:
+        if lazy:
             return None
         ndim = len(spatial_size)
         if spatial_size != fall_back_tuple(spatial_size, [1] * ndim) or spatial_size != fall_back_tuple(
@@ -2292,6 +2478,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         padding_mode: str | None = None,
         randomize: bool = True,
         grid=None,
+        lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -2315,7 +2502,9 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             randomize: whether to execute `randomize()` function first, default to True.
             grid: precomputed grid to be used (mainly to accelerate `RandAffined`).
-
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
         """
         if randomize:
             self.randomize()
@@ -2326,17 +2515,20 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         do_resampling = self._do_transform or (sp_size != ensure_tuple(ori_size))
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
+        lazy_ = self.lazy if lazy is None else lazy
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        if self.lazy_evaluation:
+        if lazy_:
             if self._do_transform:
+                if grid is None:
+                    self.rand_affine_grid(sp_size, randomize=randomize, lazy=True)
                 affine = self.rand_affine_grid.get_transformation_matrix()
             else:
                 affine = convert_to_dst_type(torch.eye(len(sp_size) + 1), img, dtype=self.rand_affine_grid.dtype)[0]
         else:
             if grid is None:
-                grid = self.get_identity_grid(sp_size)
+                grid = self.get_identity_grid(sp_size, lazy_)
                 if self._do_transform:
-                    grid = self.rand_affine_grid(grid=grid, randomize=randomize)
+                    grid = self.rand_affine_grid(grid=grid, randomize=randomize, lazy=lazy_)
             affine = self.rand_affine_grid.get_transformation_matrix()
         return affine_func(  # type: ignore
             img,
@@ -2348,7 +2540,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             _padding_mode,
             do_resampling,
             True,
-            self.get_transform_info(),
+            lazy=lazy_,
+            transform_info=self.get_transform_info(),
         )
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
@@ -2463,6 +2656,7 @@ class Rand2DElastic(RandomizableTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
+            lazy=False,
         )
         self.resampler = Resample(device=device)
 
@@ -2630,6 +2824,7 @@ class Rand3DElastic(RandomizableTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
+            lazy=False,
         )
         self.resampler = Resample(device=device)
 
@@ -3004,12 +3199,16 @@ class GridPatch(Transform, MultiSampleTrait):
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
-            Defaults to None, which means no padding will be applied.
-            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            Available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            Defaults to `None`, which means no padding will be applied.
             See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
-
+            note that `np.pad` treats channel dimension as the first dimension.
     Returns:
         MetaTensor: the extracted patches as a single tensor (with patch dimension as the first dimension),
             with following metadata:
@@ -3036,34 +3235,35 @@ class GridPatch(Transform, MultiSampleTrait):
     ):
         self.patch_size = ensure_tuple(patch_size)
         self.offset = ensure_tuple(offset) if offset else (0,) * len(self.patch_size)
-        self.pad_mode: NumpyPadMode | None = convert_pad_mode(dst=np.zeros(1), mode=pad_mode) if pad_mode else None
+        self.pad_mode = pad_mode
         self.pad_kwargs = pad_kwargs
         self.overlap = overlap
         self.num_patches = num_patches
         self.sort_fn = sort_fn.lower() if sort_fn else None
         self.threshold = threshold
 
-    def filter_threshold(self, image_np: np.ndarray, locations: np.ndarray):
+    def filter_threshold(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
         Filter the patches and their locations according to a threshold.
 
         Args:
-            image_np: a numpy.ndarray representing a stack of patches.
+            image_np: a numpy.ndarray or torch.Tensor representing a stack of patches.
             locations: a numpy.ndarray representing the stack of location of each patch.
 
         Returns:
-            tuple[numpy.ndarray, numpy.ndarray]:  tuple of filtered patches and locations.
+            tuple[NdarrayOrTensor, numpy.ndarray]:  tuple of filtered patches and locations.
         """
         n_dims = len(image_np.shape)
-        idx = np.argwhere(image_np.sum(axis=tuple(range(1, n_dims))) < self.threshold).reshape(-1)
-        return image_np[idx], locations[idx]
+        idx = argwhere(image_np.sum(tuple(range(1, n_dims))) < self.threshold).reshape(-1)
+        idx_np = convert_data_type(idx, np.ndarray)[0]
+        return image_np[idx], locations[idx_np]
 
-    def filter_count(self, image_np: np.ndarray, locations: np.ndarray):
+    def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
         """
         Sort the patches based on the sum of their intensity, and just keep `self.num_patches` of them.
 
         Args:
-            image_np: a numpy.ndarray representing a stack of patches.
+            image_np: a numpy.ndarray or torch.Tensor representing a stack of patches.
             locations: a numpy.ndarray representing the stack of location of each patch.
         """
         if self.sort_fn is None:
@@ -3072,14 +3272,15 @@ class GridPatch(Transform, MultiSampleTrait):
         elif self.num_patches is not None:
             n_dims = len(image_np.shape)
             if self.sort_fn == GridPatchSort.MIN:
-                idx = np.argsort(image_np.sum(axis=tuple(range(1, n_dims))))
+                idx = argsort(image_np.sum(tuple(range(1, n_dims))))
             elif self.sort_fn == GridPatchSort.MAX:
-                idx = np.argsort(-image_np.sum(axis=tuple(range(1, n_dims))))
+                idx = argsort(-image_np.sum(tuple(range(1, n_dims))))
             else:
-                raise ValueError(f'`sort_fn` should be either "min", "max" or None! {self.sort_fn} provided!')
+                raise ValueError(f'`sort_fn` should be either "min", "max", or None! {self.sort_fn} provided!')
             idx = idx[: self.num_patches]
+            idx_np = convert_data_type(idx, np.ndarray)[0]
             image_np = image_np[idx]
-            locations = locations[idx]
+            locations = locations[idx_np]
         return image_np, locations
 
     def __call__(self, array: NdarrayOrTensor) -> MetaTensor:
@@ -3094,9 +3295,8 @@ class GridPatch(Transform, MultiSampleTrait):
                 with defined `PatchKeys.LOCATION` and `PatchKeys.COUNT` metadata.
         """
         # create the patch iterator which sweeps the image row-by-row
-        array_np, *_ = convert_data_type(array, np.ndarray)
         patch_iterator = iter_patch(
-            array_np,
+            array,
             patch_size=(None,) + self.patch_size,  # expand to have the channel dim
             start_pos=(0,) + self.offset,  # expand to have the channel dim
             overlap=self.overlap,
@@ -3105,8 +3305,8 @@ class GridPatch(Transform, MultiSampleTrait):
             **self.pad_kwargs,
         )
         patches = list(zip(*patch_iterator))
-        patched_image = np.array(patches[0])
-        locations = np.array(patches[1])[:, 1:, 0]  # only keep the starting location
+        patched_image = np.stack(patches[0]) if isinstance(array, np.ndarray) else torch.stack(patches[0])
+        locations = np.stack(patches[1])[:, 1:, 0]  # only keep the starting location
 
         # Apply threshold filtering
         if self.threshold is not None:
@@ -3120,11 +3320,22 @@ class GridPatch(Transform, MultiSampleTrait):
             if self.threshold is None:
                 padding = self.num_patches - len(patched_image)
                 if padding > 0:
-                    patched_image = np.pad(
-                        patched_image,
-                        [[0, padding], [0, 0]] + [[0, 0]] * len(self.patch_size),
-                        constant_values=self.pad_kwargs.get("constant_values", 0),
-                    )
+                    # pad constant patches to the end of the first dim
+                    constant_values = self.pad_kwargs.get("constant_values", 0)
+                    padding_shape = (padding, *list(patched_image.shape)[1:])
+                    constant_padding: NdarrayOrTensor
+                    if isinstance(patched_image, np.ndarray):
+                        constant_padding = np.full(padding_shape, constant_values, dtype=patched_image.dtype)
+                        patched_image = np.concatenate([patched_image, constant_padding], axis=0)
+                    else:
+                        constant_padding = torch.full(
+                            padding_shape,
+                            constant_values,
+                            dtype=patched_image.dtype,
+                            layout=patched_image.layout,
+                            device=patched_image.device,
+                        )
+                        patched_image = torch.cat([patched_image, constant_padding], dim=0)
                     locations = np.pad(locations, [[0, padding], [0, 0]], constant_values=0)
 
         # Convert to MetaTensor
@@ -3158,15 +3369,20 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
-            lowest values (`"min"`), or in their default order (`None`). Default to None.
+            lowest values (`"min"`), in random ("random"), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
-            Defaults to None, which means no padding will be applied.
-            Available modes:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}.
+            Available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            Defaults to `None`, which means no padding will be applied.
             See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     Returns:
         MetaTensor: the extracted patches as a single tensor (with patch dimension as the first dimension),
@@ -3190,7 +3406,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         overlap: Sequence[float] | float = 0.0,
         sort_fn: str | None = None,
         threshold: float | None = None,
-        pad_mode: str = PytorchPadMode.CONSTANT,
+        pad_mode: str | None = None,
         **pad_kwargs,
     ):
         super().__init__(
@@ -3205,6 +3421,8 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
         )
         self.min_offset = min_offset
         self.max_offset = max_offset
+        self.num_patches = num_patches
+        self.sort_fn = sort_fn
 
     def randomize(self, array):
         if self.min_offset is None:
@@ -3218,7 +3436,111 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
 
         self.offset = tuple(self.R.randint(low=low, high=high + 1) for low, high in zip(min_offset, max_offset))
 
+    def filter_count(self, image_np: NdarrayOrTensor, locations: np.ndarray) -> tuple[NdarrayOrTensor, np.ndarray]:
+        if self.sort_fn == GridPatchSort.RANDOM:
+            idx = self.R.permutation(image_np.shape[0])
+            idx = idx[: self.num_patches]
+            idx_np = convert_data_type(idx, np.ndarray)[0]
+            image_np = image_np[idx]  # type: ignore
+            locations = locations[idx_np]
+            return image_np, locations
+        elif self.sort_fn not in (None, GridPatchSort.MIN, GridPatchSort.MAX):
+            raise ValueError(f'`sort_fn` should be either "min", "max", "random" or None! {self.sort_fn} provided!')
+        return super().filter_count(image_np, locations)
+
     def __call__(self, array: NdarrayOrTensor, randomize: bool = True):
         if randomize:
             self.randomize(array)
         return super().__call__(array)
+
+
+class RandSimulateLowResolution(RandomizableTransform):
+    """
+    Random simulation of low resolution corresponding to nnU-Net's SimulateLowResolutionTransform
+    (https://github.com/MIC-DKFZ/batchgenerators/blob/7651ece69faf55263dd582a9f5cbd149ed9c3ad0/batchgenerators/transforms/resample_transforms.py#L23)
+    First, the array/tensor is resampled at lower resolution as determined by the zoom_factor which is uniformly sampled
+    from the `zoom_range`. Then, the array/tensor is resampled at the original resolution.
+    """
+
+    backend = Affine.backend
+
+    def __init__(
+        self,
+        prob: float = 0.1,
+        downsample_mode: InterpolateMode | str = InterpolateMode.NEAREST,
+        upsample_mode: InterpolateMode | str = InterpolateMode.TRILINEAR,
+        zoom_range: Sequence[float] = (0.5, 1.0),
+        align_corners=False,
+        device: torch.device | None = None,
+    ) -> None:
+        """
+        Args:
+            prob: probability of performing this augmentation
+            downsample_mode: interpolation mode for downsampling operation
+            upsample_mode: interpolation mode for upsampling operation
+            zoom_range: range from which the random zoom factor for the downsampling and upsampling operation is
+            sampled. It determines the shape of the downsampled tensor.
+            align_corners: This only has an effect when downsample_mode or upsample_mode  is 'linear', 'bilinear',
+                'bicubic' or 'trilinear'. Default: False
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            device: device on which the tensor will be allocated.
+
+        """
+        RandomizableTransform.__init__(self, prob)
+
+        self.downsample_mode = downsample_mode
+        self.upsample_mode = upsample_mode
+        self.zoom_range = zoom_range
+        self.align_corners = align_corners
+        self.device = device
+        self.zoom_factor = 1.0
+
+    def randomize(self, data: Any | None = None) -> None:
+        super().randomize(None)
+        self.zoom_factor = self.R.uniform(self.zoom_range[0], self.zoom_range[1])
+        if not self._do_transform:
+            return None
+
+    def __call__(self, img: torch.Tensor, randomize: bool = True) -> torch.Tensor:
+        """
+        Args:
+            img: shape must be (num_channels, H, W[, D]),
+            randomize: whether to execute `randomize()` function first, defaults to True.
+        """
+        if randomize:
+            self.randomize()
+
+        if self._do_transform:
+            input_shape = img.shape[1:]
+            target_shape = np.round(np.array(input_shape) * self.zoom_factor).astype(np.int_)
+
+            resize_tfm_downsample = Resize(
+                spatial_size=target_shape, size_mode="all", mode=self.downsample_mode, anti_aliasing=False
+            )
+
+            resize_tfm_upsample = Resize(
+                spatial_size=input_shape,
+                size_mode="all",
+                mode=self.upsample_mode,
+                anti_aliasing=False,
+                align_corners=self.align_corners,
+            )
+            # temporarily disable metadata tracking, since we do not want to invert the two Resize functions during
+            # post-processing
+            original_tack_meta_value = get_track_meta()
+            set_track_meta(False)
+
+            img_downsampled = resize_tfm_downsample(img)
+            img_upsampled = resize_tfm_upsample(img_downsampled)
+
+            # reset metadata tracking to original value
+            set_track_meta(original_tack_meta_value)
+
+            # copy metadata from original image to down-and-upsampled image
+            img_upsampled = MetaTensor(img_upsampled)
+            img_upsampled.copy_meta_from(img)
+
+            return img_upsampled
+
+        else:
+            return img

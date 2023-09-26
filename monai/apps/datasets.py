@@ -586,7 +586,7 @@ class TciaDataset(Randomizable, CacheDataset):
         download_tcia_series_instance(
             series_uid=series_uid, download_dir=download_dir, output_dir=seg_first_dir, check_md5=False
         )
-        dicom_files = [f for f in os.listdir(seg_first_dir) if f.endswith(".dcm")]
+        dicom_files = [f for f in sorted(os.listdir(seg_first_dir)) if f.endswith(".dcm")]
         # achieve series number and patient id from the first dicom file
         dcm_path = os.path.join(seg_first_dir, dicom_files[0])
         ds = PydicomReader(stop_before_pixels=True, specific_tags=self.load_tags).read(dcm_path)

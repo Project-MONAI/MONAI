@@ -37,7 +37,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip metric computation on the first channel of
+        include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
         metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
@@ -143,7 +143,7 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
             The values should be binarized.
         y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip metric computation on the first channel of
+        include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
 
     Raises:

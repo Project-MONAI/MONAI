@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "functional" transforms for spatial operations
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "functional" transforms for spatial operations.
 """
 
 from __future__ import annotations
@@ -21,19 +20,13 @@ import numpy as np
 import torch
 from torch.nn.functional import pad as pad_pt
 
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
-from monai.utils import (
-    PytorchPadMode,
-    TraceKeys,
-    convert_to_dst_type,
-    convert_to_numpy,
-    convert_to_tensor,
-    ensure_tuple,
-)
+from monai.utils import PytorchPadMode, convert_to_dst_type, convert_to_numpy, convert_to_tensor, ensure_tuple
 
 __all__ = ["pad_nd", "pad_func", "crop_func", "crop_or_pad_nd"]
 
@@ -49,7 +42,7 @@ def _convert_pt_pad_mode(padding_mode):
     return PytorchPadMode.REPLICATE  # "nearest", "border", and others
 
 
-def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
+def _np_pad(img: NdarrayTensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> NdarrayTensor:
     if isinstance(img, torch.Tensor):
         if img.is_cuda:
             warnings.warn(f"Padding: moving img {img.shape} from cuda to cpu for dtype={img.dtype} mode={mode}.")
@@ -59,14 +52,13 @@ def _np_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kw
     mode = convert_pad_mode(dst=img_np, mode=mode).value
     if mode == "constant" and "value" in kwargs:
         kwargs["constant_values"] = kwargs.pop("value")
-    out = torch.as_tensor(np.pad(img, pad_width, mode=mode, **kwargs))  # type: ignore
-    if isinstance(img, MetaTensor):
-        out = convert_to_dst_type(out, dst=img)[0]
-    return out
+    img_np = np.pad(img_np, pad_width, mode=mode, **kwargs)  # type: ignore
+    return convert_to_dst_type(img_np, dst=img)[0]
 
 
-def _pt_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> torch.Tensor:
-    mode = convert_pad_mode(dst=img, mode=mode).value
+def _pt_pad(img: NdarrayTensor, pad_width: list[tuple[int, int]], mode: str, **kwargs) -> NdarrayTensor:
+    img_pt = torch.as_tensor(img)
+    mode = convert_pad_mode(dst=img_pt, mode=mode).value
     if mode == "constant" and "constant_values" in kwargs:
         _kwargs = kwargs.copy()
         _kwargs["value"] = _kwargs.pop("constant_values")
@@ -74,13 +66,18 @@ def _pt_pad(img: torch.Tensor, pad_width: list[tuple[int, int]], mode: str, **kw
         _kwargs = kwargs
     pt_pad_width = [val for sublist in pad_width[1:] for val in sublist[::-1]][::-1]
     # torch.pad expects `[B, C, H, W, [D]]` shape
-    return pad_pt(img.unsqueeze(0), pt_pad_width, mode=mode, **_kwargs).squeeze(0)
+    img_pt = pad_pt(img_pt.unsqueeze(0), pt_pad_width, mode=mode, **_kwargs).squeeze(0)
+    return convert_to_dst_type(img_pt, dst=img)[0]
 
 
-def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs):
+def pad_nd(
+    img: NdarrayTensor, to_pad: list[tuple[int, int]], mode: str = PytorchPadMode.CONSTANT, **kwargs
+) -> NdarrayTensor:
     """
-    PyTorch/Numpy pad ``img`` with integers ``to_pad`` amounts. Depending on the ``mode`` and input dtype,
-    a suitable backend will be used automatically.
+    Pad `img` for a given an amount of padding in each dimension.
+
+    `torch.nn.functional.pad` is used unless the mode or kwargs are not available in torch,
+    in which case `np.pad` will be used.
 
     Args:
         img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
@@ -90,27 +87,31 @@ def pad_nd(img: torch.Tensor, to_pad: list[tuple[int, int]], mode: str, **kwargs
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
     """
     if mode in {"linear_ramp", "maximum", "mean", "median", "minimum", "symmetric", "empty"}:
         return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
-    mode = convert_pad_mode(dst=img, mode=mode).value
     try:
-        _pad = (
-            _np_pad
-            if mode in {"reflect", "replicate"} and img.dtype in {torch.int16, torch.int64, torch.bool, torch.uint8}
-            else _pt_pad
-        )
+        _pad = _np_pad
+        if mode in {"constant", "reflect", "edge", "replicate", "wrap", "circular"} and img.dtype not in {
+            torch.int16,
+            torch.int64,
+            torch.bool,
+            torch.uint8,
+        }:
+            _pad = _pt_pad
         return _pad(img, pad_width=to_pad, mode=mode, **kwargs)
     except (ValueError, TypeError, RuntimeError) as err:
         if isinstance(err, NotImplementedError) or any(
             k in str(err) for k in ("supported", "unexpected keyword", "implemented", "value")
         ):
             return _np_pad(img, pad_width=to_pad, mode=mode, **kwargs)
-        raise ValueError(f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device}") from err
+        raise ValueError(
+            f"{img.shape} {to_pad} {mode} {kwargs} {img.dtype} {img.device if isinstance(img, torch.Tensor) else None}"
+        ) from err
 
 
 def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, ...], mode: str, **kwargs):
@@ -148,22 +149,32 @@ def crop_or_pad_nd(img: torch.Tensor, translation_mat, spatial_size: tuple[int, 
 
 
 def pad_func(
-    img: torch.Tensor, to_pad: tuple[tuple[int, int]], mode: str, transform_info: dict, kwargs
+    img: torch.Tensor,
+    to_pad: tuple[tuple[int, int]],
+    transform_info: dict,
+    mode: str = PytorchPadMode.CONSTANT,
+    lazy: bool = False,
+    **kwargs,
 ) -> torch.Tensor:
     """
     Functional implementation of padding a MetaTensor. This function operates eagerly or lazily according
-    to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    to ``lazy`` (default ``False``).
+
+    `torch.nn.functional.pad` is used unless the mode or kwargs are not available in torch,
+    in which case `np.pad` will be used.
 
     Args:
         img: data to be transformed, assuming `img` is channel-first and padding doesn't apply to the channel dim.
         to_pad: the amount to be padded in each dimension [(low_H, high_H), (low_W, high_W), ...].
             note that it including channel dimension.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
         mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
             ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
             (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
             One of the listed string values or a user supplied function. Defaults to ``"constant"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
             https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+        lazy: a flag indicating whether the operation should be performed in a lazy fashion or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -189,24 +200,25 @@ def pad_func(
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     out = pad_nd(out, to_pad_list, mode, **kwargs) if do_pad else out
     out = convert_to_tensor(out, track_meta=get_track_meta())
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict) -> torch.Tensor:
+def crop_func(img: torch.Tensor, slices: tuple[slice, ...], lazy: bool, transform_info: dict) -> torch.Tensor:
     """
     Functional implementation of cropping a MetaTensor. This function operates eagerly or lazily according
-    to ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    to ``lazy`` (default ``False``).
 
     Args:
         img: data to be transformed, assuming `img` is channel-first and cropping doesn't apply to the channel dim.
         slices: the crop slices computed based on specified `center & size` or `start & end` or `slices`.
+        lazy: a flag indicating whether the operation should be performed in a lazy fashion or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -227,10 +239,10 @@ def crop_func(img: torch.Tensor, slices: tuple[slice, ...], transform_info: dict
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
     out = convert_to_tensor(img.as_tensor() if isinstance(img, MetaTensor) else img, track_meta=get_track_meta())
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     out = out[slices]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore

@@ -27,7 +27,7 @@ Features
 - compositional & portable APIs for ease of integration in existing workflows;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
-- multi-GPU data parallelism support.
+- multi-GPU multi-node data parallelism support.
 
 
 Getting started
@@ -60,6 +60,12 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
 
 .. toctree::
   :maxdepth: 1
+  :caption: Precision and Accelerating
+
+  precision_accelerating
+
+.. toctree::
+  :maxdepth: 1
   :caption: Contributing
 
   contrib
@@ -69,6 +75,7 @@ Technical documentation is available at `docs.monai.io <https://docs.monai.io>`_
   :caption: Specifications
 
   bundle_intro
+  lazy_resampling
 
 Model Zoo
 ---------

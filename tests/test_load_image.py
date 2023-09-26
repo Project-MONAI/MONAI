@@ -23,12 +23,13 @@ import torch
 from parameterized import parameterized
 from PIL import Image
 
+from monai.apps import download_and_extract
 from monai.data import NibabelReader, PydicomReader
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
 from monai.utils import optional_import
-from tests.utils import assert_allclose
+from tests.utils import assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 ITKReader, _ = optional_import("monai.data", name="ITKReader", as_type="decorator")
@@ -159,6 +160,25 @@ for track_meta in (False, True):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImage(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super(__class__, cls).setUpClass()
+        with skip_if_downloading_fails():
+            cls.tmpdir = tempfile.mkdtemp()
+            key = "DICOM_single"
+            url = testing_data_config("images", key, "url")
+            hash_type = testing_data_config("images", key, "hash_type")
+            hash_val = testing_data_config("images", key, "hash_val")
+            download_and_extract(
+                url=url, output_dir=cls.tmpdir, hash_val=hash_val, hash_type=hash_type, file_type="zip"
+            )
+            cls.data_dir = os.path.join(cls.tmpdir, "CT_DICOM_SINGLE")
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmpdir)
+        super(__class__, cls).tearDownClass()
+
     @parameterized.expand(
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_3_1, TEST_CASE_4, TEST_CASE_4_1, TEST_CASE_5]
     )
@@ -206,6 +226,22 @@ class TestLoadImage(unittest.TestCase):
         )
         self.assertTupleEqual(result.shape, expected_np_shape)
 
+    def test_itk_dicom_series_reader_single(self):
+        result = LoadImage(image_only=True, reader="ITKReader")(self.data_dir)
+        self.assertEqual(result.meta["filename_or_obj"], f"{Path(self.data_dir)}")
+        assert_allclose(
+            result.affine,
+            torch.tensor(
+                [
+                    [-0.488281, 0.0, 0.0, 125.0],
+                    [0.0, -0.488281, 0.0, 128.100006],
+                    [0.0, 0.0, 1.0, -99.480003],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
+        self.assertTupleEqual(result.shape, (16, 16, 1))
+
     def test_itk_reader_multichannel(self):
         test_image = np.random.randint(0, 256, size=(256, 224, 3)).astype("uint8")
         with tempfile.TemporaryDirectory() as tempdir:
@@ -229,6 +265,17 @@ class TestLoadImage(unittest.TestCase):
             itk_result = LoadImage(image_only=True, **itk_param)(filenames)
             pydicom_result = LoadImage(image_only=True, **pydicom_param)(filenames)
             np.testing.assert_allclose(pydicom_result, itk_result)
+            np.testing.assert_allclose(pydicom_result.affine, itk_result.affine)
+
+    def test_dicom_reader_consistency_single(self):
+        itk_param = {"reader": "ITKReader"}
+        pydicom_param = {"reader": "PydicomReader"}
+        for affine_flag in [True, False]:
+            itk_param["affine_lps_to_ras"] = affine_flag
+            pydicom_param["affine_lps_to_ras"] = affine_flag
+            itk_result = LoadImage(image_only=True, **itk_param)(self.data_dir)
+            pydicom_result = LoadImage(image_only=True, **pydicom_param)(self.data_dir)
+            np.testing.assert_allclose(pydicom_result, itk_result.squeeze())
             np.testing.assert_allclose(pydicom_result.affine, itk_result.affine)
 
     def test_load_nifti_multichannel(self):

@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for intensity adjustment
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for intensity adjustment.
 """
 
 from __future__ import annotations
@@ -27,6 +26,7 @@ import torch
 from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.data.meta_obj import get_track_meta
+from monai.data.ultrasound_confidence_map import UltrasoundConfidenceMap
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
@@ -49,6 +49,8 @@ __all__ = [
     "RandBiasField",
     "ScaleIntensity",
     "RandScaleIntensity",
+    "ScaleIntensityFixedMean",
+    "RandScaleIntensityFixedMean",
     "NormalizeIntensity",
     "ThresholdIntensity",
     "ScaleIntensityRange",
@@ -76,6 +78,7 @@ __all__ = [
     "RandIntensityRemap",
     "ForegroundMask",
     "ComputeHoVerMaps",
+    "UltrasoundConfidenceMapTransform",
 ]
 
 
@@ -252,7 +255,9 @@ class RandShiftIntensity(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1) -> None:
+    def __init__(
+        self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1, channel_wise: bool = False
+    ) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
@@ -260,6 +265,8 @@ class RandShiftIntensity(RandomizableTransform):
             safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
                 E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
             prob: probability of shift.
+            channel_wise: if True, shift intensity on each channel separately. For each channel, a random offset will be chosen.
+                Please ensure that the first dimension represents the channel of the image if True.
         """
         RandomizableTransform.__init__(self, prob)
         if isinstance(offsets, (int, float)):
@@ -269,13 +276,17 @@ class RandShiftIntensity(RandomizableTransform):
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self.channel_wise = channel_wise
         self._shifter = ShiftIntensity(self._offset, safe)
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+        if self.channel_wise:
+            self._offset = [self.R.uniform(low=self.offsets[0], high=self.offsets[1]) for _ in range(data.shape[0])]  # type: ignore
+        else:
+            self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
     def __call__(self, img: NdarrayOrTensor, factor: float | None = None, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -289,12 +300,21 @@ class RandShiftIntensity(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return img
 
-        return self._shifter(img, self._offset if factor is None else self._offset * factor)
+        ret: NdarrayOrTensor
+        if self.channel_wise:
+            out = []
+            for i, d in enumerate(img):
+                out_channel = self._shifter(d, self._offset[i] if factor is None else self._offset[i] * factor)  # type: ignore
+                out.append(out_channel)
+            ret = torch.stack(out)  # type: ignore
+        else:
+            ret = self._shifter(img, self._offset if factor is None else self._offset * factor)
+        return ret
 
 
 class StdShiftIntensity(Transform):
@@ -467,20 +487,122 @@ class ScaleIntensity(Transform):
         return ret
 
 
-class RandScaleIntensity(RandomizableTransform):
+class ScaleIntensityFixedMean(Transform):
+    """
+    Scale the intensity of input image by ``v = v * (1 + factor)``, then shift the output so that the output image has the
+    same mean as the input.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        factor: float = 0,
+        preserve_range: bool = False,
+        fixed_mean: bool = True,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        """
+        Args:
+            factor: factor scale by ``v = v * (1 + factor)``.
+            preserve_range: clips the output array/tensor to the range of the input array/tensor
+            fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
+                to ensure that the output has the same mean as the input.
+            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
+                on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+                channel of the image if True.
+            dtype: output data type, if None, same as input image. defaults to float32.
+        """
+        self.factor = factor
+        self.preserve_range = preserve_range
+        self.fixed_mean = fixed_mean
+        self.channel_wise = channel_wise
+        self.dtype = dtype
+
+    def __call__(self, img: NdarrayOrTensor, factor=None) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        Args:
+            img: the input tensor/array
+            factor: factor scale by ``v = v * (1 + factor)``
+
+        """
+
+        factor = factor if factor is not None else self.factor
+
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t = convert_to_tensor(img, track_meta=False)
+        ret: NdarrayOrTensor
+        if self.channel_wise:
+            out = []
+            for d in img_t:
+                if self.preserve_range:
+                    clip_min = d.min()
+                    clip_max = d.max()
+
+                if self.fixed_mean:
+                    mn = d.mean()
+                    d = d - mn
+
+                out_channel = d * (1 + factor)
+
+                if self.fixed_mean:
+                    out_channel = out_channel + mn
+
+                if self.preserve_range:
+                    out_channel = clip(out_channel, clip_min, clip_max)
+
+                out.append(out_channel)
+            ret = torch.stack(out)
+        else:
+            if self.preserve_range:
+                clip_min = img_t.min()
+                clip_max = img_t.max()
+
+            if self.fixed_mean:
+                mn = img_t.mean()
+                img_t = img_t - mn
+
+            ret = img_t * (1 + factor)
+
+            if self.fixed_mean:
+                ret = ret + mn
+
+            if self.preserve_range:
+                ret = clip(ret, clip_min, clip_max)
+
+        ret = convert_to_dst_type(ret, dst=img, dtype=self.dtype or img_t.dtype)[0]
+        return ret
+
+
+class RandScaleIntensityFixedMean(RandomizableTransform):
     """
     Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
-    is randomly picked.
+    is randomly picked. Subtract the mean intensity before scaling with `factor`, then add the same value after scaling
+    to ensure that the output has the same mean as the input.
     """
 
-    backend = ScaleIntensity.backend
+    backend = ScaleIntensityFixedMean.backend
 
-    def __init__(self, factors: tuple[float, float] | float, prob: float = 0.1, dtype: DtypeLike = np.float32) -> None:
+    def __init__(
+        self,
+        prob: float = 0.1,
+        factors: Sequence[float] | float = 0,
+        fixed_mean: bool = True,
+        preserve_range: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
         """
         Args:
             factors: factor range to randomly scale by ``v = v * (1 + factor)``.
                 if single number, factor value is picked from (-factors, factors).
-            prob: probability of scale.
+            preserve_range: clips the output array/tensor to the range of the input array/tensor
+            fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
+                to ensure that the output has the same mean as the input.
+            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
+            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+            channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
 
         """
@@ -488,11 +610,17 @@ class RandScaleIntensity(RandomizableTransform):
         if isinstance(factors, (int, float)):
             self.factors = (min(-factors, factors), max(-factors, factors))
         elif len(factors) != 2:
-            raise ValueError(f"factors should be a number or pair of numbers, got {factors}.")
+            raise ValueError("factors should be a number or pair of numbers.")
         else:
             self.factors = (min(factors), max(factors))
         self.factor = self.factors[0]
+        self.fixed_mean = fixed_mean
+        self.preserve_range = preserve_range
         self.dtype = dtype
+
+        self.scaler = ScaleIntensityFixedMean(
+            factor=self.factor, fixed_mean=self.fixed_mean, preserve_range=self.preserve_range, dtype=self.dtype
+        )
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
@@ -511,7 +639,75 @@ class RandScaleIntensity(RandomizableTransform):
         if not self._do_transform:
             return convert_data_type(img, dtype=self.dtype)[0]
 
-        return ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
+        return self.scaler(img, self.factor)
+
+
+class RandScaleIntensity(RandomizableTransform):
+    """
+    Randomly scale the intensity of input image by ``v = v * (1 + factor)`` where the `factor`
+    is randomly picked.
+    """
+
+    backend = ScaleIntensity.backend
+
+    def __init__(
+        self,
+        factors: tuple[float, float] | float,
+        prob: float = 0.1,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        """
+        Args:
+            factors: factor range to randomly scale by ``v = v * (1 + factor)``.
+                if single number, factor value is picked from (-factors, factors).
+            prob: probability of scale.
+            channel_wise: if True, scale on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
+            dtype: output data type, if None, same as input image. defaults to float32.
+
+        """
+        RandomizableTransform.__init__(self, prob)
+        if isinstance(factors, (int, float)):
+            self.factors = (min(-factors, factors), max(-factors, factors))
+        elif len(factors) != 2:
+            raise ValueError(f"factors should be a number or pair of numbers, got {factors}.")
+        else:
+            self.factors = (min(factors), max(factors))
+        self.factor = self.factors[0]
+        self.channel_wise = channel_wise
+        self.dtype = dtype
+
+    def randomize(self, data: Any | None = None) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        if self.channel_wise:
+            self.factor = [self.R.uniform(low=self.factors[0], high=self.factors[1]) for _ in range(data.shape[0])]  # type: ignore
+        else:
+            self.factor = self.R.uniform(low=self.factors[0], high=self.factors[1])
+
+    def __call__(self, img: NdarrayOrTensor, randomize: bool = True) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        if randomize:
+            self.randomize(img)
+
+        if not self._do_transform:
+            return convert_data_type(img, dtype=self.dtype)[0]
+
+        ret: NdarrayOrTensor
+        if self.channel_wise:
+            out = []
+            for i, d in enumerate(img):
+                out_channel = ScaleIntensity(minv=None, maxv=None, factor=self.factor[i], dtype=self.dtype)(d)  # type: ignore
+                out.append(out_channel)
+            ret = torch.stack(out)  # type: ignore
+        else:
+            ret = ScaleIntensity(minv=None, maxv=None, factor=self.factor, dtype=self.dtype)(img)
+        return ret
 
 
 class RandBiasField(RandomizableTransform):
@@ -660,29 +856,33 @@ class NormalizeIntensity(Transform):
 
         if self.nonzero:
             slices = img != 0
+            masked_img = img[slices]
+            if not slices.any():
+                return img
         else:
-            if isinstance(img, np.ndarray):
-                slices = np.ones_like(img, dtype=bool)
-            else:
-                slices = torch.ones_like(img, dtype=torch.bool)
-        if not slices.any():
-            return img
+            slices = None
+            masked_img = img
 
-        _sub = sub if sub is not None else self._mean(img[slices])
+        _sub = sub if sub is not None else self._mean(masked_img)
         if isinstance(_sub, (torch.Tensor, np.ndarray)):
             _sub, *_ = convert_to_dst_type(_sub, img)
-            _sub = _sub[slices]
+            if slices is not None:
+                _sub = _sub[slices]
 
-        _div = div if div is not None else self._std(img[slices])
+        _div = div if div is not None else self._std(masked_img)
         if np.isscalar(_div):
             if _div == 0.0:
                 _div = 1.0
         elif isinstance(_div, (torch.Tensor, np.ndarray)):
             _div, *_ = convert_to_dst_type(_div, img)
-            _div = _div[slices]
+            if slices is not None:
+                _div = _div[slices]
             _div[_div == 0.0] = 1.0
 
-        img[slices] = (img[slices] - _sub) / _div
+        if slices is not None:
+            img[slices] = (masked_img - _sub) / _div
+        else:
+            img = (img - _sub) / _div
         return img
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -800,36 +1000,70 @@ class ScaleIntensityRange(Transform):
 
 class AdjustContrast(Transform):
     """
-    Changes image intensity by gamma. Each pixel/voxel intensity is updated as::
+    Changes image intensity with gamma transform. Each pixel/voxel intensity is updated as::
 
         x = ((x - min) / intensity_range) ^ gamma * intensity_range + min
 
     Args:
         gamma: gamma value to adjust the contrast as function.
+        invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
+            values with -1 before the gamma transform and again after the gamma transform. This behaviour is mimicked
+            from `nnU-Net <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
+        retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
+            ensure that the output intensity distribution has the same mean and standard deviation as the intensity
+            distribution of the input. This behaviour is mimicked from `nnU-Net
+            <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, gamma: float) -> None:
+    def __init__(self, gamma: float, invert_image: bool = False, retain_stats: bool = False) -> None:
         if not isinstance(gamma, (int, float)):
             raise ValueError(f"gamma must be a float or int number, got {type(gamma)} {gamma}.")
         self.gamma = gamma
+        self.invert_image = invert_image
+        self.retain_stats = retain_stats
 
-    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def __call__(self, img: NdarrayOrTensor, gamma=None) -> NdarrayOrTensor:
         """
         Apply the transform to `img`.
+        gamma: gamma value to adjust the contrast as function.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
+        gamma = gamma if gamma is not None else self.gamma
+
+        if self.invert_image:
+            img = -img
+
+        if self.retain_stats:
+            mn = img.mean()
+            sd = img.std()
+
         epsilon = 1e-7
         img_min = img.min()
         img_range = img.max() - img_min
-        ret: NdarrayOrTensor = ((img - img_min) / float(img_range + epsilon)) ** self.gamma * img_range + img_min
+        ret: NdarrayOrTensor = ((img - img_min) / float(img_range + epsilon)) ** gamma * img_range + img_min
+
+        if self.retain_stats:
+            # zero mean and normalize
+            ret = ret - ret.mean()
+            ret = ret / (ret.std() + 1e-8)
+            # restore old mean and standard deviation
+            ret = sd * ret + mn
+
+        if self.invert_image:
+            ret = -ret
+
         return ret
 
 
 class RandAdjustContrast(RandomizableTransform):
     """
-    Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as::
+    Randomly changes image intensity with gamma transform. Each pixel/voxel intensity is updated as:
 
         x = ((x - min) / intensity_range) ^ gamma * intensity_range + min
 
@@ -837,11 +1071,28 @@ class RandAdjustContrast(RandomizableTransform):
         prob: Probability of adjustment.
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
+        invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
+            values with -1 before the gamma transform and again after the gamma transform. This behaviour is mimicked
+            from `nnU-Net <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
+        retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
+            ensure that the output intensity distribution has the same mean and standard deviation as the intensity
+            distribution of the input. This behaviour is mimicked from `nnU-Net
+            <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
     """
 
     backend = AdjustContrast.backend
 
-    def __init__(self, prob: float = 0.1, gamma: Sequence[float] | float = (0.5, 4.5)) -> None:
+    def __init__(
+        self,
+        prob: float = 0.1,
+        gamma: Sequence[float] | float = (0.5, 4.5),
+        invert_image: bool = False,
+        retain_stats: bool = False,
+    ) -> None:
         RandomizableTransform.__init__(self, prob)
 
         if isinstance(gamma, (int, float)):
@@ -855,7 +1106,13 @@ class RandAdjustContrast(RandomizableTransform):
         else:
             self.gamma = (min(gamma), max(gamma))
 
-        self.gamma_value: float | None = None
+        self.gamma_value: float = 1.0
+        self.invert_image: bool = invert_image
+        self.retain_stats: bool = retain_stats
+
+        self.adjust_contrast = AdjustContrast(
+            self.gamma_value, invert_image=self.invert_image, retain_stats=self.retain_stats
+        )
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
@@ -876,7 +1133,8 @@ class RandAdjustContrast(RandomizableTransform):
 
         if self.gamma_value is None:
             raise RuntimeError("gamma_value is not set, please call `randomize` function first.")
-        return AdjustContrast(self.gamma_value)(img)
+
+        return self.adjust_contrast(img, self.gamma_value)
 
 
 class ScaleIntensityRangePercentiles(Transform):
@@ -895,7 +1153,7 @@ class ScaleIntensityRangePercentiles(Transform):
     .. code-block:: python
         :emphasize-lines: 11, 22
 
-        image = np.array(
+        image = torch.Tensor(
             [[[1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
               [1, 2, 3, 4, 5],
@@ -907,23 +1165,24 @@ class ScaleIntensityRangePercentiles(Transform):
         # to output range [b_min, b_max]
         scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, False)
         print(scaler(image))
-        [[[0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.],
-          [0., 50., 100., 150., 200.]]]
+        metatensor([[[  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.],
+             [  0.,  50., 100., 150., 200.]]])
+
 
         # Scale from lower and upper image intensity percentiles
         # to lower and upper percentiles of the output range [b_min, b_max]
         rel_scaler = ScaleIntensityRangePercentiles(10, 90, 0, 200, False, True)
         print(rel_scaler(image))
-        [[[20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.],
-          [20., 60., 100., 140., 180.]]]
+        metatensor([[[ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.],
+             [ 20.,  60., 100., 140., 180.]]])
 
     See Also:
 
@@ -2363,3 +2622,80 @@ class ComputeHoVerMaps(Transform):
 
         hv_maps = convert_to_tensor(np.concatenate([h_map, v_map]), track_meta=get_track_meta())
         return hv_maps
+
+
+class UltrasoundConfidenceMapTransform(Transform):
+    """Compute confidence map from an ultrasound image.
+    This transform uses the method introduced by Karamalis et al. in https://doi.org/10.1016/j.media.2012.07.005.
+    It generates a confidence map by setting source and sink points in the image and computing the probability
+    for random walks to reach the source for each pixel.
+
+    Args:
+        alpha (float, optional): Alpha parameter. Defaults to 2.0.
+        beta (float, optional): Beta parameter. Defaults to 90.0.
+        gamma (float, optional): Gamma parameter. Defaults to 0.05.
+        mode (str, optional): 'RF' or 'B' mode data. Defaults to 'B'.
+        sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when
+            calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
+    """
+
+    def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all") -> None:
+        self.alpha = alpha
+        self.beta = beta
+        self.gamma = gamma
+        self.mode = mode
+        self.sink_mode = sink_mode
+
+        if self.mode not in ["B", "RF"]:
+            raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
+
+        if self.sink_mode not in ["all", "mid", "min", "mask"]:
+            raise ValueError(
+                f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
+            )
+
+        self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
+
+    def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
+        """Compute confidence map from an ultrasound image.
+
+        Args:
+            img (ndarray or Tensor): Ultrasound image of shape [1, H, W] or [1, D, H, W]. If the image has channels,
+                they will be averaged before computing the confidence map.
+            mask (ndarray or Tensor, optional): Mask of shape [1, H, W]. Defaults to None. Must be
+                provided when sink mode is 'mask'. The non-zero values of the mask are used as sink points.
+
+        Returns:
+            ndarray or Tensor: Confidence map of shape [1, H, W].
+        """
+
+        if self.sink_mode == "mask" and mask is None:
+            raise ValueError("A mask must be provided when sink mode is 'mask'.")
+
+        if img.shape[0] != 1:
+            raise ValueError("The correct shape of the image is [1, H, W] or [1, D, H, W].")
+
+        _img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_np, *_ = convert_data_type(_img, np.ndarray)
+        img_np = img_np[0]  # Remove the first dimension
+
+        mask_np = None
+        if mask is not None:
+            mask = convert_to_tensor(mask, dtype=torch.bool, track_meta=get_track_meta())
+            mask_np, *_ = convert_data_type(mask, np.ndarray)
+            mask_np = mask_np[0]  # Remove the first dimension
+
+        # If the image is RGB, convert it to grayscale
+        if len(img_np.shape) == 3:
+            img_np = np.mean(img_np, axis=0)
+
+        if mask_np is not None and mask_np.shape != img_np.shape:
+            raise ValueError("The mask must have the same shape as the image.")
+
+        # Compute confidence map
+        conf_map: NdarrayOrTensor = self._compute_conf_map(img_np, mask_np)
+
+        if type(img) is torch.Tensor:
+            conf_map = torch.from_numpy(conf_map)
+
+        return conf_map

@@ -47,7 +47,7 @@ from monai.transforms.croppad.array import (
     SpatialPad,
 )
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import MultiSampleTrait
+from monai.transforms.traits import LazyTrait, MultiSampleTrait
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
 from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
@@ -114,6 +114,8 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.Pad`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = Pad.backend
@@ -124,6 +126,7 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
         padder: Pad,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -138,22 +141,34 @@ class Padd(MapTransform, InvertibleTransform, LazyTransform):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         """
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
+        if lazy is True and not isinstance(padder, LazyTrait):
+            raise ValueError("'padder' must inherit LazyTrait if lazy is True " f"'padder' is of type({type(padder)})")
         self.padder = padder
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
         if isinstance(self.padder, LazyTransform):
-            self.padder.lazy_evaluation = value
+            self.padder.lazy = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
+        lazy_ = self.lazy if lazy is None else lazy
+        if lazy_ is True and not isinstance(self.padder, LazyTrait):
+            raise ValueError(
+                "'self.padder' must inherit LazyTrait if lazy is True " f"'self.padder' is of type({type(self.padder)}"
+            )
         for key, m in self.key_iterator(d, self.mode):
-            d[key] = self.padder(d[key], mode=m)
+            if isinstance(self.padder, LazyTrait):
+                d[key] = self.padder(d[key], mode=m, lazy=lazy_)
+            else:
+                d[key] = self.padder(d[key], mode=m)
+
         return d
 
     def inverse(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
@@ -168,6 +183,8 @@ class SpatialPadd(Padd):
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialPad`.
     Performs padding to the data, symmetric for all sides or all on one side for each dimension.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     def __init__(
@@ -177,6 +194,7 @@ class SpatialPadd(Padd):
         method: str = Method.SYMMETRIC,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -198,18 +216,23 @@ class SpatialPadd(Padd):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        padder = SpatialPad(spatial_size, method, **kwargs)
-        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
+        padder = SpatialPad(spatial_size, method, lazy=lazy, **kwargs)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class BorderPadd(Padd):
     """
     Pad the input data by adding specified borders to every dimension.
     Dictionary-based wrapper of :py:class:`monai.transforms.BorderPad`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = BorderPad.backend
@@ -220,6 +243,7 @@ class BorderPadd(Padd):
         spatial_border: Sequence[int] | int,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -245,18 +269,23 @@ class BorderPadd(Padd):
                 https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
                 It also can be a sequence of string, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        padder = BorderPad(spatial_border=spatial_border, **kwargs)
-        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
+        padder = BorderPad(spatial_border=spatial_border, lazy=lazy, **kwargs)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class DivisiblePadd(Padd):
     """
     Pad the input data, so that the spatial sizes are divisible by `k`.
     Dictionary-based wrapper of :py:class:`monai.transforms.DivisiblePad`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     backend = DivisiblePad.backend
@@ -268,6 +297,7 @@ class DivisiblePadd(Padd):
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         method: str = Method.SYMMETRIC,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
         **kwargs,
     ) -> None:
         """
@@ -287,44 +317,51 @@ class DivisiblePadd(Padd):
             method: {``"symmetric"``, ``"end"``}
                 Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
-        padder = DivisiblePad(k=k, method=method, **kwargs)
-        super().__init__(keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
+        padder = DivisiblePad(k=k, method=method, lazy=lazy, **kwargs)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class Cropd(MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based wrapper of abstract class :py:class:`monai.transforms.Crop`.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         cropper: crop transform for the input image.
         allow_missing_keys: don't raise exception if key is missing.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = Crop.backend
 
-    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
-        super().__init__(keys, allow_missing_keys)
+    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy: bool = False):
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
         self.cropper = cropper
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
         if isinstance(self.cropper, LazyTransform):
-            self.cropper.lazy_evaluation = value
+            self.cropper.lazy = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
+        lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(d):
-            d[key] = self.cropper(d[key])  # type: ignore
+            d[key] = self.cropper(d[key], lazy=lazy_)  # type: ignore
         return d
 
     def inverse(self, data: Mapping[Hashable, MetaTensor]) -> dict[Hashable, MetaTensor]:
@@ -338,18 +375,21 @@ class RandCropd(Cropd, Randomizable):
     """
     Base class for random crop transform.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         cropper: random crop transform for the input image.
         allow_missing_keys: don't raise exception if key is missing.
-
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = Crop.backend
 
-    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False):
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+    def __init__(self, keys: KeysCollection, cropper: Crop, allow_missing_keys: bool = False, lazy: bool = False):
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandCropd:
         super().set_random_state(seed, state)
@@ -361,13 +401,21 @@ class RandCropd(Cropd, Randomizable):
         if isinstance(self.cropper, Randomizable):
             self.cropper.randomize(img_size)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         # the first key must exist to execute random operations
         first_item = d[self.first_key(d)]
         self.randomize(first_item.peek_pending_shape() if isinstance(first_item, MetaTensor) else first_item.shape[1:])
+        lazy_ = self.lazy if lazy is None else lazy
+        if lazy_ is True and not isinstance(self.cropper, LazyTrait):
+            raise ValueError(
+                "'self.cropper' must inherit LazyTrait if lazy is True "
+                f"'self.cropper' is of type({type(self.cropper)}"
+            )
         for key in self.key_iterator(d):
             kwargs = {"randomize": False} if isinstance(self.cropper, Randomizable) else {}
+            if isinstance(self.cropper, LazyTrait):
+                kwargs["lazy"] = lazy_
             d[key] = self.cropper(d[key], **kwargs)  # type: ignore
         return d
 
@@ -385,6 +433,9 @@ class SpatialCropd(Cropd):
         - a list of slices for each spatial dimension (allows for use of -ve indexing and `None`)
         - a spatial center and size
         - the start and end coordinates of the ROI
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
     def __init__(
@@ -396,6 +447,7 @@ class SpatialCropd(Cropd):
         roi_end: Sequence[int] | None = None,
         roi_slices: Sequence[slice] | None = None,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -409,10 +461,10 @@ class SpatialCropd(Cropd):
                 use the end coordinate of image.
             roi_slices: list of slices for each of the spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
-
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         """
-        cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = SpatialCrop(roi_center, roi_size, roi_start, roi_end, roi_slices, lazy=lazy)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class CenterSpatialCropd(Cropd):
@@ -421,6 +473,9 @@ class CenterSpatialCropd(Cropd):
     If a dimension of the expected ROI size is larger than the input image size, will not crop that dimension.
     So the cropped result may be smaller than the expected ROI, and the cropped results of several images may
     not have exactly the same shape.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -431,11 +486,14 @@ class CenterSpatialCropd(Cropd):
             for example: if the spatial size of input data is [40, 40, 40] and `roi_size=[32, 64, -1]`,
             the spatial size of output data will be [32, 40, 40].
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    def __init__(self, keys: KeysCollection, roi_size: Sequence[int] | int, allow_missing_keys: bool = False) -> None:
-        cropper = CenterSpatialCrop(roi_size)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+    def __init__(
+        self, keys: KeysCollection, roi_size: Sequence[int] | int, allow_missing_keys: bool = False, lazy: bool = False
+    ) -> None:
+        cropper = CenterSpatialCrop(roi_size, lazy=lazy)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class CenterScaleCropd(Cropd):
@@ -444,19 +502,27 @@ class CenterScaleCropd(Cropd):
     Note: as using the same scaled ROI to crop, all the input data specified by `keys` should have
     the same spatial shape.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         roi_scale: specifies the expected scale of image size to crop. e.g. [0.3, 0.4, 0.5] or a number for all dims.
             If its components have non-positive values, will use `1.0` instead, which means the input image size.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     def __init__(
-        self, keys: KeysCollection, roi_scale: Sequence[float] | float, allow_missing_keys: bool = False
+        self,
+        keys: KeysCollection,
+        roi_scale: Sequence[float] | float,
+        allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
-        cropper = CenterScaleCrop(roi_scale)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = CenterScaleCrop(roi_scale, lazy=lazy)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class RandSpatialCropd(RandCropd):
@@ -469,6 +535,9 @@ class RandSpatialCropd(RandCropd):
     Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -487,20 +556,21 @@ class RandSpatialCropd(RandCropd):
             if True, the actual size is sampled from:
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
         roi_size: Sequence[int] | int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
-        cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = RandSpatialCrop(roi_size, max_roi_size, random_center, random_size, lazy=lazy)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class RandScaleCropd(RandCropd):
@@ -510,6 +580,9 @@ class RandScaleCropd(RandCropd):
     It can crop at a random position as center or at the image center.
     And allows to set the minimum and maximum scale of image size to limit the randomly generated ROI.
     Suppose all the expected fields specified by `keys` have same shape.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -526,20 +599,21 @@ class RandScaleCropd(RandCropd):
             if True, the actual size is sampled from:
             `randint(roi_scale * image spatial size, max_roi_scale * image spatial size + 1)`.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
         roi_scale: Sequence[float] | float,
         max_roi_scale: Sequence[float] | float | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
-        cropper = RandScaleCrop(roi_scale, max_roi_scale, random_center, random_size)
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        cropper = RandScaleCrop(roi_scale, max_roi_scale, random_center, random_size, lazy=lazy)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
@@ -554,6 +628,9 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
     Note: even `random_size=False`, if a dimension of the expected ROI size is larger than the input image size,
     will not crop that dimension. So the cropped result may be smaller than the expected ROI, and the cropped
     results of several images may not have exactly the same shape.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -572,6 +649,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         random_size: crop with random size or specific size ROI.
             The actual size is sampled from `randint(roi_size, img_size)`.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``num_samples`` is nonpositive.
@@ -580,7 +658,6 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
 
     backend = RandSpatialCropSamples.backend
 
-    @deprecated_arg_default("random_size", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -588,21 +665,27 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         num_samples: int,
         max_roi_size: Sequence[int] | int | None = None,
         random_center: bool = True,
-        random_size: bool = True,
+        random_size: bool = False,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.cropper = RandSpatialCropSamples(roi_size, num_samples, max_roi_size, random_center, random_size)
+        LazyTransform.__init__(self, lazy)
+        self.cropper = RandSpatialCropSamples(
+            roi_size, num_samples, max_roi_size, random_center, random_size, lazy=lazy
+        )
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
+        self.cropper.lazy = value
 
     def randomize(self, data: Any | None = None) -> None:
         self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
+    ) -> list[dict[Hashable, torch.Tensor]]:
         ret: list[dict[Hashable, torch.Tensor]] = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
         for i in range(self.cropper.num_samples):
@@ -611,9 +694,11 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
 
         # for each key we reset the random state to ensure crops are the same
         self.randomize()
+
+        lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(dict(data)):
             self.cropper.set_random_state(seed=self.sub_seed)
-            for i, im in enumerate(self.cropper(data[key])):
+            for i, im in enumerate(self.cropper(data[key], lazy=lazy_)):
                 ret[i][key] = im
         return ret
 
@@ -629,8 +714,12 @@ class CropForegroundd(Cropd):
     - Select label > 0 in the third channel of a One-Hot label field as the foreground to crop all `keys` fields.
     Users can define arbitrary function to select expected foreground from the whole source image or specified
     channels. And it can also add margin to every dim of the bounding box of foreground object.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
     """
 
+    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
     def __init__(
         self,
         keys: KeysCollection,
@@ -641,9 +730,10 @@ class CropForegroundd(Cropd):
         allow_smaller: bool = True,
         k_divisible: Sequence[int] | int = 1,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
-        start_coord_key: str = "foreground_start_coord",
-        end_coord_key: str = "foreground_end_coord",
+        start_coord_key: str | None = "foreground_start_coord",
+        end_coord_key: str | None = "foreground_end_coord",
         allow_missing_keys: bool = False,
+        lazy: bool = False,
         **pad_kwargs,
     ) -> None:
         """
@@ -655,9 +745,9 @@ class CropForegroundd(Cropd):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is larger than image size, will pad with
-                specified `mode`.
+            allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
+                the image edges will be used as the box edges. Default to `True`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
@@ -670,6 +760,7 @@ class CropForegroundd(Cropd):
             start_coord_key: key to record the start coordinate of spatial bounding box for foreground.
             end_coord_key: key to record the end coordinate of spatial bounding box for foreground.
             allow_missing_keys: don't raise exception if key is missing.
+            lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
             pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -683,17 +774,22 @@ class CropForegroundd(Cropd):
             margin=margin,
             allow_smaller=allow_smaller,
             k_divisible=k_divisible,
+            lazy=lazy,
             **pad_kwargs,
         )
-        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys)
+        super().__init__(keys, cropper=cropper, allow_missing_keys=allow_missing_keys, lazy=lazy)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
+        self.cropper.lazy = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+    @property
+    def requires_current_data(self):
+        return True
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         self.cropper: CropForeground
         box_start, box_end = self.cropper.compute_bounding_box(img=d[self.source_key])
@@ -701,14 +797,19 @@ class CropForegroundd(Cropd):
             d[self.start_coord_key] = box_start  # type: ignore
         if self.end_coord_key is not None:
             d[self.end_coord_key] = box_end  # type: ignore
+
+        lazy_ = self.lazy if lazy is None else lazy
         for key, m in self.key_iterator(d, self.mode):
-            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m)
+            d[key] = self.cropper.crop_pad(img=d[key], box_start=box_start, box_end=box_end, mode=m, lazy=lazy_)
         return d
 
 
 class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTrait):
     """
     Samples a list of `num_samples` image patches according to the provided `weight_map`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -719,6 +820,7 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
             If its components have non-positive values, the corresponding size of `img` will be used.
         num_samples: number of samples (image patches) to take in the returned list.
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     See Also:
         :py:class:`monai.transforms.RandWeightedCrop`
@@ -733,10 +835,12 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
         spatial_size: Sequence[int] | int,
         num_samples: int = 1,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
         self.w_key = w_key
-        self.cropper = RandWeightedCrop(spatial_size, num_samples)
+        self.cropper = RandWeightedCrop(spatial_size, num_samples, lazy=lazy)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -748,12 +852,14 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
     def randomize(self, weight_map: NdarrayOrTensor) -> None:
         self.cropper.randomize(weight_map)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
+        self.cropper.lazy = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
+    ) -> list[dict[Hashable, torch.Tensor]]:
         # output starts as empty list of dictionaries
         ret: list = [dict(data) for _ in range(self.cropper.num_samples)]
         # deep copy all the unmodified data
@@ -762,8 +868,9 @@ class RandWeightedCropd(Randomizable, MapTransform, LazyTransform, MultiSampleTr
                 ret[i][key] = deepcopy(data[key])
 
         self.randomize(weight_map=data[self.w_key])
+        lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(data):
-            for i, im in enumerate(self.cropper(data[key], randomize=False)):
+            for i, im in enumerate(self.cropper(data[key], randomize=False, lazy=lazy_)):
                 ret[i][key] = im
         return ret
 
@@ -782,6 +889,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
     and the cropped results of several images may not have exactly the same shape.
     And if the crop ROI is partly out of the image, will automatically adjust the crop center
     to ensure the valid crop ROI.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -813,6 +923,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
         allow_missing_keys: don't raise exception if key is missing.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
 
     Raises:
         ValueError: When ``pos`` or ``neg`` are negative.
@@ -836,8 +947,10 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
         bg_indices_key: str | None = None,
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
         self.label_key = label_key
         self.image_key = image_key
         self.fg_indices_key = fg_indices_key
@@ -849,6 +962,7 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
             num_samples=num_samples,
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
+            lazy=lazy,
         )
 
     def set_random_state(
@@ -867,12 +981,18 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
     ) -> None:
         self.cropper.randomize(label=label, fg_indices=fg_indices, bg_indices=bg_indices, image=image)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
+        self.cropper.lazy = value
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> list[dict[Hashable, torch.Tensor]]:
+    @property
+    def requires_current_data(self):
+        return True
+
+    def __call__(
+        self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
+    ) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         fg_indices = d.pop(self.fg_indices_key, None)
         bg_indices = d.pop(self.bg_indices_key, None)
@@ -886,8 +1006,9 @@ class RandCropByPosNegLabeld(Randomizable, MapTransform, LazyTransform, MultiSam
             for key in set(d.keys()).difference(set(self.keys)):
                 ret[i][key] = deepcopy(d[key])
 
+        lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False, lazy=lazy_)):
                 ret[i][key] = im
         return ret
 
@@ -936,6 +1057,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
     And if the crop ROI is partly out of the image, will automatically adjust the crop center to ensure the
     valid crop ROI.
 
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
+
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
@@ -962,8 +1086,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             unchanged.
         allow_missing_keys: don't raise exception if key is missing.
         warn: if `True` prints a warning if a class is not present in the label.
-
-
+        max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
+            Default is None, no subsampling.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
     """
 
     backend = RandCropByLabelClasses.backend
@@ -982,8 +1107,11 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
         allow_smaller: bool = False,
         allow_missing_keys: bool = False,
         warn: bool = True,
+        max_samples_per_class: int | None = None,
+        lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy)
         self.label_key = label_key
         self.image_key = image_key
         self.indices_key = indices_key
@@ -995,6 +1123,8 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             image_threshold=image_threshold,
             allow_smaller=allow_smaller,
             warn=warn,
+            max_samples_per_class=max_samples_per_class,
+            lazy=lazy,
         )
 
     def set_random_state(
@@ -1009,12 +1139,16 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
     ) -> None:
         self.cropper.randomize(label=label, indices=indices, image=image)
 
-    @LazyTransform.lazy_evaluation.setter  # type: ignore
-    def lazy_evaluation(self, value: bool) -> None:
-        self._lazy_evaluation = value
-        self.cropper.lazy_evaluation = value
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, value: bool) -> None:
+        self._lazy = value
+        self.cropper.lazy = value
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> list[dict[Hashable, torch.Tensor]]:
+    @property
+    def requires_current_data(self):
+        return True
+
+    def __call__(self, data: Mapping[Hashable, Any], lazy: bool | None = None) -> list[dict[Hashable, torch.Tensor]]:
         d = dict(data)
         self.randomize(d.get(self.label_key), d.pop(self.indices_key, None), d.get(self.image_key))  # type: ignore
 
@@ -1025,8 +1159,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
             for key in set(d.keys()).difference(set(self.keys)):
                 ret[i][key] = deepcopy(d[key])
 
+        lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(d):
-            for i, im in enumerate(self.cropper(d[key], randomize=False)):
+            for i, im in enumerate(self.cropper(d[key], randomize=False, lazy=lazy_)):
                 ret[i][key] = im
         return ret
 
@@ -1034,6 +1169,9 @@ class RandCropByLabelClassesd(Randomizable, MapTransform, LazyTransform, MultiSa
 class ResizeWithPadOrCropd(Padd):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ResizeWithPadOrCrop`.
+
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -1050,6 +1188,7 @@ class ResizeWithPadOrCropd(Padd):
         allow_missing_keys: don't raise exception if key is missing.
         method: {``"symmetric"``, ``"end"``}
             Pad image symmetrically on every side or only pad at the end sides. Defaults to ``"symmetric"``.
+        lazy: a flag to indicate whether this transform should execute lazily or not. Defaults to False.
         pad_kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -1062,10 +1201,13 @@ class ResizeWithPadOrCropd(Padd):
         mode: SequenceStr = PytorchPadMode.CONSTANT,
         allow_missing_keys: bool = False,
         method: str = Method.SYMMETRIC,
+        lazy: bool = False,
         **pad_kwargs,
     ) -> None:
-        padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs)
-        super().__init__(keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys)  # type: ignore
+        padcropper = ResizeWithPadOrCrop(spatial_size=spatial_size, method=method, **pad_kwargs, lazy=lazy)
+        super().__init__(
+            keys, padder=padcropper, mode=mode, allow_missing_keys=allow_missing_keys, lazy=lazy  # type: ignore
+        )
 
 
 class BoundingRectd(MapTransform):

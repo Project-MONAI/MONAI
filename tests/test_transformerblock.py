@@ -53,6 +53,30 @@ class TestTransformerBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             TransformerBlock(hidden_size=622, num_heads=8, mlp_dim=3072, dropout_rate=0.4)
 
+    def test_access_attn_matrix(self):
+        # input format
+        hidden_size = 128
+        mlp_dim = 12
+        num_heads = 2
+        dropout_rate = 0
+        input_shape = (2, 256, hidden_size)
+
+        # returns an empty attention matrix
+        no_matrix_acess_blk = TransformerBlock(
+            hidden_size=hidden_size, mlp_dim=mlp_dim, num_heads=num_heads, dropout_rate=dropout_rate
+        )
+        no_matrix_acess_blk(torch.randn(input_shape))
+        assert isinstance(no_matrix_acess_blk.attn.att_mat, torch.Tensor)
+        # no of elements is zero
+        assert no_matrix_acess_blk.attn.att_mat.nelement() == 0
+
+        # be able to acess the attention matrix
+        matrix_acess_blk = TransformerBlock(
+            hidden_size=hidden_size, mlp_dim=mlp_dim, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
+        )
+        matrix_acess_blk(torch.randn(input_shape))
+        assert matrix_acess_blk.attn.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
+
 
 if __name__ == "__main__":
     unittest.main()

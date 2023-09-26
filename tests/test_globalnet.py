@@ -21,11 +21,11 @@ from monai.networks import eval_mode
 from monai.networks.blocks import Warp
 from monai.networks.nets import GlobalNet
 from monai.networks.nets.regunet import AffineHead
-from tests.utils import test_script_save
+from tests.utils import assert_allclose, test_script_save
 
 TEST_CASES_AFFINE_TRANSFORM = [
     [
-        {"spatial_dims": 3, "image_size": (2, 2, 2), "decode_size": (2, 2, 2), "in_channels": 1},
+        {"spatial_dims": 3, "image_size": (2, 2, 2), "decode_size": (2, 2, 2), "in_channels": 1, "save_theta": True},
         torch.ones(2, 12),
         torch.tensor([[[1, 2], [2, 3]], [[2, 3], [3, 4]]]).unsqueeze(0).unsqueeze(0).expand(2, 3, 2, 2, 2),
     ],
@@ -55,10 +55,12 @@ TEST_CASES_GLOBAL_NET = [
             "pooling": True,
             "concat_skip": True,
             "encode_kernel_sizes": 3,
+            "save_theta": theta,
         },
         (1, 1, 16, 16),
         (1, 2, 16, 16),
     ]
+    for theta in (False, True)
 ]
 
 
@@ -66,6 +68,8 @@ class TestAffineHead(unittest.TestCase):
     @parameterized.expand(TEST_CASES_AFFINE_TRANSFORM)
     def test_shape(self, input_param, theta, expected_val):
         layer = AffineHead(**input_param)
+        if input_param.get("save_theta"):
+            assert_allclose(layer.theta, torch.Tensor())
         result = layer.affine_transform(theta)
         np.testing.assert_allclose(result.cpu().numpy(), expected_val.cpu().numpy(), rtol=1e-4, atol=1e-4)
 
@@ -81,13 +85,15 @@ class TestGlobalNet(unittest.TestCase):
         with eval_mode(net):
             img = torch.randn(input_shape)
             result = net(img.to(device))
+            if input_param.get("save_theta"):
+                assert_allclose(net.output_block.theta, torch.Tensor([[1.0, 0.0, 0.0, 0.0, 1.0, 0.0]]))
             warped = warp_layer(img.to(device), result)
             self.assertEqual(result.shape, expected_shape)
             # testing initial pred identity
             np.testing.assert_allclose(warped.detach().cpu().numpy(), img.detach().cpu().numpy(), rtol=1e-4, atol=1e-4)
 
-    def test_script(self):
-        input_param, input_shape, _ = TEST_CASES_GLOBAL_NET[0]
+    @parameterized.expand(TEST_CASES_GLOBAL_NET)
+    def test_script(self, input_param, input_shape, _):
         net = GlobalNet(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)

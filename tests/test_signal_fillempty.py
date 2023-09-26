@@ -32,7 +32,7 @@ class TestSignalFillEmptyNumpy(unittest.TestCase):
         sig[:, 123] = np.NAN
         fillempty = SignalFillEmpty(replacement=0.0)
         fillemptysignal = fillempty(sig)
-        self.assertTrue(not np.isnan(fillemptysignal.any()))
+        self.assertTrue(not np.isnan(fillemptysignal).any())
 
 
 @SkipIfBeforePyTorchVersion((1, 9))
@@ -43,7 +43,7 @@ class TestSignalFillEmptyTorch(unittest.TestCase):
         sig[:, 123] = convert_to_tensor(np.NAN)
         fillempty = SignalFillEmpty(replacement=0.0)
         fillemptysignal = fillempty(sig)
-        self.assertTrue(not torch.isnan(fillemptysignal.any()))
+        self.assertTrue(not torch.isnan(fillemptysignal).any())
 
 
 if __name__ == "__main__":

@@ -946,7 +946,7 @@ class SwinTransformer(nn.Module):
             downsample: module used for downsampling, available options are `"mergingv2"`, `"merging"` and a
                 user-specified `nn.Module` following the API defined in :py:class:`monai.networks.nets.PatchMerging`.
                 The default is currently `"merging"` (the original version defined in v0.9.0).
-            use_v2: using swinunetr_v2, which adds a residual convolution block at the beggining of each swin stage.
+            use_v2: using swinunetr_v2, which adds a residual convolution block at the beginning of each swin stage.
         """
 
         super().__init__()
@@ -1055,3 +1055,52 @@ class SwinTransformer(nn.Module):
         x4 = self.layers4[0](x3.contiguous())
         x4_out = self.proj_out(x4, normalize)
         return [x0_out, x1_out, x2_out, x3_out, x4_out]
+
+
+def filter_swinunetr(key, value):
+    """
+    A filter function used to filter the pretrained weights from [1], then the weights can be loaded into MONAI SwinUNETR Model.
+    This function is typically used with `monai.networks.copy_model_state`
+    [1] "Valanarasu JM et al., Disruptive Autoencoders: Leveraging Low-level features for 3D Medical Image Pre-training
+    <https://arxiv.org/abs/2307.16896>"
+
+    Args:
+        key: the key in the source state dict used for the update.
+        value: the value in the source state dict used for the update.
+
+    Examples::
+
+        import torch
+        from monai.apps import download_url
+        from monai.networks.utils import copy_model_state
+        from monai.networks.nets.swin_unetr import SwinUNETR, filter_swinunetr
+
+        model = SwinUNETR(img_size=(96, 96, 96), in_channels=1, out_channels=3, feature_size=48)
+        resource = (
+            "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth"
+        )
+        ssl_weights_path = "./ssl_pretrained_weights.pth"
+        download_url(resource, ssl_weights_path)
+        ssl_weights = torch.load(ssl_weights_path)["model"]
+
+        dst_dict, loaded, not_loaded = copy_model_state(model, ssl_weights, filter_func=filter_swinunetr)
+
+    """
+    if key in [
+        "encoder.mask_token",
+        "encoder.norm.weight",
+        "encoder.norm.bias",
+        "out.conv.conv.weight",
+        "out.conv.conv.bias",
+    ]:
+        return None
+
+    if key[:8] == "encoder.":
+        if key[8:19] == "patch_embed":
+            new_key = "swinViT." + key[8:]
+        else:
+            new_key = "swinViT." + key[8:18] + key[20:]
+
+        return new_key, value
+    else:
+        return None

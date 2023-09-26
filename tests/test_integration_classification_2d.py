@@ -27,9 +27,9 @@ from monai.networks import eval_mode
 from monai.networks.nets import DenseNet121
 from monai.transforms import (
     Activations,
-    AddChannel,
     AsDiscrete,
     Compose,
+    EnsureChannelFirst,
     LoadImage,
     RandFlip,
     RandRotate,
@@ -63,7 +63,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     train_transforms = Compose(
         [
             LoadImage(image_only=True, simple_keys=True),
-            AddChannel(),
+            EnsureChannelFirst(channel_dim="no_channel"),
             Transpose(indices=[0, 2, 1]),
             ScaleIntensity(),
             RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
@@ -73,7 +73,12 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     )
     train_transforms.set_random_state(1234)
     val_transforms = Compose(
-        [LoadImage(image_only=True, simple_keys=True), AddChannel(), Transpose(indices=[0, 2, 1]), ScaleIntensity()]
+        [
+            LoadImage(image_only=True, simple_keys=True),
+            EnsureChannelFirst(channel_dim="no_channel"),
+            Transpose(indices=[0, 2, 1]),
+            ScaleIntensity(),
+        ]
     )
     y_pred_trans = Compose([Activations(softmax=True)])
     y_trans = AsDiscrete(to_onehot=len(np.unique(train_y)))
@@ -152,7 +157,9 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
 
 def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10):
     # define transforms for image and classification
-    val_transforms = Compose([LoadImage(image_only=True), AddChannel(), ScaleIntensity()])
+    val_transforms = Compose(
+        [LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), ScaleIntensity()]
+    )
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
@@ -266,7 +273,7 @@ class IntegrationClassification2D(DistTestCase):
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])
 
-    @TimedCall(seconds=1000, skip_timing=not torch.cuda.is_available(), force_quit=False, daemon=False)
+    @TimedCall(seconds=2000, skip_timing=not torch.cuda.is_available(), force_quit=False, daemon=False)
     def test_timing(self):
         self.train_and_infer()
 

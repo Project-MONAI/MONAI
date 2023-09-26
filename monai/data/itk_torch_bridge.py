@@ -19,8 +19,9 @@ import torch
 from monai.config.type_definitions import DtypeLike
 from monai.data import ITKReader, ITKWriter
 from monai.data.meta_tensor import MetaTensor
+from monai.data.utils import orientation_ras_lps
 from monai.transforms import EnsureChannelFirst
-from monai.utils import convert_to_dst_type, optional_import
+from monai.utils import MetaKeys, SpaceKeys, convert_to_dst_type, optional_import
 
 if TYPE_CHECKING:
     import itk
@@ -83,12 +84,18 @@ def metatensor_to_itk_image(
 
     See also: :py:func:`ITKWriter.create_backend_obj`
     """
+    if meta_tensor.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) == SpaceKeys.RAS:
+        _meta_tensor = meta_tensor.clone()
+        _meta_tensor.affine = orientation_ras_lps(meta_tensor.affine)
+        _meta_tensor.meta[MetaKeys.SPACE] = SpaceKeys.LPS
+    else:
+        _meta_tensor = meta_tensor
     writer = ITKWriter(output_dtype=dtype, affine_lps_to_ras=False)
     writer.set_data_array(data_array=meta_tensor.data, channel_dim=channel_dim, squeeze_end_dims=True)
     return writer.create_backend_obj(
         writer.data_obj,
         channel_dim=writer.channel_dim,
-        affine=meta_tensor.affine,
+        affine=_meta_tensor.affine,
         affine_lps_to_ras=False,  # False if the affine is in itk convention
         dtype=writer.output_dtype,
         kwargs=kwargs,

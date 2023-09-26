@@ -118,15 +118,18 @@ from .intensity.array import (
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     RandScaleIntensity,
+    RandScaleIntensityFixedMean,
     RandShiftIntensity,
     RandStdShiftIntensity,
     SavitzkyGolaySmooth,
     ScaleIntensity,
+    ScaleIntensityFixedMean,
     ScaleIntensityRange,
     ScaleIntensityRangePercentiles,
     ShiftIntensity,
     StdShiftIntensity,
     ThresholdIntensity,
+    UltrasoundConfidenceMapTransform,
 )
 from .intensity.dictionary import (
     AdjustContrastd,
@@ -198,6 +201,9 @@ from .intensity.dictionary import (
     RandScaleIntensityd,
     RandScaleIntensityD,
     RandScaleIntensityDict,
+    RandScaleIntensityFixedMeand,
+    RandScaleIntensityFixedMeanD,
+    RandScaleIntensityFixedMeanDict,
     RandShiftIntensityd,
     RandShiftIntensityD,
     RandShiftIntensityDict,
@@ -230,7 +236,9 @@ from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
 from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
 from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
-from .lazy.functional import apply_transforms
+from .lazy.array import ApplyPending
+from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
+from .lazy.functional import apply_pending
 from .lazy.utils import combine_transforms, resample
 from .meta_utility.dictionary import (
     FromMetaTensord,
@@ -337,6 +345,7 @@ from .signal.array import (
     SignalRandShift,
     SignalRemoveFrequency,
 )
+from .signal.dictionary import SignalFillEmptyd, SignalFillEmptyD, SignalFillEmptyDict
 from .smooth_field.array import (
     RandSmoothDeform,
     RandSmoothFieldAdjustContrast,
@@ -373,6 +382,7 @@ from .spatial.array import (
     RandGridPatch,
     RandRotate,
     RandRotate90,
+    RandSimulateLowResolution,
     RandZoom,
     Resample,
     ResampleToMatch,
@@ -429,6 +439,9 @@ from .spatial.dictionary import (
     RandRotated,
     RandRotateD,
     RandRotateDict,
+    RandSimulateLowResolutiond,
+    RandSimulateLowResolutionD,
+    RandSimulateLowResolutionDict,
     RandZoomd,
     RandZoomD,
     RandZoomDict,
@@ -458,10 +471,8 @@ from .spatial.functional import spatial_resample
 from .traits import LazyTrait, MultiSampleTrait, RandomizableTrait, ThreadUnsafe
 from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTransform, Transform, apply_transform
 from .utility.array import (
-    AddChannel,
     AddCoordinateChannels,
     AddExtremePointsChannel,
-    AsChannelFirst,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -484,7 +495,6 @@ from .utility.array import (
     RemoveRepeatedChannel,
     RepeatChannel,
     SimulateDelay,
-    SplitChannel,
     SplitDim,
     SqueezeDim,
     ToCupy,
@@ -496,18 +506,12 @@ from .utility.array import (
     Transpose,
 )
 from .utility.dictionary import (
-    AddChanneld,
-    AddChannelD,
-    AddChannelDict,
     AddCoordinateChannelsd,
     AddCoordinateChannelsD,
     AddCoordinateChannelsDict,
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
-    AsChannelFirstd,
-    AsChannelFirstD,
-    AsChannelFirstDict,
     AsChannelLastd,
     AsChannelLastD,
     AsChannelLastDict,
@@ -589,9 +593,6 @@ from .utility.dictionary import (
     SimulateDelayd,
     SimulateDelayD,
     SimulateDelayDict,
-    SplitChanneld,
-    SplitChannelD,
-    SplitChannelDict,
     SplitDimd,
     SplitDimD,
     SplitDimDict,
@@ -624,6 +625,7 @@ from .utils import (
     Fourier,
     allow_missing_keys_mode,
     attach_hook,
+    check_non_lazy_pending_ops,
     compute_divisible_spatial_size,
     convert_applied_interp_mode,
     convert_pad_mode,
@@ -659,6 +661,7 @@ from .utils import (
     rescale_instance_array,
     reset_ops_id,
     resize_center,
+    resolves_modes,
     sync_meta_info,
     weighted_patch_samples,
     zero_margins,

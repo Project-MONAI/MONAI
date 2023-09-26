@@ -14,6 +14,8 @@ from __future__ import annotations
 import random
 from enum import Enum
 
+from monai.utils import deprecated
+
 __all__ = [
     "StrEnum",
     "NumpyPadMode",
@@ -34,6 +36,7 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
+    "TraceStatusKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
@@ -56,6 +59,7 @@ __all__ = [
     "LazyAttr",
     "BundleProperty",
     "BundlePropertyConfig",
+    "AlgoKeys",
 ]
 
 
@@ -313,7 +317,14 @@ class TraceKeys(StrEnum):
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
     TRACING: str = "tracing"
-    LAZY_EVALUATION: str = "lazy_evaluation"
+    STATUSES: str = "statuses"
+    LAZY: str = "lazy"
+
+
+class TraceStatusKeys(StrEnum):
+    """Enumerable status keys for the TraceKeys.STATUS flag"""
+
+    PENDING_DURING_APPLY = "pending_during_apply"
 
 
 class CommonKeys(StrEnum):
@@ -592,6 +603,7 @@ class LabelStatsKeys(StrEnum):
     LABEL_NCOMP = "ncomponents"
 
 
+@deprecated(since="1.2", removed="1.4", msg_suffix="please use `AlgoKeys` instead.")
 class AlgoEnsembleKeys(StrEnum):
     """
     Default keys for Mixed Ensemble
@@ -659,8 +671,24 @@ class BundlePropertyConfig(StrEnum):
     additional bundle property fields for config based bundle workflow:
     `ID` is the config item ID of the property.
     `REF_ID` is the ID of config item which is supposed to refer to this property.
+    For properties that do not have `REF_ID`, `None` should be set.
     this field is only useful to check the optional property ID.
     """
 
     ID = "id"
     REF_ID = "refer_id"
+
+
+class AlgoKeys(StrEnum):
+    """
+    Default keys for templated Auto3DSeg Algo.
+    `ID` is the identifier of the algorithm. The string has the format of <name>_<idx>_<other>.
+    `ALGO` is the Auto3DSeg Algo instance.
+    `IS_TRAINED` is the status that shows if the Algo has been trained.
+    `SCORE` is the score the Algo has achieved after training.
+    """
+
+    ID = "identifier"
+    ALGO = "algo_instance"
+    IS_TRAINED = "is_trained"
+    SCORE = "best_metric"

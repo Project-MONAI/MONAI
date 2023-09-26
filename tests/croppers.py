@@ -18,7 +18,7 @@ import numpy as np
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Randomizable
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.transform import MapTransform
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -117,16 +117,22 @@ class CropTest(unittest.TestCase):
         expected = result_non_lazy["img"] if is_map else result_non_lazy
         self.assertIsInstance(expected, MetaTensor)
         # lazy
-        crop_fn.lazy_evaluation = True
+        crop_fn.lazy = True
         pending_result = crop_fn(input_data)
         pending_result = pending_result["img"] if is_map else pending_result
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # only support nearest
-        result = apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
+        overrides = {"mode": "nearest", "align_corners": align_corners}
+        result = apply_pending(pending_result, overrides=overrides)[0]
         # compare
         assert_allclose(result, expected, rtol=1e-5)
+        if isinstance(result, MetaTensor) and not isinstance(crop_fn, MapTransform):
+            crop_fn.lazy = False
+            inverted = crop_fn.inverse(result)
+            self.assertTrue((not inverted.applied_operations) and (not inverted.pending_operations))
+            self.assertEqual(inverted.shape, im.shape)
 
     def crop_test_combine_ops(self, funcs, input_shape):
         _funcs = []
@@ -150,7 +156,7 @@ class CropTest(unittest.TestCase):
         # lazy
         pending_result = input_data
         for _func in _funcs:
-            _func.lazy_evaluation = True
+            _func.lazy = True
             if isinstance(_func, Randomizable):
                 _func.set_random_state(seed=123)
             pending_result = _func(pending_result)
@@ -159,7 +165,8 @@ class CropTest(unittest.TestCase):
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # TODO: mode="bilinear" may report error
-        result = apply_transforms(pending_result, mode="nearest", align_corners=False)[0]
+        overrides = {"mode": "nearest", "align_corners": False}
+        result = apply_pending(pending_result, overrides=overrides)[0]
 
         # compare
         assert_allclose(result, expected, rtol=1e-5)

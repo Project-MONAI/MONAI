@@ -75,6 +75,14 @@ TEST_CASES = [
         },
         0.3133,
     ],
+    [  # shape: (2, 1, 3), (2, 1, 3), bceloss
+        {"ce_weight": torch.tensor([1.0, 1.0, 1.0]), "sigmoid": True},
+        {
+            "input": torch.tensor([[[0.8, 0.6, 0.0]], [[0.0, 0.0, 0.9]]]),
+            "target": torch.tensor([[[0.0, 0.0, 1.0]], [[0.0, 1.0, 0.0]]]),
+        },
+        1.5608,
+    ],
 ]
 
 
@@ -97,7 +105,7 @@ class TestDiceCELoss(unittest.TestCase):
 
     def test_script(self):
         loss = DiceCELoss()
-        test_input = torch.ones(2, 1, 8, 8)
+        test_input = torch.ones(2, 2, 8, 8)
         test_script_save(loss, test_input, test_input)
 
 

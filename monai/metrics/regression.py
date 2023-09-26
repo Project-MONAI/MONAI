@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import math
 from abc import abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Any
 
@@ -21,7 +21,7 @@ import torch
 import torch.nn.functional as F
 
 from monai.metrics.utils import do_metric_reduction
-from monai.utils import MetricReduction
+from monai.utils import MetricReduction, StrEnum, convert_data_type, ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type
 
 from .metric import CumulativeIterationMetric
@@ -232,9 +232,14 @@ def compute_mean_error_metrics(y_pred: torch.Tensor, y: torch.Tensor, func: Call
     return torch.mean(flt(func(y - y_pred)), dim=-1, keepdim=True)
 
 
+class KernelType(StrEnum):
+    GAUSSIAN = "gaussian"
+    UNIFORM = "uniform"
+
+
 class SSIMMetric(RegressionMetric):
     r"""
-    Build a Pytorch version of the SSIM metric based on the original formula of SSIM
+    Computes the Structural Similarity Index Measure (SSIM).
 
     .. math::
         \operatorname {SSIM}(x,y) =\frac {(2 \mu_x \mu_y + c_1)(2 \sigma_{xy} + c_2)}{((\mu_x^2 + \
@@ -243,19 +248,18 @@ class SSIMMetric(RegressionMetric):
     For more info, visit
         https://vicuesoft.com/glossary/term/ssim-ms-ssim/
 
-    Modified and adopted from:
-        https://github.com/facebookresearch/fastMRI/blob/main/banding_removal/fastmri/ssim_loss_mixin.py
-
     SSIM reference paper:
         Wang, Zhou, et al. "Image quality assessment: from error visibility to structural
         similarity." IEEE transactions on image processing 13.4 (2004): 600-612.
 
     Args:
-        data_range: dynamic range of the data
-        win_size: gaussian weighting window size
+        spatial_dims: number of spatial dimensions of the input images.
+        data_range: value range of input images. (usually 1.0 or 255)
+        kernel_type: type of kernel, can be "gaussian" or "uniform".
+        win_size: window size of kernel
+        kernel_sigma: standard deviation for Gaussian kernel.
         k1: stability constant used in the luminance denominator
         k2: stability constant used in the contrast denominator
-        spatial_dims: if 2, input shape is expected to be (B,C,W,H). if 3, it is expected to be (B,C,W,H,D)
         reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction
@@ -264,126 +268,341 @@ class SSIMMetric(RegressionMetric):
 
     def __init__(
         self,
-        data_range: torch.Tensor,
-        win_size: int = 7,
+        spatial_dims: int,
+        data_range: float = 1.0,
+        kernel_type: KernelType | str = KernelType.GAUSSIAN,
+        win_size: int | Sequence[int] = 11,
+        kernel_sigma: float | Sequence[float] = 1.5,
         k1: float = 0.01,
         k2: float = 0.03,
-        spatial_dims: int = 2,
         reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
-    ):
+    ) -> None:
         super().__init__(reduction=reduction, get_not_nans=get_not_nans)
-        self.data_range = data_range
-        self.win_size = win_size
-        self.k1, self.k2 = k1, k2
+
         self.spatial_dims = spatial_dims
-        self.cov_norm = (win_size**2) / (win_size**2 - 1)
-        self.w = torch.ones([1, 1] + [win_size for _ in range(spatial_dims)]) / win_size**spatial_dims
+        self.data_range = data_range
+        self.kernel_type = kernel_type
 
-    def _compute_intermediate_statistics(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor, ...]:
-        data_range = self.data_range[(None,) * (self.spatial_dims + 2)]
-        # determine whether to work with 2D convolution or 3D
-        conv = getattr(F, f"conv{self.spatial_dims}d")
-        w = convert_to_dst_type(src=self.w, dst=x)[0]
+        if not isinstance(win_size, Sequence):
+            win_size = ensure_tuple_rep(win_size, spatial_dims)
+        self.kernel_size = win_size
 
-        c1 = (self.k1 * data_range) ** 2  # stability constant for luminance
-        c2 = (self.k2 * data_range) ** 2  # stability constant for contrast
-        ux = conv(x, w)  # mu_x
-        uy = conv(y, w)  # mu_y
-        uxx = conv(x * x, w)  # mu_x^2
-        uyy = conv(y * y, w)  # mu_y^2
-        uxy = conv(x * y, w)  # mu_xy
-        vx = self.cov_norm * (uxx - ux * ux)  # sigma_x
-        vy = self.cov_norm * (uyy - uy * uy)  # sigma_y
-        vxy = self.cov_norm * (uxy - ux * uy)  # sigma_xy
+        if not isinstance(kernel_sigma, Sequence):
+            kernel_sigma = ensure_tuple_rep(kernel_sigma, spatial_dims)
+        self.kernel_sigma = kernel_sigma
 
-        return c1, c2, ux, uy, vx, vy, vxy
+        self.k1 = k1
+        self.k2 = k2
 
-    def _compute_metric(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
-                A fastMRI sample should use the 2D format with C being the number of slices.
-            y: second sample (e.g., the reconstructed image). It has similar shape as x
+            y_pred: Predicted image.
+                It must be a 2D or 3D batch-first tensor [B,C,H,W] or [B,C,H,W,D].
+            y: Reference image.
+                It must be a 2D or 3D batch-first tensor [B,C,H,W] or [B,C,H,W,D].
 
-        Returns:
-            ssim_value
-
-        Example:
-            .. code-block:: python
-
-                import torch
-                x = torch.ones([1,1,10,10])/2 # ground truth
-                y = torch.ones([1,1,10,10])/2 # prediction
-                data_range = x.max().unsqueeze(0)
-                # the following line should print 1.0 (or 0.9999)
-                print(SSIMMetric(data_range=data_range,spatial_dims=2)._compute_metric(x,y))
+        Raises:
+            ValueError: when `y_pred` is not a 2D or 3D image.
         """
-        if x.shape[1] > 1:  # handling multiple channels (C>1)
-            if x.shape[1] != y.shape[1]:
-                raise ValueError(
-                    f"x and y should have the same number of channels, "
-                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
-                )
-
-            ssim = torch.stack(
-                [
-                    SSIMMetric(self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims)(  # type: ignore[misc]
-                        x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1)
-                    )
-                    for i in range(x.shape[1])
-                ]
+        dims = y_pred.ndimension()
+        if self.spatial_dims == 2 and dims != 4:
+            raise ValueError(
+                f"y_pred should have 4 dimensions (batch, channel, height, width) when using {self.spatial_dims} "
+                f"spatial dimensions, got {dims}."
             )
-            channel_wise_ssim = ssim.mean(1).view(-1, 1)
-            return channel_wise_ssim
 
-        c1, c2, ux, uy, vx, vy, vxy = self._compute_intermediate_statistics(x, y)
+        if self.spatial_dims == 3 and dims != 5:
+            raise ValueError(
+                f"y_pred should have 4 dimensions (batch, channel, height, width, depth) when using {self.spatial_dims}"
+                f" spatial dimensions, got {dims}."
+            )
 
-        numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
-        denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
-        ssim_value = numerator / denom
-        # [B, 1]
-        ssim_per_batch: torch.Tensor = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
+        ssim_value_full_image, _ = compute_ssim_and_cs(
+            y_pred=y_pred,
+            y=y,
+            spatial_dims=self.spatial_dims,
+            data_range=self.data_range,
+            kernel_type=self.kernel_type,
+            kernel_size=self.kernel_size,
+            kernel_sigma=self.kernel_sigma,
+            k1=self.k1,
+            k2=self.k2,
+        )
+
+        ssim_per_batch: torch.Tensor = ssim_value_full_image.view(ssim_value_full_image.shape[0], -1).mean(
+            1, keepdim=True
+        )
 
         return ssim_per_batch
 
-    def _compute_metric_and_contrast(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        """
+
+def _gaussian_kernel(
+    spatial_dims: int, num_channels: int, kernel_size: Sequence[int], kernel_sigma: Sequence[float]
+) -> torch.Tensor:
+    """Computes 2D or 3D gaussian kernel.
+
+    Args:
+        spatial_dims: number of spatial dimensions of the input images.
+        num_channels: number of channels in the image
+        kernel_size: size of kernel
+        kernel_sigma: standard deviation for Gaussian kernel.
+    """
+
+    def gaussian_1d(kernel_size: int, sigma: float) -> torch.Tensor:
+        """Computes 1D gaussian kernel.
+
         Args:
-            x: first sample (e.g., the reference image). Its shape is (B,C,W,H) for 2D data and (B,C,W,H,D) for 3D.
-                A fastMRI sample should use the 2D format with C being the number of slices.
-            y: second sample (e.g., the reconstructed image). It has similar shape as x
-
-        Returns:
-            ssim_value, cs_value
+            kernel_size: size of the gaussian kernel
+            sigma: Standard deviation of the gaussian kernel
         """
-        if x.shape[1] > 1:  # handling multiple channels (C>1)
-            if x.shape[1] != y.shape[1]:
-                raise ValueError(
-                    f"x and y should have the same number of channels, "
-                    f"but x has {x.shape[1]} channels and y has {y.shape[1]} channels."
-                )
+        dist = torch.arange(start=(1 - kernel_size) / 2, end=(1 + kernel_size) / 2, step=1)
+        gauss = torch.exp(-torch.pow(dist / sigma, 2) / 2)
+        return (gauss / gauss.sum()).unsqueeze(dim=0)
 
-            ssim_ls = []
-            cs_ls = []
-            for i in range(x.shape[1]):
-                ssim_val, cs_val = SSIMMetric(
-                    self.data_range, self.win_size, self.k1, self.k2, self.spatial_dims
-                )._compute_metric_and_contrast(x[:, i, ...].unsqueeze(1), y[:, i, ...].unsqueeze(1))
-                ssim_ls.append(ssim_val)
-                cs_ls.append(cs_val)
-            channel_wise_ssim: torch.Tensor = torch.stack(ssim_ls).mean(1).view(-1, 1)
-            channel_wise_cs: torch.Tensor = torch.stack(cs_ls).mean(1).view(-1, 1)
-            return channel_wise_ssim, channel_wise_cs
+    gaussian_kernel_x = gaussian_1d(kernel_size[0], kernel_sigma[0])
+    gaussian_kernel_y = gaussian_1d(kernel_size[1], kernel_sigma[1])
+    kernel = torch.matmul(gaussian_kernel_x.t(), gaussian_kernel_y)  # (kernel_size, 1) * (1, kernel_size)
 
-        c1, c2, ux, uy, vx, vy, vxy = self._compute_intermediate_statistics(x, y)
+    kernel_dimensions: tuple[int, ...] = (num_channels, 1, kernel_size[0], kernel_size[1])
 
-        numerator = (2 * ux * uy + c1) * (2 * vxy + c2)
-        denom = (ux**2 + uy**2 + c1) * (vx + vy + c2)
-        ssim_value = numerator / denom
-        # [B, 1]
-        ssim_per_batch: torch.Tensor = ssim_value.view(ssim_value.shape[1], -1).mean(1, keepdim=True)
+    if spatial_dims == 3:
+        gaussian_kernel_z = gaussian_1d(kernel_size[2], kernel_sigma[2])[None,]
+        kernel = torch.mul(
+            kernel.unsqueeze(-1).repeat(1, 1, kernel_size[2]),
+            gaussian_kernel_z.expand(kernel_size[0], kernel_size[1], kernel_size[2]),
+        )
+        kernel_dimensions = (num_channels, 1, kernel_size[0], kernel_size[1], kernel_size[2])
 
-        cs_per_batch: torch.Tensor = (2 * vxy + c2) / (vx + vy + c2)  # contrast sensitivity function
-        cs_per_batch = cs_per_batch.view(cs_per_batch.shape[0], -1).mean(1, keepdim=True)  # [B, 1]
-        return ssim_per_batch, cs_per_batch
+    return kernel.expand(kernel_dimensions)
+
+
+def compute_ssim_and_cs(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    spatial_dims: int,
+    kernel_size: Sequence[int],
+    kernel_sigma: Sequence[float],
+    data_range: float = 1.0,
+    kernel_type: KernelType | str = KernelType.GAUSSIAN,
+    k1: float = 0.01,
+    k2: float = 0.03,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """
+    Function to compute the Structural Similarity Index Measure (SSIM) and Contrast Sensitivity (CS) for a batch
+    of images.
+
+    Args:
+        y_pred: batch of predicted images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
+        y: batch of target images with shape (batch_size, channels, spatial_dim1, spatial_dim2[, spatial_dim3])
+        kernel_size: the size of the kernel to use for the SSIM computation.
+        kernel_sigma: the standard deviation of the kernel to use for the SSIM computation.
+        spatial_dims: number of spatial dimensions of the images (2, 3)
+        data_range: the data range of the images.
+        kernel_type: the type of kernel to use for the SSIM computation. Can be either "gaussian" or "uniform".
+        k1: the first stability constant.
+        k2: the second stability constant.
+
+    Returns:
+        ssim: the Structural Similarity Index Measure score for the batch of images.
+        cs: the Contrast Sensitivity for the batch of images.
+    """
+    if y.shape != y_pred.shape:
+        raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
+
+    y_pred = convert_data_type(y_pred, output_type=torch.Tensor, dtype=torch.float)[0]
+    y = convert_data_type(y, output_type=torch.Tensor, dtype=torch.float)[0]
+
+    num_channels = y_pred.size(1)
+
+    if kernel_type == KernelType.GAUSSIAN:
+        kernel = _gaussian_kernel(spatial_dims, num_channels, kernel_size, kernel_sigma)
+    elif kernel_type == KernelType.UNIFORM:
+        kernel = torch.ones((num_channels, 1, *kernel_size)) / torch.prod(torch.tensor(kernel_size))
+
+    kernel = convert_to_dst_type(src=kernel, dst=y_pred)[0]
+
+    c1 = (k1 * data_range) ** 2  # stability constant for luminance
+    c2 = (k2 * data_range) ** 2  # stability constant for contrast
+
+    conv_fn = getattr(F, f"conv{spatial_dims}d")
+    mu_x = conv_fn(y_pred, kernel, groups=num_channels)
+    mu_y = conv_fn(y, kernel, groups=num_channels)
+    mu_xx = conv_fn(y_pred * y_pred, kernel, groups=num_channels)
+    mu_yy = conv_fn(y * y, kernel, groups=num_channels)
+    mu_xy = conv_fn(y_pred * y, kernel, groups=num_channels)
+
+    sigma_x = mu_xx - mu_x * mu_x
+    sigma_y = mu_yy - mu_y * mu_y
+    sigma_xy = mu_xy - mu_x * mu_y
+
+    contrast_sensitivity = (2 * sigma_xy + c2) / (sigma_x + sigma_y + c2)
+    ssim_value_full_image = ((2 * mu_x * mu_y + c1) / (mu_x**2 + mu_y**2 + c1)) * contrast_sensitivity
+
+    return ssim_value_full_image, contrast_sensitivity
+
+
+class MultiScaleSSIMMetric(RegressionMetric):
+    """
+    Computes the Multi-Scale Structural Similarity Index Measure (MS-SSIM).
+
+    MS-SSIM reference paper:
+        Wang, Z., Simoncelli, E.P. and Bovik, A.C., 2003, November. "Multiscale structural
+        similarity for image quality assessment." In The Thirty-Seventh Asilomar Conference
+        on Signals, Systems & Computers, 2003 (Vol. 2, pp. 1398-1402). IEEE
+
+    Args:
+        spatial_dims: number of spatial dimensions of the input images.
+        data_range: value range of input images. (usually 1.0 or 255)
+        kernel_type: type of kernel, can be "gaussian" or "uniform".
+        kernel_size: size of kernel
+        kernel_sigma: standard deviation for Gaussian kernel.
+        k1: stability constant used in the luminance denominator
+        k2: stability constant used in the contrast denominator
+        weights: parameters for image similarity and contrast sensitivity at different resolution scores.
+        reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
+            available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction
+        get_not_nans: whether to return the `not_nans` count, if True, aggregate() returns (metric, not_nans)
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int,
+        data_range: float = 1.0,
+        kernel_type: KernelType | str = KernelType.GAUSSIAN,
+        kernel_size: int | Sequence[int] = 11,
+        kernel_sigma: float | Sequence[float] = 1.5,
+        k1: float = 0.01,
+        k2: float = 0.03,
+        weights: Sequence[float] = (0.0448, 0.2856, 0.3001, 0.2363, 0.1333),
+        reduction: MetricReduction | str = MetricReduction.MEAN,
+        get_not_nans: bool = False,
+    ) -> None:
+        super().__init__(reduction=reduction, get_not_nans=get_not_nans)
+
+        self.spatial_dims = spatial_dims
+        self.data_range = data_range
+        self.kernel_type = kernel_type
+
+        if not isinstance(kernel_size, Sequence):
+            kernel_size = ensure_tuple_rep(kernel_size, spatial_dims)
+        self.kernel_size = kernel_size
+
+        if not isinstance(kernel_sigma, Sequence):
+            kernel_sigma = ensure_tuple_rep(kernel_sigma, spatial_dims)
+        self.kernel_sigma = kernel_sigma
+
+        self.k1 = k1
+        self.k2 = k2
+        self.weights = weights
+
+    def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return compute_ms_ssim(
+            y_pred=y_pred,
+            y=y,
+            spatial_dims=self.spatial_dims,
+            data_range=self.data_range,
+            kernel_type=self.kernel_type,
+            kernel_size=self.kernel_size,
+            kernel_sigma=self.kernel_sigma,
+            k1=self.k1,
+            k2=self.k2,
+            weights=self.weights,
+        )
+
+
+def compute_ms_ssim(
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    spatial_dims: int,
+    data_range: float = 1.0,
+    kernel_type: KernelType | str = KernelType.GAUSSIAN,
+    kernel_size: int | Sequence[int] = 11,
+    kernel_sigma: float | Sequence[float] = 1.5,
+    k1: float = 0.01,
+    k2: float = 0.03,
+    weights: Sequence[float] = (0.0448, 0.2856, 0.3001, 0.2363, 0.1333),
+) -> torch.Tensor:
+    """
+    Args:
+        y_pred: Predicted image.
+            It must be a 2D or 3D batch-first tensor [B,C,H,W] or [B,C,H,W,D].
+        y: Reference image.
+            It must be a 2D or 3D batch-first tensor [B,C,H,W] or [B,C,H,W,D].
+        spatial_dims: number of spatial dimensions of the input images.
+        data_range: value range of input images. (usually 1.0 or 255)
+        kernel_type: type of kernel, can be "gaussian" or "uniform".
+        kernel_size: size of kernel
+        kernel_sigma: standard deviation for Gaussian kernel.
+        k1: stability constant used in the luminance denominator
+        k2: stability constant used in the contrast denominator
+        weights: parameters for image similarity and contrast sensitivity at different resolution scores.
+    Raises:
+        ValueError: when `y_pred` is not a 2D or 3D image.
+    """
+    dims = y_pred.ndimension()
+    if spatial_dims == 2 and dims != 4:
+        raise ValueError(
+            f"y_pred should have 4 dimensions (batch, channel, height, width) when using {spatial_dims} "
+            f"spatial dimensions, got {dims}."
+        )
+
+    if spatial_dims == 3 and dims != 5:
+        raise ValueError(
+            f"y_pred should have 4 dimensions (batch, channel, height, width, depth) when using {spatial_dims}"
+            f" spatial dimensions, got {dims}."
+        )
+
+    if not isinstance(kernel_size, Sequence):
+        kernel_size = ensure_tuple_rep(kernel_size, spatial_dims)
+
+    if not isinstance(kernel_sigma, Sequence):
+        kernel_sigma = ensure_tuple_rep(kernel_sigma, spatial_dims)
+    # check if image have enough size for the number of downsamplings and the size of the kernel
+    weights_div = max(1, (len(weights) - 1)) ** 2
+    y_pred_spatial_dims = y_pred.shape[2:]
+    for i in range(len(y_pred_spatial_dims)):
+        if y_pred_spatial_dims[i] // weights_div <= kernel_size[i] - 1:
+            raise ValueError(
+                f"For a given number of `weights` parameters {len(weights)} and kernel size "
+                f"{kernel_size[i]}, the image height must be larger than "
+                f"{(kernel_size[i] - 1) * weights_div}."
+            )
+
+    weights_tensor = torch.tensor(weights, device=y_pred.device, dtype=torch.float)
+
+    avg_pool = getattr(F, f"avg_pool{spatial_dims}d")
+
+    multiscale_list: list[torch.Tensor] = []
+    for _ in range(len(weights_tensor)):
+        ssim, cs = compute_ssim_and_cs(
+            y_pred=y_pred,
+            y=y,
+            spatial_dims=spatial_dims,
+            data_range=data_range,
+            kernel_type=kernel_type,
+            kernel_size=kernel_size,
+            kernel_sigma=kernel_sigma,
+            k1=k1,
+            k2=k2,
+        )
+
+        cs_per_batch = cs.view(cs.shape[0], -1).mean(1)
+
+        multiscale_list.append(torch.relu(cs_per_batch))
+        y_pred = avg_pool(y_pred, kernel_size=2)
+        y = avg_pool(y, kernel_size=2)
+
+    ssim = ssim.view(ssim.shape[0], -1).mean(1)
+    multiscale_list[-1] = torch.relu(ssim)
+    multiscale_list_tensor = torch.stack(multiscale_list)
+
+    ms_ssim_value_full_image = torch.prod(multiscale_list_tensor ** weights_tensor.view(-1, 1), dim=0)
+
+    ms_ssim_per_batch: torch.Tensor = ms_ssim_value_full_image.view(ms_ssim_value_full_image.shape[0], -1).mean(
+        1, keepdim=True
+    )
+
+    return ms_ssim_per_batch

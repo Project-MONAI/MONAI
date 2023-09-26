@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
@@ -97,13 +98,19 @@ for p in TEST_NDARRAYS:
 
 class TestGridPatch(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
+    @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_grid_patch(self, in_type, input_parameters, image, expected):
         input_image = in_type(image)
         splitter = GridPatch(**input_parameters)
         output = splitter(input_image)
         self.assertEqual(len(output), len(expected))
         for output_patch, expected_patch in zip(output, expected):
-            assert_allclose(output_patch, expected_patch, type_test=False)
+            assert_allclose(
+                output_patch,
+                in_type(expected_patch),
+                type_test=False,
+                device_test=bool(isinstance(in_type(expected_patch), torch.Tensor)),
+            )
 
     @parameterized.expand([TEST_CASE_META_0, TEST_CASE_META_1])
     @SkipIfBeforePyTorchVersion((1, 9, 1))

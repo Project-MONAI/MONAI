@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Callable, Hashable, Mapping
 
 import numpy as np
+import torch
 
 from monai.apps.pathology.transforms.post.array import (
     GenerateDistanceMap,
@@ -34,7 +35,6 @@ from monai.utils import optional_import
 from monai.utils.enums import HoVerNetBranch
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
-moments, _ = optional_import("skimage.measure", name="moments")
 
 __all__ = [
     "WatershedD",
@@ -488,6 +488,7 @@ class HoVerNetInstanceMapPostProcessingd(Transform):
         min_num_points: minimum number of points to be considered as a contour. Defaults to 3.
         contour_level: an optional value for `skimage.measure.find_contours` to find contours in the array.
             If not provided, the level is set to `(max(image) + min(image)) / 2`.
+        device: target device to put the output Tensor data.
     """
 
     def __init__(
@@ -507,6 +508,7 @@ class HoVerNetInstanceMapPostProcessingd(Transform):
         watershed_connectivity: int | None = 1,
         min_num_points: int = 3,
         contour_level: float | None = None,
+        device: str | torch.device | None = None,
     ) -> None:
         super().__init__()
         self.instance_map_post_process = HoVerNetInstanceMapPostProcessing(
@@ -521,6 +523,7 @@ class HoVerNetInstanceMapPostProcessingd(Transform):
             watershed_connectivity=watershed_connectivity,
             min_num_points=min_num_points,
             contour_level=contour_level,
+            device=device,
         )
         self.nuclear_prediction_key = nuclear_prediction_key
         self.hover_map_key = hover_map_key
@@ -553,7 +556,7 @@ class HoVerNetNuclearTypePostProcessingd(Transform):
             Defaults to `"instance_info"`.
         instance_map_key: the key where instance map is stored. Defaults to `"instance_map"`.
         type_map_key: the output key where type map is written. Defaults to `"type_map"`.
-
+        device: target device to put the output Tensor data.
 
     """
 
@@ -566,10 +569,11 @@ class HoVerNetNuclearTypePostProcessingd(Transform):
         activation: str | Callable = "softmax",
         threshold: float | None = None,
         return_type_map: bool = True,
+        device: str | torch.device | None = None,
     ) -> None:
         super().__init__()
         self.type_post_process = HoVerNetNuclearTypePostProcessing(
-            activation=activation, threshold=threshold, return_type_map=return_type_map
+            activation=activation, threshold=threshold, return_type_map=return_type_map, device=device
         )
         self.type_prediction_key = type_prediction_key
         self.instance_info_key = instance_info_key

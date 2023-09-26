@@ -131,6 +131,7 @@ if __name__ == "__main__":
                 cases.append(f"tests.{test_module}")
             else:
                 print(f"monai test runner: excluding tests.{test_module}")
+        print(cases)
         tests = unittest.TestLoader().loadTestsFromNames(cases)
     discovery_time = pc.total_time
     print(f"time to discover tests: {discovery_time}s, total cases: {tests.countTestCases()}.")

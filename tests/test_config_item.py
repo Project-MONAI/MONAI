@@ -128,6 +128,10 @@ class TestConfigItem(unittest.TestCase):
         flag = expr.is_import_statement(expr.config)
         self.assertEqual(flag, expected)
 
+    def test_error_expr(self):
+        with self.assertRaisesRegex(RuntimeError, r"1\+\[\]"):
+            ConfigExpression(id="", config="$1+[]").evaluate()
+
 
 if __name__ == "__main__":
     unittest.main()

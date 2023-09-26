@@ -21,7 +21,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, 
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -112,6 +112,7 @@ class NaiveNetwork(torch.nn.Module):
 
 @SkipIfBeforePyTorchVersion((1, 11))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
+@skip_if_quick
 class TestRetinaNetDetector(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_retina_detector_resnet_backbone_shape(self, input_param, input_shape):

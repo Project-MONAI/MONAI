@@ -238,7 +238,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(  # 5D input
         [
-            {"pixdim": 0.5, "padding_mode": "zeros", "mode": "nearest", "scale_extent": True},
+            {"pixdim": 0.5, "padding_mode": "constant", "mode": "nearest", "scale_extent": True},
             torch.ones((1, 368, 336, 368)),  # data
             torch.tensor(
                 [
@@ -283,7 +283,7 @@ class TestSpacingCase(unittest.TestCase):
         tr = Spacing(**init_param)
         call_param = data_param.copy()
         call_param["data_array"] = img
-        res: MetaTensor = tr(**call_param)
+        res: MetaTensor = tr(**call_param)  # type: ignore
         self.assertEqual(img.device, res.device)
 
         test_resampler_lazy(tr, res, init_param=init_param, call_param=call_param)
@@ -306,7 +306,7 @@ class TestSpacingCase(unittest.TestCase):
 
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
-            new_spacing = affine_to_spacing(res.affine, 3)
+            new_spacing = affine_to_spacing(res.affine, 3)  # type: ignore
             assert_allclose(new_spacing, pixdim, type_test=False)
             self.assertNotEqual(img.shape, res.shape)
             test_resampler_lazy(tr, res, init_param=init_param, call_param=call_param)

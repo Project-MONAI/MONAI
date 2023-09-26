@@ -24,6 +24,7 @@ from monai.apps.auto3dseg import BundleGen, DataAnalyzer, NNIGen, OptunaGen, imp
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
+from monai.utils.enums import AlgoKeys
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     get_testing_algo_template_path,
@@ -42,6 +43,7 @@ override_param = (
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
+        "auto_scale_allowed": False,
     }
     if torch.cuda.is_available()
     else {}
@@ -74,7 +76,7 @@ fake_datalist: dict[str, list[dict]] = {
 }
 
 
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@SkipIfBeforePyTorchVersion((1, 11, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestHPO(unittest.TestCase):
     def setUp(self) -> None:
@@ -138,9 +140,8 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_run_algo(self) -> None:
-        algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo_dict = self.history[-1]
+        algo = algo_dict[AlgoKeys.ALGO]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
         # this function will be used in HPO via Python Fire
@@ -149,9 +150,8 @@ class TestHPO(unittest.TestCase):
     @skip_if_no_cuda
     @skip_if_no_optuna
     def test_run_optuna(self) -> None:
-        algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo_dict = self.history[-1]
+        algo = algo_dict[AlgoKeys.ALGO]
 
         class OptunaGenLearningRate(OptunaGen):
             def get_hyperparameters(self):
@@ -172,16 +172,14 @@ class TestHPO(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_get_history(self) -> None:
-        algo_dict = self.history[0]
-        algo_name = list(algo_dict.keys())[0]
-        algo = algo_dict[algo_name]
+        algo_dict = self.history[-1]
+        algo = algo_dict[AlgoKeys.ALGO]
         nni_gen = NNIGen(algo=algo, params=override_param)
         obj_filename = nni_gen.get_obj_filename()
 
         NNIGen().run_algo(obj_filename, self.work_dir)
-
         history = import_bundle_algo_history(self.work_dir, only_trained=True)
-        assert len(history) == 1
+        assert len(history) == 3
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

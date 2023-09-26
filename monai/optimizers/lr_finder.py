@@ -257,7 +257,7 @@ class LearningRateFinder:
         image_extractor: Callable = default_image_extractor,
         label_extractor: Callable = default_label_extractor,
         start_lr: float | None = None,
-        end_lr: int = 10,
+        end_lr: float = 10.0,
         num_iter: int = 100,
         step_mode: str = "exp",
         smooth_f: float = 0.05,

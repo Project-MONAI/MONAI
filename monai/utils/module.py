@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import enum
+import functools
 import os
 import pdb
 import re
@@ -24,7 +25,7 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, cast
+from typing import Any, Iterable, cast
 
 import torch
 
@@ -54,6 +55,7 @@ __all__ = [
     "get_package_version",
     "get_torch_version_tuple",
     "version_leq",
+    "version_geq",
     "pytorch_after",
 ]
 
@@ -508,12 +510,39 @@ def get_package_version(dep_name, default="NOT INSTALLED or UNKNOWN VERSION."):
     return default
 
 
+@functools.lru_cache(None)
 def get_torch_version_tuple():
     """
     Returns:
         tuple of ints represents the pytorch major/minor version.
     """
     return tuple(int(x) for x in torch.__version__.split(".")[:2])
+
+
+def parse_version_strs(lhs: str, rhs: str) -> tuple[Iterable[int | str], Iterable[int | str]]:
+    """
+    Parse the version strings.
+    """
+
+    def _try_cast(val: str) -> int | str:
+        val = val.strip()
+        try:
+            m = match("(\\d+)(.*)", val)
+            if m is not None:
+                val = m.groups()[0]
+                return int(val)
+            return val
+        except ValueError:
+            return val
+
+    # remove git version suffixes if present
+    lhs = lhs.split("+", 1)[0]
+    rhs = rhs.split("+", 1)[0]
+
+    # parse the version strings in this basic way without `packaging` package
+    lhs_ = map(_try_cast, lhs.split("."))
+    rhs_ = map(_try_cast, rhs.split("."))
+    return lhs_, rhs_
 
 
 def version_leq(lhs: str, rhs: str) -> bool:
@@ -534,25 +563,7 @@ def version_leq(lhs: str, rhs: str) -> bool:
         except pkging.version.InvalidVersion:
             return True
 
-    def _try_cast(val: str) -> int | str:
-        val = val.strip()
-        try:
-            m = match("(\\d+)(.*)", val)
-            if m is not None:
-                val = m.groups()[0]
-                return int(val)
-            return val
-        except ValueError:
-            return val
-
-    # remove git version suffixes if present
-    lhs = lhs.split("+", 1)[0]
-    rhs = rhs.split("+", 1)[0]
-
-    # parse the version strings in this basic way without `packaging` package
-    lhs_ = map(_try_cast, lhs.split("."))
-    rhs_ = map(_try_cast, rhs.split("."))
-
+    lhs_, rhs_ = parse_version_strs(lhs, rhs)
     for l, r in zip(lhs_, rhs_):
         if l != r:
             if isinstance(l, int) and isinstance(r, int):
@@ -562,6 +573,34 @@ def version_leq(lhs: str, rhs: str) -> bool:
     return True
 
 
+def version_geq(lhs: str, rhs: str) -> bool:
+    """
+    Returns True if version `lhs` is later or equal to `rhs`.
+
+    Args:
+        lhs: version name to compare with `rhs`, return True if later or equal to `rhs`.
+        rhs: version name to compare with `lhs`, return True if earlier or equal to `lhs`.
+
+    """
+    lhs, rhs = str(lhs), str(rhs)
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    if has_ver:
+        try:
+            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
+        except pkging.version.InvalidVersion:
+            return True
+
+    lhs_, rhs_ = parse_version_strs(lhs, rhs)
+    for l, r in zip(lhs_, rhs_):
+        if l != r:
+            if isinstance(l, int) and isinstance(r, int):
+                return l > r
+            return f"{l}" > f"{r}"
+
+    return True
+
+
+@functools.lru_cache(None)
 def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: str | None = None) -> bool:
     """
     Compute whether the current pytorch version is after or equal to the specified version.

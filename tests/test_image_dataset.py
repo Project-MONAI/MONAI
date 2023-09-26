@@ -47,9 +47,9 @@ class RandTest(RandomizableTransform):
 
 
 class _TestCompose(Compose):
-    def __call__(self, data, meta):
+    def __call__(self, data, meta, lazy):
         data = self.transforms[0](data)  # ensure channel first
-        data = self.transforms[1](data, data.meta["affine"])  # spacing
+        data = self.transforms[1](data, lazy=lazy)  # spacing
         meta = data.meta
         if len(self.transforms) == 3:
             return self.transforms[2](data), meta  # image contrast

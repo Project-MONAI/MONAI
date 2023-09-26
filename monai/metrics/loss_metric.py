@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import torch
 from torch.nn.modules.loss import _Loss
 
@@ -92,7 +94,7 @@ class LossMetric(CumulativeIterationMetric):
         f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         return (f, not_nans) if self.get_not_nans else f
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor | None = None) -> TensorOrList:
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor | None = None, **kwargs: Any) -> TensorOrList:
         """
         Input `y_pred` is compared with ground truth `y`.
         Both `y_pred` and `y` are expected to be a batch-first Tensor (BC[HWD]).

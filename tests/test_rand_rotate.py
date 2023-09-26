@@ -91,7 +91,7 @@ class TestRandRotate2D(NumpyImageTestCase2D):
 
         # test lazy
         test_resampler_lazy(rotate_fn, rotated, init_param=init_param, call_param=call_param, seed=243)
-        rotate_fn.lazy_evaluation = False
+        rotate_fn.lazy = False
 
         _order = 0 if mode == "nearest" else 1
         if mode == "border":
@@ -133,7 +133,7 @@ class TestRandRotate3D(NumpyImageTestCase3D):
 
         # test lazy
         test_resampler_lazy(rotate_fn, rotated, init_param=init_param, call_param=call_param, seed=243)
-        rotate_fn.lazy_evaluation = False
+        rotate_fn.lazy = False
 
         assert_allclose(rotated.shape, expected, rtol=1e-7, atol=0)
         test_local_inversion(rotate_fn, rotated, im)

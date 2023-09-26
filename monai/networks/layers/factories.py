@@ -65,12 +65,10 @@ import warnings
 from collections.abc import Callable
 from typing import Any
 
-import torch
 import torch.nn as nn
 
+from monai.networks.utils import has_nvfuser_instance_norm
 from monai.utils import look_up_option, optional_import
-
-InstanceNorm3dNVFuser, has_nvfuser = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
@@ -262,27 +260,18 @@ def instance_nvfuser_factory(dim):
     https://github.com/NVIDIA/apex#installation
 
     """
-    types = (nn.InstanceNorm1d, nn.InstanceNorm2d)
+
     if dim != 3:
+        types = (nn.InstanceNorm1d, nn.InstanceNorm2d)
         warnings.warn(f"`InstanceNorm3dNVFuser` only supports 3d cases, use {types[dim - 1]} instead.")
         return types[dim - 1]
-    # test InstanceNorm3dNVFuser installation with a basic example
-    has_nvfuser_flag = has_nvfuser
-    if not torch.cuda.is_available():
-        return nn.InstanceNorm3d
-    try:
-        layer = InstanceNorm3dNVFuser(num_features=1, affine=True).to("cuda:0")
-        inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
-        out = layer(inp)
-        del inp, out, layer
-    except Exception:
-        has_nvfuser_flag = False
-    if not has_nvfuser_flag:
+
+    if not has_nvfuser_instance_norm():
         warnings.warn(
             "`apex.normalization.InstanceNorm3dNVFuser` is not installed properly, use nn.InstanceNorm3d instead."
         )
         return nn.InstanceNorm3d
-    return InstanceNorm3dNVFuser
+    return optional_import("apex.normalization", name="InstanceNorm3dNVFuser")[0]
 
 
 Act.add_factory_callable("elu", lambda: nn.modules.ELU)

@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 from monai.apps import MedNISTDataset
 from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
 from monai.utils.misc import MONAIEnvVars
 from tests.utils import skip_if_downloading_fails
@@ -56,7 +56,7 @@ class TestLRFinder(unittest.TestCase):
         self.transforms = Compose(
             [
                 LoadImaged(keys="image"),
-                AddChanneld(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys="image"),
             ]
@@ -91,7 +91,7 @@ class TestLRFinder(unittest.TestCase):
             pickle_module=pickle,
             pickle_protocol=4,
         )
-        lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10, num_iter=5)
+        lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10.0, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
 
         if has_matplotlib:

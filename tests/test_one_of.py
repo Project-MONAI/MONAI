@@ -15,8 +15,12 @@ import unittest
 from copy import deepcopy
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
+import monai.transforms.intensity.array as ia
+import monai.transforms.spatial.array as sa
+import monai.transforms.spatial.dictionary as sd
 from monai.data import MetaTensor
 from monai.transforms import (
     InvertibleTransform,
@@ -225,6 +229,42 @@ class TestOneOf(unittest.TestCase):
         self.assertAlmostEqual(counts[0] / 10000, 0.25, delta=1.0)
         self.assertAlmostEqual(counts[1] / 10000, 0.50, delta=1.0)
         self.assertAlmostEqual(counts[2] / 10000, 0.25, delta=1.0)
+
+
+TEST_ONEOF_EXTENDED_TEST_CASES = [
+    [None, tuple()],
+    [None, (sa.Rotate(np.pi / 8),)],
+    [None, (sa.Flip(0), sa.Flip(1), sa.Rotate90(1), sa.Zoom(0.8), ia.NormalizeIntensity())],
+    [("a",), (sd.Rotated(("a",), np.pi / 8),)],
+]
+
+
+class TestOneOfAPITests(unittest.TestCase):
+    @staticmethod
+    def data_from_keys(keys):
+        if keys is None:
+            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+        else:
+            data = {}
+            for i_k, k in enumerate(keys):
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(12 * 16)).reshape(12, 16) + i_k * 192, dim=0)
+        return data
+
+    @parameterized.expand(TEST_ONEOF_EXTENDED_TEST_CASES)
+    def test_execute_change_start_end(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        c = OneOf(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+
+        c = OneOf(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, end=1)
+        with self.assertRaises(ValueError):
+            c(data, end=1)
 
 
 if __name__ == "__main__":
