@@ -452,7 +452,11 @@ def collate_meta_tensor(batch):
     elem_0 = first(batch)
     if isinstance(elem_0, MetaObj):
         collated = default_collate(batch)
-        collated.meta = default_collate([i.meta or TraceKeys.NONE for i in batch])
+        meta_dicts = [i.meta or TraceKeys.NONE for i in batch]
+        common_ = set.intersection(*[set(d.keys()) for d in meta_dicts if isinstance(d, dict)])
+        if common_:
+            meta_dicts = [{k: d[k] for k in common_} if isinstance(d, dict) else TraceKeys.NONE for d in meta_dicts]
+        collated.meta = default_collate(meta_dicts)
         collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
         collated.is_batch = True
         return collated
