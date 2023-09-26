@@ -1,4 +1,4 @@
-# What's new in 1.2 🎉🎉
+# What's new in 1.2
 
 - Auto3DSeg enhancements and benchmarks
 - nnUNet integration
