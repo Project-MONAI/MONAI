@@ -943,10 +943,14 @@ class SobelGradients(Transform):
 class DistanceTransformEDT(Transform):
     """
     Applies the Euclidean distance transform on the input.
+    Either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
 
-    Either GPU based with CuPy / cuCIM or CPU based with scipy.ndimage.
-    Choice only depends on cuCIM being available.
-    Note that the calculations can deviate, for details look into the cuCIM about distance_transform_edt().
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation and / or :func:`monai.transforms.utils.distance_transform_edt`.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
     """
 
     backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
@@ -959,12 +963,12 @@ class DistanceTransformEDT(Transform):
         """
         Args:
             img: Input image on which the distance transform shall be run.
-                channel first array, must have shape: (num_channels, H[, W, ..., ])
-                Input gets passed channel-wise to the distance-transform, thus results from this function may differ
-                from directly calling ``distance_transform_edt()`` in CuPy or scipy.
-            sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
+                Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+                Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+                Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+                from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+            sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
                 if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
-
 
         Returns:
             An array with the same shape and data type as img

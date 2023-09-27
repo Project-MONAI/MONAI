@@ -2065,32 +2065,34 @@ def distance_transform_edt(
     return_indices: bool = False,
     distances: NdarrayOrTensor | None = None,
     indices: NdarrayOrTensor | None = None,
+    *,
     block_params: tuple[int, int, int] | None = None,
     float64_distances: bool = False,
-) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
+) -> None | NdarrayOrTensor | tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
-    Euclidean distance transform, either GPU based with CuPy / cuCIM
-    or CPU based with scipy.
+    Euclidean distance transform, either GPU based with CuPy / cuCIM or CPU based with scipy.
     To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
 
-    For details about the implementation, check out the
-    `SciPy<https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html/>`_
-    and `cuCIM<https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt/>`_ docs.
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
 
     Args:
         img: Input image on which the distance transform shall be run.
-            channel first array, must have shape: (num_channels, H[, W, ..., ])
-            Input gets passed channel-wise to the distance-transform, thus results from this function may differ
-            from directly calling ``distance_transform_edt()`` in CuPy or scipy.
-        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank;
+            Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+            Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+            Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+            from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
             if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
         return_distances: Whether to calculate the distance transform.
         return_indices: Whether to calculate the feature transform.
         distances: An output array to store the calculated distance transform, instead of returning it.
             `return_distances` must be True.
         indices: An output array to store the calculated feature transform, instead of returning it. `return_indicies` must be True.
-        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look here
-            `distance_transform_edt<https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt/>`_
+        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look into `cuCIM`_.
         float64_distances: This parameter is specific to cuCIM and does not exist in SciPy.
             If True, use double precision in the distance computation (to match SciPy behavior).
             Otherwise, single precision will be used for efficiency.
@@ -2098,7 +2100,7 @@ def distance_transform_edt(
     Returns:
         distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied.
             It will have the same shape as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
-            otherwise it will have dtype torch.float32. For scipy: Will have dtype np.float64.
+            otherwise it will have dtype torch.float32. For SciPy: Will have dtype np.float64.
         indices: The calculated feature transform. It has an image-shaped array for each dimension of the image.
             Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
 
@@ -2106,10 +2108,14 @@ def distance_transform_edt(
     distance_transform_edt, has_cucim = optional_import(
         "cucim.core.operations.morphology", name="distance_transform_edt"
     )
-    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == torch.device("cuda").type
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == "cuda"
 
     if not return_distances and not return_indices:
         raise RuntimeError("Neither return_distances nor return_indices True")
+
+    if not (img.ndim >= 3 and img.ndim <= 4):
+        raise RuntimeError("Wrong input dimensionality. Use (num_channels, H, W [,D])")
+
     distances_original, indices_original = distances, indices
     distances, indices = None, None
     if use_cp:
@@ -2117,7 +2123,7 @@ def distance_transform_edt(
         if return_distances:
             dtype = torch.float64 if float64_distances else torch.float32
             if distances is None:
-                distances = torch.zeros_like(img, dtype=dtype)
+                distances = torch.zeros_like(img, dtype=dtype)  # type: ignore
             else:
                 if not isinstance(distances, torch.Tensor) and distances.device != img.device:
                     raise TypeError("distances must be a torch.Tensor on the same device as img")
@@ -2127,7 +2133,7 @@ def distance_transform_edt(
         if return_indices:
             dtype = torch.int32
             if indices is None:
-                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)
+                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)  # type: ignore
             else:
                 if not isinstance(indices, torch.Tensor) and indices.device != img.device:
                     raise TypeError("indices must be a torch.Tensor on the same device as img")

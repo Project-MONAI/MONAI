@@ -191,10 +191,10 @@ class TestDistanceTransformEDT(unittest.TestCase):
     @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
     @unittest.skipUnless(momorphology, "cuCIM transforms are required.")
     def test_cucim_raises(self, raises):
-        """Currently only 2D, 3D and 4D images are supported by CuPy. This test checks for the according error message"""
+        """Currently images of shape a certain shape are supported. This test checks for the according error message"""
         input_ = torch.tensor(raises, device="cuda")
         transform = DistanceTransformEDT()
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(RuntimeError):
             transform(input_)
 
 
