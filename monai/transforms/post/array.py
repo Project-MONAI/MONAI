@@ -973,4 +973,4 @@ class DistanceTransformEDT(Transform):
         Returns:
             An array with the same shape and data type as img
         """
-        return distance_transform_edt(img=img, sampling=self.sampling)
+        return distance_transform_edt(img=img, sampling=self.sampling)  # type: ignore

@@ -2192,7 +2192,7 @@ def distance_transform_edt(
         return None
     if len(r_vals) == 1:
         return r_vals[0]
-    return tuple(r_vals)
+    return tuple(r_vals)  # type: ignore
 
 
 if __name__ == "__main__":
