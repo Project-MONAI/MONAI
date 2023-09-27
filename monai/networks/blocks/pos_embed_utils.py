@@ -57,7 +57,8 @@ def build_sincos_position_embedding(
 
         grid_h, grid_w = torch.meshgrid(grid_h, grid_w, indexing="ij")
 
-        assert embed_dim % 4 == 0, "Embed dimension must be divisible by 4 for 2D sin-cos position embedding"
+        if embed_dim % 4 != 0:
+            raise AssertionError("Embed dimension must be divisible by 4 for 2D sin-cos position embedding")
 
         pos_dim = embed_dim // 4
         omega = torch.arange(pos_dim, dtype=torch.float32) / pos_dim
@@ -75,7 +76,8 @@ def build_sincos_position_embedding(
 
         grid_h, grid_w, grid_d = torch.meshgrid(grid_h, grid_w, grid_d, indexing="ij")
 
-        assert embed_dim % 6 == 0, "Embed dimension must be divisible by 6 for 3D sin-cos position embedding"
+        if embed_dim % 6 != 0:
+            raise AssertionError("Embed dimension must be divisible by 6 for 3D sin-cos position embedding")
 
         pos_dim = embed_dim // 6
         omega = torch.arange(pos_dim, dtype=torch.float32) / pos_dim

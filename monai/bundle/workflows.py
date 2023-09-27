@@ -55,7 +55,7 @@ class BundleWorkflow(ABC):
 
     @deprecated_arg(
         "workflow",
-        since="1.3",
+        since="1.2",
         removed="1.5",
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
@@ -214,12 +214,12 @@ class ConfigWorkflow(BundleWorkflow):
 
     @deprecated_arg(
         "workflow",
-        since="1.3",
+        since="1.2",
         removed="1.5",
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
     )
-    @deprecated_arg_default("workflow_type", None, "train", since="1.3", replaced="1.4")
+    @deprecated_arg_default("workflow_type", None, "train", since="1.2", replaced="1.4")
     def __init__(
         self,
         config_file: str | Sequence[str],

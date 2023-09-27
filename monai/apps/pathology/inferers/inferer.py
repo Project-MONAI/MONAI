@@ -178,6 +178,7 @@ class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
             self.process_output,
             self.buffer_steps,
             self.buffer_dim,
+            False,
             *args,
             **kwargs,
         )

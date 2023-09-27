@@ -1482,9 +1482,6 @@ class CSVDataset(Dataset):
         kwargs_read_csv: dictionary args to pass to pandas `read_csv` function.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
-    .. deprecated:: 0.8.0
-        ``filename`` is deprecated, use ``src`` instead.
-
     """
 
     def __init__(

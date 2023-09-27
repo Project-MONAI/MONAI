@@ -255,7 +255,9 @@ class RandShiftIntensity(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1) -> None:
+    def __init__(
+        self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1, channel_wise: bool = False
+    ) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
@@ -263,6 +265,8 @@ class RandShiftIntensity(RandomizableTransform):
             safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
                 E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
             prob: probability of shift.
+            channel_wise: if True, shift intensity on each channel separately. For each channel, a random offset will be chosen.
+                Please ensure that the first dimension represents the channel of the image if True.
         """
         RandomizableTransform.__init__(self, prob)
         if isinstance(offsets, (int, float)):
@@ -272,13 +276,17 @@ class RandShiftIntensity(RandomizableTransform):
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self.channel_wise = channel_wise
         self._shifter = ShiftIntensity(self._offset, safe)
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+        if self.channel_wise:
+            self._offset = [self.R.uniform(low=self.offsets[0], high=self.offsets[1]) for _ in range(data.shape[0])]  # type: ignore
+        else:
+            self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
     def __call__(self, img: NdarrayOrTensor, factor: float | None = None, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -292,12 +300,21 @@ class RandShiftIntensity(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return img
 
-        return self._shifter(img, self._offset if factor is None else self._offset * factor)
+        ret: NdarrayOrTensor
+        if self.channel_wise:
+            out = []
+            for i, d in enumerate(img):
+                out_channel = self._shifter(d, self._offset[i] if factor is None else self._offset[i] * factor)  # type: ignore
+                out.append(out_channel)
+            ret = torch.stack(out)  # type: ignore
+        else:
+            ret = self._shifter(img, self._offset if factor is None else self._offset * factor)
+        return ret
 
 
 class StdShiftIntensity(Transform):

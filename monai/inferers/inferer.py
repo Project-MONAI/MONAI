@@ -426,6 +426,8 @@ class SlidingWindowInferer(Inferer):
             (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
         buffer_dim: the spatial dimension along which the buffers are created.
             0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
+        with_coord: whether to pass the window coordinates to ``network``. Defaults to False.
+            If True, the ``network``'s 2nd input argument should accept the window coordinates.
 
     Note:
         ``sw_batch_size`` denotes the max number of windows per network inference iteration,
@@ -449,6 +451,7 @@ class SlidingWindowInferer(Inferer):
         cpu_thresh: int | None = None,
         buffer_steps: int | None = None,
         buffer_dim: int = -1,
+        with_coord: bool = False,
     ) -> None:
         super().__init__()
         self.roi_size = roi_size
@@ -464,6 +467,7 @@ class SlidingWindowInferer(Inferer):
         self.cpu_thresh = cpu_thresh
         self.buffer_steps = buffer_steps
         self.buffer_dim = buffer_dim
+        self.with_coord = with_coord
 
         # compute_importance_map takes long time when computing on cpu. We thus
         # compute it once if it's static and then save it for future usage
@@ -525,6 +529,7 @@ class SlidingWindowInferer(Inferer):
             None,
             buffer_steps,
             buffer_dim,
+            self.with_coord,
             *args,
             **kwargs,
         )

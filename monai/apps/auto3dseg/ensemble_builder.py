@@ -36,7 +36,7 @@ from monai.auto3dseg.utils import (
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
 from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
-from monai.utils import RankFilter, deprecated_arg
+from monai.utils import RankFilter
 from monai.utils.enums import AlgoKeys
 from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class
 from monai.utils.module import look_up_option, optional_import
@@ -332,13 +332,6 @@ class AlgoEnsembleBuilder:
 
     """
 
-    @deprecated_arg(
-        "data_src_cfg_filename",
-        since="1.2",
-        removed="1.3",
-        new_name="data_src_cfg_name",
-        msg_suffix="please use `data_src_cfg_name` instead.",
-    )
     def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_name: str | None = None):
         self.infer_algos: list[dict[AlgoKeys, Any]] = []
         self.ensemble: AlgoEnsemble

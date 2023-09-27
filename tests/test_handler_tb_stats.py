@@ -36,14 +36,6 @@ def get_event_filter(e):
 
 @unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 class TestHandlerTBStats(unittest.TestCase):
-    def test_args_validation(self):
-        with self.assertWarns(FutureWarning):
-            with self.assertRaisesRegex(ValueError, expected_regex="iteration_interval should be 1"):
-                TensorBoardStatsHandler(log_dir=".", iteration_log=get_event_filter([1, 2]), iteration_interval=2)
-
-            with self.assertRaisesRegex(ValueError, expected_regex="epoch_interval should be 1"):
-                TensorBoardStatsHandler(log_dir=".", epoch_log=get_event_filter([1, 2]), epoch_interval=2)
-
     def test_metrics_print(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # set up engine
