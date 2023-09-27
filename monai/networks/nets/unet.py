@@ -96,9 +96,6 @@ class UNet(nn.Module):
             strides=(2, 2, 2, 2),
         )
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     Note: The acceptable spatial size of input data depends on the parameters of the network,
         to set appropriate spatial size, please check the tutorial for more details:
         https://github.com/Project-MONAI/tutorials/blob/master/modules/UNet_input_size_constrains.ipynb.

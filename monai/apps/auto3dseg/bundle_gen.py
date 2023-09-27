@@ -44,7 +44,7 @@ from monai.utils import ensure_tuple, look_up_option, run_cmd
 from monai.utils.enums import AlgoKeys
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "e01d67a")
+ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "3e11dd0")
 
 __all__ = ["BundleAlgo", "BundleGen"]
 

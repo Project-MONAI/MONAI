@@ -1002,21 +1002,9 @@ Utility
     :members:
     :special-members: __call__
 
-`AsChannelFirst`
-""""""""""""""""
-.. autoclass:: AsChannelFirst
-    :members:
-    :special-members: __call__
-
 `AsChannelLast`
 """""""""""""""
 .. autoclass:: AsChannelLast
-    :members:
-    :special-members: __call__
-
-`AddChannel`
-""""""""""""
-.. autoclass:: AddChannel
     :members:
     :special-members: __call__
 
@@ -1035,12 +1023,6 @@ Utility
 `SplitDim`
 """"""""""
 .. autoclass:: SplitDim
-    :members:
-    :special-members: __call__
-
-`SplitChannel`
-""""""""""""""
-.. autoclass:: SplitChannel
     :members:
     :special-members: __call__
 
@@ -1725,6 +1707,15 @@ Post-processing (Dict)
   :members:
   :special-members: __call__
 
+Signal (Dict)
+^^^^^^^^^^^^^
+
+`SignalFillEmptyd`
+""""""""""""""""""
+.. autoclass:: SignalFillEmptyd
+    :members:
+    :special-members: __call__
+
 
 Spatial (Dict)
 ^^^^^^^^^^^^^^
@@ -1986,21 +1977,9 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
-`AsChannelFirstd`
-"""""""""""""""""
-.. autoclass:: AsChannelFirstd
-    :members:
-    :special-members: __call__
-
 `AsChannelLastd`
 """"""""""""""""
 .. autoclass:: AsChannelLastd
-    :members:
-    :special-members: __call__
-
-`AddChanneld`
-"""""""""""""
-.. autoclass:: AddChanneld
     :members:
     :special-members: __call__
 
@@ -2019,12 +1998,6 @@ Utility (Dict)
 `SplitDimd`
 """""""""""
 .. autoclass:: SplitDimd
-    :members:
-    :special-members: __call__
-
-`SplitChanneld`
-"""""""""""""""
-.. autoclass:: SplitChanneld
     :members:
     :special-members: __call__
 

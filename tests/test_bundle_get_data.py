@@ -21,9 +21,11 @@ from tests.utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick
 
 requests, _ = optional_import("requests")
 
-TEST_CASE_1 = [{"bundle_name": "brats_mri_segmentation"}]
+TEST_CASE_1 = [{"bundle_name": "brats_mri_segmentation", "tag": "hosting_storage_v1"}]
 
-TEST_CASE_2 = [{"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": None}]
+TEST_CASE_2 = [
+    {"bundle_name": "spleen_ct_segmentation", "version": "0.1.0", "auth_token": None, "tag": "hosting_storage_v1"}
+]
 
 TEST_CASE_3 = [{"tag": "hosting_storage_v1"}]
 

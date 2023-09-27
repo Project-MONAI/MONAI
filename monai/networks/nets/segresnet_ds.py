@@ -127,7 +127,7 @@ class SegResBlock(nn.Module):
 
 class SegResEncoder(nn.Module):
     """
-    SegResEncoder based on the econder structure in `3D MRI brain tumor segmentation using autoencoder regularization
+    SegResEncoder based on the encoder structure in `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
 
     Args:

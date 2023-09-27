@@ -72,7 +72,6 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.deprecate_utils import deprecated_arg
 from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
@@ -432,11 +431,9 @@ class Spacing(InvertibleTransform, LazyTransform):
         self._lazy = val
         self.sp_resample.lazy = val
 
-    @deprecated_arg(name="affine", since="0.9", msg_suffix="Not needed, input should be `MetaTensor`.")
     def __call__(
         self,
         data_array: torch.Tensor,
-        affine: NdarrayOrTensor | None = None,
         mode: str | int | None = None,
         padding_mode: str | None = None,
         align_corners: bool | None = None,
@@ -492,9 +489,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         if sr <= 0:
             raise ValueError(f"data_array must have at least one spatial dimension, got {original_spatial_shape}.")
         affine_: np.ndarray
-        if affine is not None:
-            warnings.warn("arg `affine` is deprecated, the affine of MetaTensor in data_array has higher priority.")
-        input_affine = data_array.peek_pending_affine() if isinstance(data_array, MetaTensor) else affine
+        input_affine = data_array.peek_pending_affine() if isinstance(data_array, MetaTensor) else None
         if input_affine is None:
             warnings.warn("`data_array` is not of type MetaTensor, assuming affine to be identity.")
             # default to identity

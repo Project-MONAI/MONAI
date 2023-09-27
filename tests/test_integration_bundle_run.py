@@ -67,7 +67,7 @@ class TestBundleRun(unittest.TestCase):
             json.dump(
                 {
                     "trainer": {"_target_": "tests.test_integration_bundle_run._Runnable42", "val": 42},
-                    # keep this test case to cover the "runner_id" arg
+                    # keep this test case to cover the "run_id" arg
                     "training": "$@trainer.run()",
                 },
                 f,
@@ -106,7 +106,7 @@ class TestBundleRun(unittest.TestCase):
                         "_target_": "tests.test_integration_bundle_run._Runnable43",
                         "func": "$scripts.tiny_test",
                     },
-                    # keep this test case to cover the "runner_id" arg
+                    # keep this test case to cover the "run_id" arg
                     "training": "$@trainer.run()",
                 },
                 f,
