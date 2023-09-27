@@ -169,7 +169,7 @@ def get_mask_edges(
         spacing is None
         and has_cucim_binary_erosion
         and isinstance(seg_pred, torch.Tensor)
-        and seg_pred.device != torch.device("cpu")
+        and seg_pred.device.type == "cuda"
     )
 
     # If not binary images, convert them
@@ -755,42 +755,3 @@ def get_code_to_measure_table(spacing, device=None):
     if spatial_dims == 2:
         return create_table_neighbour_code_to_contour_length(spacing, device)
     return create_table_neighbour_code_to_surface_area(spacing, device)
-
-
-def distance_transform_edt_on_cucim_if_possible(
-    image: NdarrayOrTensor,
-    sampling: float | Sequence[float] | None = None,
-    return_distances: bool = True,
-    return_indices: bool = False,
-    *,
-    block_params=None,
-    float64_distances=False,
-    allow_cucim: bool = True,
-) -> NdarrayOrTensor | tuple[NdarrayOrTensor, NdarrayOrTensor]:
-    use_cucim = (
-        allow_cucim
-        and has_cucim_distance_transform_edt
-        and isinstance(image, torch.Tensor)
-        and image.device != torch.device("cpu")
-    )
-    if use_cucim:
-        if image.dim() > 3:
-            raise NotImplementedError("only images with 3 (HW[D]) or fewer dimensions are supported")
-
-        return_value = cucim_distance_transform_edt(
-            convert_to_cupy(image),
-            sampling=sampling,
-            return_distances=return_distances,
-            return_indices=return_indices,
-            block_params=block_params,
-            float64_distances=float64_distances,
-        )
-        return convert_to_tensor(return_value)
-    else:
-        return_value = distance_transform_edt(
-            convert_to_numpy(image), sampling=sampling, return_distances=return_distances, return_indices=return_indices
-        )
-        if isinstance(image, torch.Tensor):
-            return convert_to_tensor(return_value)
-        else:
-            return return_value

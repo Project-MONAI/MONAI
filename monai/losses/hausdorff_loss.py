@@ -22,7 +22,7 @@ from typing import Callable
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.metrics.utils import distance_transform_edt_on_cucim_if_possible
+from monai.transforms.utils import distance_transform_edt
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
@@ -103,8 +103,6 @@ class HausdorffDTLoss(_Loss):
         Returns:
             np.ndarray: Distance field.
         """
-        assert img.shape[1] == 1, "only supports single channel"
-        img = img.squeeze(1)
         field = torch.zeros_like(img)
 
         for batch_idx in range(len(img)):
@@ -114,13 +112,13 @@ class HausdorffDTLoss(_Loss):
             # the distance transform is not well defined for all 1s,
             # which always would happen on either foreground or background, so skip
             if fg_mask.any() and not fg_mask.all():
+                fg_dist = distance_transform_edt(fg_mask)
                 bg_mask = ~fg_mask
-                fg_dist = distance_transform_edt_on_cucim_if_possible(fg_mask)
-                bg_dist = distance_transform_edt_on_cucim_if_possible(bg_mask)
+                bg_dist = distance_transform_edt(bg_mask)
 
                 field[batch_idx] = fg_dist + bg_dist
 
-        return field.unsqueeze(1)
+        return field
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
