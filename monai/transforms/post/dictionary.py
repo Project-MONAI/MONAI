@@ -33,6 +33,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
+    DistanceTransformEDT,
     FillHoles,
     KeepLargestConnectedComponent,
     LabelFilter,
@@ -91,6 +92,9 @@ __all__ = [
     "VoteEnsembleD",
     "VoteEnsembleDict",
     "VoteEnsembled",
+    "DistanceTransformEDTd",
+    "DistanceTransformEDTD",
+    "DistanceTransformEDTDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -855,6 +859,51 @@ class SobelGradientsd(MapTransform):
         return d
 
 
+class DistanceTransformEDTd(MapTransform):
+    """
+    Applies the Euclidean distance transform on the input.
+    Either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation and / or :func:`monai.transforms.utils.distance_transform_edt`.
+
+
+    Note on the input shape:
+        Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+        Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+        Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+        from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        allow_missing_keys: don't raise exception if key is missing.
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+            if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+
+
+    """
+
+    backend = DistanceTransformEDT.backend
+
+    def __init__(
+        self, keys: KeysCollection, allow_missing_keys: bool = False, sampling: None | float | list[float] = None
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.sampling = sampling
+        self.distance_transform = DistanceTransformEDT(sampling=self.sampling)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.distance_transform(img=d[key])
+
+        return d
+
+
 ActivationsD = ActivationsDict = Activationsd
 AsDiscreteD = AsDiscreteDict = AsDiscreted
 FillHolesD = FillHolesDict = FillHolesd
@@ -869,3 +918,4 @@ SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 EnsembleD = EnsembleDict = Ensembled
 SobelGradientsD = SobelGradientsDict = SobelGradientsd
+DistanceTransformEDTD = DistanceTransformEDTDict = DistanceTransformEDTd
