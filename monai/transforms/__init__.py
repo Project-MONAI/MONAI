@@ -277,6 +277,7 @@ from .nvtx import (
 from .post.array import (
     Activations,
     AsDiscrete,
+    DistanceTransformEDT,
     FillHoles,
     Invert,
     KeepLargestConnectedComponent,
@@ -295,6 +296,9 @@ from .post.dictionary import (
     AsDiscreteD,
     AsDiscreted,
     AsDiscreteDict,
+    DistanceTransformEDTd,
+    DistanceTransformEDTD,
+    DistanceTransformEDTDict,
     Ensembled,
     EnsembleD,
     EnsembleDict,
