@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * `channel_wise` support in `RandScaleIntensity` and `RandShiftIntensity` (#6793, #7025)
 * `RandSimulateLowResolution` and `RandSimulateLowResolutiond` (#6806)
 * `SignalFillEmptyd` (#7011)
+* Euclidean distance transform `DistanceTransformEDT` with GPU support (#6981)
 * Port loss and metrics from `monai-generative` (#6729, #6836)
 * Support `invert_image` and `retain_stats` in `AdjustContrast` and `RandAdjustContrast` (#6542)
 * New network `DAF3D` and `Quicknat` (#6306)
