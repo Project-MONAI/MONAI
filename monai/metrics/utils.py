@@ -308,8 +308,8 @@ def get_edge_surface_distance(
     This function is used to compute the surface distance from `y_pred` to `y` using the edges of the masks.
 
     Args:
-        y_pred: the predicted binary or labelfield image.
-        y: the actual binary or labelfield image.
+        y_pred: the predicted binary or labelfield image. Expected to be in format (H, W[, D]).
+        y: the actual binary or labelfield image. Expected to be in format (H, W[, D]).
         distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
             See :py:func:`monai.metrics.utils.get_surface_distance`.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
