@@ -119,8 +119,7 @@ class SegResBlock(nn.Module):
 
     def forward(self, x):
         identity = x
-        x = self.conv1(self.act1(self.norm1(x)))
-        x = self.conv2(self.act2(self.norm2(x)))
+        x = self.conv2(self.act2(self.norm2(self.conv1(self.act1(self.norm1(x))))))
         x += identity
         return x
 
@@ -408,7 +407,7 @@ class SegResNetDS(nn.Module):
         i = 0
         for level in self.up_layers:
             x = level["upsample"](x)
-            x = x + x_down[i]
+            x += x_down.pop(0)
             x = level["blocks"](x)
 
             if len(self.up_layers) - i <= self.dsdepth:
