@@ -305,8 +305,8 @@ class ConfigParser:
 
     def read_config(self, f: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> None:
         """
-        Read the config from specified JSON or YAML file.
-        The config content in the `self.config` dictionary.
+        Read the config from specified JSON/YAML file or a dictionary and
+        override the config content in the `self.config` dictionary.
 
         Args:
             f: filepath of the config file, the content must be a dictionary,
@@ -383,7 +383,7 @@ class ConfigParser:
     @classmethod
     def load_config_file(cls, filepath: PathLike, **kwargs: Any) -> dict:
         """
-        Load config file with specified file path (currently support JSON and YAML files).
+        Load a single config file with specified file path (currently support JSON and YAML files).
 
         Args:
             filepath: path of target file to load, supported postfixes: `.json`, `.yml`, `.yaml`.
@@ -405,13 +405,15 @@ class ConfigParser:
     @classmethod
     def load_config_files(cls, files: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> dict:
         """
-        Load config files into a single config dict.
+        Load multiple config files into a single config dict.
         The latter config file in the list will override or add the former config file.
         ``"::"`` (or ``"#"``) in the config keys are interpreted as special characters to go one level
         further into the nested structures.
 
         Args:
             files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
+                if providing a list of files, wil merge the content of them.
+                if providing a dictionary, return it directly.
             kwargs: other arguments for ``json.load`` or ```yaml.safe_load``, depends on the file format.
         """
         if isinstance(files, dict):  # already a config dict
