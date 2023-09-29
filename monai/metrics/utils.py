@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import warnings
-from functools import lru_cache
+from functools import lru_cache, partial
+from types import ModuleType
 from typing import Any, Sequence
 
 import numpy as np
@@ -24,9 +25,11 @@ from monai.transforms.utils import distance_transform_edt as monai_distance_tran
 from monai.utils import (
     MetricReduction,
     convert_to_cupy,
+    convert_to_dst_type,
     convert_to_numpy,
     convert_to_tensor,
-    convert_to_dst_type,
+    deprecated_arg,
+    deprecated_arg_default,
     ensure_tuple_rep,
     look_up_option,
     optional_import,
@@ -131,13 +134,23 @@ def do_metric_reduction(
     return f, not_nans
 
 
+@deprecated_arg_default(
+    name="always_return_as_numpy", since="1.3.0", replaced="1.5.0", old_default=True, new_default=False
+)
+@deprecated_arg(
+    name="always_return_as_numpy",
+    since="1.5.0",
+    removed="1.7.0",
+    msg_suffix="The option is removed and the return type will always be equal to the input type.",
+)
 def get_mask_edges(
     seg_pred: NdarrayOrTensor,
     seg_gt: NdarrayOrTensor,
     label_idx: int = 1,
     crop: bool = True,
     spacing: Sequence | None = None,
-) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    always_return_as_numpy: bool = True,
+) -> tuple[NdarrayTensor, NdarrayTensor]:
     """
     Compute edges from binary segmentation masks. This
     function is helpful to further calculate metrics such as Average Surface
@@ -163,10 +176,19 @@ def get_mask_edges(
             images. Defaults to ``True``.
         spacing: the input spacing. If not None, the subvoxel edges and areas will be computed.
             otherwise `scipy`'s binary erosion is used to calculate the edges.
+        always_return_as_numpy: whether to a numpy array regardless of the input type.
+            If False, return the same type as inputs.
     """
     if seg_pred.shape != seg_gt.shape:
         raise ValueError(f"seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
-    seg_pred_original = seg_pred
+    converter: Any
+    lib: ModuleType
+    if isinstance(seg_pred, torch.Tensor) and not always_return_as_numpy:
+        converter = partial(convert_to_tensor, device=seg_pred.device)
+        lib = torch
+    else:
+        converter = convert_to_numpy
+        lib = np
     use_cucim = (
         spacing is None
         and has_cucim_binary_erosion
@@ -182,7 +204,7 @@ def get_mask_edges(
     if crop:
         or_vol = seg_pred | seg_gt
         if not or_vol.any():
-            pred, gt = np.zeros(seg_pred.shape, dtype=bool), np.zeros(seg_gt.shape, dtype=bool)
+            pred, gt = lib.zeros(seg_pred.shape, dtype=bool), lib.zeros(seg_gt.shape, dtype=bool)  # type: ignore
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
         channel_first = [seg_pred[None], seg_gt[None], or_vol[None]]
         if spacing is None and not use_cucim:  # cpu only erosion
@@ -204,7 +226,7 @@ def get_mask_edges(
             seg_pred, seg_gt = convert_to_cupy([seg_pred, seg_gt], dtype=bool)  # type: ignore[arg-type]
             edges_pred = cucim_binary_erosion(seg_pred) ^ seg_pred
             edges_gt = cucim_binary_erosion(seg_gt) ^ seg_gt
-        return convert_to_dst_type((edges_pred, edges_gt),seg_pred_original, dtype=bool)[0]  # type: ignore
+        return converter((edges_pred, edges_gt), dtype=bool)  # type: ignore
     code_to_area_table, k = get_code_to_measure_table(spacing, device=seg_pred.device)  # type: ignore
     spatial_dims = len(spacing)
     conv = torch.nn.functional.conv3d if spatial_dims == 3 else torch.nn.functional.conv2d
@@ -218,7 +240,7 @@ def get_mask_edges(
     areas_pred = torch.index_select(code_to_area_table, 0, code_pred.view(-1).int()).reshape(code_pred.shape)
     areas_gt = torch.index_select(code_to_area_table, 0, code_gt.view(-1).int()).reshape(code_gt.shape)
     ret = (edges_pred[0], edges_gt[0], areas_pred[0], areas_gt[0])
-    return convert_to_dst_type(ret,seg_pred_original, wrap_sequence=False,dtype=bool)[0]  # type: ignore
+    return converter(ret, wrap_sequence=False)  # type: ignore
 
 
 def get_surface_distance(
@@ -226,8 +248,6 @@ def get_surface_distance(
     seg_gt: NdarrayOrTensor,
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
-    *,
-    allow_cucim: bool = True,
 ) -> NdarrayOrTensor:
     """
     This function is used to compute the surface distances from `seg_pred` to `seg_gt`.
@@ -248,55 +268,87 @@ def get_surface_distance(
             Several input options are allowed: (1) If a single number, isotropic spacing with that value is used.
             (2) If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
             (3) If ``None``, spacing of unity is used. Defaults to ``None``.
-        allow_cucim: whether to use cucim if available. Defaults to ``True``.
 
     Note:
         If seg_pred or seg_gt is all 0, may result in nan/inf distance.
 
     """
-    lib = torch if isinstance(seg_pred, torch.Tensor) else np
+    lib: ModuleType = torch if isinstance(seg_pred, torch.Tensor) else np
     if not seg_gt.any():
-        dis = lib.inf * lib.ones_like(seg_gt,dtype=lib.float32)
+        dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)  # type: ignore
     else:
-        if not lib.any(seg_pred):
-            dis = lib.inf * lib.ones_like(seg_gt,dtype=lib.float32)
-            dis = dis[seg_gt]
-            return convert_to_dst_type(dis, seg_pred,dtype=dis.dtype)[0]
+        if not lib.any(seg_pred):  # type: ignore
+            dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)  # type: ignore
+            dis = dis[seg_gt]  # type: ignore
+            return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
         if distance_metric == "euclidean":
-            dis = monai_distance_transform_edt((~seg_gt)[None,...],sampling=spacing)[0]
+            dis = monai_distance_transform_edt((~seg_gt)[None, ...], sampling=spacing)[0]  # type: ignore
         elif distance_metric in {"chessboard", "taxicab"}:
             dis = distance_transform_cdt(convert_to_numpy(~seg_gt), metric=distance_metric)
         else:
             raise ValueError(f"distance_metric {distance_metric} is not implemented.")
+    dis = convert_to_dst_type(dis, seg_pred, dtype=lib.float32)[0]
+    return dis[seg_pred]  # type: ignore
 
-    return convert_to_dst_type(dis[seg_pred], seg_pred,dtype=dis.dtype)[0]
 
 def get_edge_surface_distance(
-        y_pred: torch.Tensor,
-        y: torch.Tensor,
-        distance_metric: str = "euclidean",
-        spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
-        use_subvoxels: bool = False,
-        symetric: bool = False,
-        class_index: int = -1
-)->tuple[tuple[torch.Tensor,torch.Tensor],tuple[torch.Tensor,torch.Tensor]|torch.Tensor,tuple[torch.Tensor,torch.Tensor]|tuple[()]]:
+    y_pred: torch.Tensor,
+    y: torch.Tensor,
+    distance_metric: str = "euclidean",
+    spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
+    use_subvoxels: bool = False,
+    symetric: bool = False,
+    class_index: int = -1,
+) -> tuple[
+    tuple[torch.Tensor, torch.Tensor],
+    tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor],
+    tuple[torch.Tensor, torch.Tensor] | tuple[()],
+]:
+    """
+    This function is used to compute the surface distance from `y_pred` to `y` using the edges of the masks.
 
+    Args:
+        y_pred: the predicted binary or labelfield image.
+        y: the actual binary or labelfield image.
+        distance_metric: : [``"euclidean"``, ``"chessboard"``, ``"taxicab"``]
+            See :py:func:`monai.metrics.utils.get_surface_distance`.
+        spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
+            See :py:func:`monai.metrics.utils.get_surface_distance`.
+        use_subvoxels: whether to use subvoxel resolution (using the spacing).
+            This will return the areas of the edges.
+        symetric: whether to compute the surface distance from `y_pred` to `y` and from `y` to `y_pred`.
+        class_index: The class-index used for context when warning about empty ground truth or prediction.
+
+    Returns:
+        (edges_pred, edges_gt), (distances_pred_to_gt, [distances_gt_to_pred]), (areas_pred, areas_gt) | tuple()
+
+    """
     edges_spacing = None
     if use_subvoxels:
         edges_spacing = spacing if spacing is not None else ([1] * len(y_pred.shape))
-    (edges_pred, edges_gt, *areas) = get_mask_edges(y_pred, y, crop=True,spacing=edges_spacing)
+    (edges_pred, edges_gt, *areas) = get_mask_edges(
+        y_pred, y, crop=True, spacing=edges_spacing, always_return_as_numpy=False
+    )
     if not edges_gt.any():
-        warnings.warn(f"the ground truth of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
-        " this may result in nan/inf distance.")
+        warnings.warn(
+            f"the ground truth of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
+            " this may result in nan/inf distance."
+        )
     if not edges_pred.any():
-        warnings.warn(f"the prediction of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
-        " this may result in nan/inf distance.")
+        warnings.warn(
+            f"the prediction of class {class_index if class_index != -1 else 'Unknown'} is all 0,"
+            " this may result in nan/inf distance."
+        )
+    distances: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor]
     if symetric:
-        distances = (get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),
-               get_surface_distance(edges_gt, edges_pred, distance_metric, spacing))
+        distances = (
+            get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),
+            get_surface_distance(edges_gt, edges_pred, distance_metric, spacing),
+        )  # type: ignore
     else:
-        distances = get_surface_distance(edges_pred, edges_gt, distance_metric, spacing)
-    return convert_to_tensor(((edges_pred, edges_gt), distances,tuple(areas)), device=y_pred.device)
+        distances = (get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),)  # type: ignore
+    return convert_to_tensor(((edges_pred, edges_gt), distances, tuple(areas)), device=y_pred.device)  # type: ignore[no-any-return]
+
 
 def is_binary_tensor(input: torch.Tensor, name: str) -> None:
     """Determines whether the input tensor is torch binary tensor or not.

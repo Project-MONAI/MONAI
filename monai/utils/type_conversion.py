@@ -242,7 +242,7 @@ def convert_to_cupy(data: Any, dtype: np.dtype | None = None, wrap_sequence: boo
         if data.dtype == torch.bool:
             data = data.detach().to(torch.uint8)
             if dtype is None:
-                dtype = bool
+                dtype = bool  # type: ignore
         data = cp.asarray(data, dtype)
     elif isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)):
         data = cp.asarray(data, dtype)

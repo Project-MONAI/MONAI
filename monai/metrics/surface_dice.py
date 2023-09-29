@@ -17,12 +17,7 @@ from typing import Any
 import numpy as np
 import torch
 
-from monai.metrics.utils import (
-    do_metric_reduction,
-    get_edge_surface_distance,
-    ignore_background,
-    prepare_spacing,
-)
+from monai.metrics.utils import do_metric_reduction, get_edge_surface_distance, ignore_background, prepare_spacing
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
@@ -249,26 +244,32 @@ def compute_surface_dice(
     if any(np.array(class_thresholds) < 0):
         raise ValueError("All class thresholds need to be >= 0.")
 
-    nsd = torch.empty((batch_size, n_class),device=y_pred.device, dtype=torch.float)
+    nsd = torch.empty((batch_size, n_class), device=y_pred.device, dtype=torch.float)
 
     img_dim = y_pred.ndim - 2
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
-        (edges_pred, edges_gt), (distances_pred_gt, distances_gt_pred),areas = get_edge_surface_distance(
-            y_pred[b, c], y[b, c], distance_metric=distance_metric, spacing=spacing_list[b], use_subvoxels=use_subvoxels,
-            symetric=True, class_index=c
+        (edges_pred, edges_gt), (distances_pred_gt, distances_gt_pred), areas = get_edge_surface_distance(  # type: ignore
+            y_pred[b, c],
+            y[b, c],
+            distance_metric=distance_metric,
+            spacing=spacing_list[b],
+            use_subvoxels=use_subvoxels,
+            symetric=True,
+            class_index=c,
         )
+        boundary_correct: int | torch.Tensor | float
+        boundary_complete: int | torch.Tensor | float
         if not use_subvoxels:
-
             boundary_complete = len(distances_pred_gt) + len(distances_gt_pred)
             boundary_correct = torch.sum(distances_pred_gt <= class_thresholds[c]) + torch.sum(
                 distances_gt_pred <= class_thresholds[c]
             )
         else:
-            areas_pred, areas_gt = areas
+            areas_pred, areas_gt = areas  # type: ignore
             areas_gt, areas_pred = areas_gt[edges_gt], areas_pred[edges_pred]
-            boundary_complete = areas_gt.sum() + areas_pred.sum()
+            boundary_complete = areas_gt.sum() + areas_pred.sum()  # type: ignore
             gt_true = areas_gt[distances_gt_pred <= class_thresholds[c]].sum() if len(areas_gt) > 0 else 0.0
             pred_true = areas_pred[distances_pred_gt <= class_thresholds[c]].sum() if len(areas_pred) > 0 else 0.0
             boundary_correct = gt_true + pred_true

@@ -22,8 +22,8 @@ from typing import Callable
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.transforms.utils import distance_transform_edt
 from monai.networks import one_hot
+from monai.transforms.utils import distance_transform_edt
 from monai.utils import LossReduction
 
 
@@ -112,9 +112,9 @@ class HausdorffDTLoss(_Loss):
             # the distance transform is not well defined for all 1s,
             # which always would happen on either foreground or background, so skip
             if fg_mask.any() and not fg_mask.all():
-                fg_dist = distance_transform_edt(fg_mask)
+                fg_dist: torch.Tensor = distance_transform_edt(fg_mask)  # type: ignore
                 bg_mask = ~fg_mask
-                bg_dist = distance_transform_edt(bg_mask)
+                bg_dist: torch.Tensor = distance_transform_edt(bg_mask)  # type: ignore
 
                 field[batch_idx] = fg_dist + bg_dist
 
