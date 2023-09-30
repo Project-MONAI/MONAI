@@ -840,14 +840,12 @@ class nnUNetV2Runner:  # noqa: N801
             verbose=verbose,
         )
         predictor.initialise_from_trained_model_folder(
-            model_training_output_dir=model_training_output_dir,
-            use_folds=use_folds,
-            checkpoint_name=checkpoint_name,
+            model_training_output_dir=model_training_output_dir, use_folds=use_folds, checkpoint_name=checkpoint_name
         )
         predictor.predict_from_files(
             list_of_lists_or_source_folder=list_of_lists_or_source_folder,
             output_folder=output_folder,
-            save_probabilities=saved_probabilities,
+            save_probabilities=save_probabilities,
             overwrite=overwrite,
             num_processes_preprocessing=n_processes_preprocessing,
             num_processes_segmentation_export=n_processes_segmentation_export,
