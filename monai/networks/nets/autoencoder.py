@@ -58,6 +58,8 @@ class AutoEncoder(nn.Module):
         bias: whether to have a bias term in convolution blocks. Defaults to True.
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
+            for each dimension in convolution blocks. Defaults to None.
 
     Examples::
 
