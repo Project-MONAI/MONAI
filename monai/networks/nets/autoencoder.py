@@ -104,7 +104,7 @@ class AutoEncoder(nn.Module):
         norm: tuple | str = Norm.INSTANCE,
         dropout: tuple | str | float | None = None,
         bias: bool = True,
-        padding: Sequence[int], | int | None = None,
+        padding: Sequence[int] | int | None = None,
     ) -> None:
         super().__init__()
         self.dimensions = spatial_dims
