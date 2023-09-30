@@ -53,6 +53,34 @@ class _GradReLU(torch.nn.Module):
         return out
 
 
+class _AutoGradSiLU(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, x):
+        mask = (x > 0).type_as(x) + ((x <= 0).type_as(x) * torch.sigmoid((x <= 0).type_as(x)*x))
+        output = torch.mul(x, mask)
+        ctx.save_for_backward(x, output)
+        return output
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        x, _ = ctx.saved_tensors
+        pos_mask_1 = (x > 0).type_as(grad_output)
+        pos_mask_2 = (grad_output > 0).type_as(grad_output)
+        y = torch.mul(grad_output, pos_mask_1)
+        grad_input = torch.mul(y, pos_mask_2)
+        return grad_input
+
+
+class _GradSiLU(torch.nn.Module):
+    """
+    A customized SiLU with the backward pass imputed for guided backpropagation (https://arxiv.org/abs/1412.6806).
+    """
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out: torch.Tensor = _AutoGradSiLU.apply(x)
+        return out
+
+
 class VanillaGrad:
     """
     Given an input image ``x``, calling this class will perform the forward pass, then set to zero
