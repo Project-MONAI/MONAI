@@ -2099,9 +2099,10 @@ def distance_transform_edt(
 
     Returns:
         distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied.
-            It will have the same shape as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
+            It will have the same shape and type as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
             otherwise it will have dtype torch.float32. For SciPy: Will have dtype np.float64.
         indices: The calculated feature transform. It has an image-shaped array for each dimension of the image.
+            The type will be equal to the type of the image.
             Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
 
     """
@@ -2109,7 +2110,6 @@ def distance_transform_edt(
         "cucim.core.operations.morphology", name="distance_transform_edt"
     )
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == "cuda"
-
     if not return_distances and not return_indices:
         raise RuntimeError("Neither return_distances nor return_indices True")
 
@@ -2190,9 +2190,8 @@ def distance_transform_edt(
         r_vals.append(indices)
     if not r_vals:
         return None
-    if len(r_vals) == 1:
-        return r_vals[0]
-    return tuple(r_vals)  # type: ignore
+    device = img.device if isinstance(img, torch.Tensor) else None
+    return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]  # type: ignore
 
 
 if __name__ == "__main__":
