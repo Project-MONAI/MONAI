@@ -56,7 +56,8 @@ class _GradReLU(torch.nn.Module):
 class _AutoGradSiLU(torch.autograd.Function):
     @staticmethod
     def forward(ctx, x):
-        mask = (x > 0).type_as(x) + ((x <= 0).type_as(x) * torch.sigmoid((x <= 0).type_as(x)*x))
+        posmask = (x > 0).type_as(x)
+        mask = posmask + ((x <= 0).type_as(x) * torch.sigmoid((x <= 0).type_as(x)*x))
         output = torch.mul(x, mask)
         ctx.save_for_backward(x, output)
         return output
@@ -65,9 +66,11 @@ class _AutoGradSiLU(torch.autograd.Function):
     def backward(ctx, grad_output):
         x, _ = ctx.saved_tensors
         pos_mask_1 = (x > 0).type_as(grad_output)
+        mask_1 = pos_mask_1 + ((x <= 0).type_as(grad_output) * torch.sigmoid((x <= 0).type_as(grad_output)*x))
         pos_mask_2 = (grad_output > 0).type_as(grad_output)
-        y = torch.mul(grad_output, pos_mask_1)
-        grad_input = torch.mul(y, pos_mask_2)
+        mask_2 = pos_mask_2 + ((grad_output <= 0).type_as(grad_output) * torch.sigmoid((grad_output <= 0).type_as(grad_output)*grad_output))
+        y = torch.mul(grad_output, mask_1)
+        grad_input = torch.mul(y, mask_2)
         return grad_input
 
 
