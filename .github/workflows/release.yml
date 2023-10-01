@@ -15,7 +15,7 @@ jobs:
       matrix:
         python-version: ['3.9', '3.10', '3.11']
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
@@ -91,7 +91,7 @@ jobs:
     needs: packaging
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         # full history so that we can git describe
         with:
           fetch-depth: 0
@@ -121,7 +121,7 @@ jobs:
     needs: versioning
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download version
         uses: actions/download-artifact@v3
         with:
