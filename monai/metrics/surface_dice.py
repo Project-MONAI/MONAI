@@ -269,7 +269,7 @@ def compute_surface_dice(
         else:
             areas_pred, areas_gt = areas  # type: ignore
             areas_gt, areas_pred = areas_gt[edges_gt], areas_pred[edges_pred]
-            boundary_complete = areas_gt.sum() + areas_pred.sum()  # type: ignore
+            boundary_complete = areas_gt.sum() + areas_pred.sum()
             gt_true = areas_gt[distances_gt_pred <= class_thresholds[c]].sum() if len(areas_gt) > 0 else 0.0
             pred_true = areas_pred[distances_pred_gt <= class_thresholds[c]].sum() if len(areas_pred) > 0 else 0.0
             boundary_correct = gt_true + pred_true
