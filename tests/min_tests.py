@@ -52,6 +52,7 @@ def run_testsuit():
         "test_csv_dataset",
         "test_csv_iterable_dataset",
         "test_cumulative_average_dist",
+        "test_sampler_dist",
         "test_dataset",
         "test_dataset_summary",
         "test_deepedit_transforms",
