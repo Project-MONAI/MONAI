@@ -237,7 +237,14 @@ def convert_to_cupy(data: Any, dtype: np.dtype | None = None, wrap_sequence: boo
     if safe:
         data = safe_dtype_range(data, dtype)
     # direct calls
-    if isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)):
+    if isinstance(data, torch.Tensor) and data.device.type == "cuda":
+        # This is needed because of https://github.com/cupy/cupy/issues/7874#issuecomment-1727511030
+        if data.dtype == torch.bool:
+            data = data.detach().to(torch.uint8)
+            if dtype is None:
+                dtype = bool  # type: ignore
+        data = cp.asarray(data, dtype)
+    elif isinstance(data, (cp_ndarray, np.ndarray, torch.Tensor, float, int, bool)):
         data = cp.asarray(data, dtype)
     elif isinstance(data, list):
         list_ret = [convert_to_cupy(i, dtype) for i in data]
