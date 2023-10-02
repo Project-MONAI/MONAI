@@ -167,12 +167,12 @@ class nnUNetV2Runner:  # noqa: N801
         else:
             raise ValueError(f"{input_config} is not a valid file or dict")
 
-        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", self.work_dir, "nnUNet_raw_data_base"))
+        self.nnunet_raw = self.input_info.pop("nnunet_raw", os.path.join(".", self.work_dir, "nnUNetv2_raw_data_base"))
         self.nnunet_preprocessed = self.input_info.pop(
-            "nnunet_preprocessed", os.path.join(".", self.work_dir, "nnUNet_preprocessed")
+            "nnunet_preprocessed", os.path.join(".", self.work_dir, "nnUNetv2_preprocessed")
         )
         self.nnunet_results = self.input_info.pop(
-            "nnunet_results", os.path.join(".", self.work_dir, "nnUNet_trained_models")
+            "nnunet_results", os.path.join(".", self.work_dir, "nnUNetv2_trained_models")
         )
 
         if not os.path.exists(self.nnunet_raw):
