@@ -230,9 +230,9 @@ def compute_percent_hausdorff_distance(
     This function is used to compute the directed Hausdorff distance.
     """
 
-    surface_distance: np.ndarray = get_surface_distance(
+    surface_distance: np.ndarray = get_surface_distance(  # type: ignore
         edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing
-    )  # type: ignore
+    )
 
     # for both pred and gt do not have foreground
     if surface_distance.shape == (0,):
