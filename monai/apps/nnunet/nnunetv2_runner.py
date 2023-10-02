@@ -839,7 +839,7 @@ class nnUNetV2Runner:  # noqa: N801
             perform_everything_on_gpu=perform_everything_on_gpu,
             verbose=verbose,
         )
-        predictor.initialise_from_trained_model_folder(
+        predictor.initialize_from_trained_model_folder(
             model_training_output_dir=model_training_output_dir, use_folds=use_folds, checkpoint_name=checkpoint_name
         )
         predictor.predict_from_files(
