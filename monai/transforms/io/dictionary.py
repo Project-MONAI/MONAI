@@ -198,7 +198,7 @@ class SaveImaged(MapTransform):
                     Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_postfix: a string appended to all output file names, default to ``trans``.
                         Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
-        output_ext: output file extension name, available extensions: ``.nii.gz``, ``.nii``, ``.png``.
+        output_ext: output file extension name, available extensions: ``.nii.gz``, ``.nii``, ``.png``, ``.dcm``.
                     Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the ``spatial_shape`` (and ``original_affine``) from metadata.
