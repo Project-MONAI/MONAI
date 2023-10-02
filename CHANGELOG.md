@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * `ZarrAvgMerger` used for patch inference (#6633)
 * Dataset tracking support to `MLFlowHandler` (#6616)
 * Considering spacing and subvoxel borders in `SurfaceDiceMetric` (#6681)
+* CUCIM support for surface-related metrics (#7008)
 * `loss_fn` support in `IgniteMetric` and renamed it to `IgniteMetricHandler` (#6695)
 * `CallableEventWithFilter` and `Events` options for `trigger_event` in `GarbageCollector` (#6663)
 * Support random sorting option to `GridPatch`, `RandGridPatch`, `GridPatchd` and `RandGridPatchd` (#6701)
@@ -60,6 +61,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Fix reading dicom series error in `ITKReader` (#6943)
 * Fix KeyError in `PydicomReader` (#6946)
 * Update `metatensor_to_itk_image` to accept RAS `MetaTensor` and update default 'space' in `NrrdReader` to `SpaceKeys.LPS` (#7000)
+* Collate common meta dictionary keys (#7054)
 #### metrics and losses
 * Fixed bug in `GeneralizedDiceLoss` when `batch=True` (#6775)
 * Support for `BCEWithLogitsLoss` in `DiceCELoss` (#6924)
@@ -70,6 +72,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Remove hard-coded `bias_downsample` in `resnet` (#6848)
 * Fix unused `kernel_size` in `ResBlock` (#6999)
 * Allow for defining reference grid on non-integer coordinates (#7032)
+* Padding option for autoencoder (#7068)
+* Lower peak memory usage for SegResNetDS (#7066)
 #### bundle
 * Set `train_dataset_data` and `dataset_data` to unrequired in BundleProperty (#6607)
 * Set `None` to properties that do not have `REF_ID` (#6607)
