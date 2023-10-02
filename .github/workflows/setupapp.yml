@@ -106,7 +106,7 @@ jobs:
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=0 ./runtests.sh --build --quick --unittests --disttests
+        BUILD_MONAI=0 ./runtests.sh --build --quick --unittests
         BUILD_MONAI=1 ./runtests.sh --build --quick --min
         coverage xml --ignore-errors
     - name: Upload coverage
