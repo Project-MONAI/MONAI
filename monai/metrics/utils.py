@@ -204,7 +204,7 @@ def get_mask_edges(
     if crop:
         or_vol = seg_pred | seg_gt
         if not or_vol.any():
-            pred, gt = lib.zeros(seg_pred.shape, dtype=bool), lib.zeros(seg_gt.shape, dtype=bool)  # type: ignore
+            pred, gt = lib.zeros(seg_pred.shape, dtype=bool), lib.zeros(seg_gt.shape, dtype=bool)
             return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
         channel_first = [seg_pred[None], seg_gt[None], or_vol[None]]
         if spacing is None and not use_cucim:  # cpu only erosion
@@ -275,11 +275,11 @@ def get_surface_distance(
     """
     lib: ModuleType = torch if isinstance(seg_pred, torch.Tensor) else np
     if not seg_gt.any():
-        dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)  # type: ignore
+        dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)
     else:
-        if not lib.any(seg_pred):  # type: ignore
-            dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)  # type: ignore
-            dis = dis[seg_gt]  # type: ignore
+        if not lib.any(seg_pred):
+            dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)
+            dis = dis[seg_gt]
             return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
         if distance_metric == "euclidean":
             dis = monai_distance_transform_edt((~seg_gt)[None, ...], sampling=spacing)[0]  # type: ignore
