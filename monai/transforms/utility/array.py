@@ -681,7 +681,7 @@ class DataStats(Transform):
         if self.data_type if data_type is None else data_type:
             lines.append(f"Type: {type(img)} {img.dtype if hasattr(img, 'dtype') else None}")
         if self.data_shape if data_shape is None else data_shape:
-            lines.append(f"Shape: {img.shape}")
+            lines.append(f"Shape: {img.shape if hasattr(img, 'shape') else None}")
         if self.value_range if value_range is None else value_range:
             if isinstance(img, np.ndarray):
                 lines.append(f"Value range: ({np.min(img)}, {np.max(img)})")
