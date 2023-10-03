@@ -544,7 +544,7 @@ then
     if ! is_pip_installed pylint
     then
         echo "Pip installing pylint ..."
-        ${cmdPrefix}${PY_EXE} -m pip install pylint>2.16
+        ${cmdPrefix}${PY_EXE} -m pip install pylint>2.16,!=3.0.0
     fi
     ${cmdPrefix}${PY_EXE} -m pylint --version
 
