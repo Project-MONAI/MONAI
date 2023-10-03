@@ -275,10 +275,10 @@ def get_surface_distance(
     """
     lib: ModuleType = torch if isinstance(seg_pred, torch.Tensor) else np
     if not seg_gt.any():
-        dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)
+        dis = np.inf * lib.ones_like(seg_gt, dtype=lib.float32)
     else:
         if not lib.any(seg_pred):
-            dis = lib.inf * lib.ones_like(seg_gt, dtype=lib.float32)
+            dis = np.inf * lib.ones_like(seg_gt, dtype=lib.float32)
             dis = dis[seg_gt]
             return convert_to_dst_type(dis, seg_pred, dtype=dis.dtype)[0]
         if distance_metric == "euclidean":
