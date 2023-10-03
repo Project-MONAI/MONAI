@@ -21,7 +21,7 @@ class TestMONAIEnvVars(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
-        cls.orig_value = os.environ.get("MONAI_DEBUG")
+        cls.orig_value = MONAIEnvVars.debug()
 
     @classmethod
     def tearDownClass(cls):
@@ -29,13 +29,13 @@ class TestMONAIEnvVars(unittest.TestCase):
             os.environ["MONAI_DEBUG"] = cls.orig_value
         else:
             os.environ.pop("MONAI_DEBUG")
-        print("MONAI debug value:", os.environ.get("MONAI_DEBUG"))
+        print("MONAI debug value:", MONAIEnvVars.debug())
         super(__class__, cls).tearDownClass()
 
     def test_monai_env_vars(self):
         for debug in (False, True):
             os.environ["MONAI_DEBUG"] = str(debug)
-            self.assertEqual(os.environ.get("MONAI_DEBUG"), str(debug))
+            self.assertEqual(MONAIEnvVars.debug(), str(debug))
             self.assertEqual(MONAIEnvVars.debug(), debug)
 
 

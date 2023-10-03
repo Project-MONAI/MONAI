@@ -49,6 +49,7 @@ from monai.utils import optional_import
 from monai.utils.module import pytorch_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
+from monai.utils.misc import MONAIEnvVars
 
 nib, _ = optional_import("nibabel")
 http_error, has_req = optional_import("requests", name="HTTPError")
@@ -75,7 +76,7 @@ def get_testing_algo_template_path():
 
     https://github.com/Project-MONAI/MONAI/blob/1.1.0/monai/apps/auto3dseg/bundle_gen.py#L380-L381
     """
-    return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+    return MONAIEnvVars.testing_algo_template()
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
