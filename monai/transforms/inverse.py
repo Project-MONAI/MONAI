@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import os
 import warnings
 from collections.abc import Hashable, Mapping
 from contextlib import contextmanager
