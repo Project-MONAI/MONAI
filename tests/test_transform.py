@@ -32,7 +32,7 @@ class TestTransform(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
-        cls.orig_value = MONAIEnvVars.debug()
+        cls.orig_value = str(MONAIEnvVars.debug())
 
     @classmethod
     def tearDownClass(cls):
