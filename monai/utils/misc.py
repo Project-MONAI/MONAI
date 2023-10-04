@@ -551,6 +551,7 @@ class MONAIEnvVars:
     def testing_algo_template() -> str | None:
         return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
 
+
 class ImageMetaKey:
     """
     Common key names in the metadata header of images

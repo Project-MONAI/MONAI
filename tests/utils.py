@@ -46,10 +46,10 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
+from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import pytorch_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
-from monai.utils.misc import MONAIEnvVars
 
 nib, _ = optional_import("nibabel")
 http_error, has_req = optional_import("requests", name="HTTPError")

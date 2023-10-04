@@ -16,7 +16,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.utils.misc import check_kwargs_exist_in_class_init, run_cmd, to_tuple_of_dictionaries, MONAIEnvVars
+from monai.utils.misc import MONAIEnvVars, check_kwargs_exist_in_class_init, run_cmd, to_tuple_of_dictionaries
 
 TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
     ({}, tuple(), tuple()),
