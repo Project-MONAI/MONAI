@@ -75,7 +75,7 @@ class TestMiscKwargs(unittest.TestCase):
 
 class TestCommandRunner(unittest.TestCase):
     def setUp(self):
-        self.orig_flag = MONAIEnvVars.debug()
+        self.orig_flag = str(MONAIEnvVars.debug())
 
     def tearDown(self):
         if self.orig_flag is not None:
