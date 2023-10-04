@@ -329,21 +329,39 @@ def _resnet(
     block: type[ResNetBlock | ResNetBottleneck],
     layers: list[int],
     block_inplanes: list[int],
-    pretrained: bool,
+    pretrained: bool | str,
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
     model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
     if pretrained:
+        if isinstance(pretrained, str):
+            if Path(pretrained).exists():
+                logger.info(f"Loading weights from {weights_path}...")
+                checkpoint = torch.load(pretrained, map_location=device)
+            else:
+                ### Throw error
+                raise FileNotFoundError("The pretrained checkpoint file is not found")
+        else:
+            ### Throw error
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
         # Would like to load dict from url but need somewhere to save the state dicts.
         raise NotImplementedError(
-            "Currently not implemented. You need to manually download weights provided by the paper's author"
-            " and load then to the model with `state_dict`. See https://github.com/Tencent/MedicalNet"
-            "Please ensure you pass the appropriate `shortcut_type` and `bias_downsample` args. as specified"
-            "here: https://github.com/Tencent/MedicalNet/tree/18c8bb6cd564eb1b964bffef1f4c2283f1ae6e7b#update20190730"
+            "Provide the pretrained checkpoint string path"
         )
+
+        if "state_dict" in checkpoint:
+            model_state_dict = checkpoint["state_dict"]
+            model_state_dict = {key.replace("module.", ""): value for key, value in model_state_dict.items()}
+        else:
+            ### Throw error
+            raise KeyError(
+                "The checkpoint should contain the pretrained model state dict with the following key: 'state_dict'"
+            )
+            
+        model.load_state_dict(model_state_dict, strict=True)
+
     return model
 
 
