@@ -552,7 +552,7 @@ def copy_model_state(
     if inplace and isinstance(dst, torch.nn.Module):
         if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
             dst = dst.module
-        dst.load_state_dict(dst_dict)
+        dst.load_state_dict(dst_dict)  # type: ignore
     return dst_dict, updated_keys, unchanged_keys
 
 
