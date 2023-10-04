@@ -35,7 +35,7 @@ class TestMONAIEnvVars(unittest.TestCase):
     def test_monai_env_vars(self):
         for debug in (False, True):
             os.environ["MONAI_DEBUG"] = str(debug)
-            self.assertEqual(MONAIEnvVars.debug(), str(debug))
+            self.assertEqual(os.environ.get("MONAI_DEBUG"), str(debug))
             self.assertEqual(MONAIEnvVars.debug(), debug)
 
 
