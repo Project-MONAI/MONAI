@@ -16,7 +16,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.utils.misc import check_kwargs_exist_in_class_init, run_cmd, to_tuple_of_dictionaries
+from monai.utils.misc import MONAIEnvVars, check_kwargs_exist_in_class_init, run_cmd, to_tuple_of_dictionaries
 
 TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
     ({}, tuple(), tuple()),
@@ -75,7 +75,7 @@ class TestMiscKwargs(unittest.TestCase):
 
 class TestCommandRunner(unittest.TestCase):
     def setUp(self):
-        self.orig_flag = os.environ.get("MONAI_DEBUG")
+        self.orig_flag = str(MONAIEnvVars.debug())
 
     def tearDown(self):
         if self.orig_flag is not None:

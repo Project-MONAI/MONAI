@@ -527,6 +527,30 @@ class MONAIEnvVars:
     def doc_images() -> str | None:
         return os.environ.get("MONAI_DOC_IMAGES")
 
+    @staticmethod
+    def algo_hash() -> str | None:
+        return os.environ.get("MONAI_ALGO_HASH", "e01d67a")
+
+    @staticmethod
+    def trace_transform() -> str | None:
+        return os.environ.get("MONAI_TRACE_TRANSFORM", "1")
+
+    @staticmethod
+    def eval_expr() -> str | None:
+        return os.environ.get("MONAI_EVAL_EXPR", "1")
+
+    @staticmethod
+    def allow_missing_reference() -> str | None:
+        return os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "1")
+
+    @staticmethod
+    def extra_test_data() -> str | None:
+        return os.environ.get("MONAI_EXTRA_TEST_DATA", "1")
+
+    @staticmethod
+    def testing_algo_template() -> str | None:
+        return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+
 
 class ImageMetaKey:
     """
