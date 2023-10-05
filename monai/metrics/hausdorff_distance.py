@@ -208,7 +208,7 @@ def _compute_percentile_hausdorff_distance(
 
     # for both pred and gt do not have foreground
     if surface_distance.shape == (0,):
-        return torch.tensor(torch.nan, dtype=torch.float, device=surface_distance.device)
+        return torch.tensor(np.nan, dtype=torch.float, device=surface_distance.device)
 
     if not percentile:
         return surface_distance.max()
