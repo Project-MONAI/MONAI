@@ -48,7 +48,7 @@ class MeanIoUHandler(IgniteMetricHandler):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.meaniou.compute_meaniou`
+            :py:meth:`monai.metrics.meaniou.compute_iou`
         """
         metric_fn = MeanIoU(include_background=include_background, reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

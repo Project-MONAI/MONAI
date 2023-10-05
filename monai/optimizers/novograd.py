@@ -70,7 +70,7 @@ class Novograd(Optimizer):
         for group in self.param_groups:
             group.setdefault("amsgrad", False)
 
-    def step(self, closure: Callable[[], T] | None = None) -> T | None:
+    def step(self, closure: Callable[[], T] | None = None) -> T | None:  # type: ignore
         """Performs a single optimization step.
 
         Arguments:

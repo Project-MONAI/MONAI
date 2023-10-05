@@ -44,7 +44,7 @@ class TestCompose(Compose):
         img = self.transforms[0](input_)
         metadata = img.meta
         img = self.transforms[1](img)
-        img = self.transforms[2](img, metadata["affine"], lazy=lazy)
+        img = self.transforms[2](img, lazy=lazy)
         metadata = img.meta
         return self.transforms[3](img), metadata
 

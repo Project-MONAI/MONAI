@@ -39,10 +39,6 @@ class ContrastiveLoss(_Loss):
             ValueError: When an input of dimension length > 2 is passed
             ValueError: When input and target are of different shapes
 
-        .. deprecated:: 0.8.0
-
-            `reduction` is no longer supported.
-
         """
         super().__init__()
         self.temperature = temperature

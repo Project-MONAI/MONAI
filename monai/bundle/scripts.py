@@ -45,7 +45,6 @@ from monai.networks import (
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
-    deprecated_arg_default,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -62,8 +61,8 @@ onnx, _ = optional_import("onnx")
 logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
-# set BUNDLE_DOWNLOAD_SRC="monaihosting" to use monaihosting source in default for bundle download
-DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
+# set BUNDLE_DOWNLOAD_SRC="github" to use github source in default for bundle download
+DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
 
 
@@ -248,7 +247,6 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
-@deprecated_arg_default("source", "github", "monaihosting", since="1.3", replaced="1.5")
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -376,9 +374,9 @@ def download(
             )
 
 
-@deprecated_arg("net_name", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("net_kwargs", since="1.3", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("return_state_dict", since="1.3", removed="1.5")
+@deprecated_arg("net_name", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("net_kwargs", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
+@deprecated_arg("return_state_dict", since="1.2", removed="1.5")
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -541,9 +539,8 @@ def load(
     return model
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.2", replaced="1.5")
 def _get_all_bundles_info(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
+    repo: str = "Project-MONAI/model-zoo", tag: str = "dev", auth_token: str | None = None
 ) -> dict[str, dict[str, dict[str, Any]]]:
     if has_requests:
         if tag == "hosting_storage_v1":
@@ -586,9 +583,8 @@ def _get_all_bundles_info(
     return bundles_info
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
 def get_all_bundles_list(
-    repo: str = "Project-MONAI/model-zoo", tag: str = "hosting_storage_v1", auth_token: str | None = None
+    repo: str = "Project-MONAI/model-zoo", tag: str = "dev", auth_token: str | None = None
 ) -> list[tuple[str, str]]:
     """
     Get all bundles names (and the latest versions) that are stored in the release of specified repository
@@ -621,12 +617,8 @@ def get_all_bundles_list(
     return bundles_list
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
 def get_bundle_versions(
-    bundle_name: str,
-    repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
-    auth_token: str | None = None,
+    bundle_name: str, repo: str = "Project-MONAI/model-zoo", tag: str = "dev", auth_token: str | None = None
 ) -> dict[str, list[str] | str]:
     """
     Get the latest version, as well as all existing versions of a bundle that is stored in the release of specified
@@ -659,20 +651,16 @@ def get_bundle_versions(
     return {"latest_version": all_versions[-1], "all_versions": all_versions}
 
 
-@deprecated_arg_default("tag", "hosting_storage_v1", "dev", since="1.3", replaced="1.5")
 def get_bundle_info(
     bundle_name: str,
     version: str | None = None,
     repo: str = "Project-MONAI/model-zoo",
-    tag: str = "hosting_storage_v1",
+    tag: str = "dev",
     auth_token: str | None = None,
 ) -> dict[str, Any]:
     """
-    Get all information
-    (include "id", "name", "size", "download_count", "browser_download_url", "created_at", "updated_at") of a bundle
+    Get all information (include "name" and "browser_download_url") of a bundle
     with the specified bundle name and version which is stored in the release of specified repository with the provided tag.
-    Since v1.5, "hosting_storage_v1" will be deprecated in favor of 'dev', which contains only "name" and "browser_download_url".
-    information about a bundle.
     In order to increase the rate limits of calling Github APIs, you can input your personal access token.
     Please check the following link for more details about rate limiting:
     https://docs.github.com/en/rest/overview/resources-in-the-rest-api#rate-limiting
@@ -701,10 +689,9 @@ def get_bundle_info(
     if version not in bundle_info:
         raise ValueError(f"version: {version} of bundle: {bundle_name} is not existing.")
 
-    return bundle_info[version]  # type: ignore[no-any-return]
+    return bundle_info[version]
 
 
-@deprecated_arg("runner_id", since="1.1", removed="1.3", new_name="run_id", msg_suffix="please use `run_id` instead.")
 def run(
     run_id: str | None = None,
     init_id: str | None = None,
@@ -766,7 +753,7 @@ def run(
             will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
-        args_file: a JSON or YAML file to provide default values for `runner_id`, `meta_file`,
+        args_file: a JSON or YAML file to provide default values for `run_id`, `meta_file`,
             `config_file`, `logging`, and override pairs. so that the command line inputs can be simplified.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``.

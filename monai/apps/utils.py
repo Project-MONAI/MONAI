@@ -208,7 +208,7 @@ def download_url(
                 with urlopen(url) as response:
                     code = response.getcode()
                     if code == 200:
-                        download_url = json.loads(response.read())["href"]
+                        download_url = json.load(response)["href"]
                         _download_with_progress(download_url, tmp_name, progress=progress)
                     else:
                         raise RuntimeError(
