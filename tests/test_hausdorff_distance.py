@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from itertools import product
 
 import numpy as np
 import torch
@@ -19,7 +20,9 @@ from parameterized import parameterized
 
 from monai.metrics import HausdorffDistanceMetric
 
-_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+_devices = ["cpu"]
+if torch.cuda.is_available():
+    _devices.append("cuda")
 
 
 def create_spherical_seg_3d(
@@ -150,33 +153,42 @@ TEST_CASES_NANS = [
     ],
 ]
 
+TEST_CASES_EXPANDED = []
+for test_case in TEST_CASES:
+    test_output: list[float | int]
+    test_input, test_output = test_case  # type: ignore
+    for _device in _devices:
+        for i, (metric, directed) in enumerate(product(["euclidean", "chessboard", "taxicab"], [True, False])):
+            TEST_CASES_EXPANDED.append((_device, metric, directed, test_input, test_output[i]))
+
+
+def _describe_test_case(test_func, test_number, params):
+    _device, metric, directed, test_input, test_output = params.args
+    return f"device: {_device} metric: {metric} directed:{directed} expected: {test_output}"
+
 
 class TestHausdorffDistance(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
-    def test_value(self, input_data, expected_value):
+    @parameterized.expand(TEST_CASES_EXPANDED, doc_func=_describe_test_case)
+    def test_value(self, device, metric, directed, input_data, expected_value):
         percentile = None
         if len(input_data) == 4:
             [seg_1, seg_2, spacing, percentile] = input_data
         else:
             [seg_1, seg_2, spacing] = input_data
-        ct = 0
-        seg_1 = torch.tensor(seg_1, device=_device)
-        seg_2 = torch.tensor(seg_2, device=_device)
-        for metric in ["euclidean", "chessboard", "taxicab"]:
-            for directed in [True, False]:
-                hd_metric = HausdorffDistanceMetric(
-                    include_background=False, distance_metric=metric, percentile=percentile, directed=directed
-                )
-                # shape of seg_1, seg_2 are: HWD, converts to BNHWD
-                batch, n_class = 2, 3
-                batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
-                batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
-                hd_metric(batch_seg_1, batch_seg_2, spacing=spacing)
-                result = hd_metric.aggregate(reduction="mean")
-                expected_value_curr = expected_value[ct]
-                np.testing.assert_allclose(expected_value_curr, result.cpu(), rtol=1e-7)
-                np.testing.assert_equal(result.device, seg_1.device)
-                ct += 1
+
+        seg_1 = torch.tensor(seg_1, device=device)
+        seg_2 = torch.tensor(seg_2, device=device)
+        hd_metric = HausdorffDistanceMetric(
+            include_background=False, distance_metric=metric, percentile=percentile, directed=directed
+        )
+        # shape of seg_1, seg_2 are: HWD, converts to BNHWD
+        batch, n_class = 2, 3
+        batch_seg_1 = seg_1.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
+        batch_seg_2 = seg_2.unsqueeze(0).unsqueeze(0).repeat([batch, n_class, 1, 1, 1])
+        hd_metric(batch_seg_1, batch_seg_2, spacing=spacing)
+        result: torch.Tensor = hd_metric.aggregate(reduction="mean")  # type: ignore
+        np.testing.assert_allclose(expected_value, result.cpu(), rtol=1e-6)
+        np.testing.assert_equal(result.device, seg_1.device)
 
     @parameterized.expand(TEST_CASES_NANS)
     def test_nans(self, input_data):

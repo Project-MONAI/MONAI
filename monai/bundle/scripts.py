@@ -689,7 +689,7 @@ def get_bundle_info(
     if version not in bundle_info:
         raise ValueError(f"version: {version} of bundle: {bundle_name} is not existing.")
 
-    return bundle_info[version]  # type: ignore[no-any-return]
+    return bundle_info[version]
 
 
 def run(
