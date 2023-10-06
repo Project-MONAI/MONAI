@@ -196,18 +196,18 @@ class TestResNet(unittest.TestCase):
             "state_dict": net.state_dict()
         },
         tmp_ckpt_filename)
-        
+
         cp_input_param = copy.copy(input_param)
         cp_input_param["pretrained"] = tmp_ckpt_filename
         pretrained_net = model(**cp_input_param)
         assert str(net.state_dict()) == str(pretrained_net.state_dict())
-        
+
         with self.assertRaises(NotImplementedError):
             cp_input_param["pretrained"] = True
-            bool_pretrained_net = model(**cp_input_param)
-            
+            model(**cp_input_param)
+
         os.remove(tmp_ckpt_filename)
-        
+
     @parameterized.expand(TEST_SCRIPT_CASES)
     def test_script(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param)

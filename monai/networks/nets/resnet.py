@@ -357,9 +357,9 @@ def _resnet(
             # Download the MedicalNet pretrained model
             logger.info(f"Loading MedicalNet pretrained model from https://huggingface.co/{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}")
             pretrained_path = hf_hub_download(
-                repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}", 
+                repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}",
                 filename=f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth")
-            
+
             checkpoint = torch.load(pretrained_path, map_location=device)
 
         if "state_dict" in checkpoint:
@@ -370,7 +370,7 @@ def _resnet(
             raise KeyError(
                 "The checkpoint should contain the pretrained model state dict with the following key: 'state_dict'"
             )
-            
+
         model.load_state_dict(model_state_dict, strict=True)
 
     return model
