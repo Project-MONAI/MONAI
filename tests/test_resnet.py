@@ -12,6 +12,8 @@
 from __future__ import annotations
 
 import unittest
+import copy
+import os
 from typing import TYPE_CHECKING
 
 import torch
@@ -29,6 +31,8 @@ if TYPE_CHECKING:
     has_torchvision = True
 else:
     torchvision, has_torchvision = optional_import("torchvision")
+
+# from torchvision.models import ResNet50_Weights, resnet50
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -159,9 +163,11 @@ TEST_CASE_7 = [  # 1D, batch 1, 2 input channels, bias_downsample
 ]
 
 TEST_CASES = []
+PRETRAINED_TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
+        PRETRAINED_TEST_CASES.append([model, *case])
 for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7]:
     TEST_CASES.append([ResNet, *case])
 
@@ -181,6 +187,27 @@ class TestResNet(unittest.TestCase):
             else:
                 self.assertTrue(result.shape in expected_shape)
 
+    @parameterized.expand(PRETRAINED_TEST_CASES)
+    def test_resnet_pretrained(self, model, input_param, input_shape, expected_shape):
+        net = model(**input_param).to(device)
+        tmp_ckpt_filename = "monai_unittest_tmp_ckpt.pth"
+        # Save ckpt
+        torch.save({
+            "state_dict": net.state_dict()
+        },
+        tmp_ckpt_filename)
+        
+        cp_input_param = copy.copy(input_param)
+        cp_input_param["pretrained"] = tmp_ckpt_filename
+        pretrained_net = model(**cp_input_param)
+        assert str(net.state_dict()) == str(pretrained_net.state_dict())
+        
+        with self.assertRaises(NotImplementedError):
+            cp_input_param["pretrained"] = True
+            bool_pretrained_net = model(**cp_input_param)
+            
+        os.remove(tmp_ckpt_filename)
+        
     @parameterized.expand(TEST_SCRIPT_CASES)
     def test_script(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param)

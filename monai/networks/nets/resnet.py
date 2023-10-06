@@ -14,6 +14,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import partial
 from typing import Any
+from pathlib import Path
+import logging
 
 import torch
 import torch.nn as nn
@@ -36,6 +38,9 @@ __all__ = [
     "resnet200",
 ]
 
+logger = logging.getLogger(__name__)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def get_inplanes():
     return [64, 128, 256, 512]
@@ -337,19 +342,16 @@ def _resnet(
     if pretrained:
         if isinstance(pretrained, str):
             if Path(pretrained).exists():
-                logger.info(f"Loading weights from {weights_path}...")
+                logger.info(f"Loading weights from {pretrained}...")
                 checkpoint = torch.load(pretrained, map_location=device)
             else:
                 ### Throw error
                 raise FileNotFoundError("The pretrained checkpoint file is not found")
         else:
             ### Throw error
-        # Author of paper zipped the state_dict on googledrive,
-        # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
-        # Would like to load dict from url but need somewhere to save the state dicts.
-        raise NotImplementedError(
-            "Provide the pretrained checkpoint string path"
-        )
+            raise NotImplementedError(
+                "Provide the pretrained checkpoint string path"
+            )
 
         if "state_dict" in checkpoint:
             model_state_dict = checkpoint["state_dict"]
