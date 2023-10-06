@@ -16,6 +16,8 @@ from functools import partial
 from typing import Any
 from pathlib import Path
 import logging
+import re
+from huggingface_hub import hf_hub_download
 
 import torch
 import torch.nn as nn
@@ -24,6 +26,9 @@ from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
 from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
+
+MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
+MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"
 
 __all__ = [
     "ResNet",
@@ -348,10 +353,14 @@ def _resnet(
                 ### Throw error
                 raise FileNotFoundError("The pretrained checkpoint file is not found")
         else:
-            ### Throw error
-            raise NotImplementedError(
-                "Provide the pretrained checkpoint string path"
-            )
+            resnet_depth = int(re.search(r"resnet(\d+)", arch).group(1))
+            # Download the MedicalNet pretrained model
+            logger.info(f"Loading MedicalNet pretrained model from https://huggingface.co/{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}")
+            pretrained_path = hf_hub_download(
+                repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}", 
+                filename=f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth")
+            
+            checkpoint = torch.load(pretrained_path, map_location=device)
 
         if "state_dict" in checkpoint:
             model_state_dict = checkpoint["state_dict"]
