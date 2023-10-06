@@ -261,7 +261,7 @@ do
             doBlackFormat=true
             doIsortFormat=true
             doFlake8Format=true
-            doPylintFormat=true
+            # doPylintFormat=true  # https://github.com/Project-MONAI/MONAI/issues/7094
             doRuffFormat=true
             doCopyRight=true
         ;;
