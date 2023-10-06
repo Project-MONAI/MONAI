@@ -82,7 +82,7 @@ class SwinUNETR(nn.Module):
         Args:
             img_size: spatial dimension of input image.
                 This argument is only used for checking that the input image size is divisible by the patch size.
-                The actual tensor shape can be different as long as it is divisible by 2**5.
+                The tensor passed to forward() can have a dynamic shape as long as its spatial dimensions are divisible by 2**5.
                 It will be removed in an upcoming version.
             in_channels: dimension of input channels.
             out_channels: dimension of output channels.
