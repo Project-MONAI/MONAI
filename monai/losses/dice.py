@@ -24,7 +24,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
-from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option, pytorch_after, deprecated_arg
+from monai.utils import DiceCEReduction, LossReduction, Weight, deprecated_arg, look_up_option, pytorch_after
 
 
 class DiceLoss(_Loss):
@@ -646,7 +646,9 @@ class DiceCELoss(_Loss):
 
     """
 
-    @deprecated_arg("ce_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead.")
+    @deprecated_arg(
+        "ce_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead."
+    )
     def __init__(
         self,
         include_background: bool = True,
@@ -803,7 +805,9 @@ class DiceFocalLoss(_Loss):
 
     """
 
-    @deprecated_arg("focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead.")
+    @deprecated_arg(
+        "focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead."
+    )
     def __init__(
         self,
         include_background: bool = True,
@@ -875,11 +879,7 @@ class DiceFocalLoss(_Loss):
             weight=weight,
         )
         self.focal = FocalLoss(
-            include_background=include_background,
-            to_onehot_y=False,
-            gamma=gamma,
-            weight=weight,
-            reduction=reduction,
+            include_background=include_background, to_onehot_y=False, gamma=gamma, weight=weight, reduction=reduction
         )
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
@@ -957,7 +957,9 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
         ValueError: if either `lambda_gdl` or `lambda_focal` is less than 0.
     """
 
-    @deprecated_arg("focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead.")
+    @deprecated_arg(
+        "focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead."
+    )
     def __init__(
         self,
         include_background: bool = True,

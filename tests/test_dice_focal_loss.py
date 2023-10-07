@@ -28,11 +28,14 @@ class TestDiceFocalLoss(unittest.TestCase):
         pred = torch.randn(size)
         for reduction in ["sum", "mean", "none"]:
             for weight in [None, torch.tensor([1.0, 1.0, 2.0]), (3, 2.0, 1)]:
-                common_params = {"include_background": True, "to_onehot_y": False, "reduction": reduction, "weight": weight}
+                common_params = {
+                    "include_background": True,
+                    "to_onehot_y": False,
+                    "reduction": reduction,
+                    "weight": weight,
+                }
                 for lambda_focal in [0.5, 1.0, 1.5]:
-                    dice_focal = DiceFocalLoss(
-                        gamma=1.0, lambda_focal=lambda_focal, **common_params
-                    )
+                    dice_focal = DiceFocalLoss(gamma=1.0, lambda_focal=lambda_focal, **common_params)
                     dice = DiceLoss(**common_params)
                     focal = FocalLoss(gamma=1.0, **common_params)
                     result = dice_focal(pred, label)
