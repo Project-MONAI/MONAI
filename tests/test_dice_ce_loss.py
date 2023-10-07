@@ -18,7 +18,6 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceCELoss
-from tests.utils import test_script_save
 
 TEST_CASES = [
     [  # shape: (2, 2, 3), (2, 1, 3)
