@@ -368,10 +368,7 @@ def _resnet(
             model_state_dict = checkpoint["state_dict"]
             model_state_dict = {key.replace("module.", ""): value for key, value in model_state_dict.items()}
         else:
-            ### Throw error
-            raise KeyError(
-                "The checkpoint should contain the pretrained model state dict with the following key: 'state_dict'"
-            )
+            model_state_dict = checkpoint
 
         model.load_state_dict(model_state_dict, strict=True)
 
