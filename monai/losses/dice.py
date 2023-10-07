@@ -205,10 +205,7 @@ class DiceLoss(_Loss):
             if class_weight.min() < 0:
                 raise ValueError("the value/values of the `weight` should be no less than 0.")
             # apply class_weight to loss
-            class_weight = class_weight.to(f)
-            broadcast_dims = [-1] + [1] * len(target.shape[2:])
-            class_weight = class_weight.view(broadcast_dims)
-            f = class_weight * f
+            f = f * class_weight.to(f)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -722,7 +719,7 @@ class DiceCELoss(_Loss):
             smooth_nr=smooth_nr,
             smooth_dr=smooth_dr,
             batch=batch,
-            weight=weight,
+            weight=weight[1:] if not include_background else weight,
         )
         self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction)
         self.binary_cross_entropy = nn.BCEWithLogitsLoss(weight=weight, reduction=reduction)
