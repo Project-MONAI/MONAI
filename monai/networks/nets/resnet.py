@@ -27,7 +27,7 @@ from monai.utils.module import look_up_option
 from monai.networks.utils import get_pretrained_resnet_medicalnet
 
 Path, _ = optional_import("pathlib", name = "Path")
-re, _ = optional_import("re") 
+re, _ = optional_import("re")
 
 MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
 MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"
@@ -354,12 +354,12 @@ def _resnet(
             else:
                 ### Throw error
                 raise FileNotFoundError("The pretrained checkpoint file is not found")
-        else:            
-            # Also check bias downsample and shortcut. 
+        else:
+            # Also check bias downsample and shortcut.
             if kwargs.get("spatial_dims", 3) == 3:
-                if kwargs.get("n_input_channels", 3)==1 and kwargs.get("feed_forward", True)==False:
+                if kwargs.get("n_input_channels", 3)==1 and kwargs.get("feed_forward", True) is False:
                     resnet_depth = int(re.search(r"resnet(\d+)", arch).group(1))
-                    # get shortcut_type and bias_downsample.                     
+                    # get shortcut_type and bias_downsample.
                     def get_medicalnet_pretrained_resnet_args(resnet_depth: int) :
                         """
                         Return correct shortcut_type and bias_downsample for pretrained MedicalNet weights according to rensnet depth
@@ -370,7 +370,7 @@ def _resnet(
                         bias_downsample = -1 if resnet_depth in [18, 34] else 0  # 18, 10, 34
                         shortcut_type = "A" if resnet_depth in [18, 34] else "B"
                         return bias_downsample, shortcut_type
-                    
+
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
                     if shortcut_type == kwargs.get("shortcut_type", "B") and (bool(bias_downsample) == kwargs.get("bias_downsample", False) if bias_downsample != -1 else True):
@@ -378,7 +378,7 @@ def _resnet(
                         model_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device=device, datasets23=True)
                     else:
                         raise NotImplementedError(f"Please set shortcut_type to {shortcut_type} and bias_downsample to {bool(bias_downsample) if bias_downsample!=-1 else 'True or False'} when using pretrained MedicalNet resnet{resnet_depth}")
-                else: 
+                else:
                     raise NotImplementedError("Please set n_input_channels to 1 and feed_forward to False in order to use MedicalNet pretrained weights")
             else:
                 raise NotImplementedError("MedicalNet pretrained weights are only avalaible for 3D models")

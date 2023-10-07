@@ -204,14 +204,14 @@ class TestResNet(unittest.TestCase):
 
         # True flag
         cp_input_param["pretrained"] = True
-        resnet_depth = int(re.search(r"resnet(\d+)", model.__name__).group(1))
+        int(re.search(r"resnet(\d+)", model.__name__).group(1))
         model(**cp_input_param)
         if input_param.get("spatial_dims", 3) == 3:
             model(**cp_input_param)
         else:
             with self.assertRaises(NotImplementedError):
                 model(**cp_input_param)
-        
+
         os.remove(tmp_ckpt_filename)
 
     @parameterized.expand(TEST_SCRIPT_CASES)

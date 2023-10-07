@@ -1166,32 +1166,32 @@ def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
                 warnings.warn(f"The exclude_vars includes {param}, but requires_grad is False, change it to True.")
 
     logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")
-    
+
 def get_pretrained_resnet_medicalnet(resnet_depth: int, device: torch.device = torch.device("cpu"), datasets23: bool = True):
     """
     Donwlad resnet pretrained weights from https://huggingface.co/TencentMedicalNet
-    
+
     Args:
         resnet_depth: depth of the pretrained model. Supported values are 10, 18, 34, 50, 101, 152 and 200
         device: device on which the returned state dict will be loaded.
-        datasets23: if True, get the weights trained on more datasets (23). Not all depths are available. If not, standard weights are returned. 
-    
+        datasets23: if True, get the weights trained on more datasets (23). Not all depths are available. If not, standard weights are returned.
+
     Returns:
         Pretrained state dict
-        
+
     Raises:
         huggingface_hub.utils._errors.EntryNotFoundError: if pretrained weights are not found on huggingface hub
         NotImplementedError: if `resnet_depth` is not supported
     """
-    
+
     MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
     MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"
     SUPPORTED_DEPTH = [10, 18, 34, 50, 101, 152, 200]
-    
+
     logger.info(f"Loading MedicalNet pretrained model from https://huggingface.co/{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}")
-    
+
     if resnet_depth in SUPPORTED_DEPTH:
-        filename = f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth" if not datasets23 else f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}_23dataset.pth" 
+        filename = f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth" if not datasets23 else f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}_23dataset.pth"
         try:
             pretrained_path = hf_hub_download(
                 repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}",
