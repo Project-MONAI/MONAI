@@ -14,18 +14,20 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import partial
 from typing import Any
-from pathlib import Path
 import logging
-import re
-from huggingface_hub import hf_hub_download
+
 
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
+
+Path, _ = optional_import("pathlib", name = "Path")
+re, _ = optional_import("re") 
+hf_hub_download, _ = optional_import("huggingface_hub.hf_hub_download")
 
 MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
 MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"

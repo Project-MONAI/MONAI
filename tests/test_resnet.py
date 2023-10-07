@@ -12,8 +12,6 @@
 from __future__ import annotations
 
 import unittest
-import copy
-import os
 from typing import TYPE_CHECKING
 
 import torch
@@ -24,6 +22,9 @@ from monai.networks.nets import ResNet, resnet10, resnet18, resnet34, resnet50, 
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
 from tests.utils import test_script_save
+
+copy, _ = optional_import("copy")
+os, _ = optional_import("os")
 
 if TYPE_CHECKING:
     import torchvision
