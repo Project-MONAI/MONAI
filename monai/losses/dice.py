@@ -188,7 +188,7 @@ class DiceLoss(_Loss):
 
         f: torch.Tensor = 1.0 - (2.0 * intersection + self.smooth_nr) / (denominator + self.smooth_dr)
 
-        if self.weight is not None:
+        if self.weight is not None and target.shape[1] != 1:
             # make sure the lengths of weights are equal to the number of classes
             class_weight: Optional[torch.Tensor] = None
             num_of_classes = target.shape[1]
@@ -695,7 +695,7 @@ class DiceCELoss(_Loss):
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
             weight: a rescaling weight given to each class for cross entropy loss for `CrossEntropyLoss`.
-                or a rescaling weight given to the loss of each batch element for `BCEWithLogitsLoss`.
+                or a weight of positive examples to be broadcasted with target used as `pos_weight` for `BCEWithLogitsLoss`.
                 See ``torch.nn.CrossEntropyLoss()`` or ``torch.nn.BCEWithLogitsLoss()`` for more information.
                 The weight is also used in `DiceLoss`.
             lambda_dice: the trade-off weight value for dice loss. The value should be no less than 0.0.
@@ -707,6 +707,10 @@ class DiceCELoss(_Loss):
         super().__init__()
         reduction = look_up_option(reduction, DiceCEReduction).value
         weight = ce_weight if ce_weight is not None else weight
+        if weight is not None and not include_background:
+            dice_weight = weight[1:]
+        else:
+            dice_weight = weight
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=to_onehot_y,
@@ -719,10 +723,10 @@ class DiceCELoss(_Loss):
             smooth_nr=smooth_nr,
             smooth_dr=smooth_dr,
             batch=batch,
-            weight=weight[1:] if not include_background else weight,
+            weight=dice_weight,
         )
         self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction)
-        self.binary_cross_entropy = nn.BCEWithLogitsLoss(weight=weight, reduction=reduction)
+        self.binary_cross_entropy = nn.BCEWithLogitsLoss(pos_weight=weight, reduction=reduction)
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
         if lambda_ce < 0.0:
