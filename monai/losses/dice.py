@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
-from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option, pytorch_after
+from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option, pytorch_after, deprecated_arg
 
 
 class DiceLoss(_Loss):
@@ -57,6 +57,7 @@ class DiceLoss(_Loss):
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
+        weight: Sequence[float] | float | int | torch.Tensor | None = None,
     ) -> None:
         """
         Args:
@@ -83,6 +84,11 @@ class DiceLoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
+            weight: weights to apply to the voxels of each class. If None no weights are applied.
+                The input can be a single value (same weight for all classes), a sequence of values (the length
+                of the sequence should be the same as the number of classes. If not ``include_background``,
+                the number of classes should not include the background category class 0).
+                The value/values should be no less than 0. Defaults to None.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -105,6 +111,7 @@ class DiceLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+        self.weight = weight
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -180,6 +187,28 @@ class DiceLoss(_Loss):
             denominator = 2.0 * (denominator - intersection)
 
         f: torch.Tensor = 1.0 - (2.0 * intersection + self.smooth_nr) / (denominator + self.smooth_dr)
+
+        if self.weight is not None:
+            # make sure the lengths of weights are equal to the number of classes
+            class_weight: Optional[torch.Tensor] = None
+            num_of_classes = target.shape[1]
+            if isinstance(self.weight, (float, int)):
+                class_weight = torch.as_tensor([self.weight] * num_of_classes)
+            else:
+                class_weight = torch.as_tensor(self.weight)
+                if class_weight.shape[0] != num_of_classes:
+                    raise ValueError(
+                        """the length of the `weight` sequence should be the same as the number of classes.
+                        If `include_background=False`, the weight should not include
+                        the background category class 0."""
+                    )
+            if class_weight.min() < 0:
+                raise ValueError("the value/values of the `weight` should be no less than 0.")
+            # apply class_weight to loss
+            class_weight = class_weight.to(f)
+            broadcast_dims = [-1] + [1] * len(target.shape[2:])
+            class_weight = class_weight.view(broadcast_dims)
+            f = class_weight * f
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -620,6 +649,7 @@ class DiceCELoss(_Loss):
 
     """
 
+    @deprecated_arg("ce_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead.")
     def __init__(
         self,
         include_background: bool = True,
@@ -634,13 +664,14 @@ class DiceCELoss(_Loss):
         smooth_dr: float = 1e-5,
         batch: bool = False,
         ce_weight: torch.Tensor | None = None,
+        weight: torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_ce: float = 1.0,
     ) -> None:
         """
         Args:
-            ``ce_weight`` and ``lambda_ce`` are only used for cross entropy loss.
-            ``reduction`` is used for both losses and other parameters are only used for dice loss.
+            ``lambda_ce`` are only used for cross entropy loss.
+            ``reduction`` and ``weight`` is used for both losses and other parameters are only used for dice loss.
 
             include_background: if False channel index 0 (background category) is excluded from the calculation.
             to_onehot_y: whether to convert the ``target`` into the one-hot format,
@@ -666,9 +697,10 @@ class DiceCELoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
-            ce_weight: a rescaling weight given to each class for cross entropy loss for `CrossEntropyLoss`.
+            weight: a rescaling weight given to each class for cross entropy loss for `CrossEntropyLoss`.
                 or a rescaling weight given to the loss of each batch element for `BCEWithLogitsLoss`.
                 See ``torch.nn.CrossEntropyLoss()`` or ``torch.nn.BCEWithLogitsLoss()`` for more information.
+                The weight is also used in `DiceLoss`.
             lambda_dice: the trade-off weight value for dice loss. The value should be no less than 0.0.
                 Defaults to 1.0.
             lambda_ce: the trade-off weight value for cross entropy loss. The value should be no less than 0.0.
@@ -677,6 +709,7 @@ class DiceCELoss(_Loss):
         """
         super().__init__()
         reduction = look_up_option(reduction, DiceCEReduction).value
+        weight = ce_weight if ce_weight is not None else weight
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=to_onehot_y,
@@ -689,9 +722,10 @@ class DiceCELoss(_Loss):
             smooth_nr=smooth_nr,
             smooth_dr=smooth_dr,
             batch=batch,
+            weight=weight,
         )
-        self.cross_entropy = nn.CrossEntropyLoss(weight=ce_weight, reduction=reduction)
-        self.binary_cross_entropy = nn.BCEWithLogitsLoss(weight=ce_weight, reduction=reduction)
+        self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction)
+        self.binary_cross_entropy = nn.BCEWithLogitsLoss(weight=weight, reduction=reduction)
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
         if lambda_ce < 0.0:
@@ -762,12 +796,13 @@ class DiceFocalLoss(_Loss):
     The details of Dice loss is shown in ``monai.losses.DiceLoss``.
     The details of Focal Loss is shown in ``monai.losses.FocalLoss``.
 
-    ``gamma``, ``focal_weight`` and ``lambda_focal`` are only used for the focal loss.
-    ``include_background`` and ``reduction`` are used for both losses
+    ``gamma`` and ``lambda_focal`` are only used for the focal loss.
+    ``include_background``, ``weight`` and ``reduction`` are used for both losses
     and other parameters are only used for dice loss.
 
     """
 
+    @deprecated_arg("focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead.")
     def __init__(
         self,
         include_background: bool = True,
@@ -783,6 +818,7 @@ class DiceFocalLoss(_Loss):
         batch: bool = False,
         gamma: float = 2.0,
         focal_weight: Sequence[float] | float | int | torch.Tensor | None = None,
+        weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_focal: float = 1.0,
     ) -> None:
@@ -812,7 +848,7 @@ class DiceFocalLoss(_Loss):
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
             gamma: value of the exponent gamma in the definition of the Focal loss.
-            focal_weight: weights to apply to the voxels of each class. If None no weights are applied.
+            weight: weights to apply to the voxels of each class. If None no weights are applied.
                 The input can be a single value (same weight for all classes), a sequence of values (the length
                 of the sequence should be the same as the number of classes).
             lambda_dice: the trade-off weight value for dice loss. The value should be no less than 0.0.
@@ -822,6 +858,7 @@ class DiceFocalLoss(_Loss):
 
         """
         super().__init__()
+        weight = focal_weight if focal_weight is not None else weight
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=False,
@@ -834,12 +871,13 @@ class DiceFocalLoss(_Loss):
             smooth_nr=smooth_nr,
             smooth_dr=smooth_dr,
             batch=batch,
+            weight=weight,
         )
         self.focal = FocalLoss(
             include_background=include_background,
             to_onehot_y=False,
             gamma=gamma,
-            weight=focal_weight,
+            weight=weight,
             reduction=reduction,
         )
         if lambda_dice < 0.0:
@@ -905,7 +943,7 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
         batch (bool, optional): whether to sum the intersection and union areas over the batch dimension before the dividing.
             Defaults to False, i.e., the areas are computed for each item in the batch.
         gamma (float, optional): value of the exponent gamma in the definition of the Focal loss. Defaults to 2.0.
-        focal_weight (Optional[Union[Sequence[float], float, int, torch.Tensor]], optional): weights to apply to
+        weight (Optional[Union[Sequence[float], float, int, torch.Tensor]], optional): weights to apply to
             the voxels of each class. If None no weights are applied. The input can be a single value
             (same weight for all classes), a sequence of values (the length of the sequence hould be the same as
             the number of classes). Defaults to None.
@@ -918,6 +956,7 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
         ValueError: if either `lambda_gdl` or `lambda_focal` is less than 0.
     """
 
+    @deprecated_arg("focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead.")
     def __init__(
         self,
         include_background: bool = True,
@@ -932,6 +971,7 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
         batch: bool = False,
         gamma: float = 2.0,
         focal_weight: Sequence[float] | float | int | torch.Tensor | None = None,
+        weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_gdl: float = 1.0,
         lambda_focal: float = 1.0,
     ) -> None:
@@ -948,11 +988,12 @@ class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
             smooth_dr=smooth_dr,
             batch=batch,
         )
+        weight = focal_weight if focal_weight is not None else weight
         self.focal = FocalLoss(
             include_background=include_background,
             to_onehot_y=to_onehot_y,
             gamma=gamma,
-            weight=focal_weight,
+            weight=weight,
             reduction=reduction,
         )
         if lambda_gdl < 0.0:
