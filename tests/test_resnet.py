@@ -25,6 +25,7 @@ from tests.utils import test_script_save
 
 copy, _ = optional_import("copy")
 os, _ = optional_import("os")
+re, _ = optional_import("re")
 
 if TYPE_CHECKING:
     import torchvision
@@ -193,20 +194,24 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param).to(device)
         tmp_ckpt_filename = "monai_unittest_tmp_ckpt.pth"
         # Save ckpt
-        torch.save({
-            "state_dict": net.state_dict()
-        },
-        tmp_ckpt_filename)
+        torch.save(net.state_dict(), tmp_ckpt_filename)
 
         cp_input_param = copy.copy(input_param)
+        # Custom pretrained weights
         cp_input_param["pretrained"] = tmp_ckpt_filename
         pretrained_net = model(**cp_input_param)
         assert str(net.state_dict()) == str(pretrained_net.state_dict())
 
-        with self.assertRaises(NotImplementedError):
-            cp_input_param["pretrained"] = True
+        # True flag
+        cp_input_param["pretrained"] = True
+        resnet_depth = int(re.search(r"resnet(\d+)", model.__name__).group(1))
+        model(**cp_input_param)
+        if input_param.get("spatial_dims", 3) == 3:
             model(**cp_input_param)
-
+        else:
+            with self.assertRaises(NotImplementedError):
+                model(**cp_input_param)
+        
         os.remove(tmp_ckpt_filename)
 
     @parameterized.expand(TEST_SCRIPT_CASES)
