@@ -14,7 +14,9 @@ from __future__ import annotations
 from collections.abc import Callable
 from functools import partial
 from typing import Any
+from pathlib import Path
 import logging
+import re
 
 
 import torch
@@ -26,8 +28,6 @@ from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
 from monai.networks.utils import get_pretrained_resnet_medicalnet
 
-Path, _ = optional_import("pathlib", name = "Path")
-re, _ = optional_import("re")
 
 MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
 MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"

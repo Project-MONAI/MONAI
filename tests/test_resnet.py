@@ -13,6 +13,9 @@ from __future__ import annotations
 
 import unittest
 from typing import TYPE_CHECKING
+import os
+import re
+import copy
 
 import torch
 from parameterized import parameterized
@@ -23,11 +26,6 @@ from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
 from monai.networks.utils import get_pretrained_resnet_medicalnet
 from tests.utils import test_script_save, equal_state_dict
-
-
-copy, _ = optional_import("copy")
-os, _ = optional_import("os")
-re, _ = optional_import("re")
 
 if TYPE_CHECKING:
     import torchvision
