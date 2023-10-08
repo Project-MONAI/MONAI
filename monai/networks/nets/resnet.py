@@ -373,13 +373,18 @@ def _resnet(
 
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
-                    if shortcut_type == kwargs.get("shortcut_type", "B") and (bool(bias_downsample) == kwargs.get("bias_downsample", False) if bias_downsample != -1 else True):
+                    if shortcut_type == kwargs.get("shortcut_type", "B") and \
+                        (bool(bias_downsample) == kwargs.get("bias_downsample", False) if bias_downsample != -1 else True):
                         # Download the MedicalNet pretrained model
                         model_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device=device, datasets23=True)
                     else:
-                        raise NotImplementedError(f"Please set shortcut_type to {shortcut_type} and bias_downsample to {bool(bias_downsample) if bias_downsample!=-1 else 'True or False'} when using pretrained MedicalNet resnet{resnet_depth}")
+                        raise NotImplementedError(f"Please set shortcut_type to {shortcut_type} and bias_downsample to" \
+                            f"{bool(bias_downsample) if bias_downsample!=-1 else 'True or False'}" \
+                            f"when using pretrained MedicalNet resnet{resnet_depth}")
                 else:
-                    raise NotImplementedError("Please set n_input_channels to 1 and feed_forward to False in order to use MedicalNet pretrained weights")
+                    raise NotImplementedError(
+                        "Please set n_input_channels to 1" \
+                        "and feed_forward to False in order to use MedicalNet pretrained weights")
             else:
                 raise NotImplementedError("MedicalNet pretrained weights are only avalaible for 3D models")
         model_state_dict = {key.replace("module.", ""): value for key, value in model_state_dict.items()}

@@ -1174,7 +1174,8 @@ def get_pretrained_resnet_medicalnet(resnet_depth: int, device: torch.device = t
     Args:
         resnet_depth: depth of the pretrained model. Supported values are 10, 18, 34, 50, 101, 152 and 200
         device: device on which the returned state dict will be loaded.
-        datasets23: if True, get the weights trained on more datasets (23). Not all depths are available. If not, standard weights are returned.
+        datasets23: if True, get the weights trained on more datasets (23). 
+                    Not all depths are available. If not, standard weights are returned.
 
     Returns:
         Pretrained state dict
@@ -1191,7 +1192,8 @@ def get_pretrained_resnet_medicalnet(resnet_depth: int, device: torch.device = t
     logger.info(f"Loading MedicalNet pretrained model from https://huggingface.co/{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}")
 
     if resnet_depth in SUPPORTED_DEPTH:
-        filename = f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth" if not datasets23 else f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}_23dataset.pth"
+        filename = f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth" if not datasets23 \
+            else f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}_23dataset.pth"
         try:
             pretrained_path = hf_hub_download(
                 repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}",
