@@ -112,7 +112,7 @@ class DiceLoss(_Loss):
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
         self.weight = weight
-        self.register_buffer("class_weight", None)
+        self.register_buffer("class_weight", torch.zeros(1))
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
