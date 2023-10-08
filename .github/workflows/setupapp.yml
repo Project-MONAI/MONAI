@@ -100,6 +100,7 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
+        rm -rf /opt/hostedtoolcache
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
@@ -145,6 +146,7 @@ jobs:
     - name: Install the default branch with build (dev branch only)
       if: github.ref == 'refs/heads/dev'
       run: |
+        rm -rf /opt/hostedtoolcache
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
     - name: Get the test cases (dev branch only)

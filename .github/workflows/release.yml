@@ -27,6 +27,7 @@ jobs:
         python -m pip install --user --upgrade setuptools wheel
     - name: Build and test source archive and wheel file
       run: |
+        rm -rf /opt/hostedtoolcache
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         root_dir=$PWD
         echo "$root_dir"
@@ -101,6 +102,7 @@ jobs:
           python-version: '3.9'
       - shell: bash
         run: |
+          rm -rf /opt/hostedtoolcache
           git describe
           python -m pip install --user --upgrade setuptools wheel
           python setup.py build
