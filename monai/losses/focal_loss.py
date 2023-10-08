@@ -113,7 +113,7 @@ class FocalLoss(_Loss):
         self.alpha = alpha
         self.weight = weight
         self.use_softmax = use_softmax
-        self.register_buffer('class_weight', None)
+        self.register_buffer("class_weight", None)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
