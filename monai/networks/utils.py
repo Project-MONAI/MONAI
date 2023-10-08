@@ -1174,7 +1174,7 @@ def get_pretrained_resnet_medicalnet(resnet_depth: int, device: torch.device = t
     Args:
         resnet_depth: depth of the pretrained model. Supported values are 10, 18, 34, 50, 101, 152 and 200
         device: device on which the returned state dict will be loaded.
-        datasets23: if True, get the weights trained on more datasets (23). 
+        datasets23: if True, get the weights trained on more datasets (23).
                     Not all depths are available. If not, standard weights are returned.
 
     Returns:
