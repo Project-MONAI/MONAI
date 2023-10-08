@@ -112,6 +112,7 @@ class DiceLoss(_Loss):
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
         self.weight = weight
+        self.register_buffer('class_weight', None)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -190,23 +191,21 @@ class DiceLoss(_Loss):
 
         if self.weight is not None and target.shape[1] != 1:
             # make sure the lengths of weights are equal to the number of classes
-            class_weight: Optional[torch.Tensor] = None
-            self.register_buffer('class_weight', class_weight)
             num_of_classes = target.shape[1]
             if isinstance(self.weight, (float, int)):
-                class_weight = torch.as_tensor([self.weight] * num_of_classes)
+                self.class_weight = torch.as_tensor([self.weight] * num_of_classes)
             else:
-                class_weight = torch.as_tensor(self.weight)
-                if class_weight.shape[0] != num_of_classes:
+                self.class_weight = torch.as_tensor(self.weight)
+                if self.class_weight.shape[0] != num_of_classes:
                     raise ValueError(
                         """the length of the `weight` sequence should be the same as the number of classes.
                         If `include_background=False`, the weight should not include
                         the background category class 0."""
                     )
-            if class_weight.min() < 0:
+            if self.class_weight.min() < 0:
                 raise ValueError("the value/values of the `weight` should be no less than 0.")
             # apply class_weight to loss
-            f = f * class_weight.to(f)
+            f = f * self.class_weight.to(f)
 
         if self.reduction == LossReduction.MEAN.value:
             f = torch.mean(f)  # the batch and channel average
@@ -920,7 +919,7 @@ class DiceFocalLoss(_Loss):
         return total_loss
 
 
-class GeneralizedDiceFocalLoss(torch.nn.modules.loss._Loss):
+class GeneralizedDiceFocalLoss(_Loss):
     """Compute both Generalized Dice Loss and Focal Loss, and return their weighted average. The details of Generalized Dice Loss
     and Focal Loss are available at ``monai.losses.GeneralizedDiceLoss`` and ``monai.losses.FocalLoss``.
 
