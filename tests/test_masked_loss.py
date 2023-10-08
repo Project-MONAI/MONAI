@@ -27,14 +27,14 @@ TEST_CASES = [
     [
         {
             "loss": DiceFocalLoss,
-            "focal_weight": torch.tensor([1.0, 1.0, 2.0]),
+            "weight": torch.tensor([1.0, 1.0, 2.0]),
             "gamma": 0.1,
             "lambda_focal": 0.5,
             "include_background": True,
             "to_onehot_y": True,
             "reduction": "sum",
         },
-        [(14.538666, 20.191753), (13.17672, 8.251623)],
+        [17.1679, 15.5623],
     ]
 ]
 
@@ -54,14 +54,12 @@ class TestMaskedLoss(unittest.TestCase):
         pred = torch.randn(size)
         result = MaskedLoss(**input_param)(pred, label, None)
         out = result.detach().cpu().numpy()
-        checked = np.allclose(out, expected_val[0][0]) or np.allclose(out, expected_val[0][1])
-        self.assertTrue(checked)
+        self.assertTrue(np.allclose(out, expected_val[0]))
 
         mask = torch.randint(low=0, high=2, size=label.shape)
         result = MaskedLoss(**input_param)(pred, label, mask)
         out = result.detach().cpu().numpy()
-        checked = np.allclose(out, expected_val[1][0]) or np.allclose(out, expected_val[1][1])
-        self.assertTrue(checked)
+        self.assertTrue(np.allclose(out, expected_val[1]))
 
     def test_ill_opts(self):
         with self.assertRaisesRegex(ValueError, ""):

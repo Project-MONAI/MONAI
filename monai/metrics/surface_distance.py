@@ -181,6 +181,6 @@ def compute_average_surface_distance(
             class_index=c,
         )
         surface_distance = torch.cat(distances)
-        asd[b, c] = torch.nan if surface_distance.shape == (0,) else surface_distance.mean()
+        asd[b, c] = torch.tensor(np.nan) if surface_distance.shape == (0,) else surface_distance.mean()
 
     return convert_data_type(asd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]

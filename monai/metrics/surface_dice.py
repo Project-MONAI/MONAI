@@ -275,7 +275,7 @@ def compute_surface_dice(
             boundary_correct = gt_true + pred_true
         if boundary_complete == 0:
             # the class is neither present in the prediction, nor in the reference segmentation
-            nsd[b, c] = torch.nan
+            nsd[b, c] = torch.tensor(np.nan)
         else:
             nsd[b, c] = boundary_correct / boundary_complete
 

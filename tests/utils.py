@@ -46,6 +46,7 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
+from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import pytorch_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
@@ -75,7 +76,7 @@ def get_testing_algo_template_path():
 
     https://github.com/Project-MONAI/MONAI/blob/1.1.0/monai/apps/auto3dseg/bundle_gen.py#L380-L381
     """
-    return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+    return MONAIEnvVars.testing_algo_template()
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:

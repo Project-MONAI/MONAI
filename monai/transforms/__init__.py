@@ -641,6 +641,7 @@ from .utils import (
     create_scale,
     create_shear,
     create_translate,
+    distance_transform_edt,
     equalize_hist,
     extreme_points_to_image,
     generate_label_classes_crop_centers,
