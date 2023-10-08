@@ -424,7 +424,7 @@ class EnsureType(Transform):
     def __init__(
         self,
         data_type: str = "tensor",
-        dtype: DtypeLike | torch.dtype | None = None,
+        dtype: DtypeLike | torch.dtype = None,
         device: torch.device | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
@@ -435,7 +435,7 @@ class EnsureType(Transform):
         self.wrap_sequence = wrap_sequence
         self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
-    def __call__(self, data: NdarrayOrTensor):
+    def __call__(self, data: NdarrayOrTensor, dtype: DtypeLike | torch.dtype = None):
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
@@ -452,7 +452,7 @@ class EnsureType(Transform):
         out, *_ = convert_data_type(
             data=data,
             output_type=output_type,  # type: ignore
-            dtype=self.dtype,
+            dtype=self.dtype if dtype is None else dtype,
             device=self.device,
             wrap_sequence=self.wrap_sequence,
         )
