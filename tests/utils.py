@@ -822,6 +822,23 @@ def command_line_tests(cmd, copy_env=True):
         errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
+def equal_state_dict(st_1, st_2):
+    """
+    Compare 2 torch state dicts.
+    """
+    r = True
+    for key_st_1, val_st_1 in st_1.items():
+        if key_st_1 in st_2:
+            val_st_2 = st_2.get(key_st_1)
+            if not torch.equal(val_st_1, val_st_2):
+                r = False
+                break
+        else:
+            r = False
+            break
+    return r    
+    
+
 
 TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
