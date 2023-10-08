@@ -205,7 +205,7 @@ class TestResNet(unittest.TestCase):
         # True flag
         cp_input_param["pretrained"] = True
         resnet_depth = int(re.search(r"resnet(\d+)", model.__name__).group(1))
-        
+
         # Duplicate. see monai/networks/nets/resnet.py
         def get_medicalnet_pretrained_resnet_args(resnet_depth: int) :
             """
@@ -219,19 +219,19 @@ class TestResNet(unittest.TestCase):
             return bias_downsample, shortcut_type
 
         bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
-        
+
         # With orig. test cases
-        if (input_param.get("spatial_dims", 3) == 3 and 
-            input_param.get("n_input_channels", 3)==1 and 
-            input_param.get("feed_forward", True)==False and
+        if (input_param.get("spatial_dims", 3) == 3 and
+            input_param.get("n_input_channels", 3)==1 and
+            input_param.get("feed_forward", True) is False and
             input_param.get("shortcut_type", "B") == shortcut_type and
-            (input_param.get("bias_downsample", True) == bool(bias_downsample) if bias_downsample != -1 else True)            
+            (input_param.get("bias_downsample", True) == bool(bias_downsample) if bias_downsample != -1 else True)
             ):
             model(**cp_input_param)
         else:
             with self.assertRaises(NotImplementedError):
                 model(**cp_input_param)
-                
+
         # forcing MedicalNet pretrained download for 3D tests cases
         cp_input_param["n_input_channels"] = 1
         cp_input_param["feed_forward"] = False
@@ -242,7 +242,7 @@ class TestResNet(unittest.TestCase):
             medicalnet_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device = device)
             medicalnet_state_dict = {key.replace("module.", ""): value for key, value in medicalnet_state_dict.items()}
             assert(equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict))
-            
+
         # clean
         os.remove(tmp_ckpt_filename)
 

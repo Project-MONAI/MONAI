@@ -24,7 +24,7 @@ import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
 from monai.networks.utils import get_pretrained_resnet_medicalnet
 

@@ -836,8 +836,8 @@ def equal_state_dict(st_1, st_2):
         else:
             r = False
             break
-    return r    
-    
+    return r
+
 
 
 TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)
