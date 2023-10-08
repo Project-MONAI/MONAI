@@ -709,6 +709,7 @@ class DiceCELoss(_Loss):
         super().__init__()
         reduction = look_up_option(reduction, DiceCEReduction).value
         weight = ce_weight if ce_weight is not None else weight
+        dice_weight: torch.Tensor | None
         if weight is not None and not include_background:
             dice_weight = weight[1:]
         else:
