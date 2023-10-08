@@ -164,6 +164,7 @@ class FocalLoss(_Loss):
         if self.weight is not None:
             # make sure the lengths of weights are equal to the number of classes
             class_weight: Optional[torch.Tensor] = None
+            self.register_buffer('class_weight', class_weight)
             num_of_classes = target.shape[1]
             if isinstance(self.weight, (float, int)):
                 class_weight = torch.as_tensor([self.weight] * num_of_classes)
