@@ -211,7 +211,11 @@ function print_error_msg() {
 
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
-    echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+    if [ "$homedir" = "$currentdir" ]
+    then
+        echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+    else :
+    fi
 }
 
 function list_unittests() {
@@ -352,11 +356,17 @@ do
 done
 
 # home directory
+currentdir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [ -e "$homedir" ]
 then
     echo "run tests under $homedir"
+    if [ "$homedir" != "$currentdir" ]
+    then
+        $(cp $currentdir/"pyproject.toml" $homedir/"pyproject.toml")
+    else :
+    fi
 else
-    homedir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    homedir=$currentdir
 fi
 cd "$homedir"
 
