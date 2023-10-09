@@ -27,13 +27,13 @@ class TestGeneralizedDiceFocalLoss(unittest.TestCase):
         pred = torch.randn(size)
         for reduction in ["sum", "mean", "none"]:
             common_params = {"include_background": True, "to_onehot_y": False, "reduction": reduction}
-            for focal_weight in [None, torch.tensor([1.0, 1.0, 2.0]), (3, 2.0, 1)]:
+            for weight in [None, torch.tensor([1.0, 1.0, 2.0]), (3, 2.0, 1)]:
                 for lambda_focal in [0.5, 1.0, 1.5]:
                     generalized_dice_focal = GeneralizedDiceFocalLoss(
-                        focal_weight=focal_weight, gamma=1.0, lambda_focal=lambda_focal, **common_params
+                        weight=weight, gamma=1.0, lambda_focal=lambda_focal, **common_params
                     )
                     generalized_dice = GeneralizedDiceLoss(**common_params)
-                    focal = FocalLoss(weight=focal_weight, gamma=1.0, **common_params)
+                    focal = FocalLoss(weight=weight, gamma=1.0, **common_params)
                     result = generalized_dice_focal(pred, label)
                     expected_val = generalized_dice(pred, label) + lambda_focal * focal(pred, label)
                     np.testing.assert_allclose(result, expected_val)
@@ -45,13 +45,13 @@ class TestGeneralizedDiceFocalLoss(unittest.TestCase):
         pred = torch.randn(size)
         for reduction in ["sum", "mean", "none"]:
             common_params = {"include_background": False, "to_onehot_y": True, "reduction": reduction}
-            for focal_weight in [2.0, torch.tensor([1.0, 2.0]), (2.0, 1)]:
+            for weight in [2.0, torch.tensor([1.0, 2.0]), (2.0, 1)]:
                 for lambda_focal in [0.5, 1.0, 1.5]:
                     generalized_dice_focal = GeneralizedDiceFocalLoss(
-                        focal_weight=focal_weight, lambda_focal=lambda_focal, **common_params
+                        weight=weight, lambda_focal=lambda_focal, **common_params
                     )
                     generalized_dice = GeneralizedDiceLoss(**common_params)
-                    focal = FocalLoss(weight=focal_weight, **common_params)
+                    focal = FocalLoss(weight=weight, **common_params)
                     result = generalized_dice_focal(pred, label)
                     expected_val = generalized_dice(pred, label) + lambda_focal * focal(pred, label)
                     np.testing.assert_allclose(result, expected_val)
