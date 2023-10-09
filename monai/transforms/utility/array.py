@@ -442,6 +442,7 @@ class EnsureType(Transform):
                 will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
                 objects keep the original. for dictionary, list or tuple, ensure every item as expected type
                 if applicable and `wrap_sequence=False`.
+            dtype: target data content type to convert, for example: np.float32, torch.float, etc.
 
         """
         if self.data_type == "tensor":
