@@ -47,7 +47,6 @@ from monai.utils.misc import MONAIEnvVars
 logger = get_logger(module_name=__name__)
 ALGO_HASH = MONAIEnvVars.algo_hash()
 
-
 __all__ = ["BundleAlgo", "BundleGen"]
 
 
