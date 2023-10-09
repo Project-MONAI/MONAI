@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     has_torchvision = True
 else:
     torchvision, has_torchvision = optional_import("torchvision")
-    
+
 has_hf_modules = ("huggingface_hub" in sys.modules and "huggingface_hub.utils._errors" in sys.modules)
 
 # from torchvision.models import ResNet50_Weights, resnet50
