@@ -500,6 +500,7 @@ class EnsureTyped(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             data_type: target data type to convert, should be "tensor" or "numpy".
             dtype: target data content type to convert, for example: np.float32, torch.float, etc.
+                It also can be a sequence of dtype, each element corresponds to a key in ``keys``.
             device: for Tensor data type, specify the target device.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
