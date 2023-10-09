@@ -63,7 +63,7 @@ function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--ruff]"
     echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
-    echo "            [--dryrun] [--copyright] [--clean] [--help] [--version]"
+    echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -74,6 +74,7 @@ function print_usage {
     echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
     echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
     echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh --formatfix -p /my/code # run automatic code formatting using \"isort\" and \"black\" in specified path."
     echo ""
     echo "Code style check options:"
     echo "    --autofix         : format code using \"isort\" and \"black\""
@@ -107,6 +108,8 @@ function print_usage {
     echo "    -c, --clean       : clean temporary files from tests and exit"
     echo "    -h, --help        : show this help message and exit"
     echo "    -v, --version     : show MONAI and system version information and exit"
+    echo "    -p, --path        : specify the path used for formatting"
+    echo "    --formatfix       : format code using \"isort\" and \"black\" for user specified directories"
     echo ""
     echo "${separator}For bug reports and feature requests, please file an issue at:"
     echo "    https://github.com/Project-MONAI/MONAI/issues/new/choose"
@@ -208,7 +211,11 @@ function print_error_msg() {
 
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
-    echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+    if [ "$homedir" = "$currentdir" ]
+    then
+        echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+    else :
+    fi
 }
 
 function list_unittests() {
@@ -280,6 +287,12 @@ do
             doRuffFormat=true
             doCopyRight=true
         ;;
+        --formatfix)
+            doIsortFix=true
+            doBlackFix=true
+            doIsortFormat=true
+            doBlackFormat=true
+        ;;
         --clangformat)
             doClangFormat=true
         ;;
@@ -328,6 +341,10 @@ do
             print_error_msg "nounittest option is deprecated, no unit tests is the default setting"
             print_usage
         ;;
+        -p|--path)
+            testdir=$2
+            shift
+        ;;
         *)
             print_error_msg "Incorrect commandline provided, invalid key: $key"
             print_usage
@@ -337,7 +354,15 @@ do
 done
 
 # home directory
-homedir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+currentdir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -e "$testdir" ]
+then
+    homedir=$testdir
+else
+    print_error_msg "Incorrect path: $testdir provided, run under $currentdir"
+    homedir=$currentdir
+fi
+echo "run tests under $homedir"
 cd "$homedir"
 
 # python path
@@ -457,9 +482,9 @@ then
 
     if [ $doIsortFix = true ]
     then
-        ${cmdPrefix}${PY_EXE} -m isort "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m isort "$homedir"
     else
-        ${cmdPrefix}${PY_EXE} -m isort --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m isort --check "$homedir"
     fi
 
     isort_status=$?
@@ -493,9 +518,9 @@ then
 
     if [ $doBlackFix = true ]
     then
-        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma "$homedir"
     else
-        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma --check "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma --check "$homedir"
     fi
 
     black_status=$?
@@ -522,7 +547,7 @@ then
     fi
     ${cmdPrefix}${PY_EXE} -m flake8 --version
 
-    ${cmdPrefix}${PY_EXE} -m flake8 "$(pwd)" --count --statistics
+    ${cmdPrefix}${PY_EXE} -m flake8 "$homedir" --count --statistics
 
     flake8_status=$?
     if [ ${flake8_status} -ne 0 ]
@@ -582,9 +607,9 @@ then
 
     if [ $doRuffFix = true ]
     then
-        ruff check --fix "$(pwd)"
+        ruff check --fix "$homedir"
     else
-        ruff check "$(pwd)"
+        ruff check "$homedir"
     fi
 
     ruff_status=$?
@@ -615,7 +640,7 @@ then
     else
         ${cmdPrefix}${PY_EXE} -m pytype --version
 
-        ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")" "$(pwd)"
+        ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")" "$homedir"
 
         pytype_status=$?
         if [ ${pytype_status} -ne 0 ]
@@ -641,7 +666,7 @@ then
         install_deps
     fi
     ${cmdPrefix}${PY_EXE} -m mypy --version
-    ${cmdPrefix}${PY_EXE} -m mypy "$(pwd)"
+    ${cmdPrefix}${PY_EXE} -m mypy "$homedir"
 
     mypy_status=$?
     if [ ${mypy_status} -ne 0 ]
