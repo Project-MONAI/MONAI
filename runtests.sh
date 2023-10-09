@@ -344,7 +344,7 @@ do
             print_usage
         ;;
         -p|--path)
-            homedir=$2
+            testdir=$2
             shift
         ;;
         *)
@@ -357,17 +357,19 @@ done
 
 # home directory
 currentdir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-if [ -e "$homedir" ]
+if [ -e "$testdir" ]
 then
-    echo "run tests under $homedir"
+    homedir=$testdir
     if [ "$homedir" != "$currentdir" ]
     then
         $(cp $currentdir/"pyproject.toml" $homedir/"pyproject.toml")
     else :
     fi
 else
+    print_error_msg "Incorrect path: $testdir provided, run under $currentdir"
     homedir=$currentdir
 fi
+echo "run tests under $homedir"
 cd "$homedir"
 
 # python path
