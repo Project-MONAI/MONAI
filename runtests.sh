@@ -363,6 +363,7 @@ then
     if [ "$homedir" != "$currentdir" ]
     then
         $(cp $currentdir/"pyproject.toml" $homedir/"pyproject.toml")
+        $(cp $currentdir/"setup.cfg" $homedir/"setup.cfg")
     else :
     fi
 else
