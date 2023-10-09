@@ -519,7 +519,7 @@ class WindowAttention(nn.Module):
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[
-            self.relative_position_index.clone()[:n, :n].reshape(-1)  # type: ignore
+            self.relative_position_index.clone()[:n, :n].reshape(-1)
         ].reshape(n, n, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         attn = attn + relative_position_bias.unsqueeze(0)
@@ -678,7 +678,7 @@ class SwinTransformerBlock(nn.Module):
             self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
             self.norm1.bias.copy_(weights["state_dict"][root + block_names[1]])
             self.attn.relative_position_bias_table.copy_(weights["state_dict"][root + block_names[2]])
-            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])  # type: ignore
+            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])
             self.attn.qkv.weight.copy_(weights["state_dict"][root + block_names[4]])
             self.attn.qkv.bias.copy_(weights["state_dict"][root + block_names[5]])
             self.attn.proj.weight.copy_(weights["state_dict"][root + block_names[6]])
