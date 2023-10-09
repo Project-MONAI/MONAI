@@ -290,10 +290,8 @@ do
         --formatfix)
             doIsortFix=true
             doBlackFix=true
-            doRuffFix=true
             doIsortFormat=true
             doBlackFormat=true
-            doRuffFormat=true
         ;;
         --clangformat)
             doClangFormat=true
@@ -360,12 +358,6 @@ currentdir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 if [ -e "$testdir" ]
 then
     homedir=$testdir
-    if [ "$homedir" != "$currentdir" ]
-    then
-        $(cp $currentdir/"pyproject.toml" $homedir/"pyproject.toml")
-        $(cp $currentdir/"setup.cfg" $homedir/"setup.cfg")
-    else :
-    fi
 else
     print_error_msg "Incorrect path: $testdir provided, run under $currentdir"
     homedir=$currentdir
