@@ -1169,14 +1169,14 @@ def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
 
 
 def get_pretrained_resnet_medicalnet(
-    resnet_depth: int, device: torch.device = torch.device("cpu"), datasets23: bool = True
+    resnet_depth: int, device: str = "cpu", datasets23: bool = True
 ):
     """
     Donwlad resnet pretrained weights from https://huggingface.co/TencentMedicalNet
 
     Args:
         resnet_depth: depth of the pretrained model. Supported values are 10, 18, 34, 50, 101, 152 and 200
-        device: device on which the returned state dict will be loaded.
+        device: device on which the returned state dict will be loaded. "cpu" or "cuda" for example. 
         datasets23: if True, get the weights trained on more datasets (23).
                     Not all depths are available. If not, standard weights are returned.
 
@@ -1218,7 +1218,7 @@ def get_pretrained_resnet_medicalnet(
                 raise EntryNotFoundError(
                     f"{filename} not found on {medicalnet_huggingface_repo_basename}{resnet_depth}"
                 ) from None
-        checkpoint = torch.load(pretrained_path, map_location=device)
+        checkpoint = torch.load(pretrained_path, map_location=torch.device(device))
     else:
         raise NotImplementedError("Supported resnet_depth are: [10, 18, 34, 50, 101, 152, 200]")
     logger.info(f"{filename} downloaded")
