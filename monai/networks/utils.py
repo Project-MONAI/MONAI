@@ -1217,7 +1217,7 @@ def get_pretrained_resnet_medicalnet(
             else:
                 raise EntryNotFoundError(
                     f"{filename} not found on {medicalnet_huggingface_repo_basename}{resnet_depth}"
-                )
+                ) from None
         checkpoint = torch.load(pretrained_path, map_location=device)
     else:
         raise NotImplementedError("Supported resnet_depth are: [10, 18, 34, 50, 101, 152, 200]")
