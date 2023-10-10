@@ -66,31 +66,44 @@ DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
 
 
-def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
+def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
     """
-    Update the `args` with the input `kwargs`.
+    Update the `args` dictionary with the input `kwargs`.
     For dict data, recursively update the content based on the keys.
 
+    Example::
+
+        from monai.bundle import update_kwargs
+        update_kwargs({'exist': 1}, exist=2, new_arg=3)
+        # return {'exist': 2, 'new_arg': 3}
+
     Args:
-        args: source args to update.
+        args: source `args` dictionary (or a json/yaml filename to read as dictionary) to update.
         ignore_none: whether to ignore input args with None value, default to `True`.
-        kwargs: destination args to update.
+        kwargs: key=value pairs to be merged into `args`.
 
     """
     args_: dict = args if isinstance(args, dict) else {}
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
+    if isinstance(args, (tuple, list)) and all(isinstance(x, str) for x in args):
+        primary, overrides = args
+        args_ = update_kwargs(primary, ignore_none, **update_kwargs(overrides, ignore_none, **kwargs))
+    if not isinstance(args_, dict):
+        return args_
     # recursively update the default args with new args
     for k, v in kwargs.items():
-        print(k, v)
         if ignore_none and v is None:
             continue
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
-            args_[k] = _update_args(args_[k], ignore_none, **v)
+            args_[k] = update_kwargs(args_[k], ignore_none, **v)
         else:
             args_[k] = v
     return args_
+
+
+_update_args = update_kwargs  # backward compatibility
 
 
 def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
@@ -318,7 +331,7 @@ def download(
             so that the command line inputs can be simplified.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         name=name,
         version=version,
@@ -834,7 +847,7 @@ def verify_metadata(
 
     """
 
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         meta_file=meta_file,
         filepath=filepath,
@@ -958,7 +971,7 @@ def verify_net_in_out(
 
     """
 
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         meta_file=meta_file,
@@ -1127,7 +1140,7 @@ def onnx_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         filepath=filepath,
@@ -1242,7 +1255,7 @@ def ckpt_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         filepath=filepath,
@@ -1401,7 +1414,7 @@ def trt_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         filepath=filepath,
@@ -1614,7 +1627,7 @@ def create_workflow(
         kwargs: arguments to instantiate the workflow class.
 
     """
-    _args = _update_args(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
+    _args = update_kwargs(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
     _log_input_summary(tag="run", args=_args)
     (workflow_name, config_file) = _pop_args(
         _args, workflow_name=ConfigWorkflow, config_file=None

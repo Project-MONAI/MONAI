@@ -14,7 +14,6 @@ from __future__ import annotations
 import os
 import sys
 import time
-import warnings
 from abc import ABC, abstractmethod
 from copy import copy
 from logging.config import fileConfig
@@ -158,7 +157,7 @@ class BundleWorkflow(ABC):
         if self.properties is None:
             self.properties = {}
         if name in self.properties:
-            warnings.warn(f"property '{name}' already exists in the properties list, overriding it.")
+            logger.warn(f"property '{name}' already exists in the properties list, overriding it.")
         self.properties[name] = {BundleProperty.DESC: desc, BundleProperty.REQUIRED: required}
 
     def check_properties(self) -> list[str] | None:
@@ -241,7 +240,7 @@ class ConfigWorkflow(BundleWorkflow):
             for _config_file in _config_files:
                 _config_file = Path(_config_file)
                 if _config_file.parent != self.config_root_path:
-                    warnings.warn(
+                    logger.warn(
                         f"Not all config files are in {self.config_root_path}. If logging_file and meta_file are"
                         f"not specified, {self.config_root_path} will be used as the default config root directory."
                     )
@@ -254,7 +253,7 @@ class ConfigWorkflow(BundleWorkflow):
         if logging_file is not None:
             if not os.path.exists(logging_file):
                 if logging_file == str(self.config_root_path / "logging.conf"):
-                    warnings.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
+                    logger.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
@@ -265,7 +264,10 @@ class ConfigWorkflow(BundleWorkflow):
         self.parser.read_config(f=config_file)
         meta_file = str(self.config_root_path / "metadata.json") if meta_file is None else meta_file
         if isinstance(meta_file, str) and not os.path.exists(meta_file):
-            raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+            logger.error(
+                f"Cannot find the metadata config file: {meta_file}. "
+                "Please see: https://docs.monai.io/en/stable/mb_specification.html"
+            )
         else:
             self.parser.read_meta(f=meta_file)
 
@@ -323,17 +325,17 @@ class ConfigWorkflow(BundleWorkflow):
         """
         ret = super().check_properties()
         if self.properties is None:
-            warnings.warn("No available properties had been set, skipping check.")
+            logger.warn("No available properties had been set, skipping check.")
             return None
         if ret:
-            warnings.warn(f"Loaded bundle does not contain the following required properties: {ret}")
+            logger.warn(f"Loaded bundle does not contain the following required properties: {ret}")
         # also check whether the optional properties use correct ID name if existing
         wrong_props = []
         for n, p in self.properties.items():
             if not p.get(BundleProperty.REQUIRED, False) and not self._check_optional_id(name=n, property=p):
                 wrong_props.append(n)
         if wrong_props:
-            warnings.warn(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
+            logger.warn(f"Loaded bundle defines the following optional properties with wrong ID: {wrong_props}")
         if ret is not None:
             ret.extend(wrong_props)
         return ret

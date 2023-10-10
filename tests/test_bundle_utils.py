@@ -18,6 +18,7 @@ import unittest
 
 import torch
 
+from monai.bundle import update_kwargs
 from monai.bundle.utils import load_bundle_config
 from monai.networks.nets import UNet
 from monai.utils import pprint_edges
@@ -141,6 +142,7 @@ class TestPPrintEdges(unittest.TestCase):
             "[{'a': 1, 'b': 2},\n\n ... omitted 18 line(s)\n\n {'a': 1, 'b': 2}]",
         )
         self.assertEqual(pprint_edges([{"a": 1, "b": 2}] * 8, 4), pprint_edges([{"a": 1, "b": 2}] * 8, 3))
+        self.assertEqual(update_kwargs({"a": 1}, a=2, b=3), {"a": 2, "b": 3})
 
 
 if __name__ == "__main__":
