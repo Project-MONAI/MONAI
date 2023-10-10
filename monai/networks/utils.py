@@ -36,8 +36,8 @@ from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 onnx, _ = optional_import("onnx")
 onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
-hf_hub_download, _ = optional_import("huggingface_hub", name = "hf_hub_download")
-EntryNotFoundError, _ = optional_import("huggingface_hub.utils._errors", name = "EntryNotFoundError")
+hf_hub_download, _ = optional_import("huggingface_hub", name="hf_hub_download")
+EntryNotFoundError, _ = optional_import("huggingface_hub.utils._errors", name="EntryNotFoundError")
 
 __all__ = [
     "one_hot",
@@ -1167,7 +1167,10 @@ def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
 
     logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")
 
-def get_pretrained_resnet_medicalnet(resnet_depth: int, device: torch.device = torch.device("cpu"), datasets23: bool = True):
+
+def get_pretrained_resnet_medicalnet(
+    resnet_depth: int, device: torch.device = torch.device("cpu"), datasets23: bool = True
+):
     """
     Donwlad resnet pretrained weights from https://huggingface.co/TencentMedicalNet
 
@@ -1189,25 +1192,32 @@ def get_pretrained_resnet_medicalnet(resnet_depth: int, device: torch.device = t
     MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"
     SUPPORTED_DEPTH = [10, 18, 34, 50, 101, 152, 200]
 
-    logger.info(f"Loading MedicalNet pretrained model from https://huggingface.co/{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}")
+    logger.info(
+        f"Loading MedicalNet pretrained model from https://huggingface.co/{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}"
+    )
 
     if resnet_depth in SUPPORTED_DEPTH:
-        filename = f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth" if not datasets23 \
+        filename = (
+            f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth"
+            if not datasets23
             else f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}_23dataset.pth"
+        )
         try:
             pretrained_path = hf_hub_download(
-                repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}",
-                filename=filename)
+                repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}", filename=filename
+            )
         except Exception:
             if datasets23:
                 logger.info(f"{filename} not available for resnet{resnet_depth}")
                 filename = f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth"
                 logger.info(f"Trying with {filename}")
                 pretrained_path = hf_hub_download(
-                    repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}",
-                    filename=filename)
+                    repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}", filename=filename
+                )
             else:
-                raise EntryNotFoundError(f"{filename} not found on {MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}")
+                raise EntryNotFoundError(
+                    f"{filename} not found on {MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}"
+                )
         checkpoint = torch.load(pretrained_path, map_location=device)
     else:
         raise NotImplementedError("Supported resnet_depth are: [10, 18, 34, 50, 101, 152, 200]")

@@ -11,23 +11,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from functools import partial
-from typing import Any
-from pathlib import Path
 import logging
 import re
-
+from collections.abc import Callable
+from functools import partial
+from pathlib import Path
+from typing import Any
 
 import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
+from monai.networks.utils import get_pretrained_resnet_medicalnet
 from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
-from monai.networks.utils import get_pretrained_resnet_medicalnet
-
 
 MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
 MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"
@@ -48,6 +46,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def get_inplanes():
     return [64, 128, 256, 512]
@@ -352,15 +351,16 @@ def _resnet(
                 logger.info(f"Loading weights from {pretrained}...")
                 model_state_dict = torch.load(pretrained, map_location=device)
             else:
-                ### Throw error
+                # Throw error
                 raise FileNotFoundError("The pretrained checkpoint file is not found")
         else:
             # Also check bias downsample and shortcut.
             if kwargs.get("spatial_dims", 3) == 3:
-                if kwargs.get("n_input_channels", 3)==1 and kwargs.get("feed_forward", True) is False:
+                if kwargs.get("n_input_channels", 3) == 1 and kwargs.get("feed_forward", True) is False:
                     resnet_depth = int(re.search(r"resnet(\d+)", arch).group(1))
                     # get shortcut_type and bias_downsample.
-                    def get_medicalnet_pretrained_resnet_args(resnet_depth: int) :
+
+                    def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
                         """
                         Return correct shortcut_type and bias_downsample for pretrained MedicalNet weights according to rensnet depth
                         """
@@ -373,23 +373,30 @@ def _resnet(
 
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
-                    if shortcut_type == kwargs.get("shortcut_type", "B") and \
-                        (bool(bias_downsample) == kwargs.get("bias_downsample", False) if bias_downsample != -1 else True):
+                    if shortcut_type == kwargs.get("shortcut_type", "B") and (
+                        bool(bias_downsample) == kwargs.get("bias_downsample", False) if bias_downsample != -1 else True
+                    ):
                         # Download the MedicalNet pretrained model
-                        model_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device=device, datasets23=True)
+                        model_state_dict = get_pretrained_resnet_medicalnet(
+                            resnet_depth, device=device, datasets23=True
+                        )
                     else:
-                        raise NotImplementedError(f"Please set shortcut_type to {shortcut_type} and bias_downsample to" \
-                            f"{bool(bias_downsample) if bias_downsample!=-1 else 'True or False'}" \
-                            f"when using pretrained MedicalNet resnet{resnet_depth}")
+                        raise NotImplementedError(
+                            f"Please set shortcut_type to {shortcut_type} and bias_downsample to"
+                            f"{bool(bias_downsample) if bias_downsample!=-1 else 'True or False'}"
+                            f"when using pretrained MedicalNet resnet{resnet_depth}"
+                        )
                 else:
                     raise NotImplementedError(
-                        "Please set n_input_channels to 1" \
-                        "and feed_forward to False in order to use MedicalNet pretrained weights")
+                        "Please set n_input_channels to 1"
+                        "and feed_forward to False in order to use MedicalNet pretrained weights"
+                    )
             else:
                 raise NotImplementedError("MedicalNet pretrained weights are only avalaible for 3D models")
         model_state_dict = {key.replace("module.", ""): value for key, value in model_state_dict.items()}
         model.load_state_dict(model_state_dict, strict=True)
     return model
+
 
 def resnet10(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
     """ResNet-10 with optional pretrained support when `spatial_dims` is 3.

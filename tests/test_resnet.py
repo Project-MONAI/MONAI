@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
+import copy
+import os
+import re
+import sys
 import unittest
 from typing import TYPE_CHECKING
-import os
-import sys
-import re
-import copy
 
 import torch
 from parameterized import parameterized
@@ -24,9 +24,9 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.networks.nets.resnet import ResNetBlock
-from monai.utils import optional_import
 from monai.networks.utils import get_pretrained_resnet_medicalnet
-from tests.utils import test_script_save, equal_state_dict
+from monai.utils import optional_import
+from tests.utils import equal_state_dict, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 else:
     torchvision, has_torchvision = optional_import("torchvision")
 
-has_hf_modules = ("huggingface_hub" in sys.modules and "huggingface_hub.utils._errors" in sys.modules)
+has_hf_modules = "huggingface_hub" in sys.modules and "huggingface_hub.utils._errors" in sys.modules
 
 # from torchvision.models import ResNet50_Weights, resnet50
 
@@ -203,7 +203,7 @@ class TestResNet(unittest.TestCase):
         # Custom pretrained weights
         cp_input_param["pretrained"] = tmp_ckpt_filename
         pretrained_net = model(**cp_input_param)
-        assert (equal_state_dict(net.state_dict(), pretrained_net.state_dict()))
+        assert equal_state_dict(net.state_dict(), pretrained_net.state_dict())
 
         if has_hf_modules:
             # True flag
@@ -211,7 +211,7 @@ class TestResNet(unittest.TestCase):
             resnet_depth = int(re.search(r"resnet(\d+)", model.__name__).group(1))
 
             # Duplicate. see monai/networks/nets/resnet.py
-            def get_medicalnet_pretrained_resnet_args(resnet_depth: int) :
+            def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
                 """
                 Return correct shortcut_type and bias_downsample for pretrained MedicalNet weights according to rensnet depth
                 """
@@ -225,12 +225,15 @@ class TestResNet(unittest.TestCase):
             bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
 
             # With orig. test cases
-            if (input_param.get("spatial_dims", 3) == 3 and
-                input_param.get("n_input_channels", 3)==1 and
-                input_param.get("feed_forward", True) is False and
-                input_param.get("shortcut_type", "B") == shortcut_type and
-                (input_param.get("bias_downsample", True) == bool(bias_downsample) if bias_downsample != -1 else True)
-                ):
+            if (
+                input_param.get("spatial_dims", 3) == 3
+                and input_param.get("n_input_channels", 3) == 1
+                and input_param.get("feed_forward", True) is False
+                and input_param.get("shortcut_type", "B") == shortcut_type
+                and (
+                    input_param.get("bias_downsample", True) == bool(bias_downsample) if bias_downsample != -1 else True
+                )
+            ):
                 model(**cp_input_param)
             else:
                 with self.assertRaises(NotImplementedError):
@@ -240,12 +243,14 @@ class TestResNet(unittest.TestCase):
             cp_input_param["n_input_channels"] = 1
             cp_input_param["feed_forward"] = False
             cp_input_param["shortcut_type"] = shortcut_type
-            cp_input_param["bias_downsample"] = bool(bias_downsample) if bias_downsample!=-1 else True
-            if cp_input_param.get("spatial_dims", 3)==3:
+            cp_input_param["bias_downsample"] = bool(bias_downsample) if bias_downsample != -1 else True
+            if cp_input_param.get("spatial_dims", 3) == 3:
                 pretrained_net = model(**cp_input_param).to(device)
-                medicalnet_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device = device)
-                medicalnet_state_dict = {key.replace("module.", ""): value for key, value in medicalnet_state_dict.items()}
-                assert(equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict))
+                medicalnet_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device=device)
+                medicalnet_state_dict = {
+                    key.replace("module.", ""): value for key, value in medicalnet_state_dict.items()
+                }
+                assert equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict)
 
         # clean
         os.remove(tmp_ckpt_filename)
