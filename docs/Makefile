@@ -25,3 +25,5 @@ help:
 
 clean:
 	rm -rf build/
+	rm -rf source/_gen
+	rm -rf source/*_properties.csv

@@ -58,6 +58,11 @@ Blocks
 .. autoclass:: Mish
     :members:
 
+`GEGLU`
+~~~~~~~
+.. autoclass:: GEGLU
+    :members:
+
 `GCN Module`
 ~~~~~~~~~~~~
 .. autoclass:: GCN
@@ -349,6 +354,16 @@ Layers
 .. autoclass:: BilateralFilter
     :members:
 
+`TrainableBilateralFilter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TrainableBilateralFilter
+    :members:
+
+`TrainableJointBilateralFilter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TrainableJointBilateralFilter
+    :members:
+
 `PHLFilter`
 ~~~~~~~~~~~
 .. autoclass:: PHLFilter
@@ -454,6 +469,11 @@ Nets
 `SegResNet`
 ~~~~~~~~~~~
 .. autoclass:: SegResNet
+  :members:
+
+`SegResNetDS`
+~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS
   :members:
 
 `SegResNetVAE`
@@ -679,6 +699,17 @@ Nets
 ~~~~~~~~~~~~
 .. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
    :members:
+
+`DAF3D`
+~~~~~~~~~~~~
+.. autoclass:: DAF3D
+   :members:
+
+`Quicknat`
+~~~~~~~~~~~~
+.. autoclass:: Quicknat
+   :members:
+
 
 Utilities
 ---------

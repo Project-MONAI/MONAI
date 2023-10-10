@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
 import os
 import shutil
 import tarfile
 import tempfile
-from typing import List, Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -44,7 +46,7 @@ class BertPreTrainedModel(nn.Module):
 
     def init_bert_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)  # type: ignore
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
         elif isinstance(module, torch.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -74,7 +76,6 @@ class BertPreTrainedModel(nn.Module):
             with tarfile.open(resolved_archive_file, "r:gz") as archive:
 
                 def is_within_directory(directory, target):
-
                     abs_directory = os.path.abspath(directory)
                     abs_target = os.path.abspath(target)
 
@@ -83,7 +84,6 @@ class BertPreTrainedModel(nn.Module):
                     return prefix == abs_directory
 
                 def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-
                     for member in tar.getmembers():
                         member_path = os.path.join(path, member.name)
                         if not is_within_directory(path, member_path):
@@ -115,9 +115,9 @@ class BertPreTrainedModel(nn.Module):
                 new_keys.append(new_key)
         for old_key, new_key in zip(old_keys, new_keys):
             state_dict[new_key] = state_dict.pop(old_key)
-        missing_keys: List = []
-        unexpected_keys: List = []
-        error_msgs: List = []
+        missing_keys: list = []
+        unexpected_keys: list = []
+        error_msgs: list = []
         metadata = getattr(state_dict, "_metadata", None)
         state_dict = state_dict.copy()
         if metadata is not None:
@@ -276,8 +276,8 @@ class Transchex(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],
-        patch_size: Union[int, Tuple[int, int]],
+        img_size: Sequence[int] | int,
+        patch_size: int | tuple[int, int],
         num_classes: int,
         num_language_layers: int,
         num_vision_layers: int,
@@ -314,7 +314,7 @@ class Transchex(torch.nn.Module):
             num_language_layers: number of language transformer layers.
             num_vision_layers: number of vision transformer layers.
             num_mixed_layers: number of mixed transformer layers.
-            drop_out: faction of the input units to drop.
+            drop_out: fraction of the input units to drop.
 
         The other parameters are part of the `bert_config` to `MultiModal.from_pretrained`.
 

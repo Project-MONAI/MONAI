@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
-from typing import Dict, List, Tuple
 
 __all__ = ["BaseEncoder"]
 
@@ -28,7 +29,7 @@ class BaseEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def get_encoder_parameters(cls) -> List[Dict]:
+    def get_encoder_parameters(cls) -> list[dict]:
         """
         Get parameter list to initialize encoder networks.
         Each parameter dict must have `spatial_dims`, `in_channels`
@@ -42,7 +43,7 @@ class BaseEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def num_channels_per_output(cls) -> List[Tuple[int, ...]]:
+    def num_channels_per_output(cls) -> list[tuple[int, ...]]:
         """
         Get number of output features' channels.
         The reason that this function should return a list is that a
@@ -56,7 +57,7 @@ class BaseEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def num_outputs(cls) -> List[int]:
+    def num_outputs(cls) -> list[int]:
         """
         Get number of outputs of encoder.
         The reason that this function should return a list is that a
@@ -70,7 +71,7 @@ class BaseEncoder(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def get_encoder_names(cls) -> List[str]:
+    def get_encoder_names(cls) -> list[str]:
         """
         Get the name string of encoders which will be used to initialize
         flexible unet.

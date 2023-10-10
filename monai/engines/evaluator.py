@@ -22,7 +22,7 @@ from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
-from monai.utils import ForwardMode, deprecated, ensure_tuple, min_version, optional_import
+from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 from monai.utils.enums import EngineStatsKeys as ESKeys
 from monai.utils.module import look_up_option
@@ -99,7 +99,7 @@ class Evaluator(Workflow):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -133,7 +133,7 @@ class Evaluator(Workflow):
         else:
             raise ValueError(f"unsupported mode: {mode}, should be 'eval' or 'train'.")
 
-    def run(self, global_epoch: int = 1) -> None:
+    def run(self, global_epoch: int = 1) -> None:  # type: ignore[override]
         """
         Execute validation/evaluation based on Ignite Engine.
 
@@ -166,10 +166,6 @@ class Evaluator(Workflow):
         for k in vars:
             stats[k] = getattr(self.state, k, None)
         return stats
-
-    @deprecated(since="0.9", msg_suffix="please use the `get_stats()` API instead.")
-    def get_validation_stats(self):
-        return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
 
 
 class SupervisedEvaluator(Evaluator):
@@ -237,7 +233,7 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -267,7 +263,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -295,10 +291,8 @@ class SupervisedEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
-
         # execute forward computation
         with engine.mode(engine.network):
-
             if engine.amp:
                 with torch.cuda.amp.autocast(**engine.amp_kwargs):
                     engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
@@ -380,7 +374,7 @@ class EnsembleEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -415,7 +409,7 @@ class EnsembleEvaluator(Evaluator):
             raise ValueError("length of `pred_keys` must be same as the length of `networks`.")
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

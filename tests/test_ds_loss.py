@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -152,7 +154,7 @@ class TestDSLossDiceCE(unittest.TestCase):
     @SkipIfBeforePyTorchVersion((1, 10))
     def test_script(self):
         loss = DeepSupervisionLoss(DiceCELoss())
-        test_input = torch.ones(2, 1, 8, 8)
+        test_input = torch.ones(2, 2, 8, 8)
         test_script_save(loss, test_input, test_input)
 
 

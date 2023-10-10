@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Sequence
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
 
 import torch
 
@@ -24,7 +26,7 @@ def generate_param_groups(
     match_types: Sequence[str],
     lr_values: Sequence[float],
     include_others: bool = True,
-):
+) -> list[dict]:
     """
     Utility function to generate parameter groups with different LR values for optimizer.
     The output parameter groups have the same order as `layer_match` functions.

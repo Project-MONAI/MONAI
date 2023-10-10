@@ -30,7 +30,7 @@ Its ambitions are:
 - compositional & portable APIs for ease of integration in existing workflows;
 - domain-specific implementations for networks, losses, evaluation metrics and more;
 - customizable design for varying user expertise;
-- multi-GPU data parallelism support.
+- multi-GPU multi-node data parallelism support.
 
 
 ## Installation
@@ -51,6 +51,10 @@ Examples and notebook tutorials are located at [Project-MONAI/tutorials](https:/
 
 Technical documentation is available at [docs.monai.io](https://docs.monai.io).
 
+## Citation
+
+If you have used MONAI in your research, please cite us! The citation can be exported from: https://arxiv.org/abs/2211.02701.
+
 ## Model Zoo
 [The MONAI Model Zoo](https://github.com/Project-MONAI/model-zoo) is a place for researchers and data scientists to share the latest and great models from the community.
 Utilizing [the MONAI Bundle format](https://docs.monai.io/en/latest/bundle_intro.html) makes it easy to [get started](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo) building workflows with MONAI.
@@ -59,7 +63,7 @@ Utilizing [the MONAI Bundle format](https://docs.monai.io/en/latest/bundle_intro
 For guidance on making a contribution to MONAI, see the [contributing guidelines](https://github.com/Project-MONAI/MONAI/blob/dev/CONTRIBUTING.md).
 
 ## Community
-Join the conversation on Twitter [@ProjectMONAI](https://twitter.com/ProjectMONAI) or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
+Join the conversation on Twitter/X [@ProjectMONAI](https://twitter.com/ProjectMONAI) or join our [Slack channel](https://forms.gle/QTxJq3hFictp31UM9).
 
 Ask and answer questions over on [MONAI's GitHub Discussions tab](https://github.com/Project-MONAI/MONAI/discussions).
 

@@ -45,6 +45,13 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`GDSDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GDSDataset
+  :members:
+  :special-members: __getitem__
+
+
 `CacheNTransDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: CacheNTransDataset
@@ -152,6 +159,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+NrrdReader
+~~~~~~~~~~
+.. autoclass:: NrrdReader
+  :members:
 
 Image writer
 ------------
@@ -183,28 +194,6 @@ PILWriter
 ~~~~~~~~~
 .. autoclass:: PILWriter
   :members:
-
-Nifti format handling
----------------------
-
-Writing Nifti
-~~~~~~~~~~~~~
-.. autoclass:: monai.data.NiftiSaver
-  :members:
-
-.. autofunction:: monai.data.write_nifti
-
-
-PNG format handling
--------------------
-
-Writing PNG
-~~~~~~~~~~~
-.. autoclass:: monai.data.PNGSaver
-  :members:
-
-.. autofunction:: monai.data.write_png
-
 
 Synthetic
 ---------
@@ -273,6 +262,11 @@ N-Dim Fourier Transform
 .. automodule:: monai.data.fft_utils
 .. autofunction:: monai.data.fft_utils.fftn_centered
 .. autofunction:: monai.data.fft_utils.ifftn_centered
+
+ITK Torch Bridge
+~~~~~~~~~~~~~~~~
+.. automodule:: monai.data.itk_torch_bridge
+  :members:
 
 
 Meta Object

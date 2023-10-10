@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -36,6 +38,13 @@ for p in TEST_NDARRAYS:
     TESTS.append(
         [
             {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": np.int8},
+            p([3.5, 1.5, 1.5, 2.5]),
+            p([2, 0, 0, 1]),
+        ]
+    )
+    TESTS.append(
+        [
+            {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": torch.int8},
             p([3.5, 1.5, 1.5, 2.5]),
             p([2, 0, 0, 1]),
         ]

@@ -17,21 +17,18 @@ concurrency:
 
 jobs:
   GPU-quick-py3:  # GPU with full dependencies
-    if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
+    # if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
+    if: ${{ false }}  # disable self-hosted job project-monai/monai#7039
     strategy:
       matrix:
         environment:
-          - "PT18+CUDA102"
           - "PT19+CUDA114DOCKER"
           - "PT110+CUDA111"
           - "PT112+CUDA118DOCKER"
           - "PT113+CUDA116"
+          - "PT210+CUDA121DOCKER"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-          - environment: PT18+CUDA102
-            # pytorch 1.8.2 LTS
-            pytorch: "torch==1.8.2 torchvision==0.9.2 --extra-index-url https://download.pytorch.org/whl/lts/1.8/cu102"
-            base: "nvcr.io/nvidia/cuda:10.2-devel-ubuntu18.04"
           - environment: PT19+CUDA114DOCKER
             # 21.10: 1.10.0a0+0aef44c
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
@@ -46,27 +43,26 @@ jobs:
           - environment: PT113+CUDA116
             pytorch: "torch==1.13.1 torchvision==0.14.1"
             base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
+          - environment: PT210+CUDA121DOCKER
+            # 23.08: 2.1.0a0+29c30b1
+            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
+            base: "nvcr.io/nvidia/pytorch:23.08-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: apt install
       if: github.event.pull_request.merged != true
       run: |
-        # FIXME: workaround for https://github.com/Project-MONAI/MONAI/issues/4200
-        apt-key del 7fa2af80 && rm -rf /etc/apt/sources.list.d/nvidia-ml.list /etc/apt/sources.list.d/cuda.list
         apt-get update
         apt-get install -y wget
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
-        dpkg -i cuda-keyring_1.0-1_all.deb
 
-        if [ ${{ matrix.environment }} = "PT18+CUDA102" ] || \
-          [ ${{ matrix.environment }} = "PT110+CUDA111" ] || \
+        if [ ${{ matrix.environment }} = "PT110+CUDA111" ] || \
           [ ${{ matrix.environment }} = "PT113+CUDA116" ]
         then
-        PYVER=3.7 PYSFX=3 DISTUTILS=python3-distutils && \
+        PYVER=3.8 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
           curl \
           pkg-config \
@@ -108,12 +104,10 @@ jobs:
         python -m pip install --upgrade pip wheel
         # fixes preinstalled ruamel_yaml error from the docker image
         rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
+        rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/llvmlite*  #6377
         python -m pip install ${{ matrix.pytorch }}
         python -m pip install -r requirements-dev.txt
         python -m pip list
-        DRIVER_VERSION=$(cat /proc/driver/nvidia/version | head -1 | awk -F' ' '{print $8}')
-        ls -ltr /usr/lib/x86_64-linux-gnu/libcuda* && ln -fs /usr/lib/x86_64-linux-gnu/libcuda.so.$DRIVER_VERSION /usr/lib/x86_64-linux-gnu/libcuda.so.1 || true
-        ls -ltr /usr/lib64/libcuda* && ln -fs /usr/lib64/libcuda.so.$DRIVER_VERSION /usr/lib64/libcuda.so.1 || true
     - name: Run quick tests (GPU)
       if: github.event.pull_request.merged != true
       run: |
@@ -134,7 +128,7 @@ jobs:
         # build for the current self-hosted CI Tesla V100
         BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --disttests
         ./runtests.sh --quick --unittests
-        if [ ${{ matrix.environment }} = "PT18+CUDA102" ]; then
+        if [ ${{ matrix.environment }} = "PT113+CUDA116" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi

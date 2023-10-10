@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -17,10 +19,10 @@ from monai.transforms import SpatialPadd
 from tests.padders import PadTest
 
 TESTS = [
-    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric"}, (3, 8, 8, 4), (3, 15, 8, 8)],
-    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 4), (3, 15, 8, 8)],
-    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 4), (3, 15, 8, 8)],
-    [{"keys": ["img"], "spatial_size": [15, 8, -1], "method": "end"}, (3, 8, 4, 4), (3, 15, 8, 4)],
+    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "symmetric"}, (3, 8, 8, 5), (3, 15, 8, 8)],
+    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 5), (3, 15, 8, 8)],
+    [{"keys": ["img"], "spatial_size": [15, 8, 8], "method": "end"}, (3, 8, 8, 5), (3, 15, 8, 8)],
+    [{"keys": ["img"], "spatial_size": [15, 8, -1], "method": "end"}, (3, 8, 5, 4), (3, 15, 8, 4)],
 ]
 
 
@@ -31,6 +33,10 @@ class TestSpatialPadd(PadTest):
     def test_pad(self, input_param, input_shape, expected_shape):
         modes = ["constant", {"constant"}]
         self.pad_test(input_param, input_shape, expected_shape, modes)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.pad_test_pending_ops(input_param, input_shape)
 
 
 if __name__ == "__main__":

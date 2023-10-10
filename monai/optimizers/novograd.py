@@ -9,10 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Iterable, Optional, Tuple
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+from typing import TypeVar
 
 import torch
 from torch.optim import Optimizer
+
+T = TypeVar("T")
 
 
 class Novograd(Optimizer):
@@ -38,7 +43,7 @@ class Novograd(Optimizer):
         self,
         params: Iterable,
         lr: float = 1e-3,
-        betas: Tuple[float, float] = (0.9, 0.98),
+        betas: tuple[float, float] = (0.9, 0.98),
         eps: float = 1e-8,
         weight_decay: float = 0,
         grad_averaging: bool = False,
@@ -65,7 +70,7 @@ class Novograd(Optimizer):
         for group in self.param_groups:
             group.setdefault("amsgrad", False)
 
-    def step(self, closure: Optional[Callable] = None):
+    def step(self, closure: Callable[[], T] | None = None) -> T | None:  # type: ignore
         """Performs a single optimization step.
 
         Arguments:

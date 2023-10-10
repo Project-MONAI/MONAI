@@ -15,9 +15,12 @@ defined in :py:class:`monai.transforms.utility.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from __future__ import annotations
+
 import warnings
+from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from copy import deepcopy
-from typing import Any, Callable, Dict, Hashable, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -30,6 +33,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
     Activations,
     AsDiscrete,
+    DistanceTransformEDT,
     FillHoles,
     KeepLargestConnectedComponent,
     LabelFilter,
@@ -88,6 +92,9 @@ __all__ = [
     "VoteEnsembleD",
     "VoteEnsembleDict",
     "VoteEnsembled",
+    "DistanceTransformEDTd",
+    "DistanceTransformEDTD",
+    "DistanceTransformEDTDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -104,9 +111,9 @@ class Activationsd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        sigmoid: Union[Sequence[bool], bool] = False,
-        softmax: Union[Sequence[bool], bool] = False,
-        other: Optional[Union[Sequence[Callable], Callable]] = None,
+        sigmoid: Sequence[bool] | bool = False,
+        softmax: Sequence[bool] | bool = False,
+        other: Sequence[Callable] | Callable | None = None,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -133,7 +140,7 @@ class Activationsd(MapTransform):
         self.converter = Activations()
         self.converter.kwargs = kwargs
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, sigmoid, softmax, other in self.key_iterator(d, self.sigmoid, self.softmax, self.other):
             d[key] = self.converter(d[key], sigmoid, softmax, other)
@@ -150,10 +157,10 @@ class AsDiscreted(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        argmax: Union[Sequence[bool], bool] = False,
-        to_onehot: Union[Sequence[Optional[int]], Optional[int]] = None,
-        threshold: Union[Sequence[Optional[float]], Optional[float]] = None,
-        rounding: Union[Sequence[Optional[str]], Optional[str]] = None,
+        argmax: Sequence[bool] | bool = False,
+        to_onehot: Sequence[int | None] | int | None = None,
+        threshold: Sequence[float | None] | float | None = None,
+        rounding: Sequence[str | None] | str | None = None,
         allow_missing_keys: bool = False,
         **kwargs,
     ) -> None:
@@ -194,7 +201,7 @@ class AsDiscreted(MapTransform):
         self.converter = AsDiscrete()
         self.converter.kwargs = kwargs
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, argmax, to_onehot, threshold, rounding in self.key_iterator(
             d, self.argmax, self.to_onehot, self.threshold, self.rounding
@@ -213,10 +220,10 @@ class KeepLargestConnectedComponentd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        applied_labels: Optional[Union[Sequence[int], int]] = None,
-        is_onehot: Optional[bool] = None,
+        applied_labels: Sequence[int] | int | None = None,
+        is_onehot: bool | None = None,
         independent: bool = True,
-        connectivity: Optional[int] = None,
+        connectivity: int | None = None,
         num_components: int = 1,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -251,7 +258,7 @@ class KeepLargestConnectedComponentd(MapTransform):
             num_components=num_components,
         )
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -286,7 +293,7 @@ class RemoveSmallObjectsd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -301,7 +308,7 @@ class LabelFilterd(MapTransform):
     backend = LabelFilter.backend
 
     def __init__(
-        self, keys: KeysCollection, applied_labels: Union[Sequence[int], int], allow_missing_keys: bool = False
+        self, keys: KeysCollection, applied_labels: Sequence[int] | int, allow_missing_keys: bool = False
     ) -> None:
         """
         Args:
@@ -314,7 +321,7 @@ class LabelFilterd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelFilter(applied_labels)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -331,8 +338,8 @@ class FillHolesd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        applied_labels: Optional[Union[Iterable[int], int]] = None,
-        connectivity: Optional[int] = None,
+        applied_labels: Iterable[int] | int | None = None,
+        connectivity: int | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -351,7 +358,7 @@ class FillHolesd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = FillHoles(applied_labels=applied_labels, connectivity=connectivity)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -377,7 +384,7 @@ class LabelToContourd(MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.converter = LabelToContour(kernel_type=kernel_type)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
@@ -395,8 +402,8 @@ class Ensembled(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        ensemble: Callable[[Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]], NdarrayOrTensor],
-        output_key: Optional[str] = None,
+        ensemble: Callable[[Sequence[NdarrayOrTensor] | NdarrayOrTensor], NdarrayOrTensor],
+        output_key: str | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -421,9 +428,9 @@ class Ensembled(MapTransform):
             raise ValueError("Incompatible values: len(self.keys) > 1 and output_key=None.")
         self.output_key = output_key if output_key is not None else self.keys[0]
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        items: Union[List[NdarrayOrTensor], NdarrayOrTensor]
+        items: list[NdarrayOrTensor] | NdarrayOrTensor
         if len(self.keys) == 1 and self.keys[0] in d:
             items = d[self.keys[0]]
         else:
@@ -445,8 +452,8 @@ class MeanEnsembled(Ensembled):
     def __init__(
         self,
         keys: KeysCollection,
-        output_key: Optional[str] = None,
-        weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None,
+        output_key: str | None = None,
+        weights: Sequence[float] | NdarrayOrTensor | None = None,
     ) -> None:
         """
         Args:
@@ -477,9 +484,7 @@ class VoteEnsembled(Ensembled):
 
     backend = VoteEnsemble.backend
 
-    def __init__(
-        self, keys: KeysCollection, output_key: Optional[str] = None, num_classes: Optional[int] = None
-    ) -> None:
+    def __init__(self, keys: KeysCollection, output_key: str | None = None, num_classes: int | None = None) -> None:
         """
         Args:
             keys: keys of the corresponding items to be stack and execute ensemble.
@@ -531,9 +536,9 @@ class ProbNMSd(MapTransform):
         self,
         keys: KeysCollection,
         spatial_dims: int = 2,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
+        sigma: Sequence[float] | float | Sequence[torch.Tensor] | torch.Tensor = 0.0,
         prob_threshold: float = 0.5,
-        box_size: Union[int, Sequence[int]] = 48,
+        box_size: int | Sequence[int] = 48,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -581,14 +586,14 @@ class Invertd(MapTransform):
         self,
         keys: KeysCollection,
         transform: InvertibleTransform,
-        orig_keys: Optional[KeysCollection] = None,
-        meta_keys: Optional[KeysCollection] = None,
-        orig_meta_keys: Optional[KeysCollection] = None,
+        orig_keys: KeysCollection | None = None,
+        meta_keys: KeysCollection | None = None,
+        orig_meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
-        nearest_interp: Union[bool, Sequence[bool]] = True,
-        to_tensor: Union[bool, Sequence[bool]] = True,
-        device: Union[Union[str, torch.device], Sequence[Union[str, torch.device]], None] = None,
-        post_func: Union[Callable, Sequence[Callable], None] = None,
+        nearest_interp: bool | Sequence[bool] = True,
+        to_tensor: bool | Sequence[bool] = True,
+        device: str | torch.device | Sequence[str | torch.device] | None = None,
+        post_func: Callable | Sequence[Callable] | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -638,7 +643,7 @@ class Invertd(MapTransform):
         self.post_func = ensure_tuple_rep(post_func, len(self.keys))
         self._totensor = ToTensor()
 
-    def __call__(self, data: Mapping[Hashable, Any]) -> Dict[Hashable, Any]:
+    def __call__(self, data: Mapping[Hashable, Any]) -> dict[Hashable, Any]:
         d = dict(data)
         for (
             key,
@@ -728,9 +733,9 @@ class SaveClassificationd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
-        saver: Optional[CSVSaver] = None,
+        saver: CSVSaver | None = None,
         output_dir: PathLike = "./",
         filename: str = "predictions.csv",
         delimiter: str = ",",
@@ -824,12 +829,12 @@ class SobelGradientsd(MapTransform):
         self,
         keys: KeysCollection,
         kernel_size: int = 3,
-        spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        spatial_axes: Sequence[int] | int | None = None,
         normalize_kernels: bool = True,
         normalize_gradients: bool = False,
         padding_mode: str = "reflect",
         dtype: torch.dtype = torch.float32,
-        new_key_prefix: Optional[str] = None,
+        new_key_prefix: str | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
@@ -845,11 +850,56 @@ class SobelGradientsd(MapTransform):
         self.kernel_diff = self.transform.kernel_diff
         self.kernel_smooth = self.transform.kernel_smooth
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             new_key = key if self.new_key_prefix is None else self.new_key_prefix + key
             d[new_key] = self.transform(d[key])
+
+        return d
+
+
+class DistanceTransformEDTd(MapTransform):
+    """
+    Applies the Euclidean distance transform on the input.
+    Either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation and / or :func:`monai.transforms.utils.distance_transform_edt`.
+
+
+    Note on the input shape:
+        Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+        Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+        Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+        from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+        allow_missing_keys: don't raise exception if key is missing.
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+            if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+
+
+    """
+
+    backend = DistanceTransformEDT.backend
+
+    def __init__(
+        self, keys: KeysCollection, allow_missing_keys: bool = False, sampling: None | float | list[float] = None
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.sampling = sampling
+        self.distance_transform = DistanceTransformEDT(sampling=self.sampling)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Mapping[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.distance_transform(img=d[key])
 
         return d
 
@@ -868,3 +918,4 @@ SaveClassificationD = SaveClassificationDict = SaveClassificationd
 VoteEnsembleD = VoteEnsembleDict = VoteEnsembled
 EnsembleD = EnsembleDict = Ensembled
 SobelGradientsD = SobelGradientsDict = SobelGradientsd
+DistanceTransformEDTD = DistanceTransformEDTDict = DistanceTransformEDTd

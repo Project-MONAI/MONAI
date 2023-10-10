@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -23,13 +25,19 @@ from monai.data import ImageDataset, create_test_image_3d
 from monai.inferers import sliding_window_inference
 from monai.networks import eval_mode, predict_segmentation
 from monai.networks.nets import UNet
-from monai.transforms import AddChannel, SaveImage
+from monai.transforms import EnsureChannelFirst, SaveImage
 from monai.utils import pytorch_after, set_determinism
 from tests.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
-    ds = ImageDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=True)
+    ds = ImageDataset(
+        [img_name],
+        [seg_name],
+        transform=EnsureChannelFirst(channel_dim="no_channel"),
+        seg_transform=EnsureChannelFirst(channel_dim="no_channel"),
+        image_only=True,
+    )
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
     net = UNet(

@@ -19,8 +19,7 @@ from typing import Any, Iterable
 import numpy as np
 import torch
 
-from monai.utils.enums import TraceKeys
-from monai.utils.misc import first
+from monai.utils import TraceKeys, first, is_immutable
 
 _TRACK_META = True
 
@@ -107,13 +106,15 @@ class MetaObj:
     @staticmethod
     def copy_items(data):
         """returns a copy of the data. list and dict are shallow copied for efficiency purposes."""
+        if is_immutable(data):
+            return data
         if isinstance(data, (list, dict, np.ndarray)):
             return data.copy()
         if isinstance(data, torch.Tensor):
             return data.detach().clone()
         return deepcopy(data)
 
-    def copy_meta_from(self, input_objs, copy_attr=True) -> None:
+    def copy_meta_from(self, input_objs, copy_attr=True, keys=None):
         """
         Copy metadata from a `MetaObj` or an iterable of `MetaObj` instances.
 
@@ -121,13 +122,19 @@ class MetaObj:
             input_objs: list of `MetaObj` to copy data from.
             copy_attr: whether to copy each attribute with `MetaObj.copy_item`.
                 note that if the attribute is a nested list or dict, only a shallow copy will be done.
+            keys: the keys of attributes to copy from the ``input_objs``.
+                If None, all keys from the input_objs will be copied.
         """
         first_meta = input_objs if isinstance(input_objs, MetaObj) else first(input_objs, default=self)
+        if not hasattr(first_meta, "__dict__"):
+            return self
         first_meta = first_meta.__dict__
+        keys = first_meta.keys() if keys is None else keys
         if not copy_attr:
-            self.__dict__ = first_meta.copy()  # shallow copy for performance
+            self.__dict__ = {a: first_meta[a] for a in keys if a in first_meta}  # shallow copy for performance
         else:
-            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in first_meta})
+            self.__dict__.update({a: MetaObj.copy_items(first_meta[a]) for a in keys if a in first_meta})
+        return self
 
     @staticmethod
     def get_default_meta() -> dict:
@@ -206,6 +213,15 @@ class MetaObj:
         if hasattr(self, "_pending_operations"):
             return self._pending_operations
         return MetaObj.get_default_applied_operations()  # the same default as applied_ops
+
+    @property
+    def has_pending_operations(self) -> bool:
+        """
+        Determine whether there are pending operations.
+        Returns:
+            True if there are pending operations; False if not
+        """
+        return self.pending_operations is not None and len(self.pending_operations) > 0
 
     def push_pending_operation(self, t: Any) -> None:
         self._pending_operations.append(t)

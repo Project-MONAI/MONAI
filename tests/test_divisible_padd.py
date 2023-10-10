@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -30,6 +32,10 @@ class TestDivisiblePadd(PadTest):
     def test_pad(self, input_param, input_shape, expected_shape):
         modes = ["constant", NumpyPadMode.CONSTANT, PytorchPadMode.CONSTANT, "edge", NumpyPadMode.EDGE]
         self.pad_test(input_param, input_shape, expected_shape, modes)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.pad_test_pending_ops(input_param, input_shape)
 
 
 if __name__ == "__main__":

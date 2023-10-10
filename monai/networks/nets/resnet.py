@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable, List, Tuple, Type, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -51,7 +54,7 @@ class ResNetBlock(nn.Module):
         planes: int,
         spatial_dims: int = 3,
         stride: int = 1,
-        downsample: Union[nn.Module, partial, None] = None,
+        downsample: nn.Module | partial | None = None,
     ) -> None:
         """
         Args:
@@ -102,7 +105,7 @@ class ResNetBottleneck(nn.Module):
         planes: int,
         spatial_dims: int = 3,
         stride: int = 1,
-        downsample: Union[nn.Module, partial, None] = None,
+        downsample: nn.Module | partial | None = None,
     ) -> None:
         """
         Args:
@@ -181,13 +184,13 @@ class ResNet(nn.Module):
 
     def __init__(
         self,
-        block: Union[Type[Union[ResNetBlock, ResNetBottleneck]], str],
-        layers: List[int],
-        block_inplanes: List[int],
+        block: type[ResNetBlock | ResNetBottleneck] | str,
+        layers: list[int],
+        block_inplanes: list[int],
         spatial_dims: int = 3,
         n_input_channels: int = 3,
-        conv1_t_size: Union[Tuple[int], int] = 7,
-        conv1_t_stride: Union[Tuple[int], int] = 1,
+        conv1_t_size: tuple[int] | int = 7,
+        conv1_t_stride: tuple[int] | int = 1,
         no_max_pool: bool = False,
         shortcut_type: str = "B",
         widen_factor: float = 1.0,
@@ -195,7 +198,6 @@ class ResNet(nn.Module):
         feed_forward: bool = True,
         bias_downsample: bool = True,  # for backwards compatibility (also see PR #5477)
     ) -> None:
-
         super().__init__()
 
         if isinstance(block, str):
@@ -206,10 +208,10 @@ class ResNet(nn.Module):
             else:
                 raise ValueError("Unknown block '%s', use basic or bottleneck" % block)
 
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-        norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
-        pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
-        avgp_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
+        norm_type: type[nn.BatchNorm1d | nn.BatchNorm2d | nn.BatchNorm3d] = Norm[Norm.BATCH, spatial_dims]
+        pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
+        avgp_type: type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d] = Pool[
             Pool.ADAPTIVEAVG, spatial_dims
         ]
 
@@ -258,18 +260,17 @@ class ResNet(nn.Module):
 
     def _make_layer(
         self,
-        block: Type[Union[ResNetBlock, ResNetBottleneck]],
+        block: type[ResNetBlock | ResNetBottleneck],
         planes: int,
         blocks: int,
         spatial_dims: int,
         shortcut_type: str,
         stride: int = 1,
     ) -> nn.Sequential:
-
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
 
-        downsample: Union[nn.Module, partial, None] = None
+        downsample: nn.Module | partial | None = None
         if stride != 1 or self.in_planes != planes * block.expansion:
             if look_up_option(shortcut_type, {"A", "B"}) == "A":
                 downsample = partial(
@@ -325,14 +326,14 @@ class ResNet(nn.Module):
 
 def _resnet(
     arch: str,
-    block: Type[Union[ResNetBlock, ResNetBottleneck]],
-    layers: List[int],
-    block_inplanes: List[int],
+    block: type[ResNetBlock | ResNetBottleneck],
+    layers: list[int],
+    block_inplanes: list[int],
     pretrained: bool,
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-    model: ResNet = ResNet(block, layers, block_inplanes, bias_downsample=not pretrained, **kwargs)
+    model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
     if pretrained:
         # Author of paper zipped the state_dict on googledrive,
         # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
@@ -340,6 +341,8 @@ def _resnet(
         raise NotImplementedError(
             "Currently not implemented. You need to manually download weights provided by the paper's author"
             " and load then to the model with `state_dict`. See https://github.com/Tencent/MedicalNet"
+            "Please ensure you pass the appropriate `shortcut_type` and `bias_downsample` args. as specified"
+            "here: https://github.com/Tencent/MedicalNet/tree/18c8bb6cd564eb1b964bffef1f4c2283f1ae6e7b#update20190730"
         )
     return model
 

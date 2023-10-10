@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict
+from __future__ import annotations
 
 import torch
 from torch.nn import CrossEntropyLoss
@@ -95,7 +95,7 @@ class HoVerNetLoss(_Loss):
 
         return loss
 
-    def forward(self, prediction: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def forward(self, prediction: dict[str, torch.Tensor], target: dict[str, torch.Tensor]) -> torch.Tensor:
         """
         Args:
             prediction: dictionary of predicted outputs for three branches,

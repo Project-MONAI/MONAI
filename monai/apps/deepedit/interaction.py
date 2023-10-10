@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Dict, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
@@ -43,13 +45,12 @@ class Interaction:
     def __init__(
         self,
         deepgrow_probability: float,
-        transforms: Union[Sequence[Callable], Callable],
+        transforms: Sequence[Callable] | Callable,
         train: bool,
-        label_names: Union[None, Dict[str, int]] = None,
+        label_names: None | dict[str, int] = None,
         click_probability_key: str = "probability",
         max_interactions: int = 1,
     ) -> None:
-
         self.deepgrow_probability = deepgrow_probability
         self.transforms = Compose(transforms) if not isinstance(transforms, Compose) else transforms
         self.train = train
@@ -57,7 +58,7 @@ class Interaction:
         self.click_probability_key = click_probability_key
         self.max_interactions = max_interactions
 
-    def __call__(self, engine: Union[SupervisedTrainer, SupervisedEvaluator], batchdata: Dict[str, torch.Tensor]):
+    def __call__(self, engine: SupervisedTrainer | SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         if batchdata is None:
             raise ValueError("Must provide batch data for current iteration.")
 
@@ -96,4 +97,4 @@ class Interaction:
 
         # first item in batch only
         engine.state.batch = batchdata
-        return engine._iteration(engine, batchdata)
+        return engine._iteration(engine, batchdata)  # type: ignore[arg-type]

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -18,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Invertd, Resize, Resized
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 TEST_CASE_0 = [{"keys": "img", "spatial_size": 15}, (6, 10, 15)]
@@ -49,6 +52,9 @@ TEST_CORRECT_CASES = [
     ((64, 64), "area", True),
     ((32, 32, 32), "area", True),
     ((256, 256), "bilinear", False),
+    ((256, 256), "bilinear", True),
+    ((128, 128), "nearest", False),
+    ((128, 128), "nearest", True),
 ]
 
 
@@ -62,9 +68,25 @@ class TestResized(NumpyImageTestCase2D):
             resize = Resized(keys="img", spatial_size=(128,), mode="order")
             resize({"img": self.imt[0]})
 
+    def test_unchange(self):
+        resize = Resized(keys="img", spatial_size=(128, 64), mode="bilinear")
+        set_track_meta(False)
+        for p in TEST_NDARRAYS_ALL:
+            im = p(self.imt[0])
+            result = resize({"img": im})["img"]
+            assert_allclose(im, result, type_test=False)
+        set_track_meta(True)
+
     @parameterized.expand(TEST_CORRECT_CASES)
     def test_correct_results(self, spatial_size, mode, anti_aliasing):
-        resize = Resized("img", spatial_size, mode=mode, anti_aliasing=anti_aliasing)
+        init_param = {
+            "keys": "img",
+            "spatial_size": spatial_size,
+            "mode": mode,
+            "anti_aliasing": anti_aliasing,
+            "dtype": np.float32,
+        }
+        resize = Resized(**init_param)
         _order = 0
         if mode.endswith("linear"):
             _order = 1
@@ -80,7 +102,11 @@ class TestResized(NumpyImageTestCase2D):
         expected = np.stack(expected).astype(np.float32)
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
-            out = resize({"img": im})
+            call_param = {"data": {"img": im}}
+            out = resize(**call_param)
+            lazy_resize = Resized(**init_param)
+            if init_param["mode"] in ("bilinear", "nearest"):
+                test_resampler_lazy(lazy_resize, out, init_param, call_param, output_key="img", atol=1e-5)
             test_local_inversion(resize, out, {"img": im}, "img")
             assert_allclose(out["img"], expected, type_test=False, atol=1.0)
 

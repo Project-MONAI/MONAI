@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 from enum import Enum
-from typing import Optional
 
-from monai.utils.deprecate_utils import deprecated
+from monai.utils import deprecated
 
 __all__ = [
     "StrEnum",
@@ -35,12 +36,13 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
-    "InverseKeys",
+    "TraceStatusKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "CompInitMode",
     "BoxModeName",
     "GridPatchSort",
     "FastMRIKeys",
@@ -55,6 +57,9 @@ __all__ = [
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
+    "BundleProperty",
+    "BundlePropertyConfig",
+    "AlgoKeys",
 ]
 
 
@@ -311,25 +316,15 @@ class TraceKeys(StrEnum):
     DO_TRANSFORM: str = "do_transforms"
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
+    TRACING: str = "tracing"
+    STATUSES: str = "statuses"
+    LAZY: str = "lazy"
 
 
-@deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
-class InverseKeys:
-    """
-    Extra metadata keys used for inverse transforms.
+class TraceStatusKeys(StrEnum):
+    """Enumerable status keys for the TraceKeys.STATUS flag"""
 
-    .. deprecated:: 0.8.0
-        Use :class:`monai.utils.enums.TraceKeys` instead.
-
-    """
-
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    PENDING_DURING_APPLY = "pending_during_apply"
 
 
 class CommonKeys(StrEnum):
@@ -367,19 +362,19 @@ class PostFix(StrEnum):
     """Post-fixes."""
 
     @staticmethod
-    def _get_str(prefix, suffix):
+    def _get_str(prefix: str | None, suffix: str) -> str:
         return suffix if prefix is None else f"{prefix}_{suffix}"
 
     @staticmethod
-    def meta(key: Optional[str] = None):
+    def meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "meta_dict")
 
     @staticmethod
-    def orig_meta(key: Optional[str] = None):
+    def orig_meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "orig_meta_dict")
 
     @staticmethod
-    def transforms(key: Optional[str] = None):
+    def transforms(key: str | None = None) -> str:
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
@@ -395,6 +390,18 @@ class TransformBackends(StrEnum):
     TORCH = "torch"
     NUMPY = "numpy"
     CUPY = "cupy"
+
+
+class CompInitMode(StrEnum):
+    """
+    Mode names for instantiating a class or calling a callable.
+
+    See also: :py:func:`monai.utils.module.instantiate`
+    """
+
+    DEFAULT = "default"
+    PARTIAL = "partial"
+    DEBUG = "debug"
 
 
 class JITMetadataKeys(StrEnum):
@@ -468,15 +475,25 @@ class GridPatchSort(StrEnum):
             )
 
 
+class PatchKeys(StrEnum):
+    """
+    The keys to be used for metadata of patches extracted from any kind of image
+    """
+
+    LOCATION = "location"
+    SIZE = "size"
+    COUNT = "count"
+
+
 class WSIPatchKeys(StrEnum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "location"
+    LOCATION = PatchKeys.LOCATION
+    SIZE = PatchKeys.SIZE
+    COUNT = PatchKeys.COUNT
     LEVEL = "level"
-    SIZE = "size"
-    COUNT = "count"
     PATH = "path"
 
 
@@ -514,7 +531,7 @@ class MetaKeys(StrEnum):
     ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
-    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
+    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or float("nan")
 
 
 class ColorOrder(StrEnum):
@@ -567,6 +584,7 @@ class ImageStatsKeys(StrEnum):
     CHANNELS = "channels"
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
+    SIZEMM = "sizemm"
     INTENSITY = "intensity"
     HISTOGRAM = "histogram"
 
@@ -585,6 +603,7 @@ class LabelStatsKeys(StrEnum):
     LABEL_NCOMP = "ncomponents"
 
 
+@deprecated(since="1.2", removed="1.4", msg_suffix="please use `AlgoKeys` instead.")
 class AlgoEnsembleKeys(StrEnum):
     """
     Default keys for Mixed Ensemble
@@ -624,6 +643,7 @@ class LazyAttr(StrEnum):
     MetaTensor with pending operations requires some key attributes tracked especially when the primary array
     is not up-to-date due to lazy evaluation.
     This class specifies the set of key attributes to be tracked for each MetaTensor.
+    See also: :py:func:`monai.transforms.lazy.utils.resample` for more details.
     """
 
     SHAPE = "lazy_shape"  # spatial shape
@@ -631,3 +651,44 @@ class LazyAttr(StrEnum):
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
+    ALIGN_CORNERS = "lazy_align_corners"
+    RESAMPLE_MODE = "lazy_resample_mode"
+
+
+class BundleProperty(StrEnum):
+    """
+    Bundle property fields:
+    `DESC` is the description of the property.
+    `REQUIRED` is flag to indicate whether the property is required or optional.
+    """
+
+    DESC = "description"
+    REQUIRED = "required"
+
+
+class BundlePropertyConfig(StrEnum):
+    """
+    additional bundle property fields for config based bundle workflow:
+    `ID` is the config item ID of the property.
+    `REF_ID` is the ID of config item which is supposed to refer to this property.
+    For properties that do not have `REF_ID`, `None` should be set.
+    this field is only useful to check the optional property ID.
+    """
+
+    ID = "id"
+    REF_ID = "refer_id"
+
+
+class AlgoKeys(StrEnum):
+    """
+    Default keys for templated Auto3DSeg Algo.
+    `ID` is the identifier of the algorithm. The string has the format of <name>_<idx>_<other>.
+    `ALGO` is the Auto3DSeg Algo instance.
+    `IS_TRAINED` is the status that shows if the Algo has been trained.
+    `SCORE` is the score the Algo has achieved after training.
+    """
+
+    ID = "identifier"
+    ALGO = "algo_instance"
+    IS_TRAINED = "is_trained"
+    SCORE = "best_metric"

@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from __future__ import annotations
 
 import torch.nn
 
@@ -19,7 +19,7 @@ from monai.utils import has_option
 __all__ = ["get_norm_layer", "get_act_layer", "get_dropout_layer", "get_pool_layer"]
 
 
-def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, channels: Optional[int] = 1):
+def get_norm_layer(name: tuple | str, spatial_dims: int | None = 1, channels: int | None = 1):
     """
     Create a normalization layer instance.
 
@@ -50,7 +50,7 @@ def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, cha
     return norm_type(**kw_args)
 
 
-def get_act_layer(name: Union[Tuple, str]):
+def get_act_layer(name: tuple | str):
     """
     Create an activation layer instance.
 
@@ -73,7 +73,7 @@ def get_act_layer(name: Union[Tuple, str]):
     return act_type(**act_args)
 
 
-def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional[int] = 1):
+def get_dropout_layer(name: tuple | str | float | int, dropout_dim: int | None = 1):
     """
     Create a dropout layer instance.
 
@@ -102,7 +102,7 @@ def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional
     return drop_type(**drop_args)
 
 
-def get_pool_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1):
+def get_pool_layer(name: tuple | str, spatial_dims: int | None = 1):
     """
     Create a pooling layer instance.
 

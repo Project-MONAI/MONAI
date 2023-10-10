@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -32,6 +34,10 @@ TEST_CASE_LRSCHEDULER = [
     [
         {"warmup_steps": 2, "t_total": 10, "warmup_multiplier": 0.1},
         [0.1, 0.55, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.146, 0.038],
+    ],
+    [
+        {"warmup_steps": 2, "t_total": 10, "warmup_multiplier": 0.1, "end_lr": 0.309},
+        [0.1, 0.55, 1.00, 0.962, 0.854, 0.691, 0.500, 0.309, 0.309, 0.309],
     ],
 ]
 

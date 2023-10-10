@@ -9,69 +9,112 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
-from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
 import torch
 
-from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, AlgoEnsembleBuilder, BundleGen, DataAnalyzer
+from monai.apps.auto3dseg import (
+    AlgoEnsembleBestByFold,
+    AlgoEnsembleBestN,
+    AlgoEnsembleBuilder,
+    BundleGen,
+    DataAnalyzer,
+    EnsembleRunner,
+)
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
-from monai.utils import optional_import
-from monai.utils.enums import AlgoEnsembleKeys
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
+from monai.transforms import SaveImage
+from monai.utils import check_parent_dir, optional_import, set_determinism
+from monai.utils.enums import AlgoKeys
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    get_testing_algo_template_path,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+)
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
-fake_datalist: Dict[str, List[Dict]] = {
-    "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
+num_images_perfold = max(torch.cuda.device_count(), 4)
+num_images_per_batch = 2
+
+fake_datalist: dict[str, list[dict]] = {
+    "testing": [{"image": f"imagesTs/ts_image_{idx:03d}.nii.gz"} for idx in range(num_images_perfold)],
     "training": [
-        {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_003.fake.nii.gz", "label": "tr_label_003.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_005.fake.nii.gz", "label": "tr_label_005.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_006.fake.nii.gz", "label": "tr_label_006.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_007.fake.nii.gz", "label": "tr_label_007.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_008.fake.nii.gz", "label": "tr_label_008.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_009.fake.nii.gz", "label": "tr_label_009.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_010.fake.nii.gz", "label": "tr_label_010.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_011.fake.nii.gz", "label": "tr_label_011.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_012.fake.nii.gz", "label": "tr_label_012.fake.nii.gz"},
+        {
+            "fold": f,
+            "image": f"imagesTr/tr_image_{(f * num_images_perfold + idx):03d}.nii.gz",
+            "label": f"labelsTr/tr_label_{(f * num_images_perfold + idx):03d}.nii.gz",
+        }
+        for f in range(num_images_per_batch + 1)
+        for idx in range(num_images_perfold)
     ],
 }
 
-num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 train_param = (
     {
-        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
-        "num_images_per_batch": 2,
+        "num_images_per_batch": num_images_per_batch,
         "num_epochs": 2,
         "num_epochs_per_validation": 1,
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
+        "determ": True,
     }
     if torch.cuda.is_available()
     else {}
 )
 
-pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
+pred_param = {
+    "files_slices": slice(0, 1),
+    "mode": "mean",
+    "sigmoid": True,
+    "algo_spec_params": {"segresnet": {"network#init_filters": 8}, "swinunetr": {"network#feature_size": 12}},
+}
+
+
+def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
+    """
+    Create simulated data using create_test_image_3d.
+
+    Args:
+        dataroot: data directory path that hosts the "nii.gz" image files.
+        sim_datalist: a list of data to create.
+        sim_dim: the image sizes, e.g. a tuple of (64, 64, 64).
+    """
+    if not os.path.isdir(dataroot):
+        os.makedirs(dataroot)
+
+    # Generate a fake dataset
+    for d in sim_datalist["testing"] + sim_datalist["training"]:
+        im, seg = create_test_image_3d(sim_dim[0], sim_dim[1], sim_dim[2], **kwargs)
+        nib_image = nib.Nifti1Image(im, affine=np.eye(4))
+        image_fpath = os.path.join(dataroot, d["image"])
+        check_parent_dir(image_fpath)
+        nib.save(nib_image, image_fpath)
+
+        if "label" in d:
+            nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
+            label_fpath = os.path.join(dataroot, d["label"])
+            check_parent_dir(label_fpath)
+            nib.save(nib_image, label_fpath)
 
 
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@skip_if_no_cuda
+@SkipIfBeforePyTorchVersion((1, 11, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
+        set_determinism(0)
         self.test_dir = tempfile.TemporaryDirectory()
-
-    @skip_if_no_cuda
-    def test_ensemble(self) -> None:
         test_path = self.test_dir.name
 
         dataroot = os.path.join(test_path, "dataroot")
@@ -80,23 +123,10 @@ class TestEnsembleBuilder(unittest.TestCase):
         da_output_yaml = os.path.join(work_dir, "datastats.yaml")
         data_src_cfg = os.path.join(work_dir, "data_src_cfg.yaml")
 
-        if not os.path.isdir(dataroot):
-            os.makedirs(dataroot)
-
         if not os.path.isdir(work_dir):
             os.makedirs(work_dir)
 
-        # Generate a fake dataset
-        for d in fake_datalist["testing"] + fake_datalist["training"]:
-            im, seg = create_test_image_3d(24, 24, 24, rad_max=10, num_seg_classes=1)
-            nib_image = nib.Nifti1Image(im, affine=np.eye(4))
-            image_fpath = os.path.join(dataroot, d["image"])
-            nib.save(nib_image, image_fpath)
-
-            if "label" in d:
-                nib_image = nib.Nifti1Image(seg, affine=np.eye(4))
-                label_fpath = os.path.join(dataroot, d["label"])
-                nib.save(nib_image, label_fpath)
+        create_sim_data(dataroot, fake_datalist, (24, 24, 24), rad_max=10, rad_min=1, num_seg_classes=1)
 
         # write to a json file
         fake_json_datalist = os.path.join(dataroot, "fake_input.json")
@@ -117,20 +147,34 @@ class TestEnsembleBuilder(unittest.TestCase):
 
         ConfigParser.export_config_file(data_src, data_src_cfg)
 
+        self.da_output_yaml = da_output_yaml
+        self.work_dir = work_dir
+        self.data_src_cfg_name = data_src_cfg
+
+    def test_ensemble(self) -> None:
         with skip_if_downloading_fails():
             bundle_generator = BundleGen(
-                algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
+                algo_path=self.work_dir,
+                data_stats_filename=self.da_output_yaml,
+                data_src_cfg_name=self.data_src_cfg_name,
+                templates_path_or_url=get_testing_algo_template_path(),
             )
-        bundle_generator.generate(work_dir, num_fold=1)
+        bundle_generator.generate(self.work_dir, num_fold=1)
         history = bundle_generator.get_history()
 
-        for h in history:
-            self.assertEqual(len(h.keys()), 1, "each record should have one model")
-            for _, algo in h.items():
-                algo.train(train_param)
+        for algo_dict in history:
+            name = algo_dict[AlgoKeys.ID]
+            algo = algo_dict[AlgoKeys.ALGO]
+            _train_param = train_param.copy()
+            if name.startswith("segresnet"):
+                _train_param["network#init_filters"] = 8
+                _train_param["pretrained_ckpt_name"] = ""
+            elif name.startswith("swinunetr"):
+                _train_param["network#feature_size"] = 12
+            algo.train(_train_param)
 
-        builder = AlgoEnsembleBuilder(history, data_src_cfg)
-        builder.set_ensemble_method(AlgoEnsembleBestN(n_best=2))
+        builder = AlgoEnsembleBuilder(history, data_src_cfg_name=self.data_src_cfg_name)
+        builder.set_ensemble_method(AlgoEnsembleBestN(n_best=1))
         ensemble = builder.get_ensemble()
         preds = ensemble(pred_param)
         self.assertTupleEqual(preds[0].shape, (2, 24, 24, 24))
@@ -138,9 +182,28 @@ class TestEnsembleBuilder(unittest.TestCase):
         builder.set_ensemble_method(AlgoEnsembleBestByFold(1))
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
-            print(algo[AlgoEnsembleKeys.ID])
+            print(algo[AlgoKeys.ID])
+
+    def test_ensemble_runner(self) -> None:
+        runner = EnsembleRunner(data_src_cfg_name=self.data_src_cfg_name, mgpu=False)
+        runner.set_num_fold(3)
+        self.assertTrue(runner.num_fold == 3)
+        runner.set_ensemble_method(ensemble_method_name="AlgoEnsembleBestByFold")
+        self.assertIsInstance(runner.ensemble_method, AlgoEnsembleBestByFold)
+        self.assertTrue(runner.ensemble_method.n_fold == 3)  # type: ignore
+
+        runner.set_ensemble_method(ensemble_method_name="AlgoEnsembleBestN", n_best=3)
+        self.assertIsInstance(runner.ensemble_method, AlgoEnsembleBestN)
+        self.assertTrue(runner.ensemble_method.n_best == 3)
+
+        save_output = os.path.join(self.test_dir.name, "workdir")
+        save_image = runner._pop_kwargs_to_get_image_save_transform(
+            output_dir=save_output, output_postfix="test_ensemble", output_dtype=float, resample=True
+        )
+        self.assertIsInstance(ConfigParser(save_image).get_parsed_content(), SaveImage)
 
     def tearDown(self) -> None:
+        set_determinism(None)
         self.test_dir.cleanup()
 
 

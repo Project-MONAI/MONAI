@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import nibabel as nib
@@ -19,6 +21,7 @@ from parameterized import parameterized
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Orientation, create_rotate, create_translate
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, assert_allclose
 
 TESTS = []
@@ -186,9 +189,13 @@ class TestOrientationCase(unittest.TestCase):
     ):
         img = MetaTensor(img, affine=affine).to(device)
         ornt = Orientation(**init_param)
-        res: MetaTensor = ornt(img)
+        call_param = {"data_array": img}
+        res = ornt(**call_param)  # type: ignore[arg-type]
+        if img.ndim in (3, 4):
+            test_resampler_lazy(ornt, res, init_param, call_param)
+
         assert_allclose(res, expected_data.to(device))
-        new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=ornt.labels)
+        new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=ornt.labels)  # type: ignore
         self.assertEqual("".join(new_code), expected_code)
 
     @parameterized.expand(TESTS_TORCH)
@@ -204,6 +211,7 @@ class TestOrientationCase(unittest.TestCase):
         assert_allclose(res, expected_data)
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
+            assert isinstance(res, MetaTensor)  # for mypy type narrowing
             new_code = nib.orientations.aff2axcodes(res.affine.cpu(), labels=ornt.labels)
             self.assertEqual("".join(new_code), expected_code)
         else:

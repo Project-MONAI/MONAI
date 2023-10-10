@@ -9,16 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, DivisiblePadd, RandSpatialCropSamplesd
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
-    {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True},
+    {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True, "random_size": True},
     {"img": np.arange(81).reshape(3, 3, 3, 3), "seg": np.arange(81, 0, -1).reshape(3, 3, 3, 3)},
     [(3, 2, 2, 2), (3, 2, 3, 3), (3, 2, 3, 2), (3, 2, 3, 2)],
     {
@@ -43,7 +47,13 @@ TEST_CASE_2 = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASE_2.append(
         [
-            {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [2, 2, 3], "random_center": False},
+            {
+                "keys": ["img", "seg"],
+                "num_samples": 8,
+                "roi_size": [2, 2, 3],
+                "random_center": False,
+                "random_size": True,
+            },
             {"img": p(np.arange(81).reshape(3, 3, 3, 3)), "seg": p(np.arange(81, 0, -1).reshape(3, 3, 3, 3))},
             [
                 (3, 2, 2, 3),
@@ -107,6 +117,30 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
         self.assertEqual(len(samples), num_samples)
         for sample in samples:
             self.assertEqual(len(sample["img"].applied_operations), len(transform))
+
+    @parameterized.expand([TEST_CASE_1, *TEST_CASE_2])
+    def test_pending_ops(self, input_param, input_data, _expected_shape, _expected_last):
+        xform = RandSpatialCropSamplesd(**input_param)
+        # non-lazy
+        xform.set_random_state(1234)
+        expected = xform(input_data)
+        self.assertIsInstance(expected[0]["img"], MetaTensor)
+
+        # lazy
+        xform.set_random_state(1234)
+        xform.lazy = True
+        pending_result = xform(input_data)
+        for i, _pending_result in enumerate(pending_result):
+            self.assertIsInstance(_pending_result["img"], MetaTensor)
+            assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
+            assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
+            # only support nearest
+            overrides = {"mode": "nearest", "align_corners": False}
+            result_img = apply_pending(_pending_result["img"], overrides=overrides)[0]
+            result_seg = apply_pending(_pending_result["seg"], overrides=overrides)[0]
+            # compare
+            assert_allclose(result_img, expected[i]["img"], rtol=1e-5)
+            assert_allclose(result_seg, expected[i]["seg"], rtol=1e-5)
 
 
 if __name__ == "__main__":

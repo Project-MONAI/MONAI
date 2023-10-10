@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -26,7 +28,7 @@ TEST_CASE_1 = [
         "label_spatial_shape": [3, 3, 3],
         "indices": [[3, 12, 21], [1, 9, 18]],
     },
-    list,
+    tuple,
     2,
     3,
 ]
@@ -39,7 +41,7 @@ TEST_CASE_2 = [
         "label_spatial_shape": [3, 3, 3],
         "indices": [[3, 12, 21], [1, 9, 18]],
     },
-    list,
+    tuple,
     1,
     3,
 ]

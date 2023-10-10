@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.engines.evaluator import Evaluator
@@ -29,7 +31,7 @@ class ValidationHandler:
 
     """
 
-    def __init__(self, interval: int, validator: Optional[Evaluator] = None, epoch_level: bool = True) -> None:
+    def __init__(self, interval: int, validator: Evaluator | None = None, epoch_level: bool = True) -> None:
         """
         Args:
             interval: do validation every N epochs or every N iterations during training.
@@ -48,7 +50,7 @@ class ValidationHandler:
         self.interval = interval
         self.epoch_level = epoch_level
 
-    def set_validator(self, validator: Evaluator):
+    def set_validator(self, validator: Evaluator) -> None:
         """
         Set validator if not setting in the __init__().
         """

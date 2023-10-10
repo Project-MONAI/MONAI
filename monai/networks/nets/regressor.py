@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -61,11 +63,11 @@ class Regressor(nn.Module):
         out_shape: Sequence[int],
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout: Optional[float] = None,
+        dropout: float | None = None,
         bias: bool = True,
     ) -> None:
         super().__init__()
@@ -101,14 +103,14 @@ class Regressor(nn.Module):
 
     def _get_layer(
         self, in_channels: int, out_channels: int, strides: int, is_last: bool
-    ) -> Union[ResidualUnit, Convolution]:
+    ) -> ResidualUnit | Convolution:
         """
         Returns a layer accepting inputs with `in_channels` number of channels and producing outputs of `out_channels`
         number of channels. The `strides` indicates downsampling factor, ie. convolutional stride. If `is_last`
         is True this is the final layer and is not expected to include activation and normalization layers.
         """
 
-        layer: Union[ResidualUnit, Convolution]
+        layer: ResidualUnit | Convolution
 
         if self.num_res_units > 0:
             layer = ResidualUnit(
@@ -141,7 +143,7 @@ class Regressor(nn.Module):
         return layer
 
     def _get_final_layer(self, in_shape: Sequence[int]):
-        linear = nn.Linear(int(np.product(in_shape)), int(np.product(self.out_shape)))
+        linear = nn.Linear(int(np.prod(in_shape)), int(np.prod(self.out_shape)))
         return nn.Sequential(nn.Flatten(), linear)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

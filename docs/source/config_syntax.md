@@ -15,7 +15,7 @@ Content:
   - [`@` to reference Python objects in configurations](#to-reference-python-objects-in-configurations)
   - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
   - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
-  - [`_target_` (`_disabled_`, `_desc_`, and `_requires_`) to instantiate a Python object](#instantiate-a-python-object)
+  - [`_target_` (`_disabled_`, `_desc_`, `_requires_`, `_mode_`) to instantiate a Python object](#instantiate-a-python-object)
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
 
@@ -76,17 +76,21 @@ A few characters and keywords are interpreted beyond the plain texts, here are e
 ### To reference Python objects in configurations
 
 ```json
-"@preprocessing#transforms#keys"
+"@preprocessing::transforms::keys"
 ```
 
-_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing#transforms#keys`.
-where `#` indicates a sub-structure of this configuration file.
+_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing::transforms::keys`.
+where `::` indicates a sub-structure of this configuration file. (`#` is a synonym for `::`, `preprocessing#transforms#keys`
+refers to the same object.)
 
 ```json
-"@preprocessing#1"
+"@preprocessing::1"
 ```
 
 _Description:_ `1` is referencing as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
+
+Relative reference is supported by starting the reference with `#`. For example, `@#A` is to use `A` at the
+same config structure level, and `@##A` refers to `A` at one level above.
 
 ### To evaluate as Python expressions
 
@@ -110,13 +114,19 @@ _Description:_ `$` followed by an import statement is handled slightly different
 Python expressions. The imported module `resnet18` will be available as a global variable
 to the other configuration sections. This is to simplify the use of external modules in the configuration.
 
+The config expressions may use `@` to reference other config items. For example, in `$lambda x: x + @a + @b`,
+`@a` and `@b` are references to other Python objects and are made available to the anonymous function
+as 'globals'.
+It's therefore possible to modify the Python objects within an expression, for example,
+`$lambda x: @my_list.pop() + x` will pop the last element from `@my_list` and add it to `x`.
+
 ### To textually replace configuration elements
 
 ```json
-"%demo_config.json#demo_net#in_channels"
+"%demo_config.json::demo_net::in_channels"
 ```
 
-_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net#in_channels` in the
+_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net::in_channels` in the
 `demo_config.json` file. The replacement is done before instantiating or evaluating the components.
 
 ### Instantiate a Python object
@@ -143,17 +153,26 @@ This dictionary will be instantiated as a Pytorch object at runtime.
     "_target_": "my.module.Class",
     "_desc_": "this is a customized class which also triggers 'cudnn_opt' reference",
     "_requires_": "@cudnn_opt",
-    "_disabled_": "true"}
+    "_disabled_": "true",
+    "_mode_":  "default"}
 }
 ```
 
-_Description:_ `_requires_`, `_disabled_`, and `_desc_` are optional keys.
+_Description:_ `_requires_`, `_disabled_`, `_desc_`, and `_mode_` are optional keys.
 - `_requires_` specifies references (string starts with `@`) or
   Python expression that will be evaluated/instantiated before `_target_` object is instantiated.
   It is useful when the component does not explicitly depend on the other ConfigItems via
   its arguments, but requires the dependencies to be instantiated/evaluated beforehand.
 - `_disabled_` specifies a flag to indicate whether to skip the instantiation.
 - `_desc_` can be used for providing free text descriptions.
+- `_mode_` specifies the operating mode when the component is instantiated or the callable is called.
+  it currently supports the following values:
+  - `"default"` (default) -- return the return value of ``_target_(**kwargs)``
+  - `"partial"` -- return a partial function of ``functools.partial(_target_, **kwargs)`` (this is often
+    useful when some portion of the full set of arguments are supplied to the ``_target_``, and the user wants to
+    call it with additional arguments later).
+  - `"debug"` -- execute with debug prompt and return the return value of ``pdb.runcall(_target_, **kwargs)``,
+    see also [`pdb.runcall`](https://docs.python.org/3/library/pdb.html#pdb.runcall).
 
 ## The command line interface
 
@@ -185,5 +204,6 @@ Details on the CLI argument parsing is provided in the
   simple structures with sparse uses of expressions or references are preferred.
 - For `$import <module>` in the configuration, please make sure there are instructions for the users to install
   the `<module>` if it is not a (optional) dependency of MONAI.
-- As "#" and "$" might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
+- As `#`, `::`, and `$` might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
   or quotes for them in the command line, like: `"\$torch.device('cuda:1')"`, `"'train_part#trainer'"`.
+- For more details and examples, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/bundle).

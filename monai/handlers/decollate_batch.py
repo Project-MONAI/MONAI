@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo, KeysCollection
 from monai.engines.utils import IterationEvents
@@ -51,9 +53,9 @@ class DecollateBatch:
         event: str = "MODEL_COMPLETED",
         detach: bool = True,
         decollate_batch: bool = True,
-        batch_keys: Optional[KeysCollection] = None,
+        batch_keys: KeysCollection | None = None,
         decollate_output: bool = True,
-        output_keys: Optional[KeysCollection] = None,
+        output_keys: KeysCollection | None = None,
         allow_missing_keys: bool = False,
     ):
         event = event.upper()

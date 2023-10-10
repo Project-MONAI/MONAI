@@ -9,13 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.dictionary import RandWeightedCropd
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D
+from monai.transforms.lazy.functional import apply_pending
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
 def get_data(ndim):
@@ -152,6 +156,26 @@ class TestRandWeightedCrop(unittest.TestCase):
         self.assertTrue(len(result) == init_params["num_samples"])
         _len = len(tuple(input_data.keys()))
         self.assertTupleEqual(tuple(result[0].keys())[:_len], tuple(input_data.keys()))
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, _, input_param, input_data, expected_shape, expected_centers):
+        crop = RandWeightedCropd(**input_param)
+        # non-lazy
+        crop.set_random_state(10)
+        expected = crop(input_data)
+        self.assertIsInstance(expected[0]["img"], MetaTensor)
+        # lazy
+        crop.set_random_state(10)
+        crop.lazy = True
+        pending_result = crop(input_data)
+        for i, _pending_result in enumerate(pending_result):
+            self.assertIsInstance(_pending_result["img"], MetaTensor)
+            assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
+            assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
+            # only support nearest
+            result = apply_pending(_pending_result["img"], overrides={"mode": "nearest", "align_corners": False})[0]
+            # compare
+            assert_allclose(result, expected[i]["img"], rtol=1e-5)
 
 
 if __name__ == "__main__":

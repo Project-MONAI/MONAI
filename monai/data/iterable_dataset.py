@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from typing import Any
 
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
@@ -17,7 +20,7 @@ from torch.utils.data import get_worker_info
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
 from monai.transforms.transform import Randomizable
-from monai.utils import deprecated_arg, optional_import
+from monai.utils import optional_import
 
 pd, _ = optional_import("pandas")
 
@@ -37,7 +40,7 @@ class IterableDataset(_TorchIterableDataset):
 
     """
 
-    def __init__(self, data: Iterable[Any], transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Iterable[Any], transform: Callable | None = None) -> None:
         """
         Args:
             data: input data source to load and transform to generate dataset for model.
@@ -45,7 +48,7 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
-        self.source: Optional[Iterator[Any]] = None
+        self.source: Iterator[Any] | None = None
 
     def __iter__(self):
         info = get_worker_info()
@@ -110,7 +113,7 @@ class ShuffleBuffer(Randomizable, IterableDataset):
 
     def generate_item(self):
         """Fill a `buffer` list up to `self.size`, then generate randomly popped items."""
-        buffer: List[Any] = []
+        buffer: list[Any] = []
         for item in iter(self.data):
             if len(buffer) >= self.size:
                 yield self.randomized_pop(buffer)
@@ -192,24 +195,20 @@ class CSVIterableDataset(IterableDataset):
         kwargs_read_csv: dictionary args to pass to pandas `read_csv` function. Default to ``{"chunksize": chunksize}``.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
-    .. deprecated:: 0.8.0
-        ``filename`` is deprecated, use ``src`` instead.
-
     """
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
-        src: Union[Union[str, Sequence[str]], Union[Iterable, Sequence[Iterable]]],
+        src: str | Sequence[str] | Iterable | Sequence[Iterable],
         chunksize: int = 1000,
-        buffer_size: Optional[int] = None,
-        col_names: Optional[Sequence[str]] = None,
-        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
-        col_groups: Optional[Dict[str, Sequence[str]]] = None,
-        transform: Optional[Callable] = None,
+        buffer_size: int | None = None,
+        col_names: Sequence[str] | None = None,
+        col_types: dict[str, dict[str, Any] | None] | None = None,
+        col_groups: dict[str, Sequence[str]] | None = None,
+        transform: Callable | None = None,
         shuffle: bool = False,
         seed: int = 0,
-        kwargs_read_csv: Optional[Dict] = None,
+        kwargs_read_csv: dict | None = None,
         **kwargs,
     ):
         self.src = src
@@ -221,15 +220,12 @@ class CSVIterableDataset(IterableDataset):
         self.shuffle = shuffle
         self.seed = seed
         self.kwargs_read_csv = kwargs_read_csv or {"chunksize": chunksize}
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
-        kwargs.pop("filename", None)
         self.kwargs = kwargs
 
-        self.iters: List[Iterable] = self.reset()
+        self.iters: list[Iterable] = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
-    def reset(self, src: Optional[Union[Union[str, Sequence[str]], Union[Iterable, Sequence[Iterable]]]] = None):
+    def reset(self, src: str | Sequence[str] | Iterable | Sequence[Iterable] | None = None):
         """
         Reset the pandas `TextFileReader` iterable object to read data. For more details, please check:
         https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html?#iteration.

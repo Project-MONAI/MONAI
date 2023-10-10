@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Any, List
+from typing import Any
 
 import torch
 from parameterized import parameterized
@@ -40,8 +42,8 @@ model_2d_2c.eval()
 model_3d.eval()
 model_2d_adjoint.eval()
 
-TESTS: List[Any] = []
-TESTS_FAIL: List[Any] = []
+TESTS: list[Any] = []
+TESTS_FAIL: list[Any] = []
 
 # 2D w/ bounding box with all modes
 for mode in ("gaussian", "mean_patch", "mean_img"):

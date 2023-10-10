@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -17,6 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms import RandAffine
 from monai.utils.type_conversion import convert_data_type
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, is_tf32_env
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
@@ -142,6 +145,8 @@ class TestRandAffine(unittest.TestCase):
         g = RandAffine(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
+        g.rand_affine_grid.affine = torch.eye(4, dtype=torch.float64)  # reset affine
+        test_resampler_lazy(g, result, input_param, input_data, seed=123)
         if input_param.get("cache_grid", False):
             self.assertTrue(g._cached_grid is not None)
         assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4, type_test="tensor")

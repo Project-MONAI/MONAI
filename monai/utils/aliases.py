@@ -12,6 +12,8 @@
 This module is written for configurable workflow, not currently in use.
 """
 
+from __future__ import annotations
+
 import importlib
 import inspect
 import sys
@@ -79,7 +81,8 @@ def resolve_name(name):
     if obj is None:
         # Get all modules having the declaration/import, need to check here that getattr returns something which doesn't
         # equate to False since in places __getattr__ returns 0 incorrectly:
-        # https://github.com/tensorflow/tensorboard/blob/a22566561d2b4fea408755a951ac9eaf3a156f8e/tensorboard/compat/tensorflow_stub/pywrap_tensorflow.py#L35  # noqa: B950
+        # https://github.com/tensorflow/tensorboard/blob/a22566561d2b4fea408755a951ac9eaf3a156f8e/
+        # tensorboard/compat/tensorflow_stub/pywrap_tensorflow.py#L35
         mods = [m for m in list(sys.modules.values()) if getattr(m, name, None)]
 
         if len(mods) > 0:  # found modules with this declaration or import

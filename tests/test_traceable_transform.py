@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.transforms.inverse import TraceableTransform
@@ -28,6 +30,8 @@ class TestTraceable(unittest.TestCase):
     def test_default(self):
         expected_key = "_transforms"
         a = _TraceTest()
+        for x in a.transform_info_keys():
+            self.assertTrue(x in a.get_transform_info())
         self.assertEqual(a.trace_key(), expected_key)
 
         data = {"image": "test"}

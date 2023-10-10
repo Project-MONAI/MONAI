@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional, Union
+from __future__ import annotations
+
+from typing import Any
 
 from monai.auto3dseg.analyzer import (
+    Analyzer,
     FgImageStats,
     FgImageStatsSumm,
     FilenameStats,
@@ -80,27 +83,26 @@ class SegSummarizer(Compose):
     def __init__(
         self,
         image_key: str,
-        label_key: Optional[str],
-        average=True,
+        label_key: str | None,
+        average: bool = True,
         do_ccp: bool = True,
-        hist_bins: Union[List[int], int, None] = None,
-        hist_range: Optional[list] = None,
+        hist_bins: list[int] | int | None = None,
+        hist_range: list | None = None,
         histogram_only: bool = False,
     ) -> None:
-
         self.image_key = image_key
         self.label_key = label_key
         # set defaults
-        self.hist_bins: Union[List[int], int] = [100] if hist_bins is None else hist_bins
+        self.hist_bins: list[int] | int = [100] if hist_bins is None else hist_bins
         self.hist_range: list = [-500, 500] if hist_range is None else hist_range
         self.histogram_only = histogram_only
 
-        self.summary_analyzers: List[Any] = []
+        self.summary_analyzers: list[Any] = []
         super().__init__()
 
+        self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
+        self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
         if not self.histogram_only:
-            self.add_analyzer(FilenameStats(image_key, DataStatsKeys.BY_CASE_IMAGE_PATH), None)
-            self.add_analyzer(FilenameStats(label_key, DataStatsKeys.BY_CASE_LABEL_PATH), None)
             self.add_analyzer(ImageStats(image_key), ImageStatsSumm(average=average))
 
             if label_key is None:
@@ -118,7 +120,7 @@ class SegSummarizer(Compose):
                 ImageHistogram(image_key=image_key, hist_bins=hist_bins, hist_range=hist_range), ImageHistogramSumm()
             )
 
-    def add_analyzer(self, case_analyzer, summary_analyzer) -> None:
+    def add_analyzer(self, case_analyzer: Analyzer, summary_analyzer: Analyzer | None) -> None:
         """
         Add new analyzers to the engine so that the callable and summarize functions will
         utilize the new analyzers for stats computations.
@@ -165,9 +167,10 @@ class SegSummarizer(Compose):
 
         """
         self.transforms += (case_analyzer,)
-        self.summary_analyzers.append(summary_analyzer)
+        if summary_analyzer is not None:
+            self.summary_analyzers.append(summary_analyzer)
 
-    def summarize(self, data: List[Dict]):
+    def summarize(self, data: list[dict]) -> dict[str, dict]:
         """
         Summarize the input list of data and generates a report ready for json/yaml export.
 
@@ -196,7 +199,7 @@ class SegSummarizer(Compose):
         if not isinstance(data, list):
             raise ValueError(f"{self.__class__} summarize function needs input to be a list of dict")
 
-        report: Dict[str, Dict] = {}
+        report: dict[str, dict] = {}
         if len(data) == 0:
             return report
 

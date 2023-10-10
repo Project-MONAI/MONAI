@@ -9,20 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import List
 
 import numpy as np
 import torch
 
 from monai.data.meta_tensor import MetaTensor
+from monai.transforms import Compose
+from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 MODES = []
 # Test modes
-NP_MODES: List = [
+NP_MODES: list = [
     "constant",
     "edge",
     # `reflect` mode is not supported in some PyTorch versions, skip the test
@@ -43,6 +46,8 @@ PT_MODES: list = [
 ]
 MODES += PT_MODES
 MODES += [PytorchPadMode(i) for i in PT_MODES]
+
+TESTS_PENDING_MODE = [["constant", "zeros"], ["edge", "border"]]
 
 
 class PadTest(unittest.TestCase):
@@ -108,3 +113,63 @@ class PadTest(unittest.TestCase):
                             inv = padder.inverse(result)
                             assert_allclose(im, inv, type_test=False)
                             self.assertEqual(inv.applied_operations, [])
+
+    def pad_test_pending_ops(self, input_param, input_shape):
+        for mode in TESTS_PENDING_MODE:
+            # TODO: One of the dim in the input data contains 1 report error.
+            pad_fn = self.Padder(mode=mode[0], **input_param)
+            data = self.get_arr(input_shape)
+            is_map = isinstance(pad_fn, MapTransform)
+            im = MetaTensor(data, meta={"a": "b", "affine": np.eye(len(input_shape))})
+            input_data = {"img": im} if is_map else im
+            # non-lazy
+            result_non_lazy = pad_fn(input_data)
+            expected = result_non_lazy["img"] if is_map else result_non_lazy
+            self.assertIsInstance(expected, MetaTensor)
+            # lazy
+            pad_fn.lazy = True
+            pending_result = pad_fn(input_data)
+            pending_result = pending_result["img"] if is_map else pending_result
+            self.assertIsInstance(pending_result, MetaTensor)
+            assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+            assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+            # TODO: mode="bilinear" may report error
+            overrides = {"mode": "nearest", "padding_mode": mode[1], "align_corners": False}
+            result = apply_pending(pending_result, overrides=overrides)[0]
+            # compare
+            assert_allclose(result, expected, rtol=1e-5)
+            if isinstance(result, MetaTensor) and not isinstance(pad_fn, MapTransform):
+                pad_fn.lazy = False
+                inverted = pad_fn.inverse(result)
+                self.assertTrue((not inverted.pending_operations) and (not inverted.applied_operations))
+                self.assertEqual(inverted.shape, im.shape)
+
+    def pad_test_combine_ops(self, funcs, input_shape, expected_shape):
+        for mode in TESTS_PENDING_MODE:
+            # non-lazy
+            _funcs = []
+            for func in funcs:
+                for _func, _params in func.items():
+                    _funcs.append(_func(mode=mode[0], **_params))
+            trans = Compose(_funcs)
+            data = self.get_arr(input_shape)
+            is_map = isinstance(_funcs[0], MapTransform)
+            im = MetaTensor(data, meta={"a": "b", "affine": np.eye(len(input_shape))})
+            input_data = {"img": im} if is_map else im
+            result_non_lazy = trans(input_data)
+            expected = result_non_lazy["img"] if is_map else result_non_lazy
+            self.assertIsInstance(expected, MetaTensor)
+            # lazy
+            pending_result = input_data
+            for _func in _funcs:
+                _func.lazy = True
+                pending_result = _func(pending_result)
+            pending_result = pending_result["img"] if is_map else pending_result
+            self.assertIsInstance(pending_result, MetaTensor)
+            assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+            assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+            # TODO: mode="bilinear" may report error
+            overrides = {"mode": "nearest", "padding_mode": mode[1], "align_corners": False}
+            result = apply_pending(pending_result, overrides=overrides)[0]
+            # compare
+            assert_allclose(result, expected, rtol=1e-5)

@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .ahnet import AHnet, Ahnet, AHNet
 from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetplusplus
 from .classifier import Classifier, Critic, Discriminator
+from .daf3d import DAF3D
 from .densenet import (
     DenseNet,
     Densenet,
@@ -49,6 +52,7 @@ from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
+from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .resnet import (

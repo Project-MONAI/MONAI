@@ -38,7 +38,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -64,6 +64,10 @@ jobs:
 
     - name: Build
       run: |
+        rm -rf /opt/hostedtoolcache/{node,go,Ruby,Java*}
+        ls -al /opt/hostedtoolcache
+        rm -rf /usr/share/dotnet/
+        python -m pip install -U pip wheel
         python -m pip install -r requirements-dev.txt
         BUILD_MONAI=1 ./runtests.sh --build
 

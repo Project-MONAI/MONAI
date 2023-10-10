@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -22,7 +24,6 @@ TEST_CASE_MLP = []
 for dropout_rate in np.linspace(0, 1, 4):
     for hidden_size in [128, 256, 512, 768]:
         for mlp_dim in [0, 1028, 2048, 3072]:
-
             test_case = [
                 {"hidden_size": hidden_size, "mlp_dim": mlp_dim, "dropout_rate": dropout_rate},
                 (2, 512, hidden_size),

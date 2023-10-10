@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import logging
 import random
 import warnings
-from typing import Dict, Hashable, List, Mapping, Optional
+from collections.abc import Hashable, Mapping, Sequence, Sized
 
 import numpy as np
 import torch
@@ -37,7 +39,7 @@ class DiscardAddGuidanced(MapTransform):
         keys: KeysCollection,
         number_intensity_ch: int = 1,
         probability: float = 1.0,
-        label_names=None,
+        label_names: Sized | None = None,
         allow_missing_keys: bool = False,
     ):
         """
@@ -52,7 +54,7 @@ class DiscardAddGuidanced(MapTransform):
 
         self.number_intensity_ch = number_intensity_ch
         self.discard_probability = probability
-        self.label_names = label_names
+        self.label_names = label_names or []
 
     def _apply(self, image):
         if self.discard_probability >= 1.0 or np.random.choice(
@@ -67,8 +69,8 @@ class DiscardAddGuidanced(MapTransform):
                 image = np.concatenate([image, signal], axis=0)
         return image
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "image":
                 tmp_image = self._apply(d[key])
@@ -82,7 +84,9 @@ class DiscardAddGuidanced(MapTransform):
 
 
 class NormalizeLabelsInDatasetd(MapTransform):
-    def __init__(self, keys: KeysCollection, label_names=None, allow_missing_keys: bool = False):
+    def __init__(
+        self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
+    ):
         """
         Normalize label values according to label names dictionary
 
@@ -92,10 +96,10 @@ class NormalizeLabelsInDatasetd(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
 
-        self.label_names = label_names
+        self.label_names = label_names or {}
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             # Dictionary containing new label numbers
             new_label_names = {}
@@ -117,7 +121,9 @@ class NormalizeLabelsInDatasetd(MapTransform):
 
 
 class SingleLabelSelectiond(MapTransform):
-    def __init__(self, keys: KeysCollection, label_names=None, allow_missing_keys: bool = False):
+    def __init__(
+        self, keys: KeysCollection, label_names: Sequence[str] | None = None, allow_missing_keys: bool = False
+    ):
         """
         Selects one label at a time to train the DeepEdit
 
@@ -127,7 +133,7 @@ class SingleLabelSelectiond(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
 
-        self.label_names = label_names
+        self.label_names: Sequence[str] = label_names or []
         self.all_label_values = {
             "spleen": 1,
             "right kidney": 2,
@@ -145,8 +151,8 @@ class SingleLabelSelectiond(MapTransform):
             "left adrenal gland": 14,
         }
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "label":
                 # Taking one label at a time
@@ -232,8 +238,8 @@ class AddGuidanceSignalDeepEditd(MapTransform):
                 signal = np.zeros((1, image.shape[-2], image.shape[-1]), dtype=np.float32)
             return signal
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "image":
                 image = d[key]
@@ -262,7 +268,7 @@ class FindAllValidSlicesDeepEditd(MapTransform):
         sids: key to store slices indices having valid label map.
     """
 
-    def __init__(self, keys: KeysCollection, sids="sids", allow_missing_keys: bool = False):
+    def __init__(self, keys: KeysCollection, sids: Hashable = "sids", allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.sids = sids
 
@@ -276,8 +282,8 @@ class FindAllValidSlicesDeepEditd(MapTransform):
             sids[key_label] = l_ids
         return sids
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "label":
                 label = d[key]
@@ -324,7 +330,7 @@ class AddInitialSeedPointDeepEditd(Randomizable, MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.sids_key = sids
         self.sid_key = sid
-        self.sid: Dict[str, int] = dict()
+        self.sid: dict[str, int] = dict()
         self.guidance = guidance
         self.connected_regions = connected_regions
 
@@ -384,8 +390,8 @@ class AddInitialSeedPointDeepEditd(Randomizable, MapTransform):
             sid = None
         self.sid[key_label] = sid
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "label":
                 label_guidances = {}
@@ -442,8 +448,8 @@ class FindDiscrepancyRegionsDeepEditd(MapTransform):
     def _apply(self, label, pred):
         return self.disparity(label, pred)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "label":
                 all_discrepancies = {}
@@ -503,10 +509,10 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
         self.discrepancy = discrepancy
         self.probability = probability
         self._will_interact = None
-        self.is_pos: Optional[bool] = None
-        self.is_other: Optional[bool] = None
+        self.is_pos: bool | None = None
+        self.is_other: bool | None = None
         self.default_guidance = None
-        self.guidance: Dict[str, List[List[int]]] = {}
+        self.guidance: dict[str, list[list[int]]] = {}
 
     def randomize(self, data=None):
         probability = data[self.probability]
@@ -527,7 +533,6 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
         return None
 
     def add_guidance(self, guidance, discrepancy, label_names, labels):
-
         # Positive clicks of the segment in the iteration
         pos_discr = discrepancy[0]  # idx 0 is positive discrepancy and idx 1 is negative discrepancy
 
@@ -566,8 +571,8 @@ class AddRandomGuidanceDeepEditd(Randomizable, MapTransform):
                     tmp_label = 1 - tmp_label
                     self.guidance[key_label].append(self.find_guidance(discrepancy[1] * tmp_label))
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         guidance = d[self.guidance_key]
         discrepancy = d[self.discrepancy]
         self.randomize(data)
@@ -634,15 +639,15 @@ class AddGuidanceFromPointsDeepEditd(Transform):
 
     def __init__(
         self,
-        ref_image,
+        ref_image: str,
         guidance: str = "guidance",
-        label_names=None,
-        meta_keys: Optional[str] = None,
+        label_names: dict | None = None,
+        meta_keys: str | None = None,
         meta_key_postfix: str = "meta_dict",
     ):
         self.ref_image = ref_image
         self.guidance = guidance
-        self.label_names = label_names
+        self.label_names = label_names or {}
         self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix
 
@@ -715,8 +720,8 @@ class SplitPredsLabeld(MapTransform):
 
     """
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "pred":
                 for idx, (key_label, _) in enumerate(d["label_names"].items()):
@@ -753,7 +758,7 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
         super().__init__(keys, allow_missing_keys)
         self.sids_key = sids
         self.sid_key = sid
-        self.sid: Dict[str, int] = dict()
+        self.sid: dict[str, int] = dict()
         self.guidance = guidance
         self.connected_regions = connected_regions
 
@@ -816,8 +821,8 @@ class AddInitialSeedPointMissingLabelsd(Randomizable, MapTransform):
             sid = None
         self.sid[key_label] = sid
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "label":
                 label_guidances = {}
@@ -850,7 +855,7 @@ class FindAllValidSlicesMissingLabelsd(MapTransform):
         sids: key to store slices indices having valid label map.
     """
 
-    def __init__(self, keys: KeysCollection, sids="sids", allow_missing_keys: bool = False):
+    def __init__(self, keys: KeysCollection, sids: Hashable = "sids", allow_missing_keys: bool = False):
         super().__init__(keys, allow_missing_keys)
         self.sids = sids
 
@@ -867,8 +872,8 @@ class FindAllValidSlicesMissingLabelsd(MapTransform):
             sids[key_label] = l_ids
         return sids
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> Dict[Hashable, np.ndarray]:
-        d: Dict = dict(data)
+    def __call__(self, data: Mapping[Hashable, np.ndarray]) -> dict[Hashable, np.ndarray]:
+        d: dict = dict(data)
         for key in self.key_iterator(d):
             if key == "label":
                 label = d[key]

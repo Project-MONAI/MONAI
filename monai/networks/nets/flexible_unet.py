@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
+from collections.abc import Sequence
 from pydoc import locate
-from typing import List, Optional, Sequence, Tuple, Type, Union
+from typing import Any
 
 import torch
 from torch import nn
@@ -38,7 +41,7 @@ class FlexUNetEncoderRegister:
     def __init__(self):
         self.register_dict = {}
 
-    def register_class(self, name: Union[Type, str]):
+    def register_class(self, name: type[Any] | str):
         """
         Register a given class to the encoder dict. Please notice that input class must be a
         subclass of BaseEncoder.
@@ -110,17 +113,16 @@ class UNetDecoder(nn.Module):
         spatial_dims: int,
         encoder_channels: Sequence[int],
         decoder_channels: Sequence[int],
-        act: Union[str, tuple],
-        norm: Union[str, tuple],
-        dropout: Union[float, tuple],
+        act: str | tuple,
+        norm: str | tuple,
+        dropout: float | tuple,
         bias: bool,
         upsample: str,
-        pre_conv: Optional[str],
+        pre_conv: str | None,
         interp_mode: str,
-        align_corners: Optional[bool],
+        align_corners: bool | None,
         is_pad: bool,
     ):
-
         super().__init__()
         if len(encoder_channels) < 2:
             raise ValueError("the length of `encoder_channels` should be no less than 2.")
@@ -153,7 +155,7 @@ class UNetDecoder(nn.Module):
             )
         self.blocks = nn.ModuleList(blocks)
 
-    def forward(self, features: List[torch.Tensor], skip_connect: int = 4):
+    def forward(self, features: list[torch.Tensor], skip_connect: int = 4):
         skips = features[:-1][::-1]
         features = features[1:][::-1]
 
@@ -190,10 +192,9 @@ class SegmentationHead(nn.Sequential):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        act: Optional[Union[Tuple, str]] = None,
+        act: tuple | str | None = None,
         scale_factor: float = 1.0,
     ):
-
         conv_layer = Conv[Conv.CONV, spatial_dims](
             in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, padding=kernel_size // 2
         )
@@ -224,13 +225,14 @@ class FlexibleUNet(nn.Module):
         out_channels: int,
         backbone: str,
         pretrained: bool = False,
-        decoder_channels: Tuple = (256, 128, 64, 32, 16),
+        decoder_channels: tuple = (256, 128, 64, 32, 16),
         spatial_dims: int = 2,
-        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.1}),
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        dropout: Union[float, tuple] = 0.0,
+        norm: str | tuple = ("batch", {"eps": 1e-3, "momentum": 0.1}),
+        act: str | tuple = ("relu", {"inplace": True}),
+        dropout: float | tuple = 0.0,
         decoder_bias: bool = False,
         upsample: str = "nontrainable",
+        pre_conv: str = "default",
         interp_mode: str = "nearest",
         is_pad: bool = True,
     ) -> None:
@@ -261,6 +263,8 @@ class FlexibleUNet(nn.Module):
             decoder_bias: whether to have a bias term in decoder's convolution blocks.
             upsample: upsampling mode, available options are``"deconv"``, ``"pixelshuffle"``,
                 ``"nontrainable"``.
+            pre_conv:a conv block applied before upsampling. Only used in the "nontrainable" or
+                "pixelshuffle" mode, default to `default`.
             interp_mode: {``"nearest"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``}
                 Only used in the "nontrainable" mode.
             is_pad: whether to pad upsampling features to fit features from encoder. Default to True.
@@ -308,7 +312,7 @@ class FlexibleUNet(nn.Module):
             bias=decoder_bias,
             upsample=upsample,
             interp_mode=interp_mode,
-            pre_conv=None,
+            pre_conv=pre_conv,
             align_corners=None,
             is_pad=is_pad,
         )

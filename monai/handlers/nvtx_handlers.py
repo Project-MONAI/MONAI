@@ -12,7 +12,9 @@
 Wrapper around NVIDIA Tools Extension for profiling MONAI ignite workflow
 """
 
-from typing import TYPE_CHECKING, Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.utils import ensure_tuple, min_version, optional_import
@@ -52,9 +54,7 @@ class RangeHandler:
             If not provided, the name of first event will be assigned to the NVTX range.
     """
 
-    def __init__(
-        self, events: Union[str, Tuple[Union[str, Events], Union[str, Events]]], msg: Optional[str] = None
-    ) -> None:
+    def __init__(self, events: str | tuple[str | Events, str | Events], msg: str | None = None) -> None:
         self.events = self.resolve_events(events)
         if msg is None:
             if isinstance(events, str):
@@ -66,7 +66,7 @@ class RangeHandler:
         self.msg = msg
         self.depth = None
 
-    def resolve_events(self, events: Union[str, Tuple]) -> Tuple[Events, Events]:
+    def resolve_events(self, events: str | tuple) -> tuple[Events, Events]:
         """
         Resolve the input events to create a pair of Ignite events
         """
@@ -77,7 +77,7 @@ class RangeHandler:
             return self.get_event(events[0]), self.get_event(events[1])
         raise ValueError(f"Exactly two Ignite events should be provided [received {len(events)}].")
 
-    def create_paired_events(self, event: str) -> Tuple[Events, Events]:
+    def create_paired_events(self, event: str) -> tuple[Events, Events]:
         """
         Create pair of Ignite events from a event prefix name
         """
@@ -85,7 +85,7 @@ class RangeHandler:
         event_prefix = {"": "", "ENGINE": "", "EPOCH": "EPOCH_", "ITERATION": "ITERATION_", "BATCH": "GET_BATCH_"}
         return self.get_event(event_prefix[event] + "STARTED"), self.get_event(event_prefix[event] + "COMPLETED")
 
-    def get_event(self, event: Union[str, Events]) -> Events:
+    def get_event(self, event: str | Events) -> Events:
         return Events[event.upper()] if isinstance(event, str) else event
 
     def attach(self, engine: Engine) -> None:
@@ -113,7 +113,7 @@ class RangePushHandler:
         msg: ASCII message to associate with range
     """
 
-    def __init__(self, event: Union[str, Events], msg: Optional[str] = None) -> None:
+    def __init__(self, event: str | Events, msg: str | None = None) -> None:
         self.event = Events[event.upper()] if isinstance(event, str) else event
         if msg is None:
             msg = self.event.name
@@ -141,7 +141,7 @@ class RangePopHandler:
         msg: ASCII message to associate with range
     """
 
-    def __init__(self, event: Union[str, Events]) -> None:
+    def __init__(self, event: str | Events) -> None:
         self.event = Events[event.upper()] if isinstance(event, str) else event
 
     def attach(self, engine: Engine) -> None:
@@ -164,7 +164,7 @@ class MarkHandler:
         msg: ASCII message to associate with range
     """
 
-    def __init__(self, event: Union[str, Events], msg: Optional[str] = None) -> None:
+    def __init__(self, event: str | Events, msg: str | None = None) -> None:
         self.event = Events[event.upper()] if isinstance(event, str) else event
         if msg is None:
             msg = self.event.name

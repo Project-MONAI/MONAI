@@ -9,9 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
+import os
 import warnings
-from typing import TYPE_CHECKING, Dict, Mapping, Optional
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 
 from monai.config import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
@@ -86,21 +90,21 @@ class CheckpointSaver:
     def __init__(
         self,
         save_dir: str,
-        save_dict: Dict,
-        name: Optional[str] = None,
+        save_dict: dict,
+        name: str | None = None,
         file_prefix: str = "",
         save_final: bool = False,
-        final_filename: Optional[str] = None,
+        final_filename: str | None = None,
         save_key_metric: bool = False,
-        key_metric_name: Optional[str] = None,
+        key_metric_name: str | None = None,
         key_metric_n_saved: int = 1,
-        key_metric_filename: Optional[str] = None,
+        key_metric_filename: str | None = None,
         key_metric_save_state: bool = False,
         key_metric_greater_or_equal: bool = False,
         key_metric_negative_sign: bool = False,
         epoch_level: bool = True,
         save_interval: int = 0,
-        n_saved: Optional[int] = None,
+        n_saved: int | None = None,
     ) -> None:
         if save_dir is None:
             raise AssertionError("must provide directory to save the checkpoints.")
@@ -111,10 +115,11 @@ class CheckpointSaver:
         self.logger = logging.getLogger(name)
         self.epoch_level = epoch_level
         self.save_interval = save_interval
-        self._final_checkpoint: Optional[Checkpoint] = None
-        self._key_metric_checkpoint: Optional[Checkpoint] = None
-        self._interval_checkpoint: Optional[Checkpoint] = None
+        self._final_checkpoint: Checkpoint | None = None
+        self._key_metric_checkpoint: Checkpoint | None = None
+        self._interval_checkpoint: Checkpoint | None = None
         self._name = name
+        self._final_filename = final_filename
 
         class _DiskSaver(DiskSaver):
             """
@@ -122,13 +127,13 @@ class CheckpointSaver:
 
             """
 
-            def __init__(self, dirname: str, filename: Optional[str] = None):
+            def __init__(self, dirname: str, filename: str | None = None):
                 # set `atomic=False` as `atomic=True` only gives read/write permission to the user who saved the file,
                 # without group/others read permission
                 super().__init__(dirname=dirname, require_empty=False, atomic=False)
                 self.filename = filename
 
-            def __call__(self, checkpoint: Mapping, filename: str, metadata: Optional[Mapping] = None) -> None:
+            def __call__(self, checkpoint: Mapping, filename: str, metadata: Mapping | None = None) -> None:
                 if self.filename is not None:
                     filename = self.filename
                 super().__call__(checkpoint=checkpoint, filename=filename, metadata=metadata)
@@ -140,12 +145,12 @@ class CheckpointSaver:
 
         if save_final:
 
-            def _final_func(engine: Engine):
+            def _final_func(engine: Engine) -> Any:
                 return engine.state.iteration
 
             self._final_checkpoint = Checkpoint(
                 to_save=self.save_dict,
-                save_handler=_DiskSaver(dirname=self.save_dir, filename=final_filename),
+                save_handler=_DiskSaver(dirname=self.save_dir, filename=self._final_filename),
                 filename_prefix=file_prefix,
                 score_function=_final_func,
                 score_name="final_iteration",
@@ -153,7 +158,7 @@ class CheckpointSaver:
 
         if save_key_metric:
 
-            def _score_func(engine: Engine):
+            def _score_func(engine: Engine) -> Any:
                 if isinstance(key_metric_name, str):
                     metric_name = key_metric_name
                 elif hasattr(engine.state, "key_metric_name"):
@@ -188,7 +193,7 @@ class CheckpointSaver:
 
         if save_interval > 0:
 
-            def _interval_func(engine: Engine):
+            def _interval_func(engine: Engine) -> Any:
                 return engine.state.epoch if self.epoch_level else engine.state.iteration
 
             self._interval_checkpoint = Checkpoint(
@@ -200,7 +205,7 @@ class CheckpointSaver:
                 n_saved=n_saved,
             )
 
-    def load_state_dict(self, state_dict: Dict) -> None:
+    def load_state_dict(self, state_dict: dict) -> None:
         """
         Utility to resume the internal state of key metric tracking list if configured to save
         checkpoints based on the key metric value.
@@ -268,7 +273,11 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        self.logger.info(f"Train completed, saved final checkpoint: {self._final_checkpoint.last_checkpoint}")
+        if self._final_filename is not None:
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_filename)
+        else:
+            _final_checkpoint_path = self._final_checkpoint.last_checkpoint  # type: ignore[assignment]
+        self.logger.info(f"Train completed, saved final checkpoint: {_final_checkpoint_path}")
 
     def exception_raised(self, engine: Engine, e: Exception) -> None:
         """Callback for train or validation/evaluation exception raised Event.
@@ -288,7 +297,11 @@ class CheckpointSaver:
             raise AssertionError
         if not hasattr(self.logger, "info"):
             raise AssertionError("Error, provided logger has not info attribute.")
-        self.logger.info(f"Exception raised, saved the last checkpoint: {self._final_checkpoint.last_checkpoint}")
+        if self._final_filename is not None:
+            _final_checkpoint_path = os.path.join(self.save_dir, self._final_filename)
+        else:
+            _final_checkpoint_path = self._final_checkpoint.last_checkpoint  # type: ignore[assignment]
+        self.logger.info(f"Exception raised, saved the last checkpoint: {_final_checkpoint_path}")
         raise e
 
     def metrics_completed(self, engine: Engine) -> None:

@@ -9,5 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .client_algo import BaseClient, ClientAlgo, ClientAlgoStats
 from .monai_algo import MonaiAlgo, MonaiAlgoStats

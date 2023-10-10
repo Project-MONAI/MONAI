@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import os
 import sys
@@ -29,9 +31,12 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg_bundlegen",
         "test_auto3dseg_ensemble",
         "test_auto3dseg_hpo",
         "test_auto3dseg",
+        "test_bundle_onnx_export",
+        "test_bundle_trt_export",
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",
@@ -42,9 +47,12 @@ def run_testsuit():
         "test_compute_ho_ver_maps_d",
         "test_compute_panoptic_quality",
         "test_contrastive_loss",
+        "test_convert_to_onnx",
+        "test_convert_to_trt",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
         "test_cumulative_average_dist",
+        "test_sampler_dist",
         "test_dataset",
         "test_dataset_summary",
         "test_deepedit_transforms",
@@ -54,6 +62,7 @@ def run_testsuit():
         "test_deepgrow_transforms",
         "test_detect_envelope",
         "test_dints_network",
+        "test_distance_transform_edt",
         "test_efficientnet",
         "test_ensemble_evaluator",
         "test_ensure_channel_first",
@@ -65,6 +74,7 @@ def run_testsuit():
         "test_global_mutual_information_loss",
         "test_grid_patch",
         "test_gmm",
+        "test_handler_metrics_reloaded",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -75,6 +85,7 @@ def run_testsuit():
         "test_handler_early_stop",
         "test_handler_garbage_collector",
         "test_handler_hausdorff_distance",
+        "test_handler_ignite_metric",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
         "test_handler_panoptic_quality",
@@ -106,12 +117,14 @@ def run_testsuit():
         "test_integration_fast_train",
         "test_integration_gpu_customization",
         "test_integration_segmentation_3d",
+        "test_integration_lazy_samples",
         "test_integration_sliding_window",
         "test_integration_unet_2d",
         "test_integration_workflows",
         "test_integration_workflows_gan",
         "test_integration_bundle_run",
         "test_integration_autorunner",
+        "test_integration_nnunetv2_runner",
         "test_invert",
         "test_invertd",
         "test_iterable_dataset",
@@ -129,19 +142,16 @@ def run_testsuit():
         "test_mlp",
         "test_nifti_header_revise",
         "test_nifti_rw",
-        "test_nifti_saver",
         "test_nuclick_transforms",
         "test_nrrd_reader",
         "test_occlusion_sensitivity",
         "test_orientation",
         "test_orientationd",
-        "test_parallel_execution",
         "test_patchembedding",
         "test_persistentdataset",
         "test_pil_reader",
         "test_plot_2d_or_3d_image",
         "test_png_rw",
-        "test_png_saver",
         "test_prepare_batch_default",
         "test_prepare_batch_extra_input",
         "test_prepare_batch_hovernet",
@@ -151,6 +161,7 @@ def run_testsuit():
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_rankfilter_dist",
         "test_resample_backends",
         "test_resize",
         "test_resized",
@@ -177,19 +188,25 @@ def run_testsuit():
         "test_unetr_block",
         "test_vit",
         "test_vitautoenc",
+        "test_vnet",
         "test_write_metrics_reports",
         "test_wsireader",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
         "test_prepare_batch_default_dist",
-        "test_parallel_execution_dist",
         "test_bundle_verify_metadata",
         "test_bundle_verify_net",
         "test_bundle_ckpt_export",
         "test_bundle_utils",
         "test_bundle_init_bundle",
         "test_fastmri_reader",
+        "test_metrics_reloaded",
+        "test_spatial_combine_transforms",
+        "test_bundle_workflow",
+        "test_zarr_avg_merger",
+        "test_perceptual_loss",
+        "test_ultrasound_confidence_map_transform",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
@@ -209,7 +226,6 @@ def run_testsuit():
 
 
 if __name__ == "__main__":
-
     # testing import submodules
     from monai.utils.module import load_submodules
 

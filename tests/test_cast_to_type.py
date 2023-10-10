@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -37,7 +39,6 @@ TESTS_CUPY = [
 class TestCastToType(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_type(self, out_dtype, input_data, expected_type):
-
         result = CastToType(dtype=out_dtype)(input_data)
         self.assertEqual(result.dtype, get_equivalent_dtype(expected_type, type(result)))
 

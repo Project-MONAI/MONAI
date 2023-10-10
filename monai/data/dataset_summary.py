@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
 from itertools import chain
-from typing import List, Optional
 
 import numpy as np
 import torch
@@ -44,9 +45,9 @@ class DatasetSummary:
     def __init__(
         self,
         dataset: Dataset,
-        image_key: Optional[str] = "image",
-        label_key: Optional[str] = "label",
-        meta_key: Optional[KeysCollection] = None,
+        image_key: str | None = "image",
+        label_key: str | None = "label",
+        meta_key: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         num_workers: int = 0,
         **kwargs,
@@ -75,7 +76,7 @@ class DatasetSummary:
         self.image_key = image_key
         self.label_key = label_key
         self.meta_key = meta_key or f"{image_key}_{meta_key_postfix}"
-        self.all_meta_data: List = []
+        self.all_meta_data: list = []
 
     def collect_meta_data(self):
         """

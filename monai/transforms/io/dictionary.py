@@ -15,16 +15,19 @@ defined in :py:class:`monai.transforms.io.array`.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Callable
 
 import numpy as np
 
+import monai
 from monai.config import DtypeLike, KeysCollection
 from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
-from monai.transforms.transform import MapTransform
+from monai.transforms.transform import MapTransform, Transform
 from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
 
@@ -51,9 +54,9 @@ class LoadImaged(MapTransform):
         - Current default readers: (nii, nii.gz -> NibabelReader), (png, jpg, bmp -> PILReader),
           (npz, npy -> NumpyReader), (dcm, DICOM series and others -> ITKReader).
 
-    Please note that for png, jpg, bmp, and other 2D formats, readers often swap axis 0 and 1 after
-    loading the array because the `HW` definition for non-medical specific file formats is different
-    from other common medical packages.
+    Please note that for png, jpg, bmp, and other 2D formats, readers by default swap axis 0 and 1 after
+    loading the array with ``reverse_indexing`` set to ``True`` because the spatial axes definition
+    for non-medical specific file formats is different from other common medical packages.
 
     Note:
 
@@ -71,17 +74,18 @@ class LoadImaged(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        reader: Union[Type[ImageReader], str, None] = None,
+        reader: type[ImageReader] | str | None = None,
         dtype: DtypeLike = np.float32,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
-        image_only: bool = False,
+        image_only: bool = True,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        prune_meta_pattern: Optional[str] = None,
+        prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         allow_missing_keys: bool = False,
+        expanduser: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -117,6 +121,7 @@ class LoadImaged(MapTransform):
                 in the metadata (nested dictionary). default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             allow_missing_keys: don't raise exception if key is missing.
+            expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
             kwargs: additional parameters for reader if providing a reader name.
         """
@@ -129,6 +134,7 @@ class LoadImaged(MapTransform):
             simple_keys,
             prune_meta_pattern,
             prune_meta_sep,
+            expanduser,
             *args,
             **kwargs,
         )
@@ -136,14 +142,16 @@ class LoadImaged(MapTransform):
             raise TypeError(f"meta_key_postfix must be a str but is {type(meta_key_postfix).__name__}.")
         self.meta_keys = ensure_tuple_rep(None, len(self.keys)) if meta_keys is None else ensure_tuple(meta_keys)
         if len(self.keys) != len(self.meta_keys):
-            raise ValueError("meta_keys should have the same length as keys.")
+            raise ValueError(
+                f"meta_keys should have the same length as keys, got {len(self.keys)} and {len(self.meta_keys)}."
+            )
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
         self.overwriting = overwriting
 
     def register(self, reader: ImageReader):
         self._loader.register(reader)
 
-    def __call__(self, data, reader: Optional[ImageReader] = None):
+    def __call__(self, data, reader: ImageReader | None = None):
         """
         Raises:
             KeyError: When not ``self.overwriting`` and key already exists in ``data``.
@@ -156,10 +164,12 @@ class LoadImaged(MapTransform):
                 d[key] = data
             else:
                 if not isinstance(data, (tuple, list)):
-                    raise ValueError("loader must return a tuple or list (because image_only=False was used).")
+                    raise ValueError(
+                        f"loader must return a tuple or list (because image_only=False was used), got {type(data)}."
+                    )
                 d[key] = data[0]
                 if not isinstance(data[1], dict):
-                    raise ValueError("metadata must be a dict.")
+                    raise ValueError(f"metadata must be a dict, got {type(data[1])}.")
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"
                 if meta_key in d and not self.overwriting:
                     raise KeyError(f"Metadata with key {meta_key} already exists and overwriting=False.")
@@ -179,16 +189,19 @@ class SaveImaged(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: :py:class:`monai.transforms.compose.MapTransform`
         meta_keys: explicitly indicate the key of the corresponding metadata dictionary.
-            For example, for data with key `image`, the metadata by default is in `image_meta_dict`.
-            The metadata is a dictionary contains values such as filename, original_shape.
-            This argument can be a sequence of string, map to the `keys`.
-            If `None`, will try to construct meta_keys by `key_{meta_key_postfix}`.
-        meta_key_postfix: if `meta_keys` is `None`, use `key_{meta_key_postfix}` to retrieve the metadict.
+            For example, for data with key ``image``, the metadata by default is in ``image_meta_dict``.
+            The metadata is a dictionary contains values such as ``filename``, ``original_shape``.
+            This argument can be a sequence of strings, mapped to the ``keys``.
+            If ``None``, will try to construct ``meta_keys`` by ``key_{meta_key_postfix}``.
+        meta_key_postfix: if ``meta_keys`` is ``None``, use ``key_{meta_key_postfix}`` to retrieve the metadict.
         output_dir: output image directory.
-        output_postfix: a string appended to all output file names, default to `trans`.
-        output_ext: output file extension name, available extensions: `.nii.gz`, `.nii`, `.png`.
+                    Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+        output_postfix: a string appended to all output file names, default to ``trans``.
+                        Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+        output_ext: output file extension name, available extensions: ``.nii.gz``, ``.nii``, ``.png``, ``.dcm``.
+                    Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         resample: whether to resample image (if needed) before saving the data array,
-            based on the `spatial_shape` (and `original_affine`) from metadata.
+            based on the ``spatial_shape`` (and ``original_affine``) from metadata.
         mode: This option is used when ``resample=True``. Defaults to ``"nearest"``.
             Depending on the writers, the possible options are:
 
@@ -201,9 +214,9 @@ class SaveImaged(MapTransform):
             Possible options are {``"zeros"``, ``"border"``, ``"reflection"``}
             See also: https://pytorch.org/docs/stable/nn.functional.html#grid-sample
         scale: {``255``, ``65535``} postprocess data by clipping to [0, 1] and scaling
-            [0, 255] (uint8) or [0, 65535] (uint16). Default is `None` (no scaling).
+            [0, 255] (``uint8``) or [0, 65535] (``uint16``). Default is ``None`` (no scaling).
         dtype: data type during resampling computation. Defaults to ``np.float64`` for best precision.
-            if None, use the data type of input data. To set the output data type, use `output_dtype`.
+            if None, use the data type of input data. To set the output data type, use ``output_dtype``.
         output_dtype: data type for saving data. Defaults to ``np.float32``.
         allow_missing_keys: don't raise exception if key is missing.
         squeeze_end_dims: if True, any trailing singleton dimensions will be removed (after the channel
@@ -211,55 +224,63 @@ class SaveImaged(MapTransform):
             then if C==1, it will be saved as (H,W,D). If D is also 1, it will be saved as (H,W). If `false`,
             image will always be saved as (H,W,D,C).
         data_root_dir: if not empty, it specifies the beginning parts of the input file's
-            absolute path. It's used to compute `input_file_rel_path`, the relative path to the file from
-            `data_root_dir` to preserve folder structure when saving in case there are files in different
+            absolute path. It's used to compute ``input_file_rel_path``, the relative path to the file from
+            ``data_root_dir`` to preserve folder structure when saving in case there are files in different
             folders with the same file names. For example, with the following inputs:
 
-            - input_file_name: `/foo/bar/test1/image.nii`
-            - output_postfix: `seg`
-            - output_ext: `.nii.gz`
-            - output_dir: `/output`
-            - data_root_dir: `/foo/bar`
+            - input_file_name: ``/foo/bar/test1/image.nii``
+            - output_postfix: ``seg``
+            - output_ext: ``.nii.gz``
+            - output_dir: ``/output``
+            - data_root_dir: ``/foo/bar``
 
-            The output will be: /output/test1/image/image_seg.nii.gz
+            The output will be: ``/output/test1/image/image_seg.nii.gz``
 
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         separate_folder: whether to save every file in a separate folder. For example: for the input filename
-            `image.nii`, postfix `seg` and folder_path `output`, if `separate_folder=True`, it will be saved as:
-            `output/image/image_seg.nii`, if `False`, saving as `output/image_seg.nii`. Default to `True`.
-        print_log: whether to print logs when saving. Default to `True`.
+            ``image.nii``, postfix ``seg`` and folder_path ``output``, if ``separate_folder=True``, it will be saved as:
+            ``output/image/image_seg.nii``, if ``False``, saving as ``output/image_seg.nii``. Default to ``True``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+        print_log: whether to print logs when saving. Default to ``True``.
         output_format: an optional string to specify the output image writer.
-            see also: `monai.data.image_writer.SUPPORTED_WRITERS`.
-        writer: a customised `monai.data.ImageWriter` subclass to save data arrays.
-            if `None`, use the default writer from `monai.data.image_writer` according to `output_ext`.
+            see also: ``monai.data.image_writer.SUPPORTED_WRITERS``.
+        writer: a customised ``monai.data.ImageWriter`` subclass to save data arrays.
+            if ``None``, use the default writer from ``monai.data.image_writer`` according to ``output_ext``.
             if it's a string, it's treated as a class name or dotted path;
             the supported built-in writer classes are ``"NibabelWriter"``, ``"ITKWriter"``, ``"PILWriter"``.
         output_name_formatter: a callable function (returning a kwargs dict) to format the output file name.
             see also: :py:func:`monai.data.folder_layout.default_name_formatter`.
-
+            If using a custom ``folder_layout``, consider providing your own formatter.
+        folder_layout: A customized ``monai.data.FolderLayoutBase`` subclass to define file naming schemes.
+            if ``None``, uses the default ``FolderLayout``.
+        savepath_in_metadict: if ``True``, adds a key ``saved_to`` to the metadata, which contains the path
+            to where the input image has been saved.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
-        output_dir: Union[Path, str] = "./",
+        output_dir: Path | str = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
-        resample: bool = True,
+        resample: bool = False,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
-        scale: Optional[int] = None,
+        scale: int | None = None,
         dtype: DtypeLike = np.float64,
-        output_dtype: Optional[DtypeLike] = np.float32,
+        output_dtype: DtypeLike | None = np.float32,
         allow_missing_keys: bool = False,
         squeeze_end_dims: bool = True,
         data_root_dir: str = "",
         separate_folder: bool = True,
         print_log: bool = True,
         output_format: str = "",
-        writer: Union[Type[image_writer.ImageWriter], str, None] = None,
-        output_name_formatter=None,
+        writer: type[image_writer.ImageWriter] | str | None = None,
+        output_name_formatter: Callable[[dict, Transform], dict] | None = None,
+        folder_layout: monai.data.FolderLayoutBase | None = None,
+        savepath_in_metadict: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
@@ -281,10 +302,13 @@ class SaveImaged(MapTransform):
             output_format=output_format,
             writer=writer,
             output_name_formatter=output_name_formatter,
+            folder_layout=folder_layout,
+            savepath_in_metadict=savepath_in_metadict,
         )
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         self.saver.set_options(init_kwargs, data_kwargs, meta_kwargs, write_kwargs)
+        return self
 
     def __call__(self, data):
         d = dict(data)

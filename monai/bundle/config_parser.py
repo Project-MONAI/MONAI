@@ -9,19 +9,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import re
+from collections.abc import Sequence
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
 from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY, MACRO_KEY
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, optional_import
+from monai.utils.misc import CheckKeyDuplicatesYamlLoader, check_key_duplicates
 
-yaml, _ = optional_import("yaml")
+if TYPE_CHECKING:
+    import yaml
+else:
+    yaml, _ = optional_import("yaml")
 
 __all__ = ["ConfigParser"]
 
@@ -95,11 +102,11 @@ class ConfigParser:
     def __init__(
         self,
         config: Any = None,
-        excludes: Optional[Union[Sequence[str], str]] = None,
-        globals: Union[Dict[str, Any], None, bool] = None,
+        excludes: Sequence[str] | str | None = None,
+        globals: dict[str, Any] | None | bool = None,
     ):
-        self.config = None
-        self.globals: Dict[str, Any] = {}
+        self.config: ConfigItem | None = None
+        self.globals: dict[str, Any] = {}
         _globals = _default_globals.copy()
         if isinstance(_globals, dict) and globals not in (None, False):
             _globals.update(globals)  # type: ignore
@@ -116,21 +123,34 @@ class ConfigParser:
     def __repr__(self):
         return f"{self.config}"
 
-    def __getitem__(self, id: Union[str, int]):
+    def __getattr__(self, id):
+        """
+        Get the parsed result of ``ConfigItem`` with the specified ``id``
+        with default arguments (e.g. ``lazy=True``, ``instantiate=True`` and ``eval_expr=True``).
+
+        Args:
+            id: id of the ``ConfigItem``.
+
+        See also:
+             :py:meth:`get_parsed_content`
+        """
+        return self.get_parsed_content(id)
+
+    def __getitem__(self, id: str | int) -> Any:
         """
         Get the config by id.
 
         Args:
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if id == "":
             return self.config
         config = self.config
-        for k in str(id).split(ID_SEP_KEY):
+        for k in ReferenceResolver.split_id(id):
             if not isinstance(config, (dict, list)):
                 raise ValueError(f"config must be dict or list for key `{k}`, but got {type(config)}: {config}.")
             try:
@@ -141,16 +161,16 @@ class ConfigParser:
                 raise KeyError(f"query key: {k}") from e
         return config
 
-    def __setitem__(self, id: Union[str, int], config: Any):
+    def __setitem__(self, id: str | int, config: Any) -> None:
         """
         Set config by ``id``.  Note that this method should be used before ``parse()`` or ``get_parsed_content()``
         to ensure the updates are included in the parsed content.
 
         Args:
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
             config: config to set at location ``id``.
 
         """
@@ -158,17 +178,16 @@ class ConfigParser:
             self.config = config
             self.ref_resolver.reset()
             return
-        keys = str(id).split(ID_SEP_KEY)
+        last_id, base_id = ReferenceResolver.split_id(id, last=True)
         # get the last parent level config item and replace it
-        last_id = ID_SEP_KEY.join(keys[:-1])
         conf_ = self[last_id]
 
-        indexing = keys[-1] if isinstance(conf_, dict) else int(keys[-1])
+        indexing = base_id if isinstance(conf_, dict) else int(base_id)
         conf_[indexing] = config
         self.ref_resolver.reset()
         return
 
-    def get(self, id: str = "", default: Optional[Any] = None):
+    def get(self, id: str = "", default: Any | None = None) -> Any:
         """
         Get the config by id.
 
@@ -182,7 +201,7 @@ class ConfigParser:
         except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return default
 
-    def set(self, config: Any, id: str = "", recursive: bool = True):
+    def set(self, config: Any, id: str = "", recursive: bool = True) -> None:
         """
         Set config by ``id``.
 
@@ -193,7 +212,7 @@ class ConfigParser:
                 default to `True`. for the nested id, only support `dict` for the missing section.
 
         """
-        keys = str(id).split(ID_SEP_KEY)
+        keys = ReferenceResolver.split_id(id)
         conf_ = self.get()
         if recursive:
             if conf_ is None:
@@ -202,12 +221,12 @@ class ConfigParser:
                 if isinstance(conf_, dict) and k not in conf_:
                     conf_[k] = {}
                 conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
-        self[id] = config
+        self[ReferenceResolver.normalize_id(id)] = config
 
-    def update(self, pairs: Dict[str, Any]):
+    def update(self, pairs: dict[str, Any]) -> None:
         """
         Set the ``id`` and the corresponding config content in pairs, see also :py:meth:`__setitem__`.
-        For example, ``parser.update({"train#epoch": 100, "train#lr": 0.02})``
+        For example, ``parser.update({"train::epoch": 100, "train::lr": 0.02})``
 
         Args:
             pairs: dictionary of `id` and config pairs.
@@ -216,7 +235,7 @@ class ConfigParser:
         for k, v in pairs.items():
             self[k] = v
 
-    def __contains__(self, id: Union[str, int]) -> bool:
+    def __contains__(self, id: str | int) -> bool:
         """
         Returns True if `id` is stored in this configuration.
 
@@ -229,7 +248,7 @@ class ConfigParser:
         except (KeyError, IndexError, ValueError):  # Index error for integer indexing
             return False
 
-    def parse(self, reset: bool = True):
+    def parse(self, reset: bool = True) -> None:
         """
         Recursively resolve `self.config` to replace the macro tokens with target content.
         Then recursively parse the config source, add every item as ``ConfigItem`` to the reference resolver.
@@ -243,7 +262,7 @@ class ConfigParser:
         self.resolve_macro_and_relative_ids()
         self._do_parse(config=self.get())
 
-    def get_parsed_content(self, id: str = "", **kwargs):
+    def get_parsed_content(self, id: str = "", **kwargs: Any) -> Any:
         """
         Get the parsed result of ``ConfigItem`` with the specified ``id``.
 
@@ -252,10 +271,10 @@ class ConfigParser:
             - Else, the result is the configuration content of `ConfigItem`.
 
         Args:
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
             kwargs: additional keyword arguments to be passed to ``_resolve_one_item``.
                 Currently support ``lazy`` (whether to retain the current config cache, default to `True`),
                 ``instantiate`` (whether to instantiate the `ConfigComponent`, default to `True`) and
@@ -270,7 +289,7 @@ class ConfigParser:
             self.parse(reset=not kwargs.get("lazy", True))
         return self.ref_resolver.get_resolved_content(id=id, **kwargs)
 
-    def read_meta(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
+    def read_meta(self, f: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> None:
         """
         Read the metadata from specified JSON or YAML file.
         The metadata as a dictionary will be stored at ``self.config["_meta_"]``.
@@ -284,10 +303,10 @@ class ConfigParser:
         """
         self.set(self.load_config_files(f, **kwargs), self.meta_key)
 
-    def read_config(self, f: Union[PathLike, Sequence[PathLike], Dict], **kwargs):
+    def read_config(self, f: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> None:
         """
-        Read the config from specified JSON or YAML file.
-        The config content in the `self.config` dictionary.
+        Read the config from specified JSON/YAML file or a dictionary and
+        override the config content in the `self.config` dictionary.
 
         Args:
             f: filepath of the config file, the content must be a dictionary,
@@ -300,7 +319,7 @@ class ConfigParser:
         content.update(self.load_config_files(f, **kwargs))
         self.set(config=content)
 
-    def _do_resolve(self, config: Any, id: str = ""):
+    def _do_resolve(self, config: Any, id: str = "") -> Any:
         """
         Recursively resolve `self.config` to replace the relative ids with absolute ids, for example,
         `@##A` means `A` in the upper level. and replace the macro tokens with target content,
@@ -310,22 +329,22 @@ class ConfigParser:
 
         Args:
             config: input config file to resolve.
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if isinstance(config, (dict, list)):
-            for k, v in enumerate(config) if isinstance(config, list) else config.items():
-                sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
-                config[k] = self._do_resolve(v, sub_id)
+            for k, sub_id, v in self.ref_resolver.iter_subconfigs(id=id, config=config):
+                config[k] = self._do_resolve(v, sub_id)  # type: ignore
         if isinstance(config, str):
             config = self.resolve_relative_ids(id, config)
             if config.startswith(MACRO_KEY):
                 path, ids = ConfigParser.split_path_id(config[len(MACRO_KEY) :])
                 parser = ConfigParser(config=self.get() if not path else ConfigParser.load_config_file(path))
-                return parser[ids]
+                # deepcopy to ensure the macro replacement is independent config content
+                return deepcopy(parser[ids])
         return config
 
     def resolve_macro_and_relative_ids(self):
@@ -333,41 +352,38 @@ class ConfigParser:
         Recursively resolve `self.config` to replace the relative ids with absolute ids, for example,
         `@##A` means `A` in the upper level. and replace the macro tokens with target content,
         The macro tokens are marked as starting with "%", can be from another structured file, like:
-        ``"%default_net"``, ``"%/data/config.json#net"``.
+        ``"%default_net"``, ``"%/data/config.json::net"``.
 
         """
-        self.set(self._do_resolve(config=deepcopy(self.get())))
+        self.set(self._do_resolve(config=self.get()))
 
-    def _do_parse(self, config, id: str = ""):
+    def _do_parse(self, config: Any, id: str = "") -> None:
         """
         Recursively parse the nested data in config source, add every item as `ConfigItem` to the resolver.
 
         Args:
             config: config source to parse.
-            id: id of the ``ConfigItem``, ``"#"`` in id are interpreted as special characters to
+            id: id of the ``ConfigItem``, ``"::"`` (or ``"#"``) in id are interpreted as special characters to
                 go one level further into the nested structures.
                 Use digits indexing from "0" for list or other strings for dict.
-                For example: ``"xform#5"``, ``"net#channels"``. ``""`` indicates the entire ``self.config``.
+                For example: ``"xform::5"``, ``"net::channels"``. ``""`` indicates the entire ``self.config``.
 
         """
         if isinstance(config, (dict, list)):
-            for k, v in enumerate(config) if isinstance(config, list) else config.items():
-                sub_id = f"{id}{ID_SEP_KEY}{k}" if id != "" else k
+            for _, sub_id, v in self.ref_resolver.iter_subconfigs(id=id, config=config):
                 self._do_parse(config=v, id=sub_id)
 
-        # copy every config item to make them independent and add them to the resolver
-        item_conf = deepcopy(config)
-        if ConfigComponent.is_instantiable(item_conf):
-            self.ref_resolver.add_item(ConfigComponent(config=item_conf, id=id, locator=self.locator))
-        elif ConfigExpression.is_expression(item_conf):
-            self.ref_resolver.add_item(ConfigExpression(config=item_conf, id=id, globals=self.globals))
+        if ConfigComponent.is_instantiable(config):
+            self.ref_resolver.add_item(ConfigComponent(config=config, id=id, locator=self.locator))
+        elif ConfigExpression.is_expression(config):
+            self.ref_resolver.add_item(ConfigExpression(config=config, id=id, globals=self.globals))
         else:
-            self.ref_resolver.add_item(ConfigItem(config=item_conf, id=id))
+            self.ref_resolver.add_item(ConfigItem(config=config, id=id))
 
     @classmethod
-    def load_config_file(cls, filepath: PathLike, **kwargs):
+    def load_config_file(cls, filepath: PathLike, **kwargs: Any) -> dict:
         """
-        Load config file with specified file path (currently support JSON and YAML files).
+        Load a single config file with specified file path (currently support JSON and YAML files).
 
         Args:
             filepath: path of target file to load, supported postfixes: `.json`, `.yml`, `.yaml`.
@@ -381,21 +397,23 @@ class ConfigParser:
             raise ValueError(f'unknown file input: "{filepath}"')
         with open(_filepath) as f:
             if _filepath.lower().endswith(cls.suffixes[0]):
-                return json.load(f, **kwargs)
+                return json.load(f, object_pairs_hook=check_key_duplicates, **kwargs)  # type: ignore[no-any-return]
             if _filepath.lower().endswith(cls.suffixes[1:]):
-                return yaml.safe_load(f, **kwargs)
+                return yaml.load(f, CheckKeyDuplicatesYamlLoader, **kwargs)  # type: ignore[no-any-return]
             raise ValueError(f"only support JSON or YAML config file so far, got name {_filepath}.")
 
     @classmethod
-    def load_config_files(cls, files: Union[PathLike, Sequence[PathLike], dict], **kwargs) -> Dict:
+    def load_config_files(cls, files: PathLike | Sequence[PathLike] | dict, **kwargs: Any) -> dict:
         """
-        Load config files into a single config dict.
+        Load multiple config files into a single config dict.
         The latter config file in the list will override or add the former config file.
-        ``"#"`` in the config keys are interpreted as special characters to go one level
+        ``"::"`` (or ``"#"``) in the config keys are interpreted as special characters to go one level
         further into the nested structures.
 
         Args:
             files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
+                if providing a list of files, wil merge the content of them.
+                if providing a dictionary, return it directly.
             kwargs: other arguments for ``json.load`` or ```yaml.safe_load``, depends on the file format.
         """
         if isinstance(files, dict):  # already a config dict
@@ -407,7 +425,7 @@ class ConfigParser:
         return parser.get()  # type: ignore
 
     @classmethod
-    def export_config_file(cls, config: Dict, filepath: PathLike, fmt="json", **kwargs):
+    def export_config_file(cls, config: dict, filepath: PathLike, fmt: str = "json", **kwargs: Any) -> None:
         """
         Export the config content to the specified file path (currently support JSON and YAML files).
 
@@ -419,26 +437,27 @@ class ConfigParser:
 
         """
         _filepath: str = str(Path(filepath))
-        writer = look_up_option(fmt.lower(), {"json", "yaml"})
+        writer = look_up_option(fmt.lower(), {"json", "yaml", "yml"})
         with open(_filepath, "w") as f:
             if writer == "json":
                 json.dump(config, f, **kwargs)
                 return
-            if writer == "yaml":
+            if writer == "yaml" or writer == "yml":
                 return yaml.safe_dump(config, f, **kwargs)
             raise ValueError(f"only support JSON or YAML config file so far, got {writer}.")
 
     @classmethod
-    def split_path_id(cls, src: str) -> Tuple[str, str]:
+    def split_path_id(cls, src: str) -> tuple[str, str]:
         """
         Split `src` string into two parts: a config file path and component id.
-        The file path should end with `(json|yaml|yml)`. The component id should be separated by `#` if it exists.
+        The file path should end with `(json|yaml|yml)`. The component id should be separated by `::` if it exists.
         If no path or no id, return "".
 
         Args:
             src: source string to split.
 
         """
+        src = ReferenceResolver.normalize_id(src)
         result = re.compile(rf"({cls.suffix_match}(?=(?:{ID_SEP_KEY}.*)|$))", re.IGNORECASE).findall(src)
         if not result:
             return "", src  # the src is a pure id
@@ -469,6 +488,7 @@ class ConfigParser:
 
         """
         # get the prefixes like: "@####", "%###", "@#"
+        value = ReferenceResolver.normalize_id(value)
         prefixes = sorted(set().union(cls.relative_id_prefix.findall(value)), reverse=True)
         current_id = id.split(ID_SEP_KEY)
 

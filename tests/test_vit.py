@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -16,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vit import ViT
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 TEST_CASE_Vit = []
 for dropout_rate in [0.6]:
@@ -57,6 +59,7 @@ for dropout_rate in [0.6]:
                                                 TEST_CASE_Vit.append(test_case)
 
 
+@skip_if_quick
 class TestViT(unittest.TestCase):
     @parameterized.expand(TEST_CASE_Vit)
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -146,6 +149,25 @@ class TestViT(unittest.TestCase):
 
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_access_attn_matrix(self):
+        # input format
+        in_channels = 1
+        img_size = (96, 96, 96)
+        patch_size = (16, 16, 16)
+        in_shape = (1, in_channels, img_size[0], img_size[1], img_size[2])
+
+        # no data in the matrix
+        no_matrix_acess_blk = ViT(in_channels=in_channels, img_size=img_size, patch_size=patch_size)
+        no_matrix_acess_blk(torch.randn(in_shape))
+        assert isinstance(no_matrix_acess_blk.blocks[0].attn.att_mat, torch.Tensor)
+        # no of elements is zero
+        assert no_matrix_acess_blk.blocks[0].attn.att_mat.nelement() == 0
+
+        # be able to acess the attention matrix
+        matrix_acess_blk = ViT(in_channels=in_channels, img_size=img_size, patch_size=patch_size, save_attn=True)
+        matrix_acess_blk(torch.randn(in_shape))
+        assert matrix_acess_blk.blocks[0].attn.att_mat.shape == (in_shape[0], 12, 216, 216)
 
 
 if __name__ == "__main__":

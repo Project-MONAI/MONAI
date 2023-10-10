@@ -12,8 +12,9 @@
 This script contains utility functions for complex-value PyTorch tensor.
 """
 
+from __future__ import annotations
+
 import re
-from typing import Optional
 
 import numpy as np
 import torch
@@ -24,9 +25,9 @@ from monai.utils.type_conversion import convert_to_numpy, convert_to_tensor
 
 
 def convert_to_tensor_complex(
-    data,
-    dtype: Optional[torch.dtype] = None,
-    device: Optional[torch.device] = None,
+    data: NdarrayOrTensor | list | int | float,
+    dtype: torch.dtype | None = None,
+    device: torch.device | None = None,
     wrap_sequence: bool = True,
     track_meta: bool = False,
 ) -> Tensor:
@@ -90,7 +91,7 @@ def convert_to_tensor_complex(
 
     elif isinstance(data, list):
         data = convert_to_numpy(data, wrap_sequence=True)
-        data = np.stack((data.real, data.imag), axis=-1).tolist()
+        data = np.stack((data.real, data.imag), axis=-1).tolist()  # type: ignore
 
     converted_data = convert_to_tensor(
         data, dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta

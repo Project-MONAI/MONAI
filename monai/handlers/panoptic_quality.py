@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
 
-from monai.handlers.ignite_metric import IgniteMetric
+from collections.abc import Callable
+
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import PanopticQualityMetric
 from monai.utils import MetricReduction
 
 
-class PanopticQuality(IgniteMetric):
+class PanopticQuality(IgniteMetricHandler):
     """
     Computes Panoptic quality from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -25,7 +27,7 @@ class PanopticQuality(IgniteMetric):
         self,
         num_classes: int,
         metric_name: str = "pq",
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
+        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
         match_iou_threshold: float = 0.5,
         smooth_numerator: float = 1e-6,
         output_transform: Callable = lambda x: x,

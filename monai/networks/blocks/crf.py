@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from __future__ import annotations
 
 import torch
 from torch.nn.functional import softmax
@@ -44,7 +44,7 @@ class CRF(torch.nn.Module):
         bilateral_color_sigma: float = 0.5,
         gaussian_spatial_sigma: float = 5.0,
         update_factor: float = 3.0,
-        compatibility_matrix: Optional[torch.Tensor] = None,
+        compatibility_matrix: torch.Tensor | None = None,
     ):
         """
         Args:
@@ -92,7 +92,6 @@ class CRF(torch.nn.Module):
 
         # mean field loop
         for _ in range(self.iterations):
-
             # message passing step for both kernels
             bilateral_output = PHLFilter.apply(output_tensor, bilateral_features)
             gaussian_output = PHLFilter.apply(output_tensor, gaussian_features)

@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import sys
 import unittest
 from copy import deepcopy
 from functools import partial
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 from unittest.case import skipUnless
 
 import numpy as np
@@ -24,7 +26,6 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, MetaTensor, create_test_image_2d, create_test_image_3d, decollate_batch
 from monai.networks.nets import UNet
 from monai.transforms import (
-    AddChanneld,
     Affined,
     BorderPadd,
     CenterScaleCropd,
@@ -32,6 +33,7 @@ from monai.transforms import (
     Compose,
     CropForegroundd,
     DivisiblePadd,
+    EnsureChannelFirstd,
     Flipd,
     FromMetaTensord,
     InvertibleTransform,
@@ -70,14 +72,13 @@ from monai.utils import first, get_seed, optional_import, set_determinism
 from tests.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
-
     has_nib = True
 else:
     _, has_nib = optional_import("nibabel")
 
 KEYS = ["image", "label"]
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 
 # For pad, start with odd/even images and add odd/even amounts
 for name in ("1D even", "1D odd"):
@@ -387,7 +388,9 @@ class TestInverse(unittest.TestCase):
         im_2d_fname, seg_2d_fname = (make_nifti_image(i) for i in create_test_image_2d(101, 100))
         im_3d_fname, seg_3d_fname = (make_nifti_image(i, affine) for i in create_test_image_3d(100, 101, 107))
 
-        load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS), FromMetaTensord(KEYS)])
+        load_ims = Compose(
+            [LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel"), FromMetaTensord(KEYS)]
+        )
         self.all_data["2D"] = load_ims({"image": im_2d_fname, "label": seg_2d_fname})
         self.all_data["3D"] = load_ims({"image": im_3d_fname, "label": seg_3d_fname})
 
@@ -452,7 +455,6 @@ class TestInverse(unittest.TestCase):
     # skip this test if multiprocessing uses 'spawn', as the check is only basic anyway
     @skipUnless(torch.multiprocessing.get_start_method() == "spawn", "requires spawn")
     def test_fail(self):
-
         t1 = SpatialPadd("image", [10, 5])
         data = t1(self.all_data["2D"])
 
@@ -463,7 +465,6 @@ class TestInverse(unittest.TestCase):
 
     @parameterized.expand(N_SAMPLES_TESTS)
     def test_inverse_inferred_seg(self, extra_transform):
-
         test_data = []
         for _ in range(20):
             image, label = create_test_image_2d(100, 101)
@@ -472,7 +473,9 @@ class TestInverse(unittest.TestCase):
         batch_size = 10
         # num workers = 0 for mac
         num_workers = 2 if sys.platform == "linux" else 0
-        transforms = Compose([AddChanneld(KEYS), SpatialPadd(KEYS, (150, 153)), extra_transform])
+        transforms = Compose(
+            [EnsureChannelFirstd(KEYS, channel_dim="no_channel"), SpatialPadd(KEYS, (150, 153)), extra_transform]
+        )
 
         dataset = CacheDataset(test_data, transform=transforms, progress=False)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)

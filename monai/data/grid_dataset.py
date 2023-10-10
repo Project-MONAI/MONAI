@@ -9,17 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from collections.abc import Callable, Generator, Hashable, Iterable, Mapping, Sequence
 from copy import deepcopy
-from typing import Callable, Dict, Hashable, Iterable, Mapping, Optional, Sequence, Union
 
 import numpy as np
 
 from monai.config import KeysCollection
+from monai.config.type_definitions import NdarrayTensor
 from monai.data.dataset import Dataset
 from monai.data.iterable_dataset import IterableDataset
 from monai.data.utils import iter_patch
 from monai.transforms import apply_transform
-from monai.utils import NumpyPadMode, deprecated_arg, ensure_tuple, first, look_up_option
+from monai.utils import NumpyPadMode, ensure_tuple, first
 
 __all__ = ["PatchDataset", "GridPatchDataset", "PatchIter", "PatchIterd"]
 
@@ -32,17 +35,25 @@ class PatchIter:
     """
 
     def __init__(
-        self, patch_size: Sequence[int], start_pos: Sequence[int] = (), mode: str = NumpyPadMode.WRAP, **pad_opts: Dict
+        self,
+        patch_size: Sequence[int],
+        start_pos: Sequence[int] = (),
+        mode: str | None = NumpyPadMode.WRAP,
+        **pad_opts: dict,
     ):
         """
 
         Args:
             patch_size: size of patches to generate slices for, 0/None selects whole dimension
             start_pos: starting position in the array, default is 0 for each dimension
-            mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-                ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-                One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+            mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function.
+                If None, no wrapping is performed. Defaults to ``"wrap"``.
+                See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+                requires pytorch >= 1.10 for best compatibility.
             pad_opts: other arguments for the `np.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
 
@@ -56,10 +67,10 @@ class PatchIter:
         """
         self.patch_size = (None,) + tuple(patch_size)  # expand to have the channel dim
         self.start_pos = ensure_tuple(start_pos)
-        self.mode: NumpyPadMode = look_up_option(mode, NumpyPadMode)
+        self.mode = mode
         self.pad_opts = pad_opts
 
-    def __call__(self, array: np.ndarray):
+    def __call__(self, array: NdarrayTensor) -> Generator[tuple[NdarrayTensor, np.ndarray], None, None]:
         """
         Args:
             array: the image to generate patches from.
@@ -87,10 +98,14 @@ class PatchIterd:
         keys: keys of the corresponding items to iterate patches.
         patch_size: size of patches to generate slices for, 0/None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            If None, no wrapping is performed. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
         pad_opts: other arguments for the `np.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
 
@@ -105,13 +120,15 @@ class PatchIterd:
         keys: KeysCollection,
         patch_size: Sequence[int],
         start_pos: Sequence[int] = (),
-        mode: str = NumpyPadMode.WRAP,
+        mode: str | None = NumpyPadMode.WRAP,
         **pad_opts,
     ):
         self.keys = ensure_tuple(keys)
         self.patch_iter = PatchIter(patch_size=patch_size, start_pos=start_pos, mode=mode, **pad_opts)
 
-    def __call__(self, data: Mapping[Hashable, np.ndarray]):
+    def __call__(
+        self, data: Mapping[Hashable, NdarrayTensor]
+    ) -> Generator[tuple[Mapping[Hashable, NdarrayTensor], np.ndarray], None, None]:
         d = dict(data)
         original_spatial_shape = d[first(self.keys)].shape[1:]
 
@@ -168,17 +185,13 @@ class GridPatchDataset(IterableDataset):
         transform: a callable data transform operates on the patches.
         with_coordinates: whether to yield the coordinates of each patch, default to `True`.
 
-    .. deprecated:: 0.8.0
-        ``dataset`` is deprecated, use ``data`` instead.
-
     """
 
-    @deprecated_arg(name="dataset", new_name="data", since="0.8", msg_suffix="please use `data` instead.")
     def __init__(
         self,
-        data: Union[Iterable, Sequence],
+        data: Iterable | Sequence,
         patch_iter: Callable,
-        transform: Optional[Callable] = None,
+        transform: Callable | None = None,
         with_coordinates: bool = True,
     ) -> None:
         super().__init__(data=data, transform=None)
@@ -237,14 +250,10 @@ class PatchDataset(Dataset):
 
         >>> torch.Size([2, 1, 3, 3])
 
-    .. deprecated:: 0.8.0
-        ``dataset`` is deprecated, use ``data`` instead.
-
     """
 
-    @deprecated_arg(name="dataset", new_name="data", since="0.8", msg_suffix="please use `data` instead.")
     def __init__(
-        self, data: Sequence, patch_func: Callable, samples_per_image: int = 1, transform: Optional[Callable] = None
+        self, data: Sequence, patch_func: Callable, samples_per_image: int = 1, transform: Callable | None = None
     ) -> None:
         """
         Args:

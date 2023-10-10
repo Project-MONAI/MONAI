@@ -9,12 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
+from __future__ import annotations
 
+import unittest
+from copy import deepcopy
+
+import numpy as np
+import torch
 from parameterized import parameterized
 
+import monai.transforms.intensity.array as ia
+import monai.transforms.spatial.array as sa
+import monai.transforms.spatial.dictionary as sd
 from monai.data import MetaTensor
-from monai.transforms import RandomOrder, TraceableTransform
+from monai.transforms import RandomOrder
 from monai.transforms.compose import Compose
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
@@ -68,18 +76,14 @@ class TestRandomOrder(unittest.TestCase):
 
     @parameterized.expand(TEST_INVERSES)
     def test_inverse(self, transform, invertible, use_metatensor):
-        data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
+        data = {k: MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data1 = transform(data)
         # test call twice won't affect inverse
         fwd_data2 = transform(data)
 
         if invertible:
             for k in KEYS:
-                t = (
-                    fwd_data1[TraceableTransform.trace_key(k)][-1]
-                    if not use_metatensor
-                    else fwd_data1[k].applied_operations[-1]
-                )
+                t = fwd_data1[k].applied_operations[-1]
                 # make sure the RandomOrder applied_order was stored
                 self.assertEqual(t[TraceKeys.CLASS_NAME], RandomOrder.__name__)
 
@@ -92,18 +96,48 @@ class TestRandomOrder(unittest.TestCase):
         for i, _fwd_inv_data in enumerate(fwd_inv_data):
             if invertible:
                 for k in KEYS:
-                    # check transform was removed
-                    if not use_metatensor:
-                        self.assertTrue(
-                            len(_fwd_inv_data[TraceableTransform.trace_key(k)])
-                            < len(fwd_data[i][TraceableTransform.trace_key(k)])
-                        )
                     # check data is same as original (and different from forward)
                     self.assertEqual(_fwd_inv_data[k], data[k])
                     self.assertNotEqual(_fwd_inv_data[k], fwd_data[i][k])
             else:
                 # if not invertible, should not change the data
                 self.assertDictEqual(fwd_data[i], _fwd_inv_data)
+
+
+TEST_RANDOM_ORDER_EXTENDED_TEST_CASES = [
+    [None, tuple()],
+    [None, (sa.Rotate(np.pi / 8),)],
+    [None, (sa.Flip(0), sa.Flip(1), sa.Rotate90(1), sa.Zoom(0.8), ia.NormalizeIntensity())],
+    [("a",), (sd.Rotated(("a",), np.pi / 8),)],
+]
+
+
+class TestRandomOrderAPITests(unittest.TestCase):
+    @staticmethod
+    def data_from_keys(keys):
+        if keys is None:
+            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+        else:
+            data = {}
+            for i_k, k in enumerate(keys):
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(12 * 16)).reshape(12, 16) + i_k * 192, dim=0)
+        return data
+
+    @parameterized.expand(TEST_RANDOM_ORDER_EXTENDED_TEST_CASES)
+    def test_execute_change_start_end(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        c = RandomOrder(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+
+        c = RandomOrder(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, end=1)
+        with self.assertRaises(ValueError):
+            c(data, end=1)
 
 
 if __name__ == "__main__":

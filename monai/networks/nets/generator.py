@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -62,11 +64,11 @@ class Generator(nn.Module):
         start_shape: Sequence[int],
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout: Optional[float] = None,
+        dropout: float | None = None,
         bias: bool = True,
     ) -> None:
         super().__init__()
@@ -100,14 +102,14 @@ class Generator(nn.Module):
 
     def _get_layer(
         self, in_channels: int, out_channels: int, strides: int, is_last: bool
-    ) -> Union[Convolution, nn.Sequential]:
+    ) -> Convolution | nn.Sequential:
         """
         Returns a layer accepting inputs with `in_channels` number of channels and producing outputs of `out_channels`
         number of channels. The `strides` indicates upsampling factor, ie. transpose convolutional stride. If `is_last`
         is True this is the final layer and is not expected to include activation and normalization layers.
         """
 
-        layer: Union[Convolution, nn.Sequential]
+        layer: Convolution | nn.Sequential
 
         layer = Convolution(
             in_channels=in_channels,

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 import torch
 import torch.nn as nn
@@ -66,16 +68,15 @@ class ConvDenseBlock(DenseBlock):
         spatial_dims: int,
         in_channels: int,
         channels: Sequence[int],
-        dilations: Optional[Sequence[int]] = None,
-        kernel_size: Union[Sequence[int], int] = 3,
+        dilations: Sequence[int] | None = None,
+        kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 0,
         adn_ordering: str = "NDA",
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
-        norm: Optional[Union[Tuple, str]] = Norm.INSTANCE,
-        dropout: Optional[int] = None,
+        act: tuple | str | None = Act.PRELU,
+        norm: tuple | str | None = Norm.INSTANCE,
+        dropout: tuple | str | float | None = None,
         bias: bool = True,
     ):
-
         self.spatial_dims = spatial_dims
         self.kernel_size = kernel_size
         self.num_res_units = num_res_units

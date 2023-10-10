@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Dict, List, Type, Union
 
 import torch
 from parameterized import parameterized
@@ -46,12 +47,10 @@ class DummyEncoder(BaseEncoder):
 
     @classmethod
     def num_channels_per_output(cls):
-
         return [(32, 64, 128, 256, 512, 1024), (32, 64, 128, 256), (32, 64, 128, 256), (32, 64, 128, 256)]
 
     @classmethod
     def num_outputs(cls):
-
         return [6, 4, 4, 4]
 
     @classmethod
@@ -88,14 +87,14 @@ class ResNetEncoder(ResNet, BaseEncoder):
         return [64, 128, 256, 512]
 
     @classmethod
-    def get_encoder_parameters(cls) -> List[Dict]:
+    def get_encoder_parameters(cls) -> list[dict]:
         """
         Get parameter list to initialize encoder networks.
         Each parameter dict must have `spatial_dims`, `in_channels`
         and `pretrained` parameters.
         """
         parameter_list = []
-        res_type: Union[Type[ResNetBlock], Type[ResNetBottleneck]]
+        res_type: type[ResNetBlock] | type[ResNetBottleneck]
         for backbone in range(len(cls.backbone_names)):
             if backbone < 3:
                 res_type = ResNetBlock
@@ -174,29 +173,32 @@ def make_shape_cases(
     num_classes=10,
     input_shape=64,
     norm=("batch", {"eps": 1e-3, "momentum": 0.01}),
+    upsample=("nontrainable", "deconv", "pixelshuffle"),
 ):
     ret_tests = []
     for spatial_dim in spatial_dims:  # selected spatial_dims
         for batch in batches:  # check single batch as well as multiple batch input
             for model in models:  # selected models
                 for is_pretrained in pretrained:  # pretrained or not pretrained
-                    if ("resnet" in model) and is_pretrained:
-                        continue
-                    kwargs = {
-                        "in_channels": in_channels,
-                        "out_channels": num_classes,
-                        "backbone": model,
-                        "pretrained": is_pretrained,
-                        "spatial_dims": spatial_dim,
-                        "norm": norm,
-                    }
-                    ret_tests.append(
-                        [
-                            kwargs,
-                            (batch, in_channels) + (input_shape,) * spatial_dim,
-                            (batch, num_classes) + (input_shape,) * spatial_dim,
-                        ]
-                    )
+                    for upsample_method in upsample:
+                        if ("resnet" in model) and is_pretrained:
+                            continue
+                        kwargs = {
+                            "in_channels": in_channels,
+                            "out_channels": num_classes,
+                            "backbone": model,
+                            "pretrained": is_pretrained,
+                            "spatial_dims": spatial_dim,
+                            "norm": norm,
+                            "upsample": upsample_method,
+                        }
+                        ret_tests.append(
+                            [
+                                kwargs,
+                                (batch, in_channels) + (input_shape,) * spatial_dim,
+                                (batch, num_classes) + (input_shape,) * spatial_dim,
+                            ]
+                        )
     return ret_tests
 
 

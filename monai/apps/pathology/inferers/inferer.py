@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import Any, Callable, Sequence
 
 import numpy as np
 import torch
@@ -73,19 +75,19 @@ class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
 
     def __init__(
         self,
-        roi_size: Union[Sequence[int], int],
+        roi_size: Sequence[int] | int,
         sw_batch_size: int = 1,
         overlap: float = 0.25,
-        mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-        sigma_scale: Union[Sequence[float], float] = 0.125,
-        padding_mode: Union[PytorchPadMode, str] = PytorchPadMode.CONSTANT,
+        mode: BlendMode | str = BlendMode.CONSTANT,
+        sigma_scale: Sequence[float] | float = 0.125,
+        padding_mode: PytorchPadMode | str = PytorchPadMode.CONSTANT,
         cval: float = 0.0,
-        sw_device: Optional[Union[torch.device, str]] = None,
-        device: Optional[Union[torch.device, str]] = None,
+        sw_device: torch.device | str | None = None,
+        device: torch.device | str | None = None,
         progress: bool = False,
         cache_roi_weight_map: bool = False,
-        cpu_thresh: Optional[int] = None,
-        extra_input_padding: Optional[Tuple[int]] = None,
+        cpu_thresh: int | None = None,
+        extra_input_padding: tuple[int] | None = None,
     ) -> None:
         super().__init__(
             roi_size=roi_size,
@@ -130,10 +132,10 @@ class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        network: Callable[..., Union[torch.Tensor, Sequence[torch.Tensor], Dict[Any, torch.Tensor]]],
+        network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         *args: Any,
         **kwargs: Any,
-    ) -> Union[torch.Tensor, Tuple[torch.Tensor, ...], Dict[Any, torch.Tensor]]:
+    ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
         """
 
         Args:
@@ -174,12 +176,15 @@ class SlidingWindowHoVerNetInferer(SlidingWindowInferer):
             self.progress,
             self.roi_weight_map,
             self.process_output,
+            self.buffer_steps,
+            self.buffer_dim,
+            False,
             *args,
             **kwargs,
         )
 
         if self.extra_input_padding:
-            extra_slicing: List[slice] = []
+            extra_slicing: list[slice] = []
             num_padded_dims = len(self.extra_input_padding) // 2
             for sp in range(num_padded_dims):
                 slice_dim = slice(

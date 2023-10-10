@@ -1,9 +1,14 @@
 {
     "images": {
-        "wsi_img": {
+        "wsi_generic_tiff": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CMU-1.tiff",
             "hash_type": "sha256",
             "hash_val": "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
+        },
+        "wsi_aperio_svs": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/Aperio-CMU-1.svs",
+            "hash_type": "sha256",
+            "hash_val": "00a3d54482cd707abf254fe69dccc8d06b8ff757a1663f1290c23418c480eb30"
         },
         "favicon": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/favicon.ico.zip",
@@ -54,6 +59,36 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/MNI152_T1_2mm_strucseg.nii.gz",
             "hash_type": "sha256",
             "hash_val": "eb4f1e596ca85aadaefc359d409fb9a3e27d733e6def04b996953b7c54bc26d4"
+        },
+        "copd1_highres_INSP_STD_COPD_img": {
+            "url": "https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download",
+            "hash_type": "sha512",
+            "hash_val": "60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9"
+        },
+        "copd1_highres_EXP_STD_COPD_img": {
+            "url": "https://data.kitware.com/api/v1/item/62a0f045bddec9d0c4175c44/download",
+            "hash_type": "sha512",
+            "hash_val": "841ef303958541474e66c2d1ccdc8b7ed17ba2f2681101307766b979a07979f2ec818ddf13791c3f1ac5a8ec3258d6ea45b692b4b4a838de9188602618972b6d"
+        },
+        "CT_2D_head_fixed": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_fixed.mha",
+            "hash_type": "sha256",
+            "hash_val": "06f2ce6fbf6a59f0874c735555fcf71717f631156b1b0697c1752442f7fc1cc5"
+        },
+        "CT_2D_head_moving": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_moving.mha",
+            "hash_type": "sha256",
+            "hash_val": "a37c5fe388c38b3f4ac564f456277d09d3982eda58c4da05ead8ee2332360f47"
+        },
+        "DICOM_single": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_DICOM_SINGLE.zip",
+            "hash_type": "sha256",
+            "hash_val": "a41f6e93d2e3d68956144f9a847273041d36441da12377d6a1d5ae610e0a7023"
+        },
+        "nrrd_example": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_IMAGE_cropped.nrrd",
+            "hash_type": "sha256",
+            "hash_val": "66971ad17f0bac50e6082ed6a4dc1ae7093c30517137e53327b15a752327a1c0"
         }
     },
     "videos": {
@@ -98,6 +133,11 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/se_resnext50_32x4d-a260b3a4.pth",
             "hash_type": "sha256",
             "hash_val": "a260b3a40f82dfe37c58d26a612bcf7bef0d27c6fed096226b0e4e9fb364168e"
+        },
+        "ssl_pretrained_weights": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth",
+            "hash_type": "sha256",
+            "hash_val": "c3564f40a6a051d3753a6d8fae5cc8eaf21ce8d82a9a3baf80748d15664055e8"
         }
     },
     "configs": {

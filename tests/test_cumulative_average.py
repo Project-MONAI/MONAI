@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -32,7 +34,6 @@ TEST_CASE_1.append([{"vals": [1, 2, float("nan")], "avg": 1.5}])
 class TestAverageMeter(unittest.TestCase):
     @parameterized.expand(TEST_CASE_1)
     def test_value_all(self, data):
-
         # test orig
         self.run_test(data)
 

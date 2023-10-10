@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -26,14 +28,22 @@ def rotate_90_2d():
     return t
 
 
-RESAMPLE_FUNCTION_CASES = [(get_arange_img((3, 3)), rotate_90_2d(), [[2, 5, 8], [1, 4, 7], [0, 3, 6]])]
+RESAMPLE_FUNCTION_CASES = [
+    (get_arange_img((3, 3)), rotate_90_2d(), [[0, 3, 6], [0, 3, 6], [0, 3, 6]]),
+    (get_arange_img((3, 3)), torch.eye(3), get_arange_img((3, 3))[0]),
+]
 
 
 class TestResampleFunction(unittest.TestCase):
     @parameterized.expand(RESAMPLE_FUNCTION_CASES)
     def test_resample_function_impl(self, img, matrix, expected):
-        out = resample(convert_to_tensor(img), matrix)
+        out = resample(convert_to_tensor(img), matrix, {"lazy_shape": img.shape[1:], "lazy_padding_mode": "border"})
         assert_allclose(out[0], expected, type_test=False)
+
+        img = convert_to_tensor(img, dtype=torch.uint8)
+        out = resample(img, matrix, {"lazy_resample_mode": "auto", "lazy_dtype": torch.float})
+        out_1 = resample(img, matrix, {"lazy_resample_mode": "other value", "lazy_dtype": torch.float})
+        self.assertIs(out.dtype, out_1.dtype)  # testing dtype in different lazy_resample_mode
 
 
 if __name__ == "__main__":

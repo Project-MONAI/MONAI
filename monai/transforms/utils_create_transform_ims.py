@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import pathlib
 import tempfile
@@ -464,7 +466,6 @@ def create_transform_im(
 
 
 if __name__ == "__main__":
-
     keys = [CommonKeys.IMAGE, CommonKeys.LABEL]
     data = get_data(keys)
     create_transform_im(RandFlip, dict(prob=1, spatial_axis=1), data)
@@ -537,8 +538,8 @@ if __name__ == "__main__":
     )
     create_transform_im(DivisiblePad, dict(k=64), data)
     create_transform_im(DivisiblePadd, dict(keys=keys, k=64), data)
-    create_transform_im(CropForeground, dict(), data)
-    create_transform_im(CropForegroundd, dict(keys=keys, source_key=CommonKeys.IMAGE), data)
+    create_transform_im(CropForeground, dict(allow_smaller=False), data)
+    create_transform_im(CropForegroundd, dict(keys=keys, source_key=CommonKeys.IMAGE, allow_smaller=False), data)
     create_transform_im(RandGaussianNoise, dict(prob=1, mean=0, std=0.1), data)
     create_transform_im(RandGaussianNoised, dict(keys=CommonKeys.IMAGE, prob=1, mean=0, std=0.1), data)
     create_transform_im(KSpaceSpikeNoise, dict(loc=(100, 100, 100), k_intensity=13), data)

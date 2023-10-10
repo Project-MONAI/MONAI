@@ -8,8 +8,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from __future__ import annotations
+
 import json
-from typing import Callable, Dict, Hashable, List, Optional, Sequence, Union
+from collections.abc import Callable, Hashable, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -19,7 +23,7 @@ from monai.networks.layers import GaussianFilter
 from monai.transforms import Resize, SpatialCrop
 from monai.transforms.transform import MapTransform, Randomizable, Transform
 from monai.transforms.utils import generate_spatial_bounding_box, is_positive
-from monai.utils import InterpolateMode, deprecated_arg, ensure_tuple, ensure_tuple_rep, min_version, optional_import
+from monai.utils import InterpolateMode, ensure_tuple, ensure_tuple_rep, min_version, optional_import
 from monai.utils.enums import PostFix
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
@@ -50,8 +54,8 @@ class FindAllValidSlicesd(Transform):
                 sids.append(sid)
         return np.asarray(sids)
 
-    def __call__(self, data) -> Dict:
-        d: Dict = dict(data)
+    def __call__(self, data: Any) -> dict:
+        d: dict = dict(data)
         label = d[self.label].numpy() if isinstance(data[self.label], torch.Tensor) else data[self.label]
         if label.shape[0] != 1:
             raise ValueError(f"Only supports single channel labels, got label shape {label.shape}!")
@@ -396,13 +400,13 @@ class SpatialCropForegroundd(MapTransform):
         self,
         keys: KeysCollection,
         source_key: str,
-        spatial_size: Union[Sequence[int], np.ndarray],
+        spatial_size: Sequence[int] | np.ndarray,
         select_fn: Callable = is_positive,
-        channel_indices: Optional[IndexSelection] = None,
+        channel_indices: IndexSelection | None = None,
         margin: int = 0,
         allow_smaller: bool = True,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix=DEFAULT_POST_FIX,
+        meta_keys: KeysCollection | None = None,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -437,8 +441,8 @@ class SpatialCropForegroundd(MapTransform):
 
         if np.all(np.less(current_size, self.spatial_size)):
             cropper = SpatialCrop(roi_center=center, roi_size=self.spatial_size)
-            box_start = np.array([s.start for s in cropper.slices])  # type: ignore
-            box_end = np.array([s.stop for s in cropper.slices])  # type: ignore
+            box_start = np.array([s.start for s in cropper.slices])
+            box_end = np.array([s.stop for s in cropper.slices])
         else:
             cropper = SpatialCrop(roi_start=box_start, roi_end=box_end)
 
@@ -488,15 +492,11 @@ class AddGuidanceFromPointsd(Transform):
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     """
 
-    @deprecated_arg(name="dimensions", since="0.6", msg_suffix="Please use `spatial_dims` instead.")
     def __init__(
         self,
-        ref_image,
+        ref_image: str,
         guidance: str = "guidance",
         foreground: str = "foreground",
         background: str = "background",
@@ -504,9 +504,8 @@ class AddGuidanceFromPointsd(Transform):
         depth_first: bool = True,
         spatial_dims: int = 2,
         slice_key: str = "slice",
-        meta_keys: Optional[str] = None,
+        meta_keys: str | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
-        dimensions: Optional[int] = None,
     ):
         self.ref_image = ref_image
         self.guidance = guidance
@@ -514,7 +513,7 @@ class AddGuidanceFromPointsd(Transform):
         self.background = background
         self.axis = axis
         self.depth_first = depth_first
-        self.dimensions = spatial_dims if dimensions is None else dimensions
+        self.dimensions = spatial_dims
         self.slice = slice_key
         self.meta_keys = meta_keys
         self.meta_key_postfix = meta_key_postfix
@@ -523,7 +522,7 @@ class AddGuidanceFromPointsd(Transform):
         pos = neg = []
 
         if self.dimensions == 2:
-            points: List = list(pos_clicks)
+            points: list = list(pos_clicks)
             points.extend(neg_clicks)
 
             slices = list(np.unique(np.array(points)[:, self.axis]))
@@ -612,10 +611,10 @@ class SpatialCropGuidanced(MapTransform):
         self,
         keys: KeysCollection,
         guidance: str,
-        spatial_size,
-        margin=20,
-        meta_keys: Optional[KeysCollection] = None,
-        meta_key_postfix=DEFAULT_POST_FIX,
+        spatial_size: Iterable[int],
+        margin: int = 20,
+        meta_keys: KeysCollection | None = None,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
         original_shape_key: str = "foreground_original_shape",
@@ -653,8 +652,8 @@ class SpatialCropGuidanced(MapTransform):
             box_start[di], box_end[di] = min_d, max_d
         return box_start, box_end
 
-    def __call__(self, data) -> Dict:
-        d: Dict = dict(data)
+    def __call__(self, data: Any) -> dict:
+        d: dict = dict(data)
         first_key: Hashable = self.first_key(d)
         if first_key == ():
             return d
@@ -730,7 +729,7 @@ class ResizeGuidanced(Transform):
         self,
         guidance: str,
         ref_image: str,
-        meta_keys: Optional[str] = None,
+        meta_keys: str | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         cropped_shape_key: str = "foreground_cropped_shape",
     ) -> None:
@@ -740,10 +739,10 @@ class ResizeGuidanced(Transform):
         self.meta_key_postfix = meta_key_postfix
         self.cropped_shape_key = cropped_shape_key
 
-    def __call__(self, data) -> Dict:
+    def __call__(self, data: Any) -> dict:
         d = dict(data)
         guidance = d[self.guidance]
-        meta_dict: Dict = d[self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"]
+        meta_dict: dict = d[self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"]
         current_shape = d[self.ref_image].shape[1:]
         cropped_shape = meta_dict[self.cropped_shape_key][1:]
         factor = np.divide(current_shape, cropped_shape)
@@ -811,9 +810,9 @@ class RestoreLabeld(MapTransform):
         keys: KeysCollection,
         ref_image: str,
         slice_only: bool = False,
-        mode: Union[Sequence[Union[InterpolateMode, str]], InterpolateMode, str] = InterpolateMode.NEAREST,
-        align_corners: Union[Sequence[Optional[bool]], Optional[bool]] = None,
-        meta_keys: Optional[str] = None,
+        mode: Sequence[InterpolateMode | str] | InterpolateMode | str = InterpolateMode.NEAREST,
+        align_corners: Sequence[bool | None] | bool | None = None,
+        meta_keys: str | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         start_coord_key: str = "foreground_start_coord",
         end_coord_key: str = "foreground_end_coord",
@@ -835,9 +834,9 @@ class RestoreLabeld(MapTransform):
         self.original_shape_key = original_shape_key
         self.cropped_shape_key = cropped_shape_key
 
-    def __call__(self, data) -> Dict:
+    def __call__(self, data: Any) -> dict:
         d = dict(data)
-        meta_dict: Dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
+        meta_dict: dict = d[f"{self.ref_image}_{self.meta_key_postfix}"]
 
         for key, mode, align_corners, meta_key in self.key_iterator(d, self.mode, self.align_corners, self.meta_keys):
             image = d[key]
@@ -916,10 +915,10 @@ class Fetch2DSliced(MapTransform):
 
     def __init__(
         self,
-        keys,
-        guidance="guidance",
+        keys: KeysCollection,
+        guidance: str = "guidance",
         axis: int = 0,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         allow_missing_keys: bool = False,
     ):

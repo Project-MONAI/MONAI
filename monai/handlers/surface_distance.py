@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
 
-from monai.handlers.ignite_metric import IgniteMetric
+from collections.abc import Callable
+
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import SurfaceDistanceMetric
 from monai.utils import MetricReduction
 
 
-class SurfaceDistance(IgniteMetric):
+class SurfaceDistance(IgniteMetricHandler):
     """
     Computes surface distance from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -26,7 +28,7 @@ class SurfaceDistance(IgniteMetric):
         include_background: bool = False,
         symmetric: bool = False,
         distance_metric: str = "euclidean",
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:

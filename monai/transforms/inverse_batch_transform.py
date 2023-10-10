@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import Any
 
 from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader as TorchDataLoader
@@ -57,8 +60,8 @@ class BatchInverseTransform(Transform):
         self,
         transform: InvertibleTransform,
         loader: TorchDataLoader,
-        collate_fn: Optional[Callable] = no_collation,
-        num_workers: Optional[int] = 0,
+        collate_fn: Callable | None = no_collation,
+        num_workers: int | None = 0,
         detach: bool = True,
         pad_batch: bool = True,
         fill_value=None,
@@ -92,7 +95,7 @@ class BatchInverseTransform(Transform):
             loader.collate_fn, PadListDataCollate
         )
 
-    def __call__(self, data: Dict[str, Any]) -> Any:
+    def __call__(self, data: dict[str, Any]) -> Any:
         decollated_data = decollate_batch(data, detach=self.detach, pad=self.pad_batch, fill_value=self.fill_value)
         inv_ds = _BatchInverseDataset(decollated_data, self.transform, self.pad_collation_used)
         inv_loader = DataLoader(
@@ -129,7 +132,7 @@ class Decollated(MapTransform):
 
     def __init__(
         self,
-        keys: Optional[KeysCollection] = None,
+        keys: KeysCollection | None = None,
         detach: bool = True,
         pad_batch: bool = True,
         fill_value=None,
@@ -140,8 +143,8 @@ class Decollated(MapTransform):
         self.pad_batch = pad_batch
         self.fill_value = fill_value
 
-    def __call__(self, data: Union[Dict, List]):
-        d: Union[Dict, List]
+    def __call__(self, data: dict | list):
+        d: dict | list
         if len(self.keys) == 1 and self.keys[0] is None:
             # it doesn't support `None` as the key
             d = data

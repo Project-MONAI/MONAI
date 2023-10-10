@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import unittest
 
@@ -56,7 +58,7 @@ class TestInvertd(unittest.TestCase):
                 RandRotate90d(KEYS, prob=0, spatial_axes=(1, 2)),
                 RandZoomd(KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64),
-                RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
+                RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode=["nearest", 0]),
                 ResizeWithPadOrCropd(KEYS, 100),
                 CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
                 CopyItemsd("label", times=2, names=["label_inverted", "label_inverted1"]),

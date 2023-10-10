@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from __future__ import annotations
 
 import torch.nn as nn
 
@@ -69,12 +69,12 @@ class ADN(nn.Sequential):
     def __init__(
         self,
         ordering: str = "NDA",
-        in_channels: Optional[int] = None,
-        act: Optional[Union[Tuple, str]] = "RELU",
-        norm: Optional[Union[Tuple, str]] = None,
-        norm_dim: Optional[int] = None,
-        dropout: Optional[Union[Tuple, str, float]] = None,
-        dropout_dim: Optional[int] = None,
+        in_channels: int | None = None,
+        act: tuple | str | None = "RELU",
+        norm: tuple | str | None = None,
+        norm_dim: int | None = None,
+        dropout: tuple | str | float | None = None,
+        dropout_dim: int | None = None,
     ) -> None:
         super().__init__()
 

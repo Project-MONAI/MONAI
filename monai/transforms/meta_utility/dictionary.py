@@ -15,7 +15,9 @@ These can be used to make backwards compatible code.
 Class names are ended with 'd' to denote dictionary-based transforms.
 """
 
-from typing import Dict, Hashable, Mapping, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Hashable, Mapping, Sequence
 
 import numpy as np
 import torch
@@ -48,7 +50,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
-        self, keys: KeysCollection, data_type: Union[Sequence[str], str] = "tensor", allow_missing_keys: bool = False
+        self, keys: KeysCollection, data_type: Sequence[str] | str = "tensor", allow_missing_keys: bool = False
     ):
         """
         Args:
@@ -60,7 +62,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
         super().__init__(keys, allow_missing_keys)
         self.as_tensor_output = tuple(d == "tensor" for d in ensure_tuple_rep(data_type, len(self.keys)))
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key, t in self.key_iterator(d, self.as_tensor_output):
             im: MetaTensor = d[key]  # type: ignore
@@ -68,7 +70,7 @@ class FromMetaTensord(MapTransform, InvertibleTransform):
             self.push_transform(d, key)
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             # check transform
@@ -94,7 +96,7 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY, TransformBackends.CUPY]
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             self.push_transform(d, key)
@@ -105,7 +107,7 @@ class ToMetaTensord(MapTransform, InvertibleTransform):
             d[key] = im
         return d
 
-    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             # check transform

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional, Tuple
+from __future__ import annotations
+
+from typing import Any
 
 from monai.networks.nets import NetAdapter
 from monai.utils import optional_import
@@ -100,9 +102,9 @@ class TorchVisionFCModel(NetAdapter):
         model_name: str = "resnet18",
         num_classes: int = 1,
         dim: int = 2,
-        in_channels: Optional[int] = None,
+        in_channels: int | None = None,
         use_conv: bool = False,
-        pool: Optional[Tuple[str, Dict[str, Any]]] = ("avg", {"kernel_size": 7, "stride": 1}),
+        pool: tuple[str, dict[str, Any]] | None = ("avg", {"kernel_size": 7, "stride": 1}),
         bias: bool = True,
         pretrained: bool = False,
         fc_name: str = "fc",
@@ -112,8 +114,10 @@ class TorchVisionFCModel(NetAdapter):
     ):
         if weights is not None:
             model = getattr(models, model_name)(weights=weights, **kwargs)
+        elif pretrained:
+            model = getattr(models, model_name)(weights="DEFAULT", **kwargs)
         else:
-            model = getattr(models, model_name)(pretrained=pretrained, **kwargs)  # 'pretrained' deprecated 0.13
+            model = getattr(models, model_name)(weights=None, **kwargs)
 
         super().__init__(
             model=model,

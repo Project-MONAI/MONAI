@@ -9,10 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
+
+from numpy import ndarray
+from torch import Tensor
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.utility.array import Lambda
+from monai.utils.type_conversion import convert_to_numpy, convert_to_tensor
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
@@ -41,6 +47,24 @@ class TestLambda(NumpyImageTestCase2D):
             self.assertEqual(len(out.applied_operations), 1)
             out = lambd.inverse(out)
             self.assertEqual(len(out.applied_operations), 0)
+
+    def test_lambda_track_meta_false(self):
+        for p in TEST_NDARRAYS:
+            img = p(self.imt)
+
+            def to_numpy(x):
+                return convert_to_numpy(x)
+
+            lambd = Lambda(func=to_numpy, track_meta=False)
+            out = lambd(img)
+            self.assertIsInstance(out, ndarray)
+
+            def to_tensor(x):
+                return convert_to_tensor(x)
+
+            lambd = Lambda(func=to_tensor, track_meta=False)
+            out = lambd(img)
+            self.assertIsInstance(out, Tensor)
 
 
 if __name__ == "__main__":

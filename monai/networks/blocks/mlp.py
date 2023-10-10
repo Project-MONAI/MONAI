@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from __future__ import annotations
 
 import torch.nn as nn
 
@@ -26,19 +26,14 @@ class MLPBlock(nn.Module):
     """
 
     def __init__(
-        self,
-        hidden_size: int,
-        mlp_dim: int,
-        dropout_rate: float = 0.0,
-        act: Union[Tuple, str] = "GELU",
-        dropout_mode="vit",
+        self, hidden_size: int, mlp_dim: int, dropout_rate: float = 0.0, act: tuple | str = "GELU", dropout_mode="vit"
     ) -> None:
         """
         Args:
             hidden_size: dimension of hidden layer.
             mlp_dim: dimension of feedforward layer. If 0, `hidden_size` will be used.
-            dropout_rate: faction of the input units to drop.
-            act: activation type and arguments. Defaults to GELU.
+            dropout_rate: fraction of the input units to drop.
+            act: activation type and arguments. Defaults to GELU. Also supports "GEGLU" and others.
             dropout_mode: dropout mode, can be "vit" or "swin".
                 "vit" mode uses two dropout instances as implemented in
                 https://github.com/google-research/vision_transformer/blob/main/vit_jax/models.py#L87
@@ -53,7 +48,7 @@ class MLPBlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
         mlp_dim = mlp_dim or hidden_size
-        self.linear1 = nn.Linear(hidden_size, mlp_dim)
+        self.linear1 = nn.Linear(hidden_size, mlp_dim) if act != "GEGLU" else nn.Linear(hidden_size, mlp_dim * 2)
         self.linear2 = nn.Linear(mlp_dim, hidden_size)
         self.fn = get_act_layer(act)
         self.drop1 = nn.Dropout(dropout_rate)

@@ -10,6 +10,8 @@
 # limitations under the License.
 """this test should not generate errors or
 UserWarning: semaphore_tracker: There appear to be 1 leaked semaphores"""
+from __future__ import annotations
+
 import multiprocessing as mp
 import unittest
 

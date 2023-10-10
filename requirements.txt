@@ -1,2 +1,2 @@
-torch>=1.8
-numpy>=1.17
+torch>=1.9
+numpy>=1.20

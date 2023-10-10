@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -27,9 +29,9 @@ class MaxAvgPool(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Optional[Union[Sequence[int], int]] = None,
-        padding: Union[Sequence[int], int] = 0,
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int | None = None,
+        padding: Sequence[int] | int = 0,
         ceil_mode: bool = False,
     ) -> None:
         """

@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import sys
 import tempfile
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from torch.utils.data import Dataset, IterableDataset
@@ -62,9 +65,9 @@ class VideoDataset:
 
     def __init__(
         self,
-        video_source: Union[str, int],
-        transform: Optional[Callable] = None,
-        max_num_frames: Optional[int] = None,
+        video_source: str | int,
+        transform: Callable | None = None,
+        max_num_frames: int | None = None,
         color_order: str = ColorOrder.RGB,
         multiprocessing: bool = False,
         channel_dim: int = 0,
@@ -107,7 +110,7 @@ class VideoDataset:
         self.max_num_frames = max_num_frames
 
     @staticmethod
-    def open_video(video_source: Union[str, int]):
+    def open_video(video_source: str | int):
         """
         Use OpenCV to open a video source from either file or capture device.
 
@@ -162,7 +165,7 @@ class VideoFileDataset(Dataset, VideoDataset):
             self.max_num_frames = num_frames
 
     @staticmethod
-    def get_available_codecs() -> Dict[str, str]:
+    def get_available_codecs() -> dict[str, str]:
         """Try different codecs, see which are available.
         Returns a dictionary with of available codecs with codecs as keys and file extensions as values."""
         if not has_cv2:

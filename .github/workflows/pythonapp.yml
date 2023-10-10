@@ -22,8 +22,11 @@ jobs:
   #   - os-latest-pip- (shared)
   flake8-py3:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        opt: ["codeformat", "pytype", "mypy"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
@@ -46,8 +49,8 @@ jobs:
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Git hub actions have 2 cores, so parallize pytype
-        $(pwd)/runtests.sh --build --codeformat -j 2
+        # Github actions have 2 cores, so parallelize pytype
+        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j 2
 
   quick-py3:  # full dependencies installed tests for different OS
     runs-on: ${{ matrix.os }}
@@ -59,12 +62,12 @@ jobs:
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
-      uses: al-cheb/configure-pagefile-action@v1.2
+      uses: al-cheb/configure-pagefile-action@v1.3
       with:
-        minimum-size: 8
-        maximum-size: 16
+        minimum-size: 8GB
+        maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
@@ -101,8 +104,7 @@ jobs:
         python -m pip list
         python setup.py develop  # test no compile installation
       shell: bash
-    - if: runner.os != 'windows'
-      name: Run compiled (${{ runner.os }})
+    - name: Run compiled (${{ runner.os }})
       run: |
         python setup.py develop --uninstall
         BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions
@@ -122,7 +124,7 @@ jobs:
       QUICKTEST: True
       shell: bash
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python 3.8
@@ -147,7 +149,7 @@ jobs:
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
-        python -m pip install torch>=1.8 torchvision
+        python -m pip install torch>=1.9 torchvision
     - name: Check packages
       run: |
         pip uninstall monai
@@ -205,7 +207,7 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:

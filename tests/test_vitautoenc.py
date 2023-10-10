@@ -8,6 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -15,7 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
-from tests.utils import skip_if_windows
+from tests.utils import skip_if_quick, skip_if_windows
 
 TEST_CASE_Vitautoenc = []
 for in_channels in [1, 4]:
@@ -47,7 +49,7 @@ TEST_CASE_Vitautoenc.append(
         {
             "in_channels": 1,
             "img_size": (512, 512, 32),
-            "patch_size": (16, 16, 16),
+            "patch_size": (64, 64, 16),
             "hidden_size": 768,
             "mlp_dim": 3072,
             "num_layers": 4,
@@ -62,7 +64,15 @@ TEST_CASE_Vitautoenc.append(
 )
 
 
-class TestPatchEmbeddingBlock(unittest.TestCase):
+@skip_if_quick
+class TestVitAutoenc(unittest.TestCase):
+    def setUp(self):
+        self.threads = torch.get_num_threads()
+        torch.set_num_threads(4)
+
+    def tearDown(self):
+        torch.set_num_threads(self.threads)
+
     @parameterized.expand(TEST_CASE_Vitautoenc)
     @skip_if_windows
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -129,6 +139,19 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 in_channels=4,
                 img_size=(96, 96, 96),
                 patch_size=(16, 16, 16),
+                hidden_size=768,
+                mlp_dim=3072,
+                num_layers=12,
+                num_heads=12,
+                pos_embed="perc",
+                dropout_rate=0.3,
+            )
+
+        with self.assertRaises(ValueError):
+            ViTAutoEnc(
+                in_channels=4,
+                img_size=(96, 96, 96),
+                patch_size=(9, 9, 9),
                 hidden_size=768,
                 mlp_dim=3072,
                 num_layers=12,

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -37,8 +39,8 @@ class SimpleASPP(nn.Module):
         conv_out_channels: int,
         kernel_sizes: Sequence[int] = (1, 3, 3, 3),
         dilations: Sequence[int] = (1, 2, 4, 6),
-        norm_type: Optional[Union[Tuple, str]] = "BATCH",
-        acti_type: Optional[Union[Tuple, str]] = "LEAKYRELU",
+        norm_type: tuple | str | None = "BATCH",
+        acti_type: tuple | str | None = "LEAKYRELU",
         bias: bool = False,
     ) -> None:
         """

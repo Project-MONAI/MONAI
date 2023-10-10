@@ -9,21 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Dict, List
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.config import USE_COMPILED
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
 from monai.utils import fall_back_tuple
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
-TESTS: List[List] = []
+TESTS: list[list] = []
 for device in TEST_DEVICES:
     TESTS.append(
         [
@@ -71,7 +74,9 @@ for device in TEST_DEVICES:
             torch.ones((1, 2, 1, 2)),  # data
             torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
             {},
-            torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
+            torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
+            if USE_COMPILED
+            else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
             *device,
         ]
     )
@@ -233,7 +238,7 @@ for device in TEST_DEVICES:
     )
     TESTS.append(  # 5D input
         [
-            {"pixdim": 0.5, "padding_mode": "zeros", "mode": "nearest", "scale_extent": True},
+            {"pixdim": 0.5, "padding_mode": "constant", "mode": "nearest", "scale_extent": True},
             torch.ones((1, 368, 336, 368)),  # data
             torch.tensor(
                 [
@@ -267,16 +272,21 @@ class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_spacing(
         self,
-        init_param: Dict,
+        init_param: dict,
         img: torch.Tensor,
         affine: torch.Tensor,
-        data_param: Dict,
+        data_param: dict,
         expected_output: torch.Tensor,
         device: torch.device,
     ):
         img = MetaTensor(img, affine=affine).to(device)
-        res: MetaTensor = Spacing(**init_param)(img, **data_param)
+        tr = Spacing(**init_param)
+        call_param = data_param.copy()
+        call_param["data_array"] = img
+        res: MetaTensor = tr(**call_param)  # type: ignore
         self.assertEqual(img.device, res.device)
+
+        test_resampler_lazy(tr, res, init_param=init_param, call_param=call_param)
 
         assert_allclose(res, expected_output, atol=1e-1, rtol=1e-1)
         sr = min(len(res.shape) - 1, 3)
@@ -289,13 +299,17 @@ class TestSpacingCase(unittest.TestCase):
     @parameterized.expand(TESTS_TORCH)
     def test_spacing_torch(self, pixdim, img, track_meta: bool):
         set_track_meta(track_meta)
-        tr = Spacing(pixdim=pixdim)
-        res = tr(img)
+        init_param = {"pixdim": pixdim}
+        tr = Spacing(**init_param)
+        call_param = {"data_array": img}
+        res = tr(**call_param)
+
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
-            new_spacing = affine_to_spacing(res.affine, 3)
+            new_spacing = affine_to_spacing(res.affine, 3)  # type: ignore
             assert_allclose(new_spacing, pixdim, type_test=False)
             self.assertNotEqual(img.shape, res.shape)
+            test_resampler_lazy(tr, res, init_param=init_param, call_param=call_param)
         else:
             self.assertIsInstance(res, torch.Tensor)
             self.assertNotIsInstance(res, MetaTensor)
@@ -349,6 +363,16 @@ class TestSpacingCase(unittest.TestCase):
         self.assertEqual(img_out.applied_operations, [])
         self.assertEqual(img_out.shape, img_t.shape)
         self.assertLess(((affine - img_out.affine) ** 2).sum() ** 0.5, 5e-2)
+
+    def test_property_no_change(self):
+        affine = torch.tensor(
+            [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]], dtype=torch.float32, device="cpu"
+        )
+        affine[:3] *= 1 - 1e-4  # make sure it's not exactly target but close to the target
+        img = MetaTensor(torch.rand((1, 10, 9, 8), dtype=torch.float32), affine=affine, meta={"fname": "somewhere"})
+        tr = Spacing(pixdim=[1.0, 1.0, 1.0])
+        tr(img)
+        assert_allclose(tr.pixdim, [1.0, 1.0, 1.0], type_test=False)
 
 
 if __name__ == "__main__":

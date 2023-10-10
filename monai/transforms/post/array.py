@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for the model output tensors
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for the model output tensors.
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Callable, Iterable, Optional, Sequence, Tuple, Union
+from collections.abc import Callable, Iterable, Sequence
 
 import numpy as np
 import torch
@@ -30,6 +31,7 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import (
     convert_applied_interp_mode,
+    distance_transform_edt,
     fill_holes,
     get_largest_connected_component_mask,
     get_unique_labels,
@@ -52,6 +54,7 @@ __all__ = [
     "SobelGradients",
     "VoteEnsemble",
     "Invert",
+    "DistanceTransformEDT",
 ]
 
 
@@ -76,9 +79,7 @@ class Activations(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(
-        self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None, **kwargs
-    ) -> None:
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Callable | None = None, **kwargs) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
         self.kwargs = kwargs
@@ -89,9 +90,9 @@ class Activations(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        sigmoid: Optional[bool] = None,
-        softmax: Optional[bool] = None,
-        other: Optional[Callable] = None,
+        sigmoid: bool | None = None,
+        softmax: bool | None = None,
+        other: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -171,9 +172,9 @@ class AsDiscrete(Transform):
     def __init__(
         self,
         argmax: bool = False,
-        to_onehot: Optional[int] = None,
-        threshold: Optional[float] = None,
-        rounding: Optional[str] = None,
+        to_onehot: int | None = None,
+        threshold: float | None = None,
+        rounding: str | None = None,
         **kwargs,
     ) -> None:
         self.argmax = argmax
@@ -187,10 +188,10 @@ class AsDiscrete(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        argmax: Optional[bool] = None,
-        to_onehot: Optional[int] = None,
-        threshold: Optional[float] = None,
-        rounding: Optional[str] = None,
+        argmax: bool | None = None,
+        to_onehot: int | None = None,
+        threshold: float | None = None,
+        rounding: str | None = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -216,7 +217,7 @@ class AsDiscrete(Transform):
         to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
             if not isinstance(to_onehot, int):
-                raise ValueError("the number of classes for One-Hot must be an integer.")
+                raise ValueError(f"the number of classes for One-Hot must be an integer, got {type(to_onehot)}.")
             img_t = one_hot(
                 img_t, num_classes=to_onehot, dim=self.kwargs.get("dim", 0), dtype=self.kwargs.get("dtype", torch.float)
             )
@@ -282,10 +283,10 @@ class KeepLargestConnectedComponent(Transform):
 
     def __init__(
         self,
-        applied_labels: Optional[Union[Sequence[int], int]] = None,
-        is_onehot: Optional[bool] = None,
+        applied_labels: Sequence[int] | int | None = None,
+        is_onehot: bool | None = None,
         independent: bool = True,
-        connectivity: Optional[int] = None,
+        connectivity: int | None = None,
         num_components: int = 1,
     ) -> None:
         """
@@ -409,7 +410,7 @@ class LabelFilter(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, applied_labels: Union[Iterable[int], int]) -> None:
+    def __init__(self, applied_labels: Iterable[int] | int) -> None:
         """
         Initialize the LabelFilter class with the labels to filter on.
 
@@ -489,9 +490,7 @@ class FillHoles(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(
-        self, applied_labels: Optional[Union[Iterable[int], int]] = None, connectivity: Optional[int] = None
-    ) -> None:
+    def __init__(self, applied_labels: Iterable[int] | int | None = None, connectivity: int | None = None) -> None:
         """
         Initialize the connectivity and limit the labels for which holes are filled.
 
@@ -582,7 +581,7 @@ class LabelToContour(Transform):
 
 class Ensemble:
     @staticmethod
-    def get_stacked_torch(img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> torch.Tensor:
+    def get_stacked_torch(img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> torch.Tensor:
         """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""
         if isinstance(img, Sequence) and isinstance(img[0], np.ndarray):
             img = [torch.as_tensor(i) for i in img]
@@ -592,7 +591,7 @@ class Ensemble:
         return out
 
     @staticmethod
-    def post_convert(img: torch.Tensor, orig_img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+    def post_convert(img: torch.Tensor, orig_img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
         orig_img_ = orig_img[0] if isinstance(orig_img, Sequence) else orig_img
         out, *_ = convert_to_dst_type(img, orig_img_)
         return out
@@ -623,10 +622,10 @@ class MeanEnsemble(Ensemble, Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None) -> None:
+    def __init__(self, weights: Sequence[float] | NdarrayOrTensor | None = None) -> None:
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
-    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+    def __call__(self, img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
         img_ = self.get_stacked_torch(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
@@ -663,10 +662,10 @@ class VoteEnsemble(Ensemble, Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, num_classes: Optional[int] = None) -> None:
+    def __init__(self, num_classes: int | None = None) -> None:
         self.num_classes = num_classes
 
-    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+    def __call__(self, img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
         img_ = self.get_stacked_torch(img)
 
         if self.num_classes is not None:
@@ -726,9 +725,9 @@ class ProbNMS(Transform):
     def __init__(
         self,
         spatial_dims: int = 2,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
+        sigma: Sequence[float] | float | Sequence[torch.Tensor] | torch.Tensor = 0.0,
         prob_threshold: float = 0.5,
-        box_size: Union[int, Sequence[int]] = 48,
+        box_size: int | Sequence[int] = 48,
     ) -> None:
         self.sigma = sigma
         self.spatial_dims = spatial_dims
@@ -787,11 +786,11 @@ class Invert(Transform):
 
     def __init__(
         self,
-        transform: Optional[InvertibleTransform] = None,
-        nearest_interp: Union[bool, Sequence[bool]] = True,
-        device: Union[str, torch.device, None] = None,
-        post_func: Optional[Callable] = None,
-        to_tensor: Union[bool, Sequence[bool]] = True,
+        transform: InvertibleTransform | None = None,
+        nearest_interp: bool | Sequence[bool] = True,
+        device: str | torch.device | None = None,
+        post_func: Callable | None = None,
+        to_tensor: bool | Sequence[bool] = True,
     ) -> None:
         """
         Args:
@@ -852,7 +851,7 @@ class SobelGradients(Transform):
     def __init__(
         self,
         kernel_size: int = 3,
-        spatial_axes: Optional[Union[Sequence[int], int]] = None,
+        spatial_axes: Sequence[int] | int | None = None,
         normalize_kernels: bool = True,
         normalize_gradients: bool = False,
         padding_mode: str = "reflect",
@@ -865,7 +864,7 @@ class SobelGradients(Transform):
         self.normalize_gradients = normalize_gradients
         self.kernel_diff, self.kernel_smooth = self._get_kernel(kernel_size, dtype)
 
-    def _get_kernel(self, size, dtype) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _get_kernel(self, size, dtype) -> tuple[torch.Tensor, torch.Tensor]:
         if size < 3:
             raise ValueError(f"Sobel kernel size should be at least three. {size} was given.")
         if size % 2 == 0:
@@ -939,3 +938,39 @@ class SobelGradients(Transform):
         grads = convert_to_dst_type(grads.squeeze(0), image_tensor)[0]
 
         return grads
+
+
+class DistanceTransformEDT(Transform):
+    """
+    Applies the Euclidean distance transform on the input.
+    Either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation and / or :func:`monai.transforms.utils.distance_transform_edt`.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+    """
+
+    backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
+
+    def __init__(self, sampling: None | float | list[float] = None) -> None:
+        super().__init__()
+        self.sampling = sampling
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: Input image on which the distance transform shall be run.
+                Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+                Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+                Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+                from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+            sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+                if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+
+        Returns:
+            An array with the same shape and data type as img
+        """
+        return distance_transform_edt(img=img, sampling=self.sampling)  # type: ignore

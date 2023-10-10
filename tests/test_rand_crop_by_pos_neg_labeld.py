@@ -9,14 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandCropByPosNegLabeld
-from tests.utils import TEST_NDARRAYS_ALL
+from monai.transforms.lazy.functional import apply_pending
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = [
     [
@@ -136,6 +140,32 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
         test_image = {"label": np.asarray([[[1, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1]]])}
         result = cropper(test_image)
         np.testing.assert_allclose(result[0]["label"], np.asarray([[[0, 0, 1], [0, 0, 0], [0, 0, 0]]]))
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_data, _expected_shape):
+        for p in TEST_NDARRAYS_ALL:
+            input_param_mod = self.convert_data_type(p, input_param)
+            input_data_mod = self.convert_data_type(p, input_data)
+            cropper = RandCropByPosNegLabeld(**input_param_mod)
+            # non-lazy
+            cropper.set_random_state(0)
+            expected = cropper(input_data_mod)
+            self.assertIsInstance(expected[0]["image"], MetaTensor)
+            # lazy
+            cropper.set_random_state(0)
+            cropper.lazy = True
+            pending_result = cropper(input_data_mod)
+            for i, _pending_result in enumerate(pending_result):
+                self.assertIsInstance(_pending_result["image"], MetaTensor)
+                assert_allclose(_pending_result["image"].peek_pending_affine(), expected[i]["image"].affine)
+                assert_allclose(_pending_result["image"].peek_pending_shape(), expected[i]["image"].shape[1:])
+                # only support nearest
+                overrides = {"mode": "nearest", "align_corners": False}
+                result_image = apply_pending(_pending_result["image"], overrides=overrides)[0]
+                result_extra = apply_pending(_pending_result["extra"], overrides=overrides)[0]
+                # compare
+                assert_allclose(result_image, expected[i]["image"], rtol=1e-5)
+                assert_allclose(result_extra, expected[i]["extra"], rtol=1e-5)
 
 
 if __name__ == "__main__":

@@ -9,13 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ClassesToIndices, RandCropByLabelClasses
-from tests.utils import TEST_NDARRAYS_ALL
+from monai.transforms.lazy.functional import apply_pending
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS_INDICES, TESTS_SHAPE = [], []
 for p in TEST_NDARRAYS_ALL:
@@ -105,7 +109,7 @@ for p in TEST_NDARRAYS_ALL:
                 "label": None,
                 "num_classes": 2,
                 "spatial_size": [4, 4, 4],
-                "ratios": [1, 1],
+                "ratios": (1, 1),  # test no assignment
                 "num_samples": 2,
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
                 "image_threshold": 0,
@@ -113,7 +117,7 @@ for p in TEST_NDARRAYS_ALL:
             },
             {
                 "img": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
-                "label": p(np.random.randint(0, 2, size=[1, 3, 3, 3])),
+                "label": p(np.random.randint(0, 1, size=[1, 3, 3, 3])),
                 "image": p(np.random.randint(0, 2, size=[3, 3, 3, 3])),
             },
             list,
@@ -140,6 +144,26 @@ class TestRandCropByLabelClasses(unittest.TestCase):
         result = RandCropByLabelClasses(**input_param)(**input_data)
         self.assertIsInstance(result, expected_type)
         self.assertTupleEqual(result[0].shape, expected_shape)
+
+    @parameterized.expand(TESTS_INDICES + TESTS_SHAPE)
+    def test_pending_ops(self, input_param, input_data, _expected_type, _expected_shape):
+        cropper = RandCropByLabelClasses(**input_param)
+        # non-lazy
+        cropper.set_random_state(0)
+        expected = cropper(**input_data)
+        self.assertIsInstance(expected[0], MetaTensor)
+        # lazy
+        cropper.set_random_state(0)
+        cropper.lazy = True
+        pending_result = cropper(**input_data)
+        for i, _pending_result in enumerate(pending_result):
+            self.assertIsInstance(_pending_result, MetaTensor)
+            assert_allclose(_pending_result.peek_pending_affine(), expected[i].affine)
+            assert_allclose(_pending_result.peek_pending_shape(), expected[i].shape[1:])
+            # only support nearest
+            result = apply_pending(_pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
+            # compare
+            assert_allclose(result, expected[i], rtol=1e-5)
 
 
 if __name__ == "__main__":

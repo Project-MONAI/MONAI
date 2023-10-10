@@ -80,18 +80,6 @@ Applications
 `Pathology`
 -----------
 
-.. automodule:: monai.apps.pathology.data
-.. autoclass:: PatchWSIDataset
-    :members:
-.. autoclass:: SmartCachePatchWSIDataset
-    :members:
-.. autoclass:: MaskedInferenceWSIDataset
-    :members:
-
-.. automodule:: monai.apps.pathology.handlers
-.. autoclass:: ProbMapProducer
-    :members:
-
 .. automodule:: monai.apps.pathology.inferers
 .. autoclass:: SlidingWindowHoVerNetInferer
     :members:
@@ -120,18 +108,6 @@ Applications
 .. autoclass:: ExtractHEStainsd
     :members:
 .. autoclass:: NormalizeHEStainsd
-    :members:
-
-.. automodule:: monai.apps.pathology.transforms.spatial.array
-.. autoclass:: SplitOnGrid
-    :members:
-.. autoclass:: TileOnGrid
-    :members:
-
-.. automodule:: monai.apps.pathology.transforms.spatial.dictionary
-.. autoclass:: SplitOnGridd
-    :members:
-.. autoclass:: TileOnGridd
     :members:
 
 .. automodule:: monai.apps.pathology.transforms.post.array
@@ -272,9 +248,16 @@ FastMRIReader
 ~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
 
-`auto3dseg`
+`Auto3DSeg`
 -----------
-
 .. automodule:: monai.apps.auto3dseg
   :members:
+  :special-members: __call__
   :imported-members:
+
+`nnUNet`
+--------
+.. automodule:: monai.apps.nnunet.__main__
+
+.. autoclass:: monai.apps.nnunet.nnUNetV2Runner
+  :members:

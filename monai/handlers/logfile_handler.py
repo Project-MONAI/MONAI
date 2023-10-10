@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
@@ -58,8 +60,8 @@ class LogfileHandler:
         self.loglevel: int = loglevel
         self.formatter: str = formatter
         self.create_dir: bool = create_dir
-        self.logger: Optional[logging.Logger] = None
-        self.handler: Optional[logging.FileHandler] = None
+        self.logger: logging.Logger | None = None
+        self.handler: logging.FileHandler | None = None
 
     def attach(self, engine: Engine) -> None:
         self.logger = engine.logger

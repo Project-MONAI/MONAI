@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import sys
 
 from ._version import get_versions
 
 PY_REQUIRED_MAJOR = 3
-PY_REQUIRED_MINOR = 7
+PY_REQUIRED_MINOR = 8
 
 version_dict = get_versions()
 __version__: str = version_dict.get("version", "0+unknown")
@@ -48,6 +50,7 @@ excludes = "|".join(
         "(^(monai._C))",
         "(.*(__main__)$)",
         "(.*(video_dataset)$)",
+        "(.*(nnunet).*$)",
     ]
 )
 
@@ -75,3 +78,13 @@ __all__ = [
     "utils",
     "visualize",
 ]
+
+try:
+    from .utils.tf32 import detect_default_tf32
+
+    detect_default_tf32()
+except BaseException:
+    from .utils.misc import MONAIEnvVars
+
+    if MONAIEnvVars.debug():
+        raise

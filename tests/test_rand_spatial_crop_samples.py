@@ -9,12 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandSpatialCropSamples
+from monai.transforms.lazy.functional import apply_pending
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -94,6 +98,30 @@ class TestRandSpatialCropSamples(CropTest):
                 self.assertTupleEqual(item.shape, expected)
                 self.assertEqual(item.meta["patch_index"], i)
             assert_allclose(result[-1], expected_last_item, type_test="tensor")
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_pending_ops(self, input_param, input_shape, _expected_shape, _expected_last_item):
+        input_data = np.arange(192).reshape(*input_shape)
+
+        for p in TEST_NDARRAYS_ALL:
+            xform = RandSpatialCropSamples(**input_param)
+            image = p(input_data)
+            # non-lazy
+            xform.set_random_state(1234)
+            expected = xform(image)
+            self.assertIsInstance(expected[0], MetaTensor)
+            # lazy
+            xform.set_random_state(1234)
+            xform.lazy = True
+            pending_result = xform(image)
+            for i, _pending_result in enumerate(pending_result):
+                self.assertIsInstance(_pending_result, MetaTensor)
+                assert_allclose(_pending_result.peek_pending_affine(), expected[i].affine)
+                assert_allclose(_pending_result.peek_pending_shape(), expected[i].shape[1:])
+                # only support nearest
+                result = apply_pending(_pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
+                # compare
+                assert_allclose(result, expected[i], rtol=1e-5)
 
 
 if __name__ == "__main__":
