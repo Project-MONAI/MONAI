@@ -93,7 +93,6 @@ def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kw
     for k, v in kwargs.items():
         if ignore_none and v is None:
             continue
-        print(f"{k}={v}")
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
             args_[k] = update_kwargs(args_[k], ignore_none, **v)
         else:
