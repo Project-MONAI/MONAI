@@ -29,6 +29,7 @@ from .scripts import (
     run,
     run_workflow,
     trt_export,
+    update_kwargs,
     verify_metadata,
     verify_net_in_out,
 )
