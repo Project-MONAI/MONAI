@@ -103,7 +103,7 @@ def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kw
     return args_
 
 
-_update_kwargs = update_kwargs
+_update_args = update_kwargs  # backward compatibility
 
 
 def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
