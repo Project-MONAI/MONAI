@@ -1188,35 +1188,35 @@ def get_pretrained_resnet_medicalnet(
         NotImplementedError: if `resnet_depth` is not supported
     """
 
-    MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
-    MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"
-    SUPPORTED_DEPTH = [10, 18, 34, 50, 101, 152, 200]
+    medicalnet_huggingface_repo_basename = "TencentMedicalNet/MedicalNet-Resnet"
+    medicalnet_huggingface_files_basename = "resnet_"
+    supported_depth = [10, 18, 34, 50, 101, 152, 200]
 
     logger.info(
-        f"Loading MedicalNet pretrained model from https://huggingface.co/{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}"
+        f"Loading MedicalNet pretrained model from https://huggingface.co/{medicalnet_huggingface_repo_basename}{resnet_depth}"
     )
 
-    if resnet_depth in SUPPORTED_DEPTH:
+    if resnet_depth in supported_depth:
         filename = (
-            f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth"
+            f"{medicalnet_huggingface_files_basename}{resnet_depth}.pth"
             if not datasets23
-            else f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}_23dataset.pth"
+            else f"{medicalnet_huggingface_files_basename}{resnet_depth}_23dataset.pth"
         )
         try:
             pretrained_path = hf_hub_download(
-                repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}", filename=filename
+                repo_id=f"{medicalnet_huggingface_repo_basename}{resnet_depth}", filename=filename
             )
         except Exception:
             if datasets23:
                 logger.info(f"{filename} not available for resnet{resnet_depth}")
-                filename = f"{MEDICALNET_HUGGINGFACE_FILES_BASENAME}{resnet_depth}.pth"
+                filename = f"{medicalnet_huggingface_files_basename}{resnet_depth}.pth"
                 logger.info(f"Trying with {filename}")
                 pretrained_path = hf_hub_download(
-                    repo_id=f"{MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}", filename=filename
+                    repo_id=f"{medicalnet_huggingface_repo_basename}{resnet_depth}", filename=filename
                 )
             else:
                 raise EntryNotFoundError(
-                    f"{filename} not found on {MEDICALNET_HUGGINGFACE_REPO_BASENAME}{resnet_depth}"
+                    f"{filename} not found on {medicalnet_huggingface_repo_basename}{resnet_depth}"
                 )
         checkpoint = torch.load(pretrained_path, map_location=device)
     else:
