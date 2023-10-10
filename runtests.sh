@@ -108,7 +108,7 @@ function print_usage {
     echo "    -c, --clean       : clean temporary files from tests and exit"
     echo "    -h, --help        : show this help message and exit"
     echo "    -v, --version     : show MONAI and system version information and exit"
-    echo "    -p, --path        : specify the path used for formatting"
+    echo "    -p, --path        : specify the path used for formatting, default is the current dir if unspecified"
     echo "    --formatfix       : format code using \"isort\" and \"black\" for user specified directories"
     echo ""
     echo "${separator}For bug reports and feature requests, please file an issue at:"
@@ -359,10 +359,9 @@ if [ -e "$testdir" ]
 then
     homedir=$testdir
 else
-    print_error_msg "Incorrect path: $testdir provided, run under $currentdir"
     homedir=$currentdir
 fi
-echo "run tests under $homedir"
+echo "Run tests under $homedir"
 cd "$homedir"
 
 # python path
