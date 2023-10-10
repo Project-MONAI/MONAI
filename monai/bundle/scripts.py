@@ -87,6 +87,9 @@ def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kw
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
+    if isinstance(args, (tuple, list)) and all(isinstance(x, str) for x in args):
+        primary, overrides = args
+        args_ = update_kwargs(primary, ignore_none, **update_kwargs(overrides, ignore_none, **kwargs))
     if not isinstance(args_, dict):
         return args_
     # recursively update the default args with new args
@@ -98,6 +101,9 @@ def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kw
         else:
             args_[k] = v
     return args_
+
+
+_update_kwargs = update_kwargs
 
 
 def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
