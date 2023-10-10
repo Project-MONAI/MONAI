@@ -362,7 +362,8 @@ def _resnet(
 
                     def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
                         """
-                        Return correct shortcut_type and bias_downsample for pretrained MedicalNet weights according to rensnet depth
+                        Return correct shortcut_type and bias_downsample
+                        for pretrained MedicalNet weights according to rensnet depth
                         """
                         # After testing
                         # False: 10, 50, 101, 152, 200
