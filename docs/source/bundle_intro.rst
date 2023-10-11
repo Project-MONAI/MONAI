@@ -32,10 +32,6 @@ and other tasks. Bundles can be integrated into MONAI Label apps to perform segm
 or into MAPs for deployment. They can be integrated into other container environments but this isn't their focus. For
 all applications relating to containerisation, portability, and deployment, MAPs are what you're looking for.
 
-.. image:: ../images/MONAI_bundle_cloud.png
-    :alt: Bundle Concepts
-    :align: center
-
-.. image:: ../images/MONAI_map_cloud.png
-    :alt: MAP Concepts
+.. image:: ../images/MONAI_clouds.png
+    :alt: Bundle and MAP Concepts
     :align: center
