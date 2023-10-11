@@ -668,7 +668,9 @@ class AddGuidanceFromPointsDeepEditd(Transform):
         elif meta_dict_key in d:
             meta_dict = d[meta_dict_key]
         else:
-            raise ValueError(f"{meta_dict_key} is not found. Please check whether it is the correct the image meta key.")
+            raise ValueError(
+                f"{meta_dict_key} is not found. Please check whether it is the correct the image meta key."
+            )
 
         if "spatial_shape" not in meta_dict:
             raise RuntimeError('Missing "spatial_shape" in meta_dict!')
@@ -704,7 +706,7 @@ class ResizeGuidanceMultipleLabelDeepEditd(Transform):
         d = dict(data)
         # Assume channel is first and depth is last CHWD
         current_shape = d[self.ref_image].shape[1:]
-        
+
         meta_dict_key = "image_meta_dict"
         # extract affine matrix from metadata
         if isinstance(d[self.ref_image], MetaTensor):
@@ -712,7 +714,9 @@ class ResizeGuidanceMultipleLabelDeepEditd(Transform):
         elif meta_dict_key in d:
             meta_dict = d[meta_dict_key]
         else:
-            raise ValueError(f"{meta_dict_key} is not found. Please check whether it is the correct the image meta key.")
+            raise ValueError(
+                f"{meta_dict_key} is not found. Please check whether it is the correct the image meta key."
+            )
 
         original_shape = meta_dict["spatial_shape"]
 
