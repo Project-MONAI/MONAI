@@ -6,7 +6,7 @@ Bundle
 MONAI Bundles are a specification and file structure based way of distributing trained MONAI models with associated
 metadata, code, documentation, and other resources. These are meant to make it easier for you to distribute your model
 in a format that explains what the model is for, how to use it, how to reproduce the science you've done with it, and
-use it in other applications such as Label and Deploy. 
+use it in other applications such as Label and Deploy.
 
 .. toctree::
    :maxdepth: 1
@@ -23,9 +23,9 @@ A collection of medical imaging models in the MONAI Bundle format: https://githu
 Bundle vs. MAPs
 ---------------
 
-Bundles differ from MONAI Application Packages (MAPs) in that they focus on description, code definition, application, 
+Bundles differ from MONAI Application Packages (MAPs) in that they focus on description, code definition, application,
 usage. MAPs focus on deployment, containerisation, integration into existing clinical systems, and other application
-areas relating to putting models into use. 
+areas relating to putting models into use.
 
 As a user, bundles are networks and "programs" you would use directly for training, inference, reproducing results,
 and other tasks. Bundles can be integrated into MONAI Label apps to perform segmentation tasks through user interfaces,
@@ -35,7 +35,7 @@ all applications relating to containerisation, portability, and deployment, MAPs
 .. image:: ../images/MONAI_bundle_cloud.png
     :alt: Bundle Concepts
     :align: center
-    
+
 .. image:: ../images/MONAI_map_cloud.png
     :alt: MAP Concepts
     :align: center
