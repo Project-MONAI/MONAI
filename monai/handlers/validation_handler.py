@@ -83,4 +83,4 @@ class ValidationHandler:
         """
         if self.validator is None:
             raise RuntimeError("please set validator in __init__() or call `set_validator()` before training.")
-        self.validator.run(max(engine.state.epoch, 1))
+        self.validator.run(engine.state.epoch)
