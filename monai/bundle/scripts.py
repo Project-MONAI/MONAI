@@ -1255,6 +1255,7 @@ def ckpt_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
+    bundle_root = override.pop("bundle_root", os.getcwd())
     _args = update_kwargs(
         args=args_file,
         net_id=net_id,
@@ -1266,6 +1267,7 @@ def ckpt_export(
         use_trace=use_trace,
         input_shape=input_shape,
         converter_kwargs=converter_kwargs,
+        bundle_root=bundle_root,
         **override,
     )
     _log_input_summary(tag="ckpt_export", args=_args)
@@ -1273,7 +1275,6 @@ def ckpt_export(
         config_file_,
         filepath_,
         ckpt_file_,
-        bundle_root_,
         net_id_,
         meta_file_,
         key_in_ckpt_,
@@ -1285,7 +1286,6 @@ def ckpt_export(
         "config_file",
         filepath=None,
         ckpt_file=None,
-        bundle_root=os.getcwd(),
         net_id=None,
         meta_file=None,
         key_in_ckpt="",
@@ -1297,9 +1297,15 @@ def ckpt_export(
     parser = ConfigParser()
 
     parser.read_config(f=config_file_)
-    meta_file_ = os.path.join(bundle_root_, "configs", "metadata.json") if meta_file_ is None else meta_file_
-    filepath_ = os.path.join(bundle_root_, "models", "model.ts") if filepath_ is None else filepath_
-    ckpt_file_ = os.path.join(bundle_root_, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        if k == "bundle_root":
+            print(k)
+        parser[k] = v
+
+    meta_file_ = os.path.join(bundle_root, "configs", "metadata.json") if meta_file_ is None else meta_file_
+    filepath_ = os.path.join(bundle_root, "models", "model.ts") if filepath_ is None else filepath_
+    ckpt_file_ = os.path.join(bundle_root, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
     if not os.path.exists(ckpt_file_):
         raise FileNotFoundError(f'Checkpoint file "{ckpt_file_}" not found, please specify it in argument "ckpt_file".')
     if os.path.exists(meta_file_):
@@ -1312,10 +1318,6 @@ def ckpt_export(
         raise ValueError(
             f'Network definition "{net_id_}" cannot be found in "{config_file_}", specify name with argument "net_id".'
         ) from e
-
-    # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
 
     # When export through torch.jit.trace without providing input_shape, will try to parse one from the parser.
     if (not input_shape_) and use_trace:
