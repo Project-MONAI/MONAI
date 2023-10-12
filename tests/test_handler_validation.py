@@ -23,7 +23,8 @@ from monai.handlers import ValidationHandler
 
 class TestEvaluator(Evaluator):
     def _iteration(self, engine, batchdata):
-        pass
+        engine.state.output = "called"
+        return engine.state.output
 
 
 class TestHandlerValidation(unittest.TestCase):
@@ -44,6 +45,7 @@ class TestHandlerValidation(unittest.TestCase):
         engine.run(data, max_epochs=1)
         self.assertEqual(evaluator.state.max_epochs, 1)
         self.assertEqual(evaluator.state.epoch_length, 8)
+        self.assertEqual(evaluator.state.output, "called")
 
         engine.run(data, max_epochs=5)
         self.assertEqual(evaluator.state.max_epochs, 4)
