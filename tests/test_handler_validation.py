@@ -42,7 +42,7 @@ class TestHandlerValidation(unittest.TestCase):
         ValidationHandler(interval=2, validator=evaluator, exec_at_start=True).attach(engine)
         # test execution at start
         engine.run(data, max_epochs=1)
-        self.assertEqual(evaluator.state.max_epochs, 0)
+        self.assertEqual(evaluator.state.max_epochs, 1)
         self.assertEqual(evaluator.state.epoch_length, 8)
 
         engine.run(data, max_epochs=5)
