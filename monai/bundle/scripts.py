@@ -1299,8 +1299,6 @@ def ckpt_export(
     parser.read_config(f=config_file_)
     # the rest key-values in the _args are to override config content
     for k, v in _args.items():
-        if k == "bundle_root":
-            print(k)
         parser[k] = v
 
     meta_file_ = os.path.join(bundle_root, "configs", "metadata.json") if meta_file_ is None else meta_file_
