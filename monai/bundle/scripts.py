@@ -1291,7 +1291,7 @@ def ckpt_export(
         input_shape=None,
         converter_kwargs={},
     )
-    bundle_root = _args["bundle_root"] if "bundle_root" in _args else os.getcwd()
+    bundle_root = _args.get("bundle_root", os.getcwd())
 
     parser = ConfigParser()
     parser.read_config(f=config_file_)
