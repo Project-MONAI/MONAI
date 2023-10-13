@@ -92,6 +92,7 @@ def run_testsuit():
         "test_handler_mean_iou",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
+        "test_handler_wandb_stats",
         "test_handler_mlflow",
         "test_handler_nvtx",
         "test_handler_parameter_scheduler",
