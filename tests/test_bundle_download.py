@@ -28,6 +28,7 @@ from tests.utils import (
     assert_allclose,
     command_line_tests,
     skip_if_downloading_fails,
+    skip_if_no_cuda,
     skip_if_quick,
 )
 
@@ -156,6 +157,7 @@ class TestDownload(unittest.TestCase):
                     self.assertTrue(os.path.exists(file_path))
 
 
+@skip_if_no_cuda
 class TestLoad(unittest.TestCase):
     @parameterized.expand([TEST_CASE_4])
     @skip_if_quick
