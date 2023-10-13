@@ -230,7 +230,7 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
             NotImplementedError: When the subclass does not override this method.
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
-    
+
     def is_random(self):
         """
         This method indicates whether this particular instance of a Randomizable is operating randomly or not.

@@ -339,7 +339,7 @@ class Compose(Randomizable, InvertibleTransform):
             if isinstance(Randomizable) and tx.is_random():
                 return True
             return False
-        
+
         for t in self.transforms:
             if _recursive_check(t) is True:
                 return True
