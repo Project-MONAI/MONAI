@@ -230,6 +230,18 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
             NotImplementedError: When the subclass does not override this method.
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+    
+    def is_random(self):
+        """
+        This method indicates whether this particular instance of a Randomizable is operating randomly or not.
+        This allows objects that have the capacity to act in a random fashion to indicate whether they are acting
+        randomly or not, given their current state.
+        This method should be overridden by objects that have this capacity. ``Compose`` is an example of this.
+
+        Returns:
+            True if the object is acting randomly, False otherwise
+        """
+        return True
 
 
 class Transform(ABC):

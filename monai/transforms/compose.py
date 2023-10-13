@@ -334,6 +334,18 @@ class Compose(Randomizable, InvertibleTransform):
 
         return result
 
+    def is_random(self):
+        def _recursive_check(tx):
+            if isinstance(Randomizable) and tx.is_random():
+                return True
+            return False
+        
+        for t in self.transforms:
+            if _recursive_check(t) is True:
+                return True
+
+        return False
+
     def inverse(self, data):
         self._raise_if_not_invertible(data)
 
@@ -481,6 +493,9 @@ class OneOf(Compose):
                     self.push_transform(data[key], extra_info={"index": index})
         return data
 
+    def is_random(self):
+        return True
+
     def inverse(self, data):
         if len(self.transforms) == 0:
             return data
@@ -574,6 +589,9 @@ class RandomOrder(Compose):
                 if isinstance(input_[key], monai.data.MetaTensor):
                     self.push_transform(input_[key], extra_info={"applied_order": applied_order})
         return input_
+
+    def is_random(self):
+        return True
 
     def inverse(self, data):
         if len(self.transforms) == 0:
@@ -739,6 +757,9 @@ class SomeOf(Compose):
                     self.push_transform(data, key, extra_info={"applied_order": applied_order})
 
         return data
+
+    def is_random(self):
+        return True
 
     # From RandomOrder
     def inverse(self, data):

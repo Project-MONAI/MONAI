@@ -288,7 +288,7 @@ class PersistentDataset(Dataset):
         inherit from MONAI's `Transform` class."""
         hashable_transforms = []
         for _tr in self.transform.flatten().transforms:
-            if isinstance(_tr, RandomizableTrait) or not isinstance(_tr, Transform):
+            if (isinstance(_tr, RandomizableTrait) and _tr.is_random() is True) or not isinstance(_tr, Transform):
                 break
             hashable_transforms.append(_tr)
         # Try to hash. Fall back to a hash of their names
@@ -327,7 +327,7 @@ class PersistentDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
 
         first_random = self.transform.get_index_of_first(
-            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+            lambda t: (isinstance(t, RandomizableTrait) and t.is_random() is True) or not isinstance(t, Transform)
         )
         item_transformed = self.transform(item_transformed, end=first_random, threading=True)
 
@@ -350,7 +350,7 @@ class PersistentDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
 
         first_random = self.transform.get_index_of_first(
-            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+            lambda t: isinstance(t, RandomizableTrait) and t.is_random() is True or not isinstance(t, Transform)
         )
         if first_random is not None:
             item_transformed = self.transform(item_transformed, start=first_random)
@@ -887,7 +887,7 @@ class CacheDataset(Dataset):
         item = self.data[idx]
 
         first_random = self.transform.get_index_of_first(
-            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+            lambda t: (isinstance(t, RandomizableTrait) and t.is_random() is True) or not isinstance(t, Transform)
         )
         item = self.transform(item, end=first_random, threading=True)
 
@@ -921,7 +921,7 @@ class CacheDataset(Dataset):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
 
         first_random = self.transform.get_index_of_first(
-            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+            lambda t: (isinstance(t, RandomizableTrait) and t.is_random() is True) or not isinstance(t, Transform)
         )
         if first_random is not None:
             data = deepcopy(data) if self.copy_cache is True else data
