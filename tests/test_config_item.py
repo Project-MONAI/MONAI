@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from functools import partial
 from typing import Callable
@@ -26,7 +28,7 @@ _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
 TEST_CASE_1 = [{"lr": 0.001}, 0.0001]
 
-TEST_CASE_2 = [{"_target_": "LoadImaged", "keys": ["image"]}, LoadImaged]
+TEST_CASE_2 = [{"_target_": "LoadImaged", "keys": ["image"], "_desc_": "an image reader for 'image'"}, LoadImaged]
 # test full module path
 TEST_CASE_3 = [{"_target_": "monai.transforms.LoadImaged", "keys": ["image"]}, LoadImaged]
 # test `_disabled_`
@@ -35,7 +37,7 @@ TEST_CASE_4 = [{"_target_": "LoadImaged", "_disabled_": True, "keys": ["image"]}
 TEST_CASE_5 = [{"_target_": "LoadImaged", "_disabled_": "true", "keys": ["image"]}, dict]
 # test non-monai modules and excludes
 TEST_CASE_6 = [{"_target_": "torch.optim.Adam", "params": torch.nn.PReLU().parameters(), "lr": 1e-4}, torch.optim.Adam]
-TEST_CASE_7 = [{"_target_": "decollate_batch", "detach": True, "pad": True}, partial]
+TEST_CASE_7 = [{"_target_": "decollate_batch", "detach": True, "pad": True, "_mode_": "partial"}, partial]
 # test args contains "name" field
 TEST_CASE_8 = [
     {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
@@ -43,8 +45,10 @@ TEST_CASE_8 = [
 ]
 # test execute some function in args, test pre-imported global packages `monai`
 TEST_CASE_9 = ["collate_fn", "$monai.data.list_data_collate"]
-# test lambda function, should not execute the lambda function, just change the string
+# test lambda function
 TEST_CASE_10 = ["collate_fn", "$lambda x: monai.data.list_data_collate(x) + torch.tensor(var)"]
+# test regular expression with reference
+TEST_CASE_11 = ["collate_fn", "$var + 100"]
 
 
 class TestConfigItem(unittest.TestCase):
@@ -72,12 +76,17 @@ class TestConfigItem(unittest.TestCase):
         if isinstance(ret, LoadImaged):
             self.assertEqual(ret.keys[0], "image")
 
-    @parameterized.expand([TEST_CASE_9, TEST_CASE_10])
+    @parameterized.expand([TEST_CASE_9, TEST_CASE_10, TEST_CASE_11])
     def test_expression(self, id, test_input):
         configer = ConfigExpression(id=id, config=test_input, globals={"monai": monai, "torch": torch})
         var = 100
-        ret = configer.evaluate(locals={"var": var})
-        self.assertTrue(isinstance(ret, Callable))
+        ret = configer.evaluate(globals={"var": var, "monai": monai})  # `{"monai": monai}` to verify the warning
+        if isinstance(ret, Callable):
+            self.assertTrue(isinstance(ret([torch.tensor(1), torch.tensor(2)]), torch.Tensor))
+        else:
+            # also test the `locals` for regular expressions
+            ret = configer.evaluate(locals={"var": var})
+            self.assertEqual(ret, 200)
 
     def test_lazy_instantiation(self):
         config = {"_target_": "DataLoader", "dataset": Dataset(data=[1, 2]), "batch_size": 2}
@@ -118,6 +127,10 @@ class TestConfigItem(unittest.TestCase):
         expr = ConfigExpression(id="", config=stmt)
         flag = expr.is_import_statement(expr.config)
         self.assertEqual(flag, expected)
+
+    def test_error_expr(self):
+        with self.assertRaisesRegex(RuntimeError, r"1\+\[\]"):
+            ConfigExpression(id="", config="$1+[]").evaluate()
 
 
 if __name__ == "__main__":

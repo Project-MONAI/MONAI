@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
-from monai.data import ITKReader, NibabelReader, NumpyReader, PILReader
+from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from monai.transforms import LoadImage, LoadImaged
 from tests.utils import SkipIfNoModule
 
@@ -23,13 +25,15 @@ class TestInitLoadImage(unittest.TestCase):
         self.assertIsInstance(instance1, LoadImage)
         self.assertIsInstance(instance2, LoadImage)
 
-        for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", None]:
+        for r in ["NibabelReader", "PILReader", "ITKReader", "NumpyReader", "NrrdReader", "PydicomReader", None]:
             inst = LoadImaged("image", reader=r)
             self.assertIsInstance(inst, LoadImaged)
 
     @SkipIfNoModule("itk")
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("PIL")
+    @SkipIfNoModule("nrrd")
+    @SkipIfNoModule("Pydicom")
     def test_readers(self):
         inst = ITKReader()
         self.assertIsInstance(inst, ITKReader)
@@ -39,6 +43,9 @@ class TestInitLoadImage(unittest.TestCase):
         inst = NibabelReader(as_closest_canonical=True)
         self.assertIsInstance(inst, NibabelReader)
 
+        inst = PydicomReader()
+        self.assertIsInstance(inst, PydicomReader)
+
         inst = NumpyReader()
         self.assertIsInstance(inst, NumpyReader)
         inst = NumpyReader(npz_keys="test")
@@ -46,6 +53,9 @@ class TestInitLoadImage(unittest.TestCase):
 
         inst = PILReader()
         self.assertIsInstance(inst, PILReader)
+
+        inst = NrrdReader()
+        self.assertIsInstance(inst, NrrdReader)
 
 
 if __name__ == "__main__":

@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.losses import DiceFocalLoss, DiceLoss, FocalLoss
 from tests.utils import test_script_save
@@ -24,30 +27,41 @@ class TestDiceFocalLoss(unittest.TestCase):
         label = torch.randint(low=0, high=2, size=size)
         pred = torch.randn(size)
         for reduction in ["sum", "mean", "none"]:
-            common_params = {"include_background": True, "to_onehot_y": False, "reduction": reduction}
-            for focal_weight in [None, torch.tensor([1.0, 1.0, 2.0]), (3, 2.0, 1)]:
+            for weight in [None, torch.tensor([1.0, 1.0, 2.0]), (3, 2.0, 1)]:
+                common_params = {
+                    "include_background": True,
+                    "to_onehot_y": False,
+                    "reduction": reduction,
+                    "weight": weight,
+                }
                 for lambda_focal in [0.5, 1.0, 1.5]:
-                    dice_focal = DiceFocalLoss(
-                        focal_weight=focal_weight, gamma=1.0, lambda_focal=lambda_focal, **common_params
-                    )
+                    dice_focal = DiceFocalLoss(gamma=1.0, lambda_focal=lambda_focal, **common_params)
                     dice = DiceLoss(**common_params)
-                    focal = FocalLoss(weight=focal_weight, gamma=1.0, **common_params)
+                    focal = FocalLoss(gamma=1.0, **common_params)
                     result = dice_focal(pred, label)
                     expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
                     np.testing.assert_allclose(result, expected_val)
 
-    def test_result_no_onehot_no_bg(self):
-        size = [3, 3, 5, 5]
-        label = torch.randint(low=0, high=2, size=size)
-        label = torch.argmax(label, dim=1, keepdim=True)
+    @parameterized.expand([[[3, 3, 5, 5], True], [[3, 2, 5, 5], False]])
+    def test_result_no_onehot_no_bg(self, size, onehot):
+        label = torch.randint(low=0, high=size[1] - 1, size=size)
+        if onehot:
+            label = torch.argmax(label, dim=1, keepdim=True)
         pred = torch.randn(size)
         for reduction in ["sum", "mean", "none"]:
-            common_params = {"include_background": False, "to_onehot_y": True, "reduction": reduction}
-            for focal_weight in [2.0, torch.tensor([1.0, 2.0]), (2.0, 1)]:
+            for weight in [2.0] + [] if size[1] != 3 else [torch.tensor([1.0, 2.0]), (2.0, 1)]:
                 for lambda_focal in [0.5, 1.0, 1.5]:
-                    dice_focal = DiceFocalLoss(focal_weight=focal_weight, lambda_focal=lambda_focal, **common_params)
+                    common_params = {
+                        "include_background": False,
+                        "softmax": True,
+                        "to_onehot_y": onehot,
+                        "reduction": reduction,
+                        "weight": weight,
+                    }
+                    dice_focal = DiceFocalLoss(lambda_focal=lambda_focal, **common_params)
                     dice = DiceLoss(**common_params)
-                    focal = FocalLoss(weight=focal_weight, **common_params)
+                    common_params.pop("softmax", None)
+                    focal = FocalLoss(**common_params)
                     result = dice_focal(pred, label)
                     expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
                     np.testing.assert_allclose(result, expected_val)

@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import unittest
 from enum import Enum
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -21,9 +22,9 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, Dataset, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import (
-    AddChannel,
-    AddChanneld,
     Compose,
+    EnsureChannelFirst,
+    EnsureChannelFirstd,
     LoadImage,
     LoadImaged,
     RandAffine,
@@ -45,16 +46,15 @@ _, has_nib = optional_import("nibabel")
 
 KEYS = ["image"]
 
-TESTS_DICT: List[Tuple] = []
+TESTS_DICT: list[tuple] = []
 TESTS_DICT.append((SpatialPadd(KEYS, 150), RandFlipd(KEYS, prob=1.0, spatial_axis=1)))
 TESTS_DICT.append((RandRotate90d(KEYS, prob=0.0, max_k=1),))
 TESTS_DICT.append((RandAffined(KEYS, prob=0.0, translate_range=10),))
 
-TESTS_LIST: List[Tuple] = []
+TESTS_LIST: list[tuple] = []
 TESTS_LIST.append((SpatialPad(150), RandFlip(prob=1.0, spatial_axis=1)))
 TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
-
 
 TEST_BASIC = [
     [("channel", "channel"), ["channel", "channel"]],
@@ -74,17 +74,10 @@ TEST_BASIC = [
     ],
     [[None, None], [None, None]],
     [["test"], ["test"]],
+    [np.array([64, 64]), [64, 64]],
     [[], []],
     [[("ch1", "ch2"), ("ch3",)], [["ch1", "ch3"], ["ch2", None]]],  # default pad None
 ]
-
-
-class _ListCompose(Compose):
-    def __call__(self, input_):
-        img, metadata = self.transforms[0](input_)
-        for t in self.transforms[1:]:
-            img = t(img)
-        return img, metadata
 
 
 class TestDeCollate(unittest.TestCase):
@@ -108,7 +101,8 @@ class TestDeCollate(unittest.TestCase):
                 # Transform ids won't match for windows with multiprocessing, so don't check values
                 if k1 == TraceKeys.ID and sys.platform in ["darwin", "win32"]:
                     continue
-                self.check_match(v1, v2)
+                if not (isinstance(k1, str) and k1.endswith("_transforms")):
+                    self.check_match(v1, v2)  # transform stack not necessarily match
         elif isinstance(in1, (list, tuple)):
             for l1, l2 in zip(in1, in2):
                 self.check_match(l1, l2)
@@ -135,17 +129,17 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_DICT)
     def test_decollation_dict(self, *transforms):
-        t_compose = Compose([AddChanneld(KEYS), Compose(transforms), ToTensord(KEYS)])
+        t_compose = Compose([EnsureChannelFirstd(KEYS, channel_dim="no_channel"), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = Compose([LoadImaged("image"), t_compose])
+            t_compose = Compose([LoadImaged("image", image_only=True), t_compose])
 
         dataset = CacheDataset(self.data_dict, t_compose, progress=False)
         self.check_decollate(dataset=dataset)
 
     @parameterized.expand(TESTS_LIST)
     def test_decollation_tensor(self, *transforms):
-        t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
+        t_compose = Compose([EnsureChannelFirst(channel_dim="no_channel"), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImage(image_only=True), t_compose])
@@ -155,10 +149,10 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_LIST)
     def test_decollation_list(self, *transforms):
-        t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
+        t_compose = Compose([EnsureChannelFirst(channel_dim="no_channel"), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
-            t_compose = _ListCompose([LoadImage(image_only=False), t_compose])
+            t_compose = Compose([LoadImage(image_only=True), t_compose])
 
         dataset = Dataset(self.data_list, t_compose)
         self.check_decollate(dataset=dataset)

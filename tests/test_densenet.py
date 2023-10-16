@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from typing import TYPE_CHECKING
 from unittest import skipUnless
@@ -19,7 +21,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DenseNet121, Densenet169, DenseNet264, densenet201
 from monai.utils import optional_import
-from tests.utils import skip_if_quick, test_script_save
+from tests.utils import skip_if_downloading_fails, skip_if_quick, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -27,7 +29,6 @@ if TYPE_CHECKING:
     has_torchvision = True
 else:
     torchvision, has_torchvision = optional_import("torchvision")
-
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -54,9 +55,7 @@ for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]:
     for model in [DenseNet121, Densenet169, densenet201, DenseNet264]:
         TEST_CASES.append([model, *case])
 
-
 TEST_SCRIPT_CASES = [[model, *TEST_CASE_1] for model in [DenseNet121, Densenet169, densenet201, DenseNet264]]
-
 
 TEST_PRETRAINED_2D_CASE_1 = [  # 4-channel 2D, batch 2
     DenseNet121,
@@ -83,7 +82,8 @@ class TestPretrainedDENSENET(unittest.TestCase):
     @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
     @skip_if_quick
     def test_121_2d_shape_pretrain(self, model, input_param, input_shape, expected_shape):
-        net = model(**input_param).to(device)
+        with skip_if_downloading_fails():
+            net = model(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
@@ -92,7 +92,8 @@ class TestPretrainedDENSENET(unittest.TestCase):
     @skipUnless(has_torchvision, "Requires `torchvision` package.")
     def test_pretrain_consistency(self, model, input_param, input_shape):
         example = torch.randn(input_shape).to(device)
-        net = model(**input_param).to(device)
+        with skip_if_downloading_fails():
+            net = model(**input_param).to(device)
         with eval_mode(net):
             result = net.features.forward(example)
         torchvision_net = torchvision.models.densenet121(pretrained=True).to(device)

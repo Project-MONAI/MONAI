@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -19,7 +21,6 @@ from torch.nn import functional as F
 from monai.networks.layers.convutils import calculate_out_shape, same_padding
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.nets import AutoEncoder
-from monai.utils import deprecated_arg
 
 __all__ = ["VarAutoEncoder"]
 
@@ -49,9 +50,7 @@ class VarAutoEncoder(AutoEncoder):
         bias: whether to have a bias term in convolution blocks. Defaults to True.
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
-
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
+        use_sigmoid: whether to use the sigmoid function on final output. Defaults to True.
 
     Examples::
 
@@ -59,7 +58,7 @@ class VarAutoEncoder(AutoEncoder):
 
         # 3 layer network accepting images with dimensions (1, 32, 32) and using a latent vector with 2 values
         model = VarAutoEncoder(
-            dimensions=2,
+            spatial_dims=2,
             in_shape=(32, 32),  # image spatial shape
             out_channels=1,
             latent_size=2,
@@ -72,9 +71,6 @@ class VarAutoEncoder(AutoEncoder):
           https://github.com/Project-MONAI/tutorials/blob/master/modules/varautoencoder_mednist.ipynb
     """
 
-    @deprecated_arg(
-        name="dimensions", new_name="spatial_dims", since="0.6", msg_suffix="Please use `spatial_dims` instead."
-    )
     def __init__(
         self,
         spatial_dims: int,
@@ -83,25 +79,23 @@ class VarAutoEncoder(AutoEncoder):
         latent_size: int,
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
-        up_kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
+        up_kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 0,
-        inter_channels: Optional[list] = None,
-        inter_dilations: Optional[list] = None,
+        inter_channels: list | None = None,
+        inter_dilations: list | None = None,
         num_inter_units: int = 2,
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        act: tuple | str | None = Act.PRELU,
+        norm: tuple | str = Norm.INSTANCE,
+        dropout: tuple | str | float | None = None,
         bias: bool = True,
-        dimensions: Optional[int] = None,
+        use_sigmoid: bool = True,
     ) -> None:
-
         self.in_channels, *self.in_shape = in_shape
+        self.use_sigmoid = use_sigmoid
 
         self.latent_size = latent_size
         self.final_size = np.asarray(self.in_shape, dtype=int)
-        if dimensions is not None:
-            spatial_dims = dimensions
 
         super().__init__(
             spatial_dims,
@@ -126,12 +120,12 @@ class VarAutoEncoder(AutoEncoder):
         for s in strides:
             self.final_size = calculate_out_shape(self.final_size, self.kernel_size, s, padding)  # type: ignore
 
-        linear_size = int(np.product(self.final_size)) * self.encoded_channels
+        linear_size = int(np.prod(self.final_size)) * self.encoded_channels
         self.mu = nn.Linear(linear_size, self.latent_size)
         self.logvar = nn.Linear(linear_size, self.latent_size)
         self.decodeL = nn.Linear(self.latent_size, linear_size)
 
-    def encode_forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def encode_forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.encode(x)
         x = self.intermediate(x)
         x = x.view(x.shape[0], -1)
@@ -155,7 +149,7 @@ class VarAutoEncoder(AutoEncoder):
 
         return std.add_(mu)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mu, logvar = self.encode_forward(x)
         z = self.reparameterize(mu, logvar)
-        return self.decode_forward(z), mu, logvar, z
+        return self.decode_forward(z, self.use_sigmoid), mu, logvar, z

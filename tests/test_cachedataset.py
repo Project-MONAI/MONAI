@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import sys
 import tempfile
@@ -26,7 +28,6 @@ TEST_CASE_1 = [Compose([LoadImaged(keys=["image", "label", "extra"])]), (128, 12
 
 TEST_CASE_2 = [None, (128, 128, 128)]
 
-
 TEST_DS = []
 for c in (0, 1, 2):
     for l in (0, 1, 2):
@@ -40,7 +41,7 @@ for c in (0, 1, 2):
 class TestCacheDataset(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, transform, expected_shape):
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             test_data = []
             for i in ["1", "2"]:
@@ -54,6 +55,12 @@ class TestCacheDataset(unittest.TestCase):
             data3 = dataset[0:-1]
             data4 = dataset[-1]
             self.assertEqual(len(data3), 1)
+
+            if transform is None:
+                # Check without providing transfrom
+                dataset2 = CacheDataset(data=test_data, cache_rate=0.5, as_contiguous=True)
+                for k in ["image", "label", "extra"]:
+                    self.assertEqual(dataset[0][k], dataset2[0][k])
 
         if transform is None:
             self.assertEqual(data1["image"], os.path.join(tempdir, "image1.nii.gz"))
@@ -185,7 +192,7 @@ class TestCacheThread(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_hash_as_key(self, transform, expected_shape):
-        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]), np.eye(4))
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
         with tempfile.TemporaryDirectory() as tempdir:
             test_data = []
             for i in ["1", "2", "2", "3", "3"]:
@@ -197,6 +204,7 @@ class TestCacheThread(unittest.TestCase):
             self.assertEqual(len(dataset), 5)
             # ensure no duplicated cache content
             self.assertEqual(len(dataset._cache), 3)
+            self.assertEqual(len(dataset._hash_keys), 3)
             self.assertEqual(dataset.cache_num, 3)
             data1 = dataset[0]
             data2 = dataset[1]

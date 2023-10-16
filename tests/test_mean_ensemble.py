@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -68,7 +70,7 @@ class TestMeanEnsemble(unittest.TestCase):
             img = img.to(torch.device("cuda:0"))
             expected_value = expected_value.to(torch.device("cuda:0"))
         result = MeanEnsemble(torch.tensor([[[1, 3]], [[3, 1]]]))(img)
-        torch.testing.assert_allclose(result, expected_value)
+        assert_allclose(result, expected_value)
 
 
 if __name__ == "__main__":

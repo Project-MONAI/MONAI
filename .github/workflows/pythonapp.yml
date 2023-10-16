@@ -1,4 +1,5 @@
-name: build
+# Jenkinsfile.monai-premerge
+name: premerge
 
 on:
   # quick tests for pull requests and the releasing branches
@@ -21,18 +22,21 @@ jobs:
   #   - os-latest-pip- (shared)
   flake8-py3:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        opt: ["codeformat", "pytype", "mypy"]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: ~/.cache/pip
@@ -45,8 +49,8 @@ jobs:
       run: |
         # clean up temporary files
         $(pwd)/runtests.sh --build --clean
-        # Git hub actions have 2 cores, so parallize pytype
-        $(pwd)/runtests.sh --build --codeformat -j 2
+        # Github actions have 2 cores, so parallelize pytype
+        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j 2
 
   quick-py3:  # full dependencies installed tests for different OS
     runs-on: ${{ matrix.os }}
@@ -54,20 +58,20 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, macOS-latest, ubuntu-latest]
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
-      uses: al-cheb/configure-pagefile-action@v1.2
+      uses: al-cheb/configure-pagefile-action@v1.3
       with:
-        minimum-size: 8
-        maximum-size: 16
+        minimum-size: 8GB
+        maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: Prepare pip wheel
       run: |
         which python
@@ -75,11 +79,11 @@ jobs:
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
-        echo "::set-output name=dir::$(pip cache dir)"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+        echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -87,14 +91,21 @@ jobs:
     - if: runner.os == 'windows'
       name: Install torch cpu from pytorch.org (Windows only)
       run: |
-        python -m pip install torch==1.11.0+cpu torchvision==0.12.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        python -m pip install torch==1.13.1+cpu torchvision==0.14.1+cpu -f https://download.pytorch.org/whl/torch_stable.html
+    - if: runner.os == 'Linux'
+      name: Install itk pre-release (Linux only)
+      run: |
+        python -m pip install --pre -U itk
     - name: Install the dependencies
       run: |
-        python -m pip install torch==1.11.0 torchvision==0.12.0
+        python -m pip install torch==1.13.1 torchvision==0.14.1
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
         python -m pip list
         python setup.py develop  # test no compile installation
+      shell: bash
+    - name: Run compiled (${{ runner.os }})
+      run: |
         python setup.py develop --uninstall
         BUILD_MONAI=1 python setup.py develop  # compile the cpp extensions
       shell: bash
@@ -105,6 +116,7 @@ jobs:
         python -m unittest -v
       env:
         QUICKTEST: True
+        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   packaging:
     runs-on: ubuntu-latest
@@ -112,19 +124,19 @@ jobs:
       QUICKTEST: True
       shell: bash
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -137,7 +149,7 @@ jobs:
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
-        python -m pip install torch>=1.7 torchvision
+        python -m pip install torch>=1.9 torchvision
     - name: Check packages
       run: |
         pip uninstall monai
@@ -149,9 +161,9 @@ jobs:
         python setup.py check -m -s
         python setup.py sdist bdist_wheel
         python -m twine check dist/*
-    - run: echo "::set-output name=pwd::$PWD"
+    - run: echo "pwd=$PWD" >> $GITHUB_OUTPUT
       id: root
-    - run: echo "::set-output name=tmp_dir::$(mktemp -d)"
+    - run: echo "tmp_dir=$(mktemp -d)" >> $GITHUB_OUTPUT
       id: mktemp
     - name: Move packages
       run: |
@@ -189,21 +201,23 @@ jobs:
         ls -al
         python -m pip install -r requirements-dev.txt
         python -m unittest -v
+      env:
+        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   build-docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.8
+        python-version: '3.8'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -219,5 +233,6 @@ jobs:
         cd docs/
         make clean
         make html 2>&1 | tee tmp_log
+        if [[ $(grep -c "ERROR:" tmp_log) != 0 ]]; then echo "found errors"; grep "ERROR:" tmp_log; exit 1; fi
         if [[ $(grep -c "WARNING:" tmp_log) != 0 ]]; then echo "found warnings"; grep "WARNING:" tmp_log; exit 1; fi
       shell: bash

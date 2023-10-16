@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -16,6 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import TorchVisiond
 from monai.utils import set_determinism
+from tests.utils import assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "img", "name": "ColorJitter"},
@@ -53,7 +56,7 @@ class TestTorchVisiond(unittest.TestCase):
     def test_value(self, input_param, input_data, expected_value):
         set_determinism(seed=0)
         result = TorchVisiond(**input_param)(input_data)
-        torch.testing.assert_allclose(result["img"], expected_value)
+        assert_allclose(result["img"], expected_value, atol=1e-4, rtol=1e-4, type_test=False)
 
 
 if __name__ == "__main__":

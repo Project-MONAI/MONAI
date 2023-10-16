@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import torch.nn as nn
 
 from monai.networks.blocks.mlp import MLPBlock
@@ -21,13 +23,23 @@ class TransformerBlock(nn.Module):
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
 
-    def __init__(self, hidden_size: int, mlp_dim: int, num_heads: int, dropout_rate: float = 0.0) -> None:
+    def __init__(
+        self,
+        hidden_size: int,
+        mlp_dim: int,
+        num_heads: int,
+        dropout_rate: float = 0.0,
+        qkv_bias: bool = False,
+        save_attn: bool = False,
+    ) -> None:
         """
         Args:
-            hidden_size: dimension of hidden layer.
-            mlp_dim: dimension of feedforward layer.
-            num_heads: number of attention heads.
-            dropout_rate: faction of the input units to drop.
+            hidden_size (int): dimension of hidden layer.
+            mlp_dim (int): dimension of feedforward layer.
+            num_heads (int): number of attention heads.
+            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
+            qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
+            save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
 
         """
 
@@ -41,7 +53,7 @@ class TransformerBlock(nn.Module):
 
         self.mlp = MLPBlock(hidden_size, mlp_dim, dropout_rate)
         self.norm1 = nn.LayerNorm(hidden_size)
-        self.attn = SABlock(hidden_size, num_heads, dropout_rate)
+        self.attn = SABlock(hidden_size, num_heads, dropout_rate, qkv_bias, save_attn)
         self.norm2 = nn.LayerNorm(hidden_size)
 
     def forward(self, x):

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -30,7 +32,10 @@ class TestRandRicianNoise(NumpyImageTestCase2D):
         seed = 0
         rician_fn = RandRicianNoise(prob=1.0, mean=mean, std=std)
         rician_fn.set_random_state(seed)
-        noised = rician_fn(in_type(self.imt))
+        im = in_type(self.imt)
+        noised = rician_fn(im)
+        if isinstance(im, torch.Tensor):
+            self.assertEqual(im.dtype, noised.dtype)
         np.random.seed(seed)
         np.random.random()
         _std = np.random.uniform(0, std)

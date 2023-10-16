@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import pickle
 import random
@@ -22,8 +24,9 @@ from torch.utils.data import DataLoader
 from monai.apps import MedNISTDataset
 from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
+from monai.utils.misc import MONAIEnvVars
 from tests.utils import skip_if_downloading_fails
 
 if TYPE_CHECKING:
@@ -46,15 +49,14 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 @unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
     def setUp(self):
-
-        self.root_dir = os.environ.get("MONAI_DATA_DIRECTORY")
+        self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:
             self.root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
 
         self.transforms = Compose(
             [
                 LoadImaged(keys="image"),
-                AddChanneld(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys="image"),
             ]
@@ -69,9 +71,9 @@ class TestLRFinder(unittest.TestCase):
                 section="validation",
                 val_frac=0.001,
                 download=True,
-                num_workers=10,
+                num_workers=2,
             )
-        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=10)
+        train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=2)
         num_classes = train_ds.get_num_classes()
 
         model = DenseNet(
@@ -89,7 +91,7 @@ class TestLRFinder(unittest.TestCase):
             pickle_module=pickle,
             pickle_protocol=4,
         )
-        lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10, num_iter=5)
+        lr_finder.range_test(train_loader, val_loader=train_loader, end_lr=10.0, num_iter=5)
         print(lr_finder.get_steepest_gradient(0, 0)[0])
 
         if has_matplotlib:

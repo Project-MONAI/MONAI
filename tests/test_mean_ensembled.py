@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -73,7 +75,7 @@ class TestMeanEnsembled(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_value(self, input_param, data, expected_value):
         result = MeanEnsembled(**input_param)(data)
-        torch.testing.assert_allclose(result["output"], expected_value)
+        assert_allclose(result["output"], expected_value)
 
     def test_cuda_value(self):
         img = torch.stack([torch.ones(2, 2, 2, 2), torch.ones(2, 2, 2, 2) + 2])

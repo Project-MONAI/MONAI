@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
 import os
 import shutil
 import tarfile
 import tempfile
-from typing import Sequence, Tuple, Union
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -22,7 +24,7 @@ from torch import nn
 from monai.utils import optional_import
 
 transformers = optional_import("transformers")
-load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")
+load_tf_weights_in_bert = optional_import("transformers", name="load_tf_weights_in_bert")[0]
 cached_path = optional_import("transformers.file_utils", name="cached_path")[0]
 BertEmbeddings = optional_import("transformers.models.bert.modeling_bert", name="BertEmbeddings")[0]
 BertLayer = optional_import("transformers.models.bert.modeling_bert", name="BertLayer")[0]
@@ -72,7 +74,24 @@ class BertPreTrainedModel(nn.Module):
         else:
             tempdir = tempfile.mkdtemp()
             with tarfile.open(resolved_archive_file, "r:gz") as archive:
-                archive.extractall(tempdir)
+
+                def is_within_directory(directory, target):
+                    abs_directory = os.path.abspath(directory)
+                    abs_target = os.path.abspath(target)
+
+                    prefix = os.path.commonprefix([abs_directory, abs_target])
+
+                    return prefix == abs_directory
+
+                def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+                    for member in tar.getmembers():
+                        member_path = os.path.join(path, member.name)
+                        if not is_within_directory(path, member_path):
+                            raise Exception("Attempted Path Traversal in Tar File")
+
+                    tar.extractall(path, members, numeric_owner=numeric_owner)
+
+                safe_extract(archive, tempdir)
             serialization_dir = tempdir
         model = cls(num_language_layers, num_vision_layers, num_mixed_layers, bert_config, *inputs, **kwargs)
         if state_dict is None and not from_tf:
@@ -96,9 +115,9 @@ class BertPreTrainedModel(nn.Module):
                 new_keys.append(new_key)
         for old_key, new_key in zip(old_keys, new_keys):
             state_dict[new_key] = state_dict.pop(old_key)
-        missing_keys = []
-        unexpected_keys = []
-        error_msgs = []
+        missing_keys: list = []
+        unexpected_keys: list = []
+        error_msgs: list = []
         metadata = getattr(state_dict, "_metadata", None)
         state_dict = state_dict.copy()
         if metadata is not None:
@@ -257,8 +276,8 @@ class Transchex(torch.nn.Module):
     def __init__(
         self,
         in_channels: int,
-        img_size: Union[Sequence[int], int],
-        patch_size: Union[int, Tuple[int, int]],
+        img_size: Sequence[int] | int,
+        patch_size: int | tuple[int, int],
         num_classes: int,
         num_language_layers: int,
         num_vision_layers: int,
@@ -295,7 +314,7 @@ class Transchex(torch.nn.Module):
             num_language_layers: number of language transformer layers.
             num_vision_layers: number of vision transformer layers.
             num_mixed_layers: number of mixed transformer layers.
-            drop_out: faction of the input units to drop.
+            drop_out: fraction of the input units to drop.
 
         The other parameters are part of the `bert_config` to `MultiModal.from_pretrained`.
 

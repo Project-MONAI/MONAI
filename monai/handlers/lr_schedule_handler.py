@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
@@ -21,7 +24,9 @@ Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_
 if TYPE_CHECKING:
     from ignite.engine import Engine
 else:
-    Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Engine, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine", as_type="decorator"
+    )
 
 
 class LrScheduleHandler:
@@ -31,9 +36,9 @@ class LrScheduleHandler:
 
     def __init__(
         self,
-        lr_scheduler: Union[_LRScheduler, ReduceLROnPlateau],
+        lr_scheduler: _LRScheduler | ReduceLROnPlateau,
         print_lr: bool = True,
-        name: Optional[str] = None,
+        name: str | None = None,
         epoch_level: bool = True,
         step_transform: Callable[[Engine], Any] = lambda engine: (),
     ) -> None:

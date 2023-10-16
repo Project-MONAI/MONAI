@@ -15,6 +15,9 @@ Applications
 .. autoclass:: DecathlonDataset
     :members:
 
+.. autoclass:: TciaDataset
+    :members:
+
 .. autoclass:: CrossValidation
     :members:
 
@@ -77,16 +80,12 @@ Applications
 `Pathology`
 -----------
 
-.. automodule:: monai.apps.pathology.data
-.. autoclass:: PatchWSIDataset
-    :members:
-.. autoclass:: SmartCachePatchWSIDataset
-    :members:
-.. autoclass:: MaskedInferenceWSIDataset
+.. automodule:: monai.apps.pathology.inferers
+.. autoclass:: SlidingWindowHoVerNetInferer
     :members:
 
-.. automodule:: monai.apps.pathology.handlers
-.. autoclass:: ProbMapProducer
+.. automodule:: monai.apps.pathology.losses.hovernet_loss
+.. autoclass:: HoVerNetLoss
     :members:
 
 .. automodule:: monai.apps.pathology.metrics
@@ -111,14 +110,154 @@ Applications
 .. autoclass:: NormalizeHEStainsd
     :members:
 
-.. automodule:: monai.apps.pathology.transforms.spatial.array
-.. autoclass:: SplitOnGrid
+.. automodule:: monai.apps.pathology.transforms.post.array
+.. autoclass:: GenerateSuccinctContour
     :members:
-.. autoclass:: TileOnGrid
+.. autoclass:: GenerateInstanceContour
+    :members:
+.. autoclass:: GenerateInstanceCentroid
+    :members:
+.. autoclass:: GenerateInstanceType
+    :members:
+.. autoclass:: Watershed
+    :members:
+.. autoclass:: GenerateWatershedMask
+    :members:
+.. autoclass:: GenerateInstanceBorder
+    :members:
+.. autoclass:: GenerateDistanceMap
+    :members:
+.. autoclass:: GenerateWatershedMarkers
+    :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessing
+    :members:
+.. autoclass:: HoVerNetInstanceMapPostProcessing
     :members:
 
-.. automodule:: monai.apps.pathology.transforms.spatial.dictionary
-.. autoclass:: SplitOnGridd
+.. automodule:: monai.apps.pathology.transforms.post.dictionary
+.. autoclass:: GenerateSuccinctContourd
     :members:
-.. autoclass:: TileOnGridd
+.. autoclass:: GenerateInstanceContourd
     :members:
+.. autoclass:: GenerateInstanceCentroidd
+    :members:
+.. autoclass:: GenerateInstanceTyped
+    :members:
+.. autoclass:: Watershedd
+    :members:
+.. autoclass:: GenerateWatershedMaskd
+    :members:
+.. autoclass:: GenerateInstanceBorderd
+    :members:
+.. autoclass:: GenerateDistanceMapd
+    :members:
+.. autoclass:: GenerateWatershedMarkersd
+    :members:
+.. autoclass:: HoVerNetInstanceMapPostProcessingd
+    :members:
+.. autoclass:: HoVerNetNuclearTypePostProcessingd
+    :members:
+
+`Detection`
+-----------
+
+`Hard Negative Sampler`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.hard_negative_sampler
+    :members:
+
+`RetinaNet Network`
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.networks.retinanet_network
+    :members:
+
+`RetinaNet Detector`
+~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.networks.retinanet_detector
+    :members:
+
+`Transforms`
+~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.transforms.box_ops
+    :members:
+.. automodule:: monai.apps.detection.transforms.array
+    :members:
+.. automodule:: monai.apps.detection.transforms.dictionary
+    :members:
+
+`Anchor`
+~~~~~~~~
+.. automodule:: monai.apps.detection.utils.anchor_utils
+    :members:
+
+`Matcher`
+~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.ATSS_matcher
+    :members:
+
+`Box coder`
+~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_coder
+    :members:
+
+`Detection Utilities`
+~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.detector_utils
+    :members:
+
+.. automodule:: monai.apps.detection.utils.predict_utils
+    :members:
+
+`Inference box selector`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.utils.box_selector
+    :members:
+
+`Detection metrics`
+~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.detection.metrics.coco
+    :members:
+.. automodule:: monai.apps.detection.metrics.matching
+    :members:
+
+`Reconstruction`
+----------------
+
+FastMRIReader
+~~~~~~~~~~~~~
+.. autoclass:: monai.apps.reconstruction.fastmri_reader.FastMRIReader
+  :members:
+
+`ConvertToTensorComplex`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.convert_to_tensor_complex
+
+`ComplexAbs`
+~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_abs
+
+`RootSumOfSquares`
+~~~~~~~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.mri_utils.root_sum_of_squares
+
+`ComplexMul`
+~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_mul
+
+`ComplexConj`
+~~~~~~~~~~~~~
+.. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
+
+`Auto3DSeg`
+-----------
+.. automodule:: monai.apps.auto3dseg
+  :members:
+  :special-members: __call__
+  :imported-members:
+
+`nnUNet`
+--------
+.. automodule:: monai.apps.nnunet.__main__
+
+.. autoclass:: monai.apps.nnunet.nnUNetV2Runner
+  :members:

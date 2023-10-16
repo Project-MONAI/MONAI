@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -21,7 +23,6 @@ from tests.utils import SkipIfModule, SkipIfNoModule, skip_if_no_cuda
 
 
 def create_expected_numpy_output(input_datum, **kwargs):
-
     x = np.fft.fft(input_datum.cpu().numpy() if input_datum.device.type == "cuda" else input_datum.numpy(), **kwargs)
     f = np.fft.fftfreq(x.shape[kwargs["axis"]])
     u = np.heaviside(f, 0.5)

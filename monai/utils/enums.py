@@ -9,18 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from enum import Enum
-from typing import Optional
+from __future__ import annotations
 
-from monai.utils.deprecate_utils import deprecated
+import random
+from enum import Enum
+
+from monai.utils import deprecated
 
 __all__ = [
+    "StrEnum",
     "NumpyPadMode",
     "GridSampleMode",
+    "SplineMode",
     "InterpolateMode",
     "UpsampleMode",
     "BlendMode",
     "PytorchPadMode",
+    "NdimageMode",
     "GridSamplePadMode",
     "Average",
     "MetricReduction",
@@ -31,15 +36,59 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
-    "InverseKeys",
+    "TraceStatusKeys",
     "CommonKeys",
+    "GanKeys",
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "CompInitMode",
+    "BoxModeName",
+    "GridPatchSort",
+    "FastMRIKeys",
+    "SpaceKeys",
+    "MetaKeys",
+    "ColorOrder",
+    "EngineStatsKeys",
+    "DataStatsKeys",
+    "ImageStatsKeys",
+    "LabelStatsKeys",
+    "AlgoEnsembleKeys",
+    "HoVerNetMode",
+    "HoVerNetBranch",
+    "LazyAttr",
+    "BundleProperty",
+    "BundlePropertyConfig",
+    "AlgoKeys",
 ]
 
 
-class NumpyPadMode(Enum):
+class StrEnum(str, Enum):
+    """
+    Enum subclass that converts its value to a string.
+
+    .. code-block:: python
+
+        from monai.utils import StrEnum
+
+        class Example(StrEnum):
+            MODE_A = "A"
+            MODE_B = "B"
+
+        assert (list(Example) == ["A", "B"])
+        assert Example.MODE_A == "A"
+        assert str(Example.MODE_A) == "A"
+        assert monai.utils.look_up_option("A", Example) == "A"
+    """
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return self.value
+
+
+class NumpyPadMode(StrEnum):
     """
     See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
     """
@@ -57,7 +106,23 @@ class NumpyPadMode(Enum):
     EMPTY = "empty"
 
 
-class GridSampleMode(Enum):
+class NdimageMode(StrEnum):
+    """
+    The available options determine how the input array is extended beyond its boundaries when interpolating.
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    REFLECT = "reflect"
+    GRID_MIRROR = "grid-mirror"
+    CONSTANT = "constant"
+    GRID_CONSTANT = "grid-constant"
+    NEAREST = "nearest"
+    MIRROR = "mirror"
+    GRID_WRAP = "grid-wrap"
+    WRAP = "wrap"
+
+
+class GridSampleMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
 
@@ -75,12 +140,28 @@ class GridSampleMode(Enum):
     BICUBIC = "bicubic"
 
 
-class InterpolateMode(Enum):
+class SplineMode(StrEnum):
+    """
+    Order of spline interpolation.
+
+    See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
+    """
+
+    ZERO = 0
+    ONE = 1
+    TWO = 2
+    THREE = 3
+    FOUR = 4
+    FIVE = 5
+
+
+class InterpolateMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
     """
 
     NEAREST = "nearest"
+    NEAREST_EXACT = "nearest-exact"
     LINEAR = "linear"
     BILINEAR = "bilinear"
     BICUBIC = "bicubic"
@@ -88,17 +169,18 @@ class InterpolateMode(Enum):
     AREA = "area"
 
 
-class UpsampleMode(Enum):
+class UpsampleMode(StrEnum):
     """
     See also: :py:class:`monai.networks.blocks.UpSample`
     """
 
     DECONV = "deconv"
+    DECONVGROUP = "deconvgroup"
     NONTRAINABLE = "nontrainable"  # e.g. using torch.nn.Upsample
     PIXELSHUFFLE = "pixelshuffle"
 
 
-class BlendMode(Enum):
+class BlendMode(StrEnum):
     """
     See also: :py:class:`monai.data.utils.compute_importance_map`
     """
@@ -107,7 +189,7 @@ class BlendMode(Enum):
     GAUSSIAN = "gaussian"
 
 
-class PytorchPadMode(Enum):
+class PytorchPadMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
     """
@@ -118,7 +200,7 @@ class PytorchPadMode(Enum):
     CIRCULAR = "circular"
 
 
-class GridSamplePadMode(Enum):
+class GridSamplePadMode(StrEnum):
     """
     See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
     """
@@ -128,7 +210,7 @@ class GridSamplePadMode(Enum):
     REFLECTION = "reflection"
 
 
-class Average(Enum):
+class Average(StrEnum):
     """
     See also: :py:class:`monai.metrics.rocauc.compute_roc_auc`
     """
@@ -139,7 +221,7 @@ class Average(Enum):
     NONE = "none"
 
 
-class MetricReduction(Enum):
+class MetricReduction(StrEnum):
     """
     See also: :py:func:`monai.metrics.utils.do_metric_reduction`
     """
@@ -153,7 +235,7 @@ class MetricReduction(Enum):
     SUM_CHANNEL = "sum_channel"
 
 
-class LossReduction(Enum):
+class LossReduction(StrEnum):
     """
     See also:
         - :py:class:`monai.losses.dice.DiceLoss`
@@ -167,7 +249,7 @@ class LossReduction(Enum):
     SUM = "sum"
 
 
-class DiceCEReduction(Enum):
+class DiceCEReduction(StrEnum):
     """
     See also:
         - :py:class:`monai.losses.dice.DiceCELoss`
@@ -177,7 +259,7 @@ class DiceCEReduction(Enum):
     SUM = "sum"
 
 
-class Weight(Enum):
+class Weight(StrEnum):
     """
     See also: :py:class:`monai.losses.dice.GeneralizedDiceLoss`
     """
@@ -187,7 +269,7 @@ class Weight(Enum):
     UNIFORM = "uniform"
 
 
-class ChannelMatching(Enum):
+class ChannelMatching(StrEnum):
     """
     See also: :py:class:`monai.networks.nets.HighResBlock`
     """
@@ -196,7 +278,7 @@ class ChannelMatching(Enum):
     PROJECT = "project"
 
 
-class SkipMode(Enum):
+class SkipMode(StrEnum):
     """
     See also: :py:class:`monai.networks.layers.SkipConnection`
     """
@@ -206,7 +288,7 @@ class SkipMode(Enum):
     MUL = "mul"
 
 
-class Method(Enum):
+class Method(StrEnum):
     """
     See also: :py:class:`monai.transforms.croppad.array.SpatialPad`
     """
@@ -215,7 +297,7 @@ class Method(Enum):
     END = "end"
 
 
-class ForwardMode(Enum):
+class ForwardMode(StrEnum):
     """
     See also: :py:class:`monai.transforms.engines.evaluator.Evaluator`
     """
@@ -224,8 +306,8 @@ class ForwardMode(Enum):
     EVAL = "eval"
 
 
-class TraceKeys:
-    """Extra meta data keys used for traceable transforms."""
+class TraceKeys(StrEnum):
+    """Extra metadata keys used for traceable transforms."""
 
     CLASS_NAME: str = "class"
     ID: str = "id"
@@ -234,28 +316,18 @@ class TraceKeys:
     DO_TRANSFORM: str = "do_transforms"
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
+    TRACING: str = "tracing"
+    STATUSES: str = "statuses"
+    LAZY: str = "lazy"
 
 
-@deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
-class InverseKeys:
-    """
-    Extra meta data keys used for inverse transforms.
+class TraceStatusKeys(StrEnum):
+    """Enumerable status keys for the TraceKeys.STATUS flag"""
 
-    .. deprecated:: 0.8.0
-        Use :class:`monai.utils.enums.TraceKeys` instead.
-
-    """
-
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    PENDING_DURING_APPLY = "pending_during_apply"
 
 
-class CommonKeys:
+class CommonKeys(StrEnum):
     """
     A set of common keys for dictionary based supervised training process.
     `IMAGE` is the input image data.
@@ -270,38 +342,69 @@ class CommonKeys:
     LABEL = "label"
     PRED = "pred"
     LOSS = "loss"
+    METADATA = "metadata"
 
 
-class PostFix:
+class GanKeys(StrEnum):
+    """
+    A set of common keys for generative adversarial networks.
+
+    """
+
+    REALS = "reals"
+    FAKES = "fakes"
+    LATENTS = "latents"
+    GLOSS = "g_loss"
+    DLOSS = "d_loss"
+
+
+class PostFix(StrEnum):
     """Post-fixes."""
 
     @staticmethod
-    def _get_str(prefix, suffix):
+    def _get_str(prefix: str | None, suffix: str) -> str:
         return suffix if prefix is None else f"{prefix}_{suffix}"
 
     @staticmethod
-    def meta(key: Optional[str] = None):
+    def meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "meta_dict")
 
     @staticmethod
-    def orig_meta(key: Optional[str] = None):
+    def orig_meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "orig_meta_dict")
 
     @staticmethod
-    def transforms(key: Optional[str] = None):
+    def transforms(key: str | None = None) -> str:
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
-class TransformBackends(Enum):
+class TransformBackends(StrEnum):
     """
-    Transform backends.
+    Transform backends. Most of `monai.transforms` components first converts the input data into ``torch.Tensor`` or
+    ``monai.data.MetaTensor``. Internally, some transforms are made by converting the data into ``numpy.array`` or
+    ``cupy.array`` and use the underlying transform backend API to achieve the actual output array and
+    converting back to ``Tensor``/``MetaTensor``. Transforms with more than one backend indicate the that they may
+    convert the input data types to accommodate the underlying API.
     """
 
     TORCH = "torch"
     NUMPY = "numpy"
+    CUPY = "cupy"
 
 
-class JITMetadataKeys(Enum):
+class CompInitMode(StrEnum):
+    """
+    Mode names for instantiating a class or calling a callable.
+
+    See also: :py:func:`monai.utils.module.instantiate`
+    """
+
+    DEFAULT = "default"
+    PARTIAL = "partial"
+    DEBUG = "debug"
+
+
+class JITMetadataKeys(StrEnum):
     """
     Keys stored in the metadata file for saved Torchscript models. Some of these are generated by the routines
     and others are optionally provided by users.
@@ -311,3 +414,281 @@ class JITMetadataKeys(Enum):
     TIMESTAMP = "timestamp"
     VERSION = "version"
     DESCRIPTION = "description"
+
+
+class BoxModeName(StrEnum):
+    """
+    Box mode names.
+    """
+
+    XYXY = "xyxy"  # [xmin, ymin, xmax, ymax]
+    XYZXYZ = "xyzxyz"  # [xmin, ymin, zmin, xmax, ymax, zmax]
+    XXYY = "xxyy"  # [xmin, xmax, ymin, ymax]
+    XXYYZZ = "xxyyzz"  # [xmin, xmax, ymin, ymax, zmin, zmax]
+    XYXYZZ = "xyxyzz"  # [xmin, ymin, xmax, ymax, zmin, zmax]
+    XYWH = "xywh"  # [xmin, ymin, xsize, ysize]
+    XYZWHD = "xyzwhd"  # [xmin, ymin, zmin, xsize, ysize, zsize]
+    CCWH = "ccwh"  # [xcenter, ycenter, xsize, ysize]
+    CCCWHD = "cccwhd"  # [xcenter, ycenter, zcenter, xsize, ysize, zsize]
+
+
+class ProbMapKeys(StrEnum):
+    """
+    The keys to be used for generating the probability maps from patches
+    """
+
+    LOCATION = "mask_location"
+    SIZE = "mask_size"
+    COUNT = "num_patches"
+    NAME = "name"
+
+
+class GridPatchSort(StrEnum):
+    """
+    The sorting method for the generated patches in `GridPatch`
+    """
+
+    RANDOM = "random"
+    MIN = "min"
+    MAX = "max"
+
+    @staticmethod
+    def min_fn(x):
+        return x[0].sum()
+
+    @staticmethod
+    def max_fn(x):
+        return -x[0].sum()
+
+    @staticmethod
+    def get_sort_fn(sort_fn):
+        if sort_fn == GridPatchSort.RANDOM:
+            return random.random
+        elif sort_fn == GridPatchSort.MIN:
+            return GridPatchSort.min_fn
+        elif sort_fn == GridPatchSort.MAX:
+            return GridPatchSort.max_fn
+        else:
+            raise ValueError(
+                f'sort_fn should be one of the following values, "{sort_fn}" was given:',
+                [e.value for e in GridPatchSort],
+            )
+
+
+class PatchKeys(StrEnum):
+    """
+    The keys to be used for metadata of patches extracted from any kind of image
+    """
+
+    LOCATION = "location"
+    SIZE = "size"
+    COUNT = "count"
+
+
+class WSIPatchKeys(StrEnum):
+    """
+    The keys to be used for metadata of patches extracted from whole slide images
+    """
+
+    LOCATION = PatchKeys.LOCATION
+    SIZE = PatchKeys.SIZE
+    COUNT = PatchKeys.COUNT
+    LEVEL = "level"
+    PATH = "path"
+
+
+class FastMRIKeys(StrEnum):
+    """
+    The keys to be used for extracting data from the fastMRI dataset
+    """
+
+    KSPACE = "kspace"
+    MASK = "mask"
+    FILENAME = "filename"
+    RECON = "reconstruction_rss"
+    ACQUISITION = "acquisition"
+    MAX = "max"
+    NORM = "norm"
+    PID = "patient_id"
+
+
+class SpaceKeys(StrEnum):
+    """
+    The coordinate system keys, for example, Nifti1 uses Right-Anterior-Superior or "RAS",
+    DICOM (0020,0032) uses Left-Posterior-Superior or "LPS". This type does not distinguish spatial 1/2/3D.
+    """
+
+    RAS = "RAS"
+    LPS = "LPS"
+
+
+class MetaKeys(StrEnum):
+    """
+    Typical keys for MetaObj.meta
+    """
+
+    AFFINE = "affine"  # MetaTensor.affine
+    ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
+    SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
+    SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
+    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or float("nan")
+
+
+class ColorOrder(StrEnum):
+    """
+    Enums for color order. Expand as necessary.
+    """
+
+    RGB = "RGB"
+    BGR = "BGR"
+
+
+class EngineStatsKeys(StrEnum):
+    """
+    Default keys for the statistics of trainer and evaluator engines.
+
+    """
+
+    RANK = "rank"
+    CURRENT_ITERATION = "current_iteration"
+    CURRENT_EPOCH = "current_epoch"
+    TOTAL_EPOCHS = "total_epochs"
+    TOTAL_ITERATIONS = "total_iterations"
+    BEST_VALIDATION_EPOCH = "best_validation_epoch"
+    BEST_VALIDATION_METRIC = "best_validation_metric"
+
+
+class DataStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis modules
+
+    """
+
+    SUMMARY = "stats_summary"
+    BY_CASE = "stats_by_cases"
+    BY_CASE_IMAGE_PATH = "image_filepath"
+    BY_CASE_LABEL_PATH = "label_filepath"
+    IMAGE_STATS = "image_stats"
+    FG_IMAGE_STATS = "image_foreground_stats"
+    LABEL_STATS = "label_stats"
+    IMAGE_HISTOGRAM = "image_histogram"
+
+
+class ImageStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis image modules
+
+    """
+
+    SHAPE = "shape"
+    CHANNELS = "channels"
+    CROPPED_SHAPE = "cropped_shape"
+    SPACING = "spacing"
+    SIZEMM = "sizemm"
+    INTENSITY = "intensity"
+    HISTOGRAM = "histogram"
+
+
+class LabelStatsKeys(StrEnum):
+    """
+    Defaults keys for dataset statistical analysis label modules
+
+    """
+
+    LABEL_UID = "labels"
+    PIXEL_PCT = "foreground_percentage"
+    IMAGE_INTST = "image_intensity"
+    LABEL = "label"
+    LABEL_SHAPE = "shape"
+    LABEL_NCOMP = "ncomponents"
+
+
+@deprecated(since="1.2", removed="1.4", msg_suffix="please use `AlgoKeys` instead.")
+class AlgoEnsembleKeys(StrEnum):
+    """
+    Default keys for Mixed Ensemble
+    """
+
+    ID = "identifier"
+    ALGO = "infer_algo"
+    SCORE = "best_metric"
+
+
+class HoVerNetMode(StrEnum):
+    """
+    Modes for HoVerNet model:
+    `FAST`: a faster implementation (than original)
+    `ORIGINAL`: the original implementation
+    """
+
+    FAST = "FAST"
+    ORIGINAL = "ORIGINAL"
+
+
+class HoVerNetBranch(StrEnum):
+    """
+    Three branches of HoVerNet model, which results in three outputs:
+    `HV` is horizontal and vertical gradient map of each nucleus (regression),
+    `NP` is the pixel prediction of all nuclei (segmentation), and
+    `NC` is the type of each nucleus (classification).
+    """
+
+    HV = "horizontal_vertical"
+    NP = "nucleus_prediction"
+    NC = "type_prediction"
+
+
+class LazyAttr(StrEnum):
+    """
+    MetaTensor with pending operations requires some key attributes tracked especially when the primary array
+    is not up-to-date due to lazy evaluation.
+    This class specifies the set of key attributes to be tracked for each MetaTensor.
+    See also: :py:func:`monai.transforms.lazy.utils.resample` for more details.
+    """
+
+    SHAPE = "lazy_shape"  # spatial shape
+    AFFINE = "lazy_affine"
+    PADDING_MODE = "lazy_padding_mode"
+    INTERP_MODE = "lazy_interpolation_mode"
+    DTYPE = "lazy_dtype"
+    ALIGN_CORNERS = "lazy_align_corners"
+    RESAMPLE_MODE = "lazy_resample_mode"
+
+
+class BundleProperty(StrEnum):
+    """
+    Bundle property fields:
+    `DESC` is the description of the property.
+    `REQUIRED` is flag to indicate whether the property is required or optional.
+    """
+
+    DESC = "description"
+    REQUIRED = "required"
+
+
+class BundlePropertyConfig(StrEnum):
+    """
+    additional bundle property fields for config based bundle workflow:
+    `ID` is the config item ID of the property.
+    `REF_ID` is the ID of config item which is supposed to refer to this property.
+    For properties that do not have `REF_ID`, `None` should be set.
+    this field is only useful to check the optional property ID.
+    """
+
+    ID = "id"
+    REF_ID = "refer_id"
+
+
+class AlgoKeys(StrEnum):
+    """
+    Default keys for templated Auto3DSeg Algo.
+    `ID` is the identifier of the algorithm. The string has the format of <name>_<idx>_<other>.
+    `ALGO` is the Auto3DSeg Algo instance.
+    `IS_TRAINED` is the status that shows if the Algo has been trained.
+    `SCORE` is the score the Algo has achieved after training.
+    """
+
+    ID = "identifier"
+    ALGO = "algo_instance"
+    IS_TRAINED = "is_trained"
+    SCORE = "best_metric"

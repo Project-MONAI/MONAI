@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
 
-from monai.handlers.ignite_metric import IgniteMetric
+from collections.abc import Callable
+
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import ConfusionMatrixMetric
 from monai.utils.enums import MetricReduction
 
 
-class ConfusionMatrix(IgniteMetric):
+class ConfusionMatrix(IgniteMetricHandler):
     """
     Compute confusion matrix related metrics from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -26,14 +28,14 @@ class ConfusionMatrix(IgniteMetric):
         include_background: bool = True,
         metric_name: str = "hit_rate",
         compute_sample: bool = False,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
         """
 
         Args:
-            include_background: whether to skip metric computation on the first channel of
+            include_background: whether to include metric computation on the first channel of
                 the predicted output. Defaults to True.
             metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
                 ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,

@@ -9,21 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
 
-from monai.handlers.ignite_metric import IgniteMetric
+from collections.abc import Callable
+
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import MAEMetric, MSEMetric, PSNRMetric, RMSEMetric
 from monai.utils import MetricReduction
 
 
-class MeanSquaredError(IgniteMetric):
+class MeanSquaredError(IgniteMetricHandler):
     """
     Computes Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
         self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -49,14 +51,14 @@ class MeanSquaredError(IgniteMetric):
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
-class MeanAbsoluteError(IgniteMetric):
+class MeanAbsoluteError(IgniteMetricHandler):
     """
     Computes Mean Absolute Error from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
         self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -82,14 +84,14 @@ class MeanAbsoluteError(IgniteMetric):
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
-class RootMeanSquaredError(IgniteMetric):
+class RootMeanSquaredError(IgniteMetricHandler):
     """
     Computes Root Mean Squared Error from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
         self,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -115,15 +117,15 @@ class RootMeanSquaredError(IgniteMetric):
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
 
 
-class PeakSignalToNoiseRatio(IgniteMetric):
+class PeakSignalToNoiseRatio(IgniteMetricHandler):
     """
     Computes Peak Signal to Noise Ratio from full size Tensor and collects average over batch, iterations.
     """
 
     def __init__(
         self,
-        max_val: Union[int, float],
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        max_val: int | float,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:

@@ -9,28 +9,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
-from typing import Dict, List
+from collections.abc import Sequence
 
 import numpy as np
 
-from monai.transforms import AsChannelFirstd, Compose, LoadImaged, Orientationd, Spacingd
+from monai.config import PathLike
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd, SqueezeDimd, Transform
 from monai.utils import GridSampleMode
 
 
 def create_dataset(
-    datalist,
+    datalist: list[dict],
     output_dir: str,
     dimension: int,
-    pixdim,
+    pixdim: Sequence[float] | float,
     image_key: str = "image",
     label_key: str = "label",
-    base_dir=None,
+    base_dir: PathLike | None = None,
     limit: int = 0,
     relative_path: bool = False,
-    transforms=None,
-) -> List[Dict]:
+    transforms: Transform | None = None,
+) -> list[dict]:
     """
     Utility to pre-process and create dataset list for Deepgrow training over on existing one.
     The input data list is normally a list of images and labels (3D volume) that needs pre-processing
@@ -84,12 +87,12 @@ def create_dataset(
 
     transforms = _default_transforms(image_key, label_key, pixdim) if transforms is None else transforms
     new_datalist = []
-    for idx in range(len(datalist)):
+    for idx, item in enumerate(datalist):
         if limit and idx >= limit:
             break
 
-        image = datalist[idx][image_key]
-        label = datalist[idx].get(label_key, None)
+        image = item[image_key]
+        label = item.get(label_key, None)
         if base_dir:
             image = os.path.join(base_dir, image)
             label = os.path.join(base_dir, label) if label else None
@@ -99,19 +102,29 @@ def create_dataset(
 
         logging.info(f"Image: {image}; Label: {label if label else None}")
         data = transforms({image_key: image, label_key: label})
+
+        vol_image = data[image_key]
+        vol_label = data.get(label_key)
+        logging.info(f"Image (transform): {vol_image.shape}; Label: {None if vol_label is None else vol_label.shape}")
+
+        vol_image = np.moveaxis(vol_image, -1, 0)
+        if vol_label is not None:
+            vol_label = np.moveaxis(vol_label, -1, 0)
+        logging.info(f"Image (final): {vol_image.shape}; Label: {None if vol_label is None else vol_label.shape}")
+
         if dimension == 2:
             data = _save_data_2d(
                 vol_idx=idx,
-                vol_image=data[image_key],
-                vol_label=data[label_key],
+                vol_image=vol_image,
+                vol_label=vol_label,
                 dataset_dir=output_dir,
                 relative_path=relative_path,
             )
         else:
             data = _save_data_3d(
                 vol_idx=idx,
-                vol_image=data[image_key],
-                vol_label=data[label_key],
+                vol_image=vol_image,
+                vol_label=vol_label,
                 dataset_dir=output_dir,
                 relative_path=relative_path,
             )
@@ -125,24 +138,16 @@ def _default_transforms(image_key, label_key, pixdim):
     return Compose(
         [
             LoadImaged(keys=keys),
-            AsChannelFirstd(keys=keys),
+            EnsureChannelFirstd(keys=keys),
             Orientationd(keys=keys, axcodes="RAS"),
             Spacingd(keys=keys, pixdim=pixdim, mode=mode),
+            SqueezeDimd(keys=keys),
         ]
     )
 
 
 def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
-    data_list = []
-
-    if len(vol_image.shape) == 4:
-        logging.info(
-            "4D-Image, pick only first series; Image: {}; Label: {}".format(
-                vol_image.shape, vol_label.shape if vol_label is not None else None
-            )
-        )
-        vol_image = vol_image[0]
-        vol_image = np.moveaxis(vol_image, -1, 0)
+    data_list: list[dict[str, str | int]] = []
 
     image_count = 0
     label_count = 0
@@ -209,16 +214,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
 
 
 def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
-    data_list = []
-
-    if len(vol_image.shape) == 4:
-        logging.info(
-            "4D-Image, pick only first series; Image: {}; Label: {}".format(
-                vol_image.shape, vol_label.shape if vol_label is not None else None
-            )
-        )
-        vol_image = vol_image[0]
-        vol_image = np.moveaxis(vol_image, -1, 0)
+    data_list: list[dict[str, str | int]] = []
 
     image_count = 0
     label_count = 0

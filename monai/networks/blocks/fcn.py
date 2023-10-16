@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Type
+from __future__ import annotations
 
 import torch
 import torch.nn as nn
@@ -38,7 +38,7 @@ class GCN(nn.Module):
         """
         super().__init__()
 
-        conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
+        conv2d_type: type[nn.Conv2d] = Conv[Conv.CONV, 2]
         self.conv_l1 = conv2d_type(in_channels=inplanes, out_channels=planes, kernel_size=(ks, 1), padding=(ks // 2, 0))
         self.conv_l2 = conv2d_type(in_channels=planes, out_channels=planes, kernel_size=(1, ks), padding=(0, ks // 2))
         self.conv_r1 = conv2d_type(in_channels=inplanes, out_channels=planes, kernel_size=(1, ks), padding=(0, ks // 2))
@@ -69,9 +69,9 @@ class Refine(nn.Module):
         """
         super().__init__()
 
-        relu_type: Type[nn.ReLU] = Act[Act.RELU]
-        conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
-        norm2d_type: Type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
+        relu_type: type[nn.ReLU] = Act[Act.RELU]
+        conv2d_type: type[nn.Conv2d] = Conv[Conv.CONV, 2]
+        norm2d_type: type[nn.BatchNorm2d] = Norm[Norm.BATCH, 2]
 
         self.bn = norm2d_type(num_features=planes)
         self.relu = relu_type(inplace=True)
@@ -118,7 +118,7 @@ class FCN(nn.Module):
     ):
         super().__init__()
 
-        conv2d_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
+        conv2d_type: type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
         self.upsample_mode = upsample_mode
         self.conv2d_type = conv2d_type

@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 import torch
 
+from monai.data import MetaTensor
 from monai.transforms import EnsureTyped
 from tests.utils import assert_allclose
 
@@ -61,17 +64,19 @@ class TestEnsureTyped(unittest.TestCase):
 
     def test_list_tuple(self):
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype, wrap_sequence=False)({"data": [[1, 2], [3, 4]]})["data"]
+            result = EnsureTyped(keys="data", data_type=dtype, wrap_sequence=False, track_meta=True)(
+                {"data": [[1, 2], [3, 4]]}
+            )["data"]
             self.assertTrue(isinstance(result, list))
-            self.assertTrue(isinstance(result[0][1], torch.Tensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result[1][0], torch.as_tensor(3))
+            self.assertTrue(isinstance(result[0][1], MetaTensor if dtype == "tensor" else np.ndarray))
+            assert_allclose(result[1][0], torch.as_tensor(3), type_test=False)
             # tuple of numpy arrays
             result = EnsureTyped(keys="data", data_type=dtype, wrap_sequence=False)(
                 {"data": (np.array([1, 2]), np.array([3, 4]))}
             )["data"]
             self.assertTrue(isinstance(result, tuple))
             self.assertTrue(isinstance(result[0], torch.Tensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result[1], torch.as_tensor([3, 4]))
+            assert_allclose(result[1], torch.as_tensor([3, 4]), type_test=False)
 
     def test_dict(self):
         # simulate complicated input data
@@ -81,14 +86,24 @@ class TestEnsureTyped(unittest.TestCase):
             "extra": None,
         }
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype, device="cpu")({"data": test_data})["data"]
-            self.assertTrue(isinstance(result, dict))
-            self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]))
-            self.assertTrue(isinstance(result["meta"]["size"], torch.Tensor if dtype == "tensor" else np.ndarray))
-            torch.testing.assert_allclose(result["meta"]["size"], torch.as_tensor([1, 2, 3]))
-            self.assertEqual(result["meta"]["path"], "temp/test")
-            self.assertEqual(result["extra"], None)
+            trans = EnsureTyped(keys=["data", "label"], data_type=dtype, dtype=[np.float32, np.int8], device="cpu")(
+                {"data": test_data, "label": test_data}
+            )
+            for key in ("data", "label"):
+                result = trans[key]
+                self.assertTrue(isinstance(result, dict))
+                self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
+                self.assertTrue(isinstance(result["meta"]["size"], torch.Tensor if dtype == "tensor" else np.ndarray))
+                self.assertEqual(result["meta"]["path"], "temp/test")
+                self.assertEqual(result["extra"], None)
+                assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]), type_test=False)
+                assert_allclose(result["meta"]["size"], torch.as_tensor([1, 2, 3]), type_test=False)
+            if dtype == "numpy":
+                self.assertTrue(trans["data"]["img"].dtype == np.float32)
+                self.assertTrue(trans["label"]["img"].dtype == np.int8)
+            else:
+                self.assertTrue(trans["data"]["img"].dtype == torch.float32)
+                self.assertTrue(trans["label"]["img"].dtype == torch.int8)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
@@ -29,20 +31,20 @@ TEST_CASE_3 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1}, 3, 1]
 
 TEST_CASE_4 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1}, 1, 1]
 
-TEST_CASE_5 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1, "image_channel": 4}, 1, 1]
+TEST_CASE_5 = [{"dimension": 3, "pixdim": (1, 1, 1)}, {"length": 1, "image_channel": 1}, 1, 1]
 
-TEST_CASE_6 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1, "image_channel": 4}, 3, 1]
+TEST_CASE_6 = [{"dimension": 2, "pixdim": (1, 1)}, {"length": 1, "image_channel": 1}, 3, 1]
 
 TEST_CASE_7 = [
     {"dimension": 2, "pixdim": (1, 1), "label_key": None},
-    {"length": 1, "image_channel": 4, "with_label": False},
+    {"length": 1, "image_channel": 1, "with_label": False},
     40,
     None,
 ]
 
 TEST_CASE_8 = [
     {"dimension": 3, "pixdim": (1, 1, 1), "label_key": None},
-    {"length": 1, "image_channel": 4, "with_label": False},
+    {"length": 1, "image_channel": 1, "with_label": False},
     1,
     None,
 ]
@@ -62,7 +64,7 @@ class TestCreateDataset(unittest.TestCase):
             else:
                 image = np.random.randint(0, 2, size=(128, 128, 40, image_channel))
             image_file = os.path.join(self.tempdir, f"image{i}.nii.gz")
-            nib.save(nib.Nifti1Image(image, affine), image_file)
+            nib.save(nib.Nifti1Image(image.astype(float), affine), image_file)
 
             if with_label:
                 # 3 slices has label
@@ -72,7 +74,7 @@ class TestCreateDataset(unittest.TestCase):
                 label[0][0][2] = 1
                 label[0][1][2] = 1
                 label_file = os.path.join(self.tempdir, f"label{i}.nii.gz")
-                nib.save(nib.Nifti1Image(label, affine), label_file)
+                nib.save(nib.Nifti1Image(label.astype(float), affine), label_file)
                 datalist.append({"image": image_file, "label": label_file})
             else:
                 datalist.append({"image": image_file})

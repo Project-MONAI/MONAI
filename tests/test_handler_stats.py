@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -18,12 +20,23 @@ from io import StringIO
 
 import torch
 from ignite.engine import Engine, Events
+from parameterized import parameterized
 
 from monai.handlers import StatsHandler
 
 
+def get_event_filter(e):
+    def event_filter(_, event):
+        if event in e:
+            return True
+        return False
+
+    return event_filter
+
+
 class TestHandlerStats(unittest.TestCase):
-    def test_metrics_print(self):
+    @parameterized.expand([[True], [get_event_filter([1, 2])]])
+    def test_metrics_print(self, epoch_log):
         log_stream = StringIO()
         log_handler = logging.StreamHandler(log_stream)
         log_handler.setLevel(logging.INFO)
@@ -46,10 +59,11 @@ class TestHandlerStats(unittest.TestCase):
         logger = logging.getLogger(key_to_handler)
         logger.setLevel(logging.INFO)
         logger.addHandler(log_handler)
-        stats_handler = StatsHandler(iteration_log=False, epoch_log=True, name=key_to_handler)
+        stats_handler = StatsHandler(iteration_log=False, epoch_log=epoch_log, name=key_to_handler)
         stats_handler.attach(engine)
 
-        engine.run(range(3), max_epochs=2)
+        max_epochs = 4
+        engine.run(range(3), max_epochs=max_epochs)
 
         # check logging output
         output_str = log_stream.getvalue()
@@ -59,9 +73,13 @@ class TestHandlerStats(unittest.TestCase):
         for line in output_str.split("\n"):
             if has_key_word.match(line):
                 content_count += 1
-        self.assertTrue(content_count > 0)
+        if epoch_log is True:
+            self.assertTrue(content_count == max_epochs)
+        else:
+            self.assertTrue(content_count == 2)  # 2 = len([1, 2]) from event_filter
 
-    def test_loss_print(self):
+    @parameterized.expand([[True], [get_event_filter([1, 3])]])
+    def test_loss_print(self, iteration_log):
         log_stream = StringIO()
         log_handler = logging.StreamHandler(log_stream)
         log_handler.setLevel(logging.INFO)
@@ -78,10 +96,14 @@ class TestHandlerStats(unittest.TestCase):
         logger = logging.getLogger(key_to_handler)
         logger.setLevel(logging.INFO)
         logger.addHandler(log_handler)
-        stats_handler = StatsHandler(iteration_log=True, epoch_log=False, name=key_to_handler, tag_name=key_to_print)
+        stats_handler = StatsHandler(
+            iteration_log=iteration_log, epoch_log=False, name=key_to_handler, tag_name=key_to_print
+        )
         stats_handler.attach(engine)
 
-        engine.run(range(3), max_epochs=2)
+        num_iters = 3
+        max_epochs = 2
+        engine.run(range(num_iters), max_epochs=max_epochs)
 
         # check logging output
         output_str = log_stream.getvalue()
@@ -91,7 +113,10 @@ class TestHandlerStats(unittest.TestCase):
         for line in output_str.split("\n"):
             if has_key_word.match(line):
                 content_count += 1
-        self.assertTrue(content_count > 0)
+        if iteration_log is True:
+            self.assertTrue(content_count == num_iters * max_epochs)
+        else:
+            self.assertTrue(content_count == 2)  # 2 = len([1, 3]) from event_filter
 
     def test_loss_dict(self):
         log_stream = StringIO()
@@ -229,7 +254,9 @@ class TestHandlerStats(unittest.TestCase):
 
         # set up testing handler
         stats_handler = StatsHandler(name=None, tag_name=key_to_print)
-        stats_handler.attach(engine)
+        engine.logger.setLevel(logging.WARNING)
+        with self.assertWarns(Warning):  # engine logging level warn
+            stats_handler.attach(engine)
         # leverage `engine.logger` to print info
         engine.logger.setLevel(logging.INFO)
         level = logging.root.getEffectiveLevel()

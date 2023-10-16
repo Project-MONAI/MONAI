@@ -17,6 +17,20 @@ Metrics
 .. autoclass:: Metric
     :members:
 
+`Variance`
+--------------
+.. autofunction:: compute_variance
+
+.. autoclass:: VarianceMetric
+    :members:
+
+`LabelQualityScore`
+--------------------
+.. autofunction:: label_quality_score
+
+.. autoclass:: LabelQualityScore
+    :members:
+
 `IterationMetric`
 -----------------
 .. autoclass:: IterationMetric
@@ -32,11 +46,31 @@ Metrics
 .. autoclass:: CumulativeIterationMetric
     :members:
 
+`LossMetric`
+------------
+.. autoclass:: LossMetric
+    :members:
+
 `Mean Dice`
 -----------
-.. autofunction:: compute_meandice
-
 .. autoclass:: DiceMetric
+    :members:
+
+.. autoclass:: DiceHelper
+    :members:
+
+`Mean IoU`
+----------
+.. autofunction:: compute_iou
+
+.. autoclass:: MeanIoU
+    :members:
+
+`Generalized Dice Score`
+------------------------
+.. autofunction:: compute_generalized_dice
+
+.. autoclass:: GeneralizedDiceScore
     :members:
 
 `Area under the ROC curve`
@@ -76,6 +110,13 @@ Metrics
 .. autoclass:: SurfaceDiceMetric
     :members:
 
+`PanopticQualityMetric`
+-----------------------
+.. autofunction:: compute_panoptic_quality
+
+.. autoclass:: PanopticQualityMetric
+    :members:
+
 `Mean squared error`
 --------------------
 .. autoclass:: MSEMetric
@@ -96,10 +137,44 @@ Metrics
 .. autoclass:: PSNRMetric
     :members:
 
+`Structural similarity index measure`
+-------------------------------------
+.. autoclass:: monai.metrics.regression.SSIMMetric
+
+`Multi-scale structural similarity index measure`
+-------------------------------------------------
+.. autoclass:: MultiScaleSSIMMetric
+
+`Fréchet Inception Distance`
+------------------------------
+.. autofunction:: compute_frechet_distance
+
+.. autoclass:: FIDMetric
+    :members:
+
+`Maximum Mean Discrepancy`
+------------------------------
+.. autofunction:: compute_mmd
+
+.. autoclass:: MMDMetric
+    :members:
+
 `Cumulative average`
 --------------------
 .. autoclass:: CumulativeAverage
     :members:
+
+`Metrics reloaded binary`
+-------------------------
+.. autoclass:: MetricsReloadedBinary
+    :members:
+
+`Metrics reloaded categorical`
+------------------------------
+.. autoclass:: MetricsReloadedCategorical
+    :members:
+
+
 
 Utilities
 ---------

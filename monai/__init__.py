@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import sys
 
 from ._version import get_versions
 
 PY_REQUIRED_MAJOR = 3
-PY_REQUIRED_MINOR = 7
+PY_REQUIRED_MINOR = 8
 
 version_dict = get_versions()
 __version__: str = version_dict.get("version", "0+unknown")
@@ -39,7 +41,18 @@ from .utils.module import load_submodules  # noqa: E402
 
 # handlers_* have some external decorators the users may not have installed
 # *.so files and folder "_C" may not exist when the cpp extensions are not compiled
-excludes = "(^(monai.handlers))|(^(monai.bundle))|((\\.so)$)|(^(monai._C))"
+excludes = "|".join(
+    [
+        "(^(monai.handlers))",
+        "(^(monai.bundle))",
+        "(^(monai.fl))",
+        "((\\.so)$)",
+        "(^(monai._C))",
+        "(.*(__main__)$)",
+        "(.*(video_dataset)$)",
+        "(.*(nnunet).*$)",
+    ]
+)
 
 # load directory modules only, skip loading individual files
 load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
@@ -49,10 +62,12 @@ load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
 
 __all__ = [
     "apps",
+    "auto3dseg",
     "bundle",
     "config",
     "data",
     "engines",
+    "fl",
     "handlers",
     "inferers",
     "losses",
@@ -63,3 +78,13 @@ __all__ = [
     "utils",
     "visualize",
 ]
+
+try:
+    from .utils.tf32 import detect_default_tf32
+
+    detect_default_tf32()
+except BaseException:
+    from .utils.misc import MONAIEnvVars
+
+    if MONAIEnvVars.debug():
+        raise

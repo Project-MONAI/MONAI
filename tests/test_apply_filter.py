@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -64,7 +66,6 @@ class ApplyFilterTestCase(unittest.TestCase):
                 ],
             ]
         )
-        expected = expected
         # testing shapes
         k = torch.tensor([[[1, 1, 1], [1, 1, 1], [1, 1, 1]]])
         for kernel in (k, k[None], k[None][None]):

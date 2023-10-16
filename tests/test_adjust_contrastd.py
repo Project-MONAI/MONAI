@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -17,27 +19,45 @@ from parameterized import parameterized
 from monai.transforms import AdjustContrastd
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
-TEST_CASE_1 = [1.0]
+TESTS = []
+for invert_image in (True, False):
+    for retain_stats in (True, False):
+        TEST_CASE_1 = [1.0, invert_image, retain_stats]
+        TEST_CASE_2 = [0.5, invert_image, retain_stats]
+        TEST_CASE_3 = [4.5, invert_image, retain_stats]
 
-TEST_CASE_2 = [0.5]
-
-TEST_CASE_3 = [4.5]
+        TESTS.extend([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
 
 
 class TestAdjustContrastd(NumpyImageTestCase2D):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
-    def test_correct_results(self, gamma):
-        adjuster = AdjustContrastd("img", gamma=gamma)
+    @parameterized.expand(TESTS)
+    def test_correct_results(self, gamma, invert_image, retain_stats):
+        adjuster = AdjustContrastd("img", gamma=gamma, invert_image=invert_image, retain_stats=retain_stats)
         for p in TEST_NDARRAYS:
             result = adjuster({"img": p(self.imt)})
-            if gamma == 1.0:
-                expected = self.imt
-            else:
-                epsilon = 1e-7
-                img_min = self.imt.min()
-                img_range = self.imt.max() - img_min
-                expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), gamma) * img_range + img_min
-            assert_allclose(expected, result["img"], rtol=1e-05, type_test=False)
+            if invert_image:
+                self.imt = -self.imt
+
+            if retain_stats:
+                mn = self.imt.mean()
+                sd = self.imt.std()
+
+            epsilon = 1e-7
+            img_min = self.imt.min()
+            img_range = self.imt.max() - img_min
+
+            expected = np.power(((self.imt - img_min) / float(img_range + epsilon)), gamma) * img_range + img_min
+
+            if retain_stats:
+                # zero mean and normalize
+                expected = expected - expected.mean()
+                expected = expected / (expected.std() + 1e-8)
+                # restore old mean and standard deviation
+                expected = sd * expected + mn
+
+            if invert_image:
+                expected = -expected
+            assert_allclose(result["img"], expected, atol=1e-05, type_test="tensor")
 
 
 if __name__ == "__main__":

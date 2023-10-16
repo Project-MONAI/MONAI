@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -85,8 +87,8 @@ for p in TEST_NDARRAYS:
 
 class TestRandGaussianSmoothd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, argments, image, expected_data):
-        converter = RandGaussianSmoothd(**argments)
+    def test_value(self, arguments, image, expected_data):
+        converter = RandGaussianSmoothd(**arguments)
         converter.set_random_state(seed=0)
         result = converter(image)
         assert_allclose(result["img"], expected_data, rtol=1e-4, type_test=False)

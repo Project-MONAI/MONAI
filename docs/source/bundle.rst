@@ -32,12 +32,20 @@ Model Bundle
 ---------------
 .. autoclass:: ConfigParser
     :members:
+    :special-members:
 
 `Scripts`
 ---------
 .. autofunction:: ckpt_export
+.. autofunction:: trt_export
+.. autofunction:: onnx_export
 .. autofunction:: download
 .. autofunction:: load
+.. autofunction:: get_all_bundles_list
+.. autofunction:: get_bundle_info
+.. autofunction:: get_bundle_versions
 .. autofunction:: run
 .. autofunction:: verify_metadata
 .. autofunction:: verify_net_in_out
+.. autofunction:: init_bundle
+.. autofunction:: update_kwargs

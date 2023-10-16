@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -17,9 +19,7 @@ import torch
 __all__ = ["same_padding", "stride_minus_kernel_padding", "calculate_out_shape", "gaussian_1d", "polyval"]
 
 
-def same_padding(
-    kernel_size: Union[Sequence[int], int], dilation: Union[Sequence[int], int] = 1
-) -> Union[Tuple[int, ...], int]:
+def same_padding(kernel_size: Sequence[int] | int, dilation: Sequence[int] | int = 1) -> tuple[int, ...] | int:
     """
     Return the padding value needed to ensure a convolution using the given kernel size produces an output of the same
     shape as the input for a stride of 1, otherwise ensure a shape of the input divided by the stride rounded down.
@@ -43,9 +43,7 @@ def same_padding(
     return padding if len(padding) > 1 else padding[0]
 
 
-def stride_minus_kernel_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int]
-) -> Union[Tuple[int, ...], int]:
+def stride_minus_kernel_padding(kernel_size: Sequence[int] | int, stride: Sequence[int] | int) -> tuple[int, ...] | int:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
 
@@ -56,11 +54,11 @@ def stride_minus_kernel_padding(
 
 
 def calculate_out_shape(
-    in_shape: Union[Sequence[int], int, np.ndarray],
-    kernel_size: Union[Sequence[int], int],
-    stride: Union[Sequence[int], int],
-    padding: Union[Sequence[int], int],
-) -> Union[Tuple[int, ...], int]:
+    in_shape: Sequence[int] | int | np.ndarray,
+    kernel_size: Sequence[int] | int,
+    stride: Sequence[int] | int,
+    padding: Sequence[int] | int,
+) -> tuple[int, ...] | int:
     """
     Calculate the output tensor shape when applying a convolution to a tensor of shape `inShape` with kernel size
     `kernel_size`, stride value `stride`, and input padding value `padding`. All arguments can be scalars or multiple
@@ -74,7 +72,7 @@ def calculate_out_shape(
     out_shape_np = ((in_shape_np - kernel_size_np + padding_np + padding_np) // stride_np) + 1
     out_shape = tuple(int(s) for s in out_shape_np)
 
-    return out_shape if len(out_shape) > 1 else out_shape[0]
+    return out_shape
 
 
 def gaussian_1d(
@@ -120,7 +118,7 @@ def gaussian_1d(
             out = out / (2.5066282 * sigma)
     elif approx.lower() == "scalespace":
         sigma2 = sigma * sigma
-        out_pos: List[Optional[torch.Tensor]] = [None] * (tail + 1)
+        out_pos: list[torch.Tensor | None] = [None] * (tail + 1)
         out_pos[0] = _modified_bessel_0(sigma2)
         out_pos[1] = _modified_bessel_1(sigma2)
         for k in range(2, len(out_pos)):

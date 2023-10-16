@@ -5,21 +5,10 @@
 Engines
 =======
 
-Multi-GPU data parallel
------------------------
-
-.. automodule:: monai.engines.multi_gpu_supervised_trainer
-  :members:
-
 Workflows
 ---------
 
 .. currentmodule:: monai.engines
-
-`BaseWorkflow`
-~~~~~~~~~~~~~~
-.. autoclass:: BaseWorkflow
-    :members:
 
 `Workflow`
 ~~~~~~~~~~

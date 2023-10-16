@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import unittest
 from pathlib import Path
 
 from monai.apps import DecathlonDataset
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from monai.utils.enums import PostFix
+from monai.data import MetaTensor
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
@@ -27,9 +29,8 @@ class TestDecathlonDataset(unittest.TestCase):
         transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
-                ToTensord(keys=["image", "label"]),
             ]
         )
 
@@ -37,7 +38,7 @@ class TestDecathlonDataset(unittest.TestCase):
             self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue(PostFix.meta("image") in dataset[0])
+            self.assertTrue(isinstance(dataset[0]["image"], MetaTensor))
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 36, 47, 44))
 
         with skip_if_downloading_fails():
@@ -52,11 +53,16 @@ class TestDecathlonDataset(unittest.TestCase):
 
         _test_dataset(data)
         data = DecathlonDataset(
-            root_dir=testing_dir, task="Task04_Hippocampus", transform=transform, section="validation", download=False
+            root_dir=testing_dir,
+            task="Task04_Hippocampus",
+            transform=transform,
+            section="validation",
+            download=False,
+            runtime_cache=True,
         )
         _test_dataset(data)
-        self.assertTrue(data[0][PostFix.meta("image")]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
-        self.assertTrue(data[0][PostFix.meta("label")]["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
+        self.assertTrue(data[0]["image"].meta["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
+        self.assertTrue(data[0]["label"].meta["filename_or_obj"].endswith("hippocampus_163.nii.gz"))
         # test validation without transforms
         data = DecathlonDataset(root_dir=testing_dir, task="Task04_Hippocampus", section="validation", download=False)
         self.assertTupleEqual(data[0]["image"].shape, (36, 47, 44))

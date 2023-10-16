@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from unittest import skipUnless
 
@@ -26,7 +28,6 @@ TEST_CASE_SABLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
     for hidden_size in [360, 480, 600, 768]:
         for num_heads in [4, 6, 8, 12]:
-
             test_case = [
                 {"hidden_size": hidden_size, "num_heads": num_heads, "dropout_rate": dropout_rate},
                 (2, 512, hidden_size),
@@ -50,6 +51,27 @@ class TestResBlock(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
+
+    def test_access_attn_matrix(self):
+        # input format
+        hidden_size = 128
+        num_heads = 2
+        dropout_rate = 0
+        input_shape = (2, 256, hidden_size)
+
+        # be  not able to access the matrix
+        no_matrix_acess_blk = SABlock(hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate)
+        no_matrix_acess_blk(torch.randn(input_shape))
+        assert isinstance(no_matrix_acess_blk.att_mat, torch.Tensor)
+        # no of elements is zero
+        assert no_matrix_acess_blk.att_mat.nelement() == 0
+
+        # be able to acess the attention matrix
+        matrix_acess_blk = SABlock(
+            hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
+        )
+        matrix_acess_blk(torch.randn(input_shape))
+        assert matrix_acess_blk.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
 
 
 if __name__ == "__main__":

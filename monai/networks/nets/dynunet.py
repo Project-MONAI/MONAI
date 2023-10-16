@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# isort: dont-add-import: from __future__ import annotations
 
 from typing import List, Optional, Sequence, Tuple, Union
 
@@ -104,6 +105,8 @@ class DynUNet(nn.Module):
             If not specified, the way which nnUNet used will be employed. Defaults to ``None``.
         dropout: dropout ratio. Defaults to no dropout.
         norm_name: feature normalization type and arguments. Defaults to ``INSTANCE``.
+            `INSTANCE_NVFUSER` is a faster version of the instance norm layer, it can be used when:
+            1) `spatial_dims=3`, 2) CUDA device is available, 3) `apex` is installed and 4) non-Windows OS is used.
         act_name: activation layer type and arguments. Defaults to ``leakyrelu``.
         deep_supervision: whether to add deep supervision head before output. Defaults to ``False``.
             If ``True``, in training mode, the forward function will output not only the final feature map
@@ -302,14 +305,20 @@ class DynUNet(nn.Module):
     def get_downsamples(self):
         inp, out = self.filters[:-2], self.filters[1:-1]
         strides, kernel_size = self.strides[1:-1], self.kernel_size[1:-1]
-        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)
+        return self.get_module_list(inp, out, kernel_size, strides, self.conv_block)  # type: ignore
 
     def get_upsamples(self):
         inp, out = self.filters[1:][::-1], self.filters[:-1][::-1]
         strides, kernel_size = self.strides[1:][::-1], self.kernel_size[1:][::-1]
         upsample_kernel_size = self.upsample_kernel_size[::-1]
         return self.get_module_list(
-            inp, out, kernel_size, strides, UnetUpBlock, upsample_kernel_size, trans_bias=self.trans_bias
+            inp,  # type: ignore
+            out,  # type: ignore
+            kernel_size,
+            strides,
+            UnetUpBlock,  # type: ignore
+            upsample_kernel_size,
+            trans_bias=self.trans_bias,
         )
 
     def get_module_list(

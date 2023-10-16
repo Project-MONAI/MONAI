@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.transforms import LabelToMaskd
@@ -59,13 +60,10 @@ for p in TEST_NDARRAYS:
 
 class TestLabelToMaskd(unittest.TestCase):
     @parameterized.expand(TESTS)
-    def test_value(self, argments, input_data, expected_data):
-        result = LabelToMaskd(**argments)(input_data)
-        r, i = result["img"], input_data["img"]
-        self.assertEqual(type(r), type(i))
-        if isinstance(r, torch.Tensor):
-            self.assertEqual(r.device, i.device)
-        assert_allclose(r, expected_data, type_test=False)
+    def test_value(self, arguments, input_data, expected_data):
+        result = LabelToMaskd(**arguments)(input_data)
+        r = result["img"]
+        assert_allclose(r, expected_data, type_test="tensor")
 
 
 if __name__ == "__main__":

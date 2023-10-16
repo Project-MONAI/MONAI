@@ -8,6 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import os
 import unittest
 
@@ -20,7 +22,13 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.blocks.warp import Warp
 from monai.transforms import LoadImaged
 from monai.utils import GridSampleMode, GridSamplePadMode
-from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, download_url_or_skip_test, testing_data_config
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    SkipIfNoModule,
+    download_url_or_skip_test,
+    skip_if_quick,
+    testing_data_config,
+)
 
 LOW_POWER_TEST_CASES = [  # run with BUILD_MONAI=1 to test csrc/resample, BUILD_MONAI=0 to test native grid_sample
     [
@@ -96,6 +104,7 @@ if USE_COMPILED:
     TEST_CASES += CPP_TEST_CASES
 
 
+@skip_if_quick
 class TestWarp(unittest.TestCase):
     def setUp(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
@@ -153,8 +162,9 @@ FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + "m
 def load_img_and_sample_ddf():
     # load image
     img = LoadImaged(keys="img")({"img": FILE_PATH})["img"]
+    img = img.detach().numpy()
     # W, H, D -> D, H, W
-    img = img.transpose((2, 1, 0))
+    img = img.transpose((2, 1, 0)).copy()
 
     # randomly sample ddf such that maximum displacement in each direction equals to one-tenth of the image dimension in
     # that direction.

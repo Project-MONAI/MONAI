@@ -24,6 +24,7 @@ from monai.networks.utils import eval_mode, train_mode
 from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
+from monai.utils.enums import EngineStatsKeys as ESKeys
 from monai.utils.module import look_up_option
 
 if TYPE_CHECKING:
@@ -64,7 +65,7 @@ class Evaluator(Workflow):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
@@ -85,7 +86,7 @@ class Evaluator(Workflow):
 
     def __init__(
         self,
-        device: torch.device,
+        device: torch.device | str,
         val_data_loader: Iterable | DataLoader,
         epoch_length: int | None = None,
         non_blocking: bool = False,
@@ -98,7 +99,7 @@ class Evaluator(Workflow):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -132,7 +133,7 @@ class Evaluator(Workflow):
         else:
             raise ValueError(f"unsupported mode: {mode}, should be 'eval' or 'train'.")
 
-    def run(self, global_epoch: int = 1) -> None:
+    def run(self, global_epoch: int = 1) -> None:  # type: ignore[override]
         """
         Execute validation/evaluation based on Ignite Engine.
 
@@ -141,13 +142,30 @@ class Evaluator(Workflow):
 
         """
         # init env value for current validation process
-        self.state.max_epochs = global_epoch
+        self.state.max_epochs = max(global_epoch, 1)  # at least one epoch of validation
         self.state.epoch = global_epoch - 1
         self.state.iteration = 0
         super().run()
 
-    def get_validation_stats(self) -> dict[str, float]:
-        return {"best_validation_metric": self.state.best_metric, "best_validation_epoch": self.state.best_metric_epoch}
+    def get_stats(self, *vars):
+        """
+        Get the statistics information of the validation process.
+        Default to return the `rank`, `best_validation_epoch` and `best_validation_metric`.
+
+        Args:
+            vars: except for the default stats, other variables name in the `self.state` to return,
+                will use the variable name as the key and the state content as the value.
+                if the variable doesn't exist, default value is `None`.
+
+        """
+        stats = {
+            ESKeys.RANK: self.state.rank,
+            ESKeys.BEST_VALIDATION_EPOCH: self.state.best_metric_epoch,
+            ESKeys.BEST_VALIDATION_METRIC: self.state.best_metric,
+        }
+        for k in vars:
+            stats[k] = getattr(self.state, k, None)
+        return stats
 
 
 class SupervisedEvaluator(Evaluator):
@@ -179,7 +197,7 @@ class SupervisedEvaluator(Evaluator):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
@@ -215,7 +233,7 @@ class SupervisedEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -245,7 +263,7 @@ class SupervisedEvaluator(Evaluator):
         self.network = network
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:
@@ -273,10 +291,8 @@ class SupervisedEvaluator(Evaluator):
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
-
         # execute forward computation
         with engine.mode(engine.network):
-
             if engine.amp:
                 with torch.cuda.amp.autocast(**engine.amp_kwargs):
                     engine.state.output[Keys.PRED] = engine.inferer(inputs, engine.network, *args, **kwargs)
@@ -321,7 +337,7 @@ class EnsembleEvaluator(Evaluator):
             it must accept 2 args (current_metric, previous_best) and return a bool result: if `True`, will update
             `best_metric` and `best_metric_epoch` with current metric and epoch, default to `greater than`.
         val_handlers: every handler is a set of Ignite Event-Handlers, must have `attach` function, like:
-            CheckpointHandler, StatsHandler, SegmentationSaver, etc.
+            CheckpointHandler, StatsHandler, etc.
         amp: whether to enable auto-mixed-precision evaluation, default is False.
         mode: model forward mode during evaluation, should be 'eval' or 'train',
             which maps to `model.eval()` or `model.train()`, default to 'eval'.
@@ -358,7 +374,7 @@ class EnsembleEvaluator(Evaluator):
         val_handlers: Sequence | None = None,
         amp: bool = False,
         mode: ForwardMode | str = ForwardMode.EVAL,
-        event_names: list[str | EventEnum] | None = None,
+        event_names: list[str | EventEnum | type[EventEnum]] | None = None,
         event_to_attr: dict | None = None,
         decollate: bool = True,
         to_kwargs: dict | None = None,
@@ -393,7 +409,7 @@ class EnsembleEvaluator(Evaluator):
             raise ValueError("length of `pred_keys` must be same as the length of `networks`.")
         self.inferer = SimpleInferer() if inferer is None else inferer
 
-    def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]):
+    def _iteration(self, engine: EnsembleEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
         """
         callback function for the Supervised Evaluation processing logic of 1 iteration in Ignite Engine.
         Return below items in a dictionary:

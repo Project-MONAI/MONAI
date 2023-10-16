@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import os
 import sys
@@ -29,15 +31,28 @@ def run_testsuit():
     exclude_cases = [  # these cases use external dependencies
         "test_ahnet",
         "test_arraydataset",
+        "test_auto3dseg_bundlegen",
+        "test_auto3dseg_ensemble",
+        "test_auto3dseg_hpo",
+        "test_auto3dseg",
+        "test_bundle_onnx_export",
+        "test_bundle_trt_export",
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",
         "test_cachentransdataset",
-        "test_contrastive_loss",
         "test_check_missing_files",
+        "test_compute_f_beta",
+        "test_compute_ho_ver_maps",
+        "test_compute_ho_ver_maps_d",
+        "test_compute_panoptic_quality",
+        "test_contrastive_loss",
+        "test_convert_to_onnx",
+        "test_convert_to_trt",
         "test_csv_dataset",
         "test_csv_iterable_dataset",
         "test_cumulative_average_dist",
+        "test_sampler_dist",
         "test_dataset",
         "test_dataset_summary",
         "test_deepedit_transforms",
@@ -47,13 +62,19 @@ def run_testsuit():
         "test_deepgrow_transforms",
         "test_detect_envelope",
         "test_dints_network",
+        "test_distance_transform_edt",
         "test_efficientnet",
         "test_ensemble_evaluator",
         "test_ensure_channel_first",
         "test_ensure_channel_firstd",
         "test_fill_holes",
         "test_fill_holesd",
+        "test_foreground_mask",
+        "test_foreground_maskd",
         "test_global_mutual_information_loss",
+        "test_grid_patch",
+        "test_gmm",
+        "test_handler_metrics_reloaded",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
@@ -64,8 +85,11 @@ def run_testsuit():
         "test_handler_early_stop",
         "test_handler_garbage_collector",
         "test_handler_hausdorff_distance",
+        "test_handler_ignite_metric",
         "test_handler_lr_scheduler",
         "test_handler_mean_dice",
+        "test_handler_panoptic_quality",
+        "test_handler_mean_iou",
         "test_handler_metrics_saver",
         "test_handler_metrics_saver_dist",
         "test_handler_mlflow",
@@ -77,7 +101,6 @@ def run_testsuit():
         "test_handler_regression_metrics_dist",
         "test_handler_rocauc",
         "test_handler_rocauc_dist",
-        "test_handler_segmentation_saver",
         "test_handler_smartcache",
         "test_handler_stats",
         "test_handler_surface_distance",
@@ -87,16 +110,22 @@ def run_testsuit():
         "test_hausdorff_distance",
         "test_header_correct",
         "test_hilbert_transform",
+        "test_hovernet_loss",
         "test_image_dataset",
         "test_image_rw",
         "test_img2tensorboard",
         "test_integration_fast_train",
+        "test_integration_gpu_customization",
         "test_integration_segmentation_3d",
+        "test_integration_lazy_samples",
         "test_integration_sliding_window",
         "test_integration_unet_2d",
         "test_integration_workflows",
         "test_integration_workflows_gan",
         "test_integration_bundle_run",
+        "test_integration_autorunner",
+        "test_integration_nnunetv2_runner",
+        "test_invert",
         "test_invertd",
         "test_iterable_dataset",
         "test_keep_largest_connected_component",
@@ -113,24 +142,27 @@ def run_testsuit():
         "test_mlp",
         "test_nifti_header_revise",
         "test_nifti_rw",
-        "test_nifti_saver",
+        "test_nuclick_transforms",
+        "test_nrrd_reader",
         "test_occlusion_sensitivity",
         "test_orientation",
         "test_orientationd",
-        "test_parallel_execution",
         "test_patchembedding",
         "test_persistentdataset",
         "test_pil_reader",
         "test_plot_2d_or_3d_image",
         "test_png_rw",
-        "test_png_saver",
         "test_prepare_batch_default",
         "test_prepare_batch_extra_input",
+        "test_prepare_batch_hovernet",
+        "test_rand_grid_patch",
         "test_rand_rotate",
         "test_rand_rotated",
         "test_rand_zoom",
         "test_rand_zoomd",
         "test_randtorchvisiond",
+        "test_rankfilter_dist",
+        "test_resample_backends",
         "test_resize",
         "test_resized",
         "test_resample_to_match",
@@ -156,17 +188,25 @@ def run_testsuit():
         "test_unetr_block",
         "test_vit",
         "test_vitautoenc",
+        "test_vnet",
         "test_write_metrics_reports",
         "test_wsireader",
-        "test_wsireader_new",
         "test_zoom",
         "test_zoom_affine",
         "test_zoomd",
         "test_prepare_batch_default_dist",
-        "test_parallel_execution_dist",
         "test_bundle_verify_metadata",
         "test_bundle_verify_net",
         "test_bundle_ckpt_export",
+        "test_bundle_utils",
+        "test_bundle_init_bundle",
+        "test_fastmri_reader",
+        "test_metrics_reloaded",
+        "test_spatial_combine_transforms",
+        "test_bundle_workflow",
+        "test_zarr_avg_merger",
+        "test_perceptual_loss",
+        "test_ultrasound_confidence_map_transform",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
@@ -186,15 +226,11 @@ def run_testsuit():
 
 
 if __name__ == "__main__":
-
     # testing import submodules
     from monai.utils.module import load_submodules
 
     _, err_mod = load_submodules(sys.modules["monai"], True)
-    if err_mod:
-        print(err_mod)
-        # expecting that only engines and handlers are not imported
-        assert sorted(err_mod) == ["monai.engines", "monai.handlers"]
+    assert not err_mod, f"err_mod={err_mod} not empty"
 
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)

@@ -8,7 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import List, Optional, Tuple, Union
+
+from __future__ import annotations
 
 import torch
 from torch import nn
@@ -46,13 +47,13 @@ class RegUNet(nn.Module):
         in_channels: int,
         num_channel_initial: int,
         depth: int,
-        out_kernel_initializer: Optional[str] = "kaiming_uniform",
-        out_activation: Optional[str] = None,
+        out_kernel_initializer: str | None = "kaiming_uniform",
+        out_activation: str | None = None,
         out_channels: int = 3,
-        extract_levels: Optional[Tuple[int]] = None,
+        extract_levels: tuple[int] | None = None,
         pooling: bool = True,
         concat_skip: bool = False,
-        encode_kernel_sizes: Union[int, List[int]] = 3,
+        encode_kernel_sizes: int | list[int] = 3,
     ):
         """
         Args:
@@ -64,7 +65,7 @@ class RegUNet(nn.Module):
             out_activation: activation at the last layer
             out_channels: number of channels for the output
             extract_levels: list, which levels from net to extract. The maximum level must equal to ``depth``
-            pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv3d
+            pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv
             concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
             encode_kernel_sizes: kernel size for down-sampling
         """
@@ -90,19 +91,19 @@ class RegUNet(nn.Module):
             encode_kernel_sizes = [encode_kernel_sizes] * (self.depth + 1)
         if len(encode_kernel_sizes) != self.depth + 1:
             raise AssertionError
-        self.encode_kernel_sizes: List[int] = encode_kernel_sizes
+        self.encode_kernel_sizes: list[int] = encode_kernel_sizes
 
         self.num_channels = [self.num_channel_initial * (2**d) for d in range(self.depth + 1)]
         self.min_extract_level = min(self.extract_levels)
 
         # init layers
         # all lists start with d = 0
-        self.encode_convs = None
-        self.encode_pools = None
-        self.bottom_block = None
-        self.decode_deconvs = None
-        self.decode_convs = None
-        self.output_block = None
+        self.encode_convs: nn.ModuleList
+        self.encode_pools: nn.ModuleList
+        self.bottom_block: nn.Sequential
+        self.decode_deconvs: nn.ModuleList
+        self.decode_convs: nn.ModuleList
+        self.output_block: nn.Module
 
         # build layers
         self.build_layers()
@@ -167,8 +168,6 @@ class RegUNet(nn.Module):
         )
 
     def build_decode_layers(self):
-        # decoding / up-sampling
-        # [depth - 1, depth - 2, ..., min_extract_level]
         self.decode_deconvs = nn.ModuleList(
             [
                 self.build_up_sampling_block(in_channels=self.num_channels[d + 1], out_channels=self.num_channels[d])
@@ -221,9 +220,7 @@ class RegUNet(nn.Module):
 
         outs = [decoded]
 
-        # [depth - 1, ..., min_extract_level]
         for i, (decode_deconv, decode_conv) in enumerate(zip(self.decode_deconvs, self.decode_convs)):
-            # [depth - 1, depth - 2, ..., min_extract_level]
             decoded = decode_deconv(decoded)
             if self.concat_skip:
                 decoded = torch.cat([decoded, skips[-i - 1]], dim=1)
@@ -237,7 +234,22 @@ class RegUNet(nn.Module):
 
 
 class AffineHead(nn.Module):
-    def __init__(self, spatial_dims: int, image_size: List[int], decode_size: List[int], in_channels: int):
+    def __init__(
+        self,
+        spatial_dims: int,
+        image_size: list[int],
+        decode_size: list[int],
+        in_channels: int,
+        save_theta: bool = False,
+    ):
+        """
+        Args:
+            spatial_dims: number of spatial dimensions
+            image_size: output spatial size
+            decode_size: input spatial size (two or three integers depending on ``spatial_dims``)
+            in_channels: number of input channels
+            save_theta: whether to save the theta matrix estimation
+        """
         super().__init__()
         self.spatial_dims = spatial_dims
         if spatial_dims == 2:
@@ -258,8 +270,11 @@ class AffineHead(nn.Module):
         self.fc.weight.data.zero_()
         self.fc.bias.data.copy_(out_init)
 
+        self.save_theta = save_theta
+        self.theta = torch.Tensor()
+
     @staticmethod
-    def get_reference_grid(image_size: Union[Tuple[int], List[int]]) -> torch.Tensor:
+    def get_reference_grid(image_size: tuple[int] | list[int]) -> torch.Tensor:
         mesh_points = [torch.arange(0, dim) for dim in image_size]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         return grid.to(dtype=torch.float)
@@ -277,10 +292,12 @@ class AffineHead(nn.Module):
             raise ValueError(f"do not support spatial_dims={self.spatial_dims}")
         return grid_warped
 
-    def forward(self, x: List[torch.Tensor], image_size: List[int]) -> torch.Tensor:
+    def forward(self, x: list[torch.Tensor], image_size: list[int]) -> torch.Tensor:
         f = x[0]
         self.grid = self.grid.to(device=f.device)
         theta = self.fc(f.reshape(f.shape[0], -1))
+        if self.save_theta:
+            self.theta = theta.detach()
         out: torch.Tensor = self.affine_transform(theta) - self.grid
         return out
 
@@ -298,17 +315,32 @@ class GlobalNet(RegUNet):
 
     def __init__(
         self,
-        image_size: List[int],
+        image_size: list[int],
         spatial_dims: int,
         in_channels: int,
         num_channel_initial: int,
         depth: int,
-        out_kernel_initializer: Optional[str] = "kaiming_uniform",
-        out_activation: Optional[str] = None,
+        out_kernel_initializer: str | None = "kaiming_uniform",
+        out_activation: str | None = None,
         pooling: bool = True,
         concat_skip: bool = False,
-        encode_kernel_sizes: Union[int, List[int]] = 3,
+        encode_kernel_sizes: int | list[int] = 3,
+        save_theta: bool = False,
     ):
+        """
+        Args:
+            image_size: output displacement field spatial size
+            spatial_dims: number of spatial dims
+            in_channels: number of input channels
+            num_channel_initial: number of initial channels
+            depth: input is at level 0, bottom is at level depth.
+            out_kernel_initializer: kernel initializer for the last layer
+            out_activation: activation at the last layer
+            pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv
+            concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
+            encode_kernel_sizes: kernel size for down-sampling
+            save_theta: whether to save the theta matrix estimation
+        """
         for size in image_size:
             if size % (2**depth) != 0:
                 raise ValueError(
@@ -318,6 +350,7 @@ class GlobalNet(RegUNet):
                 )
         self.image_size = image_size
         self.decode_size = [size // (2**depth) for size in image_size]
+        self.save_theta = save_theta
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -337,18 +370,28 @@ class GlobalNet(RegUNet):
             image_size=self.image_size,
             decode_size=self.decode_size,
             in_channels=self.num_channels[-1],
+            save_theta=self.save_theta,
         )
 
 
 class AdditiveUpSampleBlock(nn.Module):
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int):
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        mode: str = "nearest",
+        align_corners: bool | None = None,
+    ):
         super().__init__()
         self.deconv = get_deconv_block(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels)
+        self.mode = mode
+        self.align_corners = align_corners
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        output_size = (size * 2 for size in x.shape[2:])
+        output_size = [size * 2 for size in x.shape[2:]]
         deconved = self.deconv(x)
-        resized = F.interpolate(x, output_size)
+        resized = F.interpolate(x, output_size, mode=self.mode, align_corners=self.align_corners)
         resized = torch.sum(torch.stack(resized.split(split_size=resized.shape[1] // 2, dim=1), dim=-1), dim=-1)
         out: torch.Tensor = deconved + resized
         return out
@@ -371,12 +414,15 @@ class LocalNet(RegUNet):
         spatial_dims: int,
         in_channels: int,
         num_channel_initial: int,
-        extract_levels: Tuple[int],
-        out_kernel_initializer: Optional[str] = "kaiming_uniform",
-        out_activation: Optional[str] = None,
+        extract_levels: tuple[int],
+        out_kernel_initializer: str | None = "kaiming_uniform",
+        out_activation: str | None = None,
         out_channels: int = 3,
         pooling: bool = True,
+        use_additive_sampling: bool = True,
         concat_skip: bool = False,
+        mode: str = "nearest",
+        align_corners: bool | None = None,
     ):
         """
         Args:
@@ -388,12 +434,19 @@ class LocalNet(RegUNet):
             out_channels: number of channels for the output
             extract_levels: list, which levels from net to extract. The maximum level must equal to ``depth``
             pooling: for down-sampling, use non-parameterized pooling if true, otherwise use conv3d
+            use_additive_sampling: whether use additive up-sampling layer for decoding.
             concat_skip: when up-sampling, concatenate skipped tensor if true, otherwise use addition
+            mode: mode for interpolation when use_additive_sampling, default is "nearest".
+            align_corners: align_corners for interpolation when use_additive_sampling, default is None.
         """
+        self.use_additive_upsampling = use_additive_sampling
+        self.mode = mode
+        self.align_corners = align_corners
         super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_channel_initial=num_channel_initial,
+            extract_levels=extract_levels,
             depth=max(extract_levels),
             out_kernel_initializer=out_kernel_initializer,
             out_activation=out_activation,
@@ -410,9 +463,13 @@ class LocalNet(RegUNet):
         )
 
     def build_up_sampling_block(self, in_channels: int, out_channels: int) -> nn.Module:
-        if self._use_additive_upsampling:
+        if self.use_additive_upsampling:
             return AdditiveUpSampleBlock(
-                spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels
+                spatial_dims=self.spatial_dims,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                mode=self.mode,
+                align_corners=self.align_corners,
             )
 
         return get_deconv_block(spatial_dims=self.spatial_dims, in_channels=in_channels, out_channels=out_channels)

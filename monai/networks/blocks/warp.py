@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import List
 
 import torch
 from torch import nn
@@ -31,7 +32,7 @@ class Warp(nn.Module):
     Warp an image with given dense displacement field (DDF).
     """
 
-    def __init__(self, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.BORDER.value):
+    def __init__(self, mode=GridSampleMode.BILINEAR.value, padding_mode=GridSamplePadMode.BORDER.value, jitter=False):
         """
         For pytorch native APIs, the possible values are:
 
@@ -46,6 +47,11 @@ class Warp(nn.Module):
             - padding_mode: ``"zeros"``, ``"border"``, ``"reflection"``, 0, 1, ...
 
         See also: :py:class:`monai.networks.layers.grid_pull`
+
+        - jitter: bool, default=False
+            Define reference grid on non-integer values
+            Reference: B. Likar and F. Pernus. A heirarchical approach to elastic registration
+            based on mutual information. Image and Vision Computing, 19:33-44, 2001.
         """
         super().__init__()
         # resolves _interp_mode for different methods
@@ -82,13 +88,27 @@ class Warp(nn.Module):
         else:
             self._padding_mode = GridSamplePadMode(padding_mode).value
 
-    @staticmethod
-    def get_reference_grid(ddf: torch.Tensor) -> torch.Tensor:
+        self.ref_grid = None
+        self.jitter = jitter
+
+    def get_reference_grid(self, ddf: torch.Tensor, jitter: bool = False, seed: int = 0) -> torch.Tensor:
+        if (
+            self.ref_grid is not None
+            and self.ref_grid.shape[0] == ddf.shape[0]
+            and self.ref_grid.shape[1:] == ddf.shape[2:]
+        ):
+            return self.ref_grid  # type: ignore
         mesh_points = [torch.arange(0, dim) for dim in ddf.shape[2:]]
         grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
         grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
-        grid = grid.to(ddf)
-        return grid
+        self.ref_grid = grid.to(ddf)
+        if jitter:
+            # Define reference grid on non-integer values
+            with torch.random.fork_rng(enabled=seed):
+                torch.random.manual_seed(seed)
+                grid += torch.rand_like(grid)
+        self.ref_grid.requires_grad = False
+        return self.ref_grid
 
     def forward(self, image: torch.Tensor, ddf: torch.Tensor):
         """
@@ -105,15 +125,16 @@ class Warp(nn.Module):
         ddf_shape = (image.shape[0], spatial_dims) + tuple(image.shape[2:])
         if ddf.shape != ddf_shape:
             raise ValueError(
-                f"Given input {spatial_dims}-d image shape {image.shape}, " f"the input DDF shape must be {ddf_shape}."
+                f"Given input {spatial_dims}-d image shape {image.shape}, the input DDF shape must be {ddf_shape}, "
+                f"Got {ddf.shape} instead."
             )
-        grid = self.get_reference_grid(ddf) + ddf
+        grid = self.get_reference_grid(ddf, jitter=self.jitter) + ddf
         grid = grid.permute([0] + list(range(2, 2 + spatial_dims)) + [1])  # (batch, ..., spatial_dims)
 
         if not USE_COMPILED:  # pytorch native grid_sample
             for i, dim in enumerate(grid.shape[1:-1]):
                 grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
-            index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
+            index_ordering: list[int] = list(range(spatial_dims - 1, -1, -1))
             grid = grid[..., index_ordering]  # z, y, x -> x, y, z
             return F.grid_sample(
                 image, grid, mode=self._interp_mode, padding_mode=f"{self._padding_mode}", align_corners=True
@@ -142,7 +163,7 @@ class DVF2DDF(nn.Module):
         self.num_steps = num_steps
         self.warp_layer = Warp(mode=mode, padding_mode=padding_mode)
 
-    def forward(self, dvf):
+    def forward(self, dvf: torch.Tensor) -> torch.Tensor:
         """
         Args:
             dvf: dvf to be transformed, in shape (batch, ``spatial_dims``, H, W[,D])

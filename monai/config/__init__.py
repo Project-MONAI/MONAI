@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .deviceconfig import (
     USE_COMPILED,
+    USE_META_DICT,
     IgniteInfo,
     get_config_values,
     get_gpu_info,
@@ -28,5 +31,6 @@ from .type_definitions import (
     NdarrayOrTensor,
     NdarrayTensor,
     PathLike,
+    SequenceStr,
     TensorOrList,
 )

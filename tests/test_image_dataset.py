@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
 
 from monai.data import ImageDataset
 from monai.transforms import (
@@ -44,9 +47,10 @@ class RandTest(RandomizableTransform):
 
 
 class _TestCompose(Compose):
-    def __call__(self, data, meta):
-        data = self.transforms[0](data, meta)  # ensure channel first
-        data, _, meta["affine"] = self.transforms[1](data, meta["affine"])  # spacing
+    def __call__(self, data, meta, lazy):
+        data = self.transforms[0](data)  # ensure channel first
+        data = self.transforms[1](data, lazy=lazy)  # spacing
+        meta = data.meta
         if len(self.transforms) == 3:
             return self.transforms[2](data), meta  # image contrast
         return data, meta
@@ -55,8 +59,8 @@ class _TestCompose(Compose):
 class TestImageDataset(unittest.TestCase):
     def test_use_case(self):
         with tempfile.TemporaryDirectory() as tempdir:
-            img_ = nib.Nifti1Image(np.random.randint(0, 2, size=(20, 20, 20)), np.eye(4))
-            seg_ = nib.Nifti1Image(np.random.randint(0, 2, size=(20, 20, 20)), np.eye(4))
+            img_ = nib.Nifti1Image(np.random.randint(0, 2, size=(20, 20, 20)).astype(float), np.eye(4))
+            seg_ = nib.Nifti1Image(np.random.randint(0, 2, size=(20, 20, 20)).astype(float), np.eye(4))
             img_name, seg_name = os.path.join(tempdir, "img.nii.gz"), os.path.join(tempdir, "seg.nii.gz")
             nib.save(img_, img_name)
             nib.save(seg_, seg_name)
@@ -79,7 +83,7 @@ class TestImageDataset(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             full_names, ref_data = [], []
             for filename in FILENAMES:
-                test_image = np.random.randint(0, 2, size=(4, 4, 4))
+                test_image = np.random.randint(0, 2, size=(4, 4, 4)).astype(float)
                 ref_data.append(test_image)
                 save_path = os.path.join(tempdir, filename)
                 full_names.append(save_path)
@@ -93,7 +97,7 @@ class TestImageDataset(unittest.TestCase):
             # loading no meta, int
             dataset = ImageDataset(full_names, dtype=np.float16)
             for d, _ in zip(dataset, ref_data):
-                self.assertEqual(d.dtype, np.float16)
+                self.assertEqual(d.dtype, torch.float16)
 
             # loading with meta, no transform
             dataset = ImageDataset(full_names, image_only=False)

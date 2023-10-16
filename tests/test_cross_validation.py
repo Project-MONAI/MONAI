@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 
 from monai.apps import CrossValidation, DecathlonDataset
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
-from monai.utils.enums import PostFix
+from monai.data import MetaTensor
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
@@ -25,9 +27,8 @@ class TestCrossValidation(unittest.TestCase):
         train_transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),
-                AddChanneld(keys=["image", "label"]),
+                EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
-                ToTensord(keys=["image", "label"]),
             ]
         )
         val_transform = LoadImaged(keys=["image", "label"])
@@ -36,7 +37,7 @@ class TestCrossValidation(unittest.TestCase):
             self.assertEqual(len(dataset), 52)
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue(PostFix.meta("image") in dataset[0])
+            self.assertTrue(isinstance(dataset[0]["image"], MetaTensor))
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 34, 49, 41))
 
         cvdataset = CrossValidation(

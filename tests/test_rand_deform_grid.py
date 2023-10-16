@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -19,7 +21,7 @@ from tests.utils import assert_allclose
 
 TEST_CASES = [
     [
-        dict(spacing=(1, 2), magnitude_range=(1.0, 2.0), as_tensor_output=False, device=None),
+        dict(spacing=(1, 2), magnitude_range=(1.0, 2.0), device=None),
         {"spatial_size": (3, 3)},
         np.array(
             [
@@ -48,7 +50,7 @@ TEST_CASES = [
         ),
     ],
     [
-        dict(spacing=(1, 2, 2), magnitude_range=(1.0, 3.0), as_tensor_output=False, device=None),
+        dict(spacing=(1, 2, 2), magnitude_range=(1.0, 3.0), device=None),
         {"spatial_size": (1, 2, 2)},
         np.array(
             [

@@ -9,32 +9,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
 import math
 import os
 import pickle
-import warnings
+import sys
 from collections import abc, defaultdict
+from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
 from functools import reduce
 from itertools import product, starmap, zip_longest
 from pathlib import PurePath
-from typing import Any, Dict, Generator, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
 import torch
 from torch.utils.data._utils.collate import default_collate
 
+from monai import config
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor, PathLike
 from monai.data.meta_obj import MetaObj
-from monai.networks.layers.simplelayers import GaussianFilter
 from monai.utils import (
     MAX_SEED,
     BlendMode,
     Method,
     NumpyPadMode,
+    TraceKeys,
     convert_data_type,
     convert_to_dst_type,
     ensure_tuple,
@@ -42,6 +46,7 @@ from monai.utils import (
     ensure_tuple_size,
     fall_back_tuple,
     first,
+    get_equivalent_dtype,
     issequenceiterable,
     look_up_option,
     optional_import,
@@ -50,7 +55,6 @@ from monai.utils import (
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
 nib, _ = optional_import("nibabel")
-
 
 __all__ = [
     "AFFINE_TOL",
@@ -67,6 +71,7 @@ __all__ = [
     "get_valid_patch_size",
     "is_supported_format",
     "iter_patch",
+    "iter_patch_position",
     "iter_patch_slices",
     "json_hashing",
     "list_data_collate",
@@ -85,6 +90,11 @@ __all__ = [
     "to_affine_nd",
     "worker_init_fn",
     "zoom_affine",
+    "remove_keys",
+    "remove_extra_metadata",
+    "get_extra_metadata_keys",
+    "PICKLE_KEY_SUFFIX",
+    "is_no_channel",
 ]
 
 # module to be used by `torch.save`
@@ -95,8 +105,8 @@ AFFINE_TOL = 1e-3
 
 
 def get_random_patch(
-    dims: Sequence[int], patch_size: Sequence[int], rand_state: Optional[np.random.RandomState] = None
-) -> Tuple[slice, ...]:
+    dims: Sequence[int], patch_size: Sequence[int], rand_state: np.random.RandomState | None = None
+) -> tuple[slice, ...]:
     """
     Returns a tuple of slices to define a random patch in an array of shape `dims` with size `patch_size` or the as
     close to it as possible within the given dimension. It is expected that `patch_size` is a valid patch for a source
@@ -120,38 +130,42 @@ def get_random_patch(
 
 
 def iter_patch_slices(
-    dims: Sequence[int], patch_size: Union[Sequence[int], int], start_pos: Sequence[int] = ()
-) -> Generator[Tuple[slice, ...], None, None]:
+    image_size: Sequence[int],
+    patch_size: Sequence[int] | int,
+    start_pos: Sequence[int] = (),
+    overlap: Sequence[float] | float = 0.0,
+    padded: bool = True,
+) -> Generator[tuple[slice, ...], None, None]:
     """
-    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `dims`. The
-    iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
-    patch is chosen in a contiguous grid using a first dimension as least significant ordering.
+    Yield successive tuples of slices defining patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
 
     Args:
-        dims: dimensions of array to iterate over
+        image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
 
     Yields:
         Tuples of slice objects defining each patch
     """
 
-    # ensure patchSize and startPos are the right length
-    ndim = len(dims)
-    patch_size_ = get_valid_patch_size(dims, patch_size)
-    start_pos = ensure_tuple_size(start_pos, ndim)
+    # ensure patch_size has the right length
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
 
-    # collect the ranges to step over each dimension
-    ranges = tuple(starmap(range, zip(start_pos, dims, patch_size_)))
-
-    # choose patches by applying product to the ranges
-    for position in product(*ranges[::-1]):  # reverse ranges order to iterate in index order
-        yield tuple(slice(s, s + p) for s, p in zip(position[::-1], patch_size_))
+    # create slices based on start position of each patch
+    for position in iter_patch_position(
+        image_size=image_size, patch_size=patch_size_, start_pos=start_pos, overlap=overlap, padded=padded
+    ):
+        yield tuple(slice(s, s + p) for s, p in zip(position, patch_size_))
 
 
 def dense_patch_slices(
-    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int]
-) -> List[Tuple[slice, ...]]:
+    image_size: Sequence[int], patch_size: Sequence[int], scan_interval: Sequence[int], return_slice: bool = True
+) -> list[tuple[slice, ...]]:
     """
     Enumerate all slices defining ND patches of size `patch_size` from an `image_size` input image.
 
@@ -159,6 +173,7 @@ def dense_patch_slices(
         image_size: dimensions of image to iterate over
         patch_size: size of patches to generate slices
         scan_interval: dense patch sampling interval
+        return_slice: whether to return a list of slices (or tuples of indices), defaults to True
 
     Returns:
         a list of slice objects defining each patch
@@ -186,17 +201,68 @@ def dense_patch_slices(
             dim_starts.append(start_idx)
         starts.append(dim_starts)
     out = np.asarray([x.flatten() for x in np.meshgrid(*starts, indexing="ij")]).T
-    return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
+    if return_slice:
+        return [tuple(slice(s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]
+    return [tuple((s, s + patch_size[d]) for d, s in enumerate(x)) for x in out]  # type: ignore
+
+
+def iter_patch_position(
+    image_size: Sequence[int],
+    patch_size: Sequence[int] | int | np.ndarray,
+    start_pos: Sequence[int] = (),
+    overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
+    padded: bool = False,
+):
+    """
+    Yield successive tuples of upper left corner of patches of size `patch_size` from an array of dimensions `image_size`.
+    The iteration starts from position `start_pos` in the array, or starting at the origin if this isn't provided. Each
+    patch is chosen in a contiguous grid using a rwo-major ordering.
+
+    Args:
+        image_size: dimensions of array to iterate over
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension.
+            Either a float or list of floats between 0.0 and 1.0 to define relative overlap to patch size, or
+            an int or list of ints to define number of pixels for overlap.
+            If only one float/int number is given, it will be applied to all dimensions. Defaults to 0.0.
+        padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
+
+    Yields:
+        Tuples of positions defining the upper left corner of each patch
+    """
+
+    # ensure patchSize and startPos are the right length
+    ndim = len(image_size)
+    patch_size_ = get_valid_patch_size(image_size, patch_size)
+    start_pos = ensure_tuple_size(start_pos, ndim)
+    overlap = ensure_tuple_rep(overlap, ndim)
+
+    # calculate steps, which depends on the amount of overlap
+    if isinstance(overlap[0], float):
+        steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+    else:
+        steps = tuple(p - o for p, o in zip(patch_size_, overlap))
+
+    # calculate the last starting location (depending on the padding)
+    end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))
+
+    # collect the ranges to step over each dimension
+    ranges = starmap(range, zip(start_pos, end_pos, steps))
+
+    # choose patches by applying product to the ranges
+    return product(*ranges)
 
 
 def iter_patch(
-    arr: np.ndarray,
-    patch_size: Union[Sequence[int], int] = 0,
+    arr: NdarrayOrTensor,
+    patch_size: Sequence[int] | int = 0,
     start_pos: Sequence[int] = (),
+    overlap: Sequence[float] | float = 0.0,
     copy_back: bool = True,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.WRAP,
-    **pad_opts: Dict,
-):
+    mode: str | None = NumpyPadMode.WRAP,
+    **pad_opts: dict,
+) -> Generator[tuple[NdarrayOrTensor, np.ndarray], None, None]:
     """
     Yield successive patches from `arr` of size `patch_size`. The iteration can start from position `start_pos` in `arr`
     but drawing from a padded array extended by the `patch_size` in each dimension (so these coordinates can be negative
@@ -204,14 +270,22 @@ def iter_patch(
 
     Args:
         arr: array to iterate over
-        patch_size: size of patches to generate slices for, 0 or None selects whole dimension
+        patch_size: size of patches to generate slices for, 0 or None selects whole dimension.
+            For 0 or None, padding and overlap ratio of the corresponding dimension will be 0.
         start_pos: starting position in the array, default is 0 for each dimension
+        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
+            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         copy_back: if True data from the yielded patches is copied back to `arr` once the generator completes
-        mode: {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``, ``"mean"``,
-            ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
-            One of the listed string values or a user supplied function. Defaults to ``"wrap"``.
-            See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
-        pad_opts: padding options, see `numpy.pad`
+        mode: available modes: (Numpy) {``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+            ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+            (PyTorch) {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+            One of the listed string values or a user supplied function.
+            If None, no wrapping is performed. Defaults to ``"wrap"``.
+            See also: https://numpy.org/doc/stable/reference/generated/numpy.pad.html
+            https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            requires pytorch >= 1.10 for best compatibility.
+        pad_opts: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     Yields:
         Patches of array data from `arr` which are views into a padded array which can be modified, if `copy_back` is
@@ -226,32 +300,47 @@ def iter_patch(
              Nth_dim_start, Nth_dim_end]]
 
     """
+
+    from monai.transforms.croppad.functional import pad_nd  # needs to be here to avoid circular import
+
     # ensure patchSize and startPos are the right length
     patch_size_ = get_valid_patch_size(arr.shape, patch_size)
     start_pos = ensure_tuple_size(start_pos, arr.ndim)
 
+    # set padded flag to false if pad mode is None
+    padded = bool(mode)
+    is_v = [bool(p) for p in ensure_tuple_size(patch_size, arr.ndim)]  # whether a valid patch size provided
+    _pad_size = tuple(p if v and padded else 0 for p, v in zip(patch_size_, is_v))  # pad p if v else 0
+    _overlap = [op if v else 0.0 for op, v in zip(ensure_tuple_rep(overlap, arr.ndim), is_v)]  # overlap if v else 0.0
     # pad image by maximum values needed to ensure patches are taken from inside an image
-    arrpad = np.pad(arr, tuple((p, p) for p in patch_size_), look_up_option(mode, NumpyPadMode).value, **pad_opts)
+    if padded:
+        arrpad = pad_nd(arr, to_pad=[(p, p) for p in _pad_size], mode=mode, **pad_opts)  # type: ignore
+        # choose a start position in the padded image
+        start_pos_padded = tuple(s + p for s, p in zip(start_pos, _pad_size))
 
-    # choose a start position in the padded image
-    start_pos_padded = tuple(s + p for s, p in zip(start_pos, patch_size_))
+        # choose a size to iterate over which is smaller than the actual padded image to prevent producing
+        # patches which are only in the padded regions
+        iter_size = tuple(s + p for s, p in zip(arr.shape, _pad_size))
+    else:
+        arrpad = arr
+        start_pos_padded = start_pos
+        iter_size = arr.shape
 
-    # choose a size to iterate over which is smaller than the actual padded image to prevent producing
-    # patches which are only in the padded regions
-    iter_size = tuple(s + p for s, p in zip(arr.shape, patch_size_))
-
-    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded):
+    for slices in iter_patch_slices(iter_size, patch_size_, start_pos_padded, _overlap, padded=padded):
         # compensate original image padding
-        coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, patch_size_))
+        if padded:
+            coords_no_pad = tuple((coord.start - p, coord.stop - p) for coord, p in zip(slices, _pad_size))
+        else:
+            coords_no_pad = tuple((coord.start, coord.stop) for coord in slices)
         yield arrpad[slices], np.asarray(coords_no_pad)  # data and coords (in numpy; works with torch loader)
 
     # copy back data from the padded image if required
     if copy_back:
-        slices = tuple(slice(p, p + s) for p, s in zip(patch_size_, arr.shape))
-        arr[...] = arrpad[slices]
+        slices = tuple(slice(p, p + s) for p, s in zip(_pad_size, arr.shape))
+        arr[...] = arrpad[slices]  # type: ignore
 
 
-def get_valid_patch_size(image_size: Sequence[int], patch_size: Union[Sequence[int], int]) -> Tuple[int, ...]:
+def get_valid_patch_size(image_size: Sequence[int], patch_size: Sequence[int] | int | np.ndarray) -> tuple[int, ...]:
     """
     Given an image of dimensions `image_size`, return a patch size tuple taking the dimension from `patch_size` if this is
     not 0/None. Otherwise, or if `patch_size` is shorter than `image_size`, the dimension from `image_size` is taken. This ensures
@@ -329,6 +418,57 @@ def dev_collate(batch, level: int = 1, logger_name: str = "dev_collate"):
     return
 
 
+PICKLE_KEY_SUFFIX = TraceKeys.KEY_SUFFIX
+
+
+def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
+    """
+    Applied_operations are dictionaries with varying sizes, this method converts them to bytes so that we can (de-)collate.
+
+    Args:
+        data: a list or dictionary with substructures to be pickled/unpickled.
+        key: the key suffix for the target substructures, defaults to "_transforms" (`data.utils.PICKLE_KEY_SUFFIX`).
+        is_encode: whether it's encoding using pickle.dumps (True) or decoding using pickle.loads (False).
+    """
+    if isinstance(data, Mapping):
+        data = dict(data)
+        for k in data:
+            if f"{k}".endswith(key):
+                if is_encode and not isinstance(data[k], bytes):
+                    data[k] = pickle.dumps(data[k], 0)
+                if not is_encode and isinstance(data[k], bytes):
+                    data[k] = pickle.loads(data[k])
+        return {k: pickle_operations(v, key=key, is_encode=is_encode) for k, v in data.items()}
+    elif isinstance(data, (list, tuple)):
+        return [pickle_operations(item, key=key, is_encode=is_encode) for item in data]
+    return data
+
+
+def collate_meta_tensor(batch):
+    """collate a sequence of meta tensor sequences/dictionaries into
+    a single batched metatensor or a dictionary of batched metatensor"""
+    if not isinstance(batch, Sequence):
+        raise NotImplementedError()
+    elem_0 = first(batch)
+    if isinstance(elem_0, MetaObj):
+        collated = default_collate(batch)
+        meta_dicts = [i.meta or TraceKeys.NONE for i in batch]
+        common_ = set.intersection(*[set(d.keys()) for d in meta_dicts if isinstance(d, dict)])
+        if common_:
+            meta_dicts = [{k: d[k] for k in common_} if isinstance(d, dict) else TraceKeys.NONE for d in meta_dicts]
+        collated.meta = default_collate(meta_dicts)
+        collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
+        collated.is_batch = True
+        return collated
+    if isinstance(elem_0, Mapping):
+        return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
+    if isinstance(elem_0, (tuple, list)):
+        return [collate_meta_tensor([d[i] for d in batch]) for i in range(len(elem_0))]
+
+    # no more recursive search for MetaTensor
+    return default_collate(batch)
+
+
 def list_data_collate(batch: Sequence):
     """
     Enhancement for PyTorch DataLoader default collate.
@@ -343,20 +483,16 @@ def list_data_collate(batch: Sequence):
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
     try:
+        if config.USE_META_DICT:
+            data = pickle_operations(data)  # bc 0.9.0
         if isinstance(elem, Mapping):
             ret = {}
             for k in elem:
                 key = k
                 data_for_batch = [d[key] for d in data]
-                ret[key] = default_collate(data_for_batch)
-                if isinstance(ret[key], MetaObj) and all(isinstance(d, MetaObj) for d in data_for_batch):
-                    ret[key].meta = list_data_collate([i.meta for i in data_for_batch])
-                    ret[key].is_batch = True
+                ret[key] = collate_meta_tensor(data_for_batch)
         else:
-            ret = default_collate(data)
-            if isinstance(ret, MetaObj) and all(isinstance(d, MetaObj) for d in data):
-                ret.meta = list_data_collate([i.meta for i in data])
-                ret.is_batch = True
+            ret = collate_meta_tensor(data)
         return ret
     except RuntimeError as re:
         re_str = str(re)
@@ -384,13 +520,14 @@ def list_data_collate(batch: Sequence):
         raise TypeError(re_str) from re
 
 
-def _non_zipping_check(batch_data, detach, pad, fill_value):
+def _non_zipping_check(batch_data: Mapping | Iterable, detach: bool, pad: bool, fill_value):
     """
     Utility function based on `decollate_batch`, to identify the largest batch size from the collated data.
     returns batch_size, the list of non-iterable items, and the dictionary or list with their items decollated.
 
     See `decollate_batch` for more details.
     """
+    _deco: Mapping | Sequence
     if isinstance(batch_data, Mapping):
         _deco = {key: decollate_batch(batch_data[key], detach, pad=pad, fill_value=fill_value) for key in batch_data}
     elif isinstance(batch_data, Iterable):
@@ -404,7 +541,7 @@ def _non_zipping_check(batch_data, detach, pad, fill_value):
             # don't decollate ['test', 'test'] into [['t', 't'], ['e', 'e'], ['s', 's'], ['t', 't']]
             # torch.tensor(0) is iterable but iter(torch.tensor(0)) raises TypeError: iteration over a 0-d tensor
             non_iterable.append(k)
-        elif hasattr(v, "__len__"):
+        elif isinstance(v, Sized):
             batch_size = max(batch_size, len(v))
     return batch_size, non_iterable, _deco
 
@@ -467,7 +604,9 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
     """
     if batch is None:
         return batch
-    if isinstance(batch, (float, int, str, bytes)):
+    if isinstance(batch, (float, int, str, bytes)) or (
+        type(batch).__module__ == "numpy" and not isinstance(batch, Iterable)
+    ):
         return batch
     if isinstance(batch, torch.Tensor):
         if detach:
@@ -476,11 +615,15 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             return batch.item() if detach else batch
         out_list = torch.unbind(batch, dim=0)
         # if of type MetaObj, decollate the metadata
-        if isinstance(batch, MetaObj) and all(isinstance(i, MetaObj) for i in out_list):
-            metas = decollate_batch(batch.meta)
-            for i in range(len(out_list)):
-                out_list[i].meta = metas[i]  # type: ignore
-                out_list[i].is_batch = False  # type: ignore
+        if isinstance(batch, MetaObj):
+            for t, m in zip(out_list, decollate_batch(batch.meta)):
+                if isinstance(t, MetaObj):
+                    t.meta = m
+                    t.is_batch = False
+            for t, m in zip(out_list, batch.applied_operations):
+                if isinstance(t, MetaObj):
+                    t.applied_operations = m
+                    t.is_batch = False
         if out_list[0].ndim == 0 and detach:
             return [t.item() for t in out_list]
         return list(out_list)
@@ -493,19 +636,20 @@ def decollate_batch(batch, detach: bool = True, pad=True, fill_value=None):
             deco[k] = [deepcopy(deco[k]) for _ in range(b)]
     if isinstance(deco, Mapping):
         _gen = zip_longest(*deco.values(), fillvalue=fill_value) if pad else zip(*deco.values())
-        return [dict(zip(deco, item)) for item in _gen]
+        ret = [dict(zip(deco, item)) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret
+        return pickle_operations(ret, is_encode=False)  # bc 0.9.0
     if isinstance(deco, Iterable):
         _gen = zip_longest(*deco, fillvalue=fill_value) if pad else zip(*deco)
-        return [list(item) for item in _gen]
+        ret_list = [list(item) for item in _gen]
+        if not config.USE_META_DICT:
+            return ret_list
+        return pickle_operations(ret_list, is_encode=False)  # bc 0.9.0
     raise NotImplementedError(f"Unable to de-collate: {batch}, type: {type(batch)}.")
 
 
-def pad_list_data_collate(
-    batch: Sequence,
-    method: Union[Method, str] = Method.SYMMETRIC,
-    mode: Union[NumpyPadMode, str] = NumpyPadMode.CONSTANT,
-    **np_kwargs,
-):
+def pad_list_data_collate(batch: Sequence, method: str = Method.SYMMETRIC, mode: str = NumpyPadMode.CONSTANT, **kwargs):
     """
     Function version of :py:class:`monai.transforms.croppad.batch.PadListDataCollate`.
 
@@ -522,13 +666,13 @@ def pad_list_data_collate(
         batch: batch of data to pad-collate
         method: padding method (see :py:class:`monai.transforms.SpatialPad`)
         mode: padding mode (see :py:class:`monai.transforms.SpatialPad`)
-        np_kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
-            more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+        kwargs: other arguments for the `np.pad` or `torch.pad` function.
+            note that `np.pad` treats channel dimension as the first dimension.
 
     """
     from monai.transforms.croppad.batch import PadListDataCollate  # needs to be here to avoid circular import
 
-    return PadListDataCollate(method=method, mode=mode, **np_kwargs)(batch)
+    return PadListDataCollate(method=method, mode=mode, **kwargs)(batch)
 
 
 def no_collation(x):
@@ -545,7 +689,7 @@ def worker_init_fn(worker_id: int) -> None:
 
     """
     worker_info = torch.utils.data.get_worker_info()
-    set_rnd(worker_info.dataset, seed=worker_info.seed)
+    set_rnd(worker_info.dataset, seed=worker_info.seed)  # type: ignore[union-attr]
 
 
 def set_rnd(obj, seed: int) -> int:
@@ -556,6 +700,11 @@ def set_rnd(obj, seed: int) -> int:
         obj: object to set seed or random state for.
         seed: set the random state with an integer seed.
     """
+    if isinstance(obj, (tuple, list)):  # ZipDataset.data is a list
+        _seed = seed
+        for item in obj:
+            _seed = set_rnd(item, seed=seed)
+        return seed if _seed == seed else seed + 1  # return a different seed if there are randomizable items
     if not hasattr(obj, "__dict__"):
         return seed  # no attribute
     if hasattr(obj, "set_random_state"):
@@ -576,11 +725,13 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
         affine: a d x d affine matrix.
         r: indexing based on the spatial rank, spacing is computed from `affine[:r, :r]`.
         dtype: data type of the output.
-        suppress_zeros: whether to surpress the zeros with ones.
+        suppress_zeros: whether to suppress the zeros with ones.
 
     Returns:
         an `r` dimensional vector of spacing.
     """
+    if len(affine.shape) != 2 or affine.shape[0] != affine.shape[1]:
+        raise ValueError(f"affine must be a square matrix, got {affine.shape}.")
     _affine, *_ = convert_to_dst_type(affine[:r, :r], dst=affine, dtype=dtype)
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
@@ -647,13 +798,12 @@ def rectify_header_sform_qform(img_nii):
             return img_nii
 
     norm = affine_to_spacing(img_nii.affine, r=d)
-    warnings.warn(f"Modifying image pixdim from {pixdim} to {norm}")
 
     img_nii.header.set_zooms(norm)
     return img_nii
 
 
-def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], diagonal: bool = True):
+def zoom_affine(affine: np.ndarray, scale: np.ndarray | Sequence[float], diagonal: bool = True):
     """
     To make column norm of `affine` the same as `scale`.  If diagonal is False,
     returns an affine that combines orthogonal rotation and the new scale.
@@ -706,8 +856,11 @@ def zoom_affine(affine: np.ndarray, scale: Union[np.ndarray, Sequence[float]], d
 
 
 def compute_shape_offset(
-    spatial_shape: Union[np.ndarray, Sequence[int]], in_affine: NdarrayOrTensor, out_affine: NdarrayOrTensor
-) -> Tuple[np.ndarray, np.ndarray]:
+    spatial_shape: np.ndarray | Sequence[int],
+    in_affine: NdarrayOrTensor,
+    out_affine: NdarrayOrTensor,
+    scale_extent: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Given input and output affine, compute appropriate shapes
     in the output space based on the input array's shape.
@@ -718,34 +871,54 @@ def compute_shape_offset(
         spatial_shape: input array's shape
         in_affine (matrix): 2D affine matrix
         out_affine (matrix): 2D affine matrix
+        scale_extent: whether the scale is computed based on the spacing or the full extent of voxels, for example, for
+            a factor of 0.5 scaling:
+
+            option 1, "o" represents a voxel, scaling the distance between voxels::
+
+                o--o--o
+                o-----o
+
+            option 2, each voxel has a physical extent, scaling the full voxel extent::
+
+                | voxel 1 | voxel 2 | voxel 3 | voxel 4 |
+                |      voxel 1      |      voxel 2      |
+
+            Option 1 may reduce the number of locations that requiring interpolation. Option 2 is more resolution
+            agnostic, that is, resampling coordinates depend on the scaling factor, not on the number of voxels.
+            Default is False, using option 1 to compute the shape and offset.
+
     """
     shape = np.array(spatial_shape, copy=True, dtype=float)
     sr = len(shape)
     in_affine_ = convert_data_type(to_affine_nd(sr, in_affine), np.ndarray)[0]
     out_affine_ = convert_data_type(to_affine_nd(sr, out_affine), np.ndarray)[0]
-    in_coords = [(0.0, dim - 1.0) for dim in shape]
+    in_coords = [(-0.5, dim - 0.5) if scale_extent else (0.0, dim - 1.0) for dim in shape]
     corners: np.ndarray = np.asarray(np.meshgrid(*in_coords, indexing="ij")).reshape((len(shape), -1))
     corners = np.concatenate((corners, np.ones_like(corners[:1])))
-    corners = in_affine_ @ corners
     try:
-        inv_mat = np.linalg.inv(out_affine_)
+        corners_out = np.linalg.solve(out_affine_, in_affine_) @ corners
     except np.linalg.LinAlgError as e:
         raise ValueError(f"Affine {out_affine_} is not invertible") from e
-    corners_out = inv_mat @ corners
+    corners = in_affine_ @ corners
+    all_dist = corners_out[:-1].copy()
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(corners_out.ptp(axis=1) + 1.0)
-    mat = inv_mat[:-1, :-1]
-    k = 0
+    out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
+    offset = None
     for i in range(corners.shape[1]):
-        min_corner = np.min(mat @ corners[:-1, :] - mat @ corners[:-1, i : i + 1], 1)
+        min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
         if np.allclose(min_corner, 0.0, rtol=AFFINE_TOL):
-            k = i
+            offset = corners[:-1, i]  # corner is the smallest, shift the corner to origin
             break
-    offset = corners[:-1, k]
-    return out_shape.astype(int, copy=False), offset
+    if offset is None:  # otherwise make output image center aligned with the input image center
+        offset = in_affine_[:-1, :-1] @ (shape / 2.0) + in_affine_[:-1, -1] - out_affine_[:-1, :-1] @ (out_shape / 2.0)
+    if scale_extent:
+        in_offset = np.append(0.5 * (shape / out_shape - 1.0), 1.0)
+        offset = np.abs((in_affine_ @ in_offset / in_offset[-1])[:-1]) * np.sign(offset)
+    return out_shape.astype(int, copy=False), offset  # type: ignore
 
 
-def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
+def to_affine_nd(r: np.ndarray | int, affine: NdarrayTensor, dtype=np.float64) -> NdarrayTensor:
     """
     Using elements from affine, to create a new affine matrix by
     assigning the rotation/zoom/scaling matrix and the translation vector.
@@ -773,6 +946,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.floa
         an (r+1) x (r+1) matrix (tensor or ndarray depends on the input ``affine`` data type)
 
     """
+    dtype = get_equivalent_dtype(dtype, np.ndarray)
     affine_np = convert_data_type(affine, output_type=np.ndarray, dtype=dtype, wrap_sequence=True)[0]
     affine_np = affine_np.copy()
     if affine_np.ndim != 2:
@@ -793,7 +967,7 @@ def to_affine_nd(r: Union[np.ndarray, int], affine: NdarrayTensor, dtype=np.floa
 
 def reorient_spatial_axes(
     data_shape: Sequence[int], init_affine: NdarrayOrTensor, target_affine: NdarrayOrTensor
-) -> Tuple[np.ndarray, NdarrayOrTensor]:
+) -> tuple[np.ndarray, NdarrayOrTensor]:
     """
     Given the input ``init_affine``, compute the orientation transform between
     it and ``target_affine`` by rearranging/flipping the axes.
@@ -891,10 +1065,11 @@ def create_file_basename(
 
 
 def compute_importance_map(
-    patch_size: Tuple[int, ...],
-    mode: Union[BlendMode, str] = BlendMode.CONSTANT,
-    sigma_scale: Union[Sequence[float], float] = 0.125,
-    device: Union[torch.device, int, str] = "cpu",
+    patch_size: tuple[int, ...],
+    mode: BlendMode | str = BlendMode.CONSTANT,
+    sigma_scale: Sequence[float] | float = 0.125,
+    device: torch.device | int | str = "cpu",
+    dtype: torch.dtype | str | None = torch.float32,
 ) -> torch.Tensor:
     """Get importance map for different weight modes.
 
@@ -909,6 +1084,7 @@ def compute_importance_map(
         sigma_scale: Sigma_scale to calculate sigma for each dimension
             (sigma = sigma_scale * dim_size). Used for gaussian mode only.
         device: Device to put importance map on.
+        dtype: Data type of the output importance map.
 
     Raises:
         ValueError: When ``mode`` is not one of ["constant", "gaussian"].
@@ -920,32 +1096,28 @@ def compute_importance_map(
     mode = look_up_option(mode, BlendMode)
     device = torch.device(device)
     if mode == BlendMode.CONSTANT:
-        importance_map = torch.ones(patch_size, device=device).float()
+        importance_map = torch.ones(patch_size, device=device, dtype=torch.float)
     elif mode == BlendMode.GAUSSIAN:
-        center_coords = [i // 2 for i in patch_size]
         sigma_scale = ensure_tuple_rep(sigma_scale, len(patch_size))
         sigmas = [i * sigma_s for i, sigma_s in zip(patch_size, sigma_scale)]
 
-        importance_map = torch.zeros(patch_size, device=device)
-        importance_map[tuple(center_coords)] = 1
-        pt_gaussian = GaussianFilter(len(patch_size), sigmas).to(device=device, dtype=torch.float)
-        importance_map = pt_gaussian(importance_map.unsqueeze(0).unsqueeze(0))
-        importance_map = importance_map.squeeze(0).squeeze(0)
-        importance_map = importance_map / torch.max(importance_map)
-        importance_map = importance_map.float()
-
-        # importance_map cannot be 0, otherwise we may end up with nans!
-        min_non_zero = importance_map[importance_map != 0].min().item()
-        importance_map = torch.clamp(importance_map, min=min_non_zero)
+        for i in range(len(patch_size)):
+            x = torch.arange(
+                start=-(patch_size[i] - 1) / 2.0, end=(patch_size[i] - 1) / 2.0 + 1, dtype=torch.float, device=device
+            )
+            x = torch.exp(x**2 / (-2 * sigmas[i] ** 2))  # 1D gaussian
+            importance_map = importance_map.unsqueeze(-1) * x[(None,) * i] if i > 0 else x
     else:
         raise ValueError(
             f"Unsupported mode: {mode}, available options are [{BlendMode.CONSTANT}, {BlendMode.CONSTANT}]."
         )
-
+    # handle non-positive weights
+    min_non_zero = max(torch.min(importance_map).item(), 1e-3)
+    importance_map = torch.clamp_(importance_map.to(torch.float), min=min_non_zero).to(dtype)
     return importance_map
 
 
-def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes: Sequence[str]) -> bool:
+def is_supported_format(filename: Sequence[PathLike] | PathLike, suffixes: Sequence[str]) -> bool:
     """
     Verify whether the specified file or files format match supported suffixes.
     If supported suffixes is None, skip the verification and return True.
@@ -958,8 +1130,8 @@ def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes:
     """
     filenames: Sequence[PathLike] = ensure_tuple(filename)
     for name in filenames:
-        tokens: Sequence[str] = PurePath(name).suffixes
-        if len(tokens) == 0 or all("." + s.lower() not in "".join(tokens) for s in suffixes):
+        full_suffix = "".join(map(str.lower, PurePath(name).suffixes))
+        if all(f".{s.lower()}" not in full_suffix for s in suffixes):
             return False
 
     return True
@@ -967,8 +1139,8 @@ def is_supported_format(filename: Union[Sequence[PathLike], PathLike], suffixes:
 
 def partition_dataset(
     data: Sequence,
-    ratios: Optional[Sequence[float]] = None,
-    num_partitions: Optional[int] = None,
+    ratios: Sequence[float] | None = None,
+    num_partitions: int | None = None,
     shuffle: bool = False,
     seed: int = 0,
     drop_last: bool = False,
@@ -1078,8 +1250,8 @@ def partition_dataset(
 def partition_dataset_classes(
     data: Sequence,
     classes: Sequence[int],
-    ratios: Optional[Sequence[float]] = None,
-    num_partitions: Optional[int] = None,
+    ratios: Sequence[float] | None = None,
+    num_partitions: int | None = None,
     shuffle: bool = False,
     seed: int = 0,
     drop_last: bool = False,
@@ -1117,7 +1289,7 @@ def partition_dataset_classes(
     for i, c in enumerate(classes):
         class_indices[c].append(i)
 
-    class_partition_indices: List[Sequence] = []
+    class_partition_indices: list[Sequence] = []
     for _, per_class_indices in sorted(class_indices.items()):
         per_class_partition_indices = partition_dataset(
             data=per_class_indices,
@@ -1158,7 +1330,7 @@ def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, 
 
     """
     scale, repeats = math.modf(factor)
-    ret: List = list()
+    ret: list = list()
 
     for _ in range(int(repeats)):
         ret.extend(list(deepcopy(data)))
@@ -1168,7 +1340,7 @@ def resample_datalist(data: Sequence, factor: float, random_pick: bool = False, 
     return ret
 
 
-def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Union[Sequence[int], int]) -> List:
+def select_cross_validation_folds(partitions: Sequence[Iterable], folds: Sequence[int] | int) -> list:
     """
     Select cross validation data based on data partitions and specified fold index.
     if a list of fold indices is provided, concatenate the partitions of these folds.
@@ -1203,7 +1375,13 @@ def json_hashing(item) -> bytes:
 
     """
     # TODO: Find way to hash transforms content as part of the cache
-    cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
+    cache_key = ""
+    if sys.version_info.minor < 9:
+        cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
+    else:
+        cache_key = hashlib.md5(
+            json.dumps(item, sort_keys=True).encode("utf-8"), usedforsecurity=False  # type: ignore
+        ).hexdigest()
     return f"{cache_key}".encode()
 
 
@@ -1218,7 +1396,13 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
     Returns: the corresponding hash key
 
     """
-    cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
+    cache_key = ""
+    if sys.version_info.minor < 9:
+        cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
+    else:
+        cache_key = hashlib.md5(
+            pickle.dumps(sorted_dict(item), protocol=protocol), usedforsecurity=False  # type: ignore
+        ).hexdigest()
     return f"{cache_key}".encode()
 
 
@@ -1231,12 +1415,12 @@ def sorted_dict(item, key=None, reverse=False):
 
 def convert_tables_to_dicts(
     dfs,
-    row_indices: Optional[Sequence[Union[int, str]]] = None,
-    col_names: Optional[Sequence[str]] = None,
-    col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
-    col_groups: Optional[Dict[str, Sequence[str]]] = None,
+    row_indices: Sequence[int | str] | None = None,
+    col_names: Sequence[str] | None = None,
+    col_types: dict[str, dict[str, Any] | None] | None = None,
+    col_groups: dict[str, Sequence[str]] | None = None,
     **kwargs,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """
     Utility to join pandas tables, select rows, columns and generate groups.
     Will return a list of dictionaries, every dictionary maps to a row of data in tables.
@@ -1270,7 +1454,7 @@ def convert_tables_to_dicts(
     """
     df = reduce(lambda l, r: pd.merge(l, r, **kwargs), ensure_tuple(dfs))
     # parse row indices
-    rows: List[Union[int, str]] = []
+    rows: list[int | str] = []
     if row_indices is None:
         rows = slice(df.shape[0])  # type: ignore
     else:
@@ -1293,11 +1477,11 @@ def convert_tables_to_dicts(
         types = {k: v["type"] for k, v in col_types.items() if v is not None and "type" in v}
         if types:
             data_ = data_.astype(dtype=types, copy=False)
-    data: List[Dict] = data_.to_dict(orient="records")
+    data: list[dict] = data_.to_dict(orient="records")
 
     # group columns to generate new column
     if col_groups is not None:
-        groups: Dict[str, List] = {}
+        groups: dict[str, list] = {}
         for name, cols in col_groups.items():
             groups[name] = df.loc[rows, cols].values
         # invert items of groups to every row of data
@@ -1320,3 +1504,77 @@ def orientation_ras_lps(affine: NdarrayTensor) -> NdarrayTensor:
     if isinstance(affine, torch.Tensor):
         return torch.diag(torch.as_tensor(flip_diag).to(affine)) @ affine  # type: ignore
     return np.diag(flip_diag).astype(affine.dtype) @ affine  # type: ignore
+
+
+def remove_keys(data: dict, keys: list[str]) -> None:
+    """
+    Remove keys from a dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        data: dictionary to be modified.
+        keys: keys to be deleted from dictionary.
+
+    Returns:
+        `None`
+    """
+    for k in keys:
+        _ = data.pop(k, None)
+
+
+def remove_extra_metadata(meta: dict) -> None:
+    """
+    Remove extra metadata from the dictionary. Operates in-place so nothing is returned.
+
+    Args:
+        meta: dictionary containing metadata to be modified.
+
+    Returns:
+        `None`
+    """
+    keys = get_extra_metadata_keys()
+    remove_keys(data=meta, keys=keys)
+
+
+def get_extra_metadata_keys() -> list[str]:
+    """
+    Get a list of unnecessary keys for metadata that can be removed.
+
+    Returns:
+        List of keys to be removed.
+    """
+    keys = [
+        "srow_x",
+        "srow_y",
+        "srow_z",
+        "quatern_b",
+        "quatern_c",
+        "quatern_d",
+        "qoffset_x",
+        "qoffset_y",
+        "qoffset_z",
+        "dim",
+        "pixdim",
+        *[f"dim[{i}]" for i in range(8)],
+        *[f"pixdim[{i}]" for i in range(8)],
+    ]
+
+    # TODO: it would be good to remove these, but they are currently being used in the
+    # codebase.
+    # keys += [
+    #     "original_affine",
+    #     "spatial_shape",
+    #     "spacing",
+    # ]
+
+    return keys
+
+
+def is_no_channel(val) -> bool:
+    """Returns whether `val` indicates "no_channel", for MetaKeys.ORIGINAL_CHANNEL_DIM."""
+    if isinstance(val, torch.Tensor):
+        return bool(torch.isnan(val))
+    if isinstance(val, str):
+        return val == "no_channel"
+    if np.isscalar(val):
+        return bool(np.isnan(val))
+    return val is None

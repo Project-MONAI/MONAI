@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable, List, Optional, Tuple, Type, Union
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -20,9 +23,18 @@ from monai.networks.layers.utils import get_pool_layer
 from monai.utils import ensure_tuple_rep
 from monai.utils.module import look_up_option
 
-__all__ = ["ResNet", "resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
-
-from monai.utils import deprecated_arg
+__all__ = [
+    "ResNet",
+    "ResNetBlock",
+    "ResNetBottleneck",
+    "resnet10",
+    "resnet18",
+    "resnet34",
+    "resnet50",
+    "resnet101",
+    "resnet152",
+    "resnet200",
+]
 
 
 def get_inplanes():
@@ -42,7 +54,7 @@ class ResNetBlock(nn.Module):
         planes: int,
         spatial_dims: int = 3,
         stride: int = 1,
-        downsample: Union[nn.Module, partial, None] = None,
+        downsample: nn.Module | partial | None = None,
     ) -> None:
         """
         Args:
@@ -93,7 +105,7 @@ class ResNetBottleneck(nn.Module):
         planes: int,
         spatial_dims: int = 3,
         stride: int = 1,
-        downsample: Union[nn.Module, partial, None] = None,
+        downsample: nn.Module | partial | None = None,
     ) -> None:
         """
         Args:
@@ -150,6 +162,9 @@ class ResNet(nn.Module):
 
     Args:
         block: which ResNet block to use, either Basic or Bottleneck.
+            ResNet block class or str.
+            for Basic: ResNetBlock or 'basic'
+            for Bottleneck: ResNetBottleneck or 'bottleneck'
         layers: how many layers to use.
         block_inplanes: determine the size of planes at each step. Also tunable with widen_factor.
         spatial_dims: number of spatial dimensions of the input image.
@@ -163,39 +178,40 @@ class ResNet(nn.Module):
         widen_factor: widen output for each layer.
         num_classes: number of output (classifications).
         feed_forward: whether to add the FC layer for the output, default to `True`.
-
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``num_classes`` instead.
+        bias_downsample: whether to use bias term in the downsampling block when `shortcut_type` is 'B', default to `True`.
 
     """
 
-    @deprecated_arg("n_classes", since="0.6")
     def __init__(
         self,
-        block: Type[Union[ResNetBlock, ResNetBottleneck]],
-        layers: List[int],
-        block_inplanes: List[int],
+        block: type[ResNetBlock | ResNetBottleneck] | str,
+        layers: list[int],
+        block_inplanes: list[int],
         spatial_dims: int = 3,
         n_input_channels: int = 3,
-        conv1_t_size: Union[Tuple[int], int] = 7,
-        conv1_t_stride: Union[Tuple[int], int] = 1,
+        conv1_t_size: tuple[int] | int = 7,
+        conv1_t_stride: tuple[int] | int = 1,
         no_max_pool: bool = False,
         shortcut_type: str = "B",
         widen_factor: float = 1.0,
         num_classes: int = 400,
         feed_forward: bool = True,
-        n_classes: Optional[int] = None,
+        bias_downsample: bool = True,  # for backwards compatibility (also see PR #5477)
     ) -> None:
-
         super().__init__()
-        # in case the new num_classes is default but you still call deprecated n_classes
-        if n_classes is not None and num_classes == 400:
-            num_classes = n_classes
 
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-        norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
-        pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
-        avgp_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
+        if isinstance(block, str):
+            if block == "basic":
+                block = ResNetBlock
+            elif block == "bottleneck":
+                block = ResNetBottleneck
+            else:
+                raise ValueError("Unknown block '%s', use basic or bottleneck" % block)
+
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
+        norm_type: type[nn.BatchNorm1d | nn.BatchNorm2d | nn.BatchNorm3d] = Norm[Norm.BATCH, spatial_dims]
+        pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
+        avgp_type: type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d] = Pool[
             Pool.ADAPTIVEAVG, spatial_dims
         ]
 
@@ -204,6 +220,7 @@ class ResNet(nn.Module):
 
         self.in_planes = block_inplanes[0]
         self.no_max_pool = no_max_pool
+        self.bias_downsample = bias_downsample
 
         conv1_kernel_size = ensure_tuple_rep(conv1_t_size, spatial_dims)
         conv1_stride = ensure_tuple_rep(conv1_t_stride, spatial_dims)
@@ -243,18 +260,17 @@ class ResNet(nn.Module):
 
     def _make_layer(
         self,
-        block: Type[Union[ResNetBlock, ResNetBottleneck]],
+        block: type[ResNetBlock | ResNetBottleneck],
         planes: int,
         blocks: int,
         spatial_dims: int,
         shortcut_type: str,
         stride: int = 1,
     ) -> nn.Sequential:
-
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
         norm_type: Callable = Norm[Norm.BATCH, spatial_dims]
 
-        downsample: Union[nn.Module, partial, None] = None
+        downsample: nn.Module | partial | None = None
         if stride != 1 or self.in_planes != planes * block.expansion:
             if look_up_option(shortcut_type, {"A", "B"}) == "A":
                 downsample = partial(
@@ -265,7 +281,13 @@ class ResNet(nn.Module):
                 )
             else:
                 downsample = nn.Sequential(
-                    conv_type(self.in_planes, planes * block.expansion, kernel_size=1, stride=stride),
+                    conv_type(
+                        self.in_planes,
+                        planes * block.expansion,
+                        kernel_size=1,
+                        stride=stride,
+                        bias=self.bias_downsample,
+                    ),
                     norm_type(planes * block.expansion),
                 )
 
@@ -304,9 +326,9 @@ class ResNet(nn.Module):
 
 def _resnet(
     arch: str,
-    block: Type[Union[ResNetBlock, ResNetBottleneck]],
-    layers: List[int],
-    block_inplanes: List[int],
+    block: type[ResNetBlock | ResNetBottleneck],
+    layers: list[int],
+    block_inplanes: list[int],
     pretrained: bool,
     progress: bool,
     **kwargs: Any,
@@ -319,6 +341,8 @@ def _resnet(
         raise NotImplementedError(
             "Currently not implemented. You need to manually download weights provided by the paper's author"
             " and load then to the model with `state_dict`. See https://github.com/Tencent/MedicalNet"
+            "Please ensure you pass the appropriate `shortcut_type` and `bias_downsample` args. as specified"
+            "here: https://github.com/Tencent/MedicalNet/tree/18c8bb6cd564eb1b964bffef1f4c2283f1ae6e7b#update20190730"
         )
     return model
 

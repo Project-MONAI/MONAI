@@ -1,3 +1,4 @@
+# this is the docker image releasing pipeline, pushing to https://hub.docker.com/r/projectmonai/monai
 name: docker
 # versioning: compute a static version file
 # local_docker: use the version file to build docker images
@@ -19,22 +20,23 @@ jobs:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         # full history so that we can git describe
         with:
           ref: dev
           fetch-depth: 0
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: '3.9'
       - shell: bash
         run: |
           git describe
+          python -m pip install -U pip wheel setuptools
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: _version.py
           path: build/lib/monai/_version.py
@@ -50,22 +52,18 @@ jobs:
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         ref: dev
     - name: Download version
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: _version.py
-    - name: Install Latest Docker
-      run: |
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-        sudo apt-get update
-        sudo apt-get install docker-ce
     - name: docker_build
       shell: bash
       run: |
+        rm -rf /opt/hostedtoolcache
+        docker --version
         # get tag info for versioning
         cat _version.py
         mv _version.py monai/
@@ -82,17 +80,17 @@ jobs:
         docker image prune -f
 
   docker_test_dockerhub:
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable self-hosted job  project-monai/monai#7039
     needs: docker_build_dev
     container:
       image: docker://projectmonai/monai:latest
       options: "--shm-size=4g --ipc=host"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64, docker]
     steps:
     - name: Import
       run: |
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
-        echo $CUDA_VISIBLE_DEVICES
+        export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=  # cpu-only
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai
         ls -al

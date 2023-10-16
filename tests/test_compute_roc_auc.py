@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -19,9 +21,10 @@ from monai.data import decollate_batch
 from monai.metrics import ROCAUCMetric, compute_roc_auc
 from monai.transforms import Activations, AsDiscrete, Compose, ToTensor
 
+_device = "cuda:0" if torch.cuda.is_available() else "cpu"
 TEST_CASE_1 = [
-    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]]),
-    torch.tensor([[0], [1], [0], [1]]),
+    torch.tensor([[0.1, 0.9], [0.3, 1.4], [0.2, 0.1], [0.1, 0.5]], device=_device),
+    torch.tensor([[0], [1], [0], [1]], device=_device),
     True,
     2,
     "macro",

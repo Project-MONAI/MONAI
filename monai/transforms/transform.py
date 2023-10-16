@@ -12,45 +12,90 @@
 A collection of generic interfaces for MONAI transforms.
 """
 
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generator, Hashable, Iterable, List, Optional, Tuple, TypeVar, Union
+from collections.abc import Callable, Generator, Hashable, Iterable, Mapping
+from typing import Any, TypeVar
 
 import numpy as np
 import torch
 
-from monai import transforms
+from monai import config, transforms
 from monai.config import KeysCollection
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms.traits import LazyTrait, RandomizableTrait, ThreadUnsafe
 from monai.utils import MAX_SEED, ensure_tuple, first
 from monai.utils.enums import TransformBackends
+from monai.utils.misc import MONAIEnvVars
 
-__all__ = ["ThreadUnsafe", "apply_transform", "Randomizable", "RandomizableTransform", "Transform", "MapTransform"]
+__all__ = [
+    "ThreadUnsafe",
+    "apply_transform",
+    "Randomizable",
+    "LazyTransform",
+    "RandomizableTransform",
+    "Transform",
+    "MapTransform",
+]
 
 ReturnType = TypeVar("ReturnType")
 
 
 def _apply_transform(
-    transform: Callable[..., ReturnType], parameters: Any, unpack_parameters: bool = False
+    transform: Callable[..., ReturnType],
+    data: Any,
+    unpack_parameters: bool = False,
+    lazy: bool | None = False,
+    overrides: dict | None = None,
+    logger_name: bool | str = False,
 ) -> ReturnType:
     """
-    Perform transformation `transform` with the provided parameters `parameters`.
+    Perform a transform 'transform' on 'data', according to the other parameters specified.
 
-    If `parameters` is a tuple and `unpack_items` is True, each parameter of `parameters` is unpacked
-    as arguments to `transform`.
-    Otherwise `parameters` is considered as single argument to `transform`.
+    If `data` is a tuple and `unpack_parameters` is True, each parameter of `data` is unpacked
+    as arguments to `transform`. Otherwise `data` is considered as single argument to `transform`.
+
+    If 'lazy' is True, this method first checks whether it can execute this method lazily. If it
+    can't, it will ensure that all pending lazy transforms on 'data' are applied before applying
+    this 'transform' to it. If 'lazy' is True, and 'overrides' are provided, those overrides will
+    be applied to the pending operations on 'data'. See ``Compose`` for more details on lazy
+    resampling, which is an experimental feature for 1.2.
+
+    Please note, this class is function is designed to be called by ``apply_transform``.
+    In general, you should not need to make specific use of it unless you are implementing
+    pipeline execution mechanisms.
 
     Args:
         transform: a callable to be used to transform `data`.
-        parameters: parameters for the `transform`.
+        data: the tensorlike or dictionary of tensorlikes to be executed on
         unpack_parameters: whether to unpack parameters for `transform`. Defaults to False.
+        lazy: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+            carried out on a transform by transform basis. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible.
+            See the :ref:`Lazy Resampling topic<lazy_resampling> for more information about lazy resampling.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
 
     Returns:
         ReturnType: The return type of `transform`.
     """
-    if isinstance(parameters, tuple) and unpack_parameters:
-        return transform(*parameters)
+    from monai.transforms.lazy.functional import apply_pending_transforms_in_order
 
-    return transform(parameters)
+    data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
+
+    if isinstance(data, tuple) and unpack_parameters:
+        return transform(*data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(*data)
+
+    return transform(data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(data)
 
 
 def apply_transform(
@@ -58,8 +103,10 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    log_stats: bool = False,
-) -> Union[List[ReturnType], ReturnType]:
+    log_stats: bool | str = False,
+    lazy: bool | None = None,
+    overrides: dict | None = None,
+) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
 
@@ -73,9 +120,14 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other meta data, log the values directly. default to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        lazy: whether to execute in lazy mode or not. See the :ref:`Lazy Resampling topic<lazy_resampling> for more
+            information about lazy resampling. Defaults to None.
+        overrides: optional overrides to apply to transform parameters. This parameter is ignored unless transforms
+            are being executed lazily. See the :ref:`Lazy Resampling topic<lazy_resampling> for more details and
+            examples of its usage.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -85,24 +137,30 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items) for item in data]
-        return _apply_transform(transform, data, unpack_items)
+            return [_apply_transform(transform, item, unpack_items, lazy, overrides, log_stats) for item in data]
+        return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
-
-        if log_stats and not isinstance(transform, transforms.compose.Compose):
+        # if in debug mode, don't swallow exception so that the breakpoint
+        # appears where the exception was raised.
+        if MONAIEnvVars.debug():
+            raise
+        if log_stats is not False and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
-            datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
+            if isinstance(log_stats, str):
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=log_stats)
+            else:
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
-            logger.info(f"\n=== Transform input info -- {type(transform).__name__} ===")
+            logger.error(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):
                 data = data[0]
 
-            def _log_stats(data, prefix: Optional[str] = "Data"):
+            def _log_stats(data, prefix: str | None = "Data"):
                 if isinstance(data, (np.ndarray, torch.Tensor)):
                     # log data type, shape, range for array
                     datastats(img=data, data_shape=True, value_range=True, prefix=prefix)
                 else:
-                    # log data type and value for other meta data
+                    # log data type and value for other metadata
                     datastats(img=data, data_value=True, prefix=prefix)
 
             if isinstance(data, dict):
@@ -113,20 +171,7 @@ def apply_transform(
         raise RuntimeError(f"applying transform {transform}") from e
 
 
-class ThreadUnsafe:
-    """
-    A class to denote that the transform will mutate its member variables,
-    when being applied. Transforms inheriting this class should be used
-    cautiously in a multi-thread context.
-
-    This type is typically used by :py:class:`monai.data.CacheDataset` and
-    its extensions, where the transform cache is built with multiple threads.
-    """
-
-    pass
-
-
-class Randomizable(ABC, ThreadUnsafe):
+class Randomizable(ThreadUnsafe, RandomizableTrait):
     """
     An interface for handling random state locally, currently based on a class
     variable `R`, which is an instance of `np.random.RandomState`.  This
@@ -140,9 +185,7 @@ class Randomizable(ABC, ThreadUnsafe):
 
     R: np.random.RandomState = np.random.RandomState()
 
-    def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "Randomizable":
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Randomizable:
         """
         Set the random state locally, to control the randomness, the derived
         classes should use :py:attr:`self.R` instead of `np.random` to introduce random
@@ -210,10 +253,14 @@ class Transform(ABC):
         :py:class:`monai.transforms.Compose`
     """
 
-    # Transforms should add data types to this list if they are capable of performing a transform without
-    # modifying the input type. For example, ["torch.Tensor", "np.ndarray"] means that no copies of the data
-    # are required if the input is either `torch.Tensor` or `np.ndarray`.
-    backend: List[TransformBackends] = []
+    # Transforms should add `monai.transforms.utils.TransformBackends` to this list if they are performing
+    # the data processing using the corresponding backend APIs.
+    # Most of MONAI transform's inputs and outputs will be converted into torch.Tensor or monai.data.MetaTensor.
+    # This variable provides information about whether the input will be converted
+    # to other data types during the transformation. Note that not all `dtype` (such as float32, uint8) are supported
+    # by all the data types, the `dtype` during the conversion is determined automatically by each transform,
+    # please refer to the transform's docstring.
+    backend: list[TransformBackends] = []
 
     @abstractmethod
     def __call__(self, data: Any):
@@ -228,8 +275,7 @@ class Transform(ABC):
 
           #. string data without shape, `LoadImage` transform expects file paths,
           #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels),
+             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...])
 
         - the channel dimension is often not omitted even if number of channels is one.
 
@@ -240,6 +286,34 @@ class Transform(ABC):
 
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
+
+class LazyTransform(Transform, LazyTrait):
+    """
+    An implementation of functionality for lazy transforms that can be subclassed by array and
+    dictionary transforms to simplify implementation of new lazy transforms.
+    """
+
+    def __init__(self, lazy: bool | None = False):
+        if lazy is not None:
+            if not isinstance(lazy, bool):
+                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
+        self._lazy = lazy
+
+    @property
+    def lazy(self):
+        return self._lazy
+
+    @lazy.setter
+    def lazy(self, lazy: bool | None):
+        if lazy is not None:
+            if not isinstance(lazy, bool):
+                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
+        self._lazy = lazy
+
+    @property
+    def requires_current_data(self):
+        return False
 
 
 class RandomizableTransform(Randomizable, Transform):
@@ -311,14 +385,46 @@ class MapTransform(Transform):
 
     """
 
+    def __new__(cls, *args, **kwargs):
+        if config.USE_META_DICT:
+            # call_update after MapTransform.__call__
+            cls.__call__ = transforms.attach_hook(cls.__call__, MapTransform.call_update, "post")  # type: ignore
+
+            if hasattr(cls, "inverse"):
+                # inverse_update before InvertibleTransform.inverse
+                cls.inverse: Any = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
+        return Transform.__new__(cls)
+
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
-        self.keys: Tuple[Hashable, ...] = ensure_tuple(keys)
+        super().__init__()
+        self.keys: tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
         if not self.keys:
             raise ValueError("keys must be non empty.")
         for key in self.keys:
             if not isinstance(key, Hashable):
                 raise TypeError(f"keys must be one of (Hashable, Iterable[Hashable]) but is {type(keys).__name__}.")
+
+    def call_update(self, data):
+        """
+        This function is to be called after every `self.__call__(data)`,
+        update `data[key_transforms]` and `data[key_meta_dict]` using the content from MetaTensor `data[key]`,
+        for MetaTensor backward compatibility 0.9.0.
+        """
+        if not isinstance(data, (list, tuple, Mapping)):
+            return data
+        is_dict = False
+        if isinstance(data, Mapping):
+            data, is_dict = [data], True
+        if not data or not isinstance(data[0], Mapping):
+            return data[0] if is_dict else data
+        list_d = [dict(x) for x in data]  # list of dict for crop samples
+        for idx, dict_i in enumerate(list_d):
+            for k in dict_i:
+                if not isinstance(dict_i[k], MetaTensor):
+                    continue
+                list_d[idx] = transforms.sync_meta_info(k, dict_i, t=not isinstance(self, transforms.InvertD))
+        return list_d[0] if is_dict else list_d
 
     @abstractmethod
     def __call__(self, data):
@@ -334,8 +440,7 @@ class MapTransform(Transform):
 
           #. string data without shape, `LoadImaged` transform expects file paths,
           #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...])
 
         - the channel dimension is often not omitted even if number of channels is one.
 
@@ -348,7 +453,7 @@ class MapTransform(Transform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def key_iterator(self, data: Dict[Hashable, Any], *extra_iterables: Optional[Iterable]) -> Generator:
+    def key_iterator(self, data: Mapping[Hashable, Any], *extra_iterables: Iterable | None) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
@@ -361,7 +466,7 @@ class MapTransform(Transform):
         ex_iters = extra_iterables or [[None] * len(self.keys)]
 
         # loop over keys and any extra iterables
-        _ex_iters: List[Any]
+        _ex_iters: list[Any]
         for key, *_ex_iters in zip(self.keys, *ex_iters):
             # all normal, yield (what we yield depends on whether extra iterables were given)
             if key in data:
@@ -372,13 +477,13 @@ class MapTransform(Transform):
                     " and allow_missing_keys==False."
                 )
 
-    def first_key(self, data: Dict[Hashable, Any]):
+    def first_key(self, data: dict[Hashable, Any]):
         """
         Get the first available key of `self.keys` in the input `data` dictionary.
-        If no available key, return an empty list `[]`.
+        If no available key, return an empty tuple `()`.
 
         Args:
             data: data that the transform will be applied to.
 
         """
-        return first(self.key_iterator(data), [])
+        return first(self.key_iterator(data), ())

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import csv
 import os
 import tempfile
@@ -26,7 +28,6 @@ from monai.handlers import ClassificationSaver
 class TestHandlerClassificationSaver(unittest.TestCase):
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 engine.state.batch = decollate_batch(batch)

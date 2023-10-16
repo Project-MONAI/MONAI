@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import hashlib
+import json
 import logging
 import os
 import shutil
@@ -19,15 +22,15 @@ import tempfile
 import warnings
 import zipfile
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import urlretrieve
+from urllib.request import urlopen, urlretrieve
 
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
-gdown, has_gdown = optional_import("gdown", "3.6")
+gdown, has_gdown = optional_import("gdown", "4.4")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -45,9 +48,9 @@ SUPPORTED_HASH_TYPES = {"md5": hashlib.md5, "sha1": hashlib.sha1, "sha256": hash
 def get_logger(
     module_name: str = "monai.apps",
     fmt: str = DEFAULT_FMT,
-    datefmt: Optional[str] = None,
-    logger_handler: Optional[logging.Handler] = None,
-):
+    datefmt: str | None = None,
+    logger_handler: logging.Handler | None = None,
+) -> logging.Logger:
     """
     Get a `module_name` logger with the specified format and date format.
     By default, the logger will print to `stdout` at the INFO level.
@@ -56,13 +59,15 @@ def get_logger(
     (https://docs.python.org/3/library/logging.html#formatter-objects).
     `logger_handler` can be used to add an additional handler.
     """
+    adds_stdout_handler = module_name is not None and module_name not in logging.root.manager.loggerDict
     logger = logging.getLogger(module_name)
     logger.propagate = False
     logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    if adds_stdout_handler:  # don't add multiple stdout or add to the root
+        handler = logging.StreamHandler(sys.stdout)
+        formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
     if logger_handler is not None:
         logger.addHandler(logger_handler)
     return logger
@@ -79,7 +84,7 @@ def _basename(p: PathLike) -> str:
     return Path(f"{p}".rstrip(sep)).name
 
 
-def _download_with_progress(url, filepath, progress: bool = True):
+def _download_with_progress(url: str, filepath: Path, progress: bool = True) -> None:
     """
     Retrieve file from `url` to `filepath`, optionally showing a progress bar.
     """
@@ -92,7 +97,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
                 Inspired by the example in https://github.com/tqdm/tqdm.
                 """
 
-                def update_to(self, b: int = 1, bsize: int = 1, tsize: Optional[int] = None):
+                def update_to(self, b: int = 1, bsize: int = 1, tsize: int | None = None) -> None:
                     """
                     Args:
                         b: number of blocks transferred so far, default: 1.
@@ -114,7 +119,7 @@ def _download_with_progress(url, filepath, progress: bool = True):
         raise e
 
 
-def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "md5") -> bool:
+def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5") -> bool:
     """
     Verify hash signature of specified file.
 
@@ -147,7 +152,12 @@ def check_hash(filepath: PathLike, val: Optional[str] = None, hash_type: str = "
 
 
 def download_url(
-    url: str, filepath: PathLike = "", hash_val: Optional[str] = None, hash_type: str = "md5", progress: bool = True
+    url: str,
+    filepath: PathLike = "",
+    hash_val: str | None = None,
+    hash_type: str = "md5",
+    progress: bool = True,
+    **gdown_kwargs: Any,
 ) -> None:
     """
     Download file from specified URL link, support process bar and hash check.
@@ -160,6 +170,10 @@ def download_url(
             if None, skip hash validation.
         hash_type: 'md5' or 'sha1', defaults to 'md5'.
         progress: whether to display a progress bar.
+        gdown_kwargs: other args for `gdown` except for the `url`, `output` and `quiet`.
+            these args will only be used if download from google drive.
+            details of the args of it:
+            https://github.com/wkentaro/gdown/blob/main/gdown/download.py
 
     Raises:
         RuntimeError: When the hash validation of the ``filepath`` existing file fails.
@@ -189,7 +203,20 @@ def download_url(
             if urlparse(url).netloc == "drive.google.com":
                 if not has_gdown:
                     raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
-                gdown.download(url, f"{tmp_name}", quiet=not progress)
+                if "fuzzy" not in gdown_kwargs:
+                    gdown_kwargs["fuzzy"] = True  # default to true for flexible url
+                gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
+            elif urlparse(url).netloc == "cloud-api.yandex.net":
+                with urlopen(url) as response:
+                    code = response.getcode()
+                    if code == 200:
+                        download_url = json.load(response)["href"]
+                        _download_with_progress(download_url, tmp_name, progress=progress)
+                    else:
+                        raise RuntimeError(
+                            f"Download of file from {download_url}, received from {url} "
+                            + f" to {filepath} failed due to network issue or denied permission."
+                        )
             else:
                 _download_with_progress(url, tmp_name, progress=progress)
             if not tmp_name.exists():
@@ -213,7 +240,7 @@ def download_url(
 def extractall(
     filepath: PathLike,
     output_dir: PathLike = ".",
-    hash_val: Optional[str] = None,
+    hash_val: str | None = None,
     hash_type: str = "md5",
     file_type: str = "",
     has_base: bool = True,
@@ -273,7 +300,7 @@ def download_and_extract(
     url: str,
     filepath: PathLike = "",
     output_dir: PathLike = ".",
-    hash_val: Optional[str] = None,
+    hash_val: str | None = None,
     hash_type: str = "md5",
     file_type: str = "",
     has_base: bool = True,

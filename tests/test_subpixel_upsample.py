@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -56,7 +58,6 @@ TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA = [
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_2D_EXTRA)
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_3D_EXTRA)
 TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA)
-
 
 # add every test back with the pad/pool sequential component omitted
 for tests in list(TEST_CASE_SUBPIXEL):

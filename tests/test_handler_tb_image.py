@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import tempfile
 import unittest
@@ -20,15 +22,20 @@ from parameterized import parameterized
 
 from monai.data import decollate_batch
 from monai.handlers import TensorBoardImageHandler
+from monai.utils import optional_import
+from tests.utils import SkipIfBeforePyTorchVersion
+
+_, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
 TEST_CASES = [[[20, 20]], [[2, 20, 20]], [[3, 20, 20]], [[20, 20, 20]], [[2, 20, 20, 20]], [[2, 2, 20, 20, 20]]]
 
 
+@unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
+@SkipIfBeforePyTorchVersion((1, 13))  # issue 6683
 class TestHandlerTBImage(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_tb_image_shape(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:
-
             # set up engine
             def _train_func(engine, batch):
                 engine.state.batch = decollate_batch(list(batch))

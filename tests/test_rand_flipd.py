@@ -9,13 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
+from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandFlipd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.lazy_transforms_utils import test_resampler_lazy
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 
@@ -23,12 +28,27 @@ VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 class TestRandFlipd(NumpyImageTestCase2D):
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
-        for p in TEST_NDARRAYS:
-            flip = RandFlipd(keys="img", prob=1.0, spatial_axis=spatial_axis)
-            result = flip({"img": p(self.imt[0])})["img"]
+        for p in TEST_NDARRAYS_ALL:
+            init_param = {"keys": "img", "prob": 1.0, "spatial_axis": spatial_axis}
+            flip = RandFlipd(**init_param)
+            im = p(self.imt[0])
+            call_param = {"data": {"img": im}}
+            result = flip(**call_param)
+
+            # test lazy
+            test_resampler_lazy(flip, result, init_param, call_param, output_key="img")
+            flip.lazy = False
+
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)
-            assert_allclose(result, p(expected))
+            assert_allclose(result["img"], p(expected), type_test="tensor")
+            test_local_inversion(flip, {"img": result["img"]}, {"img": im}, "img")
+
+            set_track_meta(False)
+            result = flip({"img": im})["img"]
+            self.assertNotIsInstance(result, MetaTensor)
+            self.assertIsInstance(result, torch.Tensor)
+            set_track_meta(True)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -66,7 +68,6 @@ for spatial_dims in range(1, 4):
                         (1, out_channels, *([in_size * stride] * spatial_dims)),
                     ]
                     TEST_UP_BLOCK.append(test_case)
-
 
 TEST_PRUP_BLOCK = []
 in_channels, out_channels = 4, 2

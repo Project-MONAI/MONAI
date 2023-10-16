@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -56,8 +58,8 @@ TEST_CASE_5 = [
 
 class TestMaskIntensityd(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
-    def test_value(self, argments, image, expected_data):
-        result = MaskIntensityd(**argments)(image)
+    def test_value(self, arguments, image, expected_data):
+        result = MaskIntensityd(**arguments)(image)
         np.testing.assert_allclose(result["img"], expected_data)
 
 

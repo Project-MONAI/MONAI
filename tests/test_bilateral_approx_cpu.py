@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -365,7 +367,6 @@ TEST_CASES = [
 class BilateralFilterTestCaseCpuApprox(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
         fast_approx = True
@@ -379,7 +380,6 @@ class BilateralFilterTestCaseCpuApprox(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx_backwards(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
         fast_approx = True

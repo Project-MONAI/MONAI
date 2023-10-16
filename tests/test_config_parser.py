@@ -9,20 +9,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
-from unittest import skipUnless
+import warnings
+from pathlib import Path
+from unittest import mock, skipUnless
 
 import numpy as np
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, ReferenceResolver
+from monai.bundle.config_item import ConfigItem
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
+from tests.utils import TimedCall
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
+_, has_yaml = optional_import("yaml")
+
+
+@TimedCall(seconds=100, force_quit=True)
+def case_pdb(sarg=None):
+    config = {"transform": {"_target_": "Compose", "transforms": [], "_debug_": True}}
+    parser = ConfigParser(config=config)
+    parser.get_parsed_content()
+
+
+@TimedCall(seconds=100, force_quit=True)
+def case_pdb_inst(sarg=None):
+    config = {"transform": {"_target_": "Compose", "transforms": [], "_mode_": "debug"}}
+    parser = ConfigParser(config=config)
+    return parser.transform
+
 
 # test the resolved and parsed instances
 TEST_CASE_1 = [
@@ -77,7 +99,6 @@ TEST_CASE_2 = [
     }
 ]
 
-
 TEST_CASE_3 = [
     {
         "A": 1,
@@ -88,6 +109,20 @@ TEST_CASE_3 = [
 ]
 
 TEST_CASE_4 = [{"A": 1, "B": "@A", "C": "@D", "E": "$'test' + '@F'"}]
+
+TEST_CASE_5 = [{"training": {"A": 1, "A_B": 2}, "total": "$@training#A + @training#A_B + 1"}, 4]
+
+TEST_CASE_DUPLICATED_KEY_JSON = ["""{"key": {"unique": 1, "duplicate": 0, "duplicate": 4 } }""", "json", 1, [0, 4]]
+
+TEST_CASE_DUPLICATED_KEY_YAML = [
+    """key:
+    unique: 1
+    duplicate: 0
+    duplicate: 4""",
+    "yaml",
+    1,
+    [0, 4],
+]
 
 
 class TestConfigParser(unittest.TestCase):
@@ -103,6 +138,8 @@ class TestConfigParser(unittest.TestCase):
         # test nested ids
         parser["dataset#_target_"] = "Dataset"
         self.assertEqual(parser["dataset#_target_"], "Dataset")
+        parser.update({"dataset#_target_1": "Dataset1"})
+        self.assertEqual(parser["dataset#_target_1"], "Dataset1")
         # test int id
         parser.set(["test1", "test2", "test3"])
         parser[1] = "test4"
@@ -114,21 +151,37 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config, globals={"monai": "monai"})
         # test lazy instantiation with original config content
         parser["transform"]["transforms"][0]["keys"] = "label1"
-        self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label1")
-        # test nested id
+        trans = parser.get_parsed_content(id="transform#transforms#0")
+        self.assertEqual(trans.keys[0], "label1")
+        # test re-use the parsed content or not with the `lazy` option
+        self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0"))
+        self.assertEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=True))
+        self.assertNotEqual(trans, parser.get_parsed_content(id="transform#transforms#0", lazy=False))
+        # test new nested id
+        parser.set("fake_key", "transform#other_transforms#keys", True)
+        self.assertEqual(parser.get(id="transform#other_transforms#keys"), "fake_key")
+        # remove temp fake data
+        parser["transform"].pop("other_transforms")
+        # test update nested id
         parser["transform#transforms#0#keys"] = "label2"
         self.assertEqual(parser.get_parsed_content(id="transform#transforms#0").keys[0], "label2")
+
         for id, cls in zip(expected_ids, output_types):
             self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
         # test root content
         root = parser.get_parsed_content(id="")
         for v, cls in zip(root.values(), [Compose, Dataset, DataLoader]):
             self.assertTrue(isinstance(v, cls))
+        # test default value
+        self.assertEqual(parser.get_parsed_content(id="abc", default=ConfigItem(12345, "abc")), 12345)
+        self.assertEqual(parser.get_parsed_content(id="abcd", default=1), 1)
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
+            if id in ("compute", "cls_compute"):
+                parser[f"{id}#_mode_"] = "partial"
             func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.ref_resolver.resolved_content)
             if id == "error_func":
@@ -189,6 +242,118 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config)
         parser.get_parsed_content("training", lazy=True, instantiate=True, eval_expr=True)
         np.testing.assert_allclose(parser.get_parsed_content("training#1", lazy=True), [0.7942, 1.5885], atol=1e-4)
+
+    def test_contains(self):
+        empty_parser = ConfigParser({})
+        empty_parser.parse()
+
+        parser = ConfigParser({"value": 1, "entry": "string content", "array": [1, 2]})
+        parser.parse()
+
+        with self.subTest("Testing empty parser"):
+            self.assertFalse("something" in empty_parser)
+        with self.assertRaises(KeyError):
+            empty_parser["something"]
+        empty_parser["osmething"] = "test"
+        with self.assertRaises(KeyError):
+            empty_parser["something"]
+
+        with self.subTest("Testing with keys"):
+            self.assertTrue("value" in parser)
+            self.assertFalse("value1" in parser)
+            self.assertTrue("entry" in parser)
+            self.assertFalse("entr" in parser)
+            self.assertFalse("array#2" in parser)
+
+    def test_lambda_reference(self):
+        configs = {
+            "patch_size": [8, 8],
+            "transform": {"_target_": "Lambda", "func": "$lambda x: x.reshape((1, *@patch_size))"},
+        }
+        parser = ConfigParser(config=configs)
+        trans = parser.get_parsed_content(id="transform")
+        result = trans(np.ones(64))
+        self.assertTupleEqual(result.shape, (1, 8, 8))
+
+    def test_non_str_target(self):
+        configs = {
+            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "partial"},
+            "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
+        }
+        self.assertTrue(callable(ConfigParser(config=configs).fwd))
+        self.assertTupleEqual(tuple(ConfigParser(config=configs).fwd().shape), (1, 400))
+
+    def test_error_instance(self):
+        config = {"transform": {"_target_": "Compose", "transforms_wrong_key": []}}
+        parser = ConfigParser(config=config)
+        with self.assertRaises(RuntimeError):
+            parser.get_parsed_content("transform", instantiate=True, eval_expr=True)
+
+    def test_pdb(self):
+        with self.assertRaisesRegex(RuntimeError, ".*bdb.BdbQuit.*"):
+            case_pdb()
+        self.assertEqual(case_pdb_inst(), None)  # pdb.runcall without input is None
+
+    def test_get_via_attributes(self):
+        config = {
+            "A": {"B": {"C": 1}},
+            "my_dims": 2,
+            "dims_1": "$@my_dims + 1",
+            "patch_size": [8, 8],
+            "transform": {"_target_": "Lambda", "func": "$lambda x: x.reshape((1, *@patch_size))"},
+        }
+        parser = ConfigParser(config=config)
+        self.assertEqual(parser.A, {"B": {"C": 1}})
+        self.assertEqual(parser.dims_1, 3)
+
+        trans = parser.transform
+        result = trans(np.ones(64))
+        self.assertTupleEqual(result.shape, (1, 8, 8))
+
+    def test_builtin(self):
+        config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
+        self.assertEqual(ConfigParser(config).calc, True)
+
+    def test_slicing(self):
+        config = {"test": [1, 2, 3, 4], "test1": "$@test[::]", "test2": "$@test[::-1]", "st": "aten::relu"}
+        self.assertEqual(ConfigParser(config).test1, [1, 2, 3, 4])
+        self.assertEqual(ConfigParser(config).test2, [4, 3, 2, 1])
+        self.assertEqual(ConfigParser(config).st, "aten::relu")
+
+    @parameterized.expand([TEST_CASE_5])
+    def test_substring_reference(self, config, expected):
+        parser = ConfigParser(config=config)
+        self.assertEqual(parser.get_parsed_content("total"), expected)
+
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
+    @mock.patch.dict(os.environ, {"MONAI_FAIL_ON_DUPLICATE_CONFIG": "1"})
+    @skipUnless(has_yaml, "Requires pyyaml")
+    def test_parse_json_raise(self, config_string, extension, _, __):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path = Path(tempdir) / f"config.{extension}"
+            config_path.write_text(config_string)
+            parser = ConfigParser()
+
+            with self.assertRaises(ValueError) as context:
+                parser.read_config(config_path)
+
+            self.assertTrue("Duplicate key: `duplicate`" in str(context.exception))
+
+    @parameterized.expand([TEST_CASE_DUPLICATED_KEY_JSON, TEST_CASE_DUPLICATED_KEY_YAML])
+    @skipUnless(has_yaml, "Requires pyyaml")
+    def test_parse_json_warn(self, config_string, extension, expected_unique_val, expected_duplicate_vals):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path = Path(tempdir) / f"config.{extension}"
+            config_path.write_text(config_string)
+            parser = ConfigParser()
+
+            with warnings.catch_warnings(record=True) as w:
+                parser.read_config(config_path)
+            self.assertEqual(len(w), 1)
+            self.assertTrue("Duplicate key: `duplicate`" in str(w[-1].message))
+
+            self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
+            self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
 
 
 if __name__ == "__main__":

@@ -9,21 +9,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .convutils import calculate_out_shape, gaussian_1d, polyval, same_padding, stride_minus_kernel_padding
+from .drop_path import DropPath
 from .factories import Act, Conv, Dropout, LayerFactory, Norm, Pad, Pool, split_args
-from .filtering import BilateralFilter, PHLFilter
+from .filtering import BilateralFilter, PHLFilter, TrainableBilateralFilter, TrainableJointBilateralFilter
 from .gmm import GaussianMixtureModel
 from .simplelayers import (
     LLTM,
+    ApplyFilter,
     ChannelPad,
+    EllipticalFilter,
     Flatten,
     GaussianFilter,
     HilbertTransform,
+    LaplaceFilter,
+    MeanFilter,
+    MedianFilter,
     Reshape,
     SavitzkyGolayFilter,
+    SharpenFilter,
     SkipConnection,
     apply_filter,
+    median_filter,
     separable_filtering,
 )
 from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push
 from .utils import get_act_layer, get_dropout_layer, get_norm_layer, get_pool_layer
+from .weight_init import _no_grad_trunc_normal_, trunc_normal_

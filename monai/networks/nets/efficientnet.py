@@ -9,16 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
 import operator
 import re
 from functools import reduce
-from typing import List, NamedTuple, Optional, Tuple, Type, Union
+from typing import NamedTuple
 
 import torch
 from torch import nn
 from torch.utils import model_zoo
 
+from monai.networks.blocks import BaseEncoder
 from monai.networks.layers.factories import Act, Conv, Pad, Pool
 from monai.networks.layers.utils import get_norm_layer
 from monai.utils.module import look_up_option
@@ -30,6 +33,7 @@ __all__ = [
     "drop_connect",
     "EfficientNetBNFeatures",
     "BlockArgs",
+    "EfficientNetEncoder",
 ]
 
 efficientnet_params = {
@@ -76,12 +80,12 @@ class MBConvBlock(nn.Module):
         out_channels: int,
         kernel_size: int,
         stride: int,
-        image_size: List[int],
+        image_size: list[int],
         expand_ratio: int,
-        se_ratio: Optional[float],
-        id_skip: Optional[bool] = True,
-        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
-        drop_connect_rate: Optional[float] = 0.2,
+        se_ratio: float | None,
+        id_skip: bool | None = True,
+        norm: str | tuple = ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        drop_connect_rate: float | None = 0.2,
     ) -> None:
         """
         Mobile Inverted Residual Bottleneck Block.
@@ -159,9 +163,9 @@ class MBConvBlock(nn.Module):
             self._se_adaptpool = adaptivepool_type(1)
             num_squeezed_channels = max(1, int(in_channels * self.se_ratio))
             self._se_reduce = conv_type(in_channels=oup, out_channels=num_squeezed_channels, kernel_size=1)
-            self._se_reduce_padding = _make_same_padder(self._se_reduce, [1, 1])
+            self._se_reduce_padding = _make_same_padder(self._se_reduce, [1] * spatial_dims)
             self._se_expand = conv_type(in_channels=num_squeezed_channels, out_channels=oup, kernel_size=1)
-            self._se_expand_padding = _make_same_padder(self._se_expand, [1, 1])
+            self._se_expand_padding = _make_same_padder(self._se_expand, [1] * spatial_dims)
 
         # Pointwise convolution phase
         final_oup = out_channels
@@ -225,7 +229,7 @@ class MBConvBlock(nn.Module):
 class EfficientNet(nn.Module):
     def __init__(
         self,
-        blocks_args_str: List[str],
+        blocks_args_str: list[str],
         spatial_dims: int = 2,
         in_channels: int = 3,
         num_classes: int = 1000,
@@ -233,7 +237,7 @@ class EfficientNet(nn.Module):
         depth_coefficient: float = 1.0,
         dropout_rate: float = 0.2,
         image_size: int = 224,
-        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        norm: str | tuple = ("batch", {"eps": 1e-3, "momentum": 0.01}),
         drop_connect_rate: float = 0.2,
         depth_divisor: int = 8,
     ) -> None:
@@ -262,8 +266,8 @@ class EfficientNet(nn.Module):
 
         # select the type of N-Dimensional layers to use
         # these are based on spatial dims and selected from MONAI factories
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv["conv", spatial_dims]
-        adaptivepool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv["conv", spatial_dims]
+        adaptivepool_type: type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d] = Pool[
             "adaptiveavg", spatial_dims
         ]
 
@@ -476,7 +480,7 @@ class EfficientNetBN(EfficientNet):
         spatial_dims: int = 2,
         in_channels: int = 3,
         num_classes: int = 1000,
-        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        norm: str | tuple = ("batch", {"eps": 1e-3, "momentum": 0.01}),
         adv_prop: bool = False,
     ) -> None:
         """
@@ -527,12 +531,9 @@ class EfficientNetBN(EfficientNet):
         ]
 
         # check if model_name is valid model
-        if model_name not in efficientnet_params.keys():
-            raise ValueError(
-                "invalid model_name {} found, must be one of {} ".format(
-                    model_name, ", ".join(efficientnet_params.keys())
-                )
-            )
+        if model_name not in efficientnet_params:
+            model_name_string = ", ".join(efficientnet_params.keys())
+            raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
         # get network parameters
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
@@ -565,7 +566,7 @@ class EfficientNetBNFeatures(EfficientNet):
         spatial_dims: int = 2,
         in_channels: int = 3,
         num_classes: int = 1000,
-        norm: Union[str, tuple] = ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        norm: str | tuple = ("batch", {"eps": 1e-3, "momentum": 0.01}),
         adv_prop: bool = False,
     ) -> None:
         """
@@ -587,12 +588,9 @@ class EfficientNetBNFeatures(EfficientNet):
         ]
 
         # check if model_name is valid model
-        if model_name not in efficientnet_params.keys():
-            raise ValueError(
-                "invalid model_name {} found, must be one of {} ".format(
-                    model_name, ", ".join(efficientnet_params.keys())
-                )
-            )
+        if model_name not in efficientnet_params:
+            model_name_string = ", ".join(efficientnet_params.keys())
+            raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
         # get network parameters
         weight_coeff, depth_coeff, image_size, dropout_rate, dropconnect_rate = efficientnet_params[model_name]
@@ -638,6 +636,80 @@ class EfficientNetBNFeatures(EfficientNet):
         return features
 
 
+class EfficientNetEncoder(EfficientNetBNFeatures, BaseEncoder):
+    """
+    Wrap the original efficientnet to an encoder for flexible-unet.
+    """
+
+    backbone_names = [
+        "efficientnet-b0",
+        "efficientnet-b1",
+        "efficientnet-b2",
+        "efficientnet-b3",
+        "efficientnet-b4",
+        "efficientnet-b5",
+        "efficientnet-b6",
+        "efficientnet-b7",
+        "efficientnet-b8",
+        "efficientnet-l2",
+    ]
+
+    @classmethod
+    def get_encoder_parameters(cls) -> list[dict]:
+        """
+        Get the initialization parameter for efficientnet backbones.
+        """
+        parameter_list = []
+        for backbone_name in cls.backbone_names:
+            parameter_list.append(
+                {
+                    "model_name": backbone_name,
+                    "pretrained": True,
+                    "progress": True,
+                    "spatial_dims": 2,
+                    "in_channels": 3,
+                    "num_classes": 1000,
+                    "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+                    "adv_prop": "ap" in backbone_name,
+                }
+            )
+        return parameter_list
+
+    @classmethod
+    def num_channels_per_output(cls) -> list[tuple[int, ...]]:
+        """
+        Get number of efficientnet backbone output feature maps' channel.
+        """
+        return [
+            (16, 24, 40, 112, 320),
+            (16, 24, 40, 112, 320),
+            (16, 24, 48, 120, 352),
+            (24, 32, 48, 136, 384),
+            (24, 32, 56, 160, 448),
+            (24, 40, 64, 176, 512),
+            (32, 40, 72, 200, 576),
+            (32, 48, 80, 224, 640),
+            (32, 56, 88, 248, 704),
+            (72, 104, 176, 480, 1376),
+        ]
+
+    @classmethod
+    def num_outputs(cls) -> list[int]:
+        """
+        Get number of efficientnet backbone output feature maps.
+        Since every backbone contains the same 5 output feature maps,
+        the number list should be `[5] * 10`.
+        """
+        return [5] * 10
+
+    @classmethod
+    def get_encoder_names(cls) -> list[str]:
+        """
+        Get names of efficient backbone.
+        """
+        return cls.backbone_names
+
+
 def get_efficientnet_image_size(model_name: str) -> int:
     """
     Get the input image size for a given efficientnet model.
@@ -650,10 +722,9 @@ def get_efficientnet_image_size(model_name: str) -> int:
 
     """
     # check if model_name is valid model
-    if model_name not in efficientnet_params.keys():
-        raise ValueError(
-            "invalid model_name {} found, must be one of {} ".format(model_name, ", ".join(efficientnet_params.keys()))
-        )
+    if model_name not in efficientnet_params:
+        model_name_string = ", ".join(efficientnet_params.keys())
+        raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
 
     # return input image size (all dims equal so only need to return for one dim)
     _, _, res, _, _ = efficientnet_params[model_name]
@@ -693,7 +764,7 @@ def drop_connect(inputs: torch.Tensor, p: float, training: bool) -> torch.Tensor
     num_dims: int = len(inputs.shape) - 2
 
     # build dimensions for random tensor, use num_dims to populate appropriate spatial dims
-    random_tensor_shape: List[int] = [batch_size, 1] + [1] * num_dims
+    random_tensor_shape: list[int] = [batch_size, 1] + [1] * num_dims
 
     # generate binary_tensor mask according to probability (p for 0, 1-p for 1)
     random_tensor: torch.Tensor = torch.rand(random_tensor_shape, dtype=inputs.dtype, device=inputs.device)
@@ -729,8 +800,8 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool, adv_prop: bool
 
 
 def _get_same_padding_conv_nd(
-    image_size: List[int], kernel_size: Tuple[int, ...], dilation: Tuple[int, ...], stride: Tuple[int, ...]
-) -> List[int]:
+    image_size: list[int], kernel_size: tuple[int, ...], dilation: tuple[int, ...], stride: tuple[int, ...]
+) -> list[int]:
     """
     Helper for getting padding (nn.ConstantPadNd) to be used to get SAME padding
     conv operations similar to Tensorflow's SAME padding.
@@ -757,20 +828,20 @@ def _get_same_padding_conv_nd(
         stride = stride * num_dims
 
     # equation to calculate (pad^+ + pad^-) size
-    _pad_size: List[int] = [
+    _pad_size: list[int] = [
         max((math.ceil(_i_s / _s) - 1) * _s + (_k_s - 1) * _d + 1 - _i_s, 0)
         for _i_s, _k_s, _d, _s in zip(image_size, kernel_size, dilation, stride)
     ]
     # distribute paddings into pad^+ and pad^- following Tensorflow's same padding strategy
-    _paddings: List[Tuple[int, int]] = [(_p // 2, _p - _p // 2) for _p in _pad_size]
+    _paddings: list[tuple[int, int]] = [(_p // 2, _p - _p // 2) for _p in _pad_size]
 
     # unroll list of tuples to tuples, and then to list
     # reversed as nn.ConstantPadNd expects paddings starting with last dimension
-    _paddings_ret: List[int] = [outer for inner in reversed(_paddings) for outer in inner]
+    _paddings_ret: list[int] = [outer for inner in reversed(_paddings) for outer in inner]
     return _paddings_ret
 
 
-def _make_same_padder(conv_op: Union[nn.Conv1d, nn.Conv2d, nn.Conv3d], image_size: List[int]):
+def _make_same_padder(conv_op: nn.Conv1d | nn.Conv2d | nn.Conv3d, image_size: list[int]):
     """
     Helper for initializing ConstantPadNd with SAME padding similar to Tensorflow.
     Uses output of _get_same_padding_conv_nd() to get the padding size.
@@ -785,7 +856,7 @@ def _make_same_padder(conv_op: Union[nn.Conv1d, nn.Conv2d, nn.Conv3d], image_siz
         If padding required then nn.ConstandNd() padder initialized to paddings otherwise nn.Identity()
     """
     # calculate padding required
-    padding: List[int] = _get_same_padding_conv_nd(image_size, conv_op.kernel_size, conv_op.dilation, conv_op.stride)
+    padding: list[int] = _get_same_padding_conv_nd(image_size, conv_op.kernel_size, conv_op.dilation, conv_op.stride)
 
     # initialize and return padder
     padder = Pad["constantpad", len(padding) // 2]
@@ -794,7 +865,7 @@ def _make_same_padder(conv_op: Union[nn.Conv1d, nn.Conv2d, nn.Conv3d], image_siz
     return nn.Identity()
 
 
-def _round_filters(filters: int, width_coefficient: Optional[float], depth_divisor: float) -> int:
+def _round_filters(filters: int, width_coefficient: float | None, depth_divisor: float) -> int:
     """
     Calculate and round number of filters based on width coefficient multiplier and depth divisor.
 
@@ -821,7 +892,7 @@ def _round_filters(filters: int, width_coefficient: Optional[float], depth_divis
     return int(new_filters)
 
 
-def _round_repeats(repeats: int, depth_coefficient: Optional[float]) -> int:
+def _round_repeats(repeats: int, depth_coefficient: float | None) -> int:
     """
     Re-calculate module's repeat number of a block based on depth coefficient multiplier.
 
@@ -839,7 +910,7 @@ def _round_repeats(repeats: int, depth_coefficient: Optional[float]) -> int:
     return int(math.ceil(depth_coefficient * repeats))
 
 
-def _calculate_output_image_size(input_image_size: List[int], stride: Union[int, Tuple[int]]):
+def _calculate_output_image_size(input_image_size: list[int], stride: int | tuple[int]):
     """
     Calculates the output image size when using _make_same_padder with a stride.
     Required for static padding.
@@ -877,7 +948,7 @@ class BlockArgs(NamedTuple):
     input_filters: int
     output_filters: int
     id_skip: bool
-    se_ratio: Optional[float] = None
+    se_ratio: float | None = None
 
     @staticmethod
     def from_string(block_string: str):
@@ -927,15 +998,10 @@ class BlockArgs(NamedTuple):
             A string notation of BlockArgs object arguments.
                 Example: "r1_k3_s11_e1_i32_o16_se0.25_noskip".
         """
-        string = "r{}_k{}_s{}{}_e{}_i{}_o{}_se{}".format(
-            self.num_repeat,
-            self.kernel_size,
-            self.stride,
-            self.stride,
-            self.expand_ratio,
-            self.input_filters,
-            self.output_filters,
-            self.se_ratio,
+        string = (
+            f"r{self.num_repeat}_k{self.kernel_size}_s{self.stride}{self.stride}"
+            f"_e{self.expand_ratio}_i{self.input_filters}_o{self.output_filters}"
+            f"_se{self.se_ratio}"
         )
 
         if not self.id_skip:

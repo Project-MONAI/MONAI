@@ -9,71 +9,103 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import RandSpatialCropd
-from tests.utils import TEST_NDARRAYS
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms import RandScaleCropd, RandSpatialCropd
+from monai.transforms.lazy.functional import apply_pending
+from tests.croppers import CropTest
+from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
-TEST_CASE_0 = [
-    {"keys": "img", "roi_size": [3, 3, -1], "random_center": True},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 5])},
-    (3, 3, 3, 5),
+TEST_SHAPES = [
+    [{"keys": "img", "roi_size": [3, 3, -1], "random_center": True}, (3, 3, 3, 5), (3, 3, 3, 5)],
+    [{"keys": "img", "roi_size": [3, 3, 3], "random_center": True}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"keys": "img", "roi_size": [3, 3, 3], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"keys": "img", "roi_size": [3, 2, 3], "random_center": False, "random_size": False}, (3, 3, 3, 3), (3, 3, 2, 3)],
 ]
 
-TEST_CASE_1 = [
-    {"keys": "img", "roi_size": [3, 3, 3], "random_center": True},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 3, 3, 3),
+TEST_VALUES = [
+    [
+        {"keys": "img", "roi_size": [3, 3], "random_center": False},
+        np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]]),
+    ]
 ]
 
-TEST_CASE_2 = [
-    {"keys": "img", "roi_size": [3, 3, 3], "random_center": False},
-    {"img": np.random.randint(0, 2, size=[3, 3, 3, 3])},
-    (3, 3, 3, 3),
+TEST_RANDOM_SHAPES = [
+    [
+        {"keys": "img", "roi_size": [3, 3, 3], "max_roi_size": [5, -1, 4], "random_center": True, "random_size": True},
+        (1, 4, 5, 6),
+        (1, 4, 4, 3),
+    ],
+    [
+        {"keys": "img", "roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True},
+        (1, 4, 5, 6),
+        (1, 3, 4, 3),
+    ],
 ]
 
-TEST_CASE_3 = [
-    {"keys": "img", "roi_size": [3, 3], "random_center": False},
-    {"img": np.array([[[0, 0, 0, 0, 0], [0, 1, 2, 1, 0], [0, 2, 3, 2, 0], [0, 1, 2, 1, 0], [0, 0, 0, 0, 0]]])},
-]
+func1 = {RandSpatialCropd: {"keys": "img", "roi_size": [8, 7, -1], "random_center": True, "random_size": False}}
+func2 = {RandScaleCropd: {"keys": "img", "roi_scale": [0.5, 0.6, -1.0], "random_center": True, "random_size": True}}
+func3 = {RandScaleCropd: {"keys": "img", "roi_scale": [1.0, 0.5, -1.0], "random_center": False, "random_size": False}}
 
-TEST_CASE_4 = [
-    {"keys": "img", "roi_size": [3, 3, 3], "max_roi_size": [5, -1, 4], "random_center": True, "random_size": True},
-    {"img": np.random.randint(0, 2, size=[1, 4, 5, 6])},
-    (1, 4, 4, 3),
-]
-
-TEST_CASE_5 = [
-    {"keys": "img", "roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True},
-    {"img": np.random.randint(0, 2, size=[1, 4, 5, 6])},
-    (1, 3, 4, 3),
-]
+TESTS_COMBINE = []
+TESTS_COMBINE.append([[func1, func2, func3], (3, 10, 10, 8)])
+TESTS_COMBINE.append([[func1, func2], (3, 8, 8, 4)])
+TESTS_COMBINE.append([[func2, func2], (3, 8, 8, 4)])
 
 
-class TestRandSpatialCropd(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = RandSpatialCropd(**input_param)(input_data)
-        self.assertTupleEqual(result["img"].shape, expected_shape)
+class TestRandSpatialCropd(CropTest):
+    Cropper = RandSpatialCropd
 
-    @parameterized.expand([TEST_CASE_3])
-    def test_value(self, input_param, input_data):
-        cropper = RandSpatialCropd(**input_param)
-        result = cropper(input_data)
-        roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper._size]
-        np.testing.assert_allclose(result["img"], input_data["img"][:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]])
+    @parameterized.expand(TEST_SHAPES)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        self.crop_test(input_param, input_shape, expected_shape)
 
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
-    def test_random_shape(self, input_param, input_data, expected_shape):
-        for p in TEST_NDARRAYS:
-            cropper = RandSpatialCropd(**input_param)
-            cropper.set_random_state(seed=123)
-            input_data["img"] = p(input_data["img"])
-            result = cropper(input_data)
-            self.assertTupleEqual(result["img"].shape, expected_shape)
+    @parameterized.expand(TEST_VALUES)
+    def test_value(self, input_param, input_im):
+        for im_type in TEST_NDARRAYS_ALL:
+            with self.subTest(im_type=im_type):
+                cropper = self.Cropper(**input_param)
+                input_data = {"img": im_type(input_im)}
+                result = cropper(input_data)["img"]
+                roi = [(2 - i // 2, 2 + i - i // 2) for i in cropper.cropper._size]
+                assert_allclose(result, input_im[:, roi[0][0] : roi[0][1], roi[1][0] : roi[1][1]], type_test="tensor")
+
+    @parameterized.expand(TEST_RANDOM_SHAPES)
+    def test_random_shape(self, input_param, input_shape, expected_shape):
+        for im_type in TEST_NDARRAYS_ALL:
+            with self.subTest(im_type=im_type):
+                cropper = self.Cropper(**input_param)
+                cropper.set_random_state(seed=123)
+                input_data = {"img": im_type(np.random.randint(0, 2, input_shape))}
+                expected = cropper(input_data)["img"]
+                self.assertTupleEqual(expected.shape, expected_shape)
+
+                # lazy
+                # reset random seed to ensure the same results
+                cropper.set_random_state(seed=123)
+                cropper.lazy = True
+                pending_result = cropper(input_data)["img"]
+                self.assertIsInstance(pending_result, MetaTensor)
+                assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+                assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+                # only support nearest
+                result = apply_pending(pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
+                # compare
+                assert_allclose(result, expected, rtol=1e-5)
+
+    @parameterized.expand(TEST_SHAPES)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.crop_test_pending_ops(input_param, input_shape)
+
+    @parameterized.expand(TESTS_COMBINE)
+    def test_combine_ops(self, funcs, input_shape):
+        self.crop_test_combine_ops(funcs, input_shape)
 
 
 if __name__ == "__main__":

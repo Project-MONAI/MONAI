@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 from bisect import bisect_right
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
 from monai.utils import min_version, optional_import
@@ -33,7 +36,7 @@ class ParamSchedulerHandler:
         value_calculator (Union[str,Callable]): Either a string ('linear', 'exponential', 'step' or 'multistep')
          or Callable for custom logic.
         vc_kwargs (Dict): Dictionary that stores the required parameters for the value_calculator.
-        epoch_level (bool): Whether the the step is based on epoch or iteration. Defaults to False.
+        epoch_level (bool): Whether the step is based on epoch or iteration. Defaults to False.
         name (Optional[str]): Identifier of logging.logger to use, if None, defaulting to ``engine.logger``.
         event (Optional[str]): Event to which the handler attaches. Defaults to Events.ITERATION_COMPLETED.
     """
@@ -41,14 +44,14 @@ class ParamSchedulerHandler:
     def __init__(
         self,
         parameter_setter: Callable,
-        value_calculator: Union[str, Callable],
-        vc_kwargs: Dict,
+        value_calculator: str | Callable,
+        vc_kwargs: dict,
         epoch_level: bool = False,
-        name: Optional[str] = None,
-        event=Events.ITERATION_COMPLETED,
+        name: str | None = None,
+        event: str | None = None,
     ):
         self.epoch_level = epoch_level
-        self.event = event
+        self.event = event if event is not None else Events.ITERATION_COMPLETED
 
         self._calculators = {
             "linear": self._linear,
@@ -73,7 +76,7 @@ class ParamSchedulerHandler:
             f"value_calculator must be either a string from {list(self._calculators.keys())} or a Callable."
         )
 
-    def __call__(self, engine: Engine):
+    def __call__(self, engine: Engine) -> None:
         if self.epoch_level:
             self._vc_kwargs["current_step"] = engine.state.epoch
         else:
@@ -156,7 +159,7 @@ class ParamSchedulerHandler:
         return initial_value * gamma ** (current_step // step_size)
 
     @staticmethod
-    def _multistep(initial_value: float, gamma: float, milestones: List[int], current_step: int) -> float:
+    def _multistep(initial_value: float, gamma: float, milestones: list[int], current_step: int) -> float:
         """
         Decays the parameter value by gamma once the number of steps reaches one of the milestones.
 

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -17,7 +19,7 @@ from parameterized import parameterized
 from torch.autograd import gradcheck
 
 from monai.networks.layers.filtering import BilateralFilter
-from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda
+from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda, skip_if_quick
 
 TEST_CASES = [
     [
@@ -362,10 +364,10 @@ TEST_CASES = [
 
 
 @skip_if_no_cpp_extension
+@skip_if_quick
 class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cpu_precise(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
         fast_approx = False
@@ -379,7 +381,6 @@ class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_cpu_precise_backwards(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cpu")
         fast_approx = False
@@ -400,7 +401,6 @@ class BilateralFilterTestCaseCpuPrecise(unittest.TestCase):
 class BilateralFilterTestCaseCudaPrecise(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_cuda_precise(self, test_case_description, sigmas, input, expected):
-
         # Skip this test
         if not torch.cuda.is_available():
             return
@@ -418,7 +418,6 @@ class BilateralFilterTestCaseCudaPrecise(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_cuda_precise_backwards(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cuda")
         fast_approx = False

@@ -9,19 +9,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Any, Sequence, Union
+from typing import Any, Sequence
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
-from tests.utils import test_script_save
+from monai.utils import optional_import
+from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
+
+InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-strides: Sequence[Union[Sequence[int], int]]
+strides: Sequence[Sequence[int] | int]
 kernel_size: Sequence[Any]
 expected_shape: Sequence[Any]
 
@@ -104,9 +109,11 @@ for spatial_dims in [2, 3]:
 
 
 class TestDynUNet(unittest.TestCase):
-    @parameterized.expand(TEST_CASE_DYNUNET_2D + TEST_CASE_DYNUNET_3D)
+    @parameterized.expand(TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
+        if "alphadropout" in input_param.get("dropout"):
+            self.assertTrue(any(isinstance(x, torch.nn.AlphaDropout) for x in net.modules()))
         with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
@@ -116,6 +123,41 @@ class TestDynUNet(unittest.TestCase):
         net = DynUNet(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+
+@skip_if_no_cuda
+@skip_if_windows
+class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
+    def setUp(self):
+        try:
+            layer = InstanceNorm3dNVFuser(num_features=1, affine=False).to("cuda:0")
+            inp = torch.randn([1, 1, 1, 1, 1]).to("cuda:0")
+            out = layer(inp)
+            del inp, out, layer
+        except Exception:
+            self.skipTest("NVFuser not available")
+
+    @parameterized.expand([TEST_CASE_DYNUNET_3D[0]])
+    def test_consistency(self, input_param, input_shape, _):
+        for eps in [1e-4, 1e-5]:
+            for momentum in [0.1, 0.01]:
+                for affine in [True, False]:
+                    norm_param = {"eps": eps, "momentum": momentum, "affine": affine}
+                    input_param["norm_name"] = ("instance", norm_param)
+                    input_param_fuser = input_param.copy()
+                    input_param_fuser["norm_name"] = ("instance_nvfuser", norm_param)
+                    for memory_format in [torch.contiguous_format, torch.channels_last_3d]:
+                        net = DynUNet(**input_param).to("cuda:0", memory_format=memory_format)
+                        net_fuser = DynUNet(**input_param_fuser).to("cuda:0", memory_format=memory_format)
+                        net_fuser.load_state_dict(net.state_dict())
+
+                        input_tensor = torch.randn(input_shape).to("cuda:0", memory_format=memory_format)
+                        with eval_mode(net):
+                            result = net(input_tensor)
+                        with eval_mode(net_fuser):
+                            result_fuser = net_fuser(input_tensor)
+
+                        assert_allclose(result, result_fuser, rtol=1e-4, atol=1e-4)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):

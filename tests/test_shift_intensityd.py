@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -25,7 +27,7 @@ class TestShiftIntensityd(NumpyImageTestCase2D):
             shifter = ShiftIntensityd(keys=[key], offset=1.0)
             result = shifter({key: p(self.imt)})
             expected = self.imt + 1.0
-            assert_allclose(result[key], p(expected))
+            assert_allclose(result[key], p(expected), type_test="tensor")
 
     def test_factor(self):
         key = "img"

@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import re
 from collections import OrderedDict
-from typing import Any, List, Optional, Sequence, Tuple, Type, Union
+from collections.abc import Sequence
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -34,7 +37,6 @@ __all__ = [
     "SE_NET_MODELS",
 ]
 
-
 SE_NET_MODELS = {
     "senet154": "http://data.lip6.fr/cadene/pretrainedmodels/senet154-c7b49a05.pth",
     "se_resnet50": "http://data.lip6.fr/cadene/pretrainedmodels/se_resnet50-ce0d4300.pth",
@@ -54,10 +56,10 @@ class SENet(nn.Module):
     Args:
         spatial_dims: spatial dimension of the input data.
         in_channels: channel number of the input data.
-        block: SEBlock class.
-            for SENet154: SEBottleneck
-            for SE-ResNet models: SEResNetBottleneck
-            for SE-ResNeXt models:  SEResNeXtBottleneck
+        block: SEBlock class or str.
+            for SENet154: SEBottleneck or 'se_bottleneck'
+            for SE-ResNet models: SEResNetBottleneck or 'se_resnet_bottleneck'
+            for SE-ResNeXt models:  SEResNeXtBottleneck or 'se_resnetxt_bottleneck'
         layers: number of residual blocks for 4 layers of the network (layer1...layer4).
         groups: number of groups for the 3x3 convolution in each bottleneck block.
             for SENet154: 64
@@ -95,33 +97,44 @@ class SENet(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
+        block: type[SEBottleneck | SEResNetBottleneck | SEResNeXtBottleneck] | str,
         layers: Sequence[int],
         groups: int,
         reduction: int,
-        dropout_prob: Optional[float] = 0.2,
+        dropout_prob: float | None = 0.2,
         dropout_dim: int = 1,
         inplanes: int = 128,
         downsample_kernel_size: int = 3,
         input_3x3: bool = True,
         num_classes: int = 1000,
     ) -> None:
-
         super().__init__()
 
-        relu_type: Type[nn.ReLU] = Act[Act.RELU]
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-        pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
-        norm_type: Type[Union[nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d]] = Norm[Norm.BATCH, spatial_dims]
-        dropout_type: Type[Union[nn.Dropout, nn.Dropout2d, nn.Dropout3d]] = Dropout[Dropout.DROPOUT, dropout_dim]
-        avg_pool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
+        if isinstance(block, str):
+            if block == "se_bottleneck":
+                block = SEBottleneck
+            elif block == "se_resnet_bottleneck":
+                block = SEResNetBottleneck
+            elif block == "se_resnetxt_bottleneck":
+                block = SEResNeXtBottleneck
+            else:
+                raise ValueError(
+                    "Unknown block '%s', use se_bottleneck, se_resnet_bottleneck or se_resnetxt_bottleneck" % block
+                )
+
+        relu_type: type[nn.ReLU] = Act[Act.RELU]
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
+        pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
+        norm_type: type[nn.BatchNorm1d | nn.BatchNorm2d | nn.BatchNorm3d] = Norm[Norm.BATCH, spatial_dims]
+        dropout_type: type[nn.Dropout | nn.Dropout2d | nn.Dropout3d] = Dropout[Dropout.DROPOUT, dropout_dim]
+        avg_pool_type: type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d] = Pool[
             Pool.ADAPTIVEAVG, spatial_dims
         ]
 
         self.inplanes = inplanes
         self.spatial_dims = spatial_dims
 
-        layer0_modules: List[Tuple[str, Any]]
+        layer0_modules: list[tuple[str, Any]]
 
         if input_3x3:
             layer0_modules = [
@@ -200,7 +213,7 @@ class SENet(nn.Module):
 
     def _make_layer(
         self,
-        block: Type[Union[SEBottleneck, SEResNetBottleneck, SEResNeXtBottleneck]],
+        block: type[SEBottleneck | SEResNetBottleneck | SEResNeXtBottleneck],
         planes: int,
         blocks: int,
         groups: int,
@@ -208,7 +221,6 @@ class SENet(nn.Module):
         stride: int = 1,
         downsample_kernel_size: int = 1,
     ) -> nn.Sequential:
-
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = Convolution(
@@ -347,7 +359,7 @@ class SEResNet50(SENet):
         layers: Sequence[int] = (3, 4, 6, 3),
         groups: int = 1,
         reduction: int = 16,
-        dropout_prob: Optional[float] = None,
+        dropout_prob: float | None = None,
         inplanes: int = 64,
         downsample_kernel_size: int = 1,
         input_3x3: bool = False,
@@ -445,7 +457,7 @@ class SEResNext50(SENet):
         layers: Sequence[int] = (3, 4, 6, 3),
         groups: int = 32,
         reduction: int = 16,
-        dropout_prob: Optional[float] = None,
+        dropout_prob: float | None = None,
         inplanes: int = 64,
         downsample_kernel_size: int = 1,
         input_3x3: bool = False,
@@ -479,7 +491,7 @@ class SEResNext101(SENet):
         layers: Sequence[int] = (3, 4, 23, 3),
         groups: int = 32,
         reduction: int = 16,
-        dropout_prob: Optional[float] = None,
+        dropout_prob: float | None = None,
         inplanes: int = 64,
         downsample_kernel_size: int = 1,
         input_3x3: bool = False,

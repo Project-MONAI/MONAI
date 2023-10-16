@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
 from parameterized import parameterized
 
 from monai.transforms import ToDevice
-from tests.utils import skip_if_no_cuda
+from tests.utils import assert_allclose, skip_if_no_cuda
 
 TEST_CASE_1 = ["cuda:0"]
 
@@ -33,7 +35,7 @@ class TestToDevice(unittest.TestCase):
         converter = ToDevice(device=device, non_blocking=True)
         data = torch.tensor([1, 2, 3, 4])
         ret = converter(data)
-        torch.testing.assert_allclose(ret, data.to(device))
+        assert_allclose(ret, data.to(device))
 
 
 if __name__ == "__main__":

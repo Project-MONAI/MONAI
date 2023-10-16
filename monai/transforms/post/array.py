@@ -9,23 +9,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for the model output tensors
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for the model output tensors.
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Callable, Iterable, Optional, Sequence, Union
+from collections.abc import Callable, Iterable, Sequence
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
-from monai.networks.layers import GaussianFilter, apply_filter
+from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering
+from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import Transform
-from monai.transforms.utils import fill_holes, get_largest_connected_component_mask, get_unique_labels
+from monai.transforms.utility.array import ToTensor
+from monai.transforms.utils import (
+    convert_applied_interp_mode,
+    distance_transform_edt,
+    fill_holes,
+    get_largest_connected_component_mask,
+    get_unique_labels,
+    remove_small_objects,
+)
 from monai.transforms.utils_pytorch_numpy_unification import unravel_index
-from monai.utils import TransformBackends, convert_data_type, deprecated_arg, ensure_tuple, look_up_option
+from monai.utils import TransformBackends, convert_data_type, convert_to_tensor, ensure_tuple, look_up_option
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -33,17 +46,21 @@ __all__ = [
     "AsDiscrete",
     "FillHoles",
     "KeepLargestConnectedComponent",
+    "RemoveSmallObjects",
     "LabelFilter",
     "LabelToContour",
     "MeanEnsemble",
     "ProbNMS",
+    "SobelGradients",
     "VoteEnsemble",
+    "Invert",
+    "DistanceTransformEDT",
 ]
 
 
 class Activations(Transform):
     """
-    Add activation operations to the model output, typically `Sigmoid` or `Softmax`.
+    Activation operations, typically `Sigmoid` or `Softmax`.
 
     Args:
         sigmoid: whether to execute sigmoid function on model output before transform.
@@ -52,6 +69,8 @@ class Activations(Transform):
             Defaults to ``False``.
         other: callable function to execute other activation layers, for example:
             `other = lambda x: torch.tanh(x)`. Defaults to ``None``.
+        kwargs: additional parameters to `torch.softmax` (used when ``softmax=True``).
+            Defaults to ``dim=0``, unrecognized parameters will be ignored.
 
     Raises:
         TypeError: When ``other`` is not an ``Optional[Callable]``.
@@ -60,9 +79,10 @@ class Activations(Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Optional[Callable] = None) -> None:
+    def __init__(self, sigmoid: bool = False, softmax: bool = False, other: Callable | None = None, **kwargs) -> None:
         self.sigmoid = sigmoid
         self.softmax = softmax
+        self.kwargs = kwargs
         if other is not None and not callable(other):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
         self.other = other
@@ -70,9 +90,9 @@ class Activations(Transform):
     def __call__(
         self,
         img: NdarrayOrTensor,
-        sigmoid: Optional[bool] = None,
-        softmax: Optional[bool] = None,
-        other: Optional[Callable] = None,
+        sigmoid: bool | None = None,
+        softmax: bool | None = None,
+        other: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -95,11 +115,12 @@ class Activations(Transform):
             raise TypeError(f"other must be None or callable but is {type(other).__name__}.")
 
         # convert to float as activation must operate on float tensor
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor, dtype=torch.float)
         if sigmoid or self.sigmoid:
             img_t = torch.sigmoid(img_t)
         if softmax or self.softmax:
-            img_t = torch.softmax(img_t, dim=0)
+            img_t = torch.softmax(img_t, dim=self.kwargs.get("dim", 0))
 
         act_func = self.other if other is None else other
         if act_func is not None:
@@ -110,12 +131,11 @@ class Activations(Transform):
 
 class AsDiscrete(Transform):
     """
-    Execute after model forward to transform model output to discrete values.
-    It can complete below operations:
+    Convert the input tensor/array into discrete values, possible operations are:
 
-        -  execute `argmax` for input logits values.
-        -  threshold input value to 0.0 or 1.0.
-        -  convert input value to One-Hot format.
+        -  `argmax`.
+        -  threshold input value to binary values.
+        -  convert input value to One-Hot format (set ``to_one_hot=N``, `N` is the number of classes).
         -  round the value to the closest integer.
 
     Args:
@@ -123,10 +143,13 @@ class AsDiscrete(Transform):
             Defaults to ``False``.
         to_onehot: if not None, convert input data into the one-hot format with specified number of classes.
             Defaults to ``None``.
-        threshold: if not None, threshold the float values to int number 0 or 1 with specified theashold.
+        threshold: if not None, threshold the float values to int number 0 or 1 with specified threshold.
             Defaults to ``None``.
         rounding: if not None, round the data according to the specified option,
             available options: ["torchrounding"].
+        kwargs: additional parameters to `torch.argmax`, `monai.networks.one_hot`.
+            currently ``dim``, ``keepdim``, ``dtype`` are supported, unrecognized parameters will be ignored.
+            These default to ``0``, ``True``, ``torch.float`` respectively.
 
     Example:
 
@@ -142,65 +165,33 @@ class AsDiscrete(Transform):
         >>> print(transform(np.array([[[0.0, 1.0]], [[2.0, 3.0]]])))
         # [[[0.0, 0.0]], [[1.0, 1.0]]]
 
-    .. deprecated:: 0.6.0
-        ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-    .. deprecated:: 0.7.0
-        ``num_classes`` is deprecated, use ``to_onehot`` instead.
-        ``logit_thresh`` is deprecated, use ``threshold`` instead.
-        ``threshold_values`` is deprecated, use ``threshold`` instead.
-
     """
 
     backend = [TransformBackends.TORCH]
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __init__(
         self,
         argmax: bool = False,
-        to_onehot: Optional[int] = None,
-        threshold: Optional[float] = None,
-        rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
-        num_classes: Optional[int] = None,  # deprecated
-        logit_thresh: float = 0.5,  # deprecated
-        threshold_values: Optional[bool] = False,  # deprecated
+        to_onehot: int | None = None,
+        threshold: float | None = None,
+        rounding: str | None = None,
+        **kwargs,
     ) -> None:
         self.argmax = argmax
         if isinstance(to_onehot, bool):  # for backward compatibility
-            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-            to_onehot = num_classes if to_onehot else None
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
         self.to_onehot = to_onehot
-
-        if isinstance(threshold, bool):  # for backward compatibility
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-            threshold = logit_thresh if threshold else None
         self.threshold = threshold
-
         self.rounding = rounding
+        self.kwargs = kwargs
 
-    @deprecated_arg(name="n_classes", new_name="num_classes", since="0.6", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("num_classes", since="0.7", msg_suffix="please use `to_onehot` instead.")
-    @deprecated_arg("logit_thresh", since="0.7", msg_suffix="please use `threshold` instead.")
-    @deprecated_arg(
-        name="threshold_values", new_name="threshold", since="0.7", msg_suffix="please use `threshold` instead."
-    )
     def __call__(
         self,
         img: NdarrayOrTensor,
-        argmax: Optional[bool] = None,
-        to_onehot: Optional[int] = None,
-        threshold: Optional[float] = None,
-        rounding: Optional[str] = None,
-        n_classes: Optional[int] = None,  # deprecated
-        num_classes: Optional[int] = None,  # deprecated
-        logit_thresh: Optional[float] = None,  # deprecated
-        threshold_values: Optional[bool] = None,  # deprecated
+        argmax: bool | None = None,
+        to_onehot: int | None = None,
+        threshold: float | None = None,
+        rounding: str | None = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -215,31 +206,21 @@ class AsDiscrete(Transform):
             rounding: if not None, round the data according to the specified option,
                 available options: ["torchrounding"].
 
-        .. deprecated:: 0.6.0
-            ``n_classes`` is deprecated, use ``to_onehot`` instead.
-
-        .. deprecated:: 0.7.0
-            ``num_classes`` is deprecated, use ``to_onehot`` instead.
-            ``logit_thresh`` is deprecated, use ``threshold`` instead.
-            ``threshold_values`` is deprecated, use ``threshold`` instead.
-
         """
         if isinstance(to_onehot, bool):
-            warnings.warn("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
-            to_onehot = num_classes if to_onehot else None
-        if isinstance(threshold, bool):
-            warnings.warn("`threshold_values=True/False` is deprecated, please use `threshold=value` instead.")
-            threshold = logit_thresh if threshold else None
-
+            raise ValueError("`to_onehot=True/False` is deprecated, please use `to_onehot=num_classes` instead.")
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t, *_ = convert_data_type(img, torch.Tensor)
         if argmax or self.argmax:
-            img_t = torch.argmax(img_t, dim=0, keepdim=True)
+            img_t = torch.argmax(img_t, dim=self.kwargs.get("dim", 0), keepdim=self.kwargs.get("keepdim", True))
 
         to_onehot = self.to_onehot if to_onehot is None else to_onehot
         if to_onehot is not None:
             if not isinstance(to_onehot, int):
-                raise AssertionError("the number of classes for One-Hot must be an integer.")
-            img_t = one_hot(img_t, num_classes=to_onehot, dim=0)
+                raise ValueError(f"the number of classes for One-Hot must be an integer, got {type(to_onehot)}.")
+            img_t = one_hot(
+                img_t, num_classes=to_onehot, dim=self.kwargs.get("dim", 0), dtype=self.kwargs.get("dtype", torch.float)
+            )
 
         threshold = self.threshold if threshold is None else threshold
         if threshold is not None:
@@ -250,7 +231,7 @@ class AsDiscrete(Transform):
             look_up_option(rounding, ["torchrounding"])
             img_t = torch.round(img_t)
 
-        img, *_ = convert_to_dst_type(img_t, img, dtype=torch.float)
+        img, *_ = convert_to_dst_type(img_t, img, dtype=self.kwargs.get("dtype", torch.float))
         return img
 
 
@@ -298,14 +279,15 @@ class KeepLargestConnectedComponent(Transform):
 
     """
 
-    backend = [TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
 
     def __init__(
         self,
-        applied_labels: Optional[Union[Sequence[int], int]] = None,
-        is_onehot: Optional[bool] = None,
+        applied_labels: Sequence[int] | int | None = None,
+        is_onehot: bool | None = None,
         independent: bool = True,
-        connectivity: Optional[int] = None,
+        connectivity: int | None = None,
+        num_components: int = 1,
     ) -> None:
         """
         Args:
@@ -323,6 +305,7 @@ class KeepLargestConnectedComponent(Transform):
                 Accepted values are ranging from  1 to input.ndim. If ``None``, a full
                 connectivity of ``input.ndim`` is used. for more details:
                 https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.label.
+            num_components: The number of largest components to preserve.
 
         """
         super().__init__()
@@ -330,6 +313,7 @@ class KeepLargestConnectedComponent(Transform):
         self.is_onehot = is_onehot
         self.independent = independent
         self.connectivity = connectivity
+        self.num_components = num_components
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -344,31 +328,69 @@ class KeepLargestConnectedComponent(Transform):
             applied_labels = self.applied_labels
         else:
             applied_labels = tuple(get_unique_labels(img, is_onehot, discard=0))
-
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         if self.independent:
             for i in applied_labels:
-                foreground = img[i] > 0 if is_onehot else img[0] == i
-                mask = get_largest_connected_component_mask(foreground, self.connectivity)
+                foreground = img_[i] > 0 if is_onehot else img_[0] == i
+                mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
                 if is_onehot:
-                    img[i][foreground != mask] = 0
+                    img_[i][foreground != mask] = 0
                 else:
-                    img[0][foreground != mask] = 0
-            return img
+                    img_[0][foreground != mask] = 0
+            return convert_to_dst_type(img_, dst=img)[0]
         if not is_onehot:  # not one-hot, union of labels
-            labels, *_ = convert_to_dst_type(applied_labels, dst=img, wrap_sequence=True)
-            foreground = (img[..., None] == labels).any(-1)[0]
-            mask = get_largest_connected_component_mask(foreground, self.connectivity)
-            img[0][foreground != mask] = 0
-            return img
+            labels, *_ = convert_to_dst_type(applied_labels, dst=img_, wrap_sequence=True)
+            foreground = (img_[..., None] == labels).any(-1)[0]
+            mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
+            img_[0][foreground != mask] = 0
+            return convert_to_dst_type(img_, dst=img)[0]
         # one-hot, union of labels
-        foreground = (img[applied_labels, ...] == 1).any(0)
-        mask = get_largest_connected_component_mask(foreground, self.connectivity)
+        foreground = (img_[applied_labels, ...] == 1).any(0)
+        mask = get_largest_connected_component_mask(foreground, self.connectivity, self.num_components)
         for i in applied_labels:
-            img[i][foreground != mask] = 0
-        return img
+            img_[i][foreground != mask] = 0
+        return convert_to_dst_type(img_, dst=img)[0]
 
 
-class LabelFilter:
+class RemoveSmallObjects(Transform):
+    """
+    Use `skimage.morphology.remove_small_objects` to remove small objects from images.
+    See: https://scikit-image.org/docs/dev/api/skimage.morphology.html#remove-small-objects.
+
+    Data should be one-hotted.
+
+    Args:
+        min_size: objects smaller than this size (in pixel) are removed.
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+            Accepted values are ranging from  1 to input.ndim. If ``None``, a full
+            connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
+            documentation.
+        independent_channels: Whether or not to consider channels as independent. If true, then
+            conjoining islands from different labels will be removed if they are below the threshold.
+            If false, the overall size islands made from all non-background voxels will be used.
+    """
+
+    backend = [TransformBackends.NUMPY]
+
+    def __init__(self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True) -> None:
+        self.min_size = min_size
+        self.connectivity = connectivity
+        self.independent_channels = independent_channels
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: shape must be (C, spatial_dim1[, spatial_dim2, ...]). Data
+                should be one-hotted.
+
+        Returns:
+            An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
+        """
+        return remove_small_objects(img, self.min_size, self.connectivity, self.independent_channels)
+
+
+class LabelFilter(Transform):
     """
     This transform filters out labels and can be used as a processing step to view only certain labels.
 
@@ -388,7 +410,7 @@ class LabelFilter:
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, applied_labels: Union[Iterable[int], int]) -> None:
+    def __init__(self, applied_labels: Iterable[int] | int) -> None:
         """
         Initialize the LabelFilter class with the labels to filter on.
 
@@ -414,13 +436,15 @@ class LabelFilter:
             raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
 
         if isinstance(img, torch.Tensor):
+            img = convert_to_tensor(img, track_meta=get_track_meta())
+            img_ = convert_to_tensor(img, track_meta=False)
             if hasattr(torch, "isin"):  # `isin` is new in torch 1.10.0
-                appl_lbls = torch.as_tensor(self.applied_labels, device=img.device)
-                return torch.where(torch.isin(img, appl_lbls), img, torch.tensor(0.0).to(img))
-            else:
-                out = self(img.detach().cpu().numpy())
-                out, *_ = convert_to_dst_type(out, img)
-                return out
+                appl_lbls = torch.as_tensor(self.applied_labels, device=img_.device)
+                out = torch.where(torch.isin(img_, appl_lbls), img_, torch.tensor(0.0).to(img_))
+                return convert_to_dst_type(out, dst=img)[0]
+            out: NdarrayOrTensor = self(img_.detach().cpu().numpy())  # type: ignore
+            out = convert_to_dst_type(out, img)[0]  # type: ignore
+            return out
         return np.asarray(np.where(np.isin(img, self.applied_labels), img, 0))
 
 
@@ -466,9 +490,7 @@ class FillHoles(Transform):
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(
-        self, applied_labels: Optional[Union[Iterable[int], int]] = None, connectivity: Optional[int] = None
-    ) -> None:
+    def __init__(self, applied_labels: Iterable[int] | int | None = None, connectivity: int | None = None) -> None:
         """
         Initialize the connectivity and limit the labels for which holes are filled.
 
@@ -497,8 +519,7 @@ class FillHoles(Transform):
         Returns:
             Pytorch Tensor or numpy array of shape [C, spatial_dim1[, spatial_dim2, ...]].
         """
-        if not isinstance(img, (np.ndarray, torch.Tensor)):
-            raise NotImplementedError(f"{self.__class__} can not handle data of type {type(img)}.")
+        img = convert_to_tensor(img, track_meta=get_track_meta())
         img_np, *_ = convert_data_type(img, np.ndarray)
         out_np: np.ndarray = fill_holes(img_np, self.applied_labels, self.connectivity)
         out, *_ = convert_to_dst_type(out_np, img)
@@ -541,7 +562,8 @@ class LabelToContour(Transform):
                    ideally the edge should be thin enough, but now it has a thickness.
 
         """
-        img_: torch.Tensor = convert_data_type(img, torch.Tensor)[0]
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_: torch.Tensor = convert_to_tensor(img, track_meta=False)
         spatial_dims = len(img_.shape) - 1
         img_ = img_.unsqueeze(0)  # adds a batch dim
         if spatial_dims == 2:
@@ -559,7 +581,7 @@ class LabelToContour(Transform):
 
 class Ensemble:
     @staticmethod
-    def get_stacked_torch(img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> torch.Tensor:
+    def get_stacked_torch(img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> torch.Tensor:
         """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""
         if isinstance(img, Sequence) and isinstance(img[0], np.ndarray):
             img = [torch.as_tensor(i) for i in img]
@@ -569,7 +591,7 @@ class Ensemble:
         return out
 
     @staticmethod
-    def post_convert(img: torch.Tensor, orig_img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+    def post_convert(img: torch.Tensor, orig_img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
         orig_img_ = orig_img[0] if isinstance(orig_img, Sequence) else orig_img
         out, *_ = convert_to_dst_type(img, orig_img_)
         return out
@@ -600,10 +622,10 @@ class MeanEnsemble(Ensemble, Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, weights: Optional[Union[Sequence[float], NdarrayOrTensor]] = None) -> None:
+    def __init__(self, weights: Sequence[float] | NdarrayOrTensor | None = None) -> None:
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
-    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+    def __call__(self, img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
         img_ = self.get_stacked_torch(img)
         if self.weights is not None:
             self.weights = self.weights.to(img_.device)
@@ -640,10 +662,10 @@ class VoteEnsemble(Ensemble, Transform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, num_classes: Optional[int] = None) -> None:
+    def __init__(self, num_classes: int | None = None) -> None:
         self.num_classes = num_classes
 
-    def __call__(self, img: Union[Sequence[NdarrayOrTensor], NdarrayOrTensor]) -> NdarrayOrTensor:
+    def __call__(self, img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
         img_ = self.get_stacked_torch(img)
 
         if self.num_classes is not None:
@@ -683,7 +705,7 @@ class ProbNMS(Transform):
         prob_threshold: the probability threshold, the function will stop searching if
             the highest probability is no larger than the threshold. The value should be
             no less than 0.0. Defaults to 0.5.
-        box_size: the box size (in pixel) to be removed around the the pixel with the maximum probability.
+        box_size: the box size (in pixel) to be removed around the pixel with the maximum probability.
             It can be an integer that defines the size of a square or cube,
             or a list containing different values for each dimensions. Defaults to 48.
 
@@ -698,14 +720,14 @@ class ProbNMS(Transform):
 
     """
 
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+    backend = [TransformBackends.NUMPY]
 
     def __init__(
         self,
         spatial_dims: int = 2,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
+        sigma: Sequence[float] | float | Sequence[torch.Tensor] | torch.Tensor = 0.0,
         prob_threshold: float = 0.5,
-        box_size: Union[int, Sequence[int]] = 48,
+        box_size: int | Sequence[int] = 48,
     ) -> None:
         self.sigma = sigma
         self.spatial_dims = spatial_dims
@@ -733,7 +755,7 @@ class ProbNMS(Transform):
         if self.sigma != 0:
             if not isinstance(prob_map, torch.Tensor):
                 prob_map = torch.as_tensor(prob_map, dtype=torch.float)
-            self.filter.to(prob_map)
+            self.filter.to(prob_map.device)
             prob_map = self.filter(prob_map)
 
         prob_map_shape = prob_map.shape
@@ -753,3 +775,202 @@ class ProbNMS(Transform):
             prob_map[slices] = 0
 
         return outputs
+
+
+class Invert(Transform):
+    """
+    Utility transform to automatically invert the previously applied transforms.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        transform: InvertibleTransform | None = None,
+        nearest_interp: bool | Sequence[bool] = True,
+        device: str | torch.device | None = None,
+        post_func: Callable | None = None,
+        to_tensor: bool | Sequence[bool] = True,
+    ) -> None:
+        """
+        Args:
+            transform: the previously applied transform.
+            nearest_interp: whether to use `nearest` interpolation mode when inverting the spatial transforms,
+                default to `True`. If `False`, use the same interpolation mode as the original transform.
+            device: move the inverted results to a target device before `post_func`, default to `None`.
+            post_func: postprocessing for the inverted result, should be a callable function.
+            to_tensor: whether to convert the inverted data into PyTorch Tensor first, default to `True`.
+        """
+        if not isinstance(transform, InvertibleTransform):
+            raise ValueError("transform is not invertible, can't invert transform for the data.")
+        self.transform = transform
+        self.nearest_interp = nearest_interp
+        self.device = device
+        self.post_func = post_func
+        self.to_tensor = to_tensor
+        self._totensor = ToTensor()
+
+    def __call__(self, data):
+        if not isinstance(data, MetaTensor):
+            return data
+
+        if self.nearest_interp:
+            data.applied_operations = convert_applied_interp_mode(
+                trans_info=data.applied_operations, mode="nearest", align_corners=None
+            )
+
+        data = data.detach()
+        inverted = self.transform.inverse(data)
+        if self.to_tensor and not isinstance(inverted, MetaTensor):
+            inverted = self._totensor(inverted)
+        if isinstance(inverted, torch.Tensor):
+            inverted = inverted.to(device=self.device)
+        if callable(self.post_func):
+            inverted = self.post_func(inverted)
+        return inverted
+
+
+class SobelGradients(Transform):
+    """Calculate Sobel gradients of a grayscale image with the shape of CxH[xWxDx...] or BxH[xWxDx...].
+
+    Args:
+        kernel_size: the size of the Sobel kernel. Defaults to 3.
+        spatial_axes: the axes that define the direction of the gradient to be calculated. It calculate the gradient
+            along each of the provide axis. By default it calculate the gradient for all spatial axes.
+        normalize_kernels: if normalize the Sobel kernel to provide proper gradients. Defaults to True.
+        normalize_gradients: if normalize the output gradient to 0 and 1. Defaults to False.
+        padding_mode: the padding mode of the image when convolving with Sobel kernels. Defaults to `"reflect"`.
+            Acceptable values are ``'zeros'``, ``'reflect'``, ``'replicate'`` or ``'circular'``.
+            See ``torch.nn.Conv1d()`` for more information.
+        dtype: kernel data type (torch.dtype). Defaults to `torch.float32`.
+
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        kernel_size: int = 3,
+        spatial_axes: Sequence[int] | int | None = None,
+        normalize_kernels: bool = True,
+        normalize_gradients: bool = False,
+        padding_mode: str = "reflect",
+        dtype: torch.dtype = torch.float32,
+    ) -> None:
+        super().__init__()
+        self.padding = padding_mode
+        self.spatial_axes = spatial_axes
+        self.normalize_kernels = normalize_kernels
+        self.normalize_gradients = normalize_gradients
+        self.kernel_diff, self.kernel_smooth = self._get_kernel(kernel_size, dtype)
+
+    def _get_kernel(self, size, dtype) -> tuple[torch.Tensor, torch.Tensor]:
+        if size < 3:
+            raise ValueError(f"Sobel kernel size should be at least three. {size} was given.")
+        if size % 2 == 0:
+            raise ValueError(f"Sobel kernel size should be an odd number. {size} was given.")
+
+        kernel_diff = torch.tensor([[[-1, 0, 1]]], dtype=dtype)
+        kernel_smooth = torch.tensor([[[1, 2, 1]]], dtype=dtype)
+        kernel_expansion = torch.tensor([[[1, 2, 1]]], dtype=dtype)
+
+        if self.normalize_kernels:
+            if not dtype.is_floating_point:
+                raise ValueError(
+                    f"`dtype` for Sobel kernel should be floating point when `normalize_kernel==True`. {dtype} was given."
+                )
+            kernel_diff /= 2.0
+            kernel_smooth /= 4.0
+            kernel_expansion /= 4.0
+
+        # Expand the kernel to larger size than 3
+        expand = (size - 3) // 2
+        for _ in range(expand):
+            kernel_diff = F.conv1d(kernel_diff, kernel_expansion, padding=2)
+            kernel_smooth = F.conv1d(kernel_smooth, kernel_expansion, padding=2)
+
+        return kernel_diff.squeeze(), kernel_smooth.squeeze()
+
+    def __call__(self, image: NdarrayOrTensor) -> torch.Tensor:
+        image_tensor = convert_to_tensor(image, track_meta=get_track_meta())
+
+        # Check/set spatial axes
+        n_spatial_dims = image_tensor.ndim - 1  # excluding the channel dimension
+        valid_spatial_axes = list(range(n_spatial_dims)) + list(range(-n_spatial_dims, 0))
+
+        # Check gradient axes to be valid
+        if self.spatial_axes is None:
+            spatial_axes = list(range(n_spatial_dims))
+        else:
+            invalid_axis = set(ensure_tuple(self.spatial_axes)) - set(valid_spatial_axes)
+            if invalid_axis:
+                raise ValueError(
+                    f"The provide axes to calculate gradient is not valid: {invalid_axis}. "
+                    f"The image has {n_spatial_dims} spatial dimensions so it should be: {valid_spatial_axes}."
+                )
+            spatial_axes = [ax % n_spatial_dims if ax < 0 else ax for ax in ensure_tuple(self.spatial_axes)]
+
+        # Add batch dimension for separable_filtering
+        image_tensor = image_tensor.unsqueeze(0)
+
+        # Get the Sobel kernels
+        kernel_diff = self.kernel_diff.to(image_tensor.device)
+        kernel_smooth = self.kernel_smooth.to(image_tensor.device)
+
+        # Calculate gradient
+        grad_list = []
+        for ax in spatial_axes:
+            kernels = [kernel_smooth] * n_spatial_dims
+            kernels[ax] = kernel_diff
+            grad = separable_filtering(image_tensor, kernels, mode=self.padding)
+            if self.normalize_gradients:
+                grad_min = grad.min()
+                if grad_min != grad.max():
+                    grad -= grad_min
+                grad_max = grad.max()
+                if grad_max > 0:
+                    grad /= grad_max
+            grad_list.append(grad)
+
+        grads = torch.cat(grad_list, dim=1)
+
+        # Remove batch dimension and convert the gradient type to be the same as input image
+        grads = convert_to_dst_type(grads.squeeze(0), image_tensor)[0]
+
+        return grads
+
+
+class DistanceTransformEDT(Transform):
+    """
+    Applies the Euclidean distance transform on the input.
+    Either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation and / or :func:`monai.transforms.utils.distance_transform_edt`.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+    """
+
+    backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
+
+    def __init__(self, sampling: None | float | list[float] = None) -> None:
+        super().__init__()
+        self.sampling = sampling
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: Input image on which the distance transform shall be run.
+                Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+                Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+                Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+                from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+            sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+                if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+
+        Returns:
+            An array with the same shape and data type as img
+        """
+        return distance_transform_edt(img=img, sampling=self.sampling)  # type: ignore

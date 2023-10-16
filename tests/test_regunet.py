@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -19,7 +21,6 @@ from monai.networks.nets.regunet import RegUNet
 from tests.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 TEST_CASE_REGUNET_2D = [
     [

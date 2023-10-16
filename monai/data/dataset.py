@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
 import collections.abc
 import math
@@ -19,20 +20,32 @@ import tempfile
 import threading
 import time
 import warnings
+from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
+from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import IO, TYPE_CHECKING, Any, cast
 
 import numpy as np
 import torch
+from torch.multiprocessing import Manager
 from torch.serialization import DEFAULT_PROTOCOL
 from torch.utils.data import Dataset as _TorchDataset
 from torch.utils.data import Subset
 
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
-from monai.transforms import Compose, Randomizable, ThreadUnsafe, Transform, apply_transform, convert_to_contiguous
-from monai.utils import MAX_SEED, deprecated_arg, get_seed, look_up_option, min_version, optional_import
+from monai.transforms import (
+    Compose,
+    Randomizable,
+    RandomizableTrait,
+    Transform,
+    apply_transform,
+    convert_to_contiguous,
+    reset_ops_id,
+)
+from monai.utils import MAX_SEED, convert_to_tensor, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
 if TYPE_CHECKING:
@@ -42,8 +55,10 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
+cp, _ = optional_import("cupy")
 lmdb, _ = optional_import("lmdb")
 pd, _ = optional_import("pandas")
+kvikio_numpy, _ = optional_import("kvikio.numpy")
 
 
 class Dataset(_TorchDataset):
@@ -62,7 +77,7 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Sequence, transform: Callable | None = None) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
@@ -70,7 +85,7 @@ class Dataset(_TorchDataset):
 
         """
         self.data = data
-        self.transform = transform
+        self.transform: Any = transform
 
     def __len__(self) -> int:
         return len(self.data)
@@ -82,7 +97,7 @@ class Dataset(_TorchDataset):
         data_i = self.data[index]
         return apply_transform(self.transform, data_i) if self.transform is not None else data_i
 
-    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
+    def __getitem__(self, index: int | slice | Sequence[int]):
         """
         Returns a `Subset` if `index` is a slice or Sequence, a data item otherwise.
         """
@@ -133,7 +148,7 @@ class DatasetFunc(Dataset):
         self.kwargs = kwargs
         self.reset()
 
-    def reset(self, data: Optional[Any] = None, func: Optional[Callable] = None, **kwargs):
+    def reset(self, data: Any | None = None, func: Callable | None = None, **kwargs):
         """
         Reset the dataset items with specified `func`.
 
@@ -191,20 +206,28 @@ class PersistentDataset(Dataset):
     Note:
         The input data must be a list of file paths and will hash them as cache keys.
 
-        When loading persistent cache content, it can't guarantee the cached data matches current
-        transform chain, so please make sure to use exactly the same non-random transforms and the
-        args as the cache content, otherwise, it may cause unexpected errors.
+        The filenames of the cached files also try to contain the hash of the transforms. In this
+        fashion, `PersistentDataset` should be robust to changes in transforms. This, however, is
+        not guaranteed, so caution should be used when modifying transforms to avoid unexpected
+        errors. If in doubt, it is advisable to clear the cache directory.
+
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `PersistentDataset` and
+        lazy resampling.
 
     """
 
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
-        cache_dir: Optional[Union[Path, str]],
+        transform: Sequence[Callable] | Callable,
+        cache_dir: Path | str | None,
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
+        hash_transform: Callable[..., bytes] | None = None,
+        reset_ops_id: bool = True,
     ) -> None:
         """
         Args:
@@ -232,6 +255,13 @@ class PersistentDataset(Dataset):
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            hash_transform: a callable to compute hash from the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+                Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
 
         """
         if not isinstance(transform, Compose):
@@ -246,6 +276,30 @@ class PersistentDataset(Dataset):
                 self.cache_dir.mkdir(parents=True, exist_ok=True)
             if not self.cache_dir.is_dir():
                 raise ValueError("cache_dir must be a directory.")
+        self.transform_hash: str = ""
+        if hash_transform is not None:
+            self.set_transform_hash(hash_transform)
+        self.reset_ops_id = reset_ops_id
+
+    def set_transform_hash(self, hash_xform_func: Callable[..., bytes]):
+        """Get hashable transforms, and then hash them. Hashable transforms
+        are deterministic transforms that inherit from `Transform`. We stop
+        at the first non-deterministic transform, or first that does not
+        inherit from MONAI's `Transform` class."""
+        hashable_transforms = []
+        for _tr in self.transform.flatten().transforms:
+            if isinstance(_tr, RandomizableTrait) or not isinstance(_tr, Transform):
+                break
+            hashable_transforms.append(_tr)
+        # Try to hash. Fall back to a hash of their names
+        try:
+            transform_hash = hash_xform_func(hashable_transforms)
+        except TypeError as te:
+            if "is not JSON serializable" not in str(te):
+                raise te
+            names = "".join(tr.__class__.__name__ for tr in hashable_transforms)
+            transform_hash = hash_xform_func(names)
+        self.transform_hash = transform_hash.decode("utf-8")
 
     def set_data(self, data: Sequence):
         """
@@ -269,13 +323,16 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        for _transform in self.transform.transforms:
-            # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                break
-            # this is to be consistent with CacheDataset even though it's not in a multi-thread situation.
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = apply_transform(_xform, item_transformed)
+        if not isinstance(self.transform, Compose):
+            raise ValueError("transform must be an instance of monai.transforms.Compose.")
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        item_transformed = self.transform(item_transformed, end=first_random, threading=True)
+
+        if self.reset_ops_id:
+            reset_ops_id(item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -291,15 +348,12 @@ class PersistentDataset(Dataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        start_post_randomize_run = False
-        for _transform in self.transform.transforms:
-            if (
-                start_post_randomize_run
-                or isinstance(_transform, Randomizable)
-                or not isinstance(_transform, Transform)
-            ):
-                start_post_randomize_run = True
-                item_transformed = apply_transform(_transform, item_transformed)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        if first_random is not None:
+            item_transformed = self.transform(item_transformed, start=first_random)
         return item_transformed
 
     def _cachecheck(self, item_transformed):
@@ -317,14 +371,14 @@ class PersistentDataset(Dataset):
 
         Warning:
             The current implementation does not encode transform information as part of the
-            hashing mechanism used for generating cache names.  If the transforms applied are
-            changed in any way, the objects in the cache dir will be invalid.  The hash for the
-            cache is ONLY dependant on the input filename paths.
+            hashing mechanism used for generating cache names when `hash_transform` is None.
+            If the transforms applied are changed in any way, the objects in the cache dir will be invalid.
 
         """
         hashfile = None
         if self.cache_dir is not None:
             data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+            data_item_md5 += self.transform_hash
             hashfile = self.cache_dir / f"{data_item_md5}.pt"
 
         if hashfile is not None and hashfile.is_file():  # cache hit
@@ -353,7 +407,7 @@ class PersistentDataset(Dataset):
                     # On Unix, if target exists and is a file, it will be replaced silently if the user has permission.
                     # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
                     try:
-                        shutil.move(temp_hash_file, hashfile)
+                        shutil.move(str(temp_hash_file), hashfile)
                     except FileExistsError:
                         pass
         except PermissionError:  # project-monai/monai issue #3613
@@ -374,12 +428,14 @@ class CacheNTransDataset(PersistentDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
+        transform: Sequence[Callable] | Callable,
         cache_n_trans: int,
-        cache_dir: Optional[Union[Path, str]],
+        cache_dir: Path | str | None,
         hash_func: Callable[..., bytes] = pickle_hashing,
         pickle_module: str = "pickle",
         pickle_protocol: int = DEFAULT_PROTOCOL,
+        hash_transform: Callable[..., bytes] | None = None,
+        reset_ops_id: bool = True,
     ) -> None:
         """
         Args:
@@ -408,6 +464,13 @@ class CacheNTransDataset(PersistentDataset):
             pickle_protocol: can be specified to override the default protocol, default to `2`.
                 this arg is used by `torch.save`, for more details, please check:
                 https://pytorch.org/docs/stable/generated/torch.save.html#torch.save.
+            hash_transform: a callable to compute hash from the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+                Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
 
         """
         super().__init__(
@@ -417,6 +480,8 @@ class CacheNTransDataset(PersistentDataset):
             hash_func=hash_func,
             pickle_module=pickle_module,
             pickle_protocol=pickle_protocol,
+            hash_transform=hash_transform,
+            reset_ops_id=reset_ops_id,
         )
         self.cache_n_trans = cache_n_trans
 
@@ -432,11 +497,10 @@ class CacheNTransDataset(PersistentDataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for i, _transform in enumerate(self.transform.transforms):
-            if i == self.cache_n_trans:
-                break
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item_transformed = apply_transform(_xform, item_transformed)
+
+        item_transformed = self.transform(item_transformed, end=self.cache_n_trans, threading=True)
+
+        reset_ops_id(item_transformed)
         return item_transformed
 
     def _post_transform(self, item_transformed):
@@ -451,10 +515,8 @@ class CacheNTransDataset(PersistentDataset):
         """
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for i, _transform in enumerate(self.transform.transforms):
-            if i >= self.cache_n_trans:
-                item_transformed = apply_transform(_transform, item_transformed)
-        return item_transformed
+
+        return self.transform(item_transformed, start=self.cache_n_trans)
 
 
 class LMDBDataset(PersistentDataset):
@@ -476,13 +538,15 @@ class LMDBDataset(PersistentDataset):
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
-        cache_dir: Union[Path, str] = "cache",
+        transform: Sequence[Callable] | Callable,
+        cache_dir: Path | str = "cache",
         hash_func: Callable[..., bytes] = pickle_hashing,
         db_name: str = "monai_cache",
         progress: bool = True,
         pickle_protocol=pickle.HIGHEST_PROTOCOL,
-        lmdb_kwargs: Optional[dict] = None,
+        hash_transform: Callable[..., bytes] | None = None,
+        reset_ops_id: bool = True,
+        lmdb_kwargs: dict | None = None,
     ) -> None:
         """
         Args:
@@ -501,11 +565,24 @@ class LMDBDataset(PersistentDataset):
             progress: whether to display a progress bar.
             pickle_protocol: pickle protocol version. Defaults to pickle.HIGHEST_PROTOCOL.
                 https://docs.python.org/3/library/pickle.html#pickle-protocols
+            hash_transform: a callable to compute hash from the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+                Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekeys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
             lmdb_kwargs: additional keyword arguments to the lmdb environment.
                 for more details please visit: https://lmdb.readthedocs.io/en/release/#environment-class
         """
         super().__init__(
-            data=data, transform=transform, cache_dir=cache_dir, hash_func=hash_func, pickle_protocol=pickle_protocol
+            data=data,
+            transform=transform,
+            cache_dir=cache_dir,
+            hash_func=hash_func,
+            pickle_protocol=pickle_protocol,
+            hash_transform=hash_transform,
+            reset_ops_id=reset_ops_id,
         )
         self.progress = progress
         if not self.cache_dir:
@@ -516,7 +593,7 @@ class LMDBDataset(PersistentDataset):
             self.lmdb_kwargs["map_size"] = 1024**4  # default map_size
         # lmdb is single-writer multi-reader by default
         # the cache is created without multi-threading
-        self._read_env = None
+        self._read_env: Any | None = None
         # this runs on the primary thread/process
         self._fill_cache_start_reader(show_progress=self.progress)
         print(f"Accessing lmdb file: {self.db_file.absolute()}.")
@@ -639,7 +716,7 @@ class CacheDataset(Dataset):
 
         transforms = Compose([
             LoadImaged(),
-            AddChanneld(),
+            EnsureChannelFirstd(),
             Spacingd(),
             Orientationd(),
             ScaleIntensityRanged(),
@@ -649,7 +726,7 @@ class CacheDataset(Dataset):
 
     when `transforms` is used in a multi-epoch training pipeline, before the first training epoch,
     this dataset will cache the results up to ``ScaleIntensityRanged``, as
-    all non-random transforms `LoadImaged`, `AddChanneld`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
+    all non-random transforms `LoadImaged`, `EnsureChannelFirstd`, `Spacingd`, `Orientationd`, `ScaleIntensityRanged`
     can be cached. During training, the dataset will load the cached results and run
     ``RandCropByPosNegLabeld`` and ``ToTensord``, as ``RandCropByPosNegLabeld`` is a randomized transform
     and the outcome not cached.
@@ -664,20 +741,26 @@ class CacheDataset(Dataset):
         So to debug or verify the program before real training, users can set `cache_rate=0.0` or `cache_num=0` to
         temporarily skip caching.
 
+    Lazy Resampling:
+        If you make use of the lazy resampling feature of `monai.transforms.Compose`, please refer to
+        its documentation to familiarize yourself with the interaction between `CacheDataset` and
+        lazy resampling.
+
     """
 
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
+        transform: Sequence[Callable] | Callable | None = None,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: Optional[int] = 1,
+        num_workers: int | None = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
         hash_as_key: bool = False,
         hash_func: Callable[..., bytes] = pickle_hashing,
+        runtime_cache: bool | str | list | ListProxy = False,
     ) -> None:
         """
         Args:
@@ -687,9 +770,9 @@ class CacheDataset(Dataset):
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
             cache_rate: percentage of cached data in total, default is 1.0 (cache all).
                 will take the minimum of (cache_num, data_length x cache_rate, data_length).
-            num_workers: the number of worker threads to use.
+            num_workers: the number of worker threads if computing cache in the initialization.
                 If num_workers is None then the number returned by os.cpu_count() is used.
-                If a value less than 1 is speficied, 1 will be used instead.
+                If a value less than 1 is specified, 1 will be used instead.
             progress: whether to display a progress bar.
             copy_cache: whether to `deepcopy` the cache content before applying the random transforms,
                 default to `True`. if the random transforms don't modify the cached content
@@ -703,6 +786,21 @@ class CacheDataset(Dataset):
                 the dataset has duplicated items or augmented dataset.
             hash_func: if `hash_as_key`, a callable to compute hash from data items to be cached.
                 defaults to `monai.data.utils.pickle_hashing`.
+            runtime_cache: mode of cache at the runtime. Default to `False` to prepare
+                the cache content for the entire ``data`` during initialization, this potentially largely increase the
+                time required between the constructor called and first mini-batch generated.
+                Three options are provided to compute the cache on the fly after the dataset initialization:
+
+                1. ``"threads"`` or ``True``: use a regular ``list`` to store the cache items.
+                2. ``"processes"``: use a ListProxy to store the cache items, it can be shared among processes.
+                3. A list-like object: a users-provided container to be used to store the cache items.
+
+                For `thread-based` caching (typically for caching cuda tensors), option 1 is recommended.
+                For single process workflows with multiprocessing data loading, option 2 is recommended.
+                For multiprocessing workflows (typically for distributed training),
+                where this class is initialized in subprocesses, option 3 is recommended,
+                and the list-like object should be prepared in the main process and passed to all subprocesses.
+                Not following these recommendations may lead to runtime errors or duplicated cache across processes.
 
         """
         if not isinstance(transform, Compose):
@@ -718,11 +816,13 @@ class CacheDataset(Dataset):
         self.num_workers = num_workers
         if self.num_workers is not None:
             self.num_workers = max(int(self.num_workers), 1)
+        self.runtime_cache = runtime_cache
         self.cache_num = 0
-        self._cache: Union[List, Dict] = []
+        self._cache: list | ListProxy = []
+        self._hash_keys: list = []
         self.set_data(data)
 
-    def set_data(self, data: Sequence):
+    def set_data(self, data: Sequence) -> None:
         """
         Set the input data and run deterministic transforms to generate cache content.
 
@@ -731,37 +831,53 @@ class CacheDataset(Dataset):
         generated cache content.
 
         """
+        self.data = data
 
-        def _compute_cache():
-            self.cache_num = min(int(self.set_num), int(len(self.data) * self.set_rate), len(self.data))
-            return self._fill_cache()
+        def _compute_cache_num(data_len: int):
+            self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
 
         if self.hash_as_key:
-            # only compute cache for the unique items of dataset
-            mapping = {self.hash_func(v): v for v in data}
-            self.data = list(mapping.values())
-            cache_ = _compute_cache()
-            self._cache = dict(zip(list(mapping)[: self.cache_num], cache_))
-            self.data = data
+            # only compute cache for the unique items of dataset, and record the last index for duplicated items
+            mapping = {self.hash_func(v): i for i, v in enumerate(self.data)}
+            _compute_cache_num(len(mapping))
+            self._hash_keys = list(mapping)[: self.cache_num]
+            indices = list(mapping.values())[: self.cache_num]
         else:
-            self.data = data
-            self._cache = _compute_cache()
+            _compute_cache_num(len(self.data))
+            indices = list(range(self.cache_num))
 
-    def _fill_cache(self) -> List:
+        if self.runtime_cache in (False, None):  # prepare cache content immediately
+            self._cache = self._fill_cache(indices)
+            return
+        if isinstance(self.runtime_cache, str) and "process" in self.runtime_cache:
+            # this must be in the main process, not in dataloader's workers
+            self._cache = Manager().list([None] * self.cache_num)
+            return
+        if (self.runtime_cache is True) or (isinstance(self.runtime_cache, str) and "thread" in self.runtime_cache):
+            self._cache = [None] * self.cache_num
+            return
+        self._cache = self.runtime_cache  # type: ignore
+        return
+
+    def _fill_cache(self, indices=None) -> list:
+        """
+        Compute and fill the cache content from data source.
+
+        Args:
+            indices: target indices in the `self.data` source to compute cache.
+                if None, use the first `cache_num` items.
+
+        """
         if self.cache_num <= 0:
             return []
+        if indices is None:
+            indices = list(range(self.cache_num))
         if self.progress and not has_tqdm:
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
         with ThreadPool(self.num_workers) as p:
             if self.progress and has_tqdm:
-                return list(
-                    tqdm(
-                        p.imap(self._load_cache_item, range(self.cache_num)),
-                        total=self.cache_num,
-                        desc="Loading dataset",
-                    )
-                )
-            return list(p.imap(self._load_cache_item, range(self.cache_num)))
+                return list(tqdm(p.imap(self._load_cache_item, indices), total=len(indices), desc="Loading dataset"))
+            return list(p.imap(self._load_cache_item, indices))
 
     def _load_cache_item(self, idx: int):
         """
@@ -769,42 +885,48 @@ class CacheDataset(Dataset):
             idx: the index of the input data sequence.
         """
         item = self.data[idx]
-        for _transform in self.transform.transforms:  # type:ignore
-            # execute all the deterministic transforms
-            if isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                break
-            _xform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-            item = apply_transform(_xform, item)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        item = self.transform(item, end=first_random, threading=True)
+
         if self.as_contiguous:
             item = convert_to_contiguous(item, memory_format=torch.contiguous_format)
         return item
 
     def _transform(self, index: int):
-        index_: Any = index
+        cache_index = None
         if self.hash_as_key:
             key = self.hash_func(self.data[index])
-            if key in self._cache:
-                # if existing in cache, get the index
-                index_ = key  # if using hash as cache keys, set the key
+            if key in self._hash_keys:
+                # if existing in cache, try to get the index in cache
+                cache_index = self._hash_keys.index(key)
+        elif index % len(self) < self.cache_num:  # support negative index
+            cache_index = index
 
-        if isinstance(index_, int) and index_ % len(self) >= self.cache_num:  # support negative index
+        if cache_index is None:
             # no cache for this index, execute all the transforms directly
-            return super()._transform(index_)
-        # load data from cache and execute from the first random transform
-        start_run = False
+            return super()._transform(index)
+
         if self._cache is None:
-            self._cache = self._fill_cache()
-        data = self._cache[index_]
+            raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
+        data = self._cache[cache_index]
+        # runtime cache computation
+        if data is None:
+            data = self._cache[cache_index] = self._load_cache_item(cache_index)
+
+        # load data from cache and execute from the first random transform
         if not isinstance(self.transform, Compose):
             raise ValueError("transform must be an instance of monai.transforms.Compose.")
-        for _transform in self.transform.transforms:
-            if start_run or isinstance(_transform, Randomizable) or not isinstance(_transform, Transform):
-                # only need to deep copy data on first non-deterministic transform
-                if not start_run:
-                    start_run = True
-                    if self.copy_cache:
-                        data = deepcopy(data)
-                data = apply_transform(_transform, data)
+
+        first_random = self.transform.get_index_of_first(
+            lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+        )
+        if first_random is not None:
+            data = deepcopy(data) if self.copy_cache is True else data
+            data = self.transform(data, start=first_random)
+
         return data
 
 
@@ -821,7 +943,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Let N be the configured number of objects in cache; and R be the number of replacement objects (R = ceil(N * r),
     where r is the configured replace rate).
     For more details, please refer to:
-    https://docs.nvidia.com/clara/tlt-mi/clara-train-sdk-v3.0/nvmidl/additional_features/smart_cache.html#smart-cache
+    https://docs.nvidia.com/clara/clara-train-archive/3.1/nvmidl/additional_features/smart_cache.html
     If passing slicing indices, will return a PyTorch Subset, for example: `data: Subset = dataset[1:4]`,
     for more details, please check: https://pytorch.org/docs/stable/data.html#torch.utils.data.Subset
 
@@ -847,8 +969,9 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Note:
         This replacement will not work for below cases:
         1. Set the `multiprocessing_context` of DataLoader to `spawn`.
-        2. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
-        3. Set the `persistent_workers` of DataLoader to `True` with `num_workers` greater than 0.
+        2. Launch distributed data parallel with `torch.multiprocessing.spawn`.
+        3. Run on windows(the default multiprocessing method is `spawn`) with `num_workers` greater than 0.
+        4. Set the `persistent_workers` of DataLoader to `True` with `num_workers` greater than 0.
 
         If using MONAI workflows, please add `SmartCacheHandler` to the handler list of trainer,
         otherwise, please make sure to call `start()`, `update_cache()`, `shutdown()` during training.
@@ -856,17 +979,17 @@ class SmartCacheDataset(Randomizable, CacheDataset):
     Args:
         data: input data to load and transform to generate dataset for model.
         transform: transforms to execute operations on input data.
-        replace_rate: percentage of the cached items to be replaced in every epoch.
+        replace_rate: percentage of the cached items to be replaced in every epoch (default to 0.1).
         cache_num: number of items to be cached. Default is `sys.maxsize`.
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         cache_rate: percentage of cached data in total, default is 1.0 (cache all).
             will take the minimum of (cache_num, data_length x cache_rate, data_length).
         num_init_workers: the number of worker threads to initialize the cache for first epoch.
             If num_init_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         num_replace_workers: the number of worker threads to prepare the replacement cache for every epoch.
             If num_replace_workers is None then the number returned by os.cpu_count() is used.
-            If a value less than 1 is speficied, 1 will be used instead.
+            If a value less than 1 is specified, 1 will be used instead.
         progress: whether to display a progress bar when caching for the first epoch.
         shuffle: whether to shuffle the whole data list before preparing the cache content for first epoch.
             it will not modify the original input data sequence in-place.
@@ -877,23 +1000,24 @@ class SmartCacheDataset(Randomizable, CacheDataset):
             may set `copy=False` for better performance.
         as_contiguous: whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
             it may help improve the performance of following logic.
-
+        runtime_cache: Default to `False`, other options are not implemented yet.
     """
 
     def __init__(
         self,
         data: Sequence,
-        transform: Union[Sequence[Callable], Callable],
-        replace_rate: float,
+        transform: Sequence[Callable] | Callable | None = None,
+        replace_rate: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_init_workers: Optional[int] = 1,
-        num_replace_workers: Optional[int] = 1,
+        num_init_workers: int | None = 1,
+        num_replace_workers: int | None = 1,
         progress: bool = True,
         shuffle: bool = True,
         seed: int = 0,
         copy_cache: bool = True,
         as_contiguous: bool = True,
+        runtime_cache=False,
     ) -> None:
         if shuffle:
             self.set_random_state(seed=seed)
@@ -903,9 +1027,21 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         self._update_lock: threading.Lock = threading.Lock()
         self._round: int = 1
         self._replace_done: bool = False
-        self._replace_mgr: Optional[threading.Thread] = None
+        self._replace_mgr: threading.Thread | None = None
+        if runtime_cache is not False:
+            raise NotImplementedError("Options other than `runtime_cache=False` is not implemented yet.")
 
-        super().__init__(data, transform, cache_num, cache_rate, num_init_workers, progress, copy_cache, as_contiguous)
+        super().__init__(
+            data=data,
+            transform=transform,
+            cache_num=cache_num,
+            cache_rate=cache_rate,
+            num_workers=num_init_workers,
+            progress=progress,
+            copy_cache=copy_cache,
+            as_contiguous=as_contiguous,
+            runtime_cache=False,
+        )
         if self._cache is None:
             self._cache = self._fill_cache()
         if self.cache_num >= len(data):
@@ -915,14 +1051,14 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         if replace_rate <= 0:
             raise ValueError("replace_rate must be greater than 0, otherwise, please use monai.data.CacheDataset.")
 
-        self.num_replace_workers: Optional[int] = num_replace_workers
+        self.num_replace_workers: int | None = num_replace_workers
         if self.num_replace_workers is not None:
             self.num_replace_workers = max(int(self.num_replace_workers), 1)
 
         self._total_num: int = len(data)
         self._replace_num: int = min(math.ceil(self.cache_num * replace_rate), len(data) - self.cache_num)
-        self._replacements: List[Any] = [None for _ in range(self._replace_num)]
-        self._replace_data_idx: List[int] = list(range(self._replace_num))
+        self._replacements: list[Any] = [None for _ in range(self._replace_num)]
+        self._replace_data_idx: list[int] = list(range(self._replace_num))
         self._compute_data_idx()
 
     def set_data(self, data: Sequence):
@@ -947,7 +1083,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         except TypeError as e:
             warnings.warn(f"input data can't be shuffled in SmartCacheDataset with numpy.random.shuffle(): {e}.")
 
-    def _compute_data_idx(self):
+    def _compute_data_idx(self) -> None:
         """
         Update the replacement data position in the total data.
 
@@ -963,16 +1099,14 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         Check whether the replacement thread is already started.
 
         """
-        if self._replace_mgr is None:
-            return False
-        return self._replace_mgr.is_alive()
+        return False if self._replace_mgr is None else self._replace_mgr.is_alive()
 
     def start(self):
         """
         Start the background thread to replace training items for every epoch.
 
         """
-        if self._replace_mgr is None or not self.is_started():
+        if not self.is_started():
             self._restart()
 
     def _restart(self):
@@ -1013,8 +1147,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         If the cache has been shutdown before, need to restart the `_replace_mgr` thread.
 
         """
-        if not self._replace_mgr.is_alive():
-            self._restart()
+        self.start()
 
         # make sure update is done
         while not self._try_update_cache():
@@ -1045,7 +1178,8 @@ class SmartCacheDataset(Randomizable, CacheDataset):
         # wait until replace mgr is done the current round
         while not self._try_shutdown():
             time.sleep(0.01)
-        self._replace_mgr.join()
+        if self._replace_mgr is not None:
+            self._replace_mgr.join(300)
 
     def _replace_cache_thread(self, index: int):
         """
@@ -1081,7 +1215,7 @@ class SmartCacheDataset(Randomizable, CacheDataset):
                 self._compute_replacements()
             return False, self._round
 
-    def manage_replacement(self):
+    def manage_replacement(self) -> None:
         """
         Background thread for replacement.
 
@@ -1123,7 +1257,7 @@ class ZipDataset(Dataset):
 
     """
 
-    def __init__(self, datasets: Sequence, transform: Optional[Callable] = None) -> None:
+    def __init__(self, datasets: Sequence, transform: Callable | None = None) -> None:
         """
         Args:
             datasets: list of datasets to zip together.
@@ -1158,7 +1292,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         img_transform = Compose(
             [
                 LoadImage(image_only=True),
-                AddChannel(),
+                EnsureChannelFirst(),
                 RandAdjustContrast()
             ]
         )
@@ -1178,7 +1312,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
         img_transform = TestCompose(
             [
                 LoadImage(image_only=False),
-                AddChannel(),
+                EnsureChannelFirst(),
                 Spacing(pixdim=(1.5, 1.5, 3.0)),
                 RandAdjustContrast()
             ]
@@ -1200,11 +1334,11 @@ class ArrayDataset(Randomizable, _TorchDataset):
     def __init__(
         self,
         img: Sequence,
-        img_transform: Optional[Callable] = None,
-        seg: Optional[Sequence] = None,
-        seg_transform: Optional[Callable] = None,
-        labels: Optional[Sequence] = None,
-        label_transform: Optional[Callable] = None,
+        img_transform: Callable | None = None,
+        seg: Sequence | None = None,
+        seg_transform: Callable | None = None,
+        labels: Sequence | None = None,
+        label_transform: Callable | None = None,
     ) -> None:
         """
         Initializes the dataset with the filename lists. The transform `img_transform` is applied
@@ -1229,7 +1363,7 @@ class ArrayDataset(Randomizable, _TorchDataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         self._seed = self.R.randint(MAX_SEED, dtype="uint32")
 
     def __getitem__(self, index: int):
@@ -1263,17 +1397,17 @@ class NPZDictItemDataset(Dataset):
 
     def __init__(
         self,
-        npzfile: Union[str, IO],
-        keys: Dict[str, str],
-        transform: Optional[Callable[..., Dict[str, Any]]] = None,
-        other_keys: Optional[Sequence[str]] = (),
+        npzfile: str | IO,
+        keys: dict[str, str],
+        transform: Callable[..., dict[str, Any]] | None = None,
+        other_keys: Sequence[str] | None = (),
     ):
-        self.npzfile: Union[str, IO] = npzfile if isinstance(npzfile, str) else "STREAM"
-        self.keys: Dict[str, str] = dict(keys)
+        self.npzfile: str | IO = npzfile if isinstance(npzfile, str) else "STREAM"
+        self.keys: dict[str, str] = dict(keys)
         dat = np.load(npzfile)
 
         self.arrays = {storedk: dat[datak] for datak, storedk in self.keys.items()}
-        self.length = self.arrays[first(self.keys.values())].shape[0]
+        self.length = self.arrays[cast(str, first(self.keys.values()))].shape[0]
 
         self.other_keys = {} if other_keys is None else {k: dat[k] for k in other_keys}
 
@@ -1348,25 +1482,21 @@ class CSVDataset(Dataset):
         kwargs_read_csv: dictionary args to pass to pandas `read_csv` function.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
-    .. deprecated:: 0.8.0
-        ``filename`` is deprecated, use ``src`` instead.
-
     """
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
-        src: Optional[Union[str, Sequence[str]]] = None,  # also can be `DataFrame` or sequense of `DataFrame`
-        row_indices: Optional[Sequence[Union[int, str]]] = None,
-        col_names: Optional[Sequence[str]] = None,
-        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
-        col_groups: Optional[Dict[str, Sequence[str]]] = None,
-        transform: Optional[Callable] = None,
-        kwargs_read_csv: Optional[Dict] = None,
+        src: str | Sequence[str] | None = None,  # also can be `DataFrame` or a sequence of `DataFrame`
+        row_indices: Sequence[int | str] | None = None,
+        col_names: Sequence[str] | None = None,
+        col_types: dict[str, dict[str, Any] | None] | None = None,
+        col_groups: dict[str, Sequence[str]] | None = None,
+        transform: Callable | None = None,
+        kwargs_read_csv: dict | None = None,
         **kwargs,
     ):
         srcs = (src,) if not isinstance(src, (tuple, list)) else src
-        dfs: List = []
+        dfs: list = []
         for i in srcs:
             if isinstance(i, str):
                 dfs.append(pd.read_csv(i, **kwargs_read_csv) if kwargs_read_csv else pd.read_csv(i))
@@ -1375,10 +1505,184 @@ class CSVDataset(Dataset):
             else:
                 raise ValueError("`src` must be file path or pandas `DataFrame`.")
 
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
-        kwargs.pop("filename", None)
-
         data = convert_tables_to_dicts(
             dfs=dfs, row_indices=row_indices, col_names=col_names, col_types=col_types, col_groups=col_groups, **kwargs
         )
         super().__init__(data=data, transform=transform)
+
+
+class GDSDataset(PersistentDataset):
+    """
+    An extension of the PersistentDataset using direct memory access(DMA) data path between
+    GPU memory and storage, thus avoiding a bounce buffer through the CPU. This direct path can increase system
+    bandwidth while decreasing latency and utilization load on the CPU and GPU.
+
+    A tutorial is available: https://github.com/Project-MONAI/tutorials/blob/main/modules/GDS_dataset.ipynb.
+
+    See also: https://github.com/rapidsai/kvikio
+    """
+
+    def __init__(
+        self,
+        data: Sequence,
+        transform: Sequence[Callable] | Callable,
+        cache_dir: Path | str | None,
+        device: int,
+        hash_func: Callable[..., bytes] = pickle_hashing,
+        hash_transform: Callable[..., bytes] | None = None,
+        reset_ops_id: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Args:
+            data: input data file paths to load and transform to generate dataset for model.
+                `GDSDataset` expects input data to be a list of serializable
+                and hashes them as cache keys using `hash_func`.
+            transform: transforms to execute operations on input data.
+            cache_dir: If specified, this is the location for gpu direct storage
+                of pre-computed transformed data tensors. The cache_dir is computed once, and
+                persists on disk until explicitly removed.  Different runs, programs, experiments
+                may share a common cache dir provided that the transforms pre-processing is consistent.
+                If `cache_dir` doesn't exist, will automatically create it.
+                If `cache_dir` is `None`, there is effectively no caching.
+            device: target device to put the output Tensor data. Note that only int can be used to
+                specify the gpu to be used.
+            hash_func: a callable to compute hash from data items to be cached.
+                defaults to `monai.data.utils.pickle_hashing`.
+            hash_transform: a callable to compute hash from the transform information when caching.
+                This may reduce errors due to transforms changing during experiments. Default to None (no hash).
+                Other options are `pickle_hashing` and `json_hashing` functions from `monai.data.utils`.
+            reset_ops_id: whether to set `TraceKeys.ID` to ``Tracekys.NONE``, defaults to ``True``.
+                When this is enabled, the traced transform instance IDs will be removed from the cached MetaTensors.
+                This is useful for skipping the transform instance checks when inverting applied operations
+                using the cached content and with re-created transform instances.
+
+        """
+        super().__init__(
+            data=data,
+            transform=transform,
+            cache_dir=cache_dir,
+            hash_func=hash_func,
+            hash_transform=hash_transform,
+            reset_ops_id=reset_ops_id,
+            **kwargs,
+        )
+        self.device = device
+        self._meta_cache: dict[Any, dict[Any, Any]] = {}
+
+    def _cachecheck(self, item_transformed):
+        """
+        In order to enable direct storage to the GPU when loading the hashfile, rewritten this function.
+        Note that in this function, it will always return `torch.Tensor` when load data from cache.
+
+        Args:
+            item_transformed: The current data element to be mutated into transformed representation
+
+        Returns:
+            The transformed data_element, either from cache, or explicitly computing it.
+
+        Warning:
+            The current implementation does not encode transform information as part of the
+            hashing mechanism used for generating cache names when `hash_transform` is None.
+            If the transforms applied are changed in any way, the objects in the cache dir will be invalid.
+
+        """
+        hashfile = None
+        # compute a cache id
+        if self.cache_dir is not None:
+            data_item_md5 = self.hash_func(item_transformed).decode("utf-8")
+            data_item_md5 += self.transform_hash
+            hashfile = self.cache_dir / f"{data_item_md5}.pt"
+
+        if hashfile is not None and hashfile.is_file():  # cache hit
+            with cp.cuda.Device(self.device):
+                if isinstance(item_transformed, dict):
+                    item: dict[Any, Any] = {}
+                    for k in item_transformed:
+                        meta_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta")
+                        item[k] = kvikio_numpy.fromfile(f"{hashfile}-{k}", dtype=meta_k["dtype"], like=cp.empty(()))
+                        item[k] = convert_to_tensor(item[k].reshape(meta_k["shape"]), device=f"cuda:{self.device}")
+                        item[f"{k}_meta_dict"] = meta_k
+                    return item
+                elif isinstance(item_transformed, (np.ndarray, torch.Tensor)):
+                    _meta = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-meta")
+                    _data = kvikio_numpy.fromfile(f"{hashfile}", dtype=_meta["dtype"], like=cp.empty(()))
+                    _data = convert_to_tensor(_data.reshape(_meta["shape"]), device=f"cuda:{self.device}")
+                    filtered_keys = list(filter(lambda key: key not in ["dtype", "shape"], _meta.keys()))
+                    if bool(filtered_keys):
+                        return (_data, _meta)
+                    return _data
+                else:
+                    item: list[dict[Any, Any]] = [{} for _ in range(len(item_transformed))]  # type:ignore
+                    for i, _item in enumerate(item_transformed):
+                        for k in _item:
+                            meta_i_k = self._load_meta_cache(meta_hash_file_name=f"{hashfile.name}-{k}-meta-{i}")
+                            item_k = kvikio_numpy.fromfile(
+                                f"{hashfile}-{k}-{i}", dtype=meta_i_k["dtype"], like=cp.empty(())
+                            )
+                            item_k = convert_to_tensor(item[i].reshape(meta_i_k["shape"]), device=f"cuda:{self.device}")
+                            item[i].update({k: item_k, f"{k}_meta_dict": meta_i_k})
+                    return item
+
+        # create new cache
+        _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
+        if hashfile is None:
+            return _item_transformed
+        if isinstance(_item_transformed, dict):
+            for k in _item_transformed:
+                data_hashfile = f"{hashfile}-{k}"
+                meta_hash_file_name = f"{hashfile.name}-{k}-meta"
+                if isinstance(_item_transformed[k], (np.ndarray, torch.Tensor)):
+                    self._create_new_cache(_item_transformed[k], data_hashfile, meta_hash_file_name)
+                else:
+                    return _item_transformed
+        elif isinstance(_item_transformed, (np.ndarray, torch.Tensor)):
+            data_hashfile = f"{hashfile}"
+            meta_hash_file_name = f"{hashfile.name}-meta"
+            self._create_new_cache(_item_transformed, data_hashfile, meta_hash_file_name)
+        else:
+            for i, _item in enumerate(_item_transformed):
+                for k in _item:
+                    data_hashfile = f"{hashfile}-{k}-{i}"
+                    meta_hash_file_name = f"{hashfile.name}-{k}-meta-{i}"
+                    self._create_new_cache(_item, data_hashfile, meta_hash_file_name)
+        open(hashfile, "a").close()  # store cacheid
+        return _item_transformed
+
+    def _create_new_cache(self, data, data_hashfile, meta_hash_file_name):
+        self._meta_cache[meta_hash_file_name] = copy(data.meta) if isinstance(data, MetaTensor) else {}
+        _item_transformed_data = data.array if isinstance(data, MetaTensor) else data
+        if isinstance(_item_transformed_data, torch.Tensor):
+            _item_transformed_data = _item_transformed_data.numpy()
+        self._meta_cache[meta_hash_file_name]["shape"] = _item_transformed_data.shape
+        self._meta_cache[meta_hash_file_name]["dtype"] = str(_item_transformed_data.dtype)
+        kvikio_numpy.tofile(_item_transformed_data, data_hashfile)
+        try:
+            # NOTE: Writing to a temporary directory and then using a nearly atomic rename operation
+            #       to make the cache more robust to manual killing of parent process
+            #       which may leave partially written cache files in an incomplete state
+            with tempfile.TemporaryDirectory() as tmpdirname:
+                meta_hash_file = self.cache_dir / meta_hash_file_name
+                temp_hash_file = Path(tmpdirname) / meta_hash_file_name
+                torch.save(
+                    obj=self._meta_cache[meta_hash_file_name],
+                    f=temp_hash_file,
+                    pickle_module=look_up_option(self.pickle_module, SUPPORTED_PICKLE_MOD),
+                    pickle_protocol=self.pickle_protocol,
+                )
+                if temp_hash_file.is_file() and not meta_hash_file.is_file():
+                    # On Unix, if target exists and is a file, it will be replaced silently if the
+                    # user has permission.
+                    # for more details: https://docs.python.org/3/library/shutil.html#shutil.move.
+                    try:
+                        shutil.move(str(temp_hash_file), meta_hash_file)
+                    except FileExistsError:
+                        pass
+        except PermissionError:  # project-monai/monai issue #3613
+            pass
+
+    def _load_meta_cache(self, meta_hash_file_name):
+        if meta_hash_file_name in self._meta_cache:
+            return self._meta_cache[meta_hash_file_name]
+        else:
+            return torch.load(self.cache_dir / meta_hash_file_name)

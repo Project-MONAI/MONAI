@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -16,21 +18,26 @@ import unittest
 import nibabel as nib
 import numpy as np
 import torch
-from ignite.engine import Engine
+from ignite.engine import Engine, Events
 from torch.utils.data import DataLoader
 
 from monai.data import ImageDataset, create_test_image_3d
-from monai.handlers import SegmentationSaver
 from monai.inferers import sliding_window_inference
 from monai.networks import eval_mode, predict_segmentation
 from monai.networks.nets import UNet
-from monai.transforms import AddChannel
-from monai.utils import set_determinism
+from monai.transforms import EnsureChannelFirst, SaveImage
+from monai.utils import pytorch_after, set_determinism
 from tests.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
-    ds = ImageDataset([img_name], [seg_name], transform=AddChannel(), seg_transform=AddChannel(), image_only=False)
+    ds = ImageDataset(
+        [img_name],
+        [seg_name],
+        transform=EnsureChannelFirst(channel_dim="no_channel"),
+        seg_transform=EnsureChannelFirst(channel_dim="no_channel"),
+        image_only=True,
+    )
     loader = DataLoader(ds, batch_size=1, pin_memory=torch.cuda.is_available())
 
     net = UNet(
@@ -39,18 +46,23 @@ def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
     roi_size = (16, 32, 48)
     sw_batch_size = batch_size
 
+    saver = SaveImage(output_dir=output_dir, output_ext=".nii.gz", output_postfix="seg")
+
     def _sliding_window_processor(_engine, batch):
         img = batch[0]  # first item from ImageDataset is the input image
         with eval_mode(net):
             seg_probs = sliding_window_inference(img.to(device), roi_size, sw_batch_size, net, device=device)
             return predict_segmentation(seg_probs)
 
+    def save_func(engine):
+        if pytorch_after(1, 9, 1):
+            for m in engine.state.output:
+                saver(m)
+        else:
+            saver(engine.state.output[0])
+
     infer_engine = Engine(_sliding_window_processor)
-
-    SegmentationSaver(  # 3rd item for image batch meta data
-        output_dir=output_dir, output_ext=".nii.gz", output_postfix="seg", batch_transform=lambda x: x[2]
-    ).attach(infer_engine)
-
+    infer_engine.add_event_handler(Events.ITERATION_COMPLETED, save_func)
     infer_engine.run(loader)
 
     basename = os.path.basename(img_name)[: -len(".nii.gz")]
@@ -63,7 +75,7 @@ class TestIntegrationSlidingWindow(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
 
-        im, seg = create_test_image_3d(25, 28, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
+        im, seg = create_test_image_3d(28, 25, 63, rad_max=10, noise_max=1, num_objs=4, num_seg_classes=1)
         self.img_name = make_nifti_image(im)
         self.seg_name = make_nifti_image(seg)
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")

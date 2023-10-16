@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from functools import partial
 
@@ -59,7 +61,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
 
@@ -102,7 +103,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor_a = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
                     in_tensor_b = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
@@ -152,7 +152,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
 
@@ -178,7 +177,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor_a = torch.zeros((batch,) + (base,) * (spatial - 1)).to(device)
                     in_tensor_b = torch.ones((batch,) + (base,) * (spatial - 1)).to(device)

@@ -13,13 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: ['3.9', '3.10', '3.11']
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install setuptools
@@ -27,6 +27,7 @@ jobs:
         python -m pip install --user --upgrade setuptools wheel
     - name: Build and test source archive and wheel file
       run: |
+        rm -rf /opt/hostedtoolcache
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         root_dir=$PWD
         echo "$root_dir"
@@ -63,26 +64,26 @@ jobs:
       env:
         QUICKTEST: True
 
-    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+    - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
       name: Upload artifacts
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v3
       with:
         name: dist
         path: dist/
 
-    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+    - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
       name: Check artifacts
       run: |
         ls -al dist/
         rm dist/monai*.tar.gz
         ls -al dist/
 
-    - if: matrix.python-version == '3.8' && startsWith(github.ref, 'refs/tags/')
+    - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
       name: Publish to Test PyPI
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TEST_PYPI }}
-        repository_url: https://test.pypi.org/legacy/
+        repository-url: https://test.pypi.org/legacy/
 
   versioning:
     # compute versioning file from python setup.py
@@ -91,21 +92,23 @@ jobs:
     needs: packaging
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         # full history so that we can git describe
         with:
           fetch-depth: 0
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: '3.9'
       - shell: bash
         run: |
+          rm -rf /opt/hostedtoolcache
           git describe
+          python -m pip install --user --upgrade setuptools wheel
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: _version.py
           path: build/lib/monai/_version.py
@@ -120,14 +123,14 @@ jobs:
     needs: versioning
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Download version
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: _version.py
       - name: Set tag
         id: versioning
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
       - name: Check tag
         env:
           RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
@@ -135,18 +138,12 @@ jobs:
           echo "$RELEASE_VERSION"
           cat _version.py
       - if: startsWith(github.ref, 'refs/tags/')
-        name: Install latest docker
-        run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-          sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu  $(lsb_release -cs)  stable"
-          sudo apt-get update
-          sudo apt-get install docker-ce
-      - if: startsWith(github.ref, 'refs/tags/')
         name: build with the tag
         env:
           RELEASE_VERSION: ${{ steps.versioning.outputs.tag }}
         shell: bash
         run: |
+          rm -rf /opt/hostedtoolcache
           # get tag info for versioning
           mv _version.py monai/
           # version checks

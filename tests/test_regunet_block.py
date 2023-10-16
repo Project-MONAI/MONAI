@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -53,6 +55,7 @@ TEST_CASE_EXTRACTION = [
             "out_channels": 1,
             "kernel_initializer": "zeros",
             "activation": "sigmoid",
+            "mode": "trilinear",
         },
         [(1, 3, 2, 2, 2), (1, 2, 4, 4, 4), (1, 1, 8, 8, 8)],
         (3, 3, 3),

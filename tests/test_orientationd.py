@@ -9,95 +9,103 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import nibabel as nib
 import numpy as np
+import torch
+from parameterized import parameterized
 
+from monai.data.meta_obj import set_track_meta
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Orientationd
-from monai.utils.enums import PostFix
-from tests.utils import TEST_NDARRAYS
+from tests.lazy_transforms_utils import test_resampler_lazy
+from tests.utils import TEST_DEVICES
+
+TESTS = []
+for device in TEST_DEVICES:
+    TESTS.append(
+        [{"keys": "seg", "axcodes": "RAS"}, torch.ones((2, 1, 2, 3)), torch.eye(4), (2, 1, 2, 3), "RAS", *device]
+    )
+    # 3d
+    TESTS.append(
+        [
+            {"keys": ["img", "seg"], "axcodes": "PLI"},
+            torch.ones((2, 1, 2, 3)),
+            torch.eye(4),
+            (2, 2, 1, 3),
+            "PLI",
+            *device,
+        ]
+    )
+    # 2d
+    TESTS.append(
+        [{"keys": ["img", "seg"], "axcodes": "PLI"}, torch.ones((2, 1, 3)), torch.eye(4), (2, 3, 1), "PLS", *device]
+    )
+    # 1d
+    TESTS.append([{"keys": ["img", "seg"], "axcodes": "L"}, torch.ones((2, 3)), torch.eye(4), (2, 3), "LAS", *device])
+    # canonical
+    TESTS.append(
+        [
+            {"keys": ["img", "seg"], "as_closest_canonical": True},
+            torch.ones((2, 1, 2, 3)),
+            torch.eye(4),
+            (2, 1, 2, 3),
+            "RAS",
+            *device,
+        ]
+    )
+
+TESTS_TORCH = []
+for track_meta in (False, True):
+    for device in TEST_DEVICES:
+        TESTS_TORCH.append([{"keys": "seg", "axcodes": "RAS"}, torch.ones(2, 1, 2, 3), track_meta, *device])
 
 
 class TestOrientationdCase(unittest.TestCase):
-    def test_orntd(self):
-        data = {"seg": np.ones((2, 1, 2, 3)), PostFix.meta("seg"): {"affine": np.eye(4)}}
-        ornt = Orientationd(keys="seg", axcodes="RAS")
-        res = ornt(data)
-        np.testing.assert_allclose(res["seg"].shape, (2, 1, 2, 3))
-        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("R", "A", "S"))
+    @parameterized.expand(TESTS)
+    def test_orntd(
+        self, init_param, img: torch.Tensor, affine: torch.Tensor | None, expected_shape, expected_code, device
+    ):
+        ornt = Orientationd(**init_param)
+        if affine is not None:
+            img = MetaTensor(img, affine=affine)
+        img = img.to(device)
+        call_param = {"data": {k: img.clone() for k in ornt.keys}}
+        res = ornt(**call_param)  # type: ignore[arg-type]
+        for k in ornt.keys:
+            if img.ndim in (3, 4):
+                test_resampler_lazy(ornt, res, init_param, call_param, output_key=k)
+            _im = res[k]
+            self.assertIsInstance(_im, MetaTensor)
+            np.testing.assert_allclose(_im.shape, expected_shape)
+            code = nib.aff2axcodes(_im.affine.cpu(), ornt.ornt_transform.labels)  # type: ignore
+            self.assertEqual("".join(code), expected_code)
 
-    def test_orntd_3d(self):
-        for p in TEST_NDARRAYS:
-            data = {
-                "seg": p(np.ones((2, 1, 2, 3))),
-                "img": p(np.ones((2, 1, 2, 3))),
-                PostFix.meta("seg"): {"affine": np.eye(4)},
-                PostFix.meta("img"): {"affine": np.eye(4)},
-            }
-            ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
-            res = ornt(data)
-            np.testing.assert_allclose(res["img"].shape, (2, 2, 1, 3))
-            np.testing.assert_allclose(res["seg"].shape, (2, 2, 1, 3))
-            code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
-            self.assertEqual(code, ("P", "L", "I"))
-            code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
-            self.assertEqual(code, ("P", "L", "I"))
-
-    def test_orntd_2d(self):
-        data = {
-            "seg": np.ones((2, 1, 3)),
-            "img": np.ones((2, 1, 3)),
-            PostFix.meta("seg"): {"affine": np.eye(4)},
-            PostFix.meta("img"): {"affine": np.eye(4)},
-        }
-        ornt = Orientationd(keys=("img", "seg"), axcodes="PLI")
-        res = ornt(data)
-        np.testing.assert_allclose(res["img"].shape, (2, 3, 1))
-        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("P", "L", "S"))
-        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("P", "L", "S"))
-
-    def test_orntd_1d(self):
-        data = {
-            "seg": np.ones((2, 3)),
-            "img": np.ones((2, 3)),
-            PostFix.meta("seg"): {"affine": np.eye(4)},
-            PostFix.meta("img"): {"affine": np.eye(4)},
-        }
-        ornt = Orientationd(keys=("img", "seg"), axcodes="L")
-        res = ornt(data)
-        np.testing.assert_allclose(res["img"].shape, (2, 3))
-        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("L", "A", "S"))
-        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("L", "A", "S"))
-
-    def test_orntd_canonical(self):
-        data = {
-            "seg": np.ones((2, 1, 2, 3)),
-            "img": np.ones((2, 1, 2, 3)),
-            PostFix.meta("seg"): {"affine": np.eye(4)},
-            PostFix.meta("img"): {"affine": np.eye(4)},
-        }
-        ornt = Orientationd(keys=("img", "seg"), as_closest_canonical=True)
-        res = ornt(data)
-        np.testing.assert_allclose(res["img"].shape, (2, 1, 2, 3))
-        np.testing.assert_allclose(res["seg"].shape, (2, 1, 2, 3))
-        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("R", "A", "S"))
-        code = nib.aff2axcodes(res[PostFix.meta("img")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("R", "A", "S"))
-
-    def test_orntd_no_metadata(self):
-        data = {"seg": np.ones((2, 1, 2, 3))}
-        ornt = Orientationd(keys="seg", axcodes="RAS")
-        res = ornt(data)
-        np.testing.assert_allclose(res["seg"].shape, (2, 1, 2, 3))
-        code = nib.aff2axcodes(res[PostFix.meta("seg")]["affine"], ornt.ornt_transform.labels)
-        self.assertEqual(code, ("R", "A", "S"))
+    @parameterized.expand(TESTS_TORCH)
+    def test_orntd_torch(self, init_param, img: torch.Tensor, track_meta: bool, device):
+        set_track_meta(track_meta)
+        ornt = Orientationd(**init_param)
+        img = img.to(device)
+        expected_shape = img.shape
+        expected_code = ornt.ornt_transform.axcodes
+        call_param = {"data": {k: img.clone() for k in ornt.keys}}
+        res = ornt(**call_param)  # type: ignore[arg-type]
+        for k in ornt.keys:
+            _im = res[k]
+            np.testing.assert_allclose(_im.shape, expected_shape)
+            if track_meta:
+                if img.ndim in (3, 4):
+                    test_resampler_lazy(ornt, res, init_param, call_param, output_key=k)
+                self.assertIsInstance(_im, MetaTensor)
+                assert isinstance(_im, MetaTensor)  # for mypy type narrowing
+                code = nib.aff2axcodes(_im.affine.cpu(), ornt.ornt_transform.labels)
+                self.assertEqual("".join(code), expected_code)
+            else:
+                self.assertIsInstance(_im, torch.Tensor)
+                self.assertNotIsInstance(_im, MetaTensor)
 
 
 if __name__ == "__main__":

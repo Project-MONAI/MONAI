@@ -9,16 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from __future__ import annotations
 
-import numpy as np
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from typing import Any
+
 from torch.utils.data import IterableDataset as _TorchIterableDataset
 from torch.utils.data import get_worker_info
 
 from monai.data.utils import convert_tables_to_dicts
 from monai.transforms import apply_transform
 from monai.transforms.transform import Randomizable
-from monai.utils import deprecated_arg, optional_import
+from monai.utils import optional_import
 
 pd, _ = optional_import("pandas")
 
@@ -38,7 +40,7 @@ class IterableDataset(_TorchIterableDataset):
 
     """
 
-    def __init__(self, data: Iterable, transform: Optional[Callable] = None) -> None:
+    def __init__(self, data: Iterable[Any], transform: Callable | None = None) -> None:
         """
         Args:
             data: input data source to load and transform to generate dataset for model.
@@ -46,7 +48,7 @@ class IterableDataset(_TorchIterableDataset):
         """
         self.data = data
         self.transform = transform
-        self.source = None
+        self.source: Iterator[Any] | None = None
 
     def __iter__(self):
         info = get_worker_info()
@@ -72,51 +74,65 @@ class ShuffleBuffer(Randomizable, IterableDataset):
         seed: random seed to initialize the random state of all workers, set `seed += 1` in
             every iter() call, refer to the PyTorch idea:
             https://github.com/pytorch/pytorch/blob/v1.10.0/torch/utils/data/distributed.py#L98.
+        epochs: number of epochs to iterate over the dataset, default to 1, -1 means infinite epochs.
+
+    Note:
+        Both ``monai.data.DataLoader`` and ``torch.utils.data.DataLoader`` do not seed this class (as a subclass of
+        ``IterableDataset``) at run time. ``persistent_workers=True`` flag (and pytorch>1.8) is therefore required
+        for multiple epochs of loading when ``num_workers>0``. For example::
+
+            import monai
+
+            def run():
+                dss = monai.data.ShuffleBuffer([1, 2, 3, 4], buffer_size=30, seed=42)
+
+                dataloader = monai.data.DataLoader(
+                    dss, batch_size=1, num_workers=2, persistent_workers=True)
+                for epoch in range(3):
+                    for item in dataloader:
+                        print(f"epoch: {epoch} item: {item}.")
+
+            if __name__ == '__main__':
+                run()
 
     """
 
-    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0) -> None:
+    def __init__(self, data, transform=None, buffer_size: int = 512, seed: int = 0, epochs: int = 1) -> None:
         super().__init__(data=data, transform=transform)
         self.size = buffer_size
         self.seed = seed
+        self.epochs = epochs
         self._idx = 0
+
+    def randomized_pop(self, buffer):
+        """Return the item at a randomized location `self._idx` in `buffer`."""
+        self.randomize(len(buffer))
+        ret, buffer[self._idx] = buffer[self._idx], buffer[-1]
+        buffer.pop()
+        return ret
+
+    def generate_item(self):
+        """Fill a `buffer` list up to `self.size`, then generate randomly popped items."""
+        buffer: list[Any] = []
+        for item in iter(self.data):
+            if len(buffer) >= self.size:
+                yield self.randomized_pop(buffer)
+            buffer.append(item)
+        while buffer:
+            yield self.randomized_pop(buffer)
 
     def __iter__(self):
         """
-        Fetch data from the source, if buffer is not full, fill into buffer, otherwise,
-        randomly pop items from the buffer.
-        After loading all the data from source, randomly pop items from the buffer.
-
+        Randomly pop buffered items from `self.data`.
+        Multiple dataloader workers sharing this dataset will generate identical item sequences.
         """
         self.seed += 1
         super().set_random_state(seed=self.seed)  # make all workers in sync
-        buffer = []
-        source = self.data
-
-        def _pop_item():
-            self.randomize(len(buffer))
-            # switch random index data and the last index data
-            ret, buffer[self._idx] = buffer[self._idx], buffer[-1]
-            buffer.pop()
-            return ret
-
-        def _get_item():
-            for item in source:
-                if len(buffer) >= self.size:
-                    yield _pop_item()
-                buffer.append(item)
-
-            while buffer:
-                yield _pop_item()
-
-        self.data = _get_item()
-        return super().__iter__()
+        for _ in range(self.epochs) if self.epochs >= 0 else iter(int, 1):
+            yield from IterableDataset(self.generate_item(), transform=self.transform)
 
     def randomize(self, size: int) -> None:
         self._idx = self.R.randint(size)
-
-    def set_random_state(self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None):
-        raise NotImplementedError(f"`set_random_state` is not available in {self.__class__.__name__}.")
 
 
 class CSVIterableDataset(IterableDataset):
@@ -179,24 +195,20 @@ class CSVIterableDataset(IterableDataset):
         kwargs_read_csv: dictionary args to pass to pandas `read_csv` function. Default to ``{"chunksize": chunksize}``.
         kwargs: additional arguments for `pandas.merge()` API to join tables.
 
-    .. deprecated:: 0.8.0
-        ``filename`` is deprecated, use ``src`` instead.
-
     """
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
     def __init__(
         self,
-        src: Union[Union[str, Sequence[str]], Union[Iterable, Sequence[Iterable]]],
+        src: str | Sequence[str] | Iterable | Sequence[Iterable],
         chunksize: int = 1000,
-        buffer_size: Optional[int] = None,
-        col_names: Optional[Sequence[str]] = None,
-        col_types: Optional[Dict[str, Optional[Dict[str, Any]]]] = None,
-        col_groups: Optional[Dict[str, Sequence[str]]] = None,
-        transform: Optional[Callable] = None,
+        buffer_size: int | None = None,
+        col_names: Sequence[str] | None = None,
+        col_types: dict[str, dict[str, Any] | None] | None = None,
+        col_groups: dict[str, Sequence[str]] | None = None,
+        transform: Callable | None = None,
         shuffle: bool = False,
         seed: int = 0,
-        kwargs_read_csv: Optional[Dict] = None,
+        kwargs_read_csv: dict | None = None,
         **kwargs,
     ):
         self.src = src
@@ -208,15 +220,12 @@ class CSVIterableDataset(IterableDataset):
         self.shuffle = shuffle
         self.seed = seed
         self.kwargs_read_csv = kwargs_read_csv or {"chunksize": chunksize}
-        # in case treating deprecated arg `filename` as kwargs, remove it from `kwargs`
-        kwargs.pop("filename", None)
         self.kwargs = kwargs
 
-        self.iters: List[Iterable] = self.reset()
+        self.iters: list[Iterable] = self.reset()
         super().__init__(data=None, transform=transform)  # type: ignore
 
-    @deprecated_arg(name="filename", new_name="src", since="0.8", msg_suffix="please use `src` instead.")
-    def reset(self, src: Optional[Union[Union[str, Sequence[str]], Union[Iterable, Sequence[Iterable]]]] = None):
+    def reset(self, src: str | Sequence[str] | Iterable | Sequence[Iterable] | None = None):
         """
         Reset the pandas `TextFileReader` iterable object to read data. For more details, please check:
         https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html?#iteration.
@@ -250,7 +259,7 @@ class CSVIterableDataset(IterableDataset):
 
         """
         for i in self.iters:
-            i.close()
+            i.close()  # type: ignore
 
     def _flattened(self):
         for chunks in zip(*self.iters):

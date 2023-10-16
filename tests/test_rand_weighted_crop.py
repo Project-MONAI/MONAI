@@ -9,14 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
-import torch
 from parameterized.parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import RandWeightedCrop
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
+from monai.transforms.lazy.functional import apply_pending
+from tests.croppers import CropTest
+from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
 def get_data(ndim):
@@ -28,10 +32,9 @@ def get_data(ndim):
 IMT_2D, SEG1_2D, SEGN_2D = get_data(ndim=2)
 IMT_3D, SEG1_3D, SEGN_3D = get_data(ndim=3)
 
-
 TESTS = []
-for p in TEST_NDARRAYS:
-    for q in TEST_NDARRAYS:
+for p in TEST_NDARRAYS_ALL:
+    for q in TEST_NDARRAYS_ALL:
         im = SEG1_2D
         weight = np.zeros_like(im)
         weight[0, 30, 17] = 1.1
@@ -113,8 +116,8 @@ for p in TEST_NDARRAYS:
                 dict(spatial_size=(10, -1, -1), num_samples=3),
                 p(im),
                 q(weight),
-                (1, 10, 64, 80),
-                [[14, 32, 40], [41, 32, 40], [20, 32, 40]],
+                (1, 10, 48, 80),
+                [[14, 24, 40], [41, 24, 40], [20, 24, 40]],
             ]
         )
         im = SEGN_3D
@@ -127,8 +130,8 @@ for p in TEST_NDARRAYS:
                 dict(spatial_size=(10000, 400, 80), num_samples=3),
                 p(im),
                 q(weight),
-                (1, 48, 64, 80),
-                [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+                (1, 64, 48, 80),
+                [[32, 24, 40], [32, 24, 40], [32, 24, 40]],
             ]
         )
         im = IMT_3D
@@ -139,16 +142,18 @@ for p in TEST_NDARRAYS:
         TESTS.append(
             [
                 "bad w 3d",
-                dict(spatial_size=(48, 64, 80), num_samples=3),
+                dict(spatial_size=(64, 48, 80), num_samples=3),
                 p(im),
                 q(weight),
-                (1, 48, 64, 80),
-                [[24, 32, 40], [24, 32, 40], [24, 32, 40]],
+                (1, 64, 48, 80),
+                [[32, 24, 40], [32, 24, 40], [32, 24, 40]],
             ]
         )
 
 
-class TestRandWeightedCrop(unittest.TestCase):
+class TestRandWeightedCrop(CropTest):
+    Cropper = RandWeightedCrop
+
     @parameterized.expand(TESTS)
     def test_rand_weighted_crop(self, _, input_params, img, weight, expected_shape, expected_vals):
         crop = RandWeightedCrop(**input_params)
@@ -161,10 +166,28 @@ class TestRandWeightedCrop(unittest.TestCase):
         # if desired ROI is larger than image, check image is unchanged
         if all(s >= i for i, s in zip(img.shape[1:], input_params["spatial_size"])):
             for res in result:
-                self.assertEqual(type(img), type(res))
-                if isinstance(img, torch.Tensor):
-                    self.assertEqual(res.device, img.device)
-                assert_allclose(res, img)
+                assert_allclose(res, img, type_test="tensor")
+                self.assertEqual(len(res.applied_operations), 1)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, _, input_param, img, weight, expected_shape, expected_vals):
+        crop = RandWeightedCrop(**input_param)
+        # non-lazy
+        crop.set_random_state(10)
+        expected = crop(img, weight)
+        self.assertIsInstance(expected[0], MetaTensor)
+        # lazy
+        crop.set_random_state(10)
+        crop.lazy = True
+        pending_result = crop(img, weight)
+        for i, _pending_result in enumerate(pending_result):
+            self.assertIsInstance(_pending_result, MetaTensor)
+            assert_allclose(_pending_result.peek_pending_affine(), expected[i].affine)
+            assert_allclose(_pending_result.peek_pending_shape(), expected[i].shape[1:])
+            # only support nearest
+            result = apply_pending(_pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
+            # compare
+            assert_allclose(result, expected[i], rtol=1e-5)
 
 
 if __name__ == "__main__":

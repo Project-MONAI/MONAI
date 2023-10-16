@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, Union
+from __future__ import annotations
 
-from monai.handlers.ignite_metric import IgniteMetric
+from collections.abc import Callable
+
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import DiceMetric
 from monai.utils import MetricReduction
 
 
-class MeanDice(IgniteMetric):
+class MeanDice(IgniteMetricHandler):
     """
     Computes Dice score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -24,7 +26,8 @@ class MeanDice(IgniteMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
+        num_classes: int | None = None,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
     ) -> None:
@@ -36,6 +39,9 @@ class MeanDice(IgniteMetric):
             reduction: define the mode to reduce metrics, will only execute reduction on `not-nan` values,
                 available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
                 ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+            num_classes: number of input channels (always including the background). When this is None,
+                ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
+                single-channel class indices and the number of classes is not automatically inferred from data.
             output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
                 construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
                 lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -46,7 +52,7 @@ class MeanDice(IgniteMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.meandice.compute_meandice`
+            :py:meth:`monai.metrics.meandice.compute_dice`
         """
-        metric_fn = DiceMetric(include_background=include_background, reduction=reduction)
+        metric_fn = DiceMetric(include_background=include_background, reduction=reduction, num_classes=num_classes)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

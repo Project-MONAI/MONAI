@@ -45,6 +45,13 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`GDSDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GDSDataset
+  :members:
+  :special-members: __getitem__
+
+
 `CacheNTransDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: CacheNTransDataset
@@ -152,6 +159,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+NrrdReader
+~~~~~~~~~~
+.. autoclass:: NrrdReader
+  :members:
 
 Image writer
 ------------
@@ -183,28 +194,6 @@ PILWriter
 ~~~~~~~~~
 .. autoclass:: PILWriter
   :members:
-
-Nifti format handling
----------------------
-
-Writing Nifti
-~~~~~~~~~~~~~
-.. autoclass:: monai.data.NiftiSaver
-  :members:
-
-.. autofunction:: monai.data.write_nifti
-
-
-PNG format handling
--------------------
-
-Writing PNG
-~~~~~~~~~~~
-.. autoclass:: monai.data.PNGSaver
-  :members:
-
-.. autofunction:: monai.data.write_png
-
 
 Synthetic
 ---------
@@ -268,16 +257,29 @@ TestTimeAugmentation
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.TestTimeAugmentation
 
+N-Dim Fourier Transform
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.data.fft_utils
+.. autofunction:: monai.data.fft_utils.fftn_centered
+.. autofunction:: monai.data.fft_utils.ifftn_centered
+
+ITK Torch Bridge
+~~~~~~~~~~~~~~~~
+.. automodule:: monai.data.itk_torch_bridge
+  :members:
+
 
 Meta Object
 -----------
 .. automodule:: monai.data.meta_obj
-    :members:
+  :members:
 
 MetaTensor
 ----------
 .. autoclass:: monai.data.MetaTensor
-   :members:
+  :members:
+  :show-inheritance:
+  :inherited-members: MetaObj
 
 
 
@@ -304,6 +306,12 @@ OpenSlideWSIReader
 .. autoclass:: monai.data.OpenSlideWSIReader
   :members:
 
+TiffFileWSIReader
+~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.TiffFileWSIReader
+  :members:
+
+
 Whole slide image datasets
 --------------------------
 
@@ -311,3 +319,33 @@ PatchWSIDataset
 ~~~~~~~~~~~~~~~
 .. autoclass:: monai.data.PatchWSIDataset
     :members:
+
+MaskedPatchWSIDataset
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.MaskedPatchWSIDataset
+    :members:
+
+SlidingPatchWSIDataset
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.SlidingPatchWSIDataset
+    :members:
+
+Bounding box
+------------
+.. automodule:: monai.data.box_utils
+    :members:
+
+Video datasets
+--------------
+
+VideoDataset
+~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.VideoDataset
+
+VideoFileDataset
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.VideoFileDataset
+
+CameraDataset
+~~~~~~~~~~~~~
+.. autoclass:: monai.data.video_dataset.CameraDataset

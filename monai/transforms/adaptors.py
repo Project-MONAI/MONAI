@@ -8,7 +8,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 How to use the adaptor function
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -122,6 +121,8 @@ Outputs:
 
 """
 
+from __future__ import annotations
+
 from typing import Callable
 
 from monai.utils import export as _monai_export
@@ -147,7 +148,6 @@ def adaptor(function, outputs, inputs=None):
         return {v: ditems[k] for k, v in input_map.items()}
 
     def _inner(ditems):
-
         sig = FunctionSignature(function)
 
         if sig.found_kwargs:
@@ -217,7 +217,6 @@ def adaptor(function, outputs, inputs=None):
 @_monai_export("monai.transforms")
 def apply_alias(fn, name_map):
     def _inner(data):
-
         # map names
         pre_call = dict(data)
         for _from, _to in name_map.items():

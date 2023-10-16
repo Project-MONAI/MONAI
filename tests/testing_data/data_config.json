@@ -1,9 +1,14 @@
 {
     "images": {
-        "wsi_img": {
+        "wsi_generic_tiff": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CMU-1.tiff",
             "hash_type": "sha256",
             "hash_val": "73a7e89bc15576587c3d68e55d9bf92f09690280166240b48ff4b48230b13bcd"
+        },
+        "wsi_aperio_svs": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/Aperio-CMU-1.svs",
+            "hash_type": "sha256",
+            "hash_val": "00a3d54482cd707abf254fe69dccc8d06b8ff757a1663f1290c23418c480eb30"
         },
         "favicon": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/favicon.ico.zip",
@@ -26,14 +31,76 @@
             "hash_val": "a14231f539c0f365a5f83f2a046969a9b9870e56ffd126fd8e7242364d25938a"
         },
         "0000_t2_tse_tra_4": {
-            "url": "https://github.com/rcuocolo/PROSTATEx_masks/raw/master/Files/lesions/Images/T2/ProstateX-0000_t2_tse_tra_4.nii.gz",
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ProstateX-0000_t2_tse_tra_4.nii.gz",
             "hash_type": "md5",
             "hash_val": "adb3f1c4db66a6481c3e4a2a3033c7d5"
         },
         "0000_ep2d_diff_tra_7": {
-            "url": "https://github.com/rcuocolo/PROSTATEx_masks/raw/master/Files/lesions/Images/ADC/ProstateX-0000_ep2d_diff_tra_7.nii.gz",
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ProstateX-0000_ep2d_diff_tra_7.nii.gz",
             "hash_type": "md5",
             "hash_val": "f12a11ad0ebb0b1876e9e010564745d2"
+        },
+        "ref_avg152T1_LR": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/avg152T1_LR_nifti.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "c01a50caa7a563158ecda43d93a1466bfc8aa939bc16b06452ac1089c54661c8"
+        },
+        "ref_avg152T1_RL": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/avg152T1_RL_nifti.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "8a731128dac4de46ccb2cc60d972b98f75a52f21fb63ddb040ca96f0aed8b51a"
+        },
+        "MNI152_T1_2mm": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/MNI152_T1_2mm.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "0585cd056bf5ccfb8bf97a5f6a66082d4e7caad525718fc11e40d80a827fcb92"
+        },
+        "MNI152_T1_2mm_strucseg": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/MNI152_T1_2mm_strucseg.nii.gz",
+            "hash_type": "sha256",
+            "hash_val": "eb4f1e596ca85aadaefc359d409fb9a3e27d733e6def04b996953b7c54bc26d4"
+        },
+        "copd1_highres_INSP_STD_COPD_img": {
+            "url": "https://data.kitware.com/api/v1/file/62a0f067bddec9d0c4175c5a/download",
+            "hash_type": "sha512",
+            "hash_val": "60193cd6ef0cf055c623046446b74f969a2be838444801bd32ad5bedc8a7eeecb343e8a1208769c9c7a711e101c806a3133eccdda7790c551a69a64b9b3701e9"
+        },
+        "copd1_highres_EXP_STD_COPD_img": {
+            "url": "https://data.kitware.com/api/v1/item/62a0f045bddec9d0c4175c44/download",
+            "hash_type": "sha512",
+            "hash_val": "841ef303958541474e66c2d1ccdc8b7ed17ba2f2681101307766b979a07979f2ec818ddf13791c3f1ac5a8ec3258d6ea45b692b4b4a838de9188602618972b6d"
+        },
+        "CT_2D_head_fixed": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_fixed.mha",
+            "hash_type": "sha256",
+            "hash_val": "06f2ce6fbf6a59f0874c735555fcf71717f631156b1b0697c1752442f7fc1cc5"
+        },
+        "CT_2D_head_moving": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_2D_head_moving.mha",
+            "hash_type": "sha256",
+            "hash_val": "a37c5fe388c38b3f4ac564f456277d09d3982eda58c4da05ead8ee2332360f47"
+        },
+        "DICOM_single": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_DICOM_SINGLE.zip",
+            "hash_type": "sha256",
+            "hash_val": "a41f6e93d2e3d68956144f9a847273041d36441da12377d6a1d5ae610e0a7023"
+        },
+        "nrrd_example": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/CT_IMAGE_cropped.nrrd",
+            "hash_type": "sha256",
+            "hash_val": "66971ad17f0bac50e6082ed6a4dc1ae7093c30517137e53327b15a752327a1c0"
+        }
+    },
+    "videos": {
+        "endovis": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/d1_im.mp4",
+            "hash_type": "md5",
+            "hash_val": "9b103c07326439b0ea376018d7189384"
+        },
+        "ultrasound": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/example_data_Ultrasound_Q000_04_tu_segmented_ultrasound_256.avi",
+            "hash_type": "md5",
+            "hash_val": "f0755960cc4a08a958561cda9a79a157"
         }
     },
     "models": {
@@ -66,13 +133,18 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/se_resnext50_32x4d-a260b3a4.pth",
             "hash_type": "sha256",
             "hash_val": "a260b3a40f82dfe37c58d26a612bcf7bef0d27c6fed096226b0e4e9fb364168e"
+        },
+        "ssl_pretrained_weights": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth",
+            "hash_type": "sha256",
+            "hash_val": "c3564f40a6a051d3753a6d8fae5cc8eaf21ce8d82a9a3baf80748d15664055e8"
         }
     },
     "configs": {
         "test_meta_file": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/meta_schema_20220324.json",
             "hash_type": "md5",
-            "hash_val": "e12813de2c15672a8c8fa8466b3dfc95"
+            "hash_val": "662135097106b71067cd1fc657f8720f"
         }
     }
 }

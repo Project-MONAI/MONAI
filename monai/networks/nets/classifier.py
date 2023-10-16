@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -46,13 +48,13 @@ class Classifier(Regressor):
         classes: int,
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout: Optional[float] = None,
+        dropout: float | None = None,
         bias: bool = True,
-        last_act: Optional[str] = None,
+        last_act: str | None = None,
     ) -> None:
         super().__init__(in_shape, (classes,), channels, strides, kernel_size, num_res_units, act, norm, dropout, bias)
 
@@ -86,11 +88,11 @@ class Discriminator(Classifier):
         in_shape: Sequence[int],
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout: Optional[float] = 0.25,
+        dropout: float | None = 0.25,
         bias: bool = True,
         last_act=Act.SIGMOID,
     ) -> None:
@@ -120,11 +122,11 @@ class Critic(Classifier):
         in_shape: Sequence[int],
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 2,
         act=Act.PRELU,
         norm=Norm.INSTANCE,
-        dropout: Optional[float] = 0.25,
+        dropout: float | None = 0.25,
         bias: bool = True,
     ) -> None:
         super().__init__(in_shape, 1, channels, strides, kernel_size, num_res_units, act, norm, dropout, bias, None)

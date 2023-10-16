@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -29,7 +31,7 @@ class TestThresholdIntensity(unittest.TestCase):
     def test_value(self, in_type, input_param, expected_value):
         test_data = in_type(np.arange(10))
         result = ThresholdIntensity(**input_param)(test_data)
-        assert_allclose(result, in_type(expected_value))
+        assert_allclose(result, in_type(expected_value), type_test="tensor")
 
 
 if __name__ == "__main__":

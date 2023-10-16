@@ -1,3 +1,4 @@
+# manually trigger integration with the latest pytorch
 name: integration
 
 on:
@@ -5,24 +6,23 @@ on:
     type: [integration-test-command]
 
 jobs:
-  integration-py3:
+  integration-auto3dseg:
     container:
-      image: nvcr.io/nvidia/pytorch:21.12-py3  # CUDA 11.5
-      options: --gpus all  # shm-size 4g works fine
-    runs-on: [self-hosted, linux, x64, common]
+      image: nvcr.io/nvidia/pytorch:22.04-py3  # CUDA 11.6 py38
+      options: --gpus "device=1" --ipc host  # shm-size 4g works fine
+    runs-on: [self-hosted, linux, x64, command]
     steps:
     # checkout the pull request branch
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
         ref: ${{ github.event.client_payload.pull_request.head.ref }}
     - name: cache weekly timestamp
       id: pip-cache
-      run: |
-        echo "::set-output name=datew::$(date '+%Y-%V')"
+      run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       id: cache
       with:
         path: |
@@ -31,30 +31,129 @@ jobs:
         key: docker-py3-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
-        which python
+        pwd && git log -1 && which python
         python -m pip install --upgrade pip wheel
-        python -m pip uninstall -y torch torchvision
-        python -m pip install torch==1.11.0+cu115 torchvision==0.12.0+cu115 -f https://download.pytorch.org/whl/torch_stable.html
+        pip uninstall -y monai
+        pip uninstall -y monai
+        pip uninstall -y monai-weekly
+        pip uninstall -y monai-weekly
+        python -m pip install --upgrade torch torchvision torchaudio torchtext
         python -m pip install -r requirements-dev.txt
         rm -rf /github/home/.cache/torch/hub/mmars/
-    - name: Run integration tests
+    - name: Clean directory
       run: |
         python -m pip list
+        git config --global --add safe.directory /__w/MONAI/MONAI
+        git clean -ffdx && git reset --hard HEAD
         nvidia-smi
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils)
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils -c 1 | tail -n 1)
         echo $CUDA_VISIBLE_DEVICES
-        trap 'if pgrep python; then pkill python; fi;' ERR
-        python -c $'import torch\na,b=torch.zeros(1,device="cuda:0"),torch.zeros(1,device="cuda:1");\nwhile True:print(a,b)' > /dev/null &
         python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
         python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
-        BUILD_MONAI=1 ./runtests.sh --build --net
-        BUILD_MONAI=1 ./runtests.sh --build --unittests --disttests
-        if pgrep python; then pkill python; fi
+
+    - name: Auto3dseg tag algo
       shell: bash
+      env:
+        BUILD_MONAI: 0
+      run: |
+        pwd && git log -1 && which python
+        ./runtests.sh -b
+        export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+        python -m tests.test_auto3dseg_bundlegen
+        python -m tests.test_auto3dseg_ensemble
+        python -m tests.test_auto3dseg_hpo
+        python -m tests.test_integration_autorunner
+        python -m tests.test_integration_gpu_customization
+    - name: Integration tests
+      shell: bash
+      env:
+        BUILD_MONAI: 1
+      run: ./runtests.sh --build --net
+
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v1
+      uses: peter-evans/create-or-update-comment@v3
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
         comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
-        reaction-type: rocket
+        reactions: rocket
+
+
+  integration-unit:
+    container:
+      image: nvcr.io/nvidia/pytorch:22.04-py3  # CUDA 11.6 py38
+      options: --gpus "device=2" --ipc host  # shm-size 4g works fine
+    runs-on: [self-hosted, linux, x64, command1]
+    steps:
+    # checkout the pull request branch
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.PR_MAINTAIN }}
+        repository: ${{ github.event.client_payload.pull_request.head.repo.full_name }}
+        ref: ${{ github.event.client_payload.pull_request.head.ref }}
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+    - name: cache for pip
+      uses: actions/cache@v3
+      id: cache
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/torch
+        key: docker-py3-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Install the dependencies
+      run: |
+        pwd && git log -1 && which python
+        python -m pip install --upgrade pip wheel
+        pip uninstall -y monai
+        pip uninstall -y monai
+        pip uninstall -y monai-weekly
+        pip uninstall -y monai-weekly
+        python -m pip install --upgrade torch torchvision torchaudio torchtext
+        python -m pip install -r requirements-dev.txt
+        rm -rf /github/home/.cache/torch/hub/mmars/
+    - name: Clean directory
+      run: |
+        python -m pip list
+        git config --global --add safe.directory /__w/MONAI/MONAI
+        git clean -ffdx && git reset --hard HEAD
+        nvidia-smi
+        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils -c 1 | tail -n 1)
+        echo $CUDA_VISIBLE_DEVICES
+        python -c "import torch; print(torch.__version__); print('{} of GPUs available'.format(torch.cuda.device_count()))"
+        python -c 'import torch; print(torch.rand(5,3, device=torch.device("cuda:0")))'
+
+    - name: Auto3dseg latest algo
+      shell: bash
+      env:
+        BUILD_MONAI: 0
+      run: |
+        pwd
+        cd ../
+        rm -rf research-contributions
+        rm -rf algorithm_templates
+        git clone --depth 1 --branch main --single-branch https://github.com/Project-MONAI/research-contributions.git
+        ls research-contributions/
+        cp -r research-contributions/auto3dseg/algorithm_templates MONAI/
+        cd research-contributions && git log -1 && cd ../MONAI
+        pwd
+        ls -ll
+        export OMP_NUM_THREADS=4
+        export MKL_NUM_THREADS=4
+        export MONAI_TESTING_ALGO_TEMPLATE=algorithm_templates
+        pwd && git log -1 && which python
+        ./runtests.sh -b
+        export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+        python -m tests.test_auto3dseg_ensemble
+        python -m tests.test_auto3dseg_hpo
+        python -m tests.test_integration_autorunner
+        python -m tests.test_integration_gpu_customization
+
+    - name: Add reaction
+      uses: peter-evans/create-or-update-comment@v3
+      with:
+        token: ${{ secrets.PR_MAINTAIN }}
+        repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
+        comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
+        reactions: +1
