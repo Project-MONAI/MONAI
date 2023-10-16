@@ -22,9 +22,19 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
+from monai.networks.nets import (
+    ResNet,
+    get_medicalnet_pretrained_resnet_args,
+    get_pretrained_resnet_medicalnet,
+    resnet10,
+    resnet18,
+    resnet34,
+    resnet50,
+    resnet101,
+    resnet152,
+    resnet200,
+)
 from monai.networks.nets.resnet import ResNetBlock
-from monai.networks.utils import get_pretrained_resnet_medicalnet
 from monai.utils import optional_import
 from tests.utils import equal_state_dict, test_script_save
 
@@ -209,18 +219,6 @@ class TestResNet(unittest.TestCase):
             # True flag
             cp_input_param["pretrained"] = True
             resnet_depth = int(re.search(r"resnet(\d+)", model.__name__).group(1))
-
-            # Duplicate. see monai/networks/nets/resnet.py
-            def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
-                """
-                Return correct shortcut_type and bias_downsample for pretrained MedicalNet weights according to rensnet depth
-                """
-                # After testing
-                # False: 10, 50, 101, 152, 200
-                # Any: 18, 34
-                bias_downsample = -1 if resnet_depth in [18, 34] else 0  # 18, 10, 34
-                shortcut_type = "A" if resnet_depth in [18, 34] else "B"
-                return bias_downsample, shortcut_type
 
             bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
 

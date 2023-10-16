@@ -23,9 +23,11 @@ import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Norm, Pool
 from monai.networks.layers.utils import get_pool_layer
-from monai.networks.utils import get_pretrained_resnet_medicalnet
 from monai.utils import ensure_tuple_rep
-from monai.utils.module import look_up_option
+from monai.utils.module import look_up_option, optional_import
+
+hf_hub_download, _ = optional_import("huggingface_hub", name="hf_hub_download")
+EntryNotFoundError, _ = optional_import("huggingface_hub.utils._errors", name="EntryNotFoundError")
 
 MEDICALNET_HUGGINGFACE_REPO_BASENAME = "TencentMedicalNet/MedicalNet-Resnet"
 MEDICALNET_HUGGINGFACE_FILES_BASENAME = "resnet_"
@@ -360,18 +362,6 @@ def _resnet(
                     resnet_depth = int(re.search(r"resnet(\d+)", arch).group(1))
                     # get shortcut_type and bias_downsample.
 
-                    def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
-                        """
-                        Return correct shortcut_type and bias_downsample
-                        for pretrained MedicalNet weights according to rensnet depth
-                        """
-                        # After testing
-                        # False: 10, 50, 101, 152, 200
-                        # Any: 18, 34
-                        bias_downsample = -1 if resnet_depth in [18, 34] else 0  # 18, 10, 34
-                        shortcut_type = "A" if resnet_depth in [18, 34] else "B"
-                        return bias_downsample, shortcut_type
-
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
                     if shortcut_type == kwargs.get("shortcut_type", "B") and (
@@ -481,3 +471,71 @@ def resnet200(pretrained: bool = False, progress: bool = True, **kwargs: Any) ->
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet("resnet200", ResNetBottleneck, [3, 24, 36, 3], get_inplanes(), pretrained, progress, **kwargs)
+
+
+def get_pretrained_resnet_medicalnet(resnet_depth: int, device: str = "cpu", datasets23: bool = True):
+    """
+    Donwlad resnet pretrained weights from https://huggingface.co/TencentMedicalNet
+
+    Args:
+        resnet_depth: depth of the pretrained model. Supported values are 10, 18, 34, 50, 101, 152 and 200
+        device: device on which the returned state dict will be loaded. "cpu" or "cuda" for example.
+        datasets23: if True, get the weights trained on more datasets (23).
+                    Not all depths are available. If not, standard weights are returned.
+
+    Returns:
+        Pretrained state dict
+
+    Raises:
+        huggingface_hub.utils._errors.EntryNotFoundError: if pretrained weights are not found on huggingface hub
+        NotImplementedError: if `resnet_depth` is not supported
+    """
+
+    medicalnet_huggingface_repo_basename = "TencentMedicalNet/MedicalNet-Resnet"
+    medicalnet_huggingface_files_basename = "resnet_"
+    supported_depth = [10, 18, 34, 50, 101, 152, 200]
+
+    logger.info(
+        f"Loading MedicalNet pretrained model from https://huggingface.co/{medicalnet_huggingface_repo_basename}{resnet_depth}"
+    )
+
+    if resnet_depth in supported_depth:
+        filename = (
+            f"{medicalnet_huggingface_files_basename}{resnet_depth}.pth"
+            if not datasets23
+            else f"{medicalnet_huggingface_files_basename}{resnet_depth}_23dataset.pth"
+        )
+        try:
+            pretrained_path = hf_hub_download(
+                repo_id=f"{medicalnet_huggingface_repo_basename}{resnet_depth}", filename=filename
+            )
+        except Exception:
+            if datasets23:
+                logger.info(f"{filename} not available for resnet{resnet_depth}")
+                filename = f"{medicalnet_huggingface_files_basename}{resnet_depth}.pth"
+                logger.info(f"Trying with {filename}")
+                pretrained_path = hf_hub_download(
+                    repo_id=f"{medicalnet_huggingface_repo_basename}{resnet_depth}", filename=filename
+                )
+            else:
+                raise EntryNotFoundError(
+                    f"{filename} not found on {medicalnet_huggingface_repo_basename}{resnet_depth}"
+                ) from None
+        checkpoint = torch.load(pretrained_path, map_location=torch.device(device))
+    else:
+        raise NotImplementedError("Supported resnet_depth are: [10, 18, 34, 50, 101, 152, 200]")
+    logger.info(f"{filename} downloaded")
+    return checkpoint.get("state_dict")
+
+
+def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
+    """
+    Return correct shortcut_type and bias_downsample
+    for pretrained MedicalNet weights according to resnet depth
+    """
+    # After testing
+    # False: 10, 50, 101, 152, 200
+    # Any: 18, 34
+    bias_downsample = -1 if resnet_depth in [18, 34] else 0  # 18, 10, 34
+    shortcut_type = "A" if resnet_depth in [18, 34] else "B"
+    return bias_downsample, shortcut_type

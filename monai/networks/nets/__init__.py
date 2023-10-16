@@ -66,6 +66,8 @@ from .resnet import (
     resnet101,
     resnet152,
     resnet200,
+    get_medicalnet_pretrained_resnet_args,
+    get_pretrained_resnet_medicalnet
 )
 from .segresnet import SegResNet, SegResNetVAE
 from .segresnet_ds import SegResNetDS
