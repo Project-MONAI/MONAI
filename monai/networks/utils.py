@@ -1168,9 +1168,7 @@ def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
     logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")
 
 
-def get_pretrained_resnet_medicalnet(
-    resnet_depth: int, device: str = "cpu", datasets23: bool = True
-):
+def get_pretrained_resnet_medicalnet(resnet_depth: int, device: str = "cpu", datasets23: bool = True):
     """
     Donwlad resnet pretrained weights from https://huggingface.co/TencentMedicalNet
 
