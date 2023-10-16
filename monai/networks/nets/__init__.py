@@ -60,7 +60,7 @@ from .resnet import (
     ResNetBlock,
     ResNetBottleneck,
     get_medicalnet_pretrained_resnet_args,
-    get_pretrained_resnet_medicalnet
+    get_pretrained_resnet_medicalnet,
     resnet10,
     resnet18,
     resnet34,
