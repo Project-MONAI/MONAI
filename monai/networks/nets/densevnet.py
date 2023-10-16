@@ -74,21 +74,21 @@ class ChannelSparseConvolutionLayer(Convolution):
         else:
             _output_mask = output_mask
 
-        all_input_channels = _input_mask.shape.as_list()[0]
+        _input_mask.shape.as_list()[0]
 
         # TODO: in NiftyNet this is a seperate function
         # https://niftynet.readthedocs.io/en/dev/_modules/niftynet/layer/layer_util.html#infer_spatial_rank
         spatial_rank = infer_spatial_rank(x)
 
-        w_full_size = expand_spatial_params(
+        expand_spatial_params(
             self.kernel_size, spatial_rank
         )
 
-        full_stride = expand_spatial_params(
+        expand_spatial_params(
             self.stride, spatial_rank
         )
 
-        full_dilation = expand_spatial_params(
+        expand_spatial_params(
             self.dilation, spatial_rank
         )
 
