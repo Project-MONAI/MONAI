@@ -79,5 +79,5 @@ State Cacher
 
 Component store
 ---------------
-.. automodule:: monai.utils.component_store
+.. autoclass:: monai.utils.component_store.ComponentStore
   :members:
