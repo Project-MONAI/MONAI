@@ -381,6 +381,7 @@ class RemoveSmallObjects(Transform):
         self.min_size = min_size
         self.connectivity = connectivity
         self.independent_channels = independent_channels
+        self.physical_scale = physical_scale
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -391,7 +392,7 @@ class RemoveSmallObjects(Transform):
         Returns:
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
-        return remove_small_objects(img, self.min_size, self.connectivity, self.independent_channels)
+        return remove_small_objects(img, self.min_size, self.connectivity, self.independent_channels, self.physical_scale)
 
 
 class LabelFilter(Transform):
