@@ -890,11 +890,11 @@ def is_sqrt(num: Sequence[int] | int) -> bool:
     return ensure_tuple(ret) == num
 
 
-def unsqueeze_right(arr: T, ndim: int) -> T:
+def unsqueeze_right(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
     """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(...,) + (None,) * (ndim - arr.ndim)]
 
 
-def unsqueeze_left(arr: T, ndim: int) -> T:
+def unsqueeze_left(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
     """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(None,) * (ndim - arr.ndim)]
