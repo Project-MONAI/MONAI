@@ -363,7 +363,7 @@ def _resnet(
                     if search_res:
                         resnet_depth = int(search_res.group(1))
                     else:
-                        raise ValueError("arch argument should be as 'resnet_\{resnet_depth\}")
+                        raise ValueError(r"arch argument should be as 'resnet_\{resnet_depth\}")
 
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
