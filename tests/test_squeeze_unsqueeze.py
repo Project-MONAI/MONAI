@@ -22,7 +22,7 @@ from monai.utils import unsqueeze_left, unsqueeze_right
 RIGHT_CASES = [(np.random.rand(3, 4), 5, (3, 4, 1, 1, 1)), (torch.rand(3, 4), 5, (3, 4, 1, 1, 1))]
 
 LEFT_CASES = [(np.random.rand(3, 4), 5, (1, 1, 1, 3, 4)), (torch.rand(3, 4), 5, (1, 1, 1, 3, 4))]
- 
+
 ALL_CASES = [
     (np.random.rand(3, 4), 2, (3, 4)),
     (np.random.rand(3, 4), 0, (3, 4)),
