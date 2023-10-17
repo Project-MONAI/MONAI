@@ -359,8 +359,11 @@ def _resnet(
             # Also check bias downsample and shortcut.
             if kwargs.get("spatial_dims", 3) == 3:
                 if kwargs.get("n_input_channels", 3) == 1 and kwargs.get("feed_forward", True) is False:
-                    resnet_depth = int(re.search(r"resnet(\d+)", arch).group(1))
-                    # get shortcut_type and bias_downsample.
+                    search_res = re.search(r"resnet(\d+)", arch)
+                    if search_res:
+                        resnet_depth = int(search_res.group(1))
+                    else:
+                        raise ValueError("arch argument should be as 'resnet_\{resnet_depth\}")
 
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
