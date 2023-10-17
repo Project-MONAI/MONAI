@@ -369,11 +369,15 @@ class RemoveSmallObjects(Transform):
         independent_channels: Whether or not to consider channels as independent. If true, then
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
+        physical_scale: Whether or not to consider min_size at physical scale, default is false. If true,
+            min_size will be multiplied by pixdim.
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True) -> None:
+    def __init__(
+        self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True, physical_scale: bool = False
+    ) -> None:
         self.min_size = min_size
         self.connectivity = connectivity
         self.independent_channels = independent_channels

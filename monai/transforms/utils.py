@@ -1068,7 +1068,11 @@ def get_largest_connected_component_mask(
 
 
 def remove_small_objects(
-    img: NdarrayTensor, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True
+    img: NdarrayTensor,
+    min_size: int = 64,
+    connectivity: int = 1,
+    independent_channels: bool = True,
+    physical_scale: bool = False,
 ) -> NdarrayTensor:
     """
     Use `skimage.morphology.remove_small_objects` to remove small objects from images.
@@ -1085,6 +1089,8 @@ def remove_small_objects(
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
             documentation.
         independent_channels: Whether to consider each channel independently.
+        physical_scale: Whether or not to consider min_size at physical scale, default is false. If true,
+            min_size will be multiplied by pixdim.
     """
     # if all equal to one value, no need to call skimage
     if len(unique(img)) == 1:
@@ -1092,6 +1098,12 @@ def remove_small_objects(
 
     if not has_morphology:
         raise RuntimeError("Skimage required.")
+
+    if physical_scale:
+        if isinstance(img, monai.data.MetaTensor):
+            min_size = int(np.prod(np.array(img.pixdim)) * min_size)
+        else:
+            warnings.warn("`img` is not of type MetaTensor, assuming affine to be identity.")
 
     img_np: np.ndarray
     img_np, *_ = convert_data_type(img, np.ndarray)
