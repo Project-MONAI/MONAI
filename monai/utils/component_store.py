@@ -49,6 +49,7 @@ class ComponentStore:
         result = func(7, 6)
 
     """
+
     _Component = namedtuple("_Component", ("description", "value"))  # internal value pair
 
     def __init__(self, name: str, description: str) -> None:

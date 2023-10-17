@@ -99,6 +99,8 @@ from .misc import (
     str2bool,
     str2list,
     to_tuple_of_dictionaries,
+    unsqueeze_left,
+    unsqueeze_right,
     zip_with,
 )
 from .module import (
