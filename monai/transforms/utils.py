@@ -1110,7 +1110,7 @@ def remove_small_objects(
             _pixdim = ensure_tuple_rep(pixdim, sr)
         else:
             warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
-            _pixdim = (1.0, ) * sr
+            _pixdim = (1.0,) * sr
         min_size = int(np.prod(np.array(_pixdim)) * min_size)
 
     img_np: np.ndarray
