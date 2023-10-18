@@ -31,6 +31,12 @@ TEST_INPUT1 = np.array([[[0, 0, 2, 1, 0], [1, 1, 1, 2, 0], [1, 1, 1, 0, 1]]])
 
 TEST_OUTPUT1 = np.array([[[0, 0, 2, 1, 0], [1, 1, 1, 2, 0], [1, 1, 1, 0, 0]]])
 
+TEST_INPUT2 = np.array([[[1, 1, 1, 0, 0], [1, 1, 1, 0, 0], [0, 0, 0, 0, 0], [0, 1, 1, 0, 1], [0, 0, 0, 1, 1]]])
+affine = np.eye(4)
+affine[0, 0] = 2
+TEST_INPUT3 = MetaTensor(TEST_INPUT2, affine=affine)
+
+
 TESTS: list[tuple] = []
 for dtype in (int, float):
     for p in TEST_NDARRAYS:
@@ -40,6 +46,13 @@ for dtype in (int, float):
         TESTS.append((dtype, p, TEST_INPUT1, None, {"min_size": 7, "connectivity": 2}))
         # for non-independent channels, the twos should stay
         TESTS.append((dtype, p, TEST_INPUT1, TEST_OUTPUT1, {"min_size": 2, "independent_channels": False}))
+
+TESTS_PHYSICAL: list[tuple] = []
+for dtype in (int, float):
+    TESTS_PHYSICAL.append(
+        (dtype, np.array, TEST_INPUT2, None, {"min_size": 3, "physical_scale": True, "pixdim": (2, 1)})
+    )
+    TESTS_PHYSICAL.append((dtype, MetaTensor, TEST_INPUT3, None, {"min_size": 3, "physical_scale": True}))
 
 
 @SkipIfNoModule("skimage.morphology")
@@ -56,6 +69,22 @@ class TestRemoveSmallObjects(unittest.TestCase):
         assert_allclose(lbl_clean, expected, device_test=True)
         if isinstance(lbl, MetaTensor):
             assert_allclose(lbl.affine, lbl_clean.affine)
+
+    @parameterized.expand(TESTS_PHYSICAL)
+    def test_remove_small_objects_physical(self, dtype, im_type, lbl, expected, params):
+        params = params or {}
+        min_size = params["min_size"] * 2
+
+        if expected is None:
+            dtype = bool if lbl.max() <= 1 else int
+            expected = morphology.remove_small_objects(lbl.astype(dtype), min_size=min_size)
+        expected = im_type(expected, dtype=dtype)
+        lbl = im_type(lbl, dtype=dtype)
+        lbl_clean = RemoveSmallObjects(**params)(lbl)
+        assert_allclose(lbl_clean, expected, device_test=True)
+
+        lbl_clean = RemoveSmallObjectsd("lbl", **params)({"lbl": lbl})["lbl"]
+        assert_allclose(lbl_clean, expected, device_test=True)
 
     @parameterized.expand(TESTS)
     def test_remove_small_objects_dict(self, dtype, im_type, lbl, expected, params=None):
