@@ -272,7 +272,7 @@ class TestComposeIterator(unittest.TestCase):
 
         c = mt.Compose([mt.Compose([t1, t2]), mt.Compose([t3, t4])])
 
-        cf = c.flatten()
+        c.flatten()
 
         for m in (False, True):
             self.assertListEqual(
@@ -296,7 +296,7 @@ class TestComposeIterator(unittest.TestCase):
 
         c = mt.Compose([c1, c2, t5])
 
-        cf = c.flatten()
+        c.flatten()
 
         for m in (False, True):
             expected = [t1, t2, c2, t5] if m is False else [t1, t2, t3, t4, t5]
