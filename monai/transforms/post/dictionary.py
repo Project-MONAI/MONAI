@@ -278,6 +278,11 @@ class RemoveSmallObjectsd(MapTransform):
         independent_channels: Whether or not to consider channels as independent. If true, then
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
+        physical_scale: Whether or not to consider min_size at physical scale, default is false.
+            If true, pixdim will be used to multiply min_size. e.g. if min_size is 3 and physical_scale
+            is True, objects smaller than 3mm^3 are removed.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
 
     backend = RemoveSmallObjects.backend
@@ -288,10 +293,12 @@ class RemoveSmallObjectsd(MapTransform):
         min_size: int = 64,
         connectivity: int = 1,
         independent_channels: bool = True,
+        physical_scale: bool = False,
+        pixdim: Sequence[float] | float | np.ndarray | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels)
+        self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels, physical_scale, pixdim)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

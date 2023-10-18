@@ -376,7 +376,7 @@ class RemoveSmallObjects(Transform):
         pixdim: the pixdim of the input image. if a single number, this is used for all axes.
             If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
 
-    Example:
+    Example::
 
         .. code-block:: python
 
