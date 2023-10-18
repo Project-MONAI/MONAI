@@ -1000,7 +1000,7 @@ def generate_one_spatial_bounding_box(
         dt = data
         if len(ax) != 0:
             dt = any_np_pt(dt, ax)
-            
+
 
         if not dt.any():
             # if no foreground, return all zero bounding box coords
@@ -1049,7 +1049,7 @@ def generate_spatial_bounding_box(
                 the bounding boxes edges are aligned with the final box edges. Default to `True`.
 
     """
-    
+
     skimage, has_cucim = optional_import("cucim.skimage")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
@@ -1060,13 +1060,13 @@ def generate_spatial_bounding_box(
             raise RuntimeError("Skimage.measure required.")
         img_, *_ = convert_data_type(img, np.ndarray)
         label = measure.label
-    
+
     data = select_fn(img_).any(0)
     features, num_features = label(data, connectivity=1, return_num=True)
-        
+
     boxes_start = []
     boxes_end = []
-    
+
     for n in range(num_features):
         result = generate_one_spatial_bounding_box(
             img= features[None],
@@ -1077,13 +1077,13 @@ def generate_spatial_bounding_box(
         )
         boxes_start.append(result[0])
         boxes_end.append(result[1])
-    
-    # For non breaking change with previous implementation. 
+
+    # For non breaking change with previous implementation.
     # TODO refacto for standardization
     if len(boxes_start) == 1 and len(boxes_end) == 1:
         boxes_start = boxes_start[0]
         boxes_end = boxes_end[0]
-    
+
     return boxes_start, boxes_end
 
 
@@ -2292,4 +2292,3 @@ def distance_transform_edt(
 
 if __name__ == "__main__":
     print_transform_backends()
-    
