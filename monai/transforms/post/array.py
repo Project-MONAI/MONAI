@@ -27,6 +27,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.networks import one_hot
 from monai.networks.layers import GaussianFilter, apply_filter, separable_filtering
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.spatial.array import Spacing
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import (
@@ -376,12 +377,20 @@ class RemoveSmallObjects(Transform):
     backend = [TransformBackends.NUMPY]
 
     def __init__(
-        self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True, physical_scale: bool = False
+        self,
+        min_size: int = 64,
+        connectivity: int = 1,
+        independent_channels: bool = True,
+        physical_scale: bool = False,
+        resample: bool = False,
+        mode: str | int | None = None,
     ) -> None:
         self.min_size = min_size
         self.connectivity = connectivity
         self.independent_channels = independent_channels
         self.physical_scale = physical_scale
+        self.resample = resample
+        self.mode = mode
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -392,7 +401,22 @@ class RemoveSmallObjects(Transform):
         Returns:
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
-        return remove_small_objects(img, self.min_size, self.connectivity, self.independent_channels, self.physical_scale)
+
+        if self.resample and self.physical_scale:
+            raise ValueError("Incompatible values: resample=True and physical_scale=True.")
+
+        if self.resample and isinstance(img, MetaTensor):
+            original_pixdim = img.pixdim
+            img = Spacing(pixdim=(1, 1, 1))(img, self.mode)
+
+        out = remove_small_objects(
+            img, self.min_size, self.connectivity, self.independent_channels, self.physical_scale
+        )
+
+        if self.resample and isinstance(img, MetaTensor):
+            out = Spacing(pixdim=original_pixdim)(out, self.mode)
+
+        return out
 
 
 class LabelFilter(Transform):
