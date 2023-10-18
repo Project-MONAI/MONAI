@@ -1614,6 +1614,7 @@ def init_bundle(
     elif network is not None:
         save_state(network, str(models_dir / "model.pt"))
 
+
 def _add_model_card_metadata(new_modelcard_path):
     # Extract license from LICENSE file
     license_name = "unknown"

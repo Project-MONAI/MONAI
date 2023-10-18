@@ -23,8 +23,8 @@ from parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.apps import check_hash
-from monai.utils import optional_import
 from monai.bundle import ConfigParser, create_workflow, load
+from monai.utils import optional_import
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
     assert_allclose,
