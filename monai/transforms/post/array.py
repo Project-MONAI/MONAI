@@ -407,14 +407,14 @@ class RemoveSmallObjects(Transform):
 
         if self.resample and isinstance(img, MetaTensor):
             original_pixdim = img.pixdim
-            img = Spacing(pixdim=(1, 1, 1))(img, self.mode)
+            img = Spacing(pixdim=(1.0, 1.0, 1.0))(img, self.mode)
 
         out = remove_small_objects(
             img, self.min_size, self.connectivity, self.independent_channels, self.physical_scale
         )
 
         if self.resample and isinstance(img, MetaTensor):
-            out = Spacing(pixdim=original_pixdim)(out, self.mode)
+            out = Spacing(pixdim=original_pixdim)(out, self.mode)  # type: ignore
 
         return out
 
