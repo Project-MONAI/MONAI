@@ -133,7 +133,7 @@ class PatchAdversarialLoss(_Loss):
                 "to False. To optimise a generator, target_is_real must be set to True."
             )
 
-        if type(input) is not list:
+        if not isinstance(input, list):
             input = [input]
         target_ = []
         for _, disc_out in enumerate(input):

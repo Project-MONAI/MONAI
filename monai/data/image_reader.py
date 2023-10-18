@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import DtypeLike, KeysCollection, PathLike
+from monai.config import KeysCollection, PathLike
 from monai.data.utils import (
     affine_to_spacing,
     correct_nifti_header_if_necessary,
@@ -31,7 +31,7 @@ from monai.data.utils import (
     is_supported_format,
     orientation_ras_lps,
 )
-from monai.utils import MetaKeys, SpaceKeys, TraceKeys, deprecated_arg, ensure_tuple, optional_import, require_pkg
+from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
 
 if TYPE_CHECKING:
     import itk
@@ -244,6 +244,7 @@ class ITKReader(ImageReader):
                 series_identifier = series_uid[0] if not self.series_name else self.series_name
                 name = names_generator.GetFileNames(series_identifier)
 
+                name = name[0] if len(name) == 1 else name  # type: ignore
                 _obj = itk.imread(name, **kwargs_)
                 if self.series_meta:
                     _reader = itk.ImageSeriesReader.New(FileNames=name)
@@ -631,7 +632,7 @@ class PydicomReader(ImageReader):
 
         if self.prune_metadata:
             prune_metadata = {}
-            for key in ["00200037", "00200032", "52009229", "52009230"]:
+            for key in ["00200037", "00200032", "00280030", "52009229", "52009230"]:
                 if key in metadata.keys():
                     prune_metadata[key] = metadata[key]
             return prune_metadata
@@ -661,7 +662,9 @@ class PydicomReader(ImageReader):
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
-        dr, dc = metadata.get("spacing", (1.0, 1.0))[:2]
+        # "00280030" is the tag of `PixelSpacing`
+        spacing = metadata["00280030"]["Value"] if "00280030" in metadata else (1.0, 1.0)
+        dr, dc = metadata.get("spacing", spacing)[:2]
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -670,7 +673,7 @@ class PydicomReader(ImageReader):
         affine[1, 3] = sy
         affine[2, 0] = cz * dr
         affine[2, 1] = rz * dc
-        affine[2, 2] = 0
+        affine[2, 2] = 1.0
         affine[2, 3] = sz
 
         # 3d
@@ -766,7 +769,8 @@ class PydicomReader(ImageReader):
             all_segs = np.zeros([*spatial_shape, n_classes])
 
         for i, (frames, description) in enumerate(self._get_frame_data(img)):
-            class_name = description.SegmentDescription
+            segment_label = getattr(description, "SegmentLabel", f"label_{i}")
+            class_name = getattr(description, "SegmentDescription", segment_label)
             if class_name not in metadata["labels"].keys():
                 metadata["labels"][class_name] = i
             class_num = metadata["labels"][class_name]
@@ -857,20 +861,17 @@ class NibabelReader(ImageReader):
 
     """
 
-    @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
         channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
-        dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
-        self.dtype = dtype  # deprecated
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1312,6 +1313,8 @@ class NrrdReader(ImageReader):
 
             if self.affine_lps_to_ras:
                 header = self._switch_lps_ras(header)
+            if header.get(MetaKeys.SPACE, "left-posterior-superior") == "left-posterior-superior":
+                header[MetaKeys.SPACE] = SpaceKeys.LPS  # assuming LPS if not specified
 
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]

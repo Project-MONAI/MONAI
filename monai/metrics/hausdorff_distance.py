@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -20,12 +19,12 @@ import torch
 
 from monai.metrics.utils import (
     do_metric_reduction,
-    get_mask_edges,
+    get_edge_surface_distance,
     get_surface_distance,
     ignore_background,
     prepare_spacing,
 )
-from monai.utils import MetricReduction, convert_data_type
+from monai.utils import MetricReduction, convert_data_type, deprecated
 
 from .metric import CumulativeIterationMetric
 
@@ -180,31 +179,46 @@ def compute_hausdorff_distance(
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
     batch_size, n_class = y_pred.shape[:2]
-    hd = np.empty((batch_size, n_class))
+    hd = torch.empty((batch_size, n_class), dtype=torch.float, device=y_pred.device)
 
     img_dim = y_pred.ndim - 2
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
-        (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
-        if not np.any(edges_gt):
-            warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
-        if not np.any(edges_pred):
-            warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
-
-        distance_1 = compute_percent_hausdorff_distance(
-            edges_pred, edges_gt, distance_metric, percentile, spacing_list[b]
+        _, distances, _ = get_edge_surface_distance(
+            y_pred[b, c],
+            y[b, c],
+            distance_metric=distance_metric,
+            spacing=spacing_list[b],
+            symetric=not directed,
+            class_index=c,
         )
-        if directed:
-            hd[b, c] = distance_1
-        else:
-            distance_2 = compute_percent_hausdorff_distance(
-                edges_gt, edges_pred, distance_metric, percentile, spacing_list[b]
-            )
-            hd[b, c] = max(distance_1, distance_2)
-    return convert_data_type(hd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
+        percentile_distances = [_compute_percentile_hausdorff_distance(d, percentile) for d in distances]
+        max_distance = torch.max(torch.stack(percentile_distances))
+        hd[b, c] = max_distance
+    return hd
 
 
+def _compute_percentile_hausdorff_distance(
+    surface_distance: torch.Tensor, percentile: float | None = None
+) -> torch.Tensor:
+    """
+    This function is used to compute the Hausdorff distance.
+    """
+
+    # for both pred and gt do not have foreground
+    if surface_distance.shape == (0,):
+        return torch.tensor(np.nan, dtype=torch.float, device=surface_distance.device)
+
+    if not percentile:
+        return surface_distance.max()
+
+    if 0 <= percentile <= 100:
+        return torch.quantile(surface_distance, percentile / 100)
+    raise ValueError(f"percentile should be a value between 0 and 100, get {percentile}.")
+
+
+@deprecated(since="1.3.0", removed="1.5.0")
 def compute_percent_hausdorff_distance(
     edges_pred: np.ndarray,
     edges_gt: np.ndarray,
@@ -216,7 +230,9 @@ def compute_percent_hausdorff_distance(
     This function is used to compute the directed Hausdorff distance.
     """
 
-    surface_distance = get_surface_distance(edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing)
+    surface_distance: np.ndarray = get_surface_distance(  # type: ignore
+        edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing
+    )
 
     # for both pred and gt do not have foreground
     if surface_distance.shape == (0,):

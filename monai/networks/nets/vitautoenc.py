@@ -20,7 +20,7 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 from monai.networks.layers import Conv
-from monai.utils import ensure_tuple_rep, is_sqrt
+from monai.utils import deprecated_arg, ensure_tuple_rep, is_sqrt
 
 __all__ = ["ViTAutoEnc"]
 
@@ -33,6 +33,9 @@ class ViTAutoEnc(nn.Module):
     Modified to also give same dimension outputs as the input size of the image
     """
 
+    @deprecated_arg(
+        name="pos_embed", since="1.2", removed="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead."
+    )
     def __init__(
         self,
         in_channels: int,
@@ -45,6 +48,7 @@ class ViTAutoEnc(nn.Module):
         num_layers: int = 12,
         num_heads: int = 12,
         pos_embed: str = "conv",
+        proj_type: str = "conv",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
         qkv_bias: bool = False,
@@ -61,20 +65,23 @@ class ViTAutoEnc(nn.Module):
             mlp_dim: dimension of feedforward layer. Defaults to 3072.
             num_layers:  number of transformer blocks. Defaults to 12.
             num_heads: number of attention heads. Defaults to 12.
-            pos_embed: position embedding layer type. Defaults to "conv".
-            dropout_rate: faction of the input units to drop. Defaults to 0.0.
+            proj_type: position embedding layer type. Defaults to "conv".
+            dropout_rate: fraction of the input units to drop. Defaults to 0.0.
             spatial_dims: number of spatial dimensions. Defaults to 3.
             qkv_bias: apply bias to the qkv linear layer in self attention block. Defaults to False.
             save_attn: to make accessible the attention in self attention block. Defaults to False. Defaults to False.
+
+        .. deprecated:: 1.4
+            ``pos_embed`` is deprecated in favor of ``proj_type``.
 
         Examples::
 
             # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
             # It will provide an output of same size as that of the input
-            >>> net = ViTAutoEnc(in_channels=1, patch_size=(16,16,16), img_size=(96,96,96), pos_embed='conv')
+            >>> net = ViTAutoEnc(in_channels=1, patch_size=(16,16,16), img_size=(96,96,96), proj_type='conv')
 
             # for 3-channel with image size of (128,128,128), output will be same size as of input
-            >>> net = ViTAutoEnc(in_channels=3, patch_size=(16,16,16), img_size=(128,128,128), pos_embed='conv')
+            >>> net = ViTAutoEnc(in_channels=3, patch_size=(16,16,16), img_size=(128,128,128), proj_type='conv')
 
         """
 
@@ -94,7 +101,7 @@ class ViTAutoEnc(nn.Module):
             patch_size=patch_size,
             hidden_size=hidden_size,
             num_heads=num_heads,
-            pos_embed=pos_embed,
+            proj_type=proj_type,
             dropout_rate=dropout_rate,
             spatial_dims=self.spatial_dims,
         )

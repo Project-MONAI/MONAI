@@ -37,6 +37,7 @@ onnx, _ = optional_import("onnx")
 onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
 
+
 __all__ = [
     "one_hot",
     "predict_segmentation",
@@ -478,6 +479,7 @@ def copy_model_state(
     mapping=None,
     exclude_vars=None,
     inplace=True,
+    filter_func=None,
 ):
     """
     Compute a module state_dict, of which the keys are the same as `dst`. The values of `dst` are overwritten
@@ -490,7 +492,7 @@ def copy_model_state(
 
     Args:
         dst: a pytorch module or state dict to be updated.
-        src: a pytorch module or state dist used to get the values used for the update.
+        src: a pytorch module or state dict used to get the values used for the update.
         dst_prefix: `dst` key prefix, so that `dst[dst_prefix + src_key]`
             will be assigned to the value of `src[src_key]`.
         mapping: a `{"src_key": "dst_key"}` dict, indicating that `dst[dst_prefix + dst_key]`
@@ -499,6 +501,8 @@ def copy_model_state(
             so that their values are not overwritten by `src`.
         inplace: whether to set the `dst` module with the updated `state_dict` via `load_state_dict`.
             This option is only available when `dst` is a `torch.nn.Module`.
+        filter_func: a filter function used to filter the weights to be loaded.
+            See 'filter_swinunetr' in "monai.networks.nets.swin_unetr.py".
 
     Examples:
         .. code-block:: python
@@ -536,6 +540,12 @@ def copy_model_state(
                 warnings.warn(f"Param. shape changed from {dst_dict[dst_key].shape} to {src_dict[s].shape}.")
             dst_dict[dst_key] = src_dict[s]
             updated_keys.append(dst_key)
+    if filter_func is not None:
+        for key, value in src_dict.items():
+            new_pair = filter_func(key, value)
+            if new_pair is not None and new_pair[0] not in to_skip:
+                dst_dict[new_pair[0]] = new_pair[1]
+                updated_keys.append(new_pair[0])
 
     updated_keys = sorted(set(updated_keys))
     unchanged_keys = sorted(set(all_keys).difference(updated_keys))
@@ -543,7 +553,7 @@ def copy_model_state(
     if inplace and isinstance(dst, torch.nn.Module):
         if isinstance(dst, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
             dst = dst.module
-        dst.load_state_dict(dst_dict)
+        dst.load_state_dict(dst_dict)  # type: ignore
     return dst_dict, updated_keys, unchanged_keys
 
 
@@ -1111,3 +1121,47 @@ def replace_modules_temp(
         # revert
         for name, module in replaced:
             _replace_modules(parent, name, module, [], strict_match=True, match_device=match_device)
+
+
+def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
+    """
+    A utilty function to help freeze specific layers.
+
+    Args:
+        model: a source PyTorch model to freeze layer.
+        freeze_vars: a regular expression to match the `model` variable names,
+            so that their `requires_grad` will set to `False`.
+        exclude_vars: a regular expression to match the `model` variable names,
+            except for matched variable names, other `requires_grad` will set to `False`.
+
+    Raises:
+        ValueError: when freeze_vars and exclude_vars are both specified.
+
+    """
+    if freeze_vars is not None and exclude_vars is not None:
+        raise ValueError("Incompatible values: freeze_vars and exclude_vars are both specified.")
+    src_dict = get_state_dict(model)
+
+    frozen_keys = list()
+    if freeze_vars is not None:
+        to_freeze = {s_key for s_key in src_dict if freeze_vars and re.compile(freeze_vars).search(s_key)}
+        for name, param in model.named_parameters():
+            if name in to_freeze:
+                param.requires_grad = False
+                frozen_keys.append(name)
+            elif not param.requires_grad:
+                param.requires_grad = True
+                warnings.warn(
+                    f"The freeze_vars does not include {param}, but requires_grad is False, change it to True."
+                )
+    if exclude_vars is not None:
+        to_exclude = {s_key for s_key in src_dict if exclude_vars and re.compile(exclude_vars).search(s_key)}
+        for name, param in model.named_parameters():
+            if name not in to_exclude:
+                param.requires_grad = False
+                frozen_keys.append(name)
+            elif not param.requires_grad:
+                param.requires_grad = True
+                warnings.warn(f"The exclude_vars includes {param}, but requires_grad is False, change it to True.")
+
+    logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")

@@ -46,6 +46,7 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
+from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import pytorch_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
@@ -75,7 +76,7 @@ def get_testing_algo_template_path():
 
     https://github.com/Project-MONAI/MONAI/blob/1.1.0/monai/apps/auto3dseg/bundle_gen.py#L380-L381
     """
-    return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+    return MONAIEnvVars.testing_algo_template()
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -817,10 +818,28 @@ def command_line_tests(cmd, copy_env=True):
     try:
         normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
         print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+        return repr(normal_out)
     except subprocess.CalledProcessError as e:
         output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
         errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
+def equal_state_dict(st_1, st_2):
+    """
+    Compare 2 torch state dicts.
+    """
+    r = True
+    for key_st_1, val_st_1 in st_1.items():
+        if key_st_1 in st_2:
+            val_st_2 = st_2.get(key_st_1)
+            if not torch.equal(val_st_1, val_st_2):
+                r = False
+                break
+        else:
+            r = False
+            break
+    return r
 
 
 TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)

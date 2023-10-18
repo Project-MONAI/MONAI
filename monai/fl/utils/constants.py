@@ -29,6 +29,7 @@ class ExtraItems(StrEnum):
     MODEL_TYPE = "fl_model_type"
     CLIENT_NAME = "fl_client_name"
     APP_ROOT = "fl_app_root"
+    STATS_SENDER = "fl_stats_sender"
 
 
 class FlPhase(StrEnum):

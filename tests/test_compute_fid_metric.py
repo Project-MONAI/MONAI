@@ -14,28 +14,25 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
-from parameterized import parameterized
+import torch
 
-from monai.transforms import AddChanneld
-from tests.utils import TEST_NDARRAYS
+from monai.metrics import FIDMetric
+from monai.utils import optional_import
 
-TESTS = []
-for p in TEST_NDARRAYS:
-    TESTS.append(
-        [
-            {"keys": ["img", "seg"]},
-            {"img": p(np.array([[0, 1], [1, 2]])), "seg": p(np.array([[0, 1], [1, 2]]))},
-            (1, 2, 2),
-        ]
-    )
+_, has_scipy = optional_import("scipy")
 
 
-class TestAddChanneld(unittest.TestCase):
-    @parameterized.expand(TESTS)
-    def test_shape(self, input_param, input_data, expected_shape):
-        result = AddChanneld(**input_param)(input_data)
-        self.assertEqual(result["img"].shape, expected_shape)
-        self.assertEqual(result["seg"].shape, expected_shape)
+@unittest.skipUnless(has_scipy, "Requires scipy")
+class TestFIDMetric(unittest.TestCase):
+    def test_results(self):
+        x = torch.Tensor([[1, 2], [1, 2], [1, 2]])
+        y = torch.Tensor([[2, 2], [1, 2], [1, 2]])
+        results = FIDMetric()(x, y)
+        np.testing.assert_allclose(results.cpu().numpy(), 0.4444, atol=1e-4)
+
+    def test_input_dimensions(self):
+        with self.assertRaises(ValueError):
+            FIDMetric()(torch.ones([3, 3, 144, 144]), torch.ones([3, 3, 145, 145]))
 
 
 if __name__ == "__main__":

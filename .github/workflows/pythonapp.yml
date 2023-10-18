@@ -26,7 +26,7 @@ jobs:
       matrix:
         opt: ["codeformat", "pytype", "mypy"]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
@@ -67,7 +67,7 @@ jobs:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
@@ -124,7 +124,7 @@ jobs:
       QUICKTEST: True
       shell: bash
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python 3.8
@@ -207,7 +207,7 @@ jobs:
   build-docs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
       uses: actions/setup-python@v4
       with:
@@ -234,5 +234,6 @@ jobs:
         make clean
         make html 2>&1 | tee tmp_log
         if [[ $(grep -c "ERROR:" tmp_log) != 0 ]]; then echo "found errors"; grep "ERROR:" tmp_log; exit 1; fi
+        sed '/WARNING.*pip/d' tmp_log > tmp_log1; mv tmp_log1 tmp_log  # monai#7133
         if [[ $(grep -c "WARNING:" tmp_log) != 0 ]]; then echo "found warnings"; grep "WARNING:" tmp_log; exit 1; fi
       shell: bash

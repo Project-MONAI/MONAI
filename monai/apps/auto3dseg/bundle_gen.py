@@ -42,9 +42,10 @@ from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
 from monai.utils import ensure_tuple, look_up_option, run_cmd
 from monai.utils.enums import AlgoKeys
+from monai.utils.misc import MONAIEnvVars
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "e01d67a")
+ALGO_HASH = MONAIEnvVars.algo_hash()
 
 __all__ = ["BundleAlgo", "BundleGen"]
 

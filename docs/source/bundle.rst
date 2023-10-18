@@ -49,3 +49,4 @@ Model Bundle
 .. autofunction:: verify_net_in_out
 .. autofunction:: init_bundle
 .. autofunction:: push_to_huggingface_hub
+.. autofunction:: update_kwargs

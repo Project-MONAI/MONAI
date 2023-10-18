@@ -33,7 +33,7 @@ jsonschema
 pynrrd
 pydicom
 h5py
-nni
+nni; platform_system == "Linux"
 optuna
 opencv-python-headless
 onnx>=1.13.0

@@ -492,9 +492,6 @@ class AddGuidanceFromPointsd(Transform):
             For example, to handle key `image`,  read/write affine matrices from the
             metadata `image_meta_dict` dictionary's `affine` field.
 
-    .. deprecated:: 0.6.0
-        ``dimensions`` is deprecated, use ``spatial_dims`` instead.
-
     """
 
     def __init__(

@@ -185,9 +185,6 @@ class GridPatchDataset(IterableDataset):
         transform: a callable data transform operates on the patches.
         with_coordinates: whether to yield the coordinates of each patch, default to `True`.
 
-    .. deprecated:: 0.8.0
-        ``dataset`` is deprecated, use ``data`` instead.
-
     """
 
     def __init__(
@@ -252,9 +249,6 @@ class PatchDataset(Dataset):
             print(item.shape)
 
         >>> torch.Size([2, 1, 3, 3])
-
-    .. deprecated:: 0.8.0
-        ``dataset`` is deprecated, use ``data`` instead.
 
     """
 

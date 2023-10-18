@@ -203,12 +203,14 @@ def download_url(
             if urlparse(url).netloc == "drive.google.com":
                 if not has_gdown:
                     raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
+                if "fuzzy" not in gdown_kwargs:
+                    gdown_kwargs["fuzzy"] = True  # default to true for flexible url
                 gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
             elif urlparse(url).netloc == "cloud-api.yandex.net":
                 with urlopen(url) as response:
                     code = response.getcode()
                     if code == 200:
-                        download_url = json.loads(response.read())["href"]
+                        download_url = json.load(response)["href"]
                         _download_with_progress(download_url, tmp_name, progress=progress)
                     else:
                         raise RuntimeError(

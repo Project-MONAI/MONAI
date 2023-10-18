@@ -46,7 +46,7 @@ class BertPreTrainedModel(nn.Module):
 
     def init_bert_weights(self, module):
         if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)  # type: ignore
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
         elif isinstance(module, torch.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
@@ -314,7 +314,7 @@ class Transchex(torch.nn.Module):
             num_language_layers: number of language transformer layers.
             num_vision_layers: number of vision transformer layers.
             num_mixed_layers: number of mixed transformer layers.
-            drop_out: faction of the input units to drop.
+            drop_out: fraction of the input units to drop.
 
         The other parameters are part of the `bert_config` to `MultiModal.from_pretrained`.
 

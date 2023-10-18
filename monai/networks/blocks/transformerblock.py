@@ -37,7 +37,7 @@ class TransformerBlock(nn.Module):
             hidden_size (int): dimension of hidden layer.
             mlp_dim (int): dimension of feedforward layer.
             num_heads (int): number of attention heads.
-            dropout_rate (float, optional): faction of the input units to drop. Defaults to 0.0.
+            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
 

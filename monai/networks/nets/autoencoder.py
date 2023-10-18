@@ -58,6 +58,8 @@ class AutoEncoder(nn.Module):
         bias: whether to have a bias term in convolution blocks. Defaults to True.
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
+            for each dimension in convolution blocks. Defaults to None.
 
     Examples::
 
@@ -104,6 +106,7 @@ class AutoEncoder(nn.Module):
         norm: tuple | str = Norm.INSTANCE,
         dropout: tuple | str | float | None = None,
         bias: bool = True,
+        padding: Sequence[int] | int | None = None,
     ) -> None:
         super().__init__()
         self.dimensions = spatial_dims
@@ -118,6 +121,7 @@ class AutoEncoder(nn.Module):
         self.norm = norm
         self.dropout = dropout
         self.bias = bias
+        self.padding = padding
         self.num_inter_units = num_inter_units
         self.inter_channels = inter_channels if inter_channels is not None else []
         self.inter_dilations = list(inter_dilations or [1] * len(self.inter_channels))
@@ -178,6 +182,7 @@ class AutoEncoder(nn.Module):
                         dropout=self.dropout,
                         dilation=di,
                         bias=self.bias,
+                        padding=self.padding,
                     )
                 else:
                     unit = Convolution(
@@ -191,6 +196,7 @@ class AutoEncoder(nn.Module):
                         dropout=self.dropout,
                         dilation=di,
                         bias=self.bias,
+                        padding=self.padding,
                     )
 
                 intermediate.add_module("inter_%i" % i, unit)
@@ -231,6 +237,7 @@ class AutoEncoder(nn.Module):
                 norm=self.norm,
                 dropout=self.dropout,
                 bias=self.bias,
+                padding=self.padding,
                 last_conv_only=is_last,
             )
             return mod
@@ -244,6 +251,7 @@ class AutoEncoder(nn.Module):
             norm=self.norm,
             dropout=self.dropout,
             bias=self.bias,
+            padding=self.padding,
             conv_only=is_last,
         )
         return mod
@@ -264,6 +272,7 @@ class AutoEncoder(nn.Module):
             norm=self.norm,
             dropout=self.dropout,
             bias=self.bias,
+            padding=self.padding,
             conv_only=is_last and self.num_res_units == 0,
             is_transposed=True,
         )
@@ -282,6 +291,7 @@ class AutoEncoder(nn.Module):
                 norm=self.norm,
                 dropout=self.dropout,
                 bias=self.bias,
+                padding=self.padding,
                 last_conv_only=is_last,
             )
 

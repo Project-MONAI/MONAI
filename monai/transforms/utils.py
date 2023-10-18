@@ -66,11 +66,17 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import (
+    convert_data_type,
+    convert_to_cupy,
+    convert_to_dst_type,
+    convert_to_numpy,
+    convert_to_tensor,
+)
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
-ndimage, _ = optional_import("scipy.ndimage")
+ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
@@ -124,6 +130,7 @@ __all__ = [
     "reset_ops_id",
     "resolves_modes",
     "has_status_keys",
+    "distance_transform_edt",
 ]
 
 
@@ -187,7 +194,7 @@ def rescale_array(
     Args:
         arr: input array to rescale.
         minv: minimum value of target rescaled array.
-        maxv: maxmum value of target rescaled array.
+        maxv: maximum value of target rescaled array.
         dtype: if not None, convert input array to dtype before computation.
 
     """
@@ -946,7 +953,7 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
-@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
+@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
@@ -1027,11 +1034,11 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
-    cucim, has_cucim = optional_import("cucim")
+    skimage, has_cucim = optional_import("cucim.skimage")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
-        label = cucim.skimage.measure.label
+        label = skimage.measure.label
         lib = cp
     else:
         if not has_measure:
@@ -1061,7 +1068,12 @@ def get_largest_connected_component_mask(
 
 
 def remove_small_objects(
-    img: NdarrayTensor, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True
+    img: NdarrayTensor,
+    min_size: int = 64,
+    connectivity: int = 1,
+    independent_channels: bool = True,
+    by_measure: bool = False,
+    pixdim: Sequence[float] | float | np.ndarray | None = None,
 ) -> NdarrayTensor:
     """
     Use `skimage.morphology.remove_small_objects` to remove small objects from images.
@@ -1078,6 +1090,11 @@ def remove_small_objects(
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
             documentation.
         independent_channels: Whether to consider each channel independently.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
     # if all equal to one value, no need to call skimage
     if len(unique(img)) == 1:
@@ -1085,6 +1102,23 @@ def remove_small_objects(
 
     if not has_morphology:
         raise RuntimeError("Skimage required.")
+
+    if by_measure:
+        sr = len(img.shape[1:])
+        if isinstance(img, monai.data.MetaTensor):
+            _pixdim = img.pixdim
+        elif pixdim is not None:
+            _pixdim = ensure_tuple_rep(pixdim, sr)
+        else:
+            warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
+            _pixdim = (1.0,) * sr
+        voxel_volume = np.prod(np.array(_pixdim))
+        if voxel_volume == 0:
+            warnings.warn("Invalid `pixdim` value detected, set it to 1. Please verify the pixdim settings.")
+            voxel_volume = 1
+        min_size = np.ceil(min_size / voxel_volume)
+    elif pixdim is not None:
+        warnings.warn("`pixdim` is specified but not in use when computing the volume.")
 
     img_np: np.ndarray
     img_np, *_ = convert_data_type(img, np.ndarray)
@@ -2049,6 +2083,142 @@ def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = 
     if len(status_key_occurrences) > 0:
         return False, status_key_occurrences
     return True, None
+
+
+def distance_transform_edt(
+    img: NdarrayOrTensor,
+    sampling: None | float | list[float] = None,
+    return_distances: bool = True,
+    return_indices: bool = False,
+    distances: NdarrayOrTensor | None = None,
+    indices: NdarrayOrTensor | None = None,
+    *,
+    block_params: tuple[int, int, int] | None = None,
+    float64_distances: bool = False,
+) -> None | NdarrayOrTensor | tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    """
+    Euclidean distance transform, either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+
+    Args:
+        img: Input image on which the distance transform shall be run.
+            Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+            Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+            Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+            from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+            if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+        return_distances: Whether to calculate the distance transform.
+        return_indices: Whether to calculate the feature transform.
+        distances: An output array to store the calculated distance transform, instead of returning it.
+            `return_distances` must be True.
+        indices: An output array to store the calculated feature transform, instead of returning it. `return_indicies` must be True.
+        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look into `cuCIM`_.
+        float64_distances: This parameter is specific to cuCIM and does not exist in SciPy.
+            If True, use double precision in the distance computation (to match SciPy behavior).
+            Otherwise, single precision will be used for efficiency.
+
+    Returns:
+        distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied.
+            It will have the same shape and type as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
+            otherwise it will have dtype torch.float32. For SciPy: Will have dtype np.float64.
+        indices: The calculated feature transform. It has an image-shaped array for each dimension of the image.
+            The type will be equal to the type of the image.
+            Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
+
+    """
+    distance_transform_edt, has_cucim = optional_import(
+        "cucim.core.operations.morphology", name="distance_transform_edt"
+    )
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == "cuda"
+    if not return_distances and not return_indices:
+        raise RuntimeError("Neither return_distances nor return_indices True")
+
+    if not (img.ndim >= 3 and img.ndim <= 4):
+        raise RuntimeError("Wrong input dimensionality. Use (num_channels, H, W [,D])")
+
+    distances_original, indices_original = distances, indices
+    distances, indices = None, None
+    if use_cp:
+        distances_, indices_ = None, None
+        if return_distances:
+            dtype = torch.float64 if float64_distances else torch.float32
+            if distances is None:
+                distances = torch.zeros_like(img, dtype=dtype)  # type: ignore
+            else:
+                if not isinstance(distances, torch.Tensor) and distances.device != img.device:
+                    raise TypeError("distances must be a torch.Tensor on the same device as img")
+                if not distances.dtype == dtype:
+                    raise TypeError("distances must be a torch.Tensor of dtype float32 or float64")
+            distances_ = convert_to_cupy(distances)
+        if return_indices:
+            dtype = torch.int32
+            if indices is None:
+                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)  # type: ignore
+            else:
+                if not isinstance(indices, torch.Tensor) and indices.device != img.device:
+                    raise TypeError("indices must be a torch.Tensor on the same device as img")
+                if not indices.dtype == dtype:
+                    raise TypeError("indices must be a torch.Tensor of dtype int32")
+            indices_ = convert_to_cupy(indices)
+        img_ = convert_to_cupy(img)
+        for channel_idx in range(img_.shape[0]):
+            distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances_[channel_idx] if distances_ is not None else None,
+                indices=indices_[channel_idx] if indices_ is not None else None,
+                block_params=block_params,
+                float64_distances=float64_distances,
+            )
+    else:
+        if not has_ndimage:
+            raise RuntimeError("scipy.ndimage required if cupy is not available")
+        img_ = convert_to_numpy(img)
+        if return_distances:
+            if distances is None:
+                distances = np.zeros_like(img_, dtype=np.float64)
+            else:
+                if not isinstance(distances, np.ndarray):
+                    raise TypeError("distances must be a numpy.ndarray")
+                if not distances.dtype == np.float64:
+                    raise TypeError("distances must be a numpy.ndarray of dtype float64")
+        if return_indices:
+            if indices is None:
+                indices = np.zeros((img_.ndim,) + img_.shape, dtype=np.int32)
+            else:
+                if not isinstance(indices, np.ndarray):
+                    raise TypeError("indices must be a numpy.ndarray")
+                if not indices.dtype == np.int32:
+                    raise TypeError("indices must be a numpy.ndarray of dtype int32")
+
+        for channel_idx in range(img_.shape[0]):
+            ndimage.distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances[channel_idx] if distances is not None else None,
+                indices=indices[channel_idx] if indices is not None else None,
+            )
+
+    r_vals = []
+    if return_distances and distances_original is None:
+        r_vals.append(distances)
+    if return_indices and indices_original is None:
+        r_vals.append(indices)
+    if not r_vals:
+        return None
+    device = img.device if isinstance(img, torch.Tensor) else None
+    return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]  # type: ignore
 
 
 if __name__ == "__main__":

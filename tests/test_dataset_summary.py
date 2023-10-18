@@ -54,7 +54,7 @@ class TestDatasetSummary(unittest.TestCase):
 
             t = Compose(
                 [
-                    LoadImaged(keys=["image", "label"]),
+                    LoadImaged(keys=["image", "label"], image_only=False),
                     ToNumpyd(keys=["image", "label", "image_meta_dict", "label_meta_dict"]),
                 ]
             )

@@ -163,7 +163,7 @@ def plot_engine_status(
     avg_keys: tuple[str] = (LOSS_NAME,),
     window_fraction: int = 20,
     image_fn: Callable[[str, torch.Tensor], Any] | None = tensor_to_images,
-    fig: plt.Figure = None,
+    fig: plt.Figure | None = None,
     selected_inst: int = 0,
 ) -> tuple[plt.Figure, list]:
     """
@@ -359,7 +359,7 @@ class ThreadContainer(Thread):
 
         return ", ".join(msgs)
 
-    def plot_status(self, logger: Any, plot_func: Callable = plot_engine_status) -> plt.Figure:
+    def plot_status(self, logger: Any, plot_func: Callable = plot_engine_status) -> plt.Figure | None:
         """
         Generate a plot of the current status of the contained engine whose loss and metrics were tracked by `logger`.
         The function `plot_func` must accept arguments `title`, `engine`, `logger`, and `fig` which are the plot title,

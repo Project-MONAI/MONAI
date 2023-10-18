@@ -255,7 +255,9 @@ class RandShiftIntensity(RandomizableTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1) -> None:
+    def __init__(
+        self, offsets: tuple[float, float] | float, safe: bool = False, prob: float = 0.1, channel_wise: bool = False
+    ) -> None:
         """
         Args:
             offsets: offset range to randomly shift.
@@ -263,6 +265,8 @@ class RandShiftIntensity(RandomizableTransform):
             safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
                 E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
             prob: probability of shift.
+            channel_wise: if True, shift intensity on each channel separately. For each channel, a random offset will be chosen.
+                Please ensure that the first dimension represents the channel of the image if True.
         """
         RandomizableTransform.__init__(self, prob)
         if isinstance(offsets, (int, float)):
@@ -272,13 +276,17 @@ class RandShiftIntensity(RandomizableTransform):
         else:
             self.offsets = (min(offsets), max(offsets))
         self._offset = self.offsets[0]
+        self.channel_wise = channel_wise
         self._shifter = ShiftIntensity(self._offset, safe)
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
+        if self.channel_wise:
+            self._offset = [self.R.uniform(low=self.offsets[0], high=self.offsets[1]) for _ in range(data.shape[0])]  # type: ignore
+        else:
+            self._offset = self.R.uniform(low=self.offsets[0], high=self.offsets[1])
 
     def __call__(self, img: NdarrayOrTensor, factor: float | None = None, randomize: bool = True) -> NdarrayOrTensor:
         """
@@ -292,12 +300,21 @@ class RandShiftIntensity(RandomizableTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if randomize:
-            self.randomize()
+            self.randomize(img)
 
         if not self._do_transform:
             return img
 
-        return self._shifter(img, self._offset if factor is None else self._offset * factor)
+        ret: NdarrayOrTensor
+        if self.channel_wise:
+            out = []
+            for i, d in enumerate(img):
+                out_channel = self._shifter(d, self._offset[i] if factor is None else self._offset[i] * factor)  # type: ignore
+                out.append(out_channel)
+            ret = torch.stack(out)  # type: ignore
+        else:
+            ret = self._shifter(img, self._offset if factor is None else self._offset * factor)
+        return ret
 
 
 class StdShiftIntensity(Transform):
@@ -839,29 +856,33 @@ class NormalizeIntensity(Transform):
 
         if self.nonzero:
             slices = img != 0
+            masked_img = img[slices]
+            if not slices.any():
+                return img
         else:
-            if isinstance(img, np.ndarray):
-                slices = np.ones_like(img, dtype=bool)
-            else:
-                slices = torch.ones_like(img, dtype=torch.bool)
-        if not slices.any():
-            return img
+            slices = None
+            masked_img = img
 
-        _sub = sub if sub is not None else self._mean(img[slices])
+        _sub = sub if sub is not None else self._mean(masked_img)
         if isinstance(_sub, (torch.Tensor, np.ndarray)):
             _sub, *_ = convert_to_dst_type(_sub, img)
-            _sub = _sub[slices]
+            if slices is not None:
+                _sub = _sub[slices]
 
-        _div = div if div is not None else self._std(img[slices])
+        _div = div if div is not None else self._std(masked_img)
         if np.isscalar(_div):
             if _div == 0.0:
                 _div = 1.0
         elif isinstance(_div, (torch.Tensor, np.ndarray)):
             _div, *_ = convert_to_dst_type(_div, img)
-            _div = _div[slices]
+            if slices is not None:
+                _div = _div[slices]
             _div[_div == 0.0] = 1.0
 
-        img[slices] = (img[slices] - _sub) / _div
+        if slices is not None:
+            img[slices] = (masked_img - _sub) / _div
+        else:
+            img = (img - _sub) / _div
         return img
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:

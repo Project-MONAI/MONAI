@@ -314,6 +314,12 @@ class TestConfigParser(unittest.TestCase):
         config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
         self.assertEqual(ConfigParser(config).calc, True)
 
+    def test_slicing(self):
+        config = {"test": [1, 2, 3, 4], "test1": "$@test[::]", "test2": "$@test[::-1]", "st": "aten::relu"}
+        self.assertEqual(ConfigParser(config).test1, [1, 2, 3, 4])
+        self.assertEqual(ConfigParser(config).test2, [4, 3, 2, 1])
+        self.assertEqual(ConfigParser(config).st, "aten::relu")
+
     @parameterized.expand([TEST_CASE_5])
     def test_substring_reference(self, config, expected):
         parser = ConfigParser(config=config)

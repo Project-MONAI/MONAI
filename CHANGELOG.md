@@ -5,6 +5,132 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2023-10-12
+### Added
+* Intensity transforms `ScaleIntensityFixedMean` and `RandScaleIntensityFixedMean` (#6542)
+* `UltrasoundConfidenceMapTransform` used for computing confidence map from an ultrasound image (#6709)
+* `channel_wise` support in `RandScaleIntensity` and `RandShiftIntensity` (#6793, #7025)
+* `RandSimulateLowResolution` and `RandSimulateLowResolutiond` (#6806)
+* `SignalFillEmptyd` (#7011)
+* Euclidean distance transform `DistanceTransformEDT` with GPU support (#6981)
+* Port loss and metrics from `monai-generative` (#6729, #6836)
+* Support `invert_image` and `retain_stats` in `AdjustContrast` and `RandAdjustContrast` (#6542)
+* New network `DAF3D` and `Quicknat` (#6306)
+* Support `sincos` position embedding (#6986)
+* `ZarrAvgMerger` used for patch inference (#6633)
+* Dataset tracking support to `MLFlowHandler` (#6616)
+* Considering spacing and subvoxel borders in `SurfaceDiceMetric` (#6681)
+* CUCIM support for surface-related metrics (#7008)
+* `loss_fn` support in `IgniteMetric` and renamed it to `IgniteMetricHandler` (#6695)
+* `CallableEventWithFilter` and `Events` options for `trigger_event` in `GarbageCollector` (#6663)
+* Support random sorting option to `GridPatch`, `RandGridPatch`, `GridPatchd` and `RandGridPatchd` (#6701)
+* Support multi-threaded batch sampling in `PatchInferer` (#6139)
+* `SoftclDiceLoss` and `SoftDiceclDiceLoss` (#6763)
+* `HausdorffDTLoss` and `LogHausdorffDTLoss` (#6994)
+* Documentation for `TensorFloat-32` (#6770)
+* Docstring format guide (#6780)
+* `GDSDataset` support for GDS (#6778)
+* PyTorch backend support for `MapLabelValue` (#6872)
+* `filter_func` in `copy_model_state` to filter the weights to be loaded  and `filter_swinunetr` (#6917)
+* `stats_sender` to `MonaiAlgo` for FL stats (#6984)
+* `freeze_layers` to help freeze specific layers (#6970)
+#### misc.
+* Refactor multi-node running command used in `Auto3DSeg` into dedicated functions (#6623)
+* Support str type annotation to `device` in `ToTensorD` (#6737)
+* Improve logging message and file name extenstion in `DataAnalyzer` for `Auto3DSeg` (#6758)
+* Set `data_range` as a property in `SSIMLoss` (#6788)
+* Unify environment variable access (#7084)
+* `end_lr` support in `WarmupCosineSchedule` (#6662)
+* Add `ClearML` as optional dependency (#6827)
+* `yandex.disk` support in `download_url` (#6667)
+* Improve config expression error message (#6977)
+### Fixed
+#### transforms
+* Make `convert_box_to_mask` throw errors when box size larger than the image (#6637)
+* Fix lazy mode in `RandAffine` (#6774)
+* Raise `ValueError` when `map_items` is bool in `Compose` (#6882)
+* Improve performance for `NormalizeIntensity` (#6887)
+* Fix mismatched shape in `Spacing` (#6912)
+* Avoid FutureWarning in `CropForeground` (#6934)
+* Fix `Lazy=True` ignored when using `Dataset` call (#6975)
+* Shape check for arbitrary types for DataStats (#7082)
+#### data
+* Fix wrong spacing checking logic in `PydicomReader` and broken link in `ITKReader` (#6660)
+* Fix boolean indexing of batched `MetaTensor` (#6781)
+* Raise warning when multiprocessing in `DataLoader` (#6830)
+* Remove `shuffle` in `DistributedWeightedRandomSampler` (#6886)
+* Fix missing `SegmentDescription` in `PydicomReader` (#6937)
+* Fix reading dicom series error in `ITKReader` (#6943)
+* Fix KeyError in `PydicomReader` (#6946)
+* Update `metatensor_to_itk_image` to accept RAS `MetaTensor` and update default 'space' in `NrrdReader` to `SpaceKeys.LPS` (#7000)
+* Collate common meta dictionary keys (#7054)
+#### metrics and losses
+* Fixed bug in `GeneralizedDiceLoss` when `batch=True` (#6775)
+* Support for `BCEWithLogitsLoss` in `DiceCELoss` (#6924)
+* Support for `weight` in Dice and related losses (#7098)
+#### networks
+* Use `np.prod` instead of `np.product` (#6639)
+* Fix dimension issue in `MBConvBlock` (#6672)
+* Fix hard-coded `up_kernel_size` in `ViTAutoEnc` (#6735)
+* Remove hard-coded `bias_downsample` in `resnet` (#6848)
+* Fix unused `kernel_size` in `ResBlock` (#6999)
+* Allow for defining reference grid on non-integer coordinates (#7032)
+* Padding option for autoencoder (#7068)
+* Lower peak memory usage for SegResNetDS (#7066)
+#### bundle
+* Set `train_dataset_data` and `dataset_data` to unrequired in BundleProperty (#6607)
+* Set `None` to properties that do not have `REF_ID` (#6607)
+* Fix `AttributeError` for default value in `get_parsed_content` for `ConfigParser` (#6756)
+* Update `monai.bundle.scripts` to support NGC hosting (#6828, #6997)
+* Add `MetaProperties` (#6835)
+* Add `create_workflow` and update `load` function (#6835)
+* Add bundle root directory to Python search directories automatically (#6910)
+* Generate properties for bundle docs automatically (#6918)
+* Move `download_large_files` from model zoo to core (#6958)
+* Bundle syntax `#` as alias of `::` (#6955)
+* Fix bundle download naming issue (#6969, #6963)
+* Simplify the usage of `ckpt_export` (#6965)
+* `update_kwargs` in `monai.bundle.script` for merging multiple configs (#7109)
+#### engines and handlers
+* Added int options for `iteration_log` and `epoch_log` in `TensorBoardStatsHandler` (#7027)
+* Support to run validator at training start (#7108)
+#### misc.
+* Fix device fallback error in `DataAnalyzer` (#6658)
+* Add int check for  `current_mode` in `convert_applied_interp_mode` (#6719)
+* Consistent type in `convert_to_contiguous` (#6849)
+* Label `argmax` in `DataAnalyzer` when retry on CPU (#6852)
+* Fix `DataAnalyzer` with `histogram_only=True` (#6874)
+* Fix `AttributeError` in `RankFilter` in single GPU environment (#6895)
+* Remove the default warning on `TORCH_ALLOW_TF32_CUBLAS_OVERRIDE` and add debug print info (#6909)
+* Hide user information in `print_config` (#6913, #6922)
+* Optionally pass coordinates to predictor during sliding window (#6795)
+* Proper ensembling when trained with a sigmoid in `AutoRunner` (#6588)
+* Fixed `test_retinanet` by increasing absolute differences (#6615)
+* Add type check to avoid comparing a np.array with a string in `_check_kwargs_are_present` (#6624)
+* Fix md5 hashing with FIPS mode (#6635)
+* Capture failures from Auto3DSeg related subprocess calls (#6596)
+* Code formatting tool for user-specified directory (#7106)
+* Various docstring fixes
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:23.08-py3` from `nvcr.io/nvidia/pytorch:23.03-py3`
+### Deprecated
+* `allow_smaller=True`; `allow_smaller=False` will be the new default in `CropForeground` and `generate_spatial_bounding_box` (#6736)
+* `dropout_prob` in `VNet` in favor of `dropout_prob_down` and `dropout_prob_up` (#6768)
+* `workflow` in `BundleWorkflow` in favor of `workflow_type`(#6768)
+* `pos_embed` in `PatchEmbeddingBlock` in favor of `proj_type`(#6986)
+* `net_name` and `net_kwargs` in `download` in favor of `model`(#7016)
+* `img_size` parameter in SwinUNETR (#7093)
+### Removed
+* `pad_val`, `stride`, `per_channel` and `upsampler` in `OcclusionSensitivity` (#6642)
+* `compute_meaniou` (#7019)
+* `AsChannelFirst`, `AddChannel`and `SplitChannel` (#7019)
+* `create_multigpu_supervised_trainer` and `create_multigpu_supervised_evaluator` (#7019)
+* `runner_id` in `run` (#7019)
+* `data_src_cfg_filename` in `AlgoEnsembleBuilder` (#7019)
+* `get_validation_stats` in `Evaluator` and `get_train_stats` in `Trainer` (#7019)
+* `epoch_interval` and `iteration_interval` in `TensorBoardStatsHandler` (#7019)
+* some self-hosted test (#7041)
+
 ## [1.2.0] - 2023-06-08
 ### Added
 * Various Auto3DSeg enhancements and integration tests including multi-node multi-GPU optimization, major usability improvements
@@ -817,7 +943,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/Project-MONAI/MONAI/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/Project-MONAI/MONAI/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...1.1.0
 [1.0.1]: https://github.com/Project-MONAI/MONAI/compare/1.0.0...1.0.1

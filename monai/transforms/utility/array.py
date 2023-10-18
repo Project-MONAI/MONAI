@@ -59,7 +59,6 @@ from monai.utils import (
     convert_to_cupy,
     convert_to_numpy,
     convert_to_tensor,
-    deprecated,
     ensure_tuple,
     look_up_option,
     min_version,
@@ -76,16 +75,13 @@ cp, has_cp = optional_import("cupy")
 __all__ = [
     "Identity",
     "RandIdentity",
-    "AsChannelFirst",
     "AsChannelLast",
-    "AddChannel",
     "AddCoordinateChannels",
     "EnsureChannelFirst",
     "EnsureType",
     "RepeatChannel",
     "RemoveRepeatedChannel",
     "SplitDim",
-    "SplitChannel",
     "CastToType",
     "ToTensor",
     "ToNumpy",
@@ -233,54 +229,6 @@ class EnsureChannelFirst(Transform):
         return convert_to_tensor(result, track_meta=get_track_meta())  # type: ignore
 
 
-@deprecated(
-    since="0.8",
-    removed="1.3",
-    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead.",
-)
-class AsChannelFirst(EnsureChannelFirst):
-    """
-    Change the channel dimension of the image to the first dimension.
-    Most of the image transformations in ``monai.transforms``
-    assume the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-    This transform could be used to convert, for example, a channel-last image array in shape
-    (spatial_dim_1[, spatial_dim_2, ...], num_channels) into the channel-first format,
-    so that the multidimensional image array can be correctly interpreted by the other transforms.
-    Args:
-        channel_dim: which dimension of input image is the channel, default is the last dimension.
-    """
-
-    def __init__(self, channel_dim: int = -1) -> None:
-        super().__init__(channel_dim=channel_dim)
-
-
-@deprecated(
-    since="0.8",
-    removed="1.3",
-    msg_suffix="please use MetaTensor data type and monai.transforms.EnsureChannelFirst instead"
-    " with `channel_dim='no_channel'`.",
-)
-class AddChannel(EnsureChannelFirst):
-    """
-    Adds a 1-length channel dimension to the input image.
-
-    Most of the image transformations in ``monai.transforms``
-    assumes the input image is in the channel-first format, which has the shape
-    (num_channels, spatial_dim_1[, spatial_dim_2, ...]).
-
-    This transform could be used, for example, to convert a (spatial_dim_1[, spatial_dim_2, ...])
-    spatial image into the channel-first format so that the
-    multidimensional image array can be correctly interpreted by the other
-    transforms.
-    """
-
-    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
-    def __init__(self) -> None:
-        super().__init__(channel_dim="no_channel")
-
-
 class RepeatChannel(Transform):
     """
     Repeat channel data to construct expected input shape for models.
@@ -381,23 +329,6 @@ class SplitDim(Transform, MultiSampleTrait):
         return outputs
 
 
-@deprecated(since="0.8", removed="1.3", msg_suffix="please use `SplitDim` instead.")
-class SplitChannel(SplitDim):
-    """
-    Split Numpy array or PyTorch Tensor data according to the channel dim.
-    It can help applying different following transforms to different channels.
-
-    Note: `torch.split`/`np.split` is used, so the outputs are views of the input (shallow copy).
-
-    Args:
-        channel_dim: which dimension of input image is the channel, default to 0.
-
-    """
-
-    def __init__(self, channel_dim: int = 0) -> None:
-        super().__init__(channel_dim)
-
-
 class CastToType(Transform):
     """
     Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
@@ -493,7 +424,7 @@ class EnsureType(Transform):
     def __init__(
         self,
         data_type: str = "tensor",
-        dtype: DtypeLike | torch.dtype | None = None,
+        dtype: DtypeLike | torch.dtype = None,
         device: torch.device | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
@@ -504,13 +435,14 @@ class EnsureType(Transform):
         self.wrap_sequence = wrap_sequence
         self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
-    def __call__(self, data: NdarrayOrTensor):
+    def __call__(self, data: NdarrayOrTensor, dtype: DtypeLike | torch.dtype = None):
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
                 will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
                 objects keep the original. for dictionary, list or tuple, ensure every item as expected type
                 if applicable and `wrap_sequence=False`.
+            dtype: target data content type to convert, for example: np.float32, torch.float, etc.
 
         """
         if self.data_type == "tensor":
@@ -521,7 +453,7 @@ class EnsureType(Transform):
         out, *_ = convert_data_type(
             data=data,
             output_type=output_type,  # type: ignore
-            dtype=self.dtype,
+            dtype=self.dtype if dtype is None else dtype,
             device=self.device,
             wrap_sequence=self.wrap_sequence,
         )
@@ -750,7 +682,7 @@ class DataStats(Transform):
         if self.data_type if data_type is None else data_type:
             lines.append(f"Type: {type(img)} {img.dtype if hasattr(img, 'dtype') else None}")
         if self.data_shape if data_shape is None else data_shape:
-            lines.append(f"Shape: {img.shape}")
+            lines.append(f"Shape: {img.shape if hasattr(img, 'shape') else None}")
         if self.value_range if value_range is None else value_range:
             if isinstance(img, np.ndarray):
                 lines.append(f"Value range: ({np.min(img)}, {np.max(img)})")
@@ -1432,9 +1364,6 @@ class AddCoordinateChannels(Transform):
         spatial_dims: the spatial dimensions that are to have their coordinates encoded in a channel and
             appended to the input image. E.g., `(0, 1, 2)` represents `H, W, D` dims and append three channels
             to the input image, encoding the coordinates of the input's three spatial dimensions.
-
-    .. deprecated:: 0.8.0
-        ``spatial_channels`` is deprecated, use ``spatial_dims`` instead.
 
     """
 
