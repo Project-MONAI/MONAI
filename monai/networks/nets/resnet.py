@@ -47,8 +47,6 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 def get_inplanes():
     return [64, 128, 256, 512]
@@ -348,6 +346,7 @@ def _resnet(
 ) -> ResNet:
     model: ResNet = ResNet(block, layers, block_inplanes, **kwargs)
     if pretrained:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         if isinstance(pretrained, str):
             if Path(pretrained).exists():
                 logger.info(f"Loading weights from {pretrained}...")
