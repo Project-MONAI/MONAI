@@ -361,7 +361,8 @@ class RemoveSmallObjects(Transform):
     Data should be one-hotted.
 
     Args:
-        min_size: objects smaller than this size (in number of voxels; or volume in mm^3 if in_mm3 is True) are removed.
+        min_size: objects smaller than this size (in number of voxels; or surface area/volume value
+            in whatever units your image is if by_measure is True) are removed.
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
@@ -369,9 +370,10 @@ class RemoveSmallObjects(Transform):
         independent_channels: Whether or not to consider channels as independent. If true, then
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
-        in_mm3: Whether the specified min_size is in number of voxels or volume in mm^3, default is false.
-            If true, min-size will be divided by pixdim. e.g. if min_size is 3 and in_mm3
-            is true, objects smaller than 3mm^3 are removed.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False. e.g. if min_size is 3, by_measure is True and the units of your data is mm,
+            objects smaller than 3mm^3 are removed.
         pixdim: the pixdim of the input image. if a single number, this is used for all axes.
             If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
 
@@ -390,10 +392,10 @@ class RemoveSmallObjects(Transform):
             data2 = MetaTensor(data1, affine=affine)
 
             # remove objects smaller than 3mm^3, input is MetaTensor
-            trans = RemoveSmallObjects(min_size=3, in_mm3=True)
+            trans = RemoveSmallObjects(min_size=3, by_measure=True)
             out = trans(data2)
             # remove objects smaller than 3mm^3, input is not MetaTensor
-            trans = RemoveSmallObjects(min_size=3, in_mm3=True, pixdim=(2, 1, 1))
+            trans = RemoveSmallObjects(min_size=3, by_measure=True, pixdim=(2, 1, 1))
             out = trans(data1)
 
             # remove objects smaller than 3 (in pixel)
@@ -415,13 +417,13 @@ class RemoveSmallObjects(Transform):
         min_size: int = 64,
         connectivity: int = 1,
         independent_channels: bool = True,
-        in_mm3: bool = False,
+        by_measure: bool = False,
         pixdim: Sequence[float] | float | np.ndarray | None = None,
     ) -> None:
         self.min_size = min_size
         self.connectivity = connectivity
         self.independent_channels = independent_channels
-        self.in_mm3 = in_mm3
+        self.by_measure = by_measure
         self.pixdim = pixdim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -435,7 +437,7 @@ class RemoveSmallObjects(Transform):
         """
 
         return remove_small_objects(
-            img, self.min_size, self.connectivity, self.independent_channels, self.in_mm3, self.pixdim
+            img, self.min_size, self.connectivity, self.independent_channels, self.by_measure, self.pixdim
         )
 
 

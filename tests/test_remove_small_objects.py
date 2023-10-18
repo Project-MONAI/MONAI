@@ -50,8 +50,8 @@ for dtype in (int, float):
 
 TESTS_PHYSICAL: list[tuple] = []
 for dtype in (int, float):
-    TESTS_PHYSICAL.append((dtype, np.array, TEST_INPUT2, None, {"min_size": 3, "in_mm3": True, "pixdim": (2, 1)}))
-    TESTS_PHYSICAL.append((dtype, MetaTensor, TEST_INPUT3, None, {"min_size": 3, "in_mm3": True}))
+    TESTS_PHYSICAL.append((dtype, np.array, TEST_INPUT2, None, {"min_size": 3, "by_measure": True, "pixdim": (2, 1)}))
+    TESTS_PHYSICAL.append((dtype, MetaTensor, TEST_INPUT3, None, {"min_size": 3, "by_measure": True}))
 
 
 @SkipIfNoModule("skimage.morphology")

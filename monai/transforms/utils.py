@@ -1072,7 +1072,7 @@ def remove_small_objects(
     min_size: int = 64,
     connectivity: int = 1,
     independent_channels: bool = True,
-    in_mm3: bool = False,
+    by_measure: bool = False,
     pixdim: Sequence[float] | float | np.ndarray | None = None,
 ) -> NdarrayTensor:
     """
@@ -1090,8 +1090,9 @@ def remove_small_objects(
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
             documentation.
         independent_channels: Whether to consider each channel independently.
-        in_mm3: Whether the specified min_size is in number of voxels or volume in mm^3, default is false.
-            If true, min-size will be divided by pixdim.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False.
         pixdim: the pixdim of the input image. if a single number, this is used for all axes.
             If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
@@ -1102,7 +1103,7 @@ def remove_small_objects(
     if not has_morphology:
         raise RuntimeError("Skimage required.")
 
-    if in_mm3:
+    if by_measure:
         sr = len(img.shape[1:])
         if isinstance(img, monai.data.MetaTensor):
             _pixdim = img.pixdim
