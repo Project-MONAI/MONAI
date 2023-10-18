@@ -362,7 +362,7 @@ class RemoveSmallObjects(Transform):
     Data should be one-hotted.
 
     Args:
-        min_size: objects smaller than this size (in pixel) are removed.
+        min_size: objects smaller than this size (in pixel or in physical scale if physical_scale is True) are removed.
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
@@ -370,8 +370,43 @@ class RemoveSmallObjects(Transform):
         independent_channels: Whether or not to consider channels as independent. If true, then
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
-        physical_scale: Whether or not to consider min_size at physical scale, default is false. If true,
-            min_size will be multiplied by pixdim.
+        physical_scale: Whether or not to consider min_size at physical scale, default is false.
+            If true, pixdim will be used to multiply min_size. e.g. if min_size is 3 and physical_scale
+            is True, objects smaller than 3mm^3 are removed.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
+
+    Example:
+
+        .. code-block:: python
+
+            from monai.transforms import RemoveSmallObjects, Spacing, Compose
+            from monai.data import MetaTensor
+
+            data1 = torch.tensor([[[0, 0, 0, 0, 0], [0, 1, 1, 0, 1], [0, 0, 0, 1, 1]]])
+            affine = torch.as_tensor([[2,0,0,0],
+                                      [0,1,0,0],
+                                      [0,0,1,0],
+                                      [0,0,0,1]], dtype=torch.float64)
+            data2 = MetaTensor(data1, affine=affine)
+
+            # remove objects smaller than 3mm^3, input is MetaTensor
+            trans = RemoveSmallObjects(min_size=3, physical_scale=True)
+            out = trans(data2)
+            # remove objects smaller than 3mm^3, input is not MetaTensor
+            trans = RemoveSmallObjects(min_size=3, physical_scale=True, pixdim=(2, 1, 1))
+            out = trans(data1)
+
+            # remove objects smaller than 3 (in pixel)
+            trans = RemoveSmallObjects(min_size=3)
+            out = trans(data2)
+
+            # If the affine of the data is not identity, you can also add Spacing before.
+            trans = Compose([
+                Spacing(pixdim=(1, 1, 1)),
+                RemoveSmallObjects(min_size=3)
+            ])
+
     """
 
     backend = [TransformBackends.NUMPY]
@@ -382,15 +417,13 @@ class RemoveSmallObjects(Transform):
         connectivity: int = 1,
         independent_channels: bool = True,
         physical_scale: bool = False,
-        resample: bool = False,
-        mode: str | int | None = None,
+        pixdim: Sequence[float] | float | np.ndarray | None = None,
     ) -> None:
         self.min_size = min_size
         self.connectivity = connectivity
         self.independent_channels = independent_channels
         self.physical_scale = physical_scale
-        self.resample = resample
-        self.mode = mode
+        self.pixdim = pixdim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -402,21 +435,9 @@ class RemoveSmallObjects(Transform):
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
 
-        if self.resample and self.physical_scale:
-            raise ValueError("Incompatible values: resample=True and physical_scale=True.")
-
-        if self.resample and isinstance(img, MetaTensor):
-            original_pixdim = img.pixdim
-            img = Spacing(pixdim=(1.0, 1.0, 1.0))(img, self.mode)
-
-        out = remove_small_objects(
-            img, self.min_size, self.connectivity, self.independent_channels, self.physical_scale
+        return remove_small_objects(
+            img, self.min_size, self.connectivity, self.independent_channels, self.physical_scale, self.pixdim
         )
-
-        if self.resample and isinstance(img, MetaTensor):
-            out = Spacing(pixdim=original_pixdim)(out, self.mode)  # type: ignore
-
-        return out
 
 
 class LabelFilter(Transform):

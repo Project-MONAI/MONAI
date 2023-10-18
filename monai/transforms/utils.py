@@ -1073,6 +1073,7 @@ def remove_small_objects(
     connectivity: int = 1,
     independent_channels: bool = True,
     physical_scale: bool = False,
+    pixdim: Sequence[float] | float | np.ndarray | None = None,
 ) -> NdarrayTensor:
     """
     Use `skimage.morphology.remove_small_objects` to remove small objects from images.
@@ -1091,6 +1092,8 @@ def remove_small_objects(
         independent_channels: Whether to consider each channel independently.
         physical_scale: Whether or not to consider min_size at physical scale, default is false. If true,
             min_size will be multiplied by pixdim.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
     # if all equal to one value, no need to call skimage
     if len(unique(img)) == 1:
@@ -1100,10 +1103,15 @@ def remove_small_objects(
         raise RuntimeError("Skimage required.")
 
     if physical_scale:
+        sr = len(img.shape[1:])
         if isinstance(img, monai.data.MetaTensor):
-            min_size = int(np.prod(np.array(img.pixdim)) * min_size)
+            _pixdim = img.pixdim
+        elif pixdim is not None:
+            _pixdim = ensure_tuple_rep(pixdim, sr)
         else:
-            warnings.warn("`img` is not of type MetaTensor, assuming affine to be identity.")
+            warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
+            _pixdim = (1.0, ) * sr
+        min_size = int(np.prod(np.array(_pixdim)) * min_size)
 
     img_np: np.ndarray
     img_np, *_ = convert_data_type(img, np.ndarray)
