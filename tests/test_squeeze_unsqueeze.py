@@ -57,7 +57,7 @@ ALL_CASES = [
     (torch.rand(3, 4).type(torch.int32), 0, (3, 4)),
     (torch.rand(3, 4).type(torch.int32), -1, (3, 4)),
     (torch.tensor(3).type(torch.int32), 4, (1, 1, 1, 1)),
-    (torch.tensor(3).type(torch.int32), 0, ()), 
+    (torch.tensor(3).type(torch.int32), 0, ()),
 ]
 
 
