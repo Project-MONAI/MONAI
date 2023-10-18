@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
@@ -32,8 +33,8 @@ TEST_INPUT1 = np.array([[[0, 0, 2, 1, 0], [1, 1, 1, 2, 0], [1, 1, 1, 0, 1]]])
 TEST_OUTPUT1 = np.array([[[0, 0, 2, 1, 0], [1, 1, 1, 2, 0], [1, 1, 1, 0, 0]]])
 
 TEST_INPUT2 = np.array([[[1, 1, 1, 0, 0], [1, 1, 1, 0, 0], [0, 0, 0, 0, 0], [0, 1, 1, 0, 1], [0, 0, 0, 1, 1]]])
-affine = np.eye(4)
-affine[0, 0] = 2
+affine = torch.eye(4, dtype=torch.float64)
+affine[0, 0] = 2.0
 TEST_INPUT3 = MetaTensor(TEST_INPUT2, affine=affine)
 
 
