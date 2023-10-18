@@ -261,11 +261,9 @@ def get_surface_distance(
             - ``"euclidean"``, uses Exact Euclidean distance transform.
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
-        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of
-            length equal to the image dimensions; if a single number, this is used for all axes.
-            If ``None``, spacing of unity is used. Defaults to ``None``.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
-            Several input options are allowed: (1) If a single number, isotropic spacing with that value is used.
+            Several input options are allowed:
+            (1) If a single number, isotropic spacing with that value is used.
             (2) If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
             (3) If ``None``, spacing of unity is used. Defaults to ``None``.
 
