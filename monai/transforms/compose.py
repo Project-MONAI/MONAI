@@ -41,7 +41,85 @@ from monai.utils import MAX_SEED, TraceKeys, TraceStatusKeys, ensure_tuple, get_
 
 logger = get_logger(__name__)
 
-__all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf", "execute_compose"]
+__all__ = [
+    "Compose",
+    "OneOf",
+    "RandomOrder",
+    "SomeOf",
+    "compose_iterator",
+    "ranged_compose_iterator",
+    "execute_compose",
+]
+
+
+def compose_iterator(compose, step_into_all=False):
+    """
+    ``compose_iterator`` is a function that returns an iterator over the transforms in a ``Compose``
+    instance.
+
+    It works by iterating over transforms, and stepping into nested ``Compose`` instances in a
+    recursive fashion. Given the following example:
+
+    ..code-block:: python
+
+    ::
+        t1, t2, t3, t4 = # some transforms
+        c = Compose([t1, Compose([t2, t3]), t4])
+        print([tx for tx in compose_iterator(c)])
+
+        > [t1, t2, t3, t4]
+
+    By default, ``compose_iterator`` doesn't step into ``OneOf``, ``SomeOf``, ``RandomOrder`` or
+    other classes that inherit ``Compose``. If ``step_into_all`` is passed True, it will step into
+    any Compose-like object as if it were just a container. As such, if you are using ``compose_iterator``
+    to step over objects as if executing them, ``step_into_all`` should be False. If you are using
+    ``compose_iterator`` to step over the static structure of the pipeline (such as if you are setting
+    or clearing flags on every transform), you should set ``step_into_all`` to True
+
+    Args:
+        compose: A `Compose` instance that contains the transforms to be iterated over
+        step_into_all: A boolean flag that indicates whether to step into randomised `Compose`
+            sub-classes such as `OneOf`, `SomeOf`, and `RandomOrder`
+    """
+
+    if not isinstance(compose, Compose):
+        raise ValueError(f"must be of type {(type.Compose)} but is type {type(compose)}")
+
+    for i in range(len(compose.transforms)):
+        tx = compose.transforms[i]
+        if type(tx) == Compose or (step_into_all is True and isinstance(tx, Compose)):
+            for tx2 in compose_iterator(tx):
+                yield tx2
+        else:
+            yield tx
+
+
+def ranged_compose_iterator(compose, start=None, end=None, step_into_all=False):
+    """
+    ``ranged_compose_iterator`` is a function that returns an iterator of a a sub-range of the
+    transforms in a ``Compose`` instance. It iterates over transforms until it reaches the
+    transform at index ``start``, iterating until it reaches index ``end``.
+    It follows the same rules as ``compose_iterator`` in terms of how it iterates into nested
+    ``Compose`` instances
+    Args:
+        compose: A ``Compose`` instance that contains the transforms to be iterated over
+        step_into_all: A boolean flag that indicates whether to step into randomised ``Compose``
+            sub-classes such as ``OneOf``, ``SomeOf``, and ``RandomOrder``
+        start: An optional integer that indicates the index to start returning transforms from.
+            This value is inclusive. If not set, iteration happens from the start of the list
+        end: An optional integer that indicates the index to stop returning transforms from. This
+            value is exclusive. If not set, iteration happens until the end of the list
+    """
+
+    i = 0
+
+    for tx in compose_iterator(compose, step_into_all):
+        if start is None or i >= start:
+            if end is None or i < end:
+                yield tx
+            else:
+                break
+        i += 1
 
 
 def execute_compose(
@@ -105,7 +183,7 @@ def execute_compose(
     if start == end:
         return data
 
-    for _transform in transforms[start:end]:
+    for _transform in ranged_compose_iterator(transforms, start, end):
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
         data = apply_transform(
@@ -305,30 +383,27 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             True. None if no transform satisfies the ``predicate``
 
         """
-        for i in range(len(self.transforms)):
-            if predicate(self.transforms[i]):
+        for i, tx in enumerate(compose_iterator(self.transform)):
+            if predicate(tx):
                 return i
+
         return None
 
     def flatten(self):
-        """Return a Composition with a simple list of transforms, as opposed to any nested Compositions.
+        """
+        Return a Compose instance with a simple list of transforms, as opposed to any nested Compositions.
 
         e.g., `t1 = Compose([x, x, x, x, Compose([Compose([x, x]), x, x])]).flatten()`
         will result in the equivalent of `t1 = Compose([x, x, x, x, x, x, x, x])`.
 
         """
-        new_transforms = []
-        for t in self.transforms:
-            if type(t) is Compose:  # nopep8
-                new_transforms += t.flatten().transforms
-            else:
-                new_transforms.append(t)
+        new_transforms = [tx for tx in compose_iterator(self)]
 
         return Compose(new_transforms)
 
     def __len__(self):
         """Return number of transformations."""
-        return len(self.flatten().transforms)
+        return len(compose_iterator(self))
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         _lazy = self._lazy if lazy is None else lazy
@@ -350,7 +425,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
     def inverse(self, data):
         self._raise_if_not_invertible(data)
 
-        invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
+        invertible_transforms = [t for t in compose_iterator(self) if isinstance(t, InvertibleTransform)]
         if not invertible_transforms:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
 
