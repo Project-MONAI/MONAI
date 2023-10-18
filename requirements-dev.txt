@@ -56,3 +56,4 @@ filelock!=3.12.0  # https://github.com/microsoft/nni/issues/5523
 zarr
 lpips==0.1.4
 nvidia-ml-py
+huggingface_hub
