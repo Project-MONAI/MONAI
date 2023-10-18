@@ -19,21 +19,45 @@ from parameterized import parameterized
 
 from monai.utils import unsqueeze_left, unsqueeze_right
 
-RIGHT_CASES = [(np.random.rand(3, 4), 5, (3, 4, 1, 1, 1)), (torch.rand(3, 4), 5, (3, 4, 1, 1, 1))]
+RIGHT_CASES = [
+    (np.random.rand(3, 4).astype(np.float32), 5, (3, 4, 1, 1, 1)),
+    (torch.rand(3, 4).type(torch.float32), 5, (3, 4, 1, 1, 1)),
+    (np.random.rand(3, 4).astype(np.float64), 5, (3, 4, 1, 1, 1)),
+    (torch.rand(3, 4).type(torch.float64), 5, (3, 4, 1, 1, 1)),
+    (np.random.rand(3, 4).astype(np.int32), 5, (3, 4, 1, 1, 1)),
+    (torch.rand(3, 4).type(torch.int32), 5, (3, 4, 1, 1, 1)),
+]
 
-LEFT_CASES = [(np.random.rand(3, 4), 5, (1, 1, 1, 3, 4)), (torch.rand(3, 4), 5, (1, 1, 1, 3, 4))]
 
+LEFT_CASES = [
+    (np.random.rand(3, 4).astype(np.float32), 5, (1, 1, 1, 3, 4)),
+    (torch.rand(3, 4).type(torch.float32), 5, (1, 1, 1, 3, 4)),
+    (np.random.rand(3, 4).astype(np.float64), 5, (1, 1, 1, 3, 4)),
+    (torch.rand(3, 4).type(torch.float64), 5, (1, 1, 1, 3, 4)),
+    (np.random.rand(3, 4).astype(np.int32), 5, (1, 1, 1, 3, 4)),
+    (torch.rand(3, 4).type(torch.int32), 5, (1, 1, 1, 3, 4)),
+]
 ALL_CASES = [
     (np.random.rand(3, 4), 2, (3, 4)),
     (np.random.rand(3, 4), 0, (3, 4)),
     (np.random.rand(3, 4), -1, (3, 4)),
     (np.array(3), 4, (1, 1, 1, 1)),
     (np.array(3), 0, ()),
+    (np.random.rand(3, 4).astype(np.int32), 2, (3, 4)),
+    (np.random.rand(3, 4).astype(np.int32), 0, (3, 4)),
+    (np.random.rand(3, 4).astype(np.int32), -1, (3, 4)),
+    (np.array(3).astype(np.int32), 4, (1, 1, 1, 1)),
+    (np.array(3).astype(np.int32), 0, ()),
     (torch.rand(3, 4), 2, (3, 4)),
     (torch.rand(3, 4), 0, (3, 4)),
     (torch.rand(3, 4), -1, (3, 4)),
     (torch.tensor(3), 4, (1, 1, 1, 1)),
     (torch.tensor(3), 0, ()),
+    (torch.rand(3, 4).type(torch.int32), 2, (3, 4)),
+    (torch.rand(3, 4).type(torch.int32), 0, (3, 4)),
+    (torch.rand(3, 4).type(torch.int32), -1, (3, 4)),
+    (torch.tensor(3).type(torch.int32), 4, (1, 1, 1, 1)),
+    (torch.tensor(3).type(torch.int32), 0, ()), 
 ]
 
 
