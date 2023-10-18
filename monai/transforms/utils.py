@@ -1111,7 +1111,11 @@ def remove_small_objects(
         else:
             warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
             _pixdim = (1.0,) * sr
-        min_size = int(min_size / np.prod(np.array(_pixdim)))
+        voxel_volume = np.prod(np.array(_pixdim))
+        if voxel_volume == 0:
+            warnings.warn("Invalid `pixdim` value detected, set it to 1. Please verify the pixdim settings.")
+            voxel_volume = 1
+        min_size = np.ceil(min_size / voxel_volume)
     elif pixdim is not None:
         warnings.warn("`pixdim` is specified but not in use when computing the volume.")
 

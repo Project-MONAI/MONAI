@@ -72,7 +72,7 @@ class TestRemoveSmallObjects(unittest.TestCase):
     @parameterized.expand(TESTS_PHYSICAL)
     def test_remove_small_objects_physical(self, dtype, im_type, lbl, expected, params):
         params = params or {}
-        min_size = params["min_size"] / 2
+        min_size = np.ceil(params["min_size"] / 2)
 
         if expected is None:
             dtype = bool if lbl.max() <= 1 else int
