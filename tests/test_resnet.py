@@ -36,7 +36,7 @@ from monai.networks.nets import (
 )
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
-from tests.utils import equal_state_dict, test_script_save
+from tests.utils import equal_state_dict, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick, test_script_save
 
 if TYPE_CHECKING:
     import torchvision
@@ -192,6 +192,16 @@ TEST_SCRIPT_CASES = [
 
 
 class TestResNet(unittest.TestCase):
+    def setUp(self):
+        self.tmp_ckpt_filename = os.path.join("tests", "monai_unittest_tmp_ckpt.pth")
+
+    def tearDown(self):
+        if os.path.exists(self.tmp_ckpt_filename):
+            try:
+                os.remove(self.tmp_ckpt_filename)
+            except BaseException:
+                pass
+
     @parameterized.expand(TEST_CASES)
     def test_resnet_shape(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param).to(device)
@@ -203,17 +213,18 @@ class TestResNet(unittest.TestCase):
                 self.assertTrue(result.shape in expected_shape)
 
     @parameterized.expand(PRETRAINED_TEST_CASES)
+    @skip_if_quick
+    @skip_if_no_cuda
     def test_resnet_pretrained(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param).to(device)
-        tmp_ckpt_filename = "monai_unittest_tmp_ckpt.pth"
         # Save ckpt
-        torch.save(net.state_dict(), tmp_ckpt_filename)
+        torch.save(net.state_dict(), self.tmp_ckpt_filename)
 
         cp_input_param = copy.copy(input_param)
         # Custom pretrained weights
-        cp_input_param["pretrained"] = tmp_ckpt_filename
+        cp_input_param["pretrained"] = self.tmp_ckpt_filename
         pretrained_net = model(**cp_input_param)
-        assert equal_state_dict(net.state_dict(), pretrained_net.state_dict())
+        self.assertTrue(equal_state_dict(net.state_dict(), pretrained_net.state_dict()))
 
         if has_hf_modules:
             # True flag
@@ -243,15 +254,13 @@ class TestResNet(unittest.TestCase):
             cp_input_param["shortcut_type"] = shortcut_type
             cp_input_param["bias_downsample"] = bool(bias_downsample) if bias_downsample != -1 else True
             if cp_input_param.get("spatial_dims", 3) == 3:
-                pretrained_net = model(**cp_input_param).to(device)
-                medicalnet_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device=device)
-                medicalnet_state_dict = {
-                    key.replace("module.", ""): value for key, value in medicalnet_state_dict.items()
-                }
-                assert equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict)
-
-        # clean
-        os.remove(tmp_ckpt_filename)
+                with skip_if_downloading_fails():
+                    pretrained_net = model(**cp_input_param).to(device)
+                    medicalnet_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device=device)
+                    medicalnet_state_dict = {
+                        key.replace("module.", ""): value for key, value in medicalnet_state_dict.items()
+                    }
+                    self.assertTrue(equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict))
 
     @parameterized.expand(TEST_SCRIPT_CASES)
     def test_script(self, model, input_param, input_shape, expected_shape):
