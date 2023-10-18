@@ -925,6 +925,12 @@ Spatial
     :members:
     :special-members: __call__
 
+`RandSimulateLowResolution`
+"""""""""""""""""""""""""""
+.. autoclass:: RandSimulateLowResolution
+    :members:
+    :special-members: __call__
+
 
 Smooth Field
 ^^^^^^^^^^^^
@@ -1885,6 +1891,13 @@ Spatial (Dict)
 .. autoclass:: RandGridDistortiond
     :members:
     :special-members: __call__
+
+`RandSimulateLowResolutiond`
+""""""""""""""""""""""""""""
+.. autoclass:: RandSimulateLowResolutiond
+    :members:
+    :special-members: __call__
+
 
 Smooth Field (Dict)
 ^^^^^^^^^^^^^^^^^^^

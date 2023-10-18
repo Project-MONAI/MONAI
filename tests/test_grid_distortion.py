@@ -81,7 +81,7 @@ for p in TEST_NDARRAYS_ALL:
     )
     TESTS.append(
         [
-            dict(num_cells=2, distort_steps=[(1.25,) * 3] * 3, mode="nearest", padding_mode="zeros"),
+            dict(num_cells=2, distort_steps=[(1.26,) * 3] * 3, mode="nearest", padding_mode="zeros"),
             p(np.indices([3, 3, 3])[:1].astype(np.float32)),
             p(
                 np.array(

@@ -45,6 +45,7 @@ from monai.transforms.spatial.array import (
     RandGridDistortion,
     RandGridPatch,
     RandRotate,
+    RandSimulateLowResolution,
     RandZoom,
     ResampleToMatch,
     Resize,
@@ -140,6 +141,9 @@ __all__ = [
     "RandGridPatchd",
     "RandGridPatchD",
     "RandGridPatchDict",
+    "RandSimulateLowResolutiond",
+    "RandSimulateLowResolutionD",
+    "RandSimulateLowResolutionDict",
 ]
 
 
@@ -1141,6 +1145,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             grid = self.rand_affine.get_identity_grid(sp_size, lazy=lazy_)
             if self._do_transform:  # add some random factors
                 grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid, lazy=lazy_)
+        grid = 0 if grid is None else grid  # always provide a grid to self.rand_affine
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
@@ -2436,7 +2441,7 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
         overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
             If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
         sort_fn: when `num_patches` is provided, it determines if keep patches with highest values (`"max"`),
-            lowest values (`"min"`), or in their default order (`None`). Default to None.
+            lowest values (`"min"`), in random ("random"), or in their default order (`None`). Default to None.
         threshold: a value to keep only the patches whose sum of intensities are less than the threshold.
             Defaults to no filtering.
         pad_mode: the  mode for padding the input image by `patch_size` to include patches that cross boundaries.
@@ -2517,6 +2522,94 @@ class RandGridPatchd(RandomizableTransform, MapTransform, MultiSampleTrait):
         return d
 
 
+class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.RandSimulateLowResolution`.
+    Random simulation of low resolution corresponding to nnU-Net's SimulateLowResolutionTransform
+    (https://github.com/MIC-DKFZ/batchgenerators/blob/7651ece69faf55263dd582a9f5cbd149ed9c3ad0/batchgenerators/transforms/resample_transforms.py#L23)
+    First, the array/tensor is resampled at lower resolution as determined by the zoom_factor which is uniformly sampled
+    from the `zoom_range`. Then, the array/tensor is resampled at the original resolution.
+    """
+
+    backend = RandAffine.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        downsample_mode: InterpolateMode | str = InterpolateMode.NEAREST,
+        upsample_mode: InterpolateMode | str = InterpolateMode.TRILINEAR,
+        zoom_range=(0.5, 1.0),
+        align_corners=False,
+        allow_missing_keys: bool = False,
+        device: torch.device | None = None,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            prob: probability of performing this augmentation
+            downsample_mode: interpolation mode for downsampling operation
+            upsample_mode: interpolation mode for upsampling operation
+            zoom_range: range from which the random zoom factor for the downsampling and upsampling operation is
+            sampled. It determines the shape of the downsampled tensor.
+            align_corners: This only has an effect when downsample_mode or upsample_mode  is 'linear', 'bilinear',
+                'bicubic' or 'trilinear'. Default: False
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            allow_missing_keys: don't raise exception if key is missing.
+            device: device on which the tensor will be allocated.
+
+        See also:
+            - :py:class:`monai.transforms.compose.MapTransform`
+
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.downsample_mode = downsample_mode
+        self.upsample_mode = upsample_mode
+        self.zoom_range = zoom_range
+        self.align_corners = align_corners
+        self.device = device
+
+        self.sim_lowres_tfm = RandSimulateLowResolution(
+            prob=1.0,  # probability is handled by dictionary class
+            downsample_mode=self.downsample_mode,
+            upsample_mode=self.upsample_mode,
+            zoom_range=self.zoom_range,
+            align_corners=self.align_corners,
+            device=self.device,
+        )
+
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandSimulateLowResolutiond:
+        super().set_random_state(seed, state)
+        return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        """
+        Args:
+            data: a dictionary containing the tensor-like data to be transformed. The ``keys`` specified
+                in this dictionary must be tensor like arrays that are channel first and have at most
+                three spatial dimensions
+        """
+        d = dict(data)
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            out: dict[Hashable, NdarrayOrTensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            return out
+
+        self.randomize(None)
+
+        for key in self.key_iterator(d):
+            # do the transform
+            if self._do_transform:
+                d[key] = self.sim_lowres_tfm(d[key])  # type: ignore
+            else:
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
+        return d
+
+
 SpatialResampleD = SpatialResampleDict = SpatialResampled
 ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
@@ -2540,3 +2633,4 @@ RandZoomD = RandZoomDict = RandZoomd
 GridSplitD = GridSplitDict = GridSplitd
 GridPatchD = GridPatchDict = GridPatchd
 RandGridPatchD = RandGridPatchDict = RandGridPatchd
+RandSimulateLowResolutionD = RandSimulateLowResolutionDict = RandSimulateLowResolutiond

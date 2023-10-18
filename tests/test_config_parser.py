@@ -174,6 +174,7 @@ class TestConfigParser(unittest.TestCase):
             self.assertTrue(isinstance(v, cls))
         # test default value
         self.assertEqual(parser.get_parsed_content(id="abc", default=ConfigItem(12345, "abc")), 12345)
+        self.assertEqual(parser.get_parsed_content(id="abcd", default=1), 1)
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):

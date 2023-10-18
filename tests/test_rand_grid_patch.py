@@ -59,6 +59,13 @@ TEST_CASE_9 = [
     [np.pad(A[:, :2, 1:], ((0, 0), (1, 0), (0, 0)), mode="constant", constant_values=255)],
 ]
 TEST_CASE_10 = [{"patch_size": (2, 2), "min_offset": 0, "max_offset": 0, "threshold": 50.0}, A, [A11]]
+TEST_CASE_11 = [{"patch_size": (2, 2), "sort_fn": "random", "num_patches": 2}, A, [A11, A12]]
+TEST_CASE_12 = [{"patch_size": (2, 2), "sort_fn": "random", "num_patches": 4}, A, [A11, A12, A21, A22]]
+TEST_CASE_13 = [
+    {"patch_size": (2, 2), "min_offset": 0, "max_offset": 1, "num_patches": 1, "sort_fn": "random"},
+    A,
+    [A[:, 1:3, 1:3]],
+]
 
 TEST_CASE_META_0 = [
     {"patch_size": (2, 2)},
@@ -92,6 +99,9 @@ for p in TEST_NDARRAYS:
     TEST_SINGLE.append([p, *TEST_CASE_8])
     TEST_SINGLE.append([p, *TEST_CASE_9])
     TEST_SINGLE.append([p, *TEST_CASE_10])
+    TEST_SINGLE.append([p, *TEST_CASE_11])
+    TEST_SINGLE.append([p, *TEST_CASE_12])
+    TEST_SINGLE.append([p, *TEST_CASE_13])
 
 
 class TestRandGridPatch(unittest.TestCase):
@@ -114,7 +124,7 @@ class TestRandGridPatch(unittest.TestCase):
                 output_patch,
                 in_type(expected_patch),
                 type_test=False,
-                device_test=True if isinstance(in_type(expected_patch), torch.Tensor) else False,
+                device_test=bool(isinstance(in_type(expected_patch), torch.Tensor)),
             )
 
     @parameterized.expand([TEST_CASE_META_0, TEST_CASE_META_1])

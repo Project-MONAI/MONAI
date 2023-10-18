@@ -50,7 +50,7 @@ class TestInvert(unittest.TestCase):
                 LoadImage(image_only=True),
                 EnsureChannelFirst(),
                 Orientation("RPS"),
-                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32),
+                Spacing(pixdim=(1.2, 1.01, 0.9), mode=1, dtype=np.float32),
                 RandFlip(prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlip(prob=0.5),
                 RandRotate90(prob=0, spatial_axes=(1, 2)),

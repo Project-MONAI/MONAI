@@ -53,6 +53,7 @@ from monai.utils import (
     SplineMode,
     TraceKeys,
     TraceStatusKeys,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -945,6 +946,7 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
+@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
@@ -961,7 +963,6 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    If `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
     This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
@@ -970,8 +971,10 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-            than box size, default to `True`.
+        allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
+                the bounding boxes edges are aligned with the final box edges. Default to `True`.
+
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
@@ -1397,10 +1400,10 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
     trans_info = dict(trans_info)
     if "mode" in trans_info:
         current_mode = trans_info["mode"]
-        if current_mode[0] in _interp_modes:
-            trans_info["mode"] = [mode for _ in range(len(mode))]
-        elif current_mode in _interp_modes:
+        if isinstance(current_mode, int) or current_mode in _interp_modes:
             trans_info["mode"] = mode
+        elif isinstance(current_mode[0], int) or current_mode[0] in _interp_modes:
+            trans_info["mode"] = [mode for _ in range(len(mode))]
     if "align_corners" in trans_info:
         _align_corners = TraceKeys.NONE if align_corners is None else align_corners
         current_value = trans_info["align_corners"]
@@ -1709,8 +1712,8 @@ def convert_to_contiguous(
         return ascontiguousarray(data, **kwargs)
     elif isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
-    elif isinstance(data, Sequence) and not isinstance(data, bytes):
-        return [convert_to_contiguous(i, **kwargs) for i in data]  # type: ignore
+    elif isinstance(data, Sequence):
+        return type(data)(convert_to_contiguous(i, **kwargs) for i in data)  # type: ignore
     else:
         return data
 

@@ -58,6 +58,7 @@ jobs:
       run: |
         pwd && git log -1 && which python
         ./runtests.sh -b
+        export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
         python -m tests.test_auto3dseg_bundlegen
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
@@ -71,12 +72,11 @@ jobs:
 
     - name: Add reaction
       uses: peter-evans/create-or-update-comment@v3
-      if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
         comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
-        reaction-type: rocket
+        reactions: rocket
 
 
   integration-unit:
@@ -144,22 +144,16 @@ jobs:
         export MONAI_TESTING_ALGO_TEMPLATE=algorithm_templates
         pwd && git log -1 && which python
         ./runtests.sh -b
+        export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
         python -m tests.test_auto3dseg_ensemble
         python -m tests.test_auto3dseg_hpo
         python -m tests.test_integration_autorunner
         python -m tests.test_integration_gpu_customization
-    - name: Unit tests
-      shell: bash
-      env:
-        BUILD_MONAI: 1
-        QUICKTEST: True
-      run: ./runtests.sh --build --unittests
 
     - name: Add reaction
       uses: peter-evans/create-or-update-comment@v3
-      if: github.event.pull_request.number != ''
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
         comment-id: ${{ github.event.client_payload.github.payload.comment.id }}
-        reaction-type: +1
+        reactions: +1

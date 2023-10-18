@@ -45,6 +45,7 @@ from monai.networks import (
 from monai.utils import (
     check_parent_dir,
     deprecated_arg,
+    deprecated_arg_default,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -62,6 +63,7 @@ huggingface_hub, _ = optional_import("huggingface_hub")
 logger = get_logger(module_name=__name__)
 
 # set BUNDLE_DOWNLOAD_SRC="ngc" to use NGC source in default for bundle download
+# set BUNDLE_DOWNLOAD_SRC="monaihosting" to use monaihosting source in default for bundle download
 download_source = os.environ.get("BUNDLE_DOWNLOAD_SRC", "github")
 PPRINT_CONFIG_N = 5
 
@@ -81,9 +83,9 @@ def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwa
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
-
     # recursively update the default args with new args
     for k, v in kwargs.items():
+        print(k, v)
         if ignore_none and v is None:
             continue
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
@@ -157,12 +159,24 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name}/versions/{version}/zip"
 
 
+def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
+    monaihosting_root_path = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
+    return f"{monaihosting_root_path}/{model_name}/versions/{version}/files/{model_name}_v{version}.zip"
+
+
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
     repo_owner, repo_name, tag_name = repo.split("/")
     if ".zip" not in filename:
         filename += ".zip"
     url = _get_git_release_url(repo_owner, repo_name, tag_name=tag_name, filename=filename)
     filepath = download_path / f"{filename}"
+    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+    extractall(filepath=filepath, output_dir=download_path, has_base=True)
+
+
+def _download_from_monaihosting(download_path: Path, filename: str, version: str, progress: bool) -> None:
+    url = _get_monaihosting_bundle_url(model_name=filename, version=version)
+    filepath = download_path / f"{filename}_v{version}.zip"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
@@ -193,6 +207,19 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
+def _get_latest_bundle_version_monaihosting(name):
+    url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
+    full_url = f"{url}/{name}"
+    requests_get, has_requests = optional_import("requests", name="get")
+    if has_requests:
+        resp = requests_get(full_url)
+        resp.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package.  Please install it.")
+    model_info = json.loads(resp.text)
+    return model_info["model"]["latestVersionIdStr"]
+
+
 def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
@@ -201,6 +228,8 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
             if v["name"] == name:
                 return v["latest"]
         return None
+    elif source == "monaihosting":
+        return _get_latest_bundle_version_monaihosting(name)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
@@ -213,7 +242,9 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
             latest_version = [b.name for b in refs.branches][0]  # use the branch that was last updated
         return latest_version
     else:
-        raise ValueError(f"To get the latest bundle version, source should be 'github' or 'ngc', got {source}.")
+        raise ValueError(
+            f"To get the latest bundle version, source should be 'github', 'monaihosting' or 'ngc', got {source}."
+        )
 
 
 def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
@@ -226,6 +257,7 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
+@deprecated_arg_default("source", "github", "monaihosting", since="1.3", replaced="1.4")
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -256,6 +288,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle from ngc with latest version:
         python -m monai.bundle download --name <bundle_name> --source "ngc" --bundle_dir "./"
 
+        # Execute this module as a CLI entry, and download bundle from monaihosting with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "monaihosting" --bundle_dir "./"
+
         # Execute this module as a CLI entry, and download bundle from Hugging Face Hub:
         python -m monai.bundle download --name "bundle_name" --source "huggingface_hub" --repo "repo_owner/repo_name"
 
@@ -282,7 +317,7 @@ def download(
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "github", or "huggingface_hub".
+            it should be "ngc", "monaihosting", "github", or "huggingface_hub".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
             If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
@@ -338,6 +373,8 @@ def download(
             if version_ is not None:
                 name_ = "_v".join([name_, version_])
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
+        elif source_ == "monaihosting":
+            _download_from_monaihosting(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
         elif source_ == "ngc":
             _download_from_ngc(
                 download_path=bundle_dir_,
@@ -351,7 +388,8 @@ def download(
             huggingface_hub.snapshot_download(repo_id=repo_, revision=version_, local_dir=extract_path)
         else:
             raise NotImplementedError(
-                f"Currently only download from `url`, source 'github', 'ngc', or 'huggingface_hub' are implemented, got source: {source_}."
+                "Currently only download from `url`, source 'github', 'monaihosting', 'huggingface_hub' or 'ngc' are implemented,"
+                f"got source: {source_}."
             )
 
 
@@ -391,7 +429,7 @@ def load(
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
             downloaded first.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "github", or "huggingface_hub".
+            it should be "ngc", "monaihosting", "github", or "huggingface_hub".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
             If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
@@ -1526,7 +1564,7 @@ def _add_model_card_metadata(new_modelcard_path):
     license_name = "unknown"
     license_path = os.path.join(os.path.dirname(new_modelcard_path), "LICENSE")
     if os.path.exists(license_path):
-        with open(license_path, "r") as file:
+        with open(license_path) as file:
             content = file.read()
         if "Apache License" in content and "Version 2.0" in content:
             license_name = "apache-2.0"
@@ -1538,7 +1576,7 @@ def _add_model_card_metadata(new_modelcard_path):
     tag_content = f"---\ntags:\n{tags}license: {license_name}\n---"
 
     # Update model card
-    with open(new_modelcard_path, "r") as file:
+    with open(new_modelcard_path) as file:
         content = file.read()
     new_content = tag_content + "\n" + content
     with open(new_modelcard_path, "w") as file:

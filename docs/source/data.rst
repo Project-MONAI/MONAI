@@ -45,6 +45,13 @@ Generic Interfaces
   :members:
   :special-members: __getitem__
 
+`GDSDataset`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: GDSDataset
+  :members:
+  :special-members: __getitem__
+
+
 `CacheNTransDataset`
 ~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: CacheNTransDataset
@@ -152,6 +159,10 @@ PILReader
 .. autoclass:: PILReader
   :members:
 
+NrrdReader
+~~~~~~~~~~
+.. autoclass:: NrrdReader
+  :members:
 
 Image writer
 ------------

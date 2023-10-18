@@ -27,8 +27,8 @@ einops, has_einops = optional_import("einops")
 TEST_CASE_PATCHEMBEDDINGBLOCK = []
 for dropout_rate in (0.5,):
     for in_channels in [1, 4]:
-        for hidden_size in [360, 768]:
-            for img_size in [96, 128]:
+        for hidden_size in [96, 288]:
+            for img_size in [32, 64]:
                 for patch_size in [8, 16]:
                     for num_heads in [8, 12]:
                         for pos_embed in ["conv", "perceptron"]:
@@ -73,6 +73,13 @@ for patch_size in [2]:
 
 
 class TestPatchEmbeddingBlock(unittest.TestCase):
+    def setUp(self):
+        self.threads = torch.get_num_threads()
+        torch.set_num_threads(4)
+
+    def tearDown(self):
+        torch.set_num_threads(self.threads)
+
     @parameterized.expand(TEST_CASE_PATCHEMBEDDINGBLOCK)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -139,6 +146,13 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
 
 
 class TestPatchEmbed(unittest.TestCase):
+    def setUp(self):
+        self.threads = torch.get_num_threads()
+        torch.set_num_threads(4)
+
+    def tearDown(self):
+        torch.set_num_threads(self.threads)
+
     @parameterized.expand(TEST_CASE_PATCHEMBED)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):

@@ -438,12 +438,12 @@ class ConfigParser:
 
         """
         _filepath: str = str(Path(filepath))
-        writer = look_up_option(fmt.lower(), {"json", "yaml"})
+        writer = look_up_option(fmt.lower(), {"json", "yaml", "yml"})
         with open(_filepath, "w") as f:
             if writer == "json":
                 json.dump(config, f, **kwargs)
                 return
-            if writer == "yaml":
+            if writer == "yaml" or writer == "yml":
                 return yaml.safe_dump(config, f, **kwargs)
             raise ValueError(f"only support JSON or YAML config file so far, got {writer}.")
 

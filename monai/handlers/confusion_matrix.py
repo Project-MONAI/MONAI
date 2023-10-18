@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.handlers.ignite_metric import IgniteMetric
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import ConfusionMatrixMetric
 from monai.utils.enums import MetricReduction
 
 
-class ConfusionMatrix(IgniteMetric):
+class ConfusionMatrix(IgniteMetricHandler):
     """
     Compute confusion matrix related metrics from full size Tensor and collects average over batch, class-channels, iterations.
     """

@@ -94,7 +94,7 @@ class TestGridPatchd(unittest.TestCase):
                 output_patch,
                 in_type(expected_patch),
                 type_test=False,
-                device_test=True if isinstance(in_type(expected_patch), torch.Tensor) else False,
+                device_test=bool(isinstance(in_type(expected_patch), torch.Tensor)),
             )
 
 

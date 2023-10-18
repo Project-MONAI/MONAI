@@ -17,7 +17,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from monai.metrics.surface_dice import SurfaceDiceMetric
+from monai.metrics.surface_dice import SurfaceDiceMetric, compute_surface_dice
+from tests.utils import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -326,26 +327,6 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
             str(context.exception),
         )
 
-        # input tensors not one-hot encoded
-        predictions_no_hot = torch.clone(predictions_hot)
-        predictions_no_hot[0, :, 0, 0] = torch.tensor([2, 0])
-
-        with self.assertRaises(ValueError) as context:
-            SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_no_hot, predictions_hot)
-        self.assertEqual("y_pred and y should be one-hot encoded.", str(context.exception))
-        with self.assertRaises(ValueError) as context:
-            SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_hot, predictions_no_hot)
-        self.assertEqual("y_pred and y should be one-hot encoded.", str(context.exception))
-
-        predictions_no_hot = predictions_no_hot.float()
-        predictions_no_hot[0, :, 0, 0] = torch.tensor([0.5, 0])
-        with self.assertRaises(ValueError) as context:
-            SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_no_hot, predictions_hot)
-        self.assertEqual("y_pred and y should be binarized tensors (e.g. torch.int64).", str(context.exception))
-        with self.assertRaises(ValueError) as context:
-            SurfaceDiceMetric(class_thresholds=[1, 1], include_background=True)(predictions_hot, predictions_no_hot)
-        self.assertEqual("y_pred and y should be binarized tensors (e.g. torch.int64).", str(context.exception))
-
         # wrong number of class thresholds
         with self.assertRaises(ValueError) as context:
             SurfaceDiceMetric(class_thresholds=[1, 1, 1], include_background=True)(predictions_hot, labels_hot)
@@ -400,6 +381,35 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         np.testing.assert_array_equal(res_classes, [[np.nan, np.nan, np.nan], [np.nan, np.nan, np.nan]])
         np.testing.assert_equal(res, torch.tensor([0], dtype=torch.float))
         np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float))
+
+    def test_compute_surface_dice_subvoxel(self):
+        mask_gt, mask_pred = torch.zeros(1, 1, 128, 128, 128), torch.zeros(1, 1, 128, 128, 128)
+        mask_gt[0, 0, 50, 60, 70] = 1
+        res = compute_surface_dice(
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
+        )
+        assert_allclose(res, 0.0, type_test=False)
+        mask_gt[0, 0, 50, 60, 70] = 0
+        mask_pred[0, 0, 50, 60, 72] = 1
+        res = compute_surface_dice(
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
+        )
+        assert_allclose(res, 0.0, type_test=False)
+        mask_gt[0, 0, 50, 60, 70] = 1
+        mask_pred[0, 0, 50, 60, 72] = 1
+        res = compute_surface_dice(
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
+        )
+        assert_allclose(res, 0.5, type_test=False)
+
+        d = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        mask_gt, mask_pred = torch.zeros(1, 1, 100, 100, 100, device=d), torch.zeros(1, 1, 100, 100, 100, device=d)
+        mask_gt[0, 0, 0:50, :, :] = 1
+        mask_pred[0, 0, 0:51, :, :] = 1
+        res = compute_surface_dice(
+            mask_pred, mask_gt, [1.0], include_background=True, spacing=(2, 1, 1), use_subvoxels=True
+        )
+        assert_allclose(res, 0.836145, type_test=False, atol=1e-3, rtol=1e-3)
 
 
 if __name__ == "__main__":

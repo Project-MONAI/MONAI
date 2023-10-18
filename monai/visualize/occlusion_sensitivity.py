@@ -21,8 +21,7 @@ import torch.nn as nn
 from monai.data.meta_tensor import MetaTensor
 from monai.networks.utils import eval_mode
 from monai.transforms import Compose, GaussianSmooth, Lambda, ScaleIntensity, SpatialCrop
-from monai.utils import deprecated_arg, ensure_tuple_rep
-from monai.visualize.visualizer import default_upsampler
+from monai.utils import ensure_tuple_rep
 
 
 class OcclusionSensitivity:
@@ -74,24 +73,11 @@ class OcclusionSensitivity:
         - :py:class:`monai.visualize.occlusion_sensitivity.OcclusionSensitivity.`
     """
 
-    @deprecated_arg(
-        name="pad_val",
-        since="1.0",
-        removed="1.2",
-        msg_suffix="Please use `mode`. For backwards compatibility, use `mode=mean_img`.",
-    )
-    @deprecated_arg(name="stride", since="1.0", removed="1.2", msg_suffix="Please use `overlap`.")
-    @deprecated_arg(name="per_channel", since="1.0", removed="1.2")
-    @deprecated_arg(name="upsampler", since="1.0", removed="1.2")
     def __init__(
         self,
         nn_module: nn.Module,
-        pad_val: float | None = None,
         mask_size: int | Sequence = 16,
         n_batch: int = 16,
-        stride: int | Sequence = 1,
-        per_channel: bool = True,
-        upsampler: Callable | None = default_upsampler,
         verbose: bool = True,
         mode: str | float | Callable = "gaussian",
         overlap: float = 0.25,

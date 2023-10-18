@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
 
 import torch
@@ -19,7 +20,7 @@ import torch.nn as nn
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
 from monai.networks.layers import Conv
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, is_sqrt
 
 __all__ = ["ViTAutoEnc"]
 
@@ -78,9 +79,14 @@ class ViTAutoEnc(nn.Module):
         """
 
         super().__init__()
-
+        if not is_sqrt(patch_size):
+            raise ValueError(f"patch_size should be square number, got {patch_size}.")
         self.patch_size = ensure_tuple_rep(patch_size, spatial_dims)
+        self.img_size = ensure_tuple_rep(img_size, spatial_dims)
         self.spatial_dims = spatial_dims
+        for m, p in zip(self.img_size, self.patch_size):
+            if m % p != 0:
+                raise ValueError(f"patch_size={patch_size} should be divisible by img_size={img_size}.")
 
         self.patch_embedding = PatchEmbeddingBlock(
             in_channels=in_channels,
@@ -100,12 +106,12 @@ class ViTAutoEnc(nn.Module):
         )
         self.norm = nn.LayerNorm(hidden_size)
 
-        new_patch_size = [4] * self.spatial_dims
         conv_trans = Conv[Conv.CONVTRANS, self.spatial_dims]
         # self.conv3d_transpose* is to be compatible with existing 3d model weights.
-        self.conv3d_transpose = conv_trans(hidden_size, deconv_chns, kernel_size=new_patch_size, stride=new_patch_size)
+        up_kernel_size = [int(math.sqrt(i)) for i in self.patch_size]
+        self.conv3d_transpose = conv_trans(hidden_size, deconv_chns, kernel_size=up_kernel_size, stride=up_kernel_size)
         self.conv3d_transpose_1 = conv_trans(
-            in_channels=deconv_chns, out_channels=out_channels, kernel_size=new_patch_size, stride=new_patch_size
+            in_channels=deconv_chns, out_channels=out_channels, kernel_size=up_kernel_size, stride=up_kernel_size
         )
 
     def forward(self, x):

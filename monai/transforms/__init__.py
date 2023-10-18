@@ -129,6 +129,7 @@ from .intensity.array import (
     ShiftIntensity,
     StdShiftIntensity,
     ThresholdIntensity,
+    UltrasoundConfidenceMapTransform,
 )
 from .intensity.dictionary import (
     AdjustContrastd,
@@ -380,6 +381,7 @@ from .spatial.array import (
     RandGridPatch,
     RandRotate,
     RandRotate90,
+    RandSimulateLowResolution,
     RandZoom,
     Resample,
     ResampleToMatch,
@@ -436,6 +438,9 @@ from .spatial.dictionary import (
     RandRotated,
     RandRotateD,
     RandRotateDict,
+    RandSimulateLowResolutiond,
+    RandSimulateLowResolutionD,
+    RandSimulateLowResolutionDict,
     RandZoomd,
     RandZoomD,
     RandZoomDict,

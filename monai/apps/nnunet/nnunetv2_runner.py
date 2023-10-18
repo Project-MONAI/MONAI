@@ -521,7 +521,7 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs.pop("export_validation_probabilities")
             logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
-        if isinstance(gpu_id, tuple) or isinstance(gpu_id, list):
+        if isinstance(gpu_id, (tuple, list)):
             if len(gpu_id) > 1:
                 gpu_ids_str = ""
                 for _i in range(len(gpu_id)):

@@ -722,6 +722,7 @@ class CropForegroundd(Cropd):
     for more information.
     """
 
+    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -732,8 +733,8 @@ class CropForegroundd(Cropd):
         allow_smaller: bool = True,
         k_divisible: Sequence[int] | int = 1,
         mode: SequenceStr = PytorchPadMode.CONSTANT,
-        start_coord_key: str = "foreground_start_coord",
-        end_coord_key: str = "foreground_end_coord",
+        start_coord_key: str | None = "foreground_start_coord",
+        end_coord_key: str | None = "foreground_end_coord",
         allow_missing_keys: bool = False,
         lazy: bool = False,
         **pad_kwargs,
@@ -747,9 +748,9 @@ class CropForegroundd(Cropd):
             channel_indices: if defined, select foreground only on the specified channels
                 of image. if None, select foreground on the whole image.
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-            allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-                than box size, default to `True`. if the margined size is larger than image size, will pad with
-                specified `mode`.
+            allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
+                the image edges will be used as the box edges. Default to `True`.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.
             mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 import shutil
@@ -24,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import urlretrieve
+from urllib.request import urlopen, urlretrieve
 
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
@@ -203,6 +204,17 @@ def download_url(
                 if not has_gdown:
                     raise RuntimeError("To download files from Google Drive, please install the gdown dependency.")
                 gdown.download(url, f"{tmp_name}", quiet=not progress, **gdown_kwargs)
+            elif urlparse(url).netloc == "cloud-api.yandex.net":
+                with urlopen(url) as response:
+                    code = response.getcode()
+                    if code == 200:
+                        download_url = json.loads(response.read())["href"]
+                        _download_with_progress(download_url, tmp_name, progress=progress)
+                    else:
+                        raise RuntimeError(
+                            f"Download of file from {download_url}, received from {url} "
+                            + f" to {filepath} failed due to network issue or denied permission."
+                        )
             else:
                 _download_with_progress(url, tmp_name, progress=progress)
             if not tmp_name.exists():
