@@ -369,9 +369,9 @@ class RemoveSmallObjects(Transform):
         independent_channels: Whether or not to consider channels as independent. If true, then
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
-        physical_scale: Whether or not to consider min_size at physical scale, default is false.
-            If true, pixdim will be used to multiply min_size. e.g. if min_size is 3 and physical_scale
-            is True, objects smaller than 3mm^3 are removed.
+        in_mm3: Whether the specified min_size is in number of voxels or volume in mm^3, default is false.
+            If true, min-size will be divided by pixdim. e.g. if min_size is 3 and in_mm3
+            is true, objects smaller than 3mm^3 are removed.
         pixdim: the pixdim of the input image. if a single number, this is used for all axes.
             If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
 
@@ -390,10 +390,10 @@ class RemoveSmallObjects(Transform):
             data2 = MetaTensor(data1, affine=affine)
 
             # remove objects smaller than 3mm^3, input is MetaTensor
-            trans = RemoveSmallObjects(min_size=3, physical_scale=True)
+            trans = RemoveSmallObjects(min_size=3, in_mm3=True)
             out = trans(data2)
             # remove objects smaller than 3mm^3, input is not MetaTensor
-            trans = RemoveSmallObjects(min_size=3, physical_scale=True, pixdim=(2, 1, 1))
+            trans = RemoveSmallObjects(min_size=3, in_mm3=True, pixdim=(2, 1, 1))
             out = trans(data1)
 
             # remove objects smaller than 3 (in pixel)
@@ -415,13 +415,13 @@ class RemoveSmallObjects(Transform):
         min_size: int = 64,
         connectivity: int = 1,
         independent_channels: bool = True,
-        physical_scale: bool = False,
+        in_mm3: bool = False,
         pixdim: Sequence[float] | float | np.ndarray | None = None,
     ) -> None:
         self.min_size = min_size
         self.connectivity = connectivity
         self.independent_channels = independent_channels
-        self.physical_scale = physical_scale
+        self.in_mm3 = in_mm3
         self.pixdim = pixdim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -435,7 +435,7 @@ class RemoveSmallObjects(Transform):
         """
 
         return remove_small_objects(
-            img, self.min_size, self.connectivity, self.independent_channels, self.physical_scale, self.pixdim
+            img, self.min_size, self.connectivity, self.independent_channels, self.in_mm3, self.pixdim
         )
 
 

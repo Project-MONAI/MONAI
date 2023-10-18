@@ -50,10 +50,8 @@ for dtype in (int, float):
 
 TESTS_PHYSICAL: list[tuple] = []
 for dtype in (int, float):
-    TESTS_PHYSICAL.append(
-        (dtype, np.array, TEST_INPUT2, None, {"min_size": 3, "physical_scale": True, "pixdim": (2, 1)})
-    )
-    TESTS_PHYSICAL.append((dtype, MetaTensor, TEST_INPUT3, None, {"min_size": 3, "physical_scale": True}))
+    TESTS_PHYSICAL.append((dtype, np.array, TEST_INPUT2, None, {"min_size": 3, "in_mm3": True, "pixdim": (2, 1)}))
+    TESTS_PHYSICAL.append((dtype, MetaTensor, TEST_INPUT3, None, {"min_size": 3, "in_mm3": True}))
 
 
 @SkipIfNoModule("skimage.morphology")
@@ -74,7 +72,7 @@ class TestRemoveSmallObjects(unittest.TestCase):
     @parameterized.expand(TESTS_PHYSICAL)
     def test_remove_small_objects_physical(self, dtype, im_type, lbl, expected, params):
         params = params or {}
-        min_size = params["min_size"] * 2
+        min_size = params["min_size"] / 2
 
         if expected is None:
             dtype = bool if lbl.max() <= 1 else int

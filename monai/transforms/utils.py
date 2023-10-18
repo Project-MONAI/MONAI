@@ -1072,7 +1072,7 @@ def remove_small_objects(
     min_size: int = 64,
     connectivity: int = 1,
     independent_channels: bool = True,
-    physical_scale: bool = False,
+    in_mm3: bool = False,
     pixdim: Sequence[float] | float | np.ndarray | None = None,
 ) -> NdarrayTensor:
     """
@@ -1090,8 +1090,8 @@ def remove_small_objects(
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
             documentation.
         independent_channels: Whether to consider each channel independently.
-        physical_scale: Whether or not to consider min_size at physical scale, default is false. If true,
-            min_size will be multiplied by pixdim.
+        in_mm3: Whether the specified min_size is in number of voxels or volume in mm^3, default is false.
+            If true, min-size will be divided by pixdim.
         pixdim: the pixdim of the input image. if a single number, this is used for all axes.
             If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
@@ -1102,7 +1102,7 @@ def remove_small_objects(
     if not has_morphology:
         raise RuntimeError("Skimage required.")
 
-    if physical_scale:
+    if in_mm3:
         sr = len(img.shape[1:])
         if isinstance(img, monai.data.MetaTensor):
             _pixdim = img.pixdim
@@ -1111,9 +1111,9 @@ def remove_small_objects(
         else:
             warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
             _pixdim = (1.0,) * sr
-        min_size = int(np.prod(np.array(_pixdim)) * min_size)
+        min_size = int(min_size / np.prod(np.array(_pixdim)))
     elif pixdim is not None:
-        warnings.warn(`pixdim is specified by not in use when computing the volume.`)
+        warnings.warn("`pixdim` is specified but not in use when computing the volume.")
 
     img_np: np.ndarray
     img_np, *_ = convert_data_type(img, np.ndarray)
