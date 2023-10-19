@@ -53,7 +53,8 @@ TEST_CASES = [
 class TestPerceptualLoss(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, target_shape):
-        loss = PerceptualLoss(**input_param)
+        with skip_if_downloading_fails():
+            loss = PerceptualLoss(**input_param)
         result = loss(torch.randn(input_shape), torch.randn(target_shape))
         self.assertEqual(result.shape, torch.Size([]))
 
