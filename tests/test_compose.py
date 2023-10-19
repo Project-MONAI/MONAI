@@ -21,13 +21,9 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-print(sys.path)
-
 import monai.transforms as mt
 from monai.data import DataLoader, Dataset
-from monai.transforms.compose import (
-    compose_iterator, execute_compose, ranged_compose_iterator
-)
+from monai.transforms.compose import compose_iterator, execute_compose, ranged_compose_iterator
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -263,7 +259,6 @@ class TestCompose(unittest.TestCase):
 
 
 class TestComposeIterator(unittest.TestCase):
-
     def test_compose_iterator(self):
         t1 = mt.Rotate(torch.pi / 8)
         t2 = mt.Flip(0)
@@ -272,18 +267,10 @@ class TestComposeIterator(unittest.TestCase):
 
         c = mt.Compose([mt.Compose([t1, t2]), mt.Compose([t3, t4])])
 
-        cf = c.flatten()
-
         for m in (False, True):
-            self.assertListEqual(
-                [tx for tx in compose_iterator(c, step_into_all=m)], [t1, t2, t3, t4]
-            )
-            self.assertListEqual(
-                [tx for tx in ranged_compose_iterator(c, start=1, end=3, step_into_all=m)], [t2, t3]
-            )
-            self.assertListEqual(
-                [tx for tx in ranged_compose_iterator(c, step_into_all=m)], [t1, t2, t3, t4]
-            )
+            self.assertListEqual([tx for tx in compose_iterator(c, step_into_all=m)], [t1, t2, t3, t4])
+            self.assertListEqual([tx for tx in ranged_compose_iterator(c, start=1, end=3, step_into_all=m)], [t2, t3])
+            self.assertListEqual([tx for tx in ranged_compose_iterator(c, step_into_all=m)], [t1, t2, t3, t4])
 
     def test_compose_iterator_oneof(self):
         t1 = mt.Rotate(torch.pi / 8)
@@ -296,23 +283,15 @@ class TestComposeIterator(unittest.TestCase):
 
         c = mt.Compose([c1, c2, t5])
 
-        cf = c.flatten()
-
         for m in (False, True):
             expected = [t1, t2, c2, t5] if m is False else [t1, t2, t3, t4, t5]
-            self.assertListEqual(
-                [tx for tx in compose_iterator(c, step_into_all=m)], expected
-            )
+            self.assertListEqual([tx for tx in compose_iterator(c, step_into_all=m)], expected)
 
             expected = [t2, c2] if m is False else [t2, t3]
-            self.assertListEqual(
-                [tx for tx in ranged_compose_iterator(c, start=1, end=3, step_into_all=m)], expected
-            )
+            self.assertListEqual([tx for tx in ranged_compose_iterator(c, start=1, end=3, step_into_all=m)], expected)
 
             expected = [t1, t2, c2, t5] if m is False else [t1, t2, t3, t4, t5]
-            self.assertListEqual(
-                [tx for tx in ranged_compose_iterator(c, step_into_all=m)], expected
-            )
+            self.assertListEqual([tx for tx in ranged_compose_iterator(c, step_into_all=m)], expected)
 
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
