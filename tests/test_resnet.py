@@ -224,7 +224,7 @@ class TestResNet(unittest.TestCase):
         # Custom pretrained weights
         cp_input_param["pretrained"] = self.tmp_ckpt_filename
         pretrained_net = model(**cp_input_param)
-        self.assertTrue(equal_state_dict(net.state_dict(), pretrained_net.state_dict()))
+        equal_state_dict(net.state_dict(), pretrained_net.state_dict())
 
         if has_hf_modules:
             # True flag
@@ -260,7 +260,7 @@ class TestResNet(unittest.TestCase):
                     medicalnet_state_dict = {
                         key.replace("module.", ""): value for key, value in medicalnet_state_dict.items()
                     }
-                    self.assertTrue(equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict))
+                    equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict)
 
     @parameterized.expand(TEST_SCRIPT_CASES)
     def test_script(self, model, input_param, input_shape, expected_shape):

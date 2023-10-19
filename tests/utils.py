@@ -827,19 +827,12 @@ def command_line_tests(cmd, copy_env=True):
 
 def equal_state_dict(st_1, st_2):
     """
-    Compare 2 torch state dicts.
+    assert equal state_dict (for the shared keys between st_1 and st_2).
     """
-    r = True
     for key_st_1, val_st_1 in st_1.items():
         if key_st_1 in st_2:
             val_st_2 = st_2.get(key_st_1)
-            if not torch.equal(val_st_1, val_st_2):
-                r = False
-                break
-        else:
-            r = False
-            break
-    return r
+            assert_allclose(val_st_1, val_st_2)
 
 
 TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)
