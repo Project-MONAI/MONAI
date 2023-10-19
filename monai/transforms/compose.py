@@ -82,15 +82,22 @@ def compose_iterator(compose, step_into_all=False):
             sub-classes such as `OneOf`, `SomeOf`, and `RandomOrder`
     """
 
-    if not isinstance(compose, Compose):
-        raise ValueError(f"must be of type {type(Compose)} but is type {type(compose)}")
+    if isinstance(compose, (list, tuple)):
+        transforms = compose
+        parent = None
+    elif type(compose) is Compose or (step_into_all is True and isinstance(compose, Compose)):
+        transforms = compose.transforms
+        parent = compose
+    else:
+        transforms = [compose]
+        parent = None
 
-    for i in range(len(compose.transforms)):
-        tx = compose.transforms[i]
+    for i in range(len(transforms)):
+        tx = transforms[i]
         if type(tx) is Compose or (step_into_all is True and isinstance(tx, Compose)):
-            yield from compose_iterator(tx)
+            yield from compose_iterator(tx, step_into_all=step_into_all)
         else:
-            yield tx
+            yield parent, tx
 
 
 def ranged_compose_iterator(compose, start=None, end=None, step_into_all=False):
@@ -112,10 +119,10 @@ def ranged_compose_iterator(compose, start=None, end=None, step_into_all=False):
 
     i = 0
 
-    for tx in compose_iterator(compose, step_into_all):
+    for cp, tx in compose_iterator(compose, step_into_all):
         if start is None or i >= start:
             if end is None or i < end:
-                yield tx
+                yield cp, tx
             else:
                 break
         i += 1
@@ -182,11 +189,13 @@ def execute_compose(
     if start == end:
         return data
 
-    for _transform in ranged_compose_iterator(transforms, start, end):
+    for _compose, _transform in ranged_compose_iterator(transforms, start, end):
+        _lazy = _compose.lazy if _compose is not None and lazy is None else lazy
+        _overrides = _compose.overrides if _compose is not None and overrides is None else overrides
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
         data = apply_transform(
-            _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, log_stats=log_stats
+            _transform, data, map_items, unpack_items, lazy=_lazy, overrides=_overrides, log_stats=log_stats
         )
     data = apply_pending_transforms(data, None, overrides, logger_name=log_stats)
     return data
@@ -382,7 +391,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             True. None if no transform satisfies the ``predicate``
 
         """
-        for i, tx in enumerate(compose_iterator(self.transform)):
+        for i, (_, tx) in enumerate(compose_iterator(self.transform)):
             if predicate(tx):
                 return i
 
@@ -396,11 +405,11 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         will result in the equivalent of `t1 = Compose([x, x, x, x, x, x, x, x])`.
 
         """
-        return Compose(list(compose_iterator(self)))
+        return Compose(list(tx[1] for tx in compose_iterator(self)))
 
     def __len__(self):
         """Return number of transformations."""
-        return len(compose_iterator(self))
+        return len(list(compose_iterator(self)))
 
     def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
         _lazy = self._lazy if lazy is None else lazy
@@ -422,7 +431,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
     def inverse(self, data):
         self._raise_if_not_invertible(data)
 
-        invertible_transforms = [t for t in compose_iterator(self) if isinstance(t, InvertibleTransform)]
+        invertible_transforms = [t[1] for t in compose_iterator(self) if isinstance(t, InvertibleTransform)]
         if not invertible_transforms:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
 
