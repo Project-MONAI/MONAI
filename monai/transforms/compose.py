@@ -396,9 +396,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         will result in the equivalent of `t1 = Compose([x, x, x, x, x, x, x, x])`.
 
         """
-        new_transforms = [tx for tx in compose_iterator(self)]
-
-        return Compose(new_transforms)
+        return Compose(list(compose_iterator(self)))
 
     def __len__(self):
         """Return number of transformations."""
