@@ -268,11 +268,9 @@ class TestComposeIterator(unittest.TestCase):
         c = mt.Compose([mt.Compose([t1, t2]), mt.Compose([t3, t4])])
 
         for m in (False, True):
-            self.assertListEqual(list(tx for tx in compose_iterator(c, step_into_all=m)), [t1, t2, t3, t4])
-            self.assertListEqual(
-                list(tx for tx in ranged_compose_iterator(c, start=1, end=3, step_into_all=m)), [t2, t3]
-            )
-            self.assertListEqual(list(tx for tx in ranged_compose_iterator(c, step_into_all=m)), [t1, t2, t3, t4])
+            self.assertListEqual(list(compose_iterator(c, step_into_all=m)), [t1, t2, t3, t4])
+            self.assertListEqual(list(ranged_compose_iterator(c, start=1, end=3, step_into_all=m)), [t2, t3])
+            self.assertListEqual(list(ranged_compose_iterator(c, step_into_all=m)), [t1, t2, t3, t4])
 
     def test_compose_iterator_oneof(self):
         t1 = mt.Rotate(torch.pi / 8)
@@ -287,15 +285,13 @@ class TestComposeIterator(unittest.TestCase):
 
         for m in (False, True):
             expected = [t1, t2, c2, t5] if m is False else [t1, t2, t3, t4, t5]
-            self.assertListEqual(list(tx for tx in compose_iterator(c, step_into_all=m)), expected)
+            self.assertListEqual(list(compose_iterator(c, step_into_all=m)), expected)
 
             expected = [t2, c2] if m is False else [t2, t3]
-            self.assertListEqual(
-                list(tx for tx in ranged_compose_iterator(c, start=1, end=3, step_into_all=m)), expected
-            )
+            self.assertListEqual(list(ranged_compose_iterator(c, start=1, end=3, step_into_all=m)), expected)
 
             expected = [t1, t2, c2, t5] if m is False else [t1, t2, t3, t4, t5]
-            self.assertListEqual(list(tx for tx in ranged_compose_iterator(c, step_into_all=m)), expected)
+            self.assertListEqual(list(ranged_compose_iterator(c, step_into_all=m)), expected)
 
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
