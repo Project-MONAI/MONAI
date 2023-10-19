@@ -88,8 +88,7 @@ def compose_iterator(compose, step_into_all=False):
     for i in range(len(compose.transforms)):
         tx = compose.transforms[i]
         if type(tx) == Compose or (step_into_all is True and isinstance(tx, Compose)):
-            for tx2 in compose_iterator(tx):
-                yield tx2
+            yield from compose_iterator(tx)
         else:
             yield tx
 
