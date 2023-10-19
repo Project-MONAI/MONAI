@@ -83,11 +83,11 @@ def compose_iterator(compose, step_into_all=False):
     """
 
     if not isinstance(compose, Compose):
-        raise ValueError(f"must be of type {(type.Compose)} but is type {type(compose)}")
+        raise ValueError(f"must be of type {type(Compose)} but is type {type(compose)}")
 
     for i in range(len(compose.transforms)):
         tx = compose.transforms[i]
-        if type(tx) == Compose or (step_into_all is True and isinstance(tx, Compose)):
+        if type(tx) is Compose or (step_into_all is True and isinstance(tx, Compose)):
             yield from compose_iterator(tx)
         else:
             yield tx
