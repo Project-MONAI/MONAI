@@ -1648,7 +1648,7 @@ def push_to_hf_hub(
     version: str | None = None,
     tag_as_latest_version: bool | None = False,
     **upload_folder_kwargs: Any,
-) -> str:
+) -> Any:
     """
     Push a MONAI bundle to the Hugging Face Hub.
 
