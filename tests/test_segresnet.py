@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNet, SegResNetVAE
 from monai.utils import UpsampleMode
-from tests.utils import test_script_save
+from tests.utils import test_onnx_save, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -100,6 +100,12 @@ class TestResNet(unittest.TestCase):
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
 
+    def test_onnx(self):
+        input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET[0]
+        net = SegResNet(**input_param)
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data, atol=1e-4)
+
 
 class TestResNetVAE(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
@@ -114,6 +120,12 @@ class TestResNetVAE(unittest.TestCase):
         net = SegResNetVAE(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+    def test_onnx(self):
+        input_param, input_shape, expected_shape = TEST_CASE_SEGRESNET_VAE[0]
+        net = SegResNetVAE(**input_param)
+        test_data = torch.randn(input_shape)
+        test_onnx_save(net, test_data, atol=1e-4)
 
 
 if __name__ == "__main__":
