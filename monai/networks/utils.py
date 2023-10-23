@@ -37,7 +37,6 @@ onnx, _ = optional_import("onnx")
 onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
 
-
 __all__ = [
     "one_hot",
     "predict_segmentation",
