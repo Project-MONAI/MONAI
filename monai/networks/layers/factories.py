@@ -68,12 +68,12 @@ from typing import Any
 import torch.nn as nn
 
 from monai.networks.utils import has_nvfuser_instance_norm
-from monai.utils import look_up_option, optional_import
+from monai.utils import Factory, look_up_option, optional_import
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
 
-class LayerFactory:
+class LayerFactory(Factory):
     """
     Factory object for creating layers, this uses given factory functions to actually produce the types or constructing
     callables. These functions are referred to by name and can be added at any time.
