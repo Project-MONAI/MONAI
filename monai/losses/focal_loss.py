@@ -113,7 +113,9 @@ class FocalLoss(_Loss):
         self.alpha = alpha
         self.weight = weight
         self.use_softmax = use_softmax
-        self.register_buffer("class_weight", torch.ones(1))
+        if weight is not None:
+            weight = torch.as_tensor(weight)
+        self.register_buffer("class_weight", weight)
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -162,13 +164,13 @@ class FocalLoss(_Loss):
         else:
             loss = sigmoid_focal_loss(input, target, self.gamma, self.alpha)
 
-        if self.weight is not None:
+        num_of_classes = target.shape[1]
+        if self.class_weight is not None and num_of_classes != 1:
             # make sure the lengths of weights are equal to the number of classes
-            num_of_classes = target.shape[1]
-            if isinstance(self.weight, (float, int)):
-                self.class_weight = torch.as_tensor([self.weight] * num_of_classes)
+            if self.class_weight.ndim == 0:
+                self.class_weight = torch.as_tensor([self.class_weight] * num_of_classes)
             else:
-                self.class_weight = torch.as_tensor(self.weight)
+                self.class_weight = torch.as_tensor(self.class_weight)
                 if self.class_weight.shape[0] != num_of_classes:
                     raise ValueError(
                         """the length of the `weight` sequence should be the same as the number of classes.
