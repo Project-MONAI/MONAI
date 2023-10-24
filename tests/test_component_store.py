@@ -53,7 +53,7 @@ class TestComponentStore(unittest.TestCase):
     def test_add_def(self):
         self.assertFalse("test_func" in self.cs)
 
-        @self.cs.add_def("test_func", "Test function")
+        @self.cs.factory_item("test_func", "Test function")
         def test_func():
             return 123
 
@@ -66,7 +66,7 @@ class TestComponentStore(unittest.TestCase):
         self.assertEqual(self.cs["test_func"], test_func)
 
         # try adding the same function again
-        self.cs.add_def("test_func", "Test function but with new description")(test_func)
+        self.cs.factory_item("test_func", "Test function but with new description")(test_func)
 
         self.assertEqual(len(self.cs), 1)
         self.assertEqual(self.cs.test_func, test_func)
