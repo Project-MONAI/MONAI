@@ -141,8 +141,7 @@ class LayerFactory(Factory):
 
     def __iter__(self) -> Iterable:
         """Yields name/component pairs."""
-        for k, v in self.factories.items():
-            yield k, v
+        yield from self.factories.items()
 
 
 def split_args(args):
