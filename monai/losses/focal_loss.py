@@ -115,6 +115,7 @@ class FocalLoss(_Loss):
         self.use_softmax = use_softmax
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
+        self.class_weight: None | torch.Tensor
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -164,7 +165,6 @@ class FocalLoss(_Loss):
             loss = sigmoid_focal_loss(input, target, self.gamma, self.alpha)
 
         num_of_classes = target.shape[1]
-        self.class_weight: None | torch.Tensor
         if self.class_weight is not None and num_of_classes != 1:
             # make sure the lengths of weights are equal to the number of classes
             if self.class_weight.ndim == 0:

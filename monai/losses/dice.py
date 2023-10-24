@@ -113,6 +113,7 @@ class DiceLoss(_Loss):
         self.batch = batch
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
+        self.class_weight: None | torch.Tensor
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -190,7 +191,6 @@ class DiceLoss(_Loss):
         f: torch.Tensor = 1.0 - (2.0 * intersection + self.smooth_nr) / (denominator + self.smooth_dr)
 
         num_of_classes = target.shape[1]
-        self.class_weight: None | torch.Tensor
         if self.class_weight is not None and num_of_classes != 1:
             # make sure the lengths of weights are equal to the number of classes
             if self.class_weight.ndim == 0:
