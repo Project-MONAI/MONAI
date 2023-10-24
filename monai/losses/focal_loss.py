@@ -164,6 +164,7 @@ class FocalLoss(_Loss):
             loss = sigmoid_focal_loss(input, target, self.gamma, self.alpha)
 
         num_of_classes = target.shape[1]
+        self.class_weight: None | torch.Tensor
         if self.class_weight is not None and num_of_classes != 1:
             # make sure the lengths of weights are equal to the number of classes
             if self.class_weight.ndim == 0:
