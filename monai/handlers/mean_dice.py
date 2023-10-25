@@ -52,8 +52,9 @@ class MeanDice(IgniteMetricHandler):
             save_details: whether to save metric computation details per image, for example: mean dice of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
             return_with_label: whether to return the metrics with label, only works when reduction is "mean_batch".
-                If `True`, use "label_{index}" as key corresponding to C channels, index from `0` to `C-1`.
-                It also accepts list of label names. Then result will be returned as a dictionary.
+                If `True`, use "label_{index}" as the key corresponding to C channels; if 'include_background' is True,
+                the index begins at "0", otherwise at "1". It can also take a list of label names.
+                The outcome will then be returned as a dictionary.
 
         See also:
             :py:meth:`monai.metrics.meandice.compute_dice`

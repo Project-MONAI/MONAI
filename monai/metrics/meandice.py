@@ -51,8 +51,9 @@ class DiceMetric(CumulativeIterationMetric):
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
         return_with_label: whether to return the metrics with label, only works when reduction is "mean_batch".
-            If `True`, use "label_{index}" as key corresponding to C channels, index from `0` to `C-1`.
-            It also accepts list of label names. Then result will be returned as a dictionary.
+            If `True`, use "label_{index}" as the key corresponding to C channels; if 'include_background' is True,
+            the index begins at "0", otherwise at "1". It can also take a list of label names.
+            The outcome will then be returned as a dictionary.
 
     """
 
@@ -121,7 +122,8 @@ class DiceMetric(CumulativeIterationMetric):
             _f = {}
             if isinstance(self.return_with_label, bool):
                 for i, v in enumerate(f):
-                    _f[f"label_{i}"] = round(v.item(), 4)
+                    _label_key = f"label_{i+1}" if not self.include_background else f"label_{i}"
+                    _f[_label_key] = round(v.item(), 4)
             else:
                 for key, v in zip(self.return_with_label, f):
                     _f[key] = round(v.item(), 4)
