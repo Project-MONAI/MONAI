@@ -664,7 +664,7 @@ class AddGuidanceFromPointsDeepEditd(Transform):
         meta_dict_key = self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"
         # extract affine matrix from metadata
         if isinstance(d[self.ref_image], MetaTensor):
-            meta_dict = d[self.ref_image].meta  # type: ignore
+            meta_dict = d[self.ref_image].meta
         elif meta_dict_key in d:
             meta_dict = d[meta_dict_key]
         else:
@@ -710,7 +710,7 @@ class ResizeGuidanceMultipleLabelDeepEditd(Transform):
         meta_dict_key = "image_meta_dict"
         # extract affine matrix from metadata
         if isinstance(d[self.ref_image], MetaTensor):
-            meta_dict = d[self.ref_image].meta  # type: ignore
+            meta_dict = d[self.ref_image].meta
         elif meta_dict_key in d:
             meta_dict = d[meta_dict_key]
         else:

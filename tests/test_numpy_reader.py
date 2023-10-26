@@ -19,7 +19,7 @@ import unittest
 import numpy as np
 
 from monai.data import DataLoader, Dataset, NumpyReader
-from monai.transforms import LoadImaged
+from monai.transforms import LoadImage, LoadImaged
 from tests.utils import assert_allclose
 
 
@@ -97,22 +97,32 @@ class TestNumpyReader(unittest.TestCase):
 
     def test_dataloader(self):
         test_data = np.random.randint(0, 256, size=[3, 4, 5])
-        datalist = []
+        datalist_dict, datalist_array = [], []
         with tempfile.TemporaryDirectory() as tempdir:
             for i in range(4):
                 filepath = os.path.join(tempdir, f"test_data{i}.npz")
                 np.savez(filepath, test_data)
-                datalist.append({"image": filepath})
+                datalist_dict.append({"image": filepath})
+                datalist_array.append(filepath)
 
-                num_workers = 2 if sys.platform == "linux" else 0
-                loader = DataLoader(
-                    Dataset(data=datalist, transform=LoadImaged(keys="image", reader=NumpyReader())),
-                    batch_size=2,
-                    num_workers=num_workers,
-                )
-                for d in loader:
-                    for c in d["image"]:
-                        assert_allclose(c, test_data, type_test=False)
+            num_workers = 2 if sys.platform == "linux" else 0
+            loader = DataLoader(
+                Dataset(data=datalist_dict, transform=LoadImaged(keys="image", reader=NumpyReader())),
+                batch_size=2,
+                num_workers=num_workers,
+            )
+            for d in loader:
+                for c in d["image"]:
+                    assert_allclose(c, test_data, type_test=False)
+
+            loader = DataLoader(
+                Dataset(data=datalist_array, transform=LoadImage(reader=NumpyReader())),
+                batch_size=2,
+                num_workers=num_workers,
+            )
+            for d in loader:
+                for c in d:
+                    assert_allclose(c, test_data, type_test=False)
 
     def test_channel_dim(self):
         test_data = np.random.randint(0, 256, size=[3, 4, 5, 2])
