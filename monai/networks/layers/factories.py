@@ -68,34 +68,23 @@ from typing import Any
 import torch.nn as nn
 
 from monai.networks.utils import has_nvfuser_instance_norm
-from monai.utils import look_up_option, optional_import
+from monai.utils import ComponentStore, look_up_option, optional_import
 
 __all__ = ["LayerFactory", "Dropout", "Norm", "Act", "Conv", "Pool", "Pad", "split_args"]
 
 
-class LayerFactory:
+class LayerFactory(ComponentStore):
     """
     Factory object for creating layers, this uses given factory functions to actually produce the types or constructing
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def __init__(self) -> None:
-        self.factories: dict[str, Callable] = {}
-
-    @property
-    def names(self) -> tuple[str, ...]:
-        """
-        Produces all factory names.
-        """
-
-        return tuple(self.factories)
-
-    def add_factory_callable(self, name: str, func: Callable) -> None:
+    def add_factory_callable(self, name: str, func: Callable, desc: str = None) -> None:
         """
         Add the factory function to this object under the given name.
         """
-
-        self.factories[name.upper()] = func
+        self.add(name.upper(), desc or func.__doc__, func)
+        # self.components[name.upper()] = func
         self.__doc__ = (
             "The supported member"
             + ("s are: " if len(self.names) > 1 else " is: ")
@@ -126,8 +115,9 @@ class LayerFactory:
         if not isinstance(factory_name, str):
             raise TypeError(f"factory_name must a str but is {type(factory_name).__name__}.")
 
-        func = look_up_option(factory_name.upper(), self.factories)
-        return func(*args)
+        component = look_up_option(factory_name.upper(), self.components)
+
+        return component.value(*args)
 
     def __getitem__(self, args) -> Any:
         """
@@ -153,7 +143,7 @@ class LayerFactory:
         as if they were constants, eg. `Fact.FOO` for a factory Fact with factory function foo.
         """
 
-        if key in self.factories:
+        if key in self.components:
             return key
 
         return super().__getattribute__(key)
@@ -195,54 +185,111 @@ def split_args(args):
 
 # Define factories for these layer types
 
-Dropout = LayerFactory()
-Norm = LayerFactory()
-Act = LayerFactory()
-Conv = LayerFactory()
-Pool = LayerFactory()
-Pad = LayerFactory()
+Dropout = LayerFactory(name="Dropout layers", description="Factory for creating dropout layers.")
+Norm = LayerFactory(name="Normalization layers", description="Factory for creating normalization layers.")
+Act = LayerFactory(name="Activation layers", description="Factory for creating activation layers.")
+Conv = LayerFactory(name="Convolution layers", description="Factory for creating convolution layers.")
+Pool = LayerFactory(name="Pooling layers", description="Factory for creating pooling layers.")
+Pad = LayerFactory(name="Padding layers", description="Factory for creating padding layers.")
 
 
 @Dropout.factory_function("dropout")
 def dropout_factory(dim: int) -> type[nn.Dropout | nn.Dropout2d | nn.Dropout3d]:
+    """
+    Dropout layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the dropout layer
+
+    Returns:
+        Dropout[dim]d
+    """
     types = (nn.Dropout, nn.Dropout2d, nn.Dropout3d)
     return types[dim - 1]
 
 
 @Dropout.factory_function("alphadropout")
 def alpha_dropout_factory(_dim):
+    """
+    Alpha dropout layer.
+
+    Returns:
+        AlphaDropout
+    """
     return nn.AlphaDropout
 
 
 @Norm.factory_function("instance")
 def instance_factory(dim: int) -> type[nn.InstanceNorm1d | nn.InstanceNorm2d | nn.InstanceNorm3d]:
+    """
+    Instance normalization layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the instance normalization layer
+
+    Returns:
+        InstanceNorm[dim]d
+    """
     types = (nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)
     return types[dim - 1]
 
 
 @Norm.factory_function("batch")
 def batch_factory(dim: int) -> type[nn.BatchNorm1d | nn.BatchNorm2d | nn.BatchNorm3d]:
+    """
+    Batch normalization layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the batch normalization layer
+
+    Returns:
+        BatchNorm[dim]d
+    """
     types = (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)
     return types[dim - 1]
 
 
 @Norm.factory_function("group")
 def group_factory(_dim) -> type[nn.GroupNorm]:
+    """
+    Group normalization layer.
+
+    Returns:
+        GroupNorm
+    """
     return nn.GroupNorm
 
 
 @Norm.factory_function("layer")
 def layer_factory(_dim) -> type[nn.LayerNorm]:
+    """
+    Layer normalization layer.
+
+    Returns:
+        LayerNorm
+    """
     return nn.LayerNorm
 
 
 @Norm.factory_function("localresponse")
 def local_response_factory(_dim) -> type[nn.LocalResponseNorm]:
+    """
+    Local response normalization layer.
+
+    Returns:
+        LocalResponseNorm
+    """
     return nn.LocalResponseNorm
 
 
 @Norm.factory_function("syncbatch")
 def sync_batch_factory(_dim) -> type[nn.SyncBatchNorm]:
+    """
+    Synchronized batch normalization layer.
+
+    Returns:
+        SyncBatchNorm
+    """
     return nn.SyncBatchNorm
 
 
@@ -290,6 +337,12 @@ Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftmax)
 
 @Act.factory_function("swish")
 def swish_factory():
+    """
+    Swish activation layer.
+
+    Returns:
+        Swish
+    """
     from monai.networks.blocks.activation import Swish
 
     return Swish
@@ -297,6 +350,12 @@ def swish_factory():
 
 @Act.factory_function("memswish")
 def memswish_factory():
+    """
+    Memory efficient swish activation layer.
+
+    Returns:
+        MemoryEfficientSwish
+    """
     from monai.networks.blocks.activation import MemoryEfficientSwish
 
     return MemoryEfficientSwish
@@ -304,6 +363,12 @@ def memswish_factory():
 
 @Act.factory_function("mish")
 def mish_factory():
+    """
+    Mish activation layer.
+
+    Returns:
+        Mish
+    """
     from monai.networks.blocks.activation import Mish
 
     return Mish
@@ -311,6 +376,12 @@ def mish_factory():
 
 @Act.factory_function("geglu")
 def geglu_factory():
+    """
+    GEGLU activation layer.
+
+    Returns:
+        GEGLU
+    """
     from monai.networks.blocks.activation import GEGLU
 
     return GEGLU
@@ -318,47 +389,119 @@ def geglu_factory():
 
 @Conv.factory_function("conv")
 def conv_factory(dim: int) -> type[nn.Conv1d | nn.Conv2d | nn.Conv3d]:
+    """
+    Convolutional layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the convolutional layer
+
+    Returns:
+        Conv[dim]d
+    """
     types = (nn.Conv1d, nn.Conv2d, nn.Conv3d)
     return types[dim - 1]
 
 
 @Conv.factory_function("convtrans")
 def convtrans_factory(dim: int) -> type[nn.ConvTranspose1d | nn.ConvTranspose2d | nn.ConvTranspose3d]:
+    """
+    Transposed convolutional layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the transposed convolutional layer
+
+    Returns:
+        ConvTranspose[dim]d
+    """
     types = (nn.ConvTranspose1d, nn.ConvTranspose2d, nn.ConvTranspose3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("max")
 def maxpooling_factory(dim: int) -> type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d]:
+    """
+    Max pooling layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the max pooling layer
+
+    Returns:
+        MaxPool[dim]d
+    """
     types = (nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptivemax")
 def adaptive_maxpooling_factory(dim: int) -> type[nn.AdaptiveMaxPool1d | nn.AdaptiveMaxPool2d | nn.AdaptiveMaxPool3d]:
+    """
+    Adaptive max pooling layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the adaptive max pooling layer
+
+    Returns:
+        AdaptiveMaxPool[dim]d
+    """
     types = (nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("avg")
 def avgpooling_factory(dim: int) -> type[nn.AvgPool1d | nn.AvgPool2d | nn.AvgPool3d]:
+    """
+    Average pooling layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the average pooling layer
+
+    Returns:
+        AvgPool[dim]d
+    """
     types = (nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d)
     return types[dim - 1]
 
 
 @Pool.factory_function("adaptiveavg")
 def adaptive_avgpooling_factory(dim: int) -> type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d]:
+    """
+    Adaptive average pooling layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the adaptive average pooling layer
+
+    Returns:
+        AdaptiveAvgPool[dim]d
+    """
     types = (nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d)
     return types[dim - 1]
 
 
 @Pad.factory_function("replicationpad")
 def replication_pad_factory(dim: int) -> type[nn.ReplicationPad1d | nn.ReplicationPad2d | nn.ReplicationPad3d]:
+    """
+    Replication padding layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the replication padding layer
+
+    Returns:
+        ReplicationPad[dim]d
+    """
     types = (nn.ReplicationPad1d, nn.ReplicationPad2d, nn.ReplicationPad3d)
     return types[dim - 1]
 
 
 @Pad.factory_function("constantpad")
 def constant_pad_factory(dim: int) -> type[nn.ConstantPad1d | nn.ConstantPad2d | nn.ConstantPad3d]:
+    """
+    Constant padding layers in 1,2,3 dimensions.
+
+    Args:
+        dim: desired dimension of the constant padding layer
+
+    Returns:
+        ConstantPad[dim]d
+    """
     types = (nn.ConstantPad1d, nn.ConstantPad2d, nn.ConstantPad3d)
     return types[dim - 1]

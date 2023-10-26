@@ -76,6 +76,14 @@ class ComponentStore:
 
         return deco
 
+    @property
+    def names(self) -> tuple[str, ...]:
+        """
+        Produces all factory names.
+        """
+
+        return tuple(self.components)
+
     def __contains__(self, name: str) -> bool:
         """Returns True if the given name is stored."""
         return name in self.components
@@ -94,7 +102,7 @@ class ComponentStore:
         for k, v in self.components.items():
             result += f"\n* {k}:"
 
-            if hasattr(v.value, "__doc__"):
+            if hasattr(v.value, "__doc__") and v.value.__doc__:
                 doc = indent(dedent(v.value.__doc__.lstrip("\n").rstrip()), "    ")
                 result += f"\n{doc}\n"
             else:
