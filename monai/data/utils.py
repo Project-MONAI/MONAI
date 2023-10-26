@@ -54,6 +54,7 @@ from monai.utils import (
 )
 
 if pytorch_after(1, 13):
+    # import private code for reuse purposes
     from torch.utils.data._utils.collate import collate_tensor_fn, default_collate_fn_map
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
