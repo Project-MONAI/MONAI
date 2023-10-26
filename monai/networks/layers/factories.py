@@ -95,7 +95,7 @@ class LayerFactory(ComponentStore):
         """
         Adds a factory function which returns the given class.
         """
-        self.add(name.upper(), desc or cls.__doc__, lambda: cls)
+        self.add(name.upper(), desc or cls.__doc__, lambda x=None: cls)
         self.__doc__ = (
             "The supported member"
             + ("s are: " if len(self.names) > 1 else " is: ")
