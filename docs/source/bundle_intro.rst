@@ -27,11 +27,17 @@ Bundles differ from MONAI Application Packages (MAPs) in that they focus on desc
 usage. MAPs focus on deployment, containerisation, integration into existing clinical systems, and other application
 areas relating to putting models into use.
 
-As a user, bundles are networks and "programs" you would use directly for training, inference, reproducing results,
-and other tasks. Bundles can be integrated into MONAI Label apps to perform segmentation tasks through user interfaces,
-or into MAPs for deployment. They can be integrated into other container environments but this isn't their focus. For
-all applications relating to containerisation, portability, and deployment, MAPs are what you're looking for.
-
 .. image:: ../images/MONAI_clouds.png
     :alt: Bundle and MAP Concepts
     :align: center
+
+As a user, bundles are networks and "programs" you would use directly for training, inference, reproducing results,
+and other tasks. Bundles can be integrated into MONAI Label apps to perform segmentation tasks through user interfaces,
+or into MAPs for deployment. They can be integrated into other container environments but this isn't their focus. A
+bundle in general is a more lightweight concept with less infrastructure
+
+For all applications relating to containerisation, portability, and deployment, MAPs are what you're looking for. A MAP
+is the contained environment for running an inference application directly or within an orchestration system. A bundle
+alone doesn't have the structure suitable for this use, a MAP must be provided which uses a bundle as the inference object.
+MAPs are also meant for inference only unlike bundles which should include training scripts. DICOM access is emphasised in
+MAPs since they are meant for clinical deployment and so must interface with clinical databases.
