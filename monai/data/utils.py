@@ -490,6 +490,7 @@ def list_data_collate(batch: Sequence):
     """
 
     if pytorch_after(1, 13):
+        # needs to go here to avoid circular import
         from monai.data.meta_tensor import MetaTensor
 
         default_collate_fn_map.update({MetaTensor: collate_meta_tensor_fn})
