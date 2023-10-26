@@ -448,7 +448,9 @@ def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
 
 
 def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
-    """collate a sequence of meta tensor into a single batched metatensor"""
+    """
+    Collate a sequence of meta tensor into a single batched metatensor. This is called by `collage_meta_tensor` and so should not be used as a collate function directly in dataloaders.
+    """
     collate_fn = collate_tensor_fn if pytorch_after(1, 13) else default_collate
     collated = collate_fn(batch)  # type: ignore
     meta_dicts = [i.meta or TraceKeys.NONE for i in batch]
