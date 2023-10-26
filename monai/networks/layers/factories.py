@@ -84,7 +84,18 @@ class LayerFactory(ComponentStore):
         Add the factory function to this object under the given name.
         """
         self.add(name.upper(), desc or func.__doc__, func)
-        # self.components[name.upper()] = func
+        self.__doc__ = (
+            "The supported member"
+            + ("s are: " if len(self.names) > 1 else " is: ")
+            + ", ".join(f"``{name}``" for name in self.names)
+            + ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
+        )
+
+    def add_factory_class(self, name: str, cls: type, desc: str = None) -> None:
+        """
+        Adds a factory function which returns the given class.
+        """
+        self.add(name.upper(), desc or cls.__doc__, lambda: cls)
         self.__doc__ = (
             "The supported member"
             + ("s are: " if len(self.names) > 1 else " is: ")
@@ -321,18 +332,18 @@ def instance_nvfuser_factory(dim):
     return optional_import("apex.normalization", name="InstanceNorm3dNVFuser")[0]
 
 
-Act.add_factory_callable("elu", lambda: nn.modules.ELU)
-Act.add_factory_callable("relu", lambda: nn.modules.ReLU)
-Act.add_factory_callable("leakyrelu", lambda: nn.modules.LeakyReLU)
-Act.add_factory_callable("prelu", lambda: nn.modules.PReLU)
-Act.add_factory_callable("relu6", lambda: nn.modules.ReLU6)
-Act.add_factory_callable("selu", lambda: nn.modules.SELU)
-Act.add_factory_callable("celu", lambda: nn.modules.CELU)
-Act.add_factory_callable("gelu", lambda: nn.modules.GELU)
-Act.add_factory_callable("sigmoid", lambda: nn.modules.Sigmoid)
-Act.add_factory_callable("tanh", lambda: nn.modules.Tanh)
-Act.add_factory_callable("softmax", lambda: nn.modules.Softmax)
-Act.add_factory_callable("logsoftmax", lambda: nn.modules.LogSoftmax)
+Act.add_factory_class("elu", nn.modules.ELU)
+Act.add_factory_class("relu", nn.modules.ReLU)
+Act.add_factory_class("leakyrelu", nn.modules.LeakyReLU)
+Act.add_factory_class("prelu", nn.modules.PReLU)
+Act.add_factory_class("relu6", nn.modules.ReLU6)
+Act.add_factory_class("selu", nn.modules.SELU)
+Act.add_factory_class("celu", nn.modules.CELU)
+Act.add_factory_class("gelu", nn.modules.GELU)
+Act.add_factory_class("sigmoid", nn.modules.Sigmoid)
+Act.add_factory_class("tanh", nn.modules.Tanh)
+Act.add_factory_class("softmax", nn.modules.Softmax)
+Act.add_factory_class("logsoftmax", nn.modules.LogSoftmax)
 
 
 @Act.factory_function("swish")
