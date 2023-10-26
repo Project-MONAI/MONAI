@@ -81,7 +81,7 @@ class LayerFactory(ComponentStore):
 
     def add_factory_callable(self, name: str, func: Callable, desc: str = None) -> None:
         """
-        Add the factory function to this object under the given name.
+        Add the factory function to this object under the given name, with optional description.
         """
         self.add(name.upper(), desc or func.__doc__, func)
         self.__doc__ = (
@@ -93,7 +93,7 @@ class LayerFactory(ComponentStore):
 
     def add_factory_class(self, name: str, cls: type, desc: str = None) -> None:
         """
-        Adds a factory function which returns the given class.
+        Adds a factory function which returns the supplied class under the given name, with optional description.
         """
         self.add(name.upper(), desc or cls.__doc__, lambda x=None: cls)
         self.__doc__ = (
@@ -195,7 +195,6 @@ def split_args(args):
 
 
 # Define factories for these layer types
-
 Dropout = LayerFactory(name="Dropout layers", description="Factory for creating dropout layers.")
 Norm = LayerFactory(name="Normalization layers", description="Factory for creating normalization layers.")
 Act = LayerFactory(name="Activation layers", description="Factory for creating activation layers.")
@@ -219,15 +218,7 @@ def dropout_factory(dim: int) -> type[nn.Dropout | nn.Dropout2d | nn.Dropout3d]:
     return types[dim - 1]
 
 
-@Dropout.factory_function("alphadropout")
-def alpha_dropout_factory(_dim):
-    """
-    Alpha dropout layer.
-
-    Returns:
-        AlphaDropout
-    """
-    return nn.AlphaDropout
+Dropout.add_factory_class("alphadropout", nn.AlphaDropout)
 
 
 @Norm.factory_function("instance")
@@ -260,50 +251,6 @@ def batch_factory(dim: int) -> type[nn.BatchNorm1d | nn.BatchNorm2d | nn.BatchNo
     return types[dim - 1]
 
 
-@Norm.factory_function("group")
-def group_factory(_dim) -> type[nn.GroupNorm]:
-    """
-    Group normalization layer.
-
-    Returns:
-        GroupNorm
-    """
-    return nn.GroupNorm
-
-
-@Norm.factory_function("layer")
-def layer_factory(_dim) -> type[nn.LayerNorm]:
-    """
-    Layer normalization layer.
-
-    Returns:
-        LayerNorm
-    """
-    return nn.LayerNorm
-
-
-@Norm.factory_function("localresponse")
-def local_response_factory(_dim) -> type[nn.LocalResponseNorm]:
-    """
-    Local response normalization layer.
-
-    Returns:
-        LocalResponseNorm
-    """
-    return nn.LocalResponseNorm
-
-
-@Norm.factory_function("syncbatch")
-def sync_batch_factory(_dim) -> type[nn.SyncBatchNorm]:
-    """
-    Synchronized batch normalization layer.
-
-    Returns:
-        SyncBatchNorm
-    """
-    return nn.SyncBatchNorm
-
-
 @Norm.factory_function("instance_nvfuser")
 def instance_nvfuser_factory(dim):
     """
@@ -330,6 +277,12 @@ def instance_nvfuser_factory(dim):
         )
         return nn.InstanceNorm3d
     return optional_import("apex.normalization", name="InstanceNorm3dNVFuser")[0]
+
+
+Norm.add_factory_class("group", nn.GroupNorm)
+Norm.add_factory_class("layer", nn.LayerNorm)
+Norm.add_factory_class("localresponse", nn.LocalResponseNorm)
+Norm.add_factory_class("syncbatch", nn.SyncBatchNorm)
 
 
 Act.add_factory_class("elu", nn.modules.ELU)
