@@ -407,7 +407,7 @@ class AutoRunner:
 
     def set_gpu_customization(
         self, gpu_customization: bool = False, gpu_customization_specs: dict[str, Any] | None = None
-    ) -> None:
+    ) -> AutoRunner:
         """
         Set options for GPU-based parameter customization/optimization.
 
@@ -444,7 +444,7 @@ class AutoRunner:
 
         return self
 
-    def set_num_fold(self, num_fold: int = 5) -> None:
+    def set_num_fold(self, num_fold: int = 5) -> AutoRunner:
         """
         Set the number of cross validation folds for all algos.
 
@@ -458,7 +458,7 @@ class AutoRunner:
 
         return self
 
-    def set_training_params(self, params: dict[str, Any] | None = None) -> None:
+    def set_training_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set the training params for all algos.
 
@@ -486,7 +486,7 @@ class AutoRunner:
         num_nodes: int | None = None,
         mn_start_method: str | None = None,
         cmd_prefix: str | None = None,
-    ) -> None:
+    ) -> AutoRunner:
         """
         Set the device related info
 
@@ -539,7 +539,7 @@ class AutoRunner:
 
         return self
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> AutoRunner:
         """
         Set the bundle ensemble method name and parameters for save image transform parameters.
 
@@ -556,7 +556,7 @@ class AutoRunner:
 
         return self
 
-    def set_image_save_transform(self, **kwargs: Any) -> None:
+    def set_image_save_transform(self, **kwargs: Any) -> AutoRunner:
         """
         Set the ensemble output transform.
 
@@ -577,7 +577,7 @@ class AutoRunner:
 
         return self
 
-    def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
+    def set_prediction_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set the prediction params for all algos.
 
@@ -595,7 +595,7 @@ class AutoRunner:
 
         return self
 
-    def set_analyze_params(self, params: dict[str, Any] | None = None) -> None:
+    def set_analyze_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set the data analysis extra params.
 
@@ -611,7 +611,7 @@ class AutoRunner:
 
         return self
 
-    def set_hpo_params(self, params: dict[str, Any] | None = None) -> None:
+    def set_hpo_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set parameters for the HPO module and the algos before the training. It will attempt to (1) override bundle
         templates with the key-value pairs in ``params`` (2) change the config of the HPO module (e.g. NNI) if the
@@ -639,7 +639,7 @@ class AutoRunner:
 
         return self
 
-    def set_nni_search_space(self, search_space):
+    def set_nni_search_space(self, search_space) -> AutoRunner:
         """
         Set the search space for NNI parameter search.
 
