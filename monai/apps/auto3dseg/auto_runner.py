@@ -442,6 +442,8 @@ class AutoRunner:
         if gpu_customization_specs is not None:
             self.gpu_customization_specs = gpu_customization_specs
 
+        return self
+
     def set_num_fold(self, num_fold: int = 5) -> None:
         """
         Set the number of cross validation folds for all algos.
@@ -453,6 +455,8 @@ class AutoRunner:
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
+
+        return self
 
     def set_training_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -473,6 +477,8 @@ class AutoRunner:
                 "CUDA_VISIBLE_DEVICES is deprecated from 'set_training_params'. Use 'set_device_info' instead.",
                 DeprecationWarning,
             )
+
+        return self
 
     def set_device_info(
         self,
@@ -531,6 +537,8 @@ class AutoRunner:
         if cmd_prefix is not None:
             logger.info(f"Using user defined command running prefix {cmd_prefix}, will override other settings")
 
+        return self
+
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """
         Set the bundle ensemble method name and parameters for save image transform parameters.
@@ -545,6 +553,8 @@ class AutoRunner:
             ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
         )
         self.kwargs.update(kwargs)
+
+        return self
 
     def set_image_save_transform(self, **kwargs: Any) -> None:
         """
@@ -565,6 +575,8 @@ class AutoRunner:
                 "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
             )
 
+        return self
+
     def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
         """
         Set the prediction params for all algos.
@@ -581,6 +593,8 @@ class AutoRunner:
         """
         self.pred_params = deepcopy(params) if params is not None else {}
 
+        return self
+
     def set_analyze_params(self, params: dict[str, Any] | None = None) -> None:
         """
         Set the data analysis extra params.
@@ -594,6 +608,8 @@ class AutoRunner:
             self.analyze_params = {"do_ccp": False, "device": "cuda"}
         else:
             self.analyze_params = deepcopy(params)
+
+        return self
 
     def set_hpo_params(self, params: dict[str, Any] | None = None) -> None:
         """
@@ -621,6 +637,8 @@ class AutoRunner:
         """
         self.hpo_params = self.train_params if params is None else params
 
+        return self
+
     def set_nni_search_space(self, search_space):
         """
         Set the search space for NNI parameter search.
@@ -637,6 +655,8 @@ class AutoRunner:
 
         self.search_space = search_space
         self.hpo_tasks = value_combinations
+
+        return self
 
     def _train_algo_in_sequence(self, history: list[dict[str, Any]]) -> None:
         """
