@@ -639,7 +639,7 @@ class AutoRunner:
 
         return self
 
-    def set_nni_search_space(self, search_space) -> AutoRunner:
+    def set_nni_search_space(self, search_space: dict[str, Any]) -> AutoRunner:
         """
         Set the search space for NNI parameter search.
 
