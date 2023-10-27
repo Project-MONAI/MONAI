@@ -305,6 +305,51 @@ class TestComposeIterator(unittest.TestCase):
             self.assertListEqual(list(ranged_compose_iterator(c, step_into_all=m)), expected)
 
 
+class TestComposeSubRange(unittest.TestCase):
+
+    def test_sub_range(self):
+        t0 = mt.Zoom((0.8, 1.2))
+        t1 = mt.Rotate(-torch.pi / 16)
+        t2 = mt.Flip(0)
+        t3 = mt.Spacing(128, 128)
+        t4 = mt.Zoom((0.9, 1.1))
+        t5 = mt.Rotate90(1)
+        t6 = mt.Rotate(torch.pi / 32)
+        c1 = mt.Compose([t2, t3], lazy=False)
+        c2 = mt.Compose([t4, t5, t6], lazy=True)
+        c0 = mt.Compose([t0, t1, c1, c2])
+
+        r = c0.sub_range(2, 6)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertFalse(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t2)
+        self.assertIs(r.transforms[0].transforms[1], t3)
+        self.assertIsInstance(r.transforms[1], mt.Compose)
+        self.assertTrue(r.transforms[1].lazy)
+        self.assertIs(r.transforms[1].transforms[0], t4)
+        self.assertIs(r.transforms[1].transforms[1], t5)
+
+        r = c0.sub_range(2, 4)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertFalse(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t2)
+        self.assertIs(r.transforms[0].transforms[1], t3)
+
+        r = c0.sub_range(3, 5)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertFalse(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t3)
+        self.assertIsInstance(r.transforms[1], mt.Compose)
+        self.assertTrue(r.transforms[1].lazy)
+        self.assertIs(r.transforms[1].transforms[0], t4)
+
+        r = c0.sub_range(4, 6)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertTrue(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t4)
+        self.assertIs(r.transforms[0].transforms[1], t5)
+
+
 TEST_COMPOSE_EXECUTE_TEST_CASES = [
     [None, tuple()],
     [None, (mt.Rotate(np.pi / 8),)],

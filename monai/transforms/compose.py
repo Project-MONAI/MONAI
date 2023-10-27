@@ -100,6 +100,40 @@ def compose_iterator(compose, step_into_all=False):
             yield parent, tx
 
 
+def generate_subcompose(data, start, end):
+
+    def __generate_subcompose(data, start, end, i=0):
+        result = None
+        if type(data) == Compose:
+            i, result = __generate_subcompose(data.transforms, start, end, i)
+            if result is not None:
+                result = Compose(
+                    result,
+                    data.map_items,
+                    data.unpack_items,
+                    data.log_stats,
+                    data.lazy,
+                    deepcopy(data.overrides)
+                )
+        elif isinstance(data, Sequence):
+            for d in data:
+                i, r = __generate_subcompose(d, start, end, i)
+                if r is not None:
+                    result = list() if result is None else result
+                    result.append(r)
+        else:
+            if i >= start and i < end:
+                # print(f"including {data} as {i} is in range")
+                result = data
+            # else:
+            #     print(f"skipping {data} as {i} is out of range")
+            i += 1
+        return i, result
+
+    _, result = __generate_subcompose(data, start, end, 0)
+    return result
+
+
 def ranged_compose_iterator(compose, start=None, end=None, step_into_all=False):
     """
     ``ranged_compose_iterator`` is a function that returns an iterator of a a sub-range of the
@@ -406,6 +440,12 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
 
         """
         return Compose([tx[1] for tx in compose_iterator(self)])
+
+    def sub_range(self, start, end):
+        """
+        Return a Compose instance with a sub-range of the transforms
+        """
+        return generate_subcompose(self, start, end)
 
     def __len__(self):
         """Return number of transformations."""
