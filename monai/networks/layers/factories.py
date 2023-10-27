@@ -62,7 +62,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable 
 from typing import Any
 
 import torch.nn as nn
