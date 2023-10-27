@@ -62,7 +62,7 @@ can be parameterized with the factory name and the arguments to pass to the crea
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable 
+from collections.abc import Callable
 from typing import Any
 
 import torch.nn as nn
@@ -79,11 +79,12 @@ class LayerFactory(ComponentStore):
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def add_factory_callable(self, name: str, func: Callable, desc: str = None) -> None:
+    def add_factory_callable(self, name: str, func: Callable, desc: str | None = None) -> None:
         """
         Add the factory function to this object under the given name, with optional description.
         """
-        self.add(name.upper(), desc or func.__doc__, func)
+        description: str = desc or func.__doc__ or ""
+        self.add(name.upper(), description, func)
         self.__doc__ = (
             "The supported member"
             + ("s are: " if len(self.names) > 1 else " is: ")
@@ -91,11 +92,12 @@ class LayerFactory(ComponentStore):
             + ".\nPlease see :py:class:`monai.networks.layers.split_args` for additional args parsing."
         )
 
-    def add_factory_class(self, name: str, cls: type, desc: str = None) -> None:
+    def add_factory_class(self, name: str, cls: type, desc: str | None = None) -> None:
         """
         Adds a factory function which returns the supplied class under the given name, with optional description.
         """
-        self.add(name.upper(), desc or cls.__doc__, lambda x=None: cls)
+        description: str = desc or cls.__doc__ or ""
+        self.add(name.upper(), description, lambda x=None: cls)
         self.__doc__ = (
             "The supported member"
             + ("s are: " if len(self.names) > 1 else " is: ")

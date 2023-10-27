@@ -50,10 +50,10 @@ class ComponentStore:
 
     """
 
-    _Component = namedtuple("Component", ("description", "value"))  # internal value pair
+    _Component = namedtuple("_Component", ("description", "value"))  # internal value pair
 
     def __init__(self, name: str, description: str) -> None:
-        self.components: dict[str, self._Component] = {}
+        self.components: dict[str, ComponentStore._Component] = {}
         self.name: str = name
         self.description: str = description
 
