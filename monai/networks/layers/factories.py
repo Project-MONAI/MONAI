@@ -79,7 +79,8 @@ class LayerFactory(ComponentStore):
     callables. These functions are referred to by name and can be added at any time.
     """
 
-    def add_factory_callable(self, name: str, func: Callable, desc: str | None = None) -> None:
+    def add_factory_callable(self, func: Callable, name: str | None = None, desc: str | None = None) -> None:
+        name = name if name is not None else getattr(func, "__name__", "???")
         """
         Add the factory function to this object under the given name, with optional description.
         """
