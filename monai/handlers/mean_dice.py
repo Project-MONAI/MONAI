@@ -30,6 +30,7 @@ class MeanDice(IgniteMetricHandler):
         num_classes: int | None = None,
         output_transform: Callable = lambda x: x,
         save_details: bool = True,
+        return_with_label: bool | list[str] = False,
     ) -> None:
         """
 
@@ -50,9 +51,18 @@ class MeanDice(IgniteMetricHandler):
                 https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
             save_details: whether to save metric computation details per image, for example: mean dice of every image.
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+            return_with_label: whether to return the metrics with label, only works when reduction is "mean_batch".
+                If `True`, use "label_{index}" as the key corresponding to C channels; if 'include_background' is True,
+                the index begins at "0", otherwise at "1". It can also take a list of label names.
+                The outcome will then be returned as a dictionary.
 
         See also:
             :py:meth:`monai.metrics.meandice.compute_dice`
         """
-        metric_fn = DiceMetric(include_background=include_background, reduction=reduction, num_classes=num_classes)
+        metric_fn = DiceMetric(
+            include_background=include_background,
+            reduction=reduction,
+            num_classes=num_classes,
+            return_with_label=return_with_label,
+        )
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)

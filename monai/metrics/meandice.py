@@ -50,6 +50,10 @@ class DiceMetric(CumulativeIterationMetric):
         num_classes: number of input channels (always including the background). When this is None,
             ``y_pred.shape[1]`` will be used. This option is useful when both ``y_pred`` and ``y`` are
             single-channel class indices and the number of classes is not automatically inferred from data.
+        return_with_label: whether to return the metrics with label, only works when reduction is "mean_batch".
+            If `True`, use "label_{index}" as the key corresponding to C channels; if 'include_background' is True,
+            the index begins at "0", otherwise at "1". It can also take a list of label names.
+            The outcome will then be returned as a dictionary.
 
     """
 
@@ -60,6 +64,7 @@ class DiceMetric(CumulativeIterationMetric):
         get_not_nans: bool = False,
         ignore_empty: bool = True,
         num_classes: int | None = None,
+        return_with_label: bool | list[str] = False,
     ) -> None:
         super().__init__()
         self.include_background = include_background
@@ -67,6 +72,7 @@ class DiceMetric(CumulativeIterationMetric):
         self.get_not_nans = get_not_nans
         self.ignore_empty = ignore_empty
         self.num_classes = num_classes
+        self.return_with_label = return_with_label
         self.dice_helper = DiceHelper(
             include_background=self.include_background,
             reduction=MetricReduction.NONE,
@@ -112,6 +118,16 @@ class DiceMetric(CumulativeIterationMetric):
 
         # do metric reduction
         f, not_nans = do_metric_reduction(data, reduction or self.reduction)
+        if self.reduction == MetricReduction.MEAN_BATCH and self.return_with_label:
+            _f = {}
+            if isinstance(self.return_with_label, bool):
+                for i, v in enumerate(f):
+                    _label_key = f"label_{i+1}" if not self.include_background else f"label_{i}"
+                    _f[_label_key] = round(v.item(), 4)
+            else:
+                for key, v in zip(self.return_with_label, f):
+                    _f[key] = round(v.item(), 4)
+            f = _f
         return (f, not_nans) if self.get_not_nans else f
 
 
