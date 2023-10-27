@@ -153,7 +153,7 @@ An example JSON metadata file:
                   "dtype": "float32",
                   "value_range": [0, 1],
                   "is_patch_data": false,
-                  "channel_def": {0: "image"}
+                  "channel_def": {"0": "image"}
               }
           },
           "outputs":{
@@ -165,7 +165,7 @@ An example JSON metadata file:
                   "dtype": "float32",
                   "value_range": [],
                   "is_patch_data": false,
-                  "channel_def": {0: "background", 1: "spleen"}
+                  "channel_def": {"0": "background", "1": "spleen"}
               }
           }
       }
