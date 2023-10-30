@@ -1068,7 +1068,7 @@ class NumpyReader(ImageReader):
             img = np.load(name, allow_pickle=True, **kwargs_)
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
-                npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
+                npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys
                 for k in npz_keys:
                     img_.append(img[k])
             else:
