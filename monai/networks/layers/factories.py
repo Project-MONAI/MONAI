@@ -284,7 +284,6 @@ Norm.add_factory_class("layer", nn.LayerNorm)
 Norm.add_factory_class("localresponse", nn.LocalResponseNorm)
 Norm.add_factory_class("syncbatch", nn.SyncBatchNorm)
 
-
 Act.add_factory_class("elu", nn.modules.ELU)
 Act.add_factory_class("relu", nn.modules.ReLU)
 Act.add_factory_class("leakyrelu", nn.modules.LeakyReLU)
