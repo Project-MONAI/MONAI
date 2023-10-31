@@ -130,7 +130,7 @@ class BundleAlgo(Algo):
         """
         self.data_list_file = data_src_cfg
 
-    def set_mlflow_tracking_uri(self, mlflow_tracking_uri: str | None = None) -> None:
+    def set_mlflow_tracking_uri(self, mlflow_tracking_uri: None | str = None) -> None:
         """
         Set the tracking URI for MLflow server
 
