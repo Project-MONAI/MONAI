@@ -888,3 +888,13 @@ def is_sqrt(num: Sequence[int] | int) -> bool:
     sqrt_num = [int(math.sqrt(_num)) for _num in num]
     ret = [_i * _j for _i, _j in zip(sqrt_num, sqrt_num)]
     return ensure_tuple(ret) == num
+
+
+def unsqueeze_right(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+    """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    return arr[(...,) + (None,) * (ndim - arr.ndim)]
+
+
+def unsqueeze_left(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+    """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    return arr[(None,) * (ndim - arr.ndim)]
