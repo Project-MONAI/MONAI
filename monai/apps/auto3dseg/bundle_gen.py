@@ -139,7 +139,7 @@ class BundleAlgo(Algo):
                 the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
                 the value is None.
         """
-        self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_tracking_uri = mlflow_tracking_uri # type: ignore
 
     def fill_template_config(self, data_stats_filename: str, algo_path: str, **kwargs: Any) -> dict:
         """
