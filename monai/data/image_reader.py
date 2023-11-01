@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -403,8 +404,12 @@ class PydicomReader(ImageReader):
         label_dict: label of the dicom data. If provided, it will be used when loading segmentation data.
             Keys of the dict are the classes, and values are the corresponding class number. For example:
             for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
+        fname_regex: a regular expression to match the file names when the input is a folder.
+            If provided, only the matched files will be included.
+            For example, if the file name is "image_0001.dcm", and the regular expression is `".*image_(\\d+).dcm"`.
+            Default to `"^(?!.*LICENSE).*"`, ignoring any file name containing `"LICENSE"`.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
-            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
+            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html
             If the `get_data` function will be called
             (for example, when using this reader with `monai.transforms.LoadImage`), please ensure that the argument
             `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
@@ -418,6 +423,7 @@ class PydicomReader(ImageReader):
         swap_ij: bool = True,
         prune_metadata: bool = True,
         label_dict: dict | None = None,
+        fname_regex: str = r"^(?!.*LICENSE).*",
         **kwargs,
     ):
         super().__init__()
@@ -427,6 +433,7 @@ class PydicomReader(ImageReader):
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
         self.label_dict = label_dict
+        self.fname_regex = fname_regex
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -467,8 +474,7 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                series_slcs = glob.glob(os.path.join(name, "*"))
-                series_slcs = [slc for slc in series_slcs if "LICENSE" not in slc]
+                series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
                 slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
                 img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
