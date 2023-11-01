@@ -736,9 +736,6 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
                 atol=atol,
             )
     except (RuntimeError, AttributeError):
-        if sys.version_info.major == 3 and sys.version_info.minor == 11:
-            warnings.warn("skipping py 3.11")
-            return
         raise
 
 

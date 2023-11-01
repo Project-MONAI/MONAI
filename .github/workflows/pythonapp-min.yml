@@ -8,6 +8,7 @@ on:
       - dev
       - main
       - releasing/*
+      - temp-test
   pull_request:
 
 concurrency:
