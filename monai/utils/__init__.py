@@ -18,6 +18,8 @@ from .decorators import MethodReplacer, RestartGenerator
 from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg, deprecated_arg_default
 from .dist import RankFilter, evenly_divisible_all_gather, get_dist_device, string_list_all_gather
 from .enums import (
+    AdversarialIterationEvents,
+    AdversarialKeys,
     AlgoKeys,
     Average,
     BlendMode,
@@ -47,6 +49,8 @@ from .enums import (
     MetricReduction,
     NdimageMode,
     NumpyPadMode,
+    OrderingTransformations,
+    OrderingType,
     PatchKeys,
     PostFix,
     ProbMapKeys,
@@ -95,6 +99,8 @@ from .misc import (
     str2bool,
     str2list,
     to_tuple_of_dictionaries,
+    unsqueeze_left,
+    unsqueeze_right,
     zip_with,
 )
 from .module import (
