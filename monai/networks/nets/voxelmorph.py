@@ -179,8 +179,6 @@ class VoxelMorph(nn.Module):
 
             return self._get_connection_block(down, up, subblock)
 
-        self.unet = _create_block(in_channels, unet_out_channels, self.channels, is_top=True)
-
         def _create_final_conv(inc: int, outc: int, channels: Sequence[int]) -> nn.Module:
             """
             Builds the final convolution blocks.
@@ -229,7 +227,10 @@ class VoxelMorph(nn.Module):
 
             return mod
 
-        self.final_conv = _create_final_conv(unet_out_channels, self.dimensions, self.final_conv_channels)
+        self.net = nn.Sequential(
+            _create_block(in_channels, unet_out_channels, self.channels, is_top=True),
+            _create_final_conv(unet_out_channels, self.dimensions, self.final_conv_channels)
+        )
 
         # create helpers
         if self.diffeomorphic:
@@ -363,8 +364,7 @@ class VoxelMorph(nn.Module):
         return mod
 
     def forward(self, moving: torch.Tensor, fixed: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        x = self.unet(torch.cat([moving, fixed], dim=1))
-        x = self.final_conv(x)
+        x = self.net(torch.cat([moving, fixed], dim=1))
 
         if self.half_res:
             x = F.interpolate(x, scale_factor=0.5, mode="trilinear", align_corners=True) * 2.0
