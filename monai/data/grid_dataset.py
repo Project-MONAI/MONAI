@@ -11,18 +11,34 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable, Generator, Hashable, Iterable, Mapping, Sequence
 from copy import deepcopy
+from multiprocessing.managers import ListProxy
+from typing import TYPE_CHECKING
 
 import numpy as np
+import torch
 
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayTensor
-from monai.data.dataset import Dataset
+from monai.data.dataset import CacheDataset, Dataset
 from monai.data.iterable_dataset import IterableDataset
-from monai.data.utils import iter_patch
-from monai.transforms import apply_transform
-from monai.utils import NumpyPadMode, ensure_tuple, first
+from monai.data.utils import iter_patch, pickle_hashing
+from monai.transforms import Compose, RandomizableTrait, Transform, apply_transform, convert_to_contiguous
+from monai.utils import NumpyPadMode, ensure_tuple, first, min_version, optional_import
+
+if TYPE_CHECKING:
+    from tqdm import tqdm
+
+    has_tqdm = True
+else:
+    tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
+
+cp, _ = optional_import("cupy")
+lmdb, _ = optional_import("lmdb")
+pd, _ = optional_import("pandas")
+kvikio_numpy, _ = optional_import("kvikio.numpy")
 
 __all__ = ["PatchDataset", "GridPatchDataset", "PatchIter", "PatchIterd"]
 
@@ -145,7 +161,7 @@ class PatchIterd:
             yield ret, coords
 
 
-class GridPatchDataset(IterableDataset):
+class GridPatchDataset(IterableDataset, CacheDataset):
     """
     Yields patches from data read from an image dataset.
     Typically used with `PatchIter` or `PatchIterd` so that the patches are chosen in a contiguous grid sampling scheme.
@@ -193,22 +209,135 @@ class GridPatchDataset(IterableDataset):
         patch_iter: Callable,
         transform: Callable | None = None,
         with_coordinates: bool = True,
+        cache: bool = False,
+        cache_num: int = sys.maxsize,
+        cache_rate: float = 1.0,
+        num_workers: int | None = 1,
+        progress: bool = True,
+        copy_cache: bool = True,
+        as_contiguous: bool = True,
+        hash_func: Callable[..., bytes] = pickle_hashing,
     ) -> None:
         super().__init__(data=data, transform=None)
+        if transform is not None and not isinstance(transform, Compose):
+            transform = Compose(transform)
         self.patch_iter = patch_iter
         self.patch_transform = transform
         self.with_coordinates = with_coordinates
+        self.set_num = cache_num
+        self.set_rate = cache_rate
+        self.progress = progress
+        self.copy_cache = copy_cache
+        self.as_contiguous = as_contiguous
+        self.hash_func = hash_func
+        self.num_workers = num_workers
+        if self.num_workers is not None:
+            self.num_workers = max(int(self.num_workers), 1)
+        self._cache: list | ListProxy = []
+        self._cache_other: list | ListProxy = []
+        self.cache = cache
+        if self.cache:
+            self.set_data(data)
+
+    def set_data(self, data: Sequence) -> None:
+        """
+        Set the input data and run deterministic transforms to generate cache content.
+
+        Note: should call this func after an entire epoch and must set `persistent_workers=False`
+        in PyTorch DataLoader, because it needs to create new worker processes based on new
+        generated cache content.
+
+        """
+        self.data = data
+
+        def _compute_cache_num(data_len: int):
+            self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
+
+        # only compute cache for the unique items of dataset, and record the last index for duplicated items
+        mapping = {self.hash_func(v): i for i, v in enumerate(self.data)}
+        _compute_cache_num(len(mapping))
+        self._hash_keys = list(mapping)[: self.cache_num]
+        indices = list(mapping.values())[: self.cache_num]
+
+        self._cache = self._fill_cache(indices)
+        return
+
+    def _load_cache_item(self, idx: int):
+        """
+        Args:
+            idx: the index of the input data sequence.
+        """
+        item = self.data[idx]
+        patch_cache, other_cache = [], []
+        for patch, *others in self.patch_iter(item):
+            if self.patch_transform is not None:
+                first_random = self.patch_transform.get_index_of_first(
+                    lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+                )
+                patch = self.patch_transform(patch, end=first_random, threading=True)
+
+            if self.as_contiguous:
+                patch = convert_to_contiguous(patch, memory_format=torch.contiguous_format)
+            if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
+                other_cache.append(others[0])
+            patch_cache.append(patch)
+        self._cache_other.append(other_cache)
+        return patch_cache
 
     def __iter__(self):
-        for image in super().__iter__():
-            for patch, *others in self.patch_iter(image):
-                out_patch = patch
-                if self.patch_transform is not None:
-                    out_patch = apply_transform(self.patch_transform, patch, map_items=False)
-                if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
-                    yield out_patch, others[0]
-                else:
-                    yield out_patch
+        if self.cache:
+            cache_index = None
+            for image in super().__iter__():
+                key = self.hash_func(image)
+                if key in self._hash_keys:
+                    # if existing in cache, try to get the index in cache
+                    cache_index = self._hash_keys.index(key)
+                if cache_index is None:
+                    # no cache for this index, execute all the transforms directly
+                    for patch, *others in self.patch_iter(image):
+                        out_patch = patch
+                        if self.patch_transform is not None:
+                            out_patch = apply_transform(self.patch_transform, patch, map_items=False)
+                        if (
+                            self.with_coordinates and len(others) > 0
+                        ):  # patch_iter to yield at least 2 items: patch, coords
+                            yield out_patch, others[0]
+                        else:
+                            yield out_patch
+
+                if self._cache is None:
+                    raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
+                data = self._cache[cache_index]
+                other = self._cache_other[cache_index]
+
+                # load data from cache and execute from the first random transform
+                if not isinstance(self.patch_transform, Compose):
+                    raise ValueError("transform must be an instance of monai.transforms.Compose.")
+
+                first_random = self.patch_transform.get_index_of_first(
+                    lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+                )
+                if first_random is not None:
+                    data = deepcopy(data) if self.copy_cache is True else data
+                    for out_patch, others in zip(data, other):
+                        if self.patch_transform is not None:
+                            out_patch = self.patch_transform(out_patch, start=first_random)
+                        if (
+                            self.with_coordinates and len(others) > 0
+                        ):  # patch_iter to yield at least 2 items: patch, coords
+                            yield out_patch, others
+                        else:
+                            yield out_patch
+        else:
+            for image in super().__iter__():
+                for patch, *others in self.patch_iter(image):
+                    out_patch = patch
+                    if self.patch_transform is not None:
+                        out_patch = apply_transform(self.patch_transform, patch, map_items=False)
+                    if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
+                        yield out_patch, others[0]
+                    else:
+                        yield out_patch
 
 
 class PatchDataset(Dataset):
