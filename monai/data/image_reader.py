@@ -405,8 +405,8 @@ class PydicomReader(ImageReader):
             Keys of the dict are the classes, and values are the corresponding class number. For example:
             for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
         fname_regex: a regular expression to match the file names when the input is a folder.
-            If provided, only the matched files will be included.
-            For example, if the file name is "image_0001.dcm", and the regular expression is `".*image_(\\d+).dcm"`.
+            If provided, only the matched files will be included. For example, to include the file name
+            "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`.
             Default to `"^(?!.*LICENSE).*"`, ignoring any file name containing `"LICENSE"`.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html
