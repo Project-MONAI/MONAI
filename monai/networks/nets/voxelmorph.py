@@ -229,7 +229,7 @@ class VoxelMorph(nn.Module):
 
         self.net = nn.Sequential(
             _create_block(in_channels, unet_out_channels, self.channels, is_top=True),
-            _create_final_conv(unet_out_channels, self.dimensions, self.final_conv_channels)
+            _create_final_conv(unet_out_channels, self.dimensions, self.final_conv_channels),
         )
 
         # create helpers

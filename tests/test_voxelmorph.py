@@ -242,13 +242,7 @@ ILL_CASE_1 = [  # in_channels = 3 (not divisible by 2)
 ]
 
 ILL_CASE_2 = [  # len(channels) = 0
-    {
-        "spatial_dims": 3,
-        "in_channels": 2,
-        "unet_out_channels": 32,
-        "channels": (),
-        "final_conv_channels": (16, 16),
-    }
+    {"spatial_dims": 3, "in_channels": 2, "unet_out_channels": 32, "channels": (), "final_conv_channels": (16, 16)}
 ]
 
 ILL_CASE_3 = [  # channels not in pairs
