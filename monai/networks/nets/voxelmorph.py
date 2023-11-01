@@ -41,7 +41,7 @@ class VoxelMorph(nn.Module):
     resolution by specifying `half_res` to be True.
 
     Args:
-            in_shape: shape of the input image.
+            spatial_dims: number of spatial dimensions.
             in_channels: number of channels in the input volume after concatenation of moving and fixed images.
             unet_out_channels: number of channels in the output of the UNet.
             channels: number of channels in each layer of the UNet. See the following example for more details.
@@ -52,7 +52,6 @@ class VoxelMorph(nn.Module):
             int_steps: number of integration steps. Defaults to 7. If set to 0, the network will be non-diffeomorphic.
             kernel_size: kernel size for all convolution layers in the UNet. Defaults to 3.
             up_kernel_size: kernel size for all convolution layers in the upsampling path of the UNet. Defaults to 3.
-            spatial_dims: number of spatial dimensions. Defaults to 3.
             act: activation type for all convolution layers in the UNet. Defaults to LeakyReLU with negative slope 0.2.
             norm: feature normalization type and arguments for all convolution layers in the UNet. Defaults to None.
             dropout: dropout ratio for all convolution layers in the UNet. Defaults to 0.0 (no dropout).
@@ -69,7 +68,7 @@ class VoxelMorph(nn.Module):
 
             # VoxelMorph network as it is in the original paper https://arxiv.org/pdf/1809.05231.pdf
             net = VoxelMorph(
-                    in_shape=(160, 192, 224),
+                    spatial_dims=3,
                     in_channels=2,
                     unet_out_channels=32,
                     channels=(16, 32, 32, 32, 32, 32),  # this indicates the down block at the top takes 16 channels as
@@ -88,7 +87,7 @@ class VoxelMorph(nn.Module):
 
     def __init__(
         self,
-        in_shape: Sequence[int],
+        spatial_dims: int,
         in_channels: int,
         unet_out_channels: int,
         channels: Sequence[int],
@@ -97,7 +96,6 @@ class VoxelMorph(nn.Module):
         int_steps: int = 7,
         kernel_size: Sequence[int] | int = 3,
         up_kernel_size: Sequence[int] | int = 3,
-        spatial_dims: int = 3,
         act: tuple | str = "LEAKYRELU",
         norm: tuple | str | None = None,
         dropout: float = 0.0,
@@ -108,6 +106,14 @@ class VoxelMorph(nn.Module):
     ) -> None:
         super().__init__()
 
+        if spatial_dims not in (2, 3):
+            raise ValueError("spatial_dims must be either 2 or 3.")
+        if in_channels % 2 != 0:
+            raise ValueError("in_channels must be divisible by 2.")
+        if len(channels) < 2:
+            raise ValueError("the length of `channels` should be no less than 2.")
+        if len(channels) % 2 != 0:
+            raise ValueError("the elements of `channels` should be specified in pairs.")
         if isinstance(kernel_size, Sequence) and len(kernel_size) != spatial_dims:
             raise ValueError("the length of `kernel_size` should equal to `dimensions`.")
         if isinstance(up_kernel_size, Sequence) and len(up_kernel_size) != spatial_dims:
@@ -119,14 +125,17 @@ class VoxelMorph(nn.Module):
         self.channels = channels
         self.kernel_size = kernel_size
         self.up_kernel_size = up_kernel_size
-        self.act = ("leakyrelu", {"negative_slope": 0.2, "inplace": True}) if act.upper() == "LEAKYRELU" else act
+        self.act = (
+            ("leakyrelu", {"negative_slope": 0.2, "inplace": True})
+            if isinstance(act, str) and act.upper() == "LEAKYRELU"
+            else act
+        )
         self.norm = norm
         self.dropout = dropout
         self.bias = bias
         self.adn_ordering = adn_ordering
 
         # VoxelMorph specific args
-        self.in_shape = in_shape
         self.unet_out_channels = unet_out_channels
         self.half_res = half_res
         self.use_maxpool = use_maxpool
@@ -135,7 +144,7 @@ class VoxelMorph(nn.Module):
         self.final_conv_channels = final_conv_channels
         self.final_conv_act = (
             ("leakyrelu", {"negative_slope": 0.2, "inplace": True})
-            if final_conv_act.upper() == "LEAKYRELU"
+            if isinstance(final_conv_act, str) and final_conv_act.upper() == "LEAKYRELU"
             else final_conv_act
         )
 
@@ -178,7 +187,7 @@ class VoxelMorph(nn.Module):
 
             Args:
                     inc: number of input channels, should be the same as `unet_out_channels`.
-                    outc: number of output channels, should be 3 for 3D volume registration.
+                    outc: number of output channels, should be the same as `spatial_dims`.
                     channels: sequence of channels for each convolution layer.
 
             Note: there is no activation after the last convolution layer as per the original implementation.
@@ -220,10 +229,11 @@ class VoxelMorph(nn.Module):
 
             return mod
 
-        self.final_conv = _create_final_conv(unet_out_channels, 3, self.final_conv_channels)
+        self.final_conv = _create_final_conv(unet_out_channels, self.dimensions, self.final_conv_channels)
 
         # create helpers
-        self.dvf2ddf = DVF2DDF(num_steps=self.int_steps, mode="bilinear", padding_mode="zeros")
+        if self.diffeomorphic:
+            self.dvf2ddf = DVF2DDF(num_steps=self.int_steps, mode="bilinear", padding_mode="zeros")
         self.warp = Warp(mode="bilinear", padding_mode="zeros")
 
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
@@ -255,7 +265,7 @@ class VoxelMorph(nn.Module):
 
         mod: Convolution | nn.Sequential
 
-        strides = 1 if self.use_maxpool else 2
+        strides = 1 if self.use_maxpool or is_top else 2
 
         mod = Convolution(
             self.dimensions,
@@ -271,7 +281,11 @@ class VoxelMorph(nn.Module):
         )
 
         if self.use_maxpool and not is_top:
-            mod = nn.Sequential(nn.MaxPool3d(kernel_size=2, stride=2), mod)
+            mod = (
+                nn.Sequential(nn.MaxPool3d(kernel_size=2, stride=2), mod)
+                if self.dimensions == 3
+                else nn.Sequential(nn.MaxPool2d(kernel_size=2, stride=2), mod)
+            )
 
         return mod
 
@@ -348,7 +362,7 @@ class VoxelMorph(nn.Module):
 
         return mod
 
-    def forward(self, moving: torch.Tensor, fixed: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+    def forward(self, moving: torch.Tensor, fixed: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         x = self.unet(torch.cat([moving, fixed], dim=1))
         x = self.final_conv(x)
 
