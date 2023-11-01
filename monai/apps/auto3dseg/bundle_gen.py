@@ -130,7 +130,7 @@ class BundleAlgo(Algo):
         """
         self.data_list_file = data_src_cfg
 
-    def set_mlflow_tracking_uri(self, mlflow_tracking_uri: None | str = None) -> None:
+    def set_mlflow_tracking_uri(self, mlflow_tracking_uri: str) -> None:
         """
         Set the tracking URI for MLflow server
 
@@ -541,6 +541,21 @@ class BundleGen(AlgoGen):
         """Get the data source filename"""
         return self.data_src_cfg_name
 
+    def set_mlflow_tracking_uri(self, mlflow_tracking_uri):
+        """
+        Set the tracking URI for MLflow server
+
+        Args:
+            mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of
+                the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
+                the value is None.
+        """
+        self.mlflow_tracking_uri = mlflow_tracking_uri
+
+    def get_mlflow_tracking_uri(self):
+        """Get the tracking URI for MLflow server"""
+        return self.mlflow_tracking_uri
+
     def get_history(self) -> list:
         """Get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
@@ -592,10 +607,11 @@ class BundleGen(AlgoGen):
             for f_id in ensure_tuple(fold_idx):
                 data_stats = self.get_data_stats()
                 data_src_cfg = self.get_data_src()
+                mlflow_tracking_uri = self.get_mlflow_tracking_uri()
                 gen_algo = deepcopy(algo)
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
-                gen_algo.set_mlflow_tracking_uri(self.mlflow_tracking_uri)
+                gen_algo.set_mlflow_tracking_uri(mlflow_tracking_uri)
                 name = f"{gen_algo.name}_{f_id}"
 
                 if allow_skip:
