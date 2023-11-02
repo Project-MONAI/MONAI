@@ -97,7 +97,7 @@ def do_metric_reduction(
     nans = torch.isnan(f)
     not_nans = ~nans
 
-    t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
+    t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
     reduction = look_up_option(reduction, MetricReduction)
     if reduction == MetricReduction.NONE:
         return f, not_nans.float()
