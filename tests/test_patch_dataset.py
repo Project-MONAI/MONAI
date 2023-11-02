@@ -27,21 +27,21 @@ def identity(x):
 
 
 class TestPatchDataset(unittest.TestCase):
-    # def test_shape(self):
-    #     test_dataset = ["vwxyz", "hello", "world"]
-    #     n_per_image = len(test_dataset[0])
+    def test_shape(self):
+        test_dataset = ["vwxyz", "hello", "world"]
+        n_per_image = len(test_dataset[0])
 
-    #     result = PatchDataset(data=test_dataset, patch_func=identity, samples_per_image=n_per_image)
+        result = PatchDataset(data=test_dataset, patch_func=identity, samples_per_image=n_per_image)
 
-    #     output = []
-    #     n_workers = 0 if sys.platform == "win32" else 2
-    #     for item in DataLoader(result, batch_size=3, num_workers=n_workers):
-    #         output.append("".join(item))
-    #     if n_workers == 0:
-    #         expected = ["vwx", "yzh", "ell", "owo", "rld"]
-    #     else:
-    #         expected = ["vwx", "hel", "yzw", "lo", "orl", "d"]
-    #     self.assertEqual(output, expected)
+        output = []
+        n_workers = 0 if sys.platform == "win32" else 2
+        for item in DataLoader(result, batch_size=3, num_workers=n_workers):
+            output.append("".join(item))
+        if n_workers == 0:
+            expected = ["vwx", "yzh", "ell", "owo", "rld"]
+        else:
+            expected = ["vwx", "hel", "yzw", "lo", "orl", "d"]
+        self.assertEqual(output, expected)
 
     def test_loading_array(self):
         set_determinism(seed=1234)
