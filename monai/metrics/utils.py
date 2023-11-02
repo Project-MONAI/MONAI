@@ -105,27 +105,27 @@ def do_metric_reduction(
     f[nans] = 0
     if reduction == MetricReduction.MEAN:
         # 2 steps, first, mean by channel (accounting for nans), then by batch
-        not_nans = not_nans.sum(dim=1)
-        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+        not_nans = not_nans.sum(dim=1).float()
+        f = torch.where(not_nans > 0, f.sum(dim=1).float() / not_nans, t_zero)  # channel average
 
-        not_nans = (not_nans > 0).sum(dim=0)
-        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+        not_nans = (not_nans > 0).sum(dim=0).float()
+        f = torch.where(not_nans > 0, f.sum(dim=0).float() / not_nans, t_zero)  # batch average
 
     elif reduction == MetricReduction.SUM:
-        not_nans = not_nans.sum(dim=[0, 1])
+        not_nans = not_nans.sum(dim=[0, 1]).float()
         f = torch.sum(f, dim=[0, 1])  # sum over the batch and channel dims
     elif reduction == MetricReduction.MEAN_BATCH:
-        not_nans = not_nans.sum(dim=0)
-        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+        not_nans = not_nans.sum(dim=0).float()
+        f = torch.where(not_nans > 0, f.sum(dim=0).float() / not_nans, t_zero)  # batch average
     elif reduction == MetricReduction.SUM_BATCH:
-        not_nans = not_nans.sum(dim=0)
-        f = f.sum(dim=0)  # the batch sum
+        not_nans = not_nans.sum(dim=0).float()
+        f = f.sum(dim=0).float()  # the batch sum
     elif reduction == MetricReduction.MEAN_CHANNEL:
-        not_nans = not_nans.sum(dim=1)
-        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+        not_nans = not_nans.sum(dim=1).float()
+        f = torch.where(not_nans > 0, f.sum(dim=1).float() / not_nans, t_zero)  # channel average
     elif reduction == MetricReduction.SUM_CHANNEL:
-        not_nans = not_nans.sum(dim=1)
-        f = f.sum(dim=1)  # the channel sum
+        not_nans = not_nans.sum(dim=1).float()
+        f = f.sum(dim=1).float()  # the channel sum
     elif reduction != MetricReduction.NONE:
         raise ValueError(
             f"Unsupported reduction: {reduction}, available options are "

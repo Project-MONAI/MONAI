@@ -165,9 +165,9 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     tp = ((y_pred + y) == 2)
     tn = ((y_pred + y) == 0)
 
-    tp = tp.sum(dim=[2])
-    tn = tn.sum(dim=[2])
-    p = y.sum(dim=[2])
+    tp = tp.sum(dim=[2]).float()
+    tn = tn.sum(dim=[2]).float()
+    p = y.sum(dim=[2]).float()
     n = y.shape[-1] - p
 
     fn = p - tp
