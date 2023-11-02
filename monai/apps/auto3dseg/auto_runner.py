@@ -235,7 +235,7 @@ class AutoRunner:
         self.templates_path_or_url = templates_path_or_url
         self.allow_skip = allow_skip
         self.not_use_cache = not_use_cache
-        
+
         # determine if we need to analyze, algo_gen or train from cache, unless manually provided
         self.analyze = not self.cache["analyze"] if analyze is None else analyze
         self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
