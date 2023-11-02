@@ -129,9 +129,7 @@ class TestGridPatchDataset(unittest.TestCase):
                 np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
             np.testing.assert_allclose(
                 item[0],
-                np.array(
-                    [[[[7.27427, 8.27427], [11.27427, 12.27427]]], [[[9.4353, 10.4353], [13.4353, 14.4353]]]]
-                ),
+                np.array([[[[7.27427, 8.27427], [11.27427, 12.27427]]], [[[9.4353, 10.4353], [13.4353, 14.4353]]]]),
                 rtol=1e-3,
             )
             np.testing.assert_allclose(
@@ -173,9 +171,7 @@ class TestGridPatchDataset(unittest.TestCase):
                 np.testing.assert_equal(item[0]["image"].shape, (2, 1, 2, 2))
             np.testing.assert_allclose(
                 item[0]["image"],
-                np.array(
-                    [[[[7.27427, 8.27427], [11.27427, 12.27427]]], [[[9.4353, 10.4353], [13.4353, 14.4353]]]]
-                ),
+                np.array([[[[7.27427, 8.27427], [11.27427, 12.27427]]], [[[9.4353, 10.4353], [13.4353, 14.4353]]]]),
                 rtol=1e-3,
             )
             np.testing.assert_allclose(
