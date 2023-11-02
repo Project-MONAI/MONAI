@@ -108,11 +108,11 @@ class TestGridPatchDataset(unittest.TestCase):
         self.assertEqual(sorted(output), sorted(expected))
 
     def test_loading_array(self):
-        set_determinism(seed=1234)
+        # set_determinism(seed=1234)
         # test sequence input data with images
         images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
         # image level
-        patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0)
+        patch_intensity = RandShiftIntensity(offsets=1.0, prob=1.0).set_random_state(seed=1234)
         patch_iter = PatchIter(patch_size=(2, 2), start_pos=(0, 0))
         ds = GridPatchDataset(data=images, patch_iter=patch_iter, transform=patch_intensity)
         # use the grid patch dataset
@@ -120,7 +120,7 @@ class TestGridPatchDataset(unittest.TestCase):
             np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
         np.testing.assert_allclose(
             item[0],
-            np.array([[[[8.240326, 9.240326], [12.240326, 13.240326]]], [[[10.1624, 11.1624], [14.1624, 15.1624]]]]),
+            np.array([[[[8.708934, 9.708934], [12.708934, 13.708934]]], [[[10.8683, 11.8683], [14.8683, 15.8683]]]]),
             rtol=1e-4,
         )
         np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
@@ -130,7 +130,7 @@ class TestGridPatchDataset(unittest.TestCase):
             np.testing.assert_allclose(
                 item[0],
                 np.array(
-                    [[[[7.723618, 8.723618], [11.723618, 12.723618]]], [[[10.7175, 11.7175], [14.7175, 15.7175]]]]
+                    [[[[7.27427, 8.27427], [11.27427, 12.27427]]], [[[9.4353, 10.4353], [13.4353, 14.4353]]]]
                 ),
                 rtol=1e-3,
             )
@@ -164,7 +164,7 @@ class TestGridPatchDataset(unittest.TestCase):
             self.assertListEqual(item[0]["metadata"], ["test string", "test string"])
         np.testing.assert_allclose(
             item[0]["image"],
-            np.array([[[[8.240326, 9.240326], [12.240326, 13.240326]]], [[[10.1624, 11.1624], [14.1624, 15.1624]]]]),
+            np.array([[[[8.708934, 9.708934], [12.708934, 13.708934]]], [[[10.8683, 11.8683], [14.8683, 15.8683]]]]),
             rtol=1e-4,
         )
         np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
@@ -174,7 +174,7 @@ class TestGridPatchDataset(unittest.TestCase):
             np.testing.assert_allclose(
                 item[0]["image"],
                 np.array(
-                    [[[[7.723618, 8.723618], [11.723618, 12.723618]]], [[[10.7175, 11.7175], [14.7175, 15.7175]]]]
+                    [[[[7.27427, 8.27427], [11.27427, 12.27427]]], [[[9.4353, 10.4353], [13.4353, 14.4353]]]]
                 ),
                 rtol=1e-3,
             )
