@@ -31,10 +31,10 @@ TEST_CASE_0 = [  # single channel 3D, batch 1, non-diffeomorphic
         "unet_out_channels": 32,
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
-        "int_steps": 0,
+        "integration_steps": 0,
     },
-    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
-    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 1, 96, 96, 48), (1, 1, 96, 96, 48)),
+    ((1, 1, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_1 = [  # single channel 3D, batch 1, diffeomorphic (default)
@@ -45,8 +45,8 @@ TEST_CASE_1 = [  # single channel 3D, batch 1, diffeomorphic (default)
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
     },
-    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
-    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 1, 96, 96, 48), (1, 1, 96, 96, 48)),
+    ((1, 1, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_2 = [  # single channel 3D, batch 1, diffeomorphic, integration at half resolution
@@ -56,11 +56,11 @@ TEST_CASE_2 = [  # single channel 3D, batch 1, diffeomorphic, integration at hal
         "unet_out_channels": 32,
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
-        "int_steps": 7,
+        "integration_steps": 7,
         "half_res": True,
     },
-    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
-    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 1, 96, 96, 48), (1, 1, 96, 96, 48)),
+    ((1, 1, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_3 = [  # single channel 3D, batch 1, diffeomorphic, integration at half resolution,
@@ -71,12 +71,12 @@ TEST_CASE_3 = [  # single channel 3D, batch 1, diffeomorphic, integration at hal
         "unet_out_channels": 32,
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
-        "int_steps": 7,
+        "integration_steps": 7,
         "half_res": True,
         "use_maxpool": False,
     },
-    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
-    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 1, 96, 96, 48), (1, 1, 96, 96, 48)),
+    ((1, 1, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_4 = [  # single channel 3D, batch 1, diffeomorphic, integration at half resolution,
@@ -89,12 +89,12 @@ TEST_CASE_4 = [  # single channel 3D, batch 1, diffeomorphic, integration at hal
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
         "final_conv_act": ("leakyrelu", {"negative_slope": 0.1, "inplace": True}),
-        "int_steps": 7,
+        "integration_steps": 7,
         "half_res": True,
         "use_maxpool": False,
     },
-    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
-    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 1, 96, 96, 48), (1, 1, 96, 96, 48)),
+    ((1, 1, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_5 = [  # single channel 3D, batch 1, diffeomorphic, integration at half resolution,
@@ -108,12 +108,12 @@ TEST_CASE_5 = [  # single channel 3D, batch 1, diffeomorphic, integration at hal
         "final_conv_channels": (16, 16),
         "final_conv_act": ("leakyrelu", {"negative_slope": 0.1, "inplace": True}),
         "act": ("leakyrelu", {"negative_slope": 0.1, "inplace": True}),
-        "int_steps": 7,
+        "integration_steps": 7,
         "half_res": True,
         "use_maxpool": False,
     },
-    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
-    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 1, 96, 96, 48), (1, 1, 96, 96, 48)),
+    ((1, 1, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_6 = [  # 2-channel 3D, batch 1, diffeomorphic
@@ -125,8 +125,8 @@ TEST_CASE_6 = [  # 2-channel 3D, batch 1, diffeomorphic
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
     },
-    ((1, 2, 160, 192, 224), (1, 2, 160, 192, 224)),
-    ((1, 2, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 2, 96, 96, 48), (1, 2, 96, 96, 48)),
+    ((1, 2, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_7 = [  # single channel 3D, batch 2, diffeomorphic
@@ -137,8 +137,8 @@ TEST_CASE_7 = [  # single channel 3D, batch 2, diffeomorphic
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
     },
-    ((2, 1, 160, 192, 224), (2, 1, 160, 192, 224)),
-    ((2, 1, 160, 192, 224), (2, 3, 160, 192, 224)),
+    ((2, 1, 96, 96, 48), (2, 1, 96, 96, 48)),
+    ((2, 1, 96, 96, 48), (2, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_8 = [  # single channel 2D, batch 2, diffeomorphic
@@ -149,8 +149,8 @@ TEST_CASE_8 = [  # single channel 2D, batch 2, diffeomorphic
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
     },
-    ((2, 1, 160, 192), (2, 1, 160, 192)),
-    ((2, 1, 160, 192), (2, 2, 160, 192)),
+    ((2, 1, 96, 96), (2, 1, 96, 96)),
+    ((2, 1, 96, 96), (2, 2, 96, 96)),
 ]
 
 TEST_CASE_9 = [  # single channel 3D, batch 2, diffeomorphic,
@@ -162,8 +162,8 @@ TEST_CASE_9 = [  # single channel 3D, batch 2, diffeomorphic,
         "channels": (16, 32, 32, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
     },
-    ((2, 1, 160, 192, 224), (2, 1, 160, 192, 224)),
-    ((2, 1, 160, 192, 224), (2, 3, 160, 192, 224)),
+    ((2, 1, 96, 96, 48), (2, 1, 96, 96, 48)),
+    ((2, 1, 96, 96, 48), (2, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_10 = [  # single channel 3D, batch 2, diffeomorphic,
@@ -176,8 +176,8 @@ TEST_CASE_10 = [  # single channel 3D, batch 2, diffeomorphic,
         "channels": (16, 32, 32, 32, 32, 32, 32, 32),
         "final_conv_channels": (16,),
     },
-    ((2, 1, 160, 192, 224), (2, 1, 160, 192, 224)),
-    ((2, 1, 160, 192, 224), (2, 3, 160, 192, 224)),
+    ((2, 1, 96, 96, 48), (2, 1, 96, 96, 48)),
+    ((2, 1, 96, 96, 48), (2, 3, 96, 96, 48)),
 ]
 
 TEST_CASE_11 = [  # single channel 3D, batch 1, diffeomorphic,
@@ -189,8 +189,8 @@ TEST_CASE_11 = [  # single channel 3D, batch 1, diffeomorphic,
         "channels": (16, 32),
         "final_conv_channels": (16, 16),
     },
-    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
-    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
+    ((1, 1, 96, 96, 48), (1, 1, 96, 96, 48)),
+    ((1, 1, 96, 96, 48), (1, 3, 96, 96, 48)),
 ]
 
 CASES = [
@@ -201,10 +201,10 @@ CASES = [
     TEST_CASE_4,
     TEST_CASE_5,
     TEST_CASE_6,
-    # TEST_CASE_7,
+    TEST_CASE_7,
     TEST_CASE_8,
-    # TEST_CASE_9,
-    # TEST_CASE_10,
+    TEST_CASE_9,
+    TEST_CASE_10,
     TEST_CASE_11,
 ]
 
@@ -278,13 +278,13 @@ class TestVOXELMORPH(unittest.TestCase):
 
     def test_script(self):
         net = VoxelMorph(
-            spatial_dims=2,
+            spatial_dims=3,
             in_channels=2,
             unet_out_channels=32,
             channels=(16, 32, 32, 32, 32, 32),
             final_conv_channels=(16, 16),
         ).net
-        test_data = torch.randn(1, 2, 160, 192)
+        test_data = torch.randn(1, 2, 96, 96, 48)
         test_script_save(net, test_data)
 
     @parameterized.expand(ILL_CASES)

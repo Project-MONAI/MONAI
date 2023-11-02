@@ -30,20 +30,21 @@ __all__ = ["VoxelMorph", "voxelmorph"]
 @alias("voxelmorph")
 class VoxelMorph(nn.Module):
     """
-    VoxelMorph network for medical image registration as described in https://arxiv.org/pdf/1809.05231.pdf.
+    A re-implementation of VoxelMorph network for medical image registration as described in https://arxiv.org/pdf/1809.05231.pdf.
     For more details, please refer to VoxelMorph: A Learning Framework for Deformable Medical Image Registration
     Guha Balakrishnan, Amy Zhao, Mert R. Sabuncu, John Guttag, Adrian V. Dalca
     IEEE TMI: Transactions on Medical Imaging. 2019. eprint arXiv:1809.05231.
 
-    A pair of images (moving and fixed) are concatenated along the channel dimension and passed through
-    a UNet. The output of the UNet is then passed through a series of convolution blocks to produce the final prediction
-    of the displacement field (DDF) in the non-diffeomorphic variant (i.e. when `int_steps` is set to 0) or the
-    stationary velocity field (DVF) in the diffeomorphic variant (i.e. when `int_steps` is set to a positive integer).
-    The DVF is then converted to a DDF using the `DVF2DDF` module. Finally, the DDF is used to warp the moving image
-    to the fixed image using the `Warp` module. Optionally, the integration from DVF to DDF can be performed on reduced
-    resolution by specifying `half_res` to be True, in which case the output DVF from the UNet is first linearly
-    interpolated to half resolution before being passed to the `DVF2DDF` module. The output DDF is then linearly
-    interpolated again back to full resolution before being used in the `Warp` module.
+    A pair of images (moving and fixed) are concatenated along the channel dimension and passed through a UNet. The
+    output of the UNet is then passed through a series of convolution blocks to produce the final prediction
+    of the displacement field (DDF) in the non-diffeomorphic variant (i.e. when `integration_steps` is set to 0) or the
+    stationary velocity field (DVF) in the diffeomorphic variant (i.e. when `integration_steps` is set to a positive
+    integer). The DVF is then integrated using a scaling-and-squaring approach via the `DVF2DDF` module to produce the
+    DDF. Finally, the DDF is used to warp the moving image to the fixed image using the `Warp` module. Optionally, the
+    integration from DVF to DDF can be performed on reduced resolution by specifying `half_res` to be True, in which
+    case the output DVF from the UNet is first linearly interpolated to half resolution before being passed to the
+    `DVF2DDF` module. The output DDF is then linearly interpolated again back to full resolution before being used in
+    the `Warp` module.
 
     In the original implementation, downsample is achieved through maxpooling, here one has the option to use either
     maxpooling or strided convolution for downsampling. The default is to use maxpooling as it is consistent with the
@@ -58,9 +59,10 @@ class VoxelMorph(nn.Module):
             channels: number of channels in each layer of the UNet. See the following example for more details.
             final_conv_channels: number of channels in each layer of the final convolution block.
             final_conv_act: activation type for the final convolution block. Defaults to LeakyReLU.
-                    Since VoxelMorph was originally implemented in tensorflow where the default negative slope for LeakyReLU
-                    was 0.2, we use the same default value here.
-            int_steps: number of integration steps. Defaults to 7. If set to 0, the network will be non-diffeomorphic.
+                    Since VoxelMorph was originally implemented in tensorflow where the default negative slope for
+                    LeakyReLU was 0.2, we use the same default value here.
+            integration_steps: number of integration steps used for obtaining DDF from DVF via scaling-and-squaring.
+                    Defaults to 7. If set to 0, the network will be non-diffeomorphic.
             kernel_size: kernel size for all convolution layers in the UNet. Defaults to 3.
             up_kernel_size: kernel size for all convolution layers in the upsampling path of the UNet. Defaults to 3.
             act: activation type for all convolution layers in the UNet. Defaults to LeakyReLU with negative slope 0.2.
@@ -104,7 +106,7 @@ class VoxelMorph(nn.Module):
         channels: Sequence[int],
         final_conv_channels: Sequence[int],
         final_conv_act: tuple | str | None = "LEAKYRELU",
-        int_steps: int = 7,
+        integration_steps: int = 7,
         kernel_size: Sequence[int] | int = 3,
         up_kernel_size: Sequence[int] | int = 3,
         act: tuple | str = "LEAKYRELU",
@@ -160,8 +162,8 @@ class VoxelMorph(nn.Module):
         )
 
         # integration args
-        self.int_steps = int_steps
-        self.diffeomorphic = True if self.int_steps > 0 else False
+        self.integration_steps = integration_steps
+        self.diffeomorphic = True if self.integration_steps > 0 else False
 
         def _create_block(inc: int, outc: int, channels: Sequence[int], is_top: bool) -> nn.Module:
             """
@@ -245,7 +247,7 @@ class VoxelMorph(nn.Module):
 
         # create helpers
         if self.diffeomorphic:
-            self.dvf2ddf = DVF2DDF(num_steps=self.int_steps, mode="bilinear", padding_mode="zeros")
+            self.dvf2ddf = DVF2DDF(num_steps=self.integration_steps, mode="bilinear", padding_mode="zeros")
         self.warp = Warp(mode="bilinear", padding_mode="zeros")
 
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
