@@ -23,34 +23,28 @@ from monai.networks.blocks.warp import DVF2DDF, Warp
 from monai.networks.layers.simplelayers import SkipConnection
 from monai.utils import alias, export
 
-__all__ = ["VoxelMorph", "voxelmorph"]
+__all__ = ["VoxelMorphUNet", "voxelmorphunet", "VoxelMorph", "voxelmorph"]
 
 
 @export("monai.networks.nets")
-@alias("voxelmorph")
-class VoxelMorph(nn.Module):
+@alias("voxelmorphunet")
+class VoxelMorphUNet(nn.Module):
     """
-    A re-implementation of VoxelMorph network for medical image registration as described in https://arxiv.org/pdf/1809.05231.pdf.
-    For more details, please refer to VoxelMorph: A Learning Framework for Deformable Medical Image Registration
-    Guha Balakrishnan, Amy Zhao, Mert R. Sabuncu, John Guttag, Adrian V. Dalca
-    IEEE TMI: Transactions on Medical Imaging. 2019. eprint arXiv:1809.05231.
+    The backbone network used in VoxelMorph. See :py:class:`monai.networks.nets.VoxelMorph` for more details.
 
-    A pair of images (moving and fixed) are concatenated along the channel dimension and passed through a UNet. The
-    output of the UNet is then passed through a series of convolution blocks to produce the final prediction
-    of the displacement field (DDF) in the non-diffeomorphic variant (i.e. when `integration_steps` is set to 0) or the
-    stationary velocity field (DVF) in the diffeomorphic variant (i.e. when `integration_steps` is set to a positive
-    integer). The DVF is then integrated using a scaling-and-squaring approach via the `DVF2DDF` module to produce the
-    DDF. Finally, the DDF is used to warp the moving image to the fixed image using the `Warp` module. Optionally, the
-    integration from DVF to DDF can be performed on reduced resolution by specifying `half_res` to be True, in which
-    case the output DVF from the UNet is first linearly interpolated to half resolution before being passed to the
-    `DVF2DDF` module. The output DDF is then linearly interpolated again back to full resolution before being used in
-    the `Warp` module.
+    A concatenated pair of images (moving and fixed) is first passed through a UNet. The output of the UNet is then
+    passed through a series of convolution blocks to produce the final prediction of the displacement field (DDF) or the
+    stationary velocity field (DVF).
 
     In the original implementation, downsample is achieved through maxpooling, here one has the option to use either
     maxpooling or strided convolution for downsampling. The default is to use maxpooling as it is consistent with the
     original implementation. Note that for upsampling, the authors of VoxelMorph used nearest neighbor interpolation
     instead of transposed convolution. In this implementation, only nearest neighbor interpolation is supported in order
     to be consistent with the original implementation.
+
+    An instance of this class can be used as a backbone network for constructing a VoxelMorph network. See the
+    documentation of :py:class:`monai.networks.nets.VoxelMorph` for more details and an example on how to construct a
+    VoxelMorph network.
 
     Args:
             spatial_dims: number of spatial dimensions.
@@ -61,41 +55,16 @@ class VoxelMorph(nn.Module):
             final_conv_act: activation type for the final convolution block. Defaults to LeakyReLU.
                     Since VoxelMorph was originally implemented in tensorflow where the default negative slope for
                     LeakyReLU was 0.2, we use the same default value here.
-            integration_steps: number of integration steps used for obtaining DDF from DVF via scaling-and-squaring.
-                    Defaults to 7. If set to 0, the network will be non-diffeomorphic.
             kernel_size: kernel size for all convolution layers in the UNet. Defaults to 3.
             up_kernel_size: kernel size for all convolution layers in the upsampling path of the UNet. Defaults to 3.
             act: activation type for all convolution layers in the UNet. Defaults to LeakyReLU with negative slope 0.2.
             norm: feature normalization type and arguments for all convolution layers in the UNet. Defaults to None.
             dropout: dropout ratio for all convolution layers in the UNet. Defaults to 0.0 (no dropout).
             bias: whether to use bias in all convolution layers in the UNet. Defaults to True.
-            half_res: whether to perform integration on half resolution. Defaults to False.
             use_maxpool: whether to use maxpooling in the downsampling path of the UNet. Defaults to True.
                     Using maxpooling is the consistent with the original implementation of VoxelMorph.
                     But one can optionally use strided convolution instead (i.e. set `use_maxpool` to False).
             adn_ordering: ordering of activation, dropout, and normalization. Defaults to "NDA".
-
-    Example::
-
-            from monai.networks.nets import VoxelMorph
-
-            # VoxelMorph network as it is in the original paper https://arxiv.org/pdf/1809.05231.pdf
-            net = VoxelMorph(
-                    spatial_dims=3,
-                    in_channels=2,
-                    unet_out_channels=32,
-                    channels=(16, 32, 32, 32, 32, 32),  # this indicates the down block at the top takes 16 channels as
-                                                        # input, the corresponding up block at the top produces 32
-                                                        # channels as output, the second down block takes 32 channels as
-                                                        # input, and the corresponding up block at the same level
-                                                        # produces 32 channels as output, etc.
-                    final_conv_channels=(16, 16)
-            )
-
-            # A forward pass through the network would look something like this
-            moving = torch.randn(1, 1, 160, 192, 224)
-            fixed = torch.randn(1, 1, 160, 192, 224)
-            warped, ddf = net(moving, fixed)
     """
 
     def __init__(
@@ -106,14 +75,12 @@ class VoxelMorph(nn.Module):
         channels: Sequence[int],
         final_conv_channels: Sequence[int],
         final_conv_act: tuple | str | None = "LEAKYRELU",
-        integration_steps: int = 7,
         kernel_size: Sequence[int] | int = 3,
         up_kernel_size: Sequence[int] | int = 3,
         act: tuple | str = "LEAKYRELU",
         norm: tuple | str | None = None,
         dropout: float = 0.0,
         bias: bool = True,
-        half_res: bool = False,
         use_maxpool: bool = True,
         adn_ordering: str = "NDA",
     ) -> None:
@@ -135,6 +102,7 @@ class VoxelMorph(nn.Module):
         # UNet args
         self.dimensions = spatial_dims
         self.in_channels = in_channels
+        self.unet_out_channels = unet_out_channels
         self.channels = channels
         self.kernel_size = kernel_size
         self.up_kernel_size = up_kernel_size
@@ -146,12 +114,8 @@ class VoxelMorph(nn.Module):
         self.norm = norm
         self.dropout = dropout
         self.bias = bias
-        self.adn_ordering = adn_ordering
-
-        # VoxelMorph specific args
-        self.unet_out_channels = unet_out_channels
-        self.half_res = half_res
         self.use_maxpool = use_maxpool
+        self.adn_ordering = adn_ordering
 
         # final convolutions args
         self.final_conv_channels = final_conv_channels
@@ -160,10 +124,6 @@ class VoxelMorph(nn.Module):
             if isinstance(final_conv_act, str) and final_conv_act.upper() == "LEAKYRELU"
             else final_conv_act
         )
-
-        # integration args
-        self.integration_steps = integration_steps
-        self.diffeomorphic = True if self.integration_steps > 0 else False
 
         def _create_block(inc: int, outc: int, channels: Sequence[int], is_top: bool) -> nn.Module:
             """
@@ -244,11 +204,6 @@ class VoxelMorph(nn.Module):
             _create_block(in_channels, unet_out_channels, self.channels, is_top=True),
             _create_final_conv(unet_out_channels, self.dimensions, self.final_conv_channels),
         )
-
-        # create helpers
-        if self.diffeomorphic:
-            self.dvf2ddf = DVF2DDF(num_steps=self.integration_steps, mode="bilinear", padding_mode="zeros")
-        self.warp = Warp(mode="bilinear", padding_mode="zeros")
 
     def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
         """
@@ -376,8 +331,139 @@ class VoxelMorph(nn.Module):
 
         return mod
 
+    def forward(self, concatenated_pairs: torch.Tensor) -> torch.Tensor:
+        x = self.net(concatenated_pairs)
+        assert isinstance(x, torch.Tensor)  # won't pass mypy check without this line
+        return x
+
+
+voxelmorphunet = VoxelMorphUNet
+
+
+@export("monai.networks.nets")
+@alias("voxelmorph")
+class VoxelMorph(nn.Module):
+    """
+    A re-implementation of VoxelMorph framework for medical image registration as described in
+    https://arxiv.org/pdf/1809.05231.pdf. For more details, please refer to VoxelMorph: A Learning Framework for
+    Deformable Medical Image Registration, Guha Balakrishnan, Amy Zhao, Mert R. Sabuncu, John Guttag, Adrian V. Dalca
+    IEEE TMI: Transactions on Medical Imaging. 2019. eprint arXiv:1809.05231.
+
+    This class is intended to be a general framework, based on which a deformable image registration
+    network can be built. Given a user-specified backbone network (e.g., UNet in the original VoxelMorph paper), this
+    class serves as a wrapper that concatenates the input pair of moving and fixed images, passes through the backbone
+    network, integrate the predicted stationary velocity field (DVF) from the backbone network to obtain the
+    displacement field (DDF), and, finally, warp the moving image using the DDF.
+
+    To construct a VoxelMorph network, one need to first construct a backbone network
+    (e.g., a :py:class:`monai.networks.nets.VoxelMorphUNet`) and pass it to the constructor of
+    :py:class:`monai.networks.nets.VoxelMorph`. The backbone network should be able to take a pair of moving and fixed
+    images as input and produce a DVF (or DDF, details to be discussed later) as output.
+
+    When `forward` is called, the input moving and fixed images are first concatenated along the channel dimension and
+    passed through the specified backbone network to produce the prediction of the displacement field (DDF) in the
+    non-diffeomorphic variant (i.e. when `integration_steps` is set to 0) or the stationary velocity field (DVF) in the
+    diffeomorphic variant (i.e. when `integration_steps` is set to a positive integer). The DVF is then integrated using
+    a scaling-and-squaring approach via a :py:class:`monai.networks.blocks.warp.DVF2DDF` module to produce the DDF.
+    Finally, the DDF is used to warp the moving image to the fixed image using a
+    :py:class:`monai.networks.blocks.warp.Warp` module. Optionally, the integration from DVF to DDF can be
+    performed on reduced resolution by specifying `half_res` to be True, in which case the output DVF from the backbone
+    network is first linearly interpolated to half resolution before integration. The output DDF is then linearly
+    interpolated again back to full resolution before being used to warp the moving image.
+
+    Args:
+            spatial_dims: number of spatial dimensions.
+            backbone: a backbone network.
+            integration_steps: number of integration steps used for obtaining DDF from DVF via scaling-and-squaring.
+                    Defaults to 7. If set to 0, the network will be non-diffeomorphic.
+            half_res: whether to perform integration on half resolution. Defaults to False.
+
+    Example::
+
+            from monai.networks.nets import VoxelMorphUNet, VoxelMorph
+
+            # The following example construct an instance of VoxelMorph that matches the original VoxelMorph paper
+            # https://arxiv.org/pdf/1809.05231.pdf
+
+            # First, a backbone network is constructed. In this case, we use a VoxelMorphUNet as the backbone network.
+            backbone = VoxelMorphUNet(
+                    spatial_dims=3,
+                    in_channels=2,
+                    unet_out_channels=32,
+                    channels=(16, 32, 32, 32, 32, 32),  # this indicates the down block at the top takes 16 channels as
+                                                        # input, the corresponding up block at the top produces 32
+                                                        # channels as output, the second down block takes 32 channels as
+                                                        # input, and the corresponding up block at the same level
+                                                        # produces 32 channels as output, etc.
+                    final_conv_channels=(16, 16)
+            )
+
+            # Then, a full VoxelMorph network is constructed using the specified backbone network.
+            net = VoxelMorph(
+                    backbone=backbone,
+                    integration_steps=7,
+                    half_res=False
+            )
+
+            # A forward pass through the network would look something like this
+            moving = torch.randn(1, 1, 160, 192, 224)
+            fixed = torch.randn(1, 1, 160, 192, 224)
+            warped, ddf = net(moving, fixed)
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int,
+        backbone: VoxelMorphUNet | nn.Module | None = None,
+        integration_steps: int = 7,
+        half_res: bool = False,
+    ) -> None:
+        super().__init__()
+
+        # specified backbone network
+        self.backbone = (
+            backbone
+            if backbone is not None
+            else VoxelMorphUNet(
+                spatial_dims=3,
+                in_channels=2,
+                unet_out_channels=32,
+                channels=(16, 32, 32, 32, 32, 32),
+                final_conv_channels=(16, 16),
+            )
+        )
+
+        # helper attributes
+        self.spatial_dims = spatial_dims
+        self.half_res = half_res
+        self.integration_steps = integration_steps
+        self.diffeomorphic = True if self.integration_steps > 0 else False
+
+        # create helpers
+        if self.diffeomorphic:
+            self.dvf2ddf = DVF2DDF(num_steps=self.integration_steps, mode="bilinear", padding_mode="zeros")
+        self.warp = Warp(mode="bilinear", padding_mode="zeros")
+
     def forward(self, moving: torch.Tensor, fixed: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        x = self.net(torch.cat([moving, fixed], dim=1))
+        if moving.shape != fixed.shape:
+            raise ValueError(
+                f"The spatial shape of the moving image should be the same as the spatial shape of the fixed image."
+                f" Got {moving.shape} and {fixed.shape} instead."
+            )
+
+        x = self.backbone(torch.cat([moving, fixed], dim=1))
+
+        if x.shape[1] != self.spatial_dims:
+            raise ValueError(
+                f"The number of channels in the output of the backbone network should be equal to the"
+                f" number of spatial dimensions. Got {x.shape[1]} channels instead."
+            )
+
+        if x.shape[2:] != moving.shape[2:]:
+            raise ValueError(
+                "The spatial shape of the output of the backbone network should be equal to the"
+                f" spatial shape of the input images. Got {x.shape[2:]} instead of {moving.shape[2:]}."
+            )
 
         if self.half_res:
             x = F.interpolate(x, scale_factor=0.5, mode="trilinear", align_corners=True) * 2.0
