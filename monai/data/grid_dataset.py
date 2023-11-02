@@ -12,9 +12,11 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Generator, Hashable, Iterable, Mapping, Sequence
+import warnings
+from collections.abc import Callable, Generator, Hashable, Iterable, Mapping, Sequence, Iterator
 from copy import deepcopy
 from multiprocessing.managers import ListProxy
+from multiprocessing.pool import ThreadPool
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -161,7 +163,7 @@ class PatchIterd:
             yield ret, coords
 
 
-class GridPatchDataset(IterableDataset, CacheDataset):
+class GridPatchDataset(IterableDataset):
     """
     Yields patches from data read from an image dataset.
     Typically used with `PatchIter` or `PatchIterd` so that the patches are chosen in a contiguous grid sampling scheme.
@@ -237,7 +239,9 @@ class GridPatchDataset(IterableDataset, CacheDataset):
         self._cache_other: list | ListProxy = []
         self.cache = cache
         if self.cache:
-            self.set_data(data)
+            if isinstance(data, Iterator):
+                raise TypeError("Data can not be iterator when cache is True")
+            self.set_data(data)  # type: ignore
 
     def set_data(self, data: Sequence) -> None:
         """
@@ -262,12 +266,32 @@ class GridPatchDataset(IterableDataset, CacheDataset):
         self._cache = self._fill_cache(indices)
         return
 
+    def _fill_cache(self, indices=None) -> list:
+        """
+        Compute and fill the cache content from data source.
+
+        Args:
+            indices: target indices in the `self.data` source to compute cache.
+                if None, use the first `cache_num` items.
+
+        """
+        if self.cache_num <= 0:
+            return []
+        if indices is None:
+            indices = list(range(self.cache_num))
+        if self.progress and not has_tqdm:
+            warnings.warn("tqdm is not installed, will not show the caching progress bar.")
+        with ThreadPool(self.num_workers) as p:
+            if self.progress and has_tqdm:
+                return list(tqdm(p.imap(self._load_cache_item, indices), total=len(indices), desc="Loading dataset"))
+            return list(p.imap(self._load_cache_item, indices))
+
     def _load_cache_item(self, idx: int):
         """
         Args:
             idx: the index of the input data sequence.
         """
-        item = self.data[idx]
+        item = self.data[idx]  # type: ignore
         patch_cache, other_cache = [], []
         for patch, *others in self.patch_iter(item):
             if self.patch_transform is not None:
@@ -307,8 +331,8 @@ class GridPatchDataset(IterableDataset, CacheDataset):
 
                 if self._cache is None:
                     raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
-                data = self._cache[cache_index]
-                other = self._cache_other[cache_index]
+                data = self._cache[cache_index]  # type: ignore
+                other = self._cache_other[cache_index]  # type: ignore
 
                 # load data from cache and execute from the first random transform
                 if not isinstance(self.patch_transform, Compose):
