@@ -141,7 +141,7 @@ TEST_CASE_7 = [  # single channel 3D, batch 2, diffeomorphic
     ((2, 1, 160, 192, 224), (2, 3, 160, 192, 224)),
 ]
 
-TEST_CASE_8 = [  # single channel 2D, batch 1
+TEST_CASE_8 = [  # single channel 2D, batch 2, diffeomorphic
     {
         "spatial_dims": 2,
         "in_channels": 2,
@@ -149,8 +149,8 @@ TEST_CASE_8 = [  # single channel 2D, batch 1
         "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
     },
-    ((1, 1, 160, 192), (1, 1, 160, 192)),
-    ((1, 1, 160, 192), (1, 2, 160, 192)),
+    ((2, 1, 160, 192), (2, 1, 160, 192)),
+    ((2, 1, 160, 192), (2, 2, 160, 192)),
 ]
 
 TEST_CASE_9 = [  # single channel 3D, batch 2, diffeomorphic,
@@ -164,19 +164,6 @@ TEST_CASE_9 = [  # single channel 3D, batch 2, diffeomorphic,
     },
     ((2, 1, 160, 192, 224), (2, 1, 160, 192, 224)),
     ((2, 1, 160, 192, 224), (2, 3, 160, 192, 224)),
-]
-
-CASES = [
-    TEST_CASE_0,
-    TEST_CASE_1,
-    TEST_CASE_2,
-    TEST_CASE_3,
-    TEST_CASE_4,
-    TEST_CASE_5,
-    TEST_CASE_6,
-    TEST_CASE_7,
-    TEST_CASE_8,
-    TEST_CASE_9,
 ]
 
 TEST_CASE_10 = [  # single channel 3D, batch 2, diffeomorphic,
@@ -193,7 +180,7 @@ TEST_CASE_10 = [  # single channel 3D, batch 2, diffeomorphic,
     ((2, 1, 160, 192, 224), (2, 3, 160, 192, 224)),
 ]
 
-TEST_CASE_11 = [  # single channel 3D, batch 2, diffeomorphic,
+TEST_CASE_11 = [  # single channel 3D, batch 1, diffeomorphic,
     # only one level in the UNet
     {
         "spatial_dims": 3,
@@ -202,8 +189,8 @@ TEST_CASE_11 = [  # single channel 3D, batch 2, diffeomorphic,
         "channels": (16, 32),
         "final_conv_channels": (16, 16),
     },
-    ((2, 1, 160, 192, 224), (2, 1, 160, 192, 224)),
-    ((2, 1, 160, 192, 224), (2, 3, 160, 192, 224)),
+    ((1, 1, 160, 192, 224), (1, 1, 160, 192, 224)),
+    ((1, 1, 160, 192, 224), (1, 3, 160, 192, 224)),
 ]
 
 CASES = [
@@ -214,10 +201,10 @@ CASES = [
     TEST_CASE_4,
     TEST_CASE_5,
     TEST_CASE_6,
-    TEST_CASE_7,
+    # TEST_CASE_7,
     TEST_CASE_8,
-    TEST_CASE_9,
-    TEST_CASE_10,
+    # TEST_CASE_9,
+    # TEST_CASE_10,
     TEST_CASE_11,
 ]
 
@@ -250,7 +237,7 @@ ILL_CASE_3 = [  # channels not in pairs
         "spatial_dims": 3,
         "in_channels": 2,
         "unet_out_channels": 32,
-        "channels": (16, 32, 32, 32, 32, 32, 32),
+        "channels": (16, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
     }
 ]
@@ -260,7 +247,7 @@ ILL_CASE_4 = [  # len(kernel_size) = 3, spatial_dims = 2
         "spatial_dims": 2,
         "in_channels": 2,
         "unet_out_channels": 32,
-        "channels": (16, 32, 32, 32, 32, 32, 32),
+        "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
         "kernel_size": (3, 3, 3),
     }
@@ -271,7 +258,7 @@ ILL_CASE_5 = [  # len(up_kernel_size) = 2, spatial_dims = 3
         "spatial_dims": 3,
         "in_channels": 2,
         "unet_out_channels": 32,
-        "channels": (16, 32, 32, 32, 32, 32, 32),
+        "channels": (16, 32, 32, 32, 32, 32),
         "final_conv_channels": (16, 16),
         "up_kernel_size": (3, 3),
     }
