@@ -162,8 +162,8 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     # As for classification tasks, S equals to 1.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
     y = y.reshape(batch_size, n_class, -1)
-    tp = ((y_pred + y) == 2).int()
-    tn = ((y_pred + y) == 0).int()
+    tp = ((y_pred + y) == 2)
+    tn = ((y_pred + y) == 0)
 
     tp = tp.sum(dim=[2])
     tn = tn.sum(dim=[2])

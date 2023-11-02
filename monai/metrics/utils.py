@@ -95,12 +95,12 @@ def do_metric_reduction(
     # some elements might be Nan (if ground truth y was missing (zeros))
     # we need to account for it
     nans = torch.isnan(f)
-    not_nans = (~nans).int()
+    not_nans = (~nans)
 
     t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
     reduction = look_up_option(reduction, MetricReduction)
     if reduction == MetricReduction.NONE:
-        return f, not_nans
+        return f, not_nans.float()
 
     f[nans] = 0
     if reduction == MetricReduction.MEAN:
@@ -108,7 +108,7 @@ def do_metric_reduction(
         not_nans = not_nans.sum(dim=1)
         f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
 
-        not_nans = (not_nans > 0).int().sum(dim=0)
+        not_nans = (not_nans > 0).sum(dim=0)
         f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
 
     elif reduction == MetricReduction.SUM:
