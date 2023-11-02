@@ -229,8 +229,12 @@ class AutoRunner:
 
         if "work_dir" in self.data_src_cfg:  # override from config
             work_dir = self.data_src_cfg["work_dir"]
-
         self.work_dir = os.path.abspath(work_dir)
+
+        logger.info(f"AutoRunner using work directory {self.work_dir}")
+        os.makedirs(self.work_dir, exist_ok=True)
+        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
         self.allow_skip = allow_skip
@@ -268,9 +272,7 @@ class AutoRunner:
             if param in self.data_src_cfg:
                 setattr(self, param, self.data_src_cfg[param]) # e.g. self.algos = self.data_src_cfg["algos"]
 
-        logger.info(f"AutoRunner using work directory {self.work_dir}")
-        os.makedirs(self.work_dir, exist_ok=True)
-        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+
 
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
