@@ -96,7 +96,7 @@ class TestTciaDataset(unittest.TestCase):
         )
         self.assertTupleEqual(data[0]["image"].shape, (256, 256, 24))
         self.assertEqual(len(data), download_len)
-        with self.assertRaises(RuntimeError):
+        with self.assertWarns(UserWarning):
             data = TciaDataset(
                 root_dir=testing_dir,
                 collection=collection,

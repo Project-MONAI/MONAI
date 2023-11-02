@@ -407,6 +407,7 @@ class PydicomReader(ImageReader):
         fname_regex: a regular expression to match the file names when the input is a folder.
             If provided, only the matched files will be included. For example, to include the file name
             "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`. Default to `""`.
+            Set it to `None` to use `pydicom.misc.is_dicom` to match valid files.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
             https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html
             If the `get_data` function will be called
@@ -473,8 +474,16 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
-                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
+                if self.fname_regex is not None:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
+                else:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
+                slices = []
+                for slc in series_slcs:
+                    try:
+                        slices.append(pydicom.dcmread(fp=slc, **kwargs_))
+                    except pydicom.errors.InvalidDicomError as e:
+                        warnings.warn(f"Failed to read {slc} with exception: \n{e}.", stacklevel=2)
                 img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
                     self.has_series = True
