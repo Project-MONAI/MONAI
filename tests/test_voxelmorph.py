@@ -278,13 +278,13 @@ class TestVOXELMORPH(unittest.TestCase):
 
     def test_script(self):
         net = VoxelMorph(
-            spatial_dims=3,
+            spatial_dims=2,
             in_channels=2,
             unet_out_channels=32,
             channels=(16, 32, 32, 32, 32, 32),
             final_conv_channels=(16, 16),
         ).net
-        test_data = torch.randn(1, 2, 160, 192, 224)
+        test_data = torch.randn(1, 2, 160, 192)
         test_script_save(net, test_data)
 
     @parameterized.expand(ILL_CASES)
