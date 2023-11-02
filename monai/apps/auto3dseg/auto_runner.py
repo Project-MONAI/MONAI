@@ -216,9 +216,6 @@ class AutoRunner:
     ):
         if input is None and os.path.isfile(os.path.join(os.path.abspath(work_dir), "input.yaml")):
             input = os.path.join(os.path.abspath(work_dir), "input.yaml")
-
-        if input is None and os.path.isfile(self.data_src_cfg_name):
-            input = self.data_src_cfg_name
             logger.info(f"Input config is not provided, using the default {input}")
 
         self.data_src_cfg = dict()
@@ -237,12 +234,8 @@ class AutoRunner:
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
         self.allow_skip = allow_skip
-
         self.not_use_cache = not_use_cache
-        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
-        self.cache = self.read_cache()
-        self.export_cache()
-
+        
         # determine if we need to analyze, algo_gen or train from cache, unless manually provided
         self.analyze = not self.cache["analyze"] if analyze is None else analyze
         self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
@@ -273,6 +266,11 @@ class AutoRunner:
         logger.info(f"AutoRunner using work directory {self.work_dir}")
         os.makedirs(self.work_dir, exist_ok=True)
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+
+        # cache.yaml
+        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
+        self.cache = self.read_cache()
+        self.export_cache()
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
