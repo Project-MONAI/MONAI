@@ -153,9 +153,6 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
-    y = y.float()
-    y_pred = y_pred.float()
-
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
@@ -165,8 +162,8 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     # As for classification tasks, S equals to 1.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
     y = y.reshape(batch_size, n_class, -1)
-    tp = ((y_pred + y) == 2).float()
-    tn = ((y_pred + y) == 0).float()
+    tp = ((y_pred + y) == 2).int()
+    tn = ((y_pred + y) == 0).int()
 
     tp = tp.sum(dim=[2])
     tn = tn.sum(dim=[2])

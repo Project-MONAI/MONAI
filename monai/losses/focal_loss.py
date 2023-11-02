@@ -154,8 +154,6 @@ class FocalLoss(_Loss):
             raise ValueError(f"ground truth has different shape ({target.shape}) from input ({input.shape})")
 
         loss: Optional[torch.Tensor] = None
-        input = input.float()
-        target = target.float()
         if self.use_softmax:
             if not self.include_background and self.alpha is not None:
                 self.alpha = None
