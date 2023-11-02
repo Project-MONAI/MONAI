@@ -226,6 +226,11 @@ class TestLoadImage(unittest.TestCase):
         )
         self.assertTupleEqual(result.shape, expected_np_shape)
 
+    def test_no_files(self):
+        with self.assertRaisesRegex(RuntimeError, "list index out of range"):  # fname_regex excludes everything
+            LoadImage(image_only=True, reader="PydicomReader", fname_regex=r"^(?!.*).*")("tests/testing_data/CT_DICOM")
+        LoadImage(image_only=True, reader="PydicomReader", fname_regex=None)("tests/testing_data/CT_DICOM")
+
     def test_itk_dicom_series_reader_single(self):
         result = LoadImage(image_only=True, reader="ITKReader")(self.data_dir)
         self.assertEqual(result.meta["filename_or_obj"], f"{Path(self.data_dir)}")
