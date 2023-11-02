@@ -210,6 +210,14 @@ result_clf = torch.tensor(
 
 TEST_CASES_CLF = [data_clf.copy(), result_clf]
 
+TEST_CASE_PRECISION = [
+    {
+        "y_pred": torch.zeros([1, 1, 1024, 1024, 44], device=_device),
+        "y": torch.zeros([1, 1, 1024, 1024, 44], device=_device),
+    },
+    torch.tensor([[[0.0, 0.0, 46137344.0, 0.0]]]),
+]
+
 
 class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand([TEST_CASE_CONFUSION_MATRIX])
@@ -273,6 +281,13 @@ class TestConfusionMatrix(unittest.TestCase):
         expected_value, _ = do_metric_reduction(expected_value, "mean_channel")
         expected_value = compute_confusion_matrix_metric("tpr", expected_value)
         assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+
+    @parameterized.expand([TEST_CASE_PRECISION])
+    def test_precision(self, input_data, expected_value):
+        # include or ignore background
+        result = get_confusion_matrix(**input_data)
+        assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
 
 if __name__ == "__main__":
