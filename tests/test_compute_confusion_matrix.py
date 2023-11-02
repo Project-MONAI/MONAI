@@ -211,9 +211,13 @@ result_clf = torch.tensor(
 TEST_CASES_CLF = [data_clf.copy(), result_clf]
 
 TEST_CASE_PRECISION = [
-    {"y_pred": torch.zeros([1, 1, 1024, 1024, 44], device=_device), "y": torch.zeros([1, 1, 1024, 1024, 44], device=_device)},
-    torch.tensor([[[0.0, 0.0, 46137344.0, 0.0]]])
+    {
+        "y_pred": torch.zeros([1, 1, 1024, 1024, 44], device=_device),
+        "y": torch.zeros([1, 1, 1024, 1024, 44], device=_device),
+    },
+    torch.tensor([[[0.0, 0.0, 46137344.0, 0.0]]]),
 ]
+
 
 class TestConfusionMatrix(unittest.TestCase):
     @parameterized.expand([TEST_CASE_CONFUSION_MATRIX])
