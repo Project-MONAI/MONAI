@@ -22,6 +22,7 @@ from typing import Any
 import numpy as np
 
 from monai.apps.tcia import (
+    DCM_FILENAME_REGEX,
     download_tcia_series_instance,
     get_tcia_metadata,
     get_tcia_ref_uid,
@@ -442,6 +443,10 @@ class TciaDataset(Randomizable, CacheDataset):
         specific_tags: tags that will be loaded for "SEG" series. This argument will be used in
             `monai.data.PydicomReader`. Default is [(0x0008, 0x1115), (0x0008,0x1140), (0x3006, 0x0010),
             (0x0020,0x000D), (0x0010,0x0010), (0x0010,0x0020), (0x0020,0x0011), (0x0020,0x0012)].
+        fname_regex: a regular expression to match the file names when the input is a folder.
+            If provided, only the matched files will be included. For example, to include the file name
+            "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`.
+            Default to `"^(?!.*LICENSE).*"`, ignoring any file name containing `"LICENSE"`.
         val_frac: percentage of validation fraction in the whole dataset, default is 0.2.
         seed: random seed to randomly shuffle the datalist before splitting into training and validation, default is 0.
             note to set same seed for `training` and `validation` sections.
@@ -509,6 +514,7 @@ class TciaDataset(Randomizable, CacheDataset):
             (0x0020, 0x0011),  # Series Number
             (0x0020, 0x0012),  # Acquisition Number
         ),
+        fname_regex: str = DCM_FILENAME_REGEX,
         seed: int = 0,
         val_frac: float = 0.2,
         cache_num: int = sys.maxsize,
@@ -548,12 +554,13 @@ class TciaDataset(Randomizable, CacheDataset):
 
         if not os.path.exists(download_dir):
             raise RuntimeError(f"Cannot find dataset directory: {download_dir}.")
+        self.fname_regex = fname_regex
 
         self.indices: np.ndarray = np.array([])
         self.datalist = self._generate_data_list(download_dir)
 
         if transform == ():
-            transform = LoadImaged(reader="PydicomReader", keys=["image"])
+            transform = LoadImaged(keys=["image"], reader="PydicomReader", fname_regex=self.fname_regex)
         CacheDataset.__init__(
             self,
             data=self.datalist,
