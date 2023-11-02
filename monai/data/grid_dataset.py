@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import sys
 import warnings
-from collections.abc import Callable, Generator, Hashable, Iterable, Mapping, Sequence, Iterator
+from collections.abc import Callable, Generator, Hashable, Iterable, Iterator, Mapping, Sequence
 from copy import deepcopy
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
