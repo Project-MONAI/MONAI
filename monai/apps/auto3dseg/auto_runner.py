@@ -83,6 +83,8 @@ class AutoRunner:
             zip url will be downloaded and extracted into the work_dir.
         allow_skip: a switch passed to BundleGen process which determines if some Algo in the default templates
             can be skipped based on the analysis on the dataset from Auto3DSeg DataAnalyzer.
+        mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of the remote
+            tracking Server; MLflow runs will be recorded locally in algorithms' model folder if the value is None.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -209,6 +211,7 @@ class AutoRunner:
         not_use_cache: bool = False,
         templates_path_or_url: str | None = None,
         allow_skip: bool = True,
+        mlflow_tracking_uri: str | None = None,
         **kwargs: Any,
     ):
         logger.info(f"AutoRunner using work directory {work_dir}")
@@ -220,6 +223,7 @@ class AutoRunner:
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
         self.allow_skip = allow_skip
+        self.mlflow_tracking_uri = mlflow_tracking_uri
         self.kwargs = deepcopy(kwargs)
 
         if input is None and os.path.isfile(self.data_src_cfg_name):
@@ -783,6 +787,7 @@ class AutoRunner:
                 templates_path_or_url=self.templates_path_or_url,
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
+                mlflow_tracking_uri=self.mlflow_tracking_uri,
             )
 
             if self.gpu_customization:
