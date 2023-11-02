@@ -30,15 +30,26 @@ __all__ = ["VoxelMorph", "voxelmorph"]
 @alias("voxelmorph")
 class VoxelMorph(nn.Module):
     """
-    Implementation of VoxelMorph network as described in https://arxiv.org/pdf/1809.05231.pdf.
+    VoxelMorph network for medical image registration as described in https://arxiv.org/pdf/1809.05231.pdf.
+    For more details, please refer to VoxelMorph: A Learning Framework for Deformable Medical Image Registration
+    Guha Balakrishnan, Amy Zhao, Mert R. Sabuncu, John Guttag, Adrian V. Dalca
+    IEEE TMI: Transactions on Medical Imaging. 2019. eprint arXiv:1809.05231.
 
-    Overview. A pair of images (moving and fixed) are concatenated along the channel dimension and passed through
+    A pair of images (moving and fixed) are concatenated along the channel dimension and passed through
     a UNet. The output of the UNet is then passed through a series of convolution blocks to produce the final prediction
     of the displacement field (DDF) in the non-diffeomorphic variant (i.e. when `int_steps` is set to 0) or the
     stationary velocity field (DVF) in the diffeomorphic variant (i.e. when `int_steps` is set to a positive integer).
     The DVF is then converted to a DDF using the `DVF2DDF` module. Finally, the DDF is used to warp the moving image
     to the fixed image using the `Warp` module. Optionally, the integration from DVF to DDF can be performed on reduced
-    resolution by specifying `half_res` to be True.
+    resolution by specifying `half_res` to be True, in which case the output DVF from the UNet is first linearly
+    interpolated to half resolution before being passed to the `DVF2DDF` module. The output DDF is then linearly
+    interpolated again back to full resolution before being used in the `Warp` module.
+
+    In the original implementation, downsample is achieved through maxpooling, here one has the option to use either
+    maxpooling or strided convolution for downsampling. The default is to use maxpooling as it is consistent with the
+    original implementation. Note that for upsampling, the authors of VoxelMorph used nearest neighbor interpolation
+    instead of transposed convolution. In this implementation, only nearest neighbor interpolation is supported in order
+    to be consistent with the original implementation.
 
     Args:
             spatial_dims: number of spatial dimensions.
@@ -62,7 +73,7 @@ class VoxelMorph(nn.Module):
                     But one can optionally use strided convolution instead (i.e. set `use_maxpool` to False).
             adn_ordering: ordering of activation, dropout, and normalization. Defaults to "NDA".
 
-    Examples::
+    Example::
 
             from monai.networks.nets import VoxelMorph
 
@@ -80,8 +91,8 @@ class VoxelMorph(nn.Module):
             )
 
             # A forward pass through the network would look something like this
-            moving = torch.randn(1, 2, 160, 192, 224)
-            fixed = torch.randn(1, 2, 160, 192, 224)
+            moving = torch.randn(1, 1, 160, 192, 224)
+            fixed = torch.randn(1, 1, 160, 192, 224)
             warped, ddf = net(moving, fixed)
     """
 

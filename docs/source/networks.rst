@@ -710,6 +710,12 @@ Nets
 .. autoclass:: Quicknat
    :members:
 
+`VoxelMorph`
+~~~~~~~~~~~~
+.. autoclass:: VoxelMorph
+   :members:
+
+.. autoclass:: voxelmorph
 
 Utilities
 ---------
