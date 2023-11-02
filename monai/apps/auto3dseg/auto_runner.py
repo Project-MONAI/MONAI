@@ -234,8 +234,13 @@ class AutoRunner:
         self.algos = algos
         self.templates_path_or_url = templates_path_or_url
         self.allow_skip = allow_skip
+
+        # cache.yaml
         self.not_use_cache = not_use_cache
-        
+        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
+        self.cache = self.read_cache()
+        self.export_cache()
+
         # determine if we need to analyze, algo_gen or train from cache, unless manually provided
         self.analyze = not self.cache["analyze"] if analyze is None else analyze
         self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
@@ -257,20 +262,16 @@ class AutoRunner:
             "allow_skip",
         ]:  # override from config
             if param in self.data_src_cfg and isinstance(self.data_src_cfg[param], bool):
-                setattr(self, param, self.data_src_cfg[param])
+                setattr(self, param, self.data_src_cfg[param]) # e.g. self.analyze = self.data_src_cfg["analyze"]
 
         for param in ["algos", "hpo_backend", "templates_path_or_url", "mlflow_tracking_uri"]:  # override from config
             if param in self.data_src_cfg:
-                setattr(self, param, self.data_src_cfg[param])
+                setattr(self, param, self.data_src_cfg[param]) # e.g. self.algos = self.data_src_cfg["algos"]
 
         logger.info(f"AutoRunner using work directory {self.work_dir}")
         os.makedirs(self.work_dir, exist_ok=True)
         self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
 
-        # cache.yaml
-        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
-        self.cache = self.read_cache()
-        self.export_cache()
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
