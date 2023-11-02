@@ -95,7 +95,7 @@ def do_metric_reduction(
     # some elements might be Nan (if ground truth y was missing (zeros))
     # we need to account for it
     nans = torch.isnan(f)
-    not_nans = (~nans)
+    not_nans = ~nans
 
     t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
     reduction = look_up_option(reduction, MetricReduction)
