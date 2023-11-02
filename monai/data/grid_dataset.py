@@ -24,7 +24,6 @@ import torch
 
 from monai.config import KeysCollection
 from monai.config.type_definitions import NdarrayTensor
-from monai.data.dataset import CacheDataset, Dataset
 from monai.data.iterable_dataset import IterableDataset
 from monai.data.utils import iter_patch, pickle_hashing
 from monai.transforms import Compose, RandomizableTrait, Transform, apply_transform, convert_to_contiguous
@@ -425,7 +424,7 @@ class PatchDataset(IterableDataset):
         self.patch_transform = transform
 
     def __len__(self) -> int:
-        return len(self.data) * self.samples_per_image  #type: ignore
+        return len(self.data) * self.samples_per_image  # type: ignore
 
     def __iter__(self):
         for image in super().__iter__():
@@ -439,4 +438,3 @@ class PatchDataset(IterableDataset):
                 if self.patch_transform is not None:
                     out_patch = apply_transform(self.patch_transform, patch, map_items=False)
                 yield out_patch
-
