@@ -47,24 +47,24 @@ class VoxelMorphUNet(nn.Module):
     VoxelMorph network.
 
     Args:
-            spatial_dims: number of spatial dimensions.
-            in_channels: number of channels in the input volume after concatenation of moving and fixed images.
-            unet_out_channels: number of channels in the output of the UNet.
-            channels: number of channels in each layer of the UNet. See the following example for more details.
-            final_conv_channels: number of channels in each layer of the final convolution block.
-            final_conv_act: activation type for the final convolution block. Defaults to LeakyReLU.
-                    Since VoxelMorph was originally implemented in tensorflow where the default negative slope for
-                    LeakyReLU was 0.2, we use the same default value here.
-            kernel_size: kernel size for all convolution layers in the UNet. Defaults to 3.
-            up_kernel_size: kernel size for all convolution layers in the upsampling path of the UNet. Defaults to 3.
-            act: activation type for all convolution layers in the UNet. Defaults to LeakyReLU with negative slope 0.2.
-            norm: feature normalization type and arguments for all convolution layers in the UNet. Defaults to None.
-            dropout: dropout ratio for all convolution layers in the UNet. Defaults to 0.0 (no dropout).
-            bias: whether to use bias in all convolution layers in the UNet. Defaults to True.
-            use_maxpool: whether to use maxpooling in the downsampling path of the UNet. Defaults to True.
-                    Using maxpooling is the consistent with the original implementation of VoxelMorph.
-                    But one can optionally use strided convolution instead (i.e. set `use_maxpool` to False).
-            adn_ordering: ordering of activation, dropout, and normalization. Defaults to "NDA".
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of channels in the input volume after concatenation of moving and fixed images.
+        unet_out_channels: number of channels in the output of the UNet.
+        channels: number of channels in each layer of the UNet. See the following example for more details.
+        final_conv_channels: number of channels in each layer of the final convolution block.
+        final_conv_act: activation type for the final convolution block. Defaults to LeakyReLU.
+            Since VoxelMorph was originally implemented in tensorflow where the default negative slope for
+            LeakyReLU was 0.2, we use the same default value here.
+        kernel_size: kernel size for all convolution layers in the UNet. Defaults to 3.
+        up_kernel_size: kernel size for all convolution layers in the upsampling path of the UNet. Defaults to 3.
+        act: activation type for all convolution layers in the UNet. Defaults to LeakyReLU with negative slope 0.2.
+        norm: feature normalization type and arguments for all convolution layers in the UNet. Defaults to None.
+        dropout: dropout ratio for all convolution layers in the UNet. Defaults to 0.0 (no dropout).
+        bias: whether to use bias in all convolution layers in the UNet. Defaults to True.
+        use_maxpool: whether to use maxpooling in the downsampling path of the UNet. Defaults to True.
+            Using maxpooling is the consistent with the original implementation of VoxelMorph.
+            But one can optionally use strided convolution instead (i.e. set `use_maxpool` to False).
+        adn_ordering: ordering of activation, dropout, and normalization. Defaults to "NDA".
     """
 
     def __init__(
@@ -130,10 +130,10 @@ class VoxelMorphUNet(nn.Module):
             Builds the UNet structure recursively.
 
             Args:
-                    inc: number of input channels.
-                    outc: number of output channels.
-                    channels: sequence of channels for each pair of down and up layers.
-                    is_top: True if this is the top block.
+                inc: number of input channels.
+                outc: number of output channels.
+                channels: sequence of channels for each pair of down and up layers.
+                is_top: True if this is the top block.
             """
 
             next_c_in, next_c_out = channels[0:2]
@@ -157,9 +157,9 @@ class VoxelMorphUNet(nn.Module):
             Builds the final convolution blocks.
 
             Args:
-                    inc: number of input channels, should be the same as `unet_out_channels`.
-                    outc: number of output channels, should be the same as `spatial_dims`.
-                    channels: sequence of channels for each convolution layer.
+                inc: number of input channels, should be the same as `unet_out_channels`.
+                outc: number of output channels, should be the same as `spatial_dims`.
+                channels: sequence of channels for each convolution layer.
 
             Note: there is no activation after the last convolution layer as per the original implementation.
             """
@@ -211,9 +211,10 @@ class VoxelMorphUNet(nn.Module):
         between encoding (down) and decoding (up) sides of the network.
 
         Args:
-                down_path: encoding half of the layer
-                up_path: decoding half of the layer
-                subblock: block defining the next layer in the network.
+            down_path: encoding half of the layer
+            up_path: decoding half of the layer
+            subblock: block defining the next layer in the network.
+
         Returns: block for this layer: `nn.Sequential(down_path, SkipConnection(subblock), up_path)`
         """
 
@@ -227,9 +228,9 @@ class VoxelMorphUNet(nn.Module):
         without maxpooling first.
 
         Args:
-                in_channels: number of input channels.
-                out_channels: number of output channels.
-                is_top: True if this is the top block.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            is_top: True if this is the top block.
         """
 
         mod: Convolution | nn.Sequential
@@ -263,8 +264,8 @@ class VoxelMorphUNet(nn.Module):
         Bottom layer (bottleneck) in voxelmorph consists of a typical down layer followed by an upsample layer.
 
         Args:
-                in_channels: number of input channels.
-                out_channels: number of output channels.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
         """
 
         mod: nn.Module
@@ -291,9 +292,9 @@ class VoxelMorphUNet(nn.Module):
         without upsampling.
 
         Args:
-                in_channels: number of input channels.
-                out_channels: number of output channels.
-                is_top: True if this is the top block.
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            is_top: True if this is the top block.
         """
 
         mod: Convolution | nn.Sequential
@@ -333,8 +334,7 @@ class VoxelMorphUNet(nn.Module):
 
     def forward(self, concatenated_pairs: torch.Tensor) -> torch.Tensor:
         x = self.net(concatenated_pairs)
-        assert isinstance(x, torch.Tensor)  # won't pass mypy check without this line
-        return x
+        return x  # type: ignore
 
 
 voxelmorphunet = VoxelMorphUNet
@@ -372,51 +372,52 @@ class VoxelMorph(nn.Module):
     interpolated again back to full resolution before being used to warp the moving image.
 
     Args:
-            spatial_dims: number of spatial dimensions.
-            backbone: a backbone network.
-            integration_steps: number of integration steps used for obtaining DDF from DVF via scaling-and-squaring.
-                    Defaults to 7. If set to 0, the network will be non-diffeomorphic.
-            half_res: whether to perform integration on half resolution. Defaults to False.
+        backbone: a backbone network.
+        integration_steps: number of integration steps used for obtaining DDF from DVF via scaling-and-squaring.
+            Defaults to 7. If set to 0, the network will be non-diffeomorphic.
+        half_res: whether to perform integration on half resolution. Defaults to False.
+        spatial_dims: number of spatial dimensions, defaults to 3.
 
     Example::
 
-            from monai.networks.nets import VoxelMorphUNet, VoxelMorph
+        from monai.networks.nets import VoxelMorphUNet, VoxelMorph
 
-            # The following example construct an instance of VoxelMorph that matches the original VoxelMorph paper
-            # https://arxiv.org/pdf/1809.05231.pdf
+        # The following example construct an instance of VoxelMorph that matches the original VoxelMorph paper
+        # https://arxiv.org/pdf/1809.05231.pdf
 
-            # First, a backbone network is constructed. In this case, we use a VoxelMorphUNet as the backbone network.
-            backbone = VoxelMorphUNet(
-                    spatial_dims=3,
-                    in_channels=2,
-                    unet_out_channels=32,
-                    channels=(16, 32, 32, 32, 32, 32),  # this indicates the down block at the top takes 16 channels as
-                                                        # input, the corresponding up block at the top produces 32
-                                                        # channels as output, the second down block takes 32 channels as
-                                                        # input, and the corresponding up block at the same level
-                                                        # produces 32 channels as output, etc.
-                    final_conv_channels=(16, 16)
-            )
+        # First, a backbone network is constructed. In this case, we use a VoxelMorphUNet as the backbone network.
+        backbone = VoxelMorphUNet(
+            spatial_dims=3,
+            in_channels=2,
+            unet_out_channels=32,
+            channels=(16, 32, 32, 32, 32, 32),  # this indicates the down block at the top takes 16 channels as
+                                                # input, the corresponding up block at the top produces 32
+                                                # channels as output, the second down block takes 32 channels as
+                                                # input, and the corresponding up block at the same level
+                                                # produces 32 channels as output, etc.
+            final_conv_channels=(16, 16)
+        )
 
-            # Then, a full VoxelMorph network is constructed using the specified backbone network.
-            net = VoxelMorph(
-                    backbone=backbone,
-                    integration_steps=7,
-                    half_res=False
-            )
+        # Then, a full VoxelMorph network is constructed using the specified backbone network.
+        net = VoxelMorph(
+            backbone=backbone,
+            integration_steps=7,
+            half_res=False
+        )
 
-            # A forward pass through the network would look something like this
-            moving = torch.randn(1, 1, 160, 192, 224)
-            fixed = torch.randn(1, 1, 160, 192, 224)
-            warped, ddf = net(moving, fixed)
+        # A forward pass through the network would look something like this
+        moving = torch.randn(1, 1, 160, 192, 224)
+        fixed = torch.randn(1, 1, 160, 192, 224)
+        warped, ddf = net(moving, fixed)
+
     """
 
     def __init__(
         self,
-        spatial_dims: int,
         backbone: VoxelMorphUNet | nn.Module | None = None,
         integration_steps: int = 7,
         half_res: bool = False,
+        spatial_dims: int = 3,
     ) -> None:
         super().__init__()
 
@@ -425,7 +426,7 @@ class VoxelMorph(nn.Module):
             backbone
             if backbone is not None
             else VoxelMorphUNet(
-                spatial_dims=3,
+                spatial_dims=spatial_dims,
                 in_channels=2,
                 unet_out_channels=32,
                 channels=(16, 32, 32, 32, 32, 32),
@@ -447,7 +448,7 @@ class VoxelMorph(nn.Module):
     def forward(self, moving: torch.Tensor, fixed: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         if moving.shape != fixed.shape:
             raise ValueError(
-                f"The spatial shape of the moving image should be the same as the spatial shape of the fixed image."
+                "The spatial shape of the moving image should be the same as the spatial shape of the fixed image."
                 f" Got {moving.shape} and {fixed.shape} instead."
             )
 
@@ -455,8 +456,8 @@ class VoxelMorph(nn.Module):
 
         if x.shape[1] != self.spatial_dims:
             raise ValueError(
-                f"The number of channels in the output of the backbone network should be equal to the"
-                f" number of spatial dimensions. Got {x.shape[1]} channels instead."
+                "The number of channels in the output of the backbone network should be equal to the"
+                f" number of spatial dimensions {self.spatial_dims}. Got {x.shape[1]} channels instead."
             )
 
         if x.shape[2:] != moving.shape[2:]:
