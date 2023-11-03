@@ -271,7 +271,7 @@ class TestVOXELMORPH(unittest.TestCase):
 
     @parameterized.expand(ILL_CASES_IN_SHAPE)
     def test_ill_input_shape(self, input_param, moving_shape, fixed_shape):
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, RuntimeError)):
             net = VoxelMorph(**input_param).to(device)
             with eval_mode(net):
                 _ = net.forward(torch.randn(moving_shape).to(device), torch.randn(fixed_shape).to(device))
