@@ -10,7 +10,6 @@
 # limitations under the License.
 
 from abc import abstractmethod
-from collections.abc import Sequence
 from typing import Tuple
 from monai.config import KeysCollection
 import torch
