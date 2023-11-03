@@ -128,7 +128,7 @@ def ranged_transform_iterator(compose, start=None, end=None, step_into_all=False
 def generate_subcompose(data, start, end):
     def __generate_subcompose(data, start, end, i=0):
         result = None
-        if type(data) == Compose:
+        if type(data) is Compose:
             i, result = __generate_subcompose(data.transforms, start, end, i)
             if result is not None:
                 result = Compose(
