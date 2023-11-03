@@ -46,13 +46,13 @@ __all__ = [
     "OneOf",
     "RandomOrder",
     "SomeOf",
-    "compose_iterator",
-    "ranged_compose_iterator",
+    "transform_iterator",
+    "ranged_transform_iterator",
     "execute_compose",
 ]
 
 
-def compose_iterator(compose, step_into_all=False):
+def transform_iterator(compose, step_into_all=False):
     """
     ``compose_iterator`` is a function that returns an iterator over the transforms in a ``Compose``
     instance.
@@ -95,9 +95,37 @@ def compose_iterator(compose, step_into_all=False):
     for i in range(len(transforms)):
         tx = transforms[i]
         if type(tx) is Compose or (step_into_all is True and isinstance(tx, Compose)):
-            yield from compose_iterator(tx, step_into_all=step_into_all)
+            yield from transform_iterator(tx, step_into_all=step_into_all)
         else:
-            yield parent, tx
+            yield tx
+
+
+def ranged_transform_iterator(compose, start=None, end=None, step_into_all=False):
+    """
+    ``ranged_compose_iterator`` is a function that returns an iterator of a a sub-range of the
+    transforms in a ``Compose`` instance. It iterates over transforms until it reaches the
+    transform at index ``start``, iterating until it reaches index ``end``.
+    It follows the same rules as ``compose_iterator`` in terms of how it iterates into nested
+    ``Compose`` instances
+    Args:
+        compose: A ``Compose`` instance that contains the transforms to be iterated over
+        step_into_all: A boolean flag that indicates whether to step into randomised ``Compose``
+            sub-classes such as ``OneOf``, ``SomeOf``, and ``RandomOrder``
+        start: An optional integer that indicates the index to start returning transforms from.
+            This value is inclusive. If not set, iteration happens from the start of the list
+        end: An optional integer that indicates the index to stop returning transforms from. This
+            value is exclusive. If not set, iteration happens until the end of the list
+    """
+
+    i = 0
+
+    for tx in transform_iterator(compose, step_into_all):
+        if start is None or i >= start:
+            if end is None or i < end:
+                yield tx
+            else:
+                break
+        i += 1
 
 
 def generate_subcompose(data, start, end):
@@ -122,7 +150,7 @@ def generate_subcompose(data, start, end):
                     result = list() if result is None else result
                     result.append(r)
         else:
-            if i >= start and i < end:
+            if i >= start and (end is None or i < end):
                 # print(f"including {data} as {i} is in range")
                 result = data
             # else:
@@ -132,34 +160,6 @@ def generate_subcompose(data, start, end):
 
     _, result = __generate_subcompose(data, start, end, 0)
     return result
-
-
-def ranged_compose_iterator(compose, start=None, end=None, step_into_all=False):
-    """
-    ``ranged_compose_iterator`` is a function that returns an iterator of a a sub-range of the
-    transforms in a ``Compose`` instance. It iterates over transforms until it reaches the
-    transform at index ``start``, iterating until it reaches index ``end``.
-    It follows the same rules as ``compose_iterator`` in terms of how it iterates into nested
-    ``Compose`` instances
-    Args:
-        compose: A ``Compose`` instance that contains the transforms to be iterated over
-        step_into_all: A boolean flag that indicates whether to step into randomised ``Compose``
-            sub-classes such as ``OneOf``, ``SomeOf``, and ``RandomOrder``
-        start: An optional integer that indicates the index to start returning transforms from.
-            This value is inclusive. If not set, iteration happens from the start of the list
-        end: An optional integer that indicates the index to stop returning transforms from. This
-            value is exclusive. If not set, iteration happens until the end of the list
-    """
-
-    i = 0
-
-    for cp, tx in compose_iterator(compose, step_into_all):
-        if start is None or i >= start:
-            if end is None or i < end:
-                yield cp, tx
-            else:
-                break
-        i += 1
 
 
 def execute_compose(
@@ -173,6 +173,7 @@ def execute_compose(
     overrides: dict | None = None,
     threading: bool = False,
     log_stats: bool | str = False,
+    is_inner: bool = False
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -204,7 +205,8 @@ def execute_compose(
         log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
             Setting this to False disables logging. Setting it to True enables logging to the default loggers.
             Setting a string overrides the logger name to which logging is performed.
-
+        is_inner: this optional parameter should not be set by users but indicates to the Compose instance being called
+            that it being called by another Compose instance as part of its own execution.
     Returns:
         A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
         `data`` through the sequence of ``transforms``.
@@ -223,15 +225,25 @@ def execute_compose(
     if start == end:
         return data
 
-    for _compose, _transform in ranged_compose_iterator(transforms, start, end):
-        _lazy = _compose.lazy if _compose is not None and lazy is None else lazy
-        _overrides = _compose.overrides if _compose is not None and overrides is None else overrides
+    # trim the set of transforms to be executed accoring to start and end
+    # parameter values
+    if start != 0 or end != None:
+        transforms_ = generate_subcompose(transforms, start, end)
+    else:
+        transforms_ = transforms
+
+    for _transform in transforms_:
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
         data = apply_transform(
-            _transform, data, map_items, unpack_items, lazy=_lazy, overrides=_overrides, log_stats=log_stats
+            _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, log_stats=log_stats
         )
-    data = apply_pending_transforms(data, None, overrides, logger_name=log_stats)
+
+    # in the case of nested Compose instances, it is the responsiblity of the outermost
+    # instance to ensure that all pending transforms have been applied
+    if is_inner is False:
+        data = apply_pending_transforms(data, None, overrides, logger_name=log_stats)
+
     return data
 
 
@@ -425,7 +437,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             True. None if no transform satisfies the ``predicate``
 
         """
-        for i, (_, tx) in enumerate(compose_iterator(self.transform)):
+        for i, tx in enumerate(transform_iterator(self.transform)):
             if predicate(tx):
                 return i
 
@@ -439,7 +451,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         will result in the equivalent of `t1 = Compose([x, x, x, x, x, x, x, x])`.
 
         """
-        return Compose([tx[1] for tx in compose_iterator(self)])
+        return Compose(tuple(transform_iterator(self)))
 
     def sub_range(self, start, end):
         """
@@ -449,9 +461,17 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
 
     def __len__(self):
         """Return number of transformations."""
-        return len(list(compose_iterator(self)))
+        return len(tuple(transform_iterator(self)))
 
-    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
+    def __call__(
+            self,
+            input_,
+            start=0,
+            end=None,
+            threading=False,
+            lazy: bool | None = None,
+            is_inner: bool = False
+    ):
         _lazy = self._lazy if lazy is None else lazy
         result = execute_compose(
             input_,
@@ -464,6 +484,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
+            is_inner=is_inner
         )
 
         return result
@@ -471,7 +492,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
     def inverse(self, data):
         self._raise_if_not_invertible(data)
 
-        invertible_transforms = [t[1] for t in compose_iterator(self) if isinstance(t, InvertibleTransform)]
+        invertible_transforms = [t for t in transform_iterator(self) if isinstance(t, InvertibleTransform)]
         if not invertible_transforms:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
 
@@ -581,7 +602,15 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
+    def __call__(
+            self,
+            data,
+            start=0,
+            end=None,
+            threading=False,
+            lazy: bool | None = None,
+            is_inner: bool = False
+    ):
         if start != 0:
             raise ValueError(f"OneOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -605,6 +634,7 @@ class OneOf(Compose):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
+            is_inner=is_inner
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
@@ -677,7 +707,15 @@ class RandomOrder(Compose):
         super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides)
         self.log_stats = log_stats
 
-    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
+    def __call__(
+            self,
+            input_,
+            start=0,
+            end=None,
+            threading=False,
+            lazy: bool | None = None,
+            is_inner: bool = False
+):
         if start != 0:
             raise ValueError(f"RandomOrder requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -700,6 +738,7 @@ class RandomOrder(Compose):
             lazy=_lazy,
             threading=threading,
             log_stats=self.log_stats,
+            is_inner=is_inner
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
@@ -843,7 +882,15 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
+    def __call__(
+            self,
+            data,
+            start=0,
+            end=None,
+            threading=False,
+            lazy: bool | None = None,
+            is_inner: bool = False
+    ):
         if start != 0:
             raise ValueError(f"SomeOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -867,6 +914,7 @@ class SomeOf(Compose):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
+            is_inner=is_inner
         )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})
