@@ -237,6 +237,11 @@ class GridPatchDataset(IterableDataset):
         self._cache: list | ListProxy = []
         self._cache_other: list | ListProxy = []
         self.cache = cache
+        if self.patch_transform is not None:
+            self.first_random = self.patch_transform.get_index_of_first(
+                lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
+            )
+            
         if self.cache:
             if isinstance(data, Iterator):
                 raise TypeError("Data can not be iterator when cache is True")
@@ -293,11 +298,8 @@ class GridPatchDataset(IterableDataset):
         item = self.data[idx]  # type: ignore
         patch_cache, other_cache = [], []
         for patch, *others in self.patch_iter(item):
-            if self.patch_transform is not None:
-                first_random = self.patch_transform.get_index_of_first(
-                    lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
-                )
-                patch = self.patch_transform(patch, end=first_random, threading=True)
+            if self.first_random is not None:
+                patch = self.patch_transform(patch, end=self.first_random, threading=True)
 
             if self.as_contiguous:
                 patch = convert_to_contiguous(patch, memory_format=torch.contiguous_format)
@@ -334,29 +336,22 @@ class GridPatchDataset(IterableDataset):
                 other = self._cache_other[cache_index]  # type: ignore
 
                 # load data from cache and execute from the first random transform
-                if not isinstance(self.patch_transform, Compose):
-                    raise ValueError("transform must be an instance of monai.transforms.Compose.")
-
-                first_random = self.patch_transform.get_index_of_first(
-                    lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
-                )
-                if first_random is not None:
-                    data = deepcopy(data) if self.copy_cache else data
-                    for out_patch, others in zip(data, other):
-                        if self.patch_transform is not None:
-                            out_patch = self.patch_transform(out_patch, start=first_random)
-                        if (
-                            self.with_coordinates and len(others) > 0
-                        ):  # patch_iter to yield at least 2 items: patch, coords
-                            yield out_patch, others
-                        else:
-                            yield out_patch
+                data = deepcopy(data) if self.copy_cache else data
+                for out_patch, others in zip(data, other):
+                    if self.first_random is not None:
+                        out_patch = self.patch_transform(out_patch, start=self.first_random)
+                    if (
+                        self.with_coordinates and len(others) > 0
+                    ):  # patch_iter to yield at least 2 items: patch, coords
+                        yield out_patch, others
+                    else:
+                        yield out_patch
         else:
             for image in super().__iter__():
                 for patch, *others in self.patch_iter(image):
                     out_patch = patch
                     if self.patch_transform is not None:
-                        out_patch = apply_transform(self.patch_transform, patch, map_items=False)
+                        out_patch = self.patch_transform(patch)
                     if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
                         yield out_patch, others[0]
                     else:
