@@ -266,14 +266,11 @@ class AutoRunner:
             "allow_skip",
         ]:  # override from config
             if param in self.data_src_cfg and isinstance(self.data_src_cfg[param], bool):
-                setattr(self, param, self.data_src_cfg[param]) # e.g. self.analyze = self.data_src_cfg["analyze"]
+                setattr(self, param, self.data_src_cfg[param])  # e.g. self.analyze = self.data_src_cfg["analyze"]
 
         for param in ["algos", "hpo_backend", "templates_path_or_url", "mlflow_tracking_uri"]:  # override from config
             if param in self.data_src_cfg:
-                setattr(self, param, self.data_src_cfg[param]) # e.g. self.algos = self.data_src_cfg["algos"]
-
-
-
+                setattr(self, param, self.data_src_cfg[param])  # e.g. self.algos = self.data_src_cfg["algos"]
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
