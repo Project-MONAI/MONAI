@@ -341,7 +341,7 @@ class GridPatchDataset(IterableDataset):
                     lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
                 )
                 if first_random is not None:
-                    data = deepcopy(data) if self.copy_cache is True else data
+                    data = deepcopy(data) if self.copy_cache else data
                     for out_patch, others in zip(data, other):
                         if self.patch_transform is not None:
                             out_patch = self.patch_transform(out_patch, start=first_random)
