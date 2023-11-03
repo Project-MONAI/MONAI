@@ -241,7 +241,7 @@ class GridPatchDataset(IterableDataset):
             self.first_random = self.patch_transform.get_index_of_first(
                 lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
             )
-            
+
         if self.cache:
             if isinstance(data, Iterator):
                 raise TypeError("Data can not be iterator when cache is True")
