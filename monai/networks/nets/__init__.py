@@ -111,3 +111,4 @@ from .varautoencoder import VarAutoEncoder
 from .vit import ViT
 from .vitautoenc import ViTAutoEnc
 from .vnet import VNet
+from .voxelmorph import VoxelMorph, VoxelMorphUNet
