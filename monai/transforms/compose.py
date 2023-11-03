@@ -84,13 +84,10 @@ def transform_iterator(compose, step_into_all=False):
 
     if isinstance(compose, (list, tuple)):
         transforms = compose
-        parent = None
     elif type(compose) is Compose or (step_into_all is True and isinstance(compose, Compose)):
         transforms = compose.transforms
-        parent = compose
     else:
         transforms = [compose]
-        parent = None
 
     for i in range(len(transforms)):
         tx = transforms[i]
@@ -227,7 +224,7 @@ def execute_compose(
 
     # trim the set of transforms to be executed accoring to start and end
     # parameter values
-    if start != 0 or end != None:
+    if start != 0 or end is not None:
         transforms_ = generate_subcompose(transforms, start, end)
     else:
         transforms_ = transforms
