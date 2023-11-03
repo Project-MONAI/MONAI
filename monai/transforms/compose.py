@@ -84,13 +84,10 @@ def transform_iterator(compose, step_into_all=False):
 
     if isinstance(compose, (list, tuple)):
         transforms = compose
-        parent = None
     elif type(compose) is Compose or (step_into_all is True and isinstance(compose, Compose)):
         transforms = compose.transforms
-        parent = compose
     else:
         transforms = [compose]
-        parent = None
 
     for i in range(len(transforms)):
         tx = transforms[i]
@@ -129,19 +126,13 @@ def ranged_transform_iterator(compose, start=None, end=None, step_into_all=False
 
 
 def generate_subcompose(data, start, end):
-
     def __generate_subcompose(data, start, end, i=0):
         result = None
         if type(data) == Compose:
             i, result = __generate_subcompose(data.transforms, start, end, i)
             if result is not None:
                 result = Compose(
-                    result,
-                    data.map_items,
-                    data.unpack_items,
-                    data.log_stats,
-                    data.lazy,
-                    deepcopy(data.overrides)
+                    result, data.map_items, data.unpack_items, data.log_stats, data.lazy, deepcopy(data.overrides)
                 )
         elif isinstance(data, Sequence):
             for d in data:
@@ -173,7 +164,7 @@ def execute_compose(
     overrides: dict | None = None,
     threading: bool = False,
     log_stats: bool | str = False,
-    is_inner: bool = False
+    is_inner: bool = False,
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -227,7 +218,7 @@ def execute_compose(
 
     # trim the set of transforms to be executed accoring to start and end
     # parameter values
-    if start != 0 or end != None:
+    if start != 0 or end is not None:
         transforms_ = generate_subcompose(transforms, start, end)
     else:
         transforms_ = transforms
@@ -437,7 +428,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             True. None if no transform satisfies the ``predicate``
 
         """
-        for i, tx in enumerate(transform_iterator(self.transform)):
+        for i, tx in enumerate(transform_iterator(self.transforms)):
             if predicate(tx):
                 return i
 
@@ -463,15 +454,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         """Return number of transformations."""
         return len(tuple(transform_iterator(self)))
 
-    def __call__(
-            self,
-            input_,
-            start=0,
-            end=None,
-            threading=False,
-            lazy: bool | None = None,
-            is_inner: bool = False
-    ):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None, is_inner: bool = False):
         _lazy = self._lazy if lazy is None else lazy
         result = execute_compose(
             input_,
@@ -484,7 +467,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
-            is_inner=is_inner
+            is_inner=is_inner,
         )
 
         return result
@@ -602,15 +585,7 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(
-            self,
-            data,
-            start=0,
-            end=None,
-            threading=False,
-            lazy: bool | None = None,
-            is_inner: bool = False
-    ):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None, is_inner: bool = False):
         if start != 0:
             raise ValueError(f"OneOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -634,7 +609,7 @@ class OneOf(Compose):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
-            is_inner=is_inner
+            is_inner=is_inner,
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
@@ -707,15 +682,7 @@ class RandomOrder(Compose):
         super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides)
         self.log_stats = log_stats
 
-    def __call__(
-            self,
-            input_,
-            start=0,
-            end=None,
-            threading=False,
-            lazy: bool | None = None,
-            is_inner: bool = False
-):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None, is_inner: bool = False):
         if start != 0:
             raise ValueError(f"RandomOrder requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -738,7 +705,7 @@ class RandomOrder(Compose):
             lazy=_lazy,
             threading=threading,
             log_stats=self.log_stats,
-            is_inner=is_inner
+            is_inner=is_inner,
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
@@ -882,15 +849,7 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(
-            self,
-            data,
-            start=0,
-            end=None,
-            threading=False,
-            lazy: bool | None = None,
-            is_inner: bool = False
-    ):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None, is_inner: bool = False):
         if start != 0:
             raise ValueError(f"SomeOf requires 'start' parameter to be 0 (start set to {start})")
         if end is not None:
@@ -914,7 +873,7 @@ class SomeOf(Compose):
             overrides=self.overrides,
             threading=threading,
             log_stats=self.log_stats,
-            is_inner=is_inner
+            is_inner=is_inner,
         )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})

@@ -93,11 +93,11 @@ def _apply_transform(
 
     data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
 
-    kwargs = {}
+    kwargs = dict()
     if isinstance(transform, LazyTrait):
-        kwargs['lazy'] = lazy
+        kwargs["lazy"] = lazy
     if isinstance(transform, Compose):
-        kwargs['is_inner'] = True
+        kwargs["is_inner"] = True
     if isinstance(data, tuple) and unpack_parameters:
         return transform(*data, **kwargs)
 
@@ -111,7 +111,7 @@ def apply_transform(
     unpack_items: bool = False,
     log_stats: bool | str = False,
     lazy: bool | None = None,
-    overrides: dict | None = None
+    overrides: dict | None = None,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.

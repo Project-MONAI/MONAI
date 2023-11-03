@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 import monai.transforms as mt
 from monai.data import DataLoader, Dataset
-from monai.transforms.compose import transform_iterator, execute_compose, ranged_transform_iterator
+from monai.transforms.compose import execute_compose, ranged_transform_iterator, transform_iterator
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -259,9 +259,7 @@ class TestCompose(unittest.TestCase):
 
 
 class TestNestedCompose(unittest.TestCase):
-
     def _test_nested_is_equivalent_impl(self, pipelines, data, lazy):
-
         p0_result = pipelines[0](data, lazy=lazy)
         for p in pipelines[1:]:
             p_result = p(data, lazy=lazy)
@@ -353,7 +351,6 @@ class TestComposeIterator(unittest.TestCase):
 
 
 class TestComposeSubRange(unittest.TestCase):
-
     def test_sub_range(self):
         t0 = mt.Zoom((0.8, 1.2))
         t1 = mt.Rotate(-torch.pi / 16)
