@@ -28,7 +28,6 @@ RIGHT_CASES = [
     (torch.rand(3, 4).type(torch.int32), 5, (3, 4, 1, 1, 1)),
 ]
 
-
 LEFT_CASES = [
     (np.random.rand(3, 4).astype(np.float32), 5, (1, 1, 1, 3, 4)),
     (torch.rand(3, 4).type(torch.float32), 5, (1, 1, 1, 3, 4)),
