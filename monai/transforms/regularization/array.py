@@ -11,9 +11,8 @@
 
 from abc import abstractmethod
 from typing import Tuple
-from monai.config import KeysCollection
 import torch
-from monai.transforms import Transform, MapTransform
+from monai.transforms import Transform
 from math import sqrt, ceil
 
 __all__ = ["MixUp", "CutMix", "CutOut"]
