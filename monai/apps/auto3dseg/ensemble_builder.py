@@ -448,6 +448,7 @@ class EnsembleRunner:
             "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
             "CMD_PREFIX": os.environ.get("CMD_PREFIX", ""),
         }
+        self.ensembler = None
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
         """

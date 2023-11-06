@@ -863,7 +863,7 @@ class AutoRunner:
 
         # step 4: model ensemble and write the prediction to disks.
         if self.ensemble:
-            ensemble_runner = EnsembleRunner(
+            self.ensemble_runner = EnsembleRunner(
                 data_src_cfg_name=self.data_src_cfg_name,
                 work_dir=self.work_dir,
                 num_fold=self.num_fold,
@@ -872,5 +872,5 @@ class AutoRunner:
                 **self.kwargs,  # for set_image_save_transform
                 **self.pred_params,
             )  # for inference
-            ensemble_runner.run(self.device_setting)
+            self.ensemble_runner.run(self.device_setting)
         logger.info("Auto3Dseg pipeline is completed successfully.")
