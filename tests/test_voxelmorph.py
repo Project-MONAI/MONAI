@@ -229,7 +229,6 @@ ILL_CASE_5 = [  # len(up_kernel_size) = 2, spatial_dims = 3
 
 ILL_CASES = [ILL_CASE_0, ILL_CASE_1, ILL_CASE_2, ILL_CASE_3, ILL_CASE_4, ILL_CASE_5]
 
-
 ILL_CASES_IN_SHAPE_0 = [  # moving and fixed image shape not match
     {"spatial_dims": 3},
     (1, 2, 96, 96, 48),
