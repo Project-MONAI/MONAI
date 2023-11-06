@@ -93,7 +93,7 @@ def _apply_transform(
 
     data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
 
-    kwargs = dict()
+    kwargs: Mapping[str, Any] = dict()
     if isinstance(transform, LazyTrait):
         kwargs["lazy"] = lazy
     if isinstance(transform, Compose):
