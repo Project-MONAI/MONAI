@@ -569,6 +569,10 @@ class OneOf(Compose):
         weights = weights / weights.sum()
         return list(weights)
 
+    def __len__(self):
+        """Return number of transformations."""
+        return len(tuple(transform_iterator(self, step_into_all=True)))
+
     def flatten(self):
         transforms = []
         weights = []
