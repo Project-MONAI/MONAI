@@ -10,7 +10,7 @@
 # limitations under the License.
 
 import torch
-from monai.regularization.mixup import MixUp, MixUpd, CutMix, CutMixd, CutOut
+from monai.transforms import MixUp, MixUpd, CutMix, CutMixd, CutOut
 import unittest
 
 

@@ -14,8 +14,9 @@ from typing import Tuple
 from monai.config import KeysCollection
 import torch
 from monai.transforms import Transform, MapTransform
-from monai.utils.misc import ensure_tuple
 from math import sqrt, ceil
+
+__all__ = ["MixUp", "CutMix", "CutOut"]
 
 
 class Mixer(Transform):
@@ -70,33 +71,6 @@ class MixUp(Mixer):
         return self.apply(params, data), self.apply(params, labels)
 
 
-class MixUpd(MapTransform):
-    """MixUp as described in:
-    Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz.
-    mixup: Beyond Empirical Risk Minimization, ICLR 2018
-
-    Notice that the mixup transformation will be the same for all entries
-    for consistency, i.e. images and labels must be applied the same augmenation.
-    """
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        batch_size: int,
-        alpha: float = 1.0,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.mixup = MixUp(batch_size, alpha)
-
-    def __call__(self, data):
-        result = dict(data)
-        params = self.mixup.sample_params()
-        for k in self.keys:
-            result[k] = self.mixup.apply(params, data[k])
-        return result
-
-
 class CutMix(Mixer):
     """CutMix augmentation as described in:
     Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo
@@ -133,39 +107,6 @@ class CutMix(Mixer):
         return (augmented, MixUp.apply(params, labels)) if labels is not None else augmented
 
 
-class CutMixd(MapTransform):
-    """CutMix augmentation as described in:
-    Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo
-    CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features,
-    ICCV 2019
-
-    Notice that the mixture weights will be the same for all entries
-    for consistency, i.e. images and labels must be aggregated with the same weights,
-    but the random crops are not.
-    """
-
-    def __init__(
-        self,
-        keys: KeysCollection,
-        batch_size: int,
-        label_keys: KeysCollection | None = None,
-        alpha: float = 1.0,
-        allow_missing_keys: bool = False,
-    ) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.mixer = CutMix(batch_size, alpha)
-        self.label_keys = ensure_tuple(label_keys) if label_keys is not None else []
-
-    def __call__(self, data):
-        result = dict(data)
-        params = self.mixer.sample_params()
-        for k in self.keys:
-            result[k] = self.mixer.apply(params, data[k])
-        for k in self.label_keys:
-            result[k] = self.mixer.apply_on_labels(params, data[k])
-        return result
-
-
 class CutOut(Mixer):
     """Cutout as described in the paper:
     Terrance DeVries, Graham W. Taylor
@@ -191,23 +132,3 @@ class CutOut(Mixer):
 
     def __call__(self, data: torch.Tensor):
         return self.apply(self.sample_params(), data)
-
-
-class CutOutd(MapTransform):
-    """Cutout as described in the paper:
-    Terrance DeVries, Graham W. Taylor
-    Improved Regularization of Convolutional Neural Networks with Cutout
-    arXiv:1708.04552
-
-    Notice that the cutout is different for every entry in the dictionary.
-    """
-
-    def __init__(self, keys: KeysCollection, batch_size: int, allow_missing_keys: bool = False) -> None:
-        super().__init__(keys, allow_missing_keys)
-        self.cutout = CutOut(batch_size)
-
-    def __call__(self, data):
-        result = dict(data)
-        for k in self.keys:
-            result[k] = self.cutout(data[k])
-        return result

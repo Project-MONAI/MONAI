@@ -693,3 +693,15 @@ from .utils_pytorch_numpy_unification import (
     unravel_index,
     where,
 )
+from .regularization.array import MixUp, CutMix, CutOut
+from .regularization.dictionary import (
+    CutMixd,
+    CutMixD,
+    CutMixDict,
+    MixUpd,
+    MixUpD,
+    MixUpDict,
+    CutOutd,
+    CutOutD,
+    CutOutDict,
+)

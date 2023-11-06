@@ -74,7 +74,6 @@ __all__ = [
     "metrics",
     "networks",
     "optimizers",
-    "regularization",
     "transforms",
     "utils",
     "visualize",
