@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from abc import abstractmethod
+from typing import Optional
 import torch
 from monai.transforms import Transform, Randomizable
 from math import sqrt, ceil
@@ -63,7 +64,7 @@ class MixUp(Mixer):
         mixweight = weight[(Ellipsis,) + (None,) * len(dims)]
         return mixweight * data + (1 - mixweight) * data[perm, ...]
 
-    def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None):
+    def __call__(self, data: torch.Tensor, labels: Optional[torch.Tensor] = None):
         self.randomize()
         if labels is None:
             return self.apply(data)
@@ -104,7 +105,7 @@ class CutMix(Mixer):
         mixweight = weights[(Ellipsis,) + (None,) * len(dims)]
         return mixweight * labels + (1 - mixweight) * labels[perm, ...]
 
-    def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None):
+    def __call__(self, data: torch.Tensor, labels: Optional[torch.Tensor] = None):
         self.randomize()
         augmented = self.apply(data)
         return (augmented, self.apply_on_labels(labels)) if labels is not None else augmented
