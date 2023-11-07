@@ -9,6 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Optional
 from monai.config import KeysCollection
 from monai.transforms import MapTransform
 from monai.utils.misc import ensure_tuple
@@ -62,7 +63,7 @@ class CutMixd(MapTransform):
         self,
         keys: KeysCollection,
         batch_size: int,
-        label_keys: KeysCollection | None = None,
+        label_keys: Optional[KeysCollection] = None,
         alpha: float = 1.0,
         allow_missing_keys: bool = False,
     ) -> None:
