@@ -37,10 +37,10 @@ class MixUpd(MapTransform):
         self.mixup = MixUp(batch_size, alpha)
 
     def __call__(self, data):
+        self.mixup.randomize()
         result = dict(data)
-        params = self.mixup.sample_params()
         for k in self.keys:
-            result[k] = self.mixup.apply(params, data[k])
+            result[k] = self.mixup.apply(data[k])
         return result
 
 
@@ -71,12 +71,12 @@ class CutMixd(MapTransform):
         self.label_keys = ensure_tuple(label_keys) if label_keys is not None else []
 
     def __call__(self, data):
+        self.mixer.randomize()
         result = dict(data)
-        params = self.mixer.sample_params()
         for k in self.keys:
-            result[k] = self.mixer.apply(params, data[k])
+            result[k] = self.mixer.apply(data[k])
         for k in self.label_keys:
-            result[k] = self.mixer.apply_on_labels(params, data[k])
+            result[k] = self.mixer.apply_on_labels(data[k])
         return result
 
 
@@ -98,6 +98,7 @@ class CutOutd(MapTransform):
 
     def __call__(self, data):
         result = dict(data)
+        self.cutout.randomize()
         for k in self.keys:
             result[k] = self.cutout(data[k])
         return result
