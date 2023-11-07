@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
 
 from monai.config import KeysCollection
 from monai.transforms import MapTransform
@@ -67,7 +66,7 @@ class CutMixd(MapTransform):
         self,
         keys: KeysCollection,
         batch_size: int,
-        label_keys: Optional[KeysCollection] = None,
+        label_keys: KeysCollection | None = None,
         alpha: float = 1.0,
         allow_missing_keys: bool = False,
     ) -> None:
