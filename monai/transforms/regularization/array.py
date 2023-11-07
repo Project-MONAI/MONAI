@@ -9,11 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from abc import abstractmethod
+from math import ceil, sqrt
 from typing import Optional
+
 import torch
-from monai.transforms import Transform, Randomizable
-from math import sqrt, ceil
+
+from monai.transforms import Randomizable, Transform
 
 __all__ = ["MixUp", "CutMix", "CutOut"]
 

@@ -9,11 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from typing import Optional
+
 from monai.config import KeysCollection
 from monai.transforms import MapTransform
 from monai.utils.misc import ensure_tuple
-from .array import MixUp, CutMix, CutOut
+
+from .array import CutMix, CutOut, MixUp
 
 __all__ = ["MixUpd", "MixUpD", "MixUpDict", "CutMixd", "CutMixD", "CutMixDict", "CutOutd", "CutOutD", "CutOutDict"]
 
