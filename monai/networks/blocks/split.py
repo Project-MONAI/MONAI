@@ -9,15 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 
 import monai
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from typing import Sequence
-from monai.networks.blocks import Convolution
 
 
 NUM_SPLITS = 16
@@ -44,7 +41,7 @@ class SplitConvolution(nn.Module):
         padding: Sequence[int] | int | None = None,
         output_padding: Sequence[int] | int | None = None,
     ) -> None:
-        super(SplitConvolution, self).__init__()
+        super().__init__()
         self.conv = monai.networks.blocks.convolutions.Convolution(
             spatial_dims,
             in_channels,
@@ -67,7 +64,7 @@ class SplitConvolution(nn.Module):
 
         self.tp_dim = 1
 
-    def forward(self, x):        
+    def forward(self, x):
         num_splits = NUM_SPLITS
         print("num_splits:", num_splits)
         l = x.size(self.tp_dim + 2)
@@ -94,7 +91,7 @@ class SplitConvolution(nn.Module):
         torch.cuda.empty_cache()
 
         splits_0_size = list(splits[0].size())
-    
+
         if False:
             outputs = [self.conv(splits[i]) for i in range(num_splits)]
         else:
