@@ -18,11 +18,23 @@ import torch
 
 from ..transform import RandomizableTransform
 
-__all__ = ["MixUp", "CutMix", "CutOut"]
+__all__ = ["MixUp", "CutMix", "CutOut", "Mixer"]
 
 
 class Mixer(RandomizableTransform):
     def __init__(self, batch_size: int, alpha: float = 1.0) -> None:
+        """
+        Mixer is a base class providing the basic logic for the mixup-class of
+        augmentations. In all cases, we need to sample the mixing weights for each
+        sample (lambda in the notation used in the papers). Also, pairs of samples
+        being mixed are picked by randomly shuffling the batch samples.
+
+        Args:
+            batch_size (int): number of samples per batch. That is, samples are expected tp
+                be of size batchsize x channels [x depth] x height x width.
+            alpha (float, optional): mixing weights are sampled from the Beta(alpha, alpha)
+                distribution. Defaults to 1.0, the uniform distribution.
+        """
         super().__init__()
         if alpha <= 0:
             raise ValueError(f"Expected positive number, but got {alpha = }")
@@ -50,10 +62,10 @@ class MixUp(Mixer):
     """MixUp as described in:
     Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz.
     mixup: Beyond Empirical Risk Minimization, ICLR 2018
-    """
 
-    def __init__(self, batch_size: int, alpha: float = 1.0) -> None:
-        super().__init__(batch_size, alpha)
+    Class derived from :py:class:`monai.transforms.Mixer`. See corresponding
+    documentation for details on the constructor parameters.
+    """
 
     def apply(self, data: torch.Tensor):
         weight, perm = self._params
@@ -79,10 +91,22 @@ class CutMix(Mixer):
     Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo.
     CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features,
     ICCV 2019
-    """
 
-    def __init__(self, batch_size: int, alpha: float = 1.0) -> None:
-        super().__init__(batch_size, alpha)
+    Class derived from :py:class:`monai.transforms.Mixer`. See corresponding
+    documentation for details on the constructor parameters. Here, alpha not only determines
+    the mixing weight but also the size of the random rectangles used during for mixing.
+    Please refer to the paper for details.
+
+    The most common use case is something close to:
+
+        cm = CutMix(batch_size=8, alpha=0.5)
+        for batch in loader:
+            images, labels = batch
+            augimg, auglabels = cm(images, labels)
+            output = model(augimg)
+            loss = loss_function(output, auglabels)
+            ...
+    """
 
     def apply(self, data: torch.Tensor):
         weights, perm = self._params
@@ -119,6 +143,11 @@ class CutOut(Mixer):
     Terrance DeVries, Graham W. Taylor.
     Improved Regularization of Convolutional Neural Networks with Cutout,
     arXiv:1708.04552
+
+    Class derived from :py:class:`monai.transforms.Mixer`. See corresponding
+    documentation for details on the constructor parameters. Here, alpha not only determines
+    the mixing weight but also the size of the random rectangles being cut put.
+    Please refer to the paper for details.
     """
 
     def apply(self, data: torch.Tensor):

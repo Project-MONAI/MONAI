@@ -21,9 +21,8 @@ __all__ = ["MixUpd", "MixUpD", "MixUpDict", "CutMixd", "CutMixD", "CutMixDict", 
 
 
 class MixUpd(MapTransform):
-    """MixUp as described in:
-    Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz.
-    mixup: Beyond Empirical Risk Minimization, ICLR 2018
+    """
+    Dictionary-based version :py:class:`monai.transforms.MixUp`.
 
     Notice that the mixup transformation will be the same for all entries
     for consistency, i.e. images and labels must be applied the same augmenation.
@@ -43,14 +42,9 @@ class MixUpd(MapTransform):
         return result
 
 
-MixUpD = MixUpDict = MixUpd
-
-
 class CutMixd(MapTransform):
-    """CutMix augmentation as described in:
-    Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo
-    CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features,
-    ICCV 2019
+    """
+    Dictionary-based version :py:class:`monai.transforms.CutMix`.
 
     Notice that the mixture weights will be the same for all entries
     for consistency, i.e. images and labels must be aggregated with the same weights,
@@ -79,14 +73,9 @@ class CutMixd(MapTransform):
         return result
 
 
-CutMixD = CutMixDict = CutMixd
-
-
 class CutOutd(MapTransform):
-    """Cutout as described in the paper:
-    Terrance DeVries, Graham W. Taylor
-    Improved Regularization of Convolutional Neural Networks with Cutout
-    arXiv:1708.04552
+    """
+    Dictionary-based version :py:class:`monai.transforms.CutOut`.
 
     Notice that the cutout is different for every entry in the dictionary.
     """
@@ -103,4 +92,6 @@ class CutOutd(MapTransform):
         return result
 
 
+MixUpD = MixUpDict = MixUpd
+CutMixD = CutMixDict = CutMixd
 CutOutD = CutOutDict = CutOutd
