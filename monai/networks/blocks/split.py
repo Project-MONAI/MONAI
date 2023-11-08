@@ -14,7 +14,7 @@ import monai
 import torch
 import torch.nn as nn
 
-from typing import Sequence
+from collections.abc import Sequence
 
 
 NUM_SPLITS = 16
