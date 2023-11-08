@@ -9,12 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import monai
 import torch
 import torch.nn as nn
-
-from collections.abc import Sequence
 
 
 NUM_SPLITS = 16
