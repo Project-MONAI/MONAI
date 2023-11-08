@@ -14,6 +14,7 @@ from __future__ import annotations
 from .ahnet import AHnet, Ahnet, AHNet
 from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder
+from .autoencoderkl import AutoencoderKL
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetplusplus
 from .classifier import Classifier, Critic, Discriminator
