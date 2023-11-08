@@ -309,6 +309,16 @@ class GridPatchDataset(IterableDataset):
         self._cache_other.append(other_cache)
         return patch_cache
 
+    def _generate_patches(self, src, **apply_args):
+        for patch, *others in src:
+            out_patch = patch
+            if self.patch_transform is not None:
+                out_patch = self.patch_transform(patch, **apply_args)
+            if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
+                yield out_patch, others[0]
+            else:
+                yield out_patch
+
     def __iter__(self):
         if self.cache:
             cache_index = None
@@ -319,43 +329,19 @@ class GridPatchDataset(IterableDataset):
                     cache_index = self._hash_keys.index(key)
                 if cache_index is None:
                     # no cache for this index, execute all the transforms directly
-                    for patch, *others in self.patch_iter(image):
-                        out_patch = patch
-                        if self.patch_transform is not None:
-                            out_patch = apply_transform(self.patch_transform, patch, map_items=False)
-                        if (
-                            self.with_coordinates and len(others) > 0
-                        ):  # patch_iter to yield at least 2 items: patch, coords
-                            yield out_patch, others[0]
-                        else:
-                            yield out_patch
+                    yield from self._generate_patches(self.patch_iter(image))
 
                 if self._cache is None:
-                    raise RuntimeError("cache buffer is not initialized, please call `set_data()` first.")
+                    raise RuntimeError("Cache buffer is not initialized, please call `set_data()` before epoch begins.")
                 data = self._cache[cache_index]  # type: ignore
                 other = self._cache_other[cache_index]  # type: ignore
 
                 # load data from cache and execute from the first random transform
                 data = deepcopy(data) if self.copy_cache else data
-                for out_patch, others in zip(data, other):
-                    if self.first_random is not None:
-                        out_patch = self.patch_transform(out_patch, start=self.first_random)
-                    if (
-                        self.with_coordinates and len(others) > 0
-                    ):  # patch_iter to yield at least 2 items: patch, coords
-                        yield out_patch, others
-                    else:
-                        yield out_patch
+                yield from self._generate_patches(zip(data, other), start=self.first_random)
         else:
             for image in super().__iter__():
-                for patch, *others in self.patch_iter(image):
-                    out_patch = patch
-                    if self.patch_transform is not None:
-                        out_patch = self.patch_transform(patch)
-                    if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
-                        yield out_patch, others[0]
-                    else:
-                        yield out_patch
+                yield from self._generate_patches(self.patch_iter(image))
 
 
 class PatchDataset(IterableDataset):
