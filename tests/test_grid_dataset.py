@@ -108,7 +108,6 @@ class TestGridPatchDataset(unittest.TestCase):
         self.assertEqual(sorted(output), sorted(expected))
 
     def test_loading_array(self):
-        # set_determinism(seed=1234)
         # test sequence input data with images
         images = [np.arange(16, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
         # image level
@@ -177,6 +176,46 @@ class TestGridPatchDataset(unittest.TestCase):
             np.testing.assert_allclose(
                 item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5
             )
+
+    def test_set_data(self):
+        from monai.transforms import Compose, Lambda, RandLambda
+
+        images = [np.arange(16, dtype=float).reshape(1, 4, 4)]
+
+        transform = Compose(
+            [Lambda(func=lambda x: np.array(x * 10)), RandLambda(func=lambda x: x + 1)], map_items=False
+        )
+        patch_iter = PatchIter(patch_size=(2, 2), start_pos=(0, 0))
+        dataset = GridPatchDataset(
+            data=images,
+            patch_iter=patch_iter,
+            transform=transform,
+            cache=True,
+            cache_rate=1.0,
+            copy_cache=not sys.platform == "linux",
+        )
+
+        num_workers = 2 if sys.platform == "linux" else 0
+        for item in DataLoader(dataset, batch_size=2, shuffle=False, num_workers=num_workers):
+            np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
+        np.testing.assert_allclose(item[0], np.array([[[[81, 91], [121, 131]]], [[[101, 111], [141, 151]]]]), rtol=1e-4)
+        np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
+        # simulate another epoch, the cache content should not be modified
+        for item in DataLoader(dataset, batch_size=2, shuffle=False, num_workers=num_workers):
+            np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
+        np.testing.assert_allclose(item[0], np.array([[[[81, 91], [121, 131]]], [[[101, 111], [141, 151]]]]), rtol=1e-4)
+        np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
+
+        # update the datalist and fill the cache content
+        data_list2 = [np.arange(1, 17, dtype=float).reshape(1, 4, 4)]
+        dataset.set_data(data=data_list2)
+        # rerun with updated cache content
+        for item in DataLoader(dataset, batch_size=2, shuffle=False, num_workers=num_workers):
+            np.testing.assert_equal(tuple(item[0].shape), (2, 1, 2, 2))
+        np.testing.assert_allclose(
+            item[0], np.array([[[[91, 101], [131, 141]]], [[[111, 121], [151, 161]]]]), rtol=1e-4
+        )
+        np.testing.assert_allclose(item[1], np.array([[[0, 1], [2, 4], [0, 2]], [[0, 1], [2, 4], [2, 4]]]), rtol=1e-5)
 
 
 if __name__ == "__main__":
