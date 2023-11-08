@@ -13,13 +13,14 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-import monai
 import torch
 import torch.nn as nn
 
+import monai
 
 NUM_SPLITS = 16
 SPLIT_PADDING = 3
+
 
 class SplitConvolution(nn.Module):
     def __init__(
@@ -72,18 +73,45 @@ class SplitConvolution(nn.Module):
         split_size = l // num_splits
 
         if False:
-            splits = [x[:, :, i * split_size : (i+1) * split_size, :, :] for i in range(num_splits)]
+            splits = [x[:, :, i * split_size : (i + 1) * split_size, :, :] for i in range(num_splits)]
         else:
             padding = SPLIT_PADDING
             print("padding:", padding)
 
             overlaps = [0] + [padding] * (num_splits - 1)
             if self.tp_dim == 0:
-                splits = [x[:, :, i * split_size - overlaps[i] : (i+1) * split_size + (padding if i != num_splits - 1 else 0), :, :] for i in range(num_splits)]
+                splits = [
+                    x[
+                        :,
+                        :,
+                        i * split_size - overlaps[i] : (i + 1) * split_size + (padding if i != num_splits - 1 else 0),
+                        :,
+                        :,
+                    ]
+                    for i in range(num_splits)
+                ]
             elif self.tp_dim == 1:
-                splits = [x[:, :, :, i * split_size - overlaps[i] : (i+1) * split_size + (padding if i != num_splits - 1 else 0), :] for i in range(num_splits)]
+                splits = [
+                    x[
+                        :,
+                        :,
+                        :,
+                        i * split_size - overlaps[i] : (i + 1) * split_size + (padding if i != num_splits - 1 else 0),
+                        :,
+                    ]
+                    for i in range(num_splits)
+                ]
             elif self.tp_dim == 2:
-                splits = [x[:, :, :, :, i * split_size - overlaps[i] : (i+1) * split_size + (padding if i != num_splits - 1 else 0)] for i in range(num_splits)]
+                splits = [
+                    x[
+                        :,
+                        :,
+                        :,
+                        :,
+                        i * split_size - overlaps[i] : (i + 1) * split_size + (padding if i != num_splits - 1 else 0),
+                    ]
+                    for i in range(num_splits)
+                ]
 
             for _j in range(len(splits)):
                 print(f"splits {_j + 1}/{len(splits)}:", splits[_j].size())
@@ -99,14 +127,14 @@ class SplitConvolution(nn.Module):
             outputs = []
             _type = splits[0].device.type
             for _i in range(num_splits):
-                if _type == 'cuda':
+                if _type == "cuda":
                     outputs.append(self.conv(splits[_i]))
                 else:
                     _t = splits[_i]
-                    _t1 = self.conv(_t.to('cuda', non_blocking=True))
+                    _t1 = self.conv(_t.to("cuda", non_blocking=True))
                     del _t
                     torch.cuda.empty_cache()
-                    _t1 = _t1.to('cpu', non_blocking=True)
+                    _t1 = _t1.to("cpu", non_blocking=True)
                     outputs.append(_t1)
                     del _t1
                     torch.cuda.empty_cache()
@@ -130,15 +158,15 @@ class SplitConvolution(nn.Module):
         if self.tp_dim == 0:
             outputs[0] = outputs[0][:, :, :split_size_out, :, :]
             for i in range(1, num_splits):
-                outputs[i] = outputs[i][:, :, padding_s:padding_s + split_size_out, :, :]
+                outputs[i] = outputs[i][:, :, padding_s : padding_s + split_size_out, :, :]
         elif self.tp_dim == 1:
             outputs[0] = outputs[0][:, :, :, :split_size_out, :]
             for i in range(1, num_splits):
-                outputs[i] = outputs[i][:, :, :, padding_s:padding_s + split_size_out, :]
+                outputs[i] = outputs[i][:, :, :, padding_s : padding_s + split_size_out, :]
         elif self.tp_dim == 2:
             outputs[0] = outputs[0][:, :, :, :, :split_size_out]
             for i in range(1, num_splits):
-                outputs[i] = outputs[i][:, :, :, :, padding_s:padding_s + split_size_out]
+                outputs[i] = outputs[i][:, :, :, :, padding_s : padding_s + split_size_out]
 
         if max(outputs[0].size()) < 500:
             x = torch.cat([out for out in outputs], dim=self.tp_dim + 2)
@@ -146,8 +174,8 @@ class SplitConvolution(nn.Module):
             import gc
 
             _type = outputs[0].device.type
-            if _type == 'cuda':
-                x = outputs[0].clone().to('cpu', non_blocking=True)
+            if _type == "cuda":
+                x = outputs[0].clone().to("cpu", non_blocking=True)
             outputs[0] = 0
             torch.cuda.empty_cache()
             for _k in range(len(outputs) - 1):
@@ -155,8 +183,8 @@ class SplitConvolution(nn.Module):
                 outputs[_k + 1] = 0
                 torch.cuda.empty_cache()
                 gc.collect()
-            if _type == 'cuda':
-                x = x.to('cuda', non_blocking=True)
+            if _type == "cuda":
+                x = x.to("cuda", non_blocking=True)
 
         del outputs
         torch.cuda.empty_cache()
