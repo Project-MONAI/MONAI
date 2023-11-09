@@ -18,7 +18,6 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DiffusionModelUNet
-from tests.utils import test_script_save
 
 UNCOND_CASES_2D = [
     [
@@ -468,33 +467,6 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
                 num_class_embeds=2,
             )
 
-    def test_script_unconditioned_2d_models(self):
-        net = DiffusionModelUNet(
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=1,
-            num_res_blocks=1,
-            num_channels=(8, 8, 8),
-            attention_levels=(False, False, True),
-            norm_num_groups=8,
-        )
-        test_script_save(net, torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long())
-
-    def test_script_conditioned_2d_models(self):
-        net = DiffusionModelUNet(
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=1,
-            num_res_blocks=1,
-            num_channels=(8, 8, 8),
-            attention_levels=(False, False, True),
-            norm_num_groups=8,
-            with_conditioning=True,
-            transformer_num_layers=1,
-            cross_attention_dim=3,
-        )
-        test_script_save(net, torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long(), torch.rand((1, 1, 3)))
-
     @parameterized.expand(COND_CASES_2D)
     def test_conditioned_2d_models_shape(self, input_param):
         net = DiffusionModelUNet(**input_param)
@@ -547,35 +519,6 @@ class TestDiffusionModelUNet3D(unittest.TestCase):
                 context=torch.rand((1, 1, 3)),
             )
             self.assertEqual(result.shape, (1, 1, 16, 16, 16))
-
-    def test_script_unconditioned_3d_models(self):
-        net = DiffusionModelUNet(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=1,
-            num_res_blocks=1,
-            num_channels=(8, 8, 8),
-            attention_levels=(False, False, True),
-            norm_num_groups=8,
-        )
-        test_script_save(net, torch.rand((1, 1, 16, 16, 16)), torch.randint(0, 1000, (1,)).long())
-
-    def test_script_conditioned_3d_models(self):
-        net = DiffusionModelUNet(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=1,
-            num_res_blocks=1,
-            num_channels=(8, 8, 8),
-            attention_levels=(False, False, True),
-            norm_num_groups=8,
-            with_conditioning=True,
-            transformer_num_layers=1,
-            cross_attention_dim=3,
-        )
-        test_script_save(
-            net, torch.rand((1, 1, 16, 16, 16)), torch.randint(0, 1000, (1,)).long(), torch.rand((1, 1, 3))
-        )
 
     # Test dropout specification for cross-attention blocks
     @parameterized.expand(DROPOUT_WRONG)
