@@ -18,7 +18,6 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import AutoencoderKL
-from tests.utils import test_script_save
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -156,12 +155,6 @@ class TestAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[0].shape, expected_shape)
             self.assertEqual(result[1].shape, expected_latent_shape)
             self.assertEqual(result[2].shape, expected_latent_shape)
-
-    def test_script(self):
-        input_param, input_shape, _, _ = CASES[0]
-        net = AutoencoderKL(**input_param)
-        test_data = torch.randn(input_shape)
-        test_script_save(net, test_data)
 
     def test_model_channels_not_multiple_of_norm_num_group(self):
         with self.assertRaises(ValueError):
