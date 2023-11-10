@@ -313,7 +313,7 @@ class GridPatchDataset(IterableDataset):
         patch_cache, other_cache = [], []
         for patch, *others in self.patch_iter(item):
             if self.first_random is not None:
-                patch = self.patch_transform(patch, end=self.first_random, threading=True)
+                patch = self.patch_transform(patch, end=self.first_random, threading=True)  # type: ignore
 
             if self.as_contiguous:
                 patch = convert_to_contiguous(patch, memory_format=torch.contiguous_format)
