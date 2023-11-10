@@ -36,11 +36,6 @@ if TYPE_CHECKING:
 else:
     tqdm, has_tqdm = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
-cp, _ = optional_import("cupy")
-lmdb, _ = optional_import("lmdb")
-pd, _ = optional_import("pandas")
-kvikio_numpy, _ = optional_import("kvikio.numpy")
-
 __all__ = ["PatchDataset", "GridPatchDataset", "PatchIter", "PatchIterd"]
 
 
@@ -332,7 +327,9 @@ class GridPatchDataset(IterableDataset):
                     yield from self._generate_patches(self.patch_iter(image))
                 else:
                     if self._cache is None:
-                        raise RuntimeError("Cache buffer is not initialized, please call `set_data()` before epoch begins.")
+                        raise RuntimeError(
+                            "Cache buffer is not initialized, please call `set_data()` before epoch begins."
+                        )
                     data = self._cache[cache_index]  # type: ignore
                     other = self._cache_other[cache_index]  # type: ignore
 
