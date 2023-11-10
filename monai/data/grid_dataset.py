@@ -330,15 +330,15 @@ class GridPatchDataset(IterableDataset):
                 if cache_index is None:
                     # no cache for this index, execute all the transforms directly
                     yield from self._generate_patches(self.patch_iter(image))
+                else:
+                    if self._cache is None:
+                        raise RuntimeError("Cache buffer is not initialized, please call `set_data()` before epoch begins.")
+                    data = self._cache[cache_index]  # type: ignore
+                    other = self._cache_other[cache_index]  # type: ignore
 
-                if self._cache is None:
-                    raise RuntimeError("Cache buffer is not initialized, please call `set_data()` before epoch begins.")
-                data = self._cache[cache_index]  # type: ignore
-                other = self._cache_other[cache_index]  # type: ignore
-
-                # load data from cache and execute from the first random transform
-                data = deepcopy(data) if self.copy_cache else data
-                yield from self._generate_patches(zip(data, other), start=self.first_random)
+                    # load data from cache and execute from the first random transform
+                    data = deepcopy(data) if self.copy_cache else data
+                    yield from self._generate_patches(zip(data, other), start=self.first_random)
         else:
             for image in super().__iter__():
                 yield from self._generate_patches(self.patch_iter(image))
