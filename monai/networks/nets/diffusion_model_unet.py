@@ -70,8 +70,12 @@ def zero_module(module: nn.Module) -> nn.Module:
     return module
 
 
-class CrossAttention(nn.Module):
+class _CrossAttention(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     A cross attention layer.
 
     Args:
@@ -176,8 +180,12 @@ class CrossAttention(nn.Module):
         return self.to_out(x)
 
 
-class BasicTransformerBlock(nn.Module):
+class _BasicTransformerBlock(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     A basic Transformer block.
 
     Args:
@@ -201,7 +209,7 @@ class BasicTransformerBlock(nn.Module):
         use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
-        self.attn1 = CrossAttention(
+        self.attn1 = _CrossAttention(
             query_dim=num_channels,
             num_attention_heads=num_attention_heads,
             num_head_channels=num_head_channels,
@@ -210,7 +218,7 @@ class BasicTransformerBlock(nn.Module):
             use_flash_attention=use_flash_attention,
         )  # is a self-attention
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
-        self.attn2 = CrossAttention(
+        self.attn2 = _CrossAttention(
             query_dim=num_channels,
             cross_attention_dim=cross_attention_dim,
             num_attention_heads=num_attention_heads,
@@ -235,8 +243,12 @@ class BasicTransformerBlock(nn.Module):
         return x
 
 
-class SpatialTransformer(nn.Module):
+class _SpatialTransformer(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     Transformer block for image-like data. First, project the input (aka embedding) and reshape to b, t, d. Then apply
     standard transformer action. Finally, reshape to image.
 
@@ -287,7 +299,7 @@ class SpatialTransformer(nn.Module):
 
         self.transformer_blocks = nn.ModuleList(
             [
-                BasicTransformerBlock(
+                _BasicTransformerBlock(
                     num_channels=inner_dim,
                     num_attention_heads=num_attention_heads,
                     num_head_channels=num_head_channels,
@@ -343,8 +355,12 @@ class SpatialTransformer(nn.Module):
         return x + residual
 
 
-class AttentionBlock(nn.Module):
+class _AttentionBlock(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     An attention block that allows spatial positions to attend to each other. Uses three q, k, v linear layers to
     compute attention.
 
@@ -486,8 +502,12 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int, max_peri
     return embedding
 
 
-class Downsample(nn.Module):
+class _Downsample(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     Downsampling layer.
 
     Args:
@@ -532,8 +552,12 @@ class Downsample(nn.Module):
         return self.op(x)
 
 
-class Upsample(nn.Module):
+class _Upsample(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     Upsampling layer with an optional convolution.
 
     Args:
@@ -587,8 +611,11 @@ class Upsample(nn.Module):
         return x
 
 
-class ResnetBlock(nn.Module):
+class _ResnetBlock(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
     Residual block with timestep conditioning.
 
     Args:
@@ -635,9 +662,9 @@ class ResnetBlock(nn.Module):
 
         self.upsample = self.downsample = None
         if self.up:
-            self.upsample = Upsample(spatial_dims, in_channels, use_conv=False)
+            self.upsample = _Upsample(spatial_dims, in_channels, use_conv=False)
         elif down:
-            self.downsample = Downsample(spatial_dims, in_channels, use_conv=False)
+            self.downsample = _Downsample(spatial_dims, in_channels, use_conv=False)
 
         self.time_emb_proj = nn.Linear(temb_channels, self.out_channels)
 
@@ -735,7 +762,7 @@ class DownBlock(nn.Module):
         for i in range(num_res_blocks):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
-                ResnetBlock(
+                _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -749,7 +776,7 @@ class DownBlock(nn.Module):
 
         if add_downsample:
             if resblock_updown:
-                self.downsampler = ResnetBlock(
+                self.downsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -759,7 +786,7 @@ class DownBlock(nn.Module):
                     down=True,
                 )
             else:
-                self.downsampler = Downsample(
+                self.downsampler = _Downsample(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     use_conv=True,
@@ -829,7 +856,7 @@ class AttnDownBlock(nn.Module):
         for i in range(num_res_blocks):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
-                ResnetBlock(
+                _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -839,7 +866,7 @@ class AttnDownBlock(nn.Module):
                 )
             )
             attentions.append(
-                AttentionBlock(
+                _AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     num_head_channels=num_head_channels,
@@ -854,7 +881,7 @@ class AttnDownBlock(nn.Module):
 
         if add_downsample:
             if resblock_updown:
-                self.downsampler = ResnetBlock(
+                self.downsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -864,7 +891,7 @@ class AttnDownBlock(nn.Module):
                     down=True,
                 )
             else:
-                self.downsampler = Downsample(
+                self.downsampler = _Downsample(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     use_conv=True,
@@ -943,7 +970,7 @@ class CrossAttnDownBlock(nn.Module):
         for i in range(num_res_blocks):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
-                ResnetBlock(
+                _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -954,7 +981,7 @@ class CrossAttnDownBlock(nn.Module):
             )
 
             attentions.append(
-                SpatialTransformer(
+                _SpatialTransformer(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     num_attention_heads=out_channels // num_head_channels,
@@ -974,7 +1001,7 @@ class CrossAttnDownBlock(nn.Module):
 
         if add_downsample:
             if resblock_updown:
-                self.downsampler = ResnetBlock(
+                self.downsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -984,7 +1011,7 @@ class CrossAttnDownBlock(nn.Module):
                     down=True,
                 )
             else:
-                self.downsampler = Downsample(
+                self.downsampler = _Downsample(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     use_conv=True,
@@ -1038,7 +1065,7 @@ class AttnMidBlock(nn.Module):
         super().__init__()
         self.attention = None
 
-        self.resnet_1 = ResnetBlock(
+        self.resnet_1 = _ResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -1046,7 +1073,7 @@ class AttnMidBlock(nn.Module):
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
         )
-        self.attention = AttentionBlock(
+        self.attention = _AttentionBlock(
             spatial_dims=spatial_dims,
             num_channels=in_channels,
             num_head_channels=num_head_channels,
@@ -1055,7 +1082,7 @@ class AttnMidBlock(nn.Module):
             use_flash_attention=use_flash_attention,
         )
 
-        self.resnet_2 = ResnetBlock(
+        self.resnet_2 = _ResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -1109,7 +1136,7 @@ class CrossAttnMidBlock(nn.Module):
         super().__init__()
         self.attention = None
 
-        self.resnet_1 = ResnetBlock(
+        self.resnet_1 = _ResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -1117,7 +1144,7 @@ class CrossAttnMidBlock(nn.Module):
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
         )
-        self.attention = SpatialTransformer(
+        self.attention = _SpatialTransformer(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_attention_heads=in_channels // num_head_channels,
@@ -1130,7 +1157,7 @@ class CrossAttnMidBlock(nn.Module):
             use_flash_attention=use_flash_attention,
             dropout=dropout_cattn,
         )
-        self.resnet_2 = ResnetBlock(
+        self.resnet_2 = _ResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -1188,7 +1215,7 @@ class UpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                ResnetBlock(
+                _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -1202,7 +1229,7 @@ class UpBlock(nn.Module):
 
         if add_upsample:
             if resblock_updown:
-                self.upsampler = ResnetBlock(
+                self.upsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -1212,7 +1239,7 @@ class UpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = Upsample(
+                self.upsampler = _Upsample(
                     spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
                 )
         else:
@@ -1285,7 +1312,7 @@ class AttnUpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                ResnetBlock(
+                _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -1295,7 +1322,7 @@ class AttnUpBlock(nn.Module):
                 )
             )
             attentions.append(
-                AttentionBlock(
+                _AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     num_head_channels=num_head_channels,
@@ -1310,7 +1337,7 @@ class AttnUpBlock(nn.Module):
 
         if add_upsample:
             if resblock_updown:
-                self.upsampler = ResnetBlock(
+                self.upsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -1320,7 +1347,7 @@ class AttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = Upsample(
+                self.upsampler = _Upsample(
                     spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
                 )
         else:
@@ -1402,7 +1429,7 @@ class CrossAttnUpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                ResnetBlock(
+                _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -1412,7 +1439,7 @@ class CrossAttnUpBlock(nn.Module):
                 )
             )
             attentions.append(
-                SpatialTransformer(
+                _SpatialTransformer(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     num_attention_heads=out_channels // num_head_channels,
@@ -1432,7 +1459,7 @@ class CrossAttnUpBlock(nn.Module):
 
         if add_upsample:
             if resblock_updown:
-                self.upsampler = ResnetBlock(
+                self.upsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -1442,7 +1469,7 @@ class CrossAttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = Upsample(
+                self.upsampler = _Upsample(
                     spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
                 )
         else:
@@ -1654,7 +1681,7 @@ class DiffusionModelUNet(nn.Module):
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
         out_channels: number of output channels.
-        num_res_blocks: number of residual blocks (see ResnetBlock) per level.
+        num_res_blocks: number of residual blocks (see _ResnetBlock) per level.
         num_channels: tuple of block output channels.
         attention_levels: list of levels to add attention.
         norm_num_groups: number of groups for the normalization.
@@ -1953,7 +1980,7 @@ class DiffusionModelEncoder(nn.Module):
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
         out_channels: number of output channels.
-        num_res_blocks: number of residual blocks (see ResnetBlock) per level.
+        num_res_blocks: number of residual blocks (see _ResnetBlock) per level.
         num_channels: tuple of block output channels.
         attention_levels: list of levels to add attention.
         norm_num_groups: number of groups for the normalization.

@@ -39,8 +39,12 @@ else:
 __all__ = ["AutoencoderKL"]
 
 
-class Upsample(nn.Module):
+class _Upsample(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     Convolution-based upsampling layer.
 
     Args:
@@ -94,8 +98,12 @@ class Upsample(nn.Module):
         return x
 
 
-class Downsample(nn.Module):
+class _Downsample(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     Convolution-based downsampling layer.
 
     Args:
@@ -123,8 +131,12 @@ class Downsample(nn.Module):
         return x
 
 
-class ResBlock(nn.Module):
+class _ResBlock(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     Residual block consisting of a cascade of 2 convolutions + activation + normalisation block, and a
     residual connection between input and output.
 
@@ -194,8 +206,12 @@ class ResBlock(nn.Module):
         return x + h
 
 
-class AttentionBlock(nn.Module):
+class _AttentionBlock(nn.Module):
     """
+    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
+    use of this block as support is not guaranteed. For more information see:
+    https://github.com/Project-MONAI/MONAI/issues/7227
+
     Attention block.
 
     Args:
@@ -322,7 +338,7 @@ class Encoder(nn.Module):
         in_channels: number of input channels.
         num_channels: sequence of block output channels.
         out_channels: number of channels in the bottom layer (latent space) of the autoencoder.
-        num_res_blocks: number of residual blocks (see ResBlock) per level.
+        num_res_blocks: number of residual blocks (see _ResBlock) per level.
         norm_num_groups: number of groups for the GroupNorm layers, num_channels must be divisible by this number.
         norm_eps: epsilon for the normalization.
         attention_levels: indicate which level from num_channels contain an attention block.
@@ -376,7 +392,7 @@ class Encoder(nn.Module):
 
             for _ in range(self.num_res_blocks[i]):
                 blocks.append(
-                    ResBlock(
+                    _ResBlock(
                         spatial_dims=spatial_dims,
                         in_channels=input_channel,
                         norm_num_groups=norm_num_groups,
@@ -387,7 +403,7 @@ class Encoder(nn.Module):
                 input_channel = output_channel
                 if attention_levels[i]:
                     blocks.append(
-                        AttentionBlock(
+                        _AttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=input_channel,
                             norm_num_groups=norm_num_groups,
@@ -397,12 +413,12 @@ class Encoder(nn.Module):
                     )
 
             if not is_final_block:
-                blocks.append(Downsample(spatial_dims=spatial_dims, in_channels=input_channel))
+                blocks.append(_Downsample(spatial_dims=spatial_dims, in_channels=input_channel))
 
         # Non-local attention block
         if with_nonlocal_attn is True:
             blocks.append(
-                ResBlock(
+                _ResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=num_channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -412,7 +428,7 @@ class Encoder(nn.Module):
             )
 
             blocks.append(
-                AttentionBlock(
+                _AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=num_channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -421,7 +437,7 @@ class Encoder(nn.Module):
                 )
             )
             blocks.append(
-                ResBlock(
+                _ResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=num_channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -462,7 +478,7 @@ class Decoder(nn.Module):
         num_channels: sequence of block output channels.
         in_channels: number of channels in the bottom layer (latent space) of the autoencoder.
         out_channels: number of output channels.
-        num_res_blocks: number of residual blocks (see ResBlock) per level.
+        num_res_blocks: number of residual blocks (see _ResBlock) per level.
         norm_num_groups: number of groups for the GroupNorm layers, num_channels must be divisible by this number.
         norm_eps: epsilon for the normalization.
         attention_levels: indicate which level from num_channels contain an attention block.
@@ -514,7 +530,7 @@ class Decoder(nn.Module):
         # Non-local attention block
         if with_nonlocal_attn is True:
             blocks.append(
-                ResBlock(
+                _ResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -523,7 +539,7 @@ class Decoder(nn.Module):
                 )
             )
             blocks.append(
-                AttentionBlock(
+                _AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -532,7 +548,7 @@ class Decoder(nn.Module):
                 )
             )
             blocks.append(
-                ResBlock(
+                _ResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -551,7 +567,7 @@ class Decoder(nn.Module):
 
             for _ in range(reversed_num_res_blocks[i]):
                 blocks.append(
-                    ResBlock(
+                    _ResBlock(
                         spatial_dims=spatial_dims,
                         in_channels=block_in_ch,
                         norm_num_groups=norm_num_groups,
@@ -563,7 +579,7 @@ class Decoder(nn.Module):
 
                 if reversed_attention_levels[i]:
                     blocks.append(
-                        AttentionBlock(
+                        _AttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
@@ -574,7 +590,7 @@ class Decoder(nn.Module):
 
             if not is_final_block:
                 blocks.append(
-                    Upsample(spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=use_convtranspose)
+                    _Upsample(spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=use_convtranspose)
                 )
 
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))
@@ -608,7 +624,7 @@ class AutoencoderKL(nn.Module):
         spatial_dims: number of spatial dimensions (1D, 2D, 3D).
         in_channels: number of input channels.
         out_channels: number of output channels.
-        num_res_blocks: number of residual blocks (see ResBlock) per level.
+        num_res_blocks: number of residual blocks (see _ResBlock) per level.
         num_channels: sequence of block output channels.
         attention_levels: sequence of levels to add attention.
         latent_channels: latent embedding dimension.
