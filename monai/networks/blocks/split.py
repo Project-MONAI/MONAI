@@ -22,6 +22,80 @@ NUM_SPLITS = 16
 SPLIT_PADDING = 3
 
 
+
+class InplaceGroupNorm3D(torch.nn.GroupNorm):
+    def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
+        super(InplaceGroupNorm3D, self).__init__(num_groups, num_channels, eps, affine)
+
+    def forward(self, input):
+        # Ensure the tensor is 5D: (N, C, D, H, W)
+        if len(input.shape) != 5:
+            raise ValueError("Expected a 5D tensor")
+
+        N, C, D, H, W = input.shape
+
+        # Reshape to (N, num_groups, C // num_groups, D, H, W)
+        input = input.view(N, self.num_groups, C // self.num_groups, D, H, W)
+
+        if False:
+            input = input.to(dtype=torch.float64)
+            mean = input.mean([2, 3, 4, 5], keepdim=True)
+            std = input.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
+
+            input = input.to(dtype=torch.float32)
+            mean = mean.to(dtype=torch.float32)
+            std = mean.to(dtype=torch.float32)
+        else:
+            means, stds = [], []
+            inputs = []
+            for _i in range(input.size(1)):
+                array = input[:, _i:_i + 1, ...]
+                array = array.to(dtype=torch.float32)
+                _mean = array.mean([2, 3, 4, 5], keepdim=True)
+                _std = array.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
+
+                _mean = _mean.to(dtype=torch.float32)
+                _std = _std.to(dtype=torch.float32)
+
+                inputs.append(array.sub_(_mean).div_(_std).to(dtype=torch.float16))
+
+        del input
+        torch.cuda.empty_cache()
+
+        if False:
+            input = torch.cat([inputs[_k] for _k in range(len(inputs))], dim=1)
+        else:
+            if max(inputs[0].size()) < 500:
+                input = torch.cat([inputs[_k] for _k in range(len(inputs))], dim=1)
+            else:
+                import gc
+                _type = inputs[0].device.type
+                if _type == 'cuda':
+                    input = inputs[0].clone().to('cpu', non_blocking=True)
+                else:
+                    input = inputs[0].clone()
+                inputs[0] = 0
+                torch.cuda.empty_cache()
+
+                for _k in range(len(inputs) - 1):
+                    input = torch.cat((input, inputs[_k + 1].cpu()), dim=1)
+                    inputs[_k + 1] = 0
+                    torch.cuda.empty_cache()
+                    gc.collect()
+
+                if _type == 'cuda':
+                    input = input.to('cuda', non_blocking=True)
+
+        # Reshape back to original size
+        input = input.view(N, C, D, H, W)
+
+        # Apply affine transformation if enabled
+        if self.affine:
+            input.mul_(self.weight.view(1, C, 1, 1, 1)).add_(self.bias.view(1, C, 1, 1, 1))
+
+        return input
+
+
 class SplitConvolution(nn.Module):
     def __init__(
         self,
@@ -169,7 +243,7 @@ class SplitConvolution(nn.Module):
                 outputs[i] = outputs[i][:, :, :, :, padding_s : padding_s + split_size_out]
 
         if max(outputs[0].size()) < 500:
-            x = torch.cat([out for out in outputs], dim=self.tp_dim + 2)
+            x = torch.cat(outputs, dim=self.tp_dim + 2)
         else:
             import gc
 
