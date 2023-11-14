@@ -30,15 +30,13 @@ import math
 
 import torch
 import torch.distributed as dist
-import torch.nn.functional as F
 
-import numpy as np
 
 from .halo import _TiledHaloExchange2d, _TiledHaloExchange3d, _TiledHaloExchange_p3d
 
 class _BaseTiledLayer2d(torch.nn.Module):
   def __init__(self, tile_op, kernel_size, stride, padding):
-    super(_BaseTiledLayer2d, self).__init__()
+    super().__init__()
     self.tile_op = tile_op
     self.kernel_size = kernel_size
     self.stride = stride
@@ -53,7 +51,7 @@ class _BaseTiledLayer2d(torch.nn.Module):
     if dist.is_initialized():
       ddp_world_size = dist.get_world_size()
       for p in self.tile_op.parameters():
-        if p.requires_grad == True:
+        if p.requires_grad is True:
           p.register_hook(lambda x: ddp_world_size * x)
 
   def _output_size(self, tdesc):
@@ -97,7 +95,7 @@ class _BaseTiledLayer2d(torch.nn.Module):
 
 class _BaseTiledLayer_p3d(torch.nn.Module):
   def __init__(self, tile_op, kernel_size, stride, padding):
-    super(_BaseTiledLayer_p3d, self).__init__()
+    super().__init__()
     self.tile_op = tile_op
     self.kernel_size = kernel_size
     self.stride = stride
@@ -112,7 +110,7 @@ class _BaseTiledLayer_p3d(torch.nn.Module):
     if dist.is_initialized():
       ddp_world_size = dist.get_world_size()
       for p in self.tile_op.parameters():
-        if p.requires_grad == True:
+        if p.requires_grad is True:
           p.register_hook(lambda x: ddp_world_size * x)
 
   def _output_size(self, tdesc):
@@ -163,7 +161,7 @@ class TiledConv2d(_BaseTiledLayer2d):
     # Set padding to zero here as halo exchange code adds explicit pad
     tile_op = torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding=0, bias=bias)
 
-    super(TiledConv2d, self).__init__(tile_op, kernel_size, stride, padding)
+    super().__init__(tile_op, kernel_size, stride, padding)
     self.out_channels = out_channels
 
   def _output_size(self, tdesc):
@@ -180,7 +178,7 @@ class TiledConv_p3d(_BaseTiledLayer_p3d):
     # Set padding to zero here as halo exchange code adds explicit pad
     tile_op = torch.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding=0, bias=bias)
 
-    super(TiledConv_p3d, self).__init__(tile_op, kernel_size, stride, padding)
+    super().__init__(tile_op, kernel_size, stride, padding)
     self.out_channels = out_channels
 
   def _output_size(self, tdesc):
@@ -197,21 +195,21 @@ class TiledMaxPool2d(_BaseTiledLayer2d):
   def __init__(self, kernel_size, stride=1, padding=0):
     # Set padding to zero here as halo exchange code adds explicit pad
     tile_op = torch.nn.MaxPool2d(kernel_size, stride, padding=0)
-    super(TiledMaxPool2d, self).__init__(tile_op, kernel_size, stride, padding)
+    super().__init__(tile_op, kernel_size, stride, padding)
 
 
 class TiledAvgPool2d(_BaseTiledLayer2d):
   def __init__(self, kernel_size, stride=1, padding=0):
     # Set padding to zero here as halo exchange code adds explicit pad
     tile_op = torch.nn.AvgPool2d(kernel_size, stride, padding=0)
-    super(TiledAvgPool2d, self).__init__(tile_op, kernel_size, stride, padding)
+    super().__init__(tile_op, kernel_size, stride, padding)
 
 
 # Note: TiledBatchNorm is mostly a wrapper around SyncBatchNorm, but with pre-scaled
 # gradients to cancel out averaging done by DDP.
 class TiledBatchNorm(torch.nn.SyncBatchNorm):
   def __init__(self, num_features, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True):
-    super(TiledBatchNorm, self).__init__(num_features, eps, momentum, affine, track_running_stats)
+    super().__init__(num_features, eps, momentum, affine, track_running_stats)
 
     # Multiply gradients by DDP world size to obtain global sum instead of
     # global average.
@@ -220,18 +218,18 @@ class TiledBatchNorm(torch.nn.SyncBatchNorm):
     if dist.is_initialized():
       ddp_world_size = dist.get_world_size()
       for p in self.parameters():
-        if p.requires_grad == True:
+        if p.requires_grad is True:
           p.register_hook(lambda x: ddp_world_size * x)
 
   def forward(self, x, tdesc):
     # tdesc is unused, but kept as input and output arg for convenience (or future usage)
-    x = super(TiledBatchNorm, self).forward(x)
+    x = super().forward(x)
     return x, tdesc
 
 
 class _BaseTiledLayer3d(torch.nn.Module):
   def __init__(self, tile_op, kernel_size, stride, padding):
-    super(_BaseTiledLayer3d, self).__init__()
+    super().__init__()
     self.tile_op = tile_op
     self.kernel_size = kernel_size
     self.stride = stride
@@ -246,7 +244,7 @@ class _BaseTiledLayer3d(torch.nn.Module):
     if dist.is_initialized():
       ddp_world_size = dist.get_world_size()
       for p in self.tile_op.parameters():
-        if p.requires_grad == True:
+        if p.requires_grad is True:
           p.register_hook(lambda x: ddp_world_size * x)
 
 
@@ -254,11 +252,11 @@ class TiledMaxPool_p3d(_BaseTiledLayer_p3d):
   def __init__(self, kernel_size, stride=1, padding=0):
     # Set padding to zero here as halo exchange code adds explicit pad
     tile_op = torch.nn.MaxPool3d(kernel_size, stride, padding=0)
-    super(TiledMaxPool_p3d, self).__init__(tile_op, kernel_size, stride, padding)
+    super().__init__(tile_op, kernel_size, stride, padding)
 
 
 class TiledAvgPool_p3d(_BaseTiledLayer_p3d):
   def __init__(self, kernel_size, stride=1, padding=0):
     # Set padding to zero here as halo exchange code adds explicit pad
     tile_op = torch.nn.AvgPool3d(kernel_size, stride, padding=0)
-    super(TiledAvgPool_p3d, self).__init__(tile_op, kernel_size, stride, padding)
+    super().__init__(tile_op, kernel_size, stride, padding)
