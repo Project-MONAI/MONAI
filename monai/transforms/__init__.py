@@ -336,6 +336,18 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
+from .regularization.array import CutMix, CutOut, MixUp
+from .regularization.dictionary import (
+    CutMixd,
+    CutMixD,
+    CutMixDict,
+    CutOutd,
+    CutOutD,
+    CutOutDict,
+    MixUpd,
+    MixUpD,
+    MixUpDict,
+)
 from .signal.array import (
     SignalContinuousWavelet,
     SignalFillEmpty,
@@ -692,16 +704,4 @@ from .utils_pytorch_numpy_unification import (
     stack,
     unravel_index,
     where,
-)
-from .regularization.array import MixUp, CutMix, CutOut
-from .regularization.dictionary import (
-    CutMixd,
-    CutMixD,
-    CutMixDict,
-    MixUpd,
-    MixUpD,
-    MixUpDict,
-    CutOutd,
-    CutOutD,
-    CutOutDict,
 )

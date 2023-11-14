@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 from monai.config import KeysCollection
 from monai.transforms import MapTransform
 from monai.utils.misc import ensure_tuple
@@ -31,11 +30,7 @@ class MixUpd(MapTransform):
     """
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        batch_size: int,
-        alpha: float = 1.0,
-        allow_missing_keys: bool = False,
+        self, keys: KeysCollection, batch_size: int, alpha: float = 1.0, allow_missing_keys: bool = False
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mixup = MixUp(batch_size, alpha)

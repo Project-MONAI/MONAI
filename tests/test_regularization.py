@@ -9,9 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
-from monai.transforms import MixUp, MixUpd, CutMix, CutMixd, CutOut
+from __future__ import annotations
+
 import unittest
+
+import torch
+
+from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd
 
 
 class TestMixup(unittest.TestCase):
