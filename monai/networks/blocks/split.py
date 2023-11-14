@@ -25,7 +25,7 @@ SPLIT_PADDING = 3
 
 class InplaceGroupNorm3D(torch.nn.GroupNorm):
     def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
-        super(InplaceGroupNorm3D, self).__init__(num_groups, num_channels, eps, affine)
+        super().__init__(num_groups, num_channels, eps, affine)
 
     def forward(self, input):
         # Ensure the tensor is 5D: (N, C, D, H, W)
@@ -40,11 +40,11 @@ class InplaceGroupNorm3D(torch.nn.GroupNorm):
         if False:
             input = input.to(dtype=torch.float64)
             mean = input.mean([2, 3, 4, 5], keepdim=True)
-            std = input.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
+            input.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
 
             input = input.to(dtype=torch.float32)
             mean = mean.to(dtype=torch.float32)
-            std = mean.to(dtype=torch.float32)
+            mean.to(dtype=torch.float32)
         else:
             means, stds = [], []
             inputs = []
