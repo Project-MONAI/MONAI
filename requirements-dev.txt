@@ -22,7 +22,7 @@ isort>=5.1
 ruff
 pytype>=2020.6.1; platform_system != "Windows"
 types-pkg_resources
-mypy>=0.790
+mypy>=1.5.0
 ninja
 torchvision
 psutil
