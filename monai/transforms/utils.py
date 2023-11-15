@@ -954,7 +954,7 @@ def _create_translate(
 
 
 @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
-def generate_one_spatial_bounding_box(
+def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
     channel_indices: IndexSelection | None = None,
@@ -1001,7 +1001,6 @@ def generate_one_spatial_bounding_box(
         if len(ax) != 0:
             dt = any_np_pt(dt, ax)
 
-
         if not dt.any():
             # if no foreground, return all zero bounding box coords
             return [0] * ndim, [0] * ndim
@@ -1020,24 +1019,26 @@ def generate_one_spatial_bounding_box(
 
 
 @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
-def generate_spatial_bounding_box(
+def generate_spatial_bounding_boxes(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
     channel_indices: IndexSelection | None = None,
     margin: Sequence[int] | int = 0,
     allow_smaller: bool = True,
+    connectivity: int = 2,
 ) -> tuple[list[int], list[int]]:
     """
-    Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
+    Generate the spatial bounding boxes of foreground in the image with start-end positions (inclusive).
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
-    And it can also add margin to every dim of the bounding box.
+    And it can also add margin to every dim of the bounding boxes.
     The output format of the coordinates is:
+        [[1st_bb_1st_spatial_dim_start, ..., 1st_bb_Nth_spatial_dim_start], ...,
+        [Nth_bb_1st_spatial_dim_start, ..., Nth_bb_Nth_spatial_dim_start]]
 
-        [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start] -> [n_bb, ndim]
-        [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end] -> [n_bb, ndim]
+        [[1st_bb_1st_spatial_dim_end, ..., 1st_bb_Nth_spatial_dim_end], ...,
+        [Nth_bb_1st_spatial_dim_end, ..., Nth_bb_Nth_spatial_dim_end]]
 
-    This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
-
+    This function returns ([], []) if there's no positive intensity.
     Args:
         img: a "channel-first" image of shape (C, spatial_dim1[, spatial_dim2, ...]) to generate bounding box from.
         select_fn: function to select expected foreground, default is to select values > 0.
@@ -1047,7 +1048,9 @@ def generate_spatial_bounding_box(
         allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
                 final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
                 the bounding boxes edges are aligned with the final box edges. Default to `True`.
-
+        connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
+                Accepted values are ranging from 1 to input.ndim. If None, a full connectivity of input.ndim is used.
+                see https://scikit-image.org/docs/stable/api/skimage.measure.html#skimage.measure.label
     """
 
     skimage, has_cucim = optional_import("cucim.skimage")
@@ -1062,27 +1065,21 @@ def generate_spatial_bounding_box(
         label = measure.label
 
     data = select_fn(img_).any(0)
-    features, num_features = label(data, connectivity=1, return_num=True)
+    features, num_features = label(data, connectivity=connectivity, return_num=True)
 
     boxes_start = []
     boxes_end = []
 
     for n in range(num_features):
-        result = generate_one_spatial_bounding_box(
-            img= features[None],
-            select_fn = lambda x: x==(n+1),
-            margin = margin,
-            channel_indices = channel_indices,
-            allow_smaller = allow_smaller
+        result = generate_spatial_bounding_box(
+            img=features[None],
+            select_fn=lambda x: x == (n + 1),
+            margin=margin,
+            channel_indices=channel_indices,
+            allow_smaller=allow_smaller,
         )
         boxes_start.append(result[0])
         boxes_end.append(result[1])
-
-    # For non breaking change with previous implementation.
-    # TODO refacto for standardization
-    if len(boxes_start) == 1 and len(boxes_end) == 1:
-        boxes_start = boxes_start[0]
-        boxes_end = boxes_end[0]
 
     return boxes_start, boxes_end
 
