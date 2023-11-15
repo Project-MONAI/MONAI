@@ -26,6 +26,7 @@ from .scripts import (
     init_bundle,
     load,
     onnx_export,
+    push_to_hf_hub,
     run,
     run_workflow,
     trt_export,

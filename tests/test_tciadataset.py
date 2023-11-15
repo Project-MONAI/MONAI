@@ -16,7 +16,7 @@ import shutil
 import unittest
 
 from monai.apps import TciaDataset
-from monai.apps.tcia import TCIA_LABEL_DICT
+from monai.apps.tcia import DCM_FILENAME_REGEX, TCIA_LABEL_DICT
 from monai.data import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
 from tests.utils import skip_if_downloading_fails, skip_if_quick
@@ -32,7 +32,12 @@ class TestTciaDataset(unittest.TestCase):
 
         transform = Compose(
             [
-                LoadImaged(keys=["image", "seg"], reader="PydicomReader", label_dict=TCIA_LABEL_DICT[collection]),
+                LoadImaged(
+                    keys=["image", "seg"],
+                    reader="PydicomReader",
+                    fname_regex=DCM_FILENAME_REGEX,
+                    label_dict=TCIA_LABEL_DICT[collection],
+                ),
                 EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
             ]
@@ -82,10 +87,24 @@ class TestTciaDataset(unittest.TestCase):
         self.assertTupleEqual(data[0]["image"].shape, (256, 256, 24))
         self.assertEqual(len(data), int(download_len * val_frac))
         data = TciaDataset(
-            root_dir=testing_dir, collection=collection, section="validation", download=False, val_frac=val_frac
+            root_dir=testing_dir,
+            collection=collection,
+            section="validation",
+            download=False,
+            fname_regex=DCM_FILENAME_REGEX,
+            val_frac=val_frac,
         )
         self.assertTupleEqual(data[0]["image"].shape, (256, 256, 24))
         self.assertEqual(len(data), download_len)
+        with self.assertWarns(UserWarning):
+            data = TciaDataset(
+                root_dir=testing_dir,
+                collection=collection,
+                section="validation",
+                fname_regex=".*",  # all files including 'LICENSE' is not a valid input
+                download=False,
+                val_frac=val_frac,
+            )[0]
 
         shutil.rmtree(os.path.join(testing_dir, collection))
         try:

@@ -37,6 +37,7 @@ def run_testsuit():
         "test_auto3dseg",
         "test_bundle_onnx_export",
         "test_bundle_trt_export",
+        "test_bundle_push_to_hf_hub",
         "test_cachedataset",
         "test_cachedataset_parallel",
         "test_cachedataset_persistent_workers",

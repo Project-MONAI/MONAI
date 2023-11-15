@@ -111,9 +111,6 @@ class MSEMetric(RegressionMetric):
         self.sq_func = partial(torch.pow, exponent=2.0)
 
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        y_pred = y_pred.float()
-        y = y.float()
-
         return compute_mean_error_metrics(y_pred, y, func=self.sq_func)
 
 
@@ -143,9 +140,6 @@ class MAEMetric(RegressionMetric):
         self.abs_func = torch.abs
 
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        y_pred = y_pred.float()
-        y = y.float()
-
         return compute_mean_error_metrics(y_pred, y, func=self.abs_func)
 
 
@@ -176,9 +170,6 @@ class RMSEMetric(RegressionMetric):
         self.sq_func = partial(torch.pow, exponent=2.0)
 
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        y_pred = y_pred.float()
-        y = y.float()
-
         mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
         return torch.sqrt(mse_out)
 
@@ -218,9 +209,6 @@ class PSNRMetric(RegressionMetric):
         self.sq_func = partial(torch.pow, exponent=2.0)
 
     def _compute_metric(self, y_pred: torch.Tensor, y: torch.Tensor) -> Any:
-        y_pred = y_pred.float()
-        y = y.float()
-
         mse_out = compute_mean_error_metrics(y_pred, y, func=self.sq_func)
         return 20 * math.log10(self.max_val) - 10 * torch.log10(mse_out)
 

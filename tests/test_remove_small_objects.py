@@ -37,7 +37,6 @@ affine = torch.eye(4, dtype=torch.float64)
 affine[0, 0] = 2.0
 TEST_INPUT3 = MetaTensor(TEST_INPUT2, affine=affine)
 
-
 TESTS: list[tuple] = []
 for dtype in (int, float):
     for p in TEST_NDARRAYS:

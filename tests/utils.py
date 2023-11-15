@@ -724,22 +724,16 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     """
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
     device = "cpu"
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            convert_to_torchscript(
-                model=net,
-                filename_or_obj=os.path.join(tempdir, "model.ts"),
-                verify=True,
-                inputs=inputs,
-                device=device,
-                rtol=rtol,
-                atol=atol,
-            )
-    except (RuntimeError, AttributeError):
-        if sys.version_info.major == 3 and sys.version_info.minor == 11:
-            warnings.warn("skipping py 3.11")
-            return
-        raise
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_torchscript(
+            model=net,
+            filename_or_obj=os.path.join(tempdir, "model.ts"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
@@ -753,23 +747,17 @@ def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
     device = "cpu"
     _, has_onnxruntime = optional_import("onnxruntime")
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            convert_to_onnx(
-                model=net,
-                filename=os.path.join(tempdir, "model.onnx"),
-                verify=True,
-                inputs=inputs,
-                device=device,
-                use_ort=has_onnxruntime,
-                rtol=rtol,
-                atol=atol,
-            )
-    except (RuntimeError, AttributeError):
-        if sys.version_info.major == 3 and sys.version_info.minor == 11:
-            warnings.warn("skipping py 3.11")
-            return
-        raise
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_onnx(
+            model=net,
+            filename=os.path.join(tempdir, "model.onnx"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            use_ort=has_onnxruntime,
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def download_url_or_skip_test(*args, **kwargs):
@@ -823,6 +811,16 @@ def command_line_tests(cmd, copy_env=True):
         output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
         errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
+def equal_state_dict(st_1, st_2):
+    """
+    assert equal state_dict (for the shared keys between st_1 and st_2).
+    """
+    for key_st_1, val_st_1 in st_1.items():
+        if key_st_1 in st_2:
+            val_st_2 = st_2.get(key_st_1)
+            assert_allclose(val_st_1, val_st_2)
 
 
 TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)

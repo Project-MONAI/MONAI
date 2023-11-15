@@ -59,6 +59,8 @@ from .resnet import (
     ResNet,
     ResNetBlock,
     ResNetBottleneck,
+    get_medicalnet_pretrained_resnet_args,
+    get_pretrained_resnet_medicalnet,
     resnet10,
     resnet18,
     resnet34,
@@ -109,3 +111,4 @@ from .varautoencoder import VarAutoEncoder
 from .vit import ViT
 from .vitautoenc import ViTAutoEnc
 from .vnet import VNet
+from .voxelmorph import VoxelMorph, VoxelMorphUNet
