@@ -275,8 +275,8 @@ class nnUNetV2Runner:  # noqa: N801
                 num_input_channels=num_input_channels,
                 output_datafolder=raw_data_foldername,
             )
-        except BaseException:
-            logger.warning("Input config may be incorrect. Detail info: error/exception message is:\n {err}")
+        except BaseException as err:
+            logger.warning(f"Input config may be incorrect. Detail info: error/exception message is:\n {err}")
             return
 
     def convert_msd_dataset(self, data_dir: str, overwrite_id: str | None = None, n_proc: int = -1) -> None:
