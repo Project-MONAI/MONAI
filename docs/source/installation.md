@@ -228,7 +228,7 @@ Alternatively, to install all optional dependencies:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-pip install -e '.[all]'
+pip install -e ".[all]"
 ```
 
 To install all optional dependencies with `pip` based on MONAI development environment settings:
