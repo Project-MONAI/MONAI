@@ -115,6 +115,7 @@ venv.bak/
 examples/scd_lvsegs.npz
 temp/
 .idea/
+.dmypy.json
 
 *~
 
