@@ -210,7 +210,7 @@ class DataAnalyzer:
             nprocs = torch.cuda.device_count()
             logger.info(f"Found {nprocs} GPUs for data analyzing!")
         if nprocs > 1:
-            tmp_ctx = get_context("forkserver")
+            tmp_ctx: Any = get_context("forkserver")
             with tmp_ctx.Manager() as manager:
                 manager_list = manager.list()
                 processes = []

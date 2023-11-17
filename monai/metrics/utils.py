@@ -14,7 +14,7 @@ from __future__ import annotations
 import warnings
 from functools import lru_cache, partial
 from types import ModuleType
-from typing import Any, Sequence
+from typing import Any, Iterable, Sequence
 
 import numpy as np
 import torch
@@ -383,7 +383,7 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
         by_size: if True, largest instance will be assigned a smaller id.
 
     """
-    pred_id = list(pred.unique())
+    pred_id: Iterable[Any] = list(pred.unique())
     # the original implementation has the limitation that if there is no 0 in pred, error will happen
     pred_id = [i for i in pred_id if i != 0]
 
