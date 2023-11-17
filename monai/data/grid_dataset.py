@@ -294,10 +294,10 @@ class GridPatchDataset(IterableDataset):
             indices = list(range(self.cache_num))
         if self.progress and not has_tqdm:
             warnings.warn("tqdm is not installed, will not show the caching progress bar.")
+        
+        pfunc = tqdm if self.progress and has_tqdm else (lambda v, **_: v)
         with ThreadPool(self.num_workers) as p:
-            if self.progress and has_tqdm:
-                return list(tqdm(p.imap(self._load_cache_item, indices), total=len(indices), desc="Loading dataset"))
-            return list(p.imap(self._load_cache_item, indices))
+            return list(pfunc(p.imap(self._load_cache_item, indices), total=len(indices), desc="Loading dataset"))
 
     def _load_cache_item(self, idx: int):
         """
