@@ -27,7 +27,7 @@ If applicable, add screenshots to help explain your problem.
 Ensuring you use the relevant python executable, please paste the output of:
 
 ```
-python -c 'import monai; monai.config.print_debug_info()'
+python -c "import monai; monai.config.print_debug_info()"
 ```
 
 **Additional context**
