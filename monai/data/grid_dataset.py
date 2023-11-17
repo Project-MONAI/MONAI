@@ -272,17 +272,12 @@ class GridPatchDataset(IterableDataset):
         """
         self.data = data
 
-        def _compute_cache_num(data_len: int):
-            self.cache_num = min(int(self.set_num), int(data_len * self.set_rate), data_len)
-
         # only compute cache for the unique items of dataset, and record the last index for duplicated items
         mapping = {self.hash_func(v): i for i, v in enumerate(self.data)}
-        _compute_cache_num(len(mapping))
+        self.cache_num = min(int(self.set_num), int(len(mapping)* self.set_rate), len(mapping))
         self._hash_keys = list(mapping)[: self.cache_num]
         indices = list(mapping.values())[: self.cache_num]
-
         self._cache = self._fill_cache(indices)
-        return
 
     def _fill_cache(self, indices=None) -> list:
         """
