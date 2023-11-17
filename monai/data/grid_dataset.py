@@ -274,10 +274,10 @@ class GridPatchDataset(IterableDataset):
 
         # only compute cache for the unique items of dataset, and record the last index for duplicated items
         mapping = {self.hash_func(v): i for i, v in enumerate(self.data)}
-        self.cache_num = min(int(self.set_num), int(len(mapping)* self.set_rate), len(mapping))
+        self.cache_num = min(int(self.set_num), int(len(mapping) * self.set_rate), len(mapping))
         self._hash_keys = list(mapping)[: self.cache_num]
         indices = list(mapping.values())[: self.cache_num]
-        self._cache = self._fill_cache(indices)
+        self._cache, self._cache_other = zip(*self._fill_cache(indices))
 
     def _fill_cache(self, indices=None) -> list:
         """
@@ -315,8 +315,7 @@ class GridPatchDataset(IterableDataset):
             if self.with_coordinates and len(others) > 0:  # patch_iter to yield at least 2 items: patch, coords
                 other_cache.append(others[0])
             patch_cache.append(patch)
-        self._cache_other.append(other_cache)
-        return patch_cache
+        return patch_cache, other_cache
 
     def _generate_patches(self, src, **apply_args):
         """

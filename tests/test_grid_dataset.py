@@ -180,7 +180,7 @@ class TestGridPatchDataset(unittest.TestCase):
     def test_set_data(self):
         from monai.transforms import Compose, Lambda, RandLambda
 
-        images = [np.arange(16, dtype=float).reshape(1, 4, 4)]
+        images = [np.arange(2, 18, dtype=float).reshape(1, 4, 4), np.arange(16, dtype=float).reshape(1, 4, 4)]
 
         transform = Compose(
             [Lambda(func=lambda x: np.array(x * 10)), RandLambda(func=lambda x: x + 1)], map_items=False
