@@ -251,6 +251,7 @@ class GridPatchDataset(IterableDataset):
         self._cache: list | ListProxy = []
         self._cache_other: list | ListProxy = []
         self.cache = cache
+        self.first_random: int | None = None
         if self.patch_transform is not None:
             self.first_random = self.patch_transform.get_index_of_first(
                 lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
@@ -277,7 +278,7 @@ class GridPatchDataset(IterableDataset):
         self.cache_num = min(int(self.set_num), int(len(mapping) * self.set_rate), len(mapping))
         self._hash_keys = list(mapping)[: self.cache_num]
         indices = list(mapping.values())[: self.cache_num]
-        self._cache, self._cache_other = zip(*self._fill_cache(indices))
+        self._cache, self._cache_other = zip(*self._fill_cache(indices))  # type: ignore
 
     def _fill_cache(self, indices=None) -> list:
         """
