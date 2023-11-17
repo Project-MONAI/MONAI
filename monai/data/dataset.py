@@ -389,7 +389,7 @@ class PersistentDataset(Dataset):
                     raise e
             except RuntimeError as e:
                 if "Invalid magic number; corrupt file" in str(e):
-                    print(f"Corrupt cache file detected: {hashfile}. Deleting and recomputing.")
+                    warnings.warn(f"Corrupt cache file detected: {hashfile}. Deleting and recomputing.")
                     hashfile.unlink()
                 else:
                     raise e
