@@ -153,7 +153,6 @@ CASES = [
             "attention_levels": (False, False, True),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
-            "label_nc": 3,
             "spade_intermediate_channels": 32,
         },
         (1, 1, 16, 16),
