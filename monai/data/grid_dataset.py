@@ -352,8 +352,8 @@ class GridPatchDataset(IterableDataset):
                         raise RuntimeError(
                             "Cache buffer is not initialized, please call `set_data()` before epoch begins."
                         )
-                    data = self._cache[cache_index]  # type: ignore
-                    other = self._cache_other[cache_index]  # type: ignore
+                    data = self._cache[cache_index]
+                    other = self._cache_other[cache_index]
 
                     # load data from cache and execute from the first random transform
                     data = deepcopy(data) if self.copy_cache else data

@@ -521,7 +521,7 @@ def correct_crop_centers(
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
         valid_centers.append(int(center_i))
-    return ensure_tuple(valid_centers)  # type: ignore
+    return ensure_tuple(valid_centers)
 
 
 def generate_pos_neg_label_crop_centers(
@@ -579,7 +579,7 @@ def generate_pos_neg_label_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return ensure_tuple(centers)  # type: ignore
+    return ensure_tuple(centers)
 
 
 def generate_label_classes_crop_centers(
@@ -639,7 +639,7 @@ def generate_label_classes_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return ensure_tuple(centers)  # type: ignore
+    return ensure_tuple(centers)
 
 
 def create_grid(
@@ -2218,7 +2218,7 @@ def distance_transform_edt(
     if not r_vals:
         return None
     device = img.device if isinstance(img, torch.Tensor) else None
-    return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]  # type: ignore
+    return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]
 
 
 if __name__ == "__main__":
