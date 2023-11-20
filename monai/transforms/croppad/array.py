@@ -386,7 +386,7 @@ class Crop(InvertibleTransform, LazyTransform):
         if roi_slices:
             if not all(s.step is None or s.step == 1 for s in roi_slices):
                 raise ValueError(f"only slice steps of 1/None are currently supported, got {roi_slices}.")
-            return ensure_tuple(roi_slices)  # type: ignore
+            return ensure_tuple(roi_slices)
         else:
             if roi_center is not None and roi_size is not None:
                 roi_center_t = convert_to_tensor(data=roi_center, dtype=torch.int16, wrap_sequence=True, device="cpu")
@@ -408,10 +408,8 @@ class Crop(InvertibleTransform, LazyTransform):
                 roi_end_t = torch.maximum(roi_end_t, roi_start_t)
             # convert to slices (accounting for 1d)
             if roi_start_t.numel() == 1:
-                return ensure_tuple([slice(int(roi_start_t.item()), int(roi_end_t.item()))])  # type: ignore
-            return ensure_tuple(  # type: ignore
-                [slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())]
-            )
+                return ensure_tuple([slice(int(roi_start_t.item()), int(roi_end_t.item()))])
+            return ensure_tuple([slice(int(s), int(e)) for s, e in zip(roi_start_t.tolist(), roi_end_t.tolist())])
 
     def __call__(  # type: ignore[override]
         self, img: torch.Tensor, slices: tuple[slice, ...], lazy: bool | None = None

@@ -310,7 +310,7 @@ TESTS.append(("RandWeightedCropd 2d", "2D", 1e-7, True, RandWeightedCropd(KEYS, 
 
 TESTS_COMPOSE_X2 = [(t[0] + " Compose", t[1], t[2], t[3], Compose(Compose(t[4:]))) for t in TESTS]
 
-TESTS = TESTS + TESTS_COMPOSE_X2  # type: ignore
+TESTS = TESTS + TESTS_COMPOSE_X2
 
 NUM_SAMPLES = 5
 N_SAMPLES_TESTS = [
