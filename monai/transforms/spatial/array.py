@@ -1157,7 +1157,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
         """
         LazyTransform.__init__(self, lazy=lazy)
         self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
-        spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
+        spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)
         if len(spatial_axes_) != 2:
             raise ValueError(f"spatial_axes must be 2 numbers to define the plane to rotate, got {spatial_axes_}.")
         self.spatial_axes = spatial_axes_

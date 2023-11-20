@@ -372,7 +372,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]
 
 
 class ToTensor(Transform):
