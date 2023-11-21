@@ -92,7 +92,7 @@ def write_metrics_reports(
                 class1  6.0000   6.0000   6.0000   6.0000      6.0000       1.0000
                 mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
-        class_labels: list of class names used to name the classes in the output report, if None, 
+        class_labels: list of class names used to name the classes in the output report, if None,
             "class0", ..., "classn" are used, default to None.
         deli: the delimiter character in the saved file, default to "," as the default output type is `csv`.
             to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
