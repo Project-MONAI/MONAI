@@ -123,7 +123,7 @@ def write_metrics_reports(
             # add the average value of all classes to v
             if class_labels is None:
                 class_labels = ["class" + str(i) for i in range(v.shape[1])]
-            class_labels += ["mean"]
+            class_labels.append(["mean"])
             v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
 
             with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
