@@ -59,9 +59,9 @@ def write_metrics_reports(
     metrics: dict[str, torch.Tensor | np.ndarray] | None,
     metric_details: dict[str, torch.Tensor | np.ndarray] | None,
     summary_ops: str | Sequence[str] | None,
-    class_labels: list[str] | None = None,
     deli: str = ",",
     output_type: str = "csv",
+    class_labels: list[str] | None = None,
 ) -> None:
     """
     Utility function to write the metrics into files, contains 3 parts:
@@ -92,11 +92,11 @@ def write_metrics_reports(
                 class1  6.0000   6.0000   6.0000   6.0000      6.0000       1.0000
                 mean    6.2500   6.2500   7.0000   5.5750      6.9250       2.0000
 
-        class_labels: list of class names used to name the classes in the output report, if None,
-            "class0", ..., "classn" are used, default to None.
         deli: the delimiter character in the saved file, default to "," as the default output type is `csv`.
             to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
         output_type: expected output file type, supported types: ["csv"], default to "csv".
+        class_labels: list of class names used to name the classes in the output report, if None,
+            "class0", ..., "classn" are used, default to None.
 
     """
     if output_type.lower() != "csv":
@@ -123,6 +123,9 @@ def write_metrics_reports(
             # add the average value of all classes to v
             if class_labels is None:
                 class_labels = ["class" + str(i) for i in range(v.shape[1])]
+            else:
+                class_labels=[str(i) for i in class_labels]  # ensure to have a list of str 
+                
             class_labels += ["mean"]
             v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
 
