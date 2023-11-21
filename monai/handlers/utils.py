@@ -126,6 +126,7 @@ def write_metrics_reports(
             else:
                 class_labels = [str(i) for i in class_labels]  # ensure to have a list of str
 
+
             class_labels += ["mean"]
             v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
 
