@@ -59,7 +59,7 @@ def write_metrics_reports(
     metrics: dict[str, torch.Tensor | np.ndarray] | None,
     metric_details: dict[str, torch.Tensor | np.ndarray] | None,
     summary_ops: str | Sequence[str] | None,
-    class_labels: Sequence[str] | None = None,
+    class_labels: list[str] | None = None,
     deli: str = ",",
     output_type: str = "csv",
 ) -> None:
@@ -123,7 +123,7 @@ def write_metrics_reports(
             # add the average value of all classes to v
             if class_labels is None:
                 class_labels = ["class" + str(i) for i in range(v.shape[1])]
-            class_labels = class_labels + ["mean"]
+            class_labels += ["mean"]
             v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
 
             with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
