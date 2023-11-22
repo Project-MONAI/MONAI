@@ -73,19 +73,20 @@ class EMAQuantizer(nn.Module):
 
         self.register_buffer("ema_cluster_size", torch.zeros(self.num_embeddings))
         self.register_buffer("ema_w", self.embedding.weight.data.clone())
-
+        # declare types for mypy
+        self.ema_cluster_size: torch.Tensor
+        self.ema_w: torch.Tensor
         self.decay: float = decay
         self.epsilon: float = epsilon
 
         self.ddp_sync: bool = ddp_sync
 
         # Precalculating required permutation shapes
-        self.flatten_permutation: Sequence[int] = [0] + list(range(2, self.spatial_dims + 2)) + [1]
+        self.flatten_permutation = [0] + list(range(2, self.spatial_dims + 2)) + [1]
         self.quantization_permutation: Sequence[int] = [0, self.spatial_dims + 1] + list(
             range(1, self.spatial_dims + 1)
         )
 
-    @torch.cuda.amp.autocast(enabled=False)
     def quantize(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Given an input it projects it to the quantized space and returns additional tensors needed for EMA loss.
@@ -99,31 +100,31 @@ class EMAQuantizer(nn.Module):
             torch.Tensor: Quantization indices of shape [B,D,H,W,1]
 
         """
-        encoding_indices_view = list(inputs.shape)
-        del encoding_indices_view[1]
+        with torch.autocast(device_type="cuda", enabled=False):
+            encoding_indices_view = list(inputs.shape)
+            del encoding_indices_view[1]
 
-        inputs = inputs.float()
+            inputs = inputs.float()
 
-        # Converting to channel last format
-        flat_input = inputs.permute(self.flatten_permutation).contiguous().view(-1, self.embedding_dim)
+            # Converting to channel last format
+            flat_input = inputs.permute(self.flatten_permutation).contiguous().view(-1, self.embedding_dim)
 
-        # Calculate Euclidean distances
-        distances = (
-            (flat_input**2).sum(dim=1, keepdim=True)
-            + (self.embedding.weight.t() ** 2).sum(dim=0, keepdim=True)
-            - 2 * torch.mm(flat_input, self.embedding.weight.t())
-        )
+            # Calculate Euclidean distances
+            distances = (
+                (flat_input**2).sum(dim=1, keepdim=True)
+                + (self.embedding.weight.t() ** 2).sum(dim=0, keepdim=True)
+                - 2 * torch.mm(flat_input, self.embedding.weight.t())
+            )
 
-        # Mapping distances to indexes
-        encoding_indices = torch.max(-distances, dim=1)[1]
-        encodings = torch.nn.functional.one_hot(encoding_indices, self.num_embeddings).float()
+            # Mapping distances to indexes
+            encoding_indices = torch.max(-distances, dim=1)[1]
+            encodings = torch.nn.functional.one_hot(encoding_indices, self.num_embeddings).float()
 
-        # Quantize and reshape
-        encoding_indices = encoding_indices.view(encoding_indices_view)
+            # Quantize and reshape
+            encoding_indices = encoding_indices.view(encoding_indices_view)
 
-        return flat_input, encodings, encoding_indices
+            return flat_input, encodings, encoding_indices
 
-    @torch.cuda.amp.autocast(enabled=False)
     def embed(self, embedding_indices: torch.Tensor) -> torch.Tensor:
         """
         Given encoding indices of shape [B,D,H,W,1] embeds them in the quantized space
@@ -137,9 +138,12 @@ class EMAQuantizer(nn.Module):
         Returns:
             torch.Tensor: Quantize space representation of encoding_indices in channel first format.
         """
-        return self.embedding(embedding_indices).permute(self.quantization_permutation).contiguous()
+        with torch.autocast(device_type="cuda", enabled=False):
+            embedding: torch.Tensor = (
+                self.embedding(embedding_indices).permute(self.quantization_permutation).contiguous()
+            )
+            return embedding
 
-    @torch.jit.unused
     def distributed_synchronization(self, encodings_sum: torch.Tensor, dw: torch.Tensor) -> None:
         """
         TorchScript does not support torch.distributed.all_reduce. This function is a bypassing trick based on the
@@ -197,19 +201,18 @@ class VectorQuantizer(torch.nn.Module):
 
     Args:
         quantizer (torch.nn.Module):  Quantizer module that needs to return its quantized representation, loss and index
-            based quantized representation. Defaults to None
+            based quantized representation.
     """
 
-    def __init__(self, quantizer: torch.nn.Module = None):
+    def __init__(self, quantizer: EMAQuantizer):
         super().__init__()
 
-        self.quantizer: torch.nn.Module = quantizer
+        self.quantizer: EMAQuantizer = quantizer
 
         self.perplexity: torch.Tensor = torch.rand(1)
 
     def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         quantized, loss, encoding_indices = self.quantizer(inputs)
-
         # Perplexity calculations
         avg_probs = (
             torch.histc(encoding_indices.float(), bins=self.quantizer.num_embeddings, max=self.quantizer.num_embeddings)
@@ -225,6 +228,6 @@ class VectorQuantizer(torch.nn.Module):
         return self.quantizer.embed(embedding_indices=embedding_indices)
 
     def quantize(self, encodings: torch.Tensor) -> torch.Tensor:
-        _, _, encoding_indices = self.quantizer(encodings)
-
+        output = self.quantizer(encodings)
+        encoding_indices: torch.Tensor = output[2]
         return encoding_indices
