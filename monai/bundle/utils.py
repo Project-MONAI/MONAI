@@ -36,7 +36,7 @@ DEFAULT_METADATA = {
     "monai_version": _conf_values["MONAI"],
     "pytorch_version": str(_conf_values["Pytorch"]).split("+")[0].split("a")[0],  # 1.9.0a0+df837d0 or 1.13.0+cu117
     "numpy_version": _conf_values["Numpy"],
-    "optional_packages_version": {},
+    "required_packages_version": {},
     "task": "Describe what the network predicts",
     "description": "A longer description of what the network does, use context, inputs, outputs, etc.",
     "authors": "Your Name Here",

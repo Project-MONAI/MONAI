@@ -8,7 +8,7 @@
     "monai_version": "0.9.0",
     "pytorch_version": "1.10.0",
     "numpy_version": "1.21.2",
-    "optional_packages_version": {
+    "required_packages_version": {
         "nibabel": "3.2.1"
     },
     "task": "Decathlon spleen segmentation",
