@@ -618,7 +618,7 @@ def generate_label_classes_crop_centers(
     if img_spatial_shape is None:
         img_spatial_shape = label_spatial_shape
         if warn:
-            warnings.warn(f"img_spatial_shape not defined, expect invalid shape for samples.")
+            warnings.warn("img_spatial_shape not defined, expect invalid shape for samples.")
 
     if num_samples < 1:
         raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
