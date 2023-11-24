@@ -239,9 +239,9 @@ class ResNet(nn.Module):
         self.conv1 = conv_type(
             n_input_channels,
             self.in_planes,
-            kernel_size=conv1_kernel_size,  # type: ignore
-            stride=conv1_stride,  # type: ignore
-            padding=tuple(k // 2 for k in conv1_kernel_size),  # type: ignore
+            kernel_size=conv1_kernel_size,
+            stride=conv1_stride,
+            padding=tuple(k // 2 for k in conv1_kernel_size),
             bias=False,
         )
         self.bn1 = norm_type(self.in_planes)
