@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from typing import Any, Iterator
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
-from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY, DEPRECATED_ID_MAPPING
+from monai.bundle.utils import DEPRECATED_ID_MAPPING, ID_REF_KEY, ID_SEP_KEY
 from monai.utils import allow_missing_reference, look_up_option
 
 __all__ = ["ReferenceResolver"]
@@ -203,7 +203,7 @@ class ReferenceResolver:
         return str(id).replace("#", cls.sep)  # backward compatibility `#` is the old separator
 
     @classmethod
-    def normalize_meta_id(cls, config: Any) -> str:
+    def normalize_meta_id(cls, config: Any) -> Any:
         """
         Update deprecated id use `DEPRECATED_ID_MAPPING`.
 
