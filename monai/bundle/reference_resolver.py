@@ -210,10 +210,11 @@ class ReferenceResolver:
         Args:
             config: input config to be updated.
         """
-        for _id, _new_id in DEPRECATED_ID_MAPPING.items():
-            if _id in config.keys():
-                warnings.warn(f"Detect deprecated id: {_id} in config, replacing with {_new_id}.")
-                config[_new_id] = config.pop(_id)
+        if isinstance(config, dict):
+            for _id, _new_id in DEPRECATED_ID_MAPPING.items():
+                if _id in config.keys():
+                    warnings.warn(f"Detect deprecated id: {_id} in config, replacing with {_new_id}.")
+                    config[_new_id] = config.pop(_id)
         return config
 
     @classmethod
