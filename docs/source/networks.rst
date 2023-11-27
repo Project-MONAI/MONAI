@@ -596,8 +596,8 @@ Nets
   :members:
 
 `AutoEncoderKL`
-~~~~~~~~~~~~~
-.. autoclass:: AutoEncoderKL
+~~~~~~~~~~~~~~~
+.. autoclass:: AutoencoderKL
   :members:
 
 `VarAutoEncoder`
