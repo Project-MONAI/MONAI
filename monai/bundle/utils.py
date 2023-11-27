@@ -157,6 +157,9 @@ DEFAULT_MLFLOW_SETTINGS = {
 
 DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default experiment management settings
 
+DEPRECATED_ID_MAPPING = {
+    "optional_packages_version": "required_packages_version"
+}
 
 def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any) -> Any:
     """
