@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib.util
 import math
 from collections.abc import Sequence
+from typing import List
 
 import torch
 import torch.nn as nn
@@ -80,7 +81,8 @@ class _Upsample(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.use_convtranspose:
-            return self.conv(x)
+            conv: torch.Tensor = self.conv(x)
+            return conv
 
         # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
         # https://github.com/pytorch/pytorch/issues/86679
@@ -177,6 +179,7 @@ class _ResBlock(nn.Module):
             conv_only=True,
         )
 
+        self.nin_shortcut: nn.Module
         if self.in_channels != self.out_channels:
             self.nin_shortcut = Convolution(
                 spatial_dims=spatial_dims,
@@ -271,7 +274,7 @@ class _AttentionBlock(nn.Module):
         query = query.contiguous()
         key = key.contiguous()
         value = value.contiguous()
-        x = xformers.ops.memory_efficient_attention(query, key, value, attn_bias=None)
+        x: torch.Tensor = xformers.ops.memory_efficient_attention(query, key, value, attn_bias=None)
         return x
 
     def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
@@ -369,7 +372,7 @@ class Encoder(nn.Module):
         self.norm_eps = norm_eps
         self.attention_levels = attention_levels
 
-        blocks = []
+        blocks: List[nn.Module] = []
         # Initial convolution
         blocks.append(
             Convolution(
@@ -513,7 +516,8 @@ class Decoder(nn.Module):
 
         reversed_block_out_channels = list(reversed(num_channels))
 
-        blocks = []
+        blocks: List[nn.Module] = []
+
         # Initial convolution
         blocks.append(
             Convolution(
@@ -794,6 +798,7 @@ class AutoencoderKL(nn.Module):
             decoded image tensor
         """
         z = self.post_quant_conv(z)
+        dec: torch.Tensor
         if self.use_checkpointing:
             dec = torch.utils.checkpoint.checkpoint(self.decoder, z, use_reentrant=False)
         else:
