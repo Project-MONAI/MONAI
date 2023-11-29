@@ -137,3 +137,13 @@ Loss Wrappers
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: DeepSupervisionLoss
     :members:
+
+`SoftclDiceLoss`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SoftclDiceLoss
+    :members:
+
+`SoftDiceclDiceLoss`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SoftDiceclDiceLoss
+    :members:
