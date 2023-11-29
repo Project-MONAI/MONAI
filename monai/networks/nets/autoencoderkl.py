@@ -641,7 +641,7 @@ class AutoencoderKL(nn.Module):
         with_encoder_nonlocal_attn: bool = True,
         with_decoder_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
-        use_checkpointing: bool = False,
+        use_checkpoint: bool = False,
         use_convtranspose: bool = False,
     ) -> None:
         super().__init__()
@@ -720,7 +720,7 @@ class AutoencoderKL(nn.Module):
             conv_only=True,
         )
         self.latent_channels = latent_channels
-        self.use_checkpointing = use_checkpointing
+        self.use_checkpoint = use_checkpoint
 
     def encode(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -730,7 +730,7 @@ class AutoencoderKL(nn.Module):
             x: BxCx[SPATIAL DIMS] tensor
 
         """
-        if self.use_checkpointing:
+        if self.use_checkpoint:
             h = torch.utils.checkpoint.checkpoint(self.encoder, x, use_reentrant=False)
         else:
             h = self.encoder(x)
@@ -785,7 +785,7 @@ class AutoencoderKL(nn.Module):
         """
         z = self.post_quant_conv(z)
         dec: torch.Tensor
-        if self.use_checkpointing:
+        if self.use_checkpoint:
             dec = torch.utils.checkpoint.checkpoint(self.decoder, z, use_reentrant=False)
         else:
             dec = self.decoder(z)
