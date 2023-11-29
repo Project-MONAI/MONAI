@@ -636,7 +636,7 @@ class AutoencoderKL(nn.Module):
         with_encoder_nonlocal_attn: if True use non-local attention block in the encoder.
         with_decoder_nonlocal_attn: if True use non-local attention block in the decoder.
         use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
-        use_checkpointing: if True, use activation checkpointing to save memory.
+        use_checkpoint: if True, use activation checkpoint to save memory.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
     """
 
