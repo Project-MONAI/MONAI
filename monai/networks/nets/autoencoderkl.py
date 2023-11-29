@@ -203,8 +203,7 @@ class _ResBlock(nn.Module):
         h = F.silu(h)
         h = self.conv2(h)
 
-        if self.in_channels != self.out_channels:
-            x = self.nin_shortcut(x)
+        x = self.nin_shortcut(x)
 
         return x + h
 
