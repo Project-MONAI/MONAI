@@ -202,10 +202,9 @@ class ReferenceResolver:
         """
         return str(id).replace("#", cls.sep)  # backward compatibility `#` is the old separator
 
-    @classmethod
-    def normalize_meta_id(cls, config: Any) -> Any:
+    def normalize_meta_id(self, config: Any) -> Any:
         """
-        Update deprecated id use `DEPRECATED_ID_MAPPING`.
+        Update deprecated identifiers in `config` using `DEPRECATED_ID_MAPPING`. This will replace names that are marked as deprecated with their replacement.
 
         Args:
             config: input config to be updated.
