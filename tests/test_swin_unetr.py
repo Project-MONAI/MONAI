@@ -74,7 +74,7 @@ TEST_CASE_FILTER = [
 ]
 
 
-@SkipIfBeforePyTorchVersion((1, 10))
+@SkipIfBeforePyTorchVersion((1, 11))
 class TestSWINUNETR(unittest.TestCase):
     @parameterized.expand(TEST_CASE_SWIN_UNETR)
     @skipUnless(has_einops, "Requires einops")
