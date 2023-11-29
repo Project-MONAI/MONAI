@@ -24,7 +24,14 @@ from monai.networks import eval_mode
 from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR, filter_swinunetr
 from monai.networks.utils import copy_model_state
 from monai.utils import optional_import
-from tests.utils import assert_allclose, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick, testing_data_config, SkipIfBeforePyTorchVersion
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    assert_allclose,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+    testing_data_config,
+)
 
 einops, has_einops = optional_import("einops")
 
