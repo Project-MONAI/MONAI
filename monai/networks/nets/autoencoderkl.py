@@ -338,7 +338,7 @@ class Encoder(nn.Module):
     Args:
         spatial_dims: number of spatial dimensions (1D, 2D, 3D).
         in_channels: number of input channels.
-        num_channels: sequence of block output channels.
+        channels: sequence of block output channels.
         out_channels: number of channels in the bottom layer (latent space) of the autoencoder.
         num_res_blocks: number of residual blocks (see _ResBlock) per level.
         norm_num_groups: number of groups for the GroupNorm layers, num_channels must be divisible by this number.
@@ -352,7 +352,7 @@ class Encoder(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        num_channels: Sequence[int],
+        channels: Sequence[int],
         out_channels: int,
         num_res_blocks: Sequence[int],
         norm_num_groups: int,
@@ -364,7 +364,7 @@ class Encoder(nn.Module):
         super().__init__()
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
-        self.num_channels = num_channels
+        self.channels = channels
         self.out_channels = out_channels
         self.num_res_blocks = num_res_blocks
         self.norm_num_groups = norm_num_groups
@@ -377,7 +377,7 @@ class Encoder(nn.Module):
             Convolution(
                 spatial_dims=spatial_dims,
                 in_channels=in_channels,
-                out_channels=num_channels[0],
+                out_channels=channels[0],
                 strides=1,
                 kernel_size=3,
                 padding=1,
@@ -386,11 +386,11 @@ class Encoder(nn.Module):
         )
 
         # Residual and downsampling blocks
-        output_channel = num_channels[0]
-        for i in range(len(num_channels)):
+        output_channel = channels[0]
+        for i in range(len(channels)):
             input_channel = output_channel
-            output_channel = num_channels[i]
-            is_final_block = i == len(num_channels) - 1
+            output_channel = channels[i]
+            is_final_block = i == len(channels) - 1
 
             for _ in range(self.num_res_blocks[i]):
                 blocks.append(
@@ -422,17 +422,17 @@ class Encoder(nn.Module):
             blocks.append(
                 _ResBlock(
                     spatial_dims=spatial_dims,
-                    in_channels=num_channels[-1],
+                    in_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    out_channels=num_channels[-1],
+                    out_channels=channels[-1],
                 )
             )
 
             blocks.append(
                 _AttentionBlock(
                     spatial_dims=spatial_dims,
-                    num_channels=num_channels[-1],
+                    num_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
                     use_flash_attention=use_flash_attention,
@@ -441,20 +441,20 @@ class Encoder(nn.Module):
             blocks.append(
                 _ResBlock(
                     spatial_dims=spatial_dims,
-                    in_channels=num_channels[-1],
+                    in_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    out_channels=num_channels[-1],
+                    out_channels=channels[-1],
                 )
             )
         # Normalise and convert to latent size
         blocks.append(
-            nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels[-1], eps=norm_eps, affine=True)
+            nn.GroupNorm(num_groups=norm_num_groups, num_channels=channels[-1], eps=norm_eps, affine=True)
         )
         blocks.append(
             Convolution(
                 spatial_dims=self.spatial_dims,
-                in_channels=num_channels[-1],
+                in_channels=channels[-1],
                 out_channels=out_channels,
                 strides=1,
                 kernel_size=3,
@@ -477,7 +477,7 @@ class Decoder(nn.Module):
 
     Args:
         spatial_dims: number of spatial dimensions (1D, 2D, 3D).
-        num_channels: sequence of block output channels.
+        channels: sequence of block output channels.
         in_channels: number of channels in the bottom layer (latent space) of the autoencoder.
         out_channels: number of output channels.
         num_res_blocks: number of residual blocks (see _ResBlock) per level.
@@ -492,7 +492,7 @@ class Decoder(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        num_channels: Sequence[int],
+        channels: Sequence[int],
         in_channels: int,
         out_channels: int,
         num_res_blocks: Sequence[int],
@@ -505,7 +505,7 @@ class Decoder(nn.Module):
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
-        self.num_channels = num_channels
+        self.channels = channels
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.num_res_blocks = num_res_blocks
@@ -513,7 +513,7 @@ class Decoder(nn.Module):
         self.norm_eps = norm_eps
         self.attention_levels = attention_levels
 
-        reversed_block_out_channels = list(reversed(num_channels))
+        reversed_block_out_channels = list(reversed(channels))
 
         blocks: List[nn.Module] = []
 
@@ -566,7 +566,7 @@ class Decoder(nn.Module):
         for i in range(len(reversed_block_out_channels)):
             block_in_ch = block_out_ch
             block_out_ch = reversed_block_out_channels[i]
-            is_final_block = i == len(num_channels) - 1
+            is_final_block = i == len(channels) - 1
 
             for _ in range(reversed_num_res_blocks[i]):
                 blocks.append(
@@ -628,7 +628,7 @@ class AutoencoderKL(nn.Module):
         in_channels: number of input channels.
         out_channels: number of output channels.
         num_res_blocks: number of residual blocks (see _ResBlock) per level.
-        num_channels: sequence of block output channels.
+        channels: number of output channels for each block.
         attention_levels: sequence of levels to add attention.
         latent_channels: latent embedding dimension.
         norm_num_groups: number of groups for the GroupNorm layers, num_channels must be divisible by this number.
@@ -646,7 +646,7 @@ class AutoencoderKL(nn.Module):
         in_channels: int = 1,
         out_channels: int = 1,
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
-        num_channels: Sequence[int] = (32, 64, 64, 64),
+        channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
         latent_channels: int = 3,
         norm_num_groups: int = 32,
@@ -660,16 +660,16 @@ class AutoencoderKL(nn.Module):
         super().__init__()
 
         # All number of channels should be multiple of num_groups
-        if any((out_channel % norm_num_groups) != 0 for out_channel in num_channels):
+        if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
             raise ValueError("AutoencoderKL expects all num_channels being multiple of norm_num_groups")
 
-        if len(num_channels) != len(attention_levels):
+        if len(channels) != len(attention_levels):
             raise ValueError("AutoencoderKL expects num_channels being same size of attention_levels")
 
         if isinstance(num_res_blocks, int):
-            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(num_channels))
+            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(channels))
 
-        if len(num_res_blocks) != len(num_channels):
+        if len(num_res_blocks) != len(channels):
             raise ValueError(
                 "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
                 "`num_channels`."
@@ -683,7 +683,7 @@ class AutoencoderKL(nn.Module):
         self.encoder = Encoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            num_channels=num_channels,
+            channels=channels,
             out_channels=latent_channels,
             num_res_blocks=num_res_blocks,
             norm_num_groups=norm_num_groups,
@@ -694,7 +694,7 @@ class AutoencoderKL(nn.Module):
         )
         self.decoder = Decoder(
             spatial_dims=spatial_dims,
-            num_channels=num_channels,
+            channels=channels,
             in_channels=latent_channels,
             out_channels=out_channels,
             num_res_blocks=num_res_blocks,
