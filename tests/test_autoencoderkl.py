@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import AutoencoderKL
+from tests.utils import SkipIfBeforePyTorchVersion
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -143,12 +144,13 @@ class TestAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[1].shape, expected_latent_shape)
             self.assertEqual(result[2].shape, expected_latent_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     @parameterized.expand(CASES)
     def test_shape_with_convtranspose_and_checkpointing(
         self, input_param, input_shape, expected_shape, expected_latent_shape
     ):
         input_param = input_param.copy()
-        input_param.update({"use_checkpointing": True, "use_convtranspose": True})
+        input_param.update({"use_checkpoint": True, "use_convtranspose": True})
         net = AutoencoderKL(**input_param).to(device)
         with eval_mode(net):
             result = net.forward(torch.randn(input_shape).to(device))
@@ -202,10 +204,11 @@ class TestAutoEncoderKL(unittest.TestCase):
             result = net.reconstruct(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_shape_reconstruction_with_convtranspose_and_checkpointing(self):
         input_param, input_shape, expected_shape, _ = CASES[0]
         input_param = input_param.copy()
-        input_param.update({"use_checkpointing": True, "use_convtranspose": True})
+        input_param.update({"use_checkpoint": True, "use_convtranspose": True})
         net = AutoencoderKL(**input_param).to(device)
         with eval_mode(net):
             result = net.reconstruct(torch.randn(input_shape).to(device))
@@ -219,10 +222,11 @@ class TestAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[0].shape, expected_latent_shape)
             self.assertEqual(result[1].shape, expected_latent_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_shape_encode_with_convtranspose_and_checkpointing(self):
         input_param, input_shape, _, expected_latent_shape = CASES[0]
         input_param = input_param.copy()
-        input_param.update({"use_checkpointing": True, "use_convtranspose": True})
+        input_param.update({"use_checkpoint": True, "use_convtranspose": True})
         net = AutoencoderKL(**input_param).to(device)
         with eval_mode(net):
             result = net.encode(torch.randn(input_shape).to(device))
@@ -238,10 +242,11 @@ class TestAutoEncoderKL(unittest.TestCase):
             )
             self.assertEqual(result.shape, expected_latent_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_shape_sampling_convtranspose_and_checkpointing(self):
         input_param, _, _, expected_latent_shape = CASES[0]
         input_param = input_param.copy()
-        input_param.update({"use_checkpointing": True, "use_convtranspose": True})
+        input_param.update({"use_checkpoint": True, "use_convtranspose": True})
         net = AutoencoderKL(**input_param).to(device)
         with eval_mode(net):
             result = net.sampling(
@@ -256,10 +261,11 @@ class TestAutoEncoderKL(unittest.TestCase):
             result = net.decode(torch.randn(latent_shape).to(device))
             self.assertEqual(result.shape, expected_input_shape)
 
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_shape_decode_convtranspose_and_checkpointing(self):
         input_param, expected_input_shape, _, latent_shape = CASES[0]
         input_param = input_param.copy()
-        input_param.update({"use_checkpointing": True, "use_convtranspose": True})
+        input_param.update({"use_checkpoint": True, "use_convtranspose": True})
         net = AutoencoderKL(**input_param).to(device)
         with eval_mode(net):
             result = net.decode(torch.randn(latent_shape).to(device))
