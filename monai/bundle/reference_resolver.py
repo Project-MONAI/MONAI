@@ -204,7 +204,8 @@ class ReferenceResolver:
 
     def normalize_meta_id(self, config: Any) -> Any:
         """
-        Update deprecated identifiers in `config` using `DEPRECATED_ID_MAPPING`. This will replace names that are marked as deprecated with their replacement.
+        Update deprecated identifiers in `config` using `DEPRECATED_ID_MAPPING`.
+        This will replace names that are marked as deprecated with their replacement.
 
         Args:
             config: input config to be updated.
