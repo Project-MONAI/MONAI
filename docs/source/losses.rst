@@ -78,6 +78,16 @@ Segmentation Losses
 .. autoclass:: HausdorffDTLoss
     :members:
 
+`SoftclDiceLoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SoftclDiceLoss
+    :members:
+
+`SoftDiceclDiceLoss`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SoftDiceclDiceLoss
+    :members:
+
 Registration Losses
 -------------------
 
@@ -136,14 +146,4 @@ Loss Wrappers
 `DeepSupervisionLoss`
 ~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: DeepSupervisionLoss
-    :members:
-
-`SoftclDiceLoss`
-~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: SoftclDiceLoss
-    :members:
-
-`SoftDiceclDiceLoss`
-~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: SoftDiceclDiceLoss
     :members:
