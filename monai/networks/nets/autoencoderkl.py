@@ -437,9 +437,7 @@ class Encoder(nn.Module):
                 )
             )
         # Normalise and convert to latent size
-        blocks.append(
-            nn.GroupNorm(num_groups=norm_num_groups, num_channels=channels[-1], eps=norm_eps, affine=True)
-        )
+        blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=channels[-1], eps=norm_eps, affine=True))
         blocks.append(
             Convolution(
                 spatial_dims=self.spatial_dims,
