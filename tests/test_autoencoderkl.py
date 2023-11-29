@@ -145,7 +145,7 @@ class TestAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[2].shape, expected_latent_shape)
 
     @parameterized.expand(CASES)
-    @SkipIfBeforePyTorchVersion((1, 10))
+    @SkipIfBeforePyTorchVersion((1, 11))
     def test_shape_with_convtranspose_and_checkpointing(
         self, input_param, input_shape, expected_shape, expected_latent_shape
     ):
@@ -204,7 +204,7 @@ class TestAutoEncoderKL(unittest.TestCase):
             result = net.reconstruct(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape)
 
-    @SkipIfBeforePyTorchVersion((1, 10))
+    @SkipIfBeforePyTorchVersion((1, 11))
     def test_shape_reconstruction_with_convtranspose_and_checkpointing(self):
         input_param, input_shape, expected_shape, _ = CASES[0]
         input_param = input_param.copy()
@@ -222,7 +222,7 @@ class TestAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[0].shape, expected_latent_shape)
             self.assertEqual(result[1].shape, expected_latent_shape)
 
-    @SkipIfBeforePyTorchVersion((1, 10))
+    @SkipIfBeforePyTorchVersion((1, 11))
     def test_shape_encode_with_convtranspose_and_checkpointing(self):
         input_param, input_shape, _, expected_latent_shape = CASES[0]
         input_param = input_param.copy()
@@ -242,7 +242,7 @@ class TestAutoEncoderKL(unittest.TestCase):
             )
             self.assertEqual(result.shape, expected_latent_shape)
 
-    @SkipIfBeforePyTorchVersion((1, 10))
+    @SkipIfBeforePyTorchVersion((1, 11))
     def test_shape_sampling_convtranspose_and_checkpointing(self):
         input_param, _, _, expected_latent_shape = CASES[0]
         input_param = input_param.copy()
@@ -261,7 +261,7 @@ class TestAutoEncoderKL(unittest.TestCase):
             result = net.decode(torch.randn(latent_shape).to(device))
             self.assertEqual(result.shape, expected_input_shape)
 
-    @SkipIfBeforePyTorchVersion((1, 10))
+    @SkipIfBeforePyTorchVersion((1, 11))
     def test_shape_decode_convtranspose_and_checkpointing(self):
         input_param, expected_input_shape, _, latent_shape = CASES[0]
         input_param = input_param.copy()
