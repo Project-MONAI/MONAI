@@ -144,8 +144,8 @@ class TestAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[1].shape, expected_latent_shape)
             self.assertEqual(result[2].shape, expected_latent_shape)
 
-    @SkipIfBeforePyTorchVersion((1, 10))
     @parameterized.expand(CASES)
+    @SkipIfBeforePyTorchVersion((1, 10))
     def test_shape_with_convtranspose_and_checkpointing(
         self, input_param, input_shape, expected_shape, expected_latent_shape
     ):
