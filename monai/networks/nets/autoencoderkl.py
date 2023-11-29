@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import math
 from collections.abc import Sequence
 from typing import List
@@ -21,21 +20,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks import Convolution
-from monai.utils import ensure_tuple_rep
 
 # To install xformers, use pip install xformers==0.0.16rc401
-if importlib.util.find_spec("xformers") is not None:
-    import xformers
-    import xformers.ops
+from monai.utils import ensure_tuple_rep, optional_import
 
-    has_xformers = True
-else:
-    xformers = None
-    has_xformers = False
-
-# TODO: Use MONAI's optional_import
-# from monai.utils import optional_import
-# xformers, has_xformers = optional_import("xformers.ops", name="xformers")
+xformers, has_xformers = optional_import("xformers")
 
 __all__ = ["AutoencoderKL"]
 
