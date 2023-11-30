@@ -31,6 +31,7 @@ from tests.utils import (
     skip_if_no_cuda,
     skip_if_quick,
     testing_data_config,
+    pytorch_after,
 )
 
 einops, has_einops = optional_import("einops")
@@ -38,6 +39,7 @@ einops, has_einops = optional_import("einops")
 TEST_CASE_SWIN_UNETR = []
 case_idx = 0
 test_merging_mode = ["mergingv2", "merging", PatchMerging, PatchMergingV2]
+checkpoint_vals = [True, False] if pytorch_after(1,11) else [False]
 for attn_drop_rate in [0.4]:
     for in_channels in [1]:
         for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
@@ -45,29 +47,29 @@ for attn_drop_rate in [0.4]:
                 for img_size in ((64, 32, 192), (96, 32)):
                     for feature_size in [12]:
                         for norm_name in ["instance"]:
-                            test_case = [
-                                {
-                                    "spatial_dims": len(img_size),
-                                    "in_channels": in_channels,
-                                    "out_channels": out_channels,
-                                    "img_size": img_size,
-                                    "feature_size": feature_size,
-                                    "depths": depth,
-                                    "norm_name": norm_name,
-                                    "attn_drop_rate": attn_drop_rate,
-                                    "downsample": test_merging_mode[case_idx % 4],
-                                },
-                                (2, in_channels, *img_size),
-                                (2, out_channels, *img_size),
-                            ]
-                            case_idx += 1
-                            TEST_CASE_SWIN_UNETR.append(test_case)
+                            for use_checkpoint in checkpoint_vals:
+                                test_case = [
+                                    {
+                                        "spatial_dims": len(img_size),
+                                        "in_channels": in_channels,
+                                        "out_channels": out_channels,
+                                        "img_size": img_size,
+                                        "feature_size": feature_size,
+                                        "depths": depth,
+                                        "norm_name": norm_name,
+                                        "attn_drop_rate": attn_drop_rate,
+                                        "downsample": test_merging_mode[case_idx % 4],
+                                        "use_checkpoint": use_checkpoint,
+                                    },
+                                    (2, in_channels, *img_size),
+                                    (2, out_channels, *img_size),
+                                ]
+                                case_idx += 1
+                                TEST_CASE_SWIN_UNETR.append(test_case)
 
 TEST_CASE_FILTER = [
     [
         {"img_size": (96, 96, 96), "in_channels": 1, "out_channels": 14, "feature_size": 48, "use_checkpoint": True},
-        (1, 1, 96, 96, 96),
-        (1, 14, 96, 96, 96),
         "swinViT.layers1.0.blocks.0.norm1.weight",
         torch.tensor([0.9473, 0.9343, 0.8566, 0.8487, 0.8065, 0.7779, 0.6333, 0.5555]),
     ]
@@ -118,8 +120,7 @@ class TestSWINUNETR(unittest.TestCase):
     @parameterized.expand(TEST_CASE_FILTER)
     @skip_if_quick
     @skip_if_no_cuda
-    @SkipIfBeforePyTorchVersion((1, 11))
-    def test_filter_swinunetr(self, input_param, input_shape, expected_shape, key, value):
+    def test_filter_swinunetr(self, input_param, key, value):
         with skip_if_downloading_fails():
             with tempfile.TemporaryDirectory() as tempdir:
                 file_name = "ssl_pretrained_weights.pth"
@@ -131,9 +132,6 @@ class TestSWINUNETR(unittest.TestCase):
 
                 ssl_weight = torch.load(weight_path)["model"]
                 net = SwinUNETR(**input_param)
-                with eval_mode(net):
-                    result = net(torch.randn(input_shape))
-                    self.assertEqual(result.shape, expected_shape)
                 dst_dict, loaded, not_loaded = copy_model_state(net, ssl_weight, filter_func=filter_swinunetr)
                 assert_allclose(dst_dict[key][:8], value, atol=1e-4, rtol=1e-4, type_test=False)
                 self.assertTrue(len(loaded) == 157 and len(not_loaded) == 2)
