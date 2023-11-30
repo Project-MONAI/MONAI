@@ -148,18 +148,18 @@ class DiffusionLoss(_Loss):
 
     def forward(self, pred: torch.Tensor) -> torch.Tensor:
         """
-                Args:
-                    pred: the shape should be BCH(WD)
+        Args:
+            pred: the shape should be BCH(WD)
 
-                Raises:
-                    ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
+        Raises:
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
 
-                """
+        """
         if pred.ndim not in [3, 4, 5]:
             raise ValueError(f"Expecting 3-d, 4-d or 5-d pred, instead got pred of shape {pred.shape}")
         for i in range(pred.ndim - 2):
-            if pred.shape[-i - 1] <= 4:
-                raise ValueError(f"All spatial dimensions must be > 4, got spatial dimensions {pred.shape[2:]}")
+            if pred.shape[-i - 1] <= 2:
+                raise ValueError(f"All spatial dimensions must be > 2, got spatial dimensions {pred.shape[2:]}")
         if pred.shape[1] != pred.ndim - 2:
             raise ValueError(
                 f"Number of vector components, {pred.shape[1]}, does not match number of spatial dimensions, {pred.ndim - 2}"
@@ -177,7 +177,7 @@ class DiffusionLoss(_Loss):
             dim_1 += 2
             if self.normalize:
                 g *= pred.shape[dim_1] / spatial_dims
-            diffusion = diffusion + g ** 2
+            diffusion = diffusion + g**2
 
         if self.reduction == LossReduction.MEAN.value:
             diffusion = torch.mean(diffusion)  # the batch and channel average
