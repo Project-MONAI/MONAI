@@ -183,6 +183,7 @@ def run_testsuit():
         "test_testtimeaugmentation",
         "test_torchvision",
         "test_torchvisiond",
+        "test_transchex",
         "test_transformerblock",
         "test_unetr",
         "test_unetr_block",
