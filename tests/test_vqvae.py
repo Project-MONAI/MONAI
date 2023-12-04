@@ -18,6 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vqvae import VQVAE
+from tests.utils import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
     [
@@ -113,6 +114,7 @@ class TestVQVAE(unittest.TestCase):
         self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand(TEST_CASES)
+    @SkipIfBeforePyTorchVersion((1, 11))
     def test_shape_with_checkpoint(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         input_param = input_param.copy()
