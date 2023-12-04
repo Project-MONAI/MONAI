@@ -149,10 +149,17 @@ class DiffusionLoss(_Loss):
     def forward(self, pred: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            pred: the shape should be BCH(WD)
+            pred:
+                Predicted dense displacement field (DDF) with shape BCH[WD],
+                where C is the number of spatial dimensions.
+                Note that diffusion loss can only be calculated
+                when the sizes of the DDF along all spatial dimensions are greater than 2.
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
+            ValueError: When ``pred`` is not 3-d, 4-d or 5-d.
+            ValueError: When any spatial dimension of ``pred`` has size less than or equal to 2.
+            ValueError: When the number of channels of ``pred`` does not match the number of spatial dimensions.
 
         """
         if pred.ndim not in [3, 4, 5]:
@@ -162,7 +169,8 @@ class DiffusionLoss(_Loss):
                 raise ValueError(f"All spatial dimensions must be > 2, got spatial dimensions {pred.shape[2:]}")
         if pred.shape[1] != pred.ndim - 2:
             raise ValueError(
-                f"Number of vector components, {pred.shape[1]}, does not match number of spatial dimensions, {pred.ndim - 2}"
+                f"Number of vector components, i.e. number of channels of the input DDF, {pred.shape[1]}, "
+                f"does not match number of spatial dimensions, {pred.ndim - 2}"
             )
 
         # first order gradient
@@ -176,6 +184,9 @@ class DiffusionLoss(_Loss):
         for dim_1, g in enumerate(first_order_gradient):
             dim_1 += 2
             if self.normalize:
+                # We divide the partial derivative for each vector component at each voxel by the spatial size
+                # corresponding to that component relative to the spatial size of the vector component with respect
+                # to which the partial derivative is taken.
                 g *= pred.shape[dim_1] / spatial_dims
             diffusion = diffusion + g**2
 
