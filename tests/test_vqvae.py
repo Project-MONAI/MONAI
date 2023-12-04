@@ -186,7 +186,7 @@ class TestVQVAE(unittest.TestCase):
                 in_channels=1,
                 out_channels=1,
                 num_channels=(16, 16),
-                num_res_channels=(16, 16, 16),
+                num_res_channels=(16, 16),
                 downsample_parameters=(("test", 4, 1, 1),) * 2,
                 upsample_parameters=((2, 4, 1, 1, 0),) * 2,
             )
@@ -198,7 +198,7 @@ class TestVQVAE(unittest.TestCase):
                 in_channels=1,
                 out_channels=1,
                 num_channels=(16, 16),
-                num_res_channels=(16, 16, 16),
+                num_res_channels=(16, 16),
                 downsample_parameters=((2, 4, 1, 1),) * 2,
                 upsample_parameters=(("test", 4, 1, 1, 0),) * 2,
             )
@@ -210,9 +210,9 @@ class TestVQVAE(unittest.TestCase):
                 in_channels=1,
                 out_channels=1,
                 num_channels=(16, 16),
-                num_res_channels=(16, 16, 16),
-                downsample_parameters=((2, 4, 1),) * 2,
-                upsample_parameters=((2, 4, 1, 1, 0),) * 3,
+                num_res_channels=(16, 16),
+                downsample_parameters=((2, 4, 1),) * 3,
+                upsample_parameters=((2, 4, 1, 1, 0),) * 2,
             )
 
     def test_upsample_parameter_length_different_5(self):

@@ -344,13 +344,16 @@ class VQVAE(nn.Module):
         if len(num_res_channels) != len(num_channels):
             raise ValueError(
                 "`num_res_channels` should be a single integer or a tuple of integers with the same length as "
-                "`num_channels`."
+                "`num_channls`."
             )
 
-        if not all(isinstance(values, (int, Sequence)) for values in downsample_parameters):
+        if not all(isinstance(values, int) for values in downsample_parameters) and \
+            not all(all(isinstance(value,int ) for value in sub_item) for sub_item in downsample_parameters):
             raise ValueError("`downsample_parameters` should be a single tuple of integer or a tuple of tuples.")
 
-        if not all(isinstance(values, (int, Sequence)) for values in upsample_parameters):
+        # check if downsample_parameters is a tuple of ints or a tuple of tuples of ints
+        if not all(isinstance(values, int) for values in upsample_parameters) and \
+            not all(all(isinstance(value,int ) for value in sub_item) for sub_item in upsample_parameters):
             raise ValueError("`upsample_parameters` should be a single tuple of integer or a tuple of tuples.")
 
         if all(isinstance(values, int) for values in upsample_parameters):
