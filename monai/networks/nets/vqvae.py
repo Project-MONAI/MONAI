@@ -122,7 +122,7 @@ class Encoder(nn.Module):
         self.dropout = dropout
         self.act = act
 
-        blocks : list[nn.Module] = []
+        blocks: list[nn.Module] = []
 
         for i in range(len(self.num_channels)):
             blocks.append(
@@ -217,7 +217,7 @@ class Decoder(nn.Module):
 
         reversed_num_channels = list(reversed(self.num_channels))
 
-        blocks : list[nn.Module] = []
+        blocks: list[nn.Module] = []
         blocks.append(
             Convolution(
                 spatial_dims=self.spatial_dims,
@@ -309,7 +309,7 @@ class VQVAE(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        num_channels: Sequence[int] | int = (96, 96, 192),
+        num_channels: Sequence[int] = (96, 96, 192),
         num_res_layers: int = 3,
         num_res_channels: Sequence[int] | int = (96, 96, 192),
         downsample_parameters: Sequence[Tuple[int, int, int, int]]
@@ -337,7 +337,7 @@ class VQVAE(nn.Module):
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
         self.use_checkpointing = use_checkpointing
-        
+
         if isinstance(num_res_channels, int):
             num_res_channels = ensure_tuple_rep(num_res_channels, len(num_channels))
 
@@ -346,36 +346,37 @@ class VQVAE(nn.Module):
                 "`num_res_channels` should be a single integer or a tuple of integers with the same length as "
                 "`num_channls`."
             )
+        if all(isinstance(values, int) for values in upsample_parameters):
+            upsample_parameters_tuple: Sequence = (upsample_parameters,) * len(num_channels)
+        else:
+            upsample_parameters_tuple = upsample_parameters
 
-        if not all(isinstance(values, int) for values in downsample_parameters) and \
-            not all(all(isinstance(value,int ) for value in sub_item) for sub_item in downsample_parameters):
+        if all(isinstance(values, int) for values in downsample_parameters):
+            downsample_parameters_tuple: Sequence = (downsample_parameters,) * len(num_channels)
+        else:
+            downsample_parameters_tuple = downsample_parameters
+
+        if not all(all(isinstance(value, int) for value in sub_item) for sub_item in downsample_parameters_tuple):
             raise ValueError("`downsample_parameters` should be a single tuple of integer or a tuple of tuples.")
 
         # check if downsample_parameters is a tuple of ints or a tuple of tuples of ints
-        if not all(isinstance(values, int) for values in upsample_parameters) and \
-            not all(all(isinstance(value,int ) for value in sub_item) for sub_item in upsample_parameters):
+        if not all(all(isinstance(value, int) for value in sub_item) for sub_item in upsample_parameters_tuple):
             raise ValueError("`upsample_parameters` should be a single tuple of integer or a tuple of tuples.")
 
-        if all(isinstance(values, int) for values in upsample_parameters):
-            upsample_parameters = (upsample_parameters,) * len(num_channels)
-
-        if all(isinstance(values, int) for values in downsample_parameters):
-            downsample_parameters = (downsample_parameters,) * len(num_channels)
-
-        for parameter in downsample_parameters:
+        for parameter in downsample_parameters_tuple:
             if len(parameter) != 4:
                 raise ValueError("`downsample_parameters` should be a tuple of tuples with 4 integers.")
 
-        for parameter in upsample_parameters:
+        for parameter in upsample_parameters_tuple:
             if len(parameter) != 5:
                 raise ValueError("`upsample_parameters` should be a tuple of tuples with 5 integers.")
 
-        if len(downsample_parameters) != len(num_channels):
+        if len(downsample_parameters_tuple) != len(num_channels):
             raise ValueError(
                 "`downsample_parameters` should be a tuple of tuples with the same length as `num_channels`."
             )
 
-        if len(upsample_parameters) != len(num_channels):
+        if len(upsample_parameters_tuple) != len(num_channels):
             raise ValueError(
                 "`upsample_parameters` should be a tuple of tuples with the same length as `num_channels`."
             )
@@ -390,7 +391,7 @@ class VQVAE(nn.Module):
             num_channels=num_channels,
             num_res_layers=num_res_layers,
             num_res_channels=num_res_channels,
-            downsample_parameters=downsample_parameters,
+            downsample_parameters=downsample_parameters_tuple,
             dropout=dropout,
             act=act,
         )
@@ -402,7 +403,7 @@ class VQVAE(nn.Module):
             num_channels=num_channels,
             num_res_layers=num_res_layers,
             num_res_channels=num_res_channels,
-            upsample_parameters=upsample_parameters,
+            upsample_parameters=upsample_parameters_tuple,
             dropout=dropout,
             act=act,
             output_act=output_act,
@@ -422,20 +423,25 @@ class VQVAE(nn.Module):
         )
 
     def encode(self, images: torch.Tensor) -> torch.Tensor:
+        output: torch.Tensor
         if self.use_checkpointing:
-            return torch.utils.checkpoint.checkpoint(self.encoder, images, use_reentrant=False)
+            output = torch.utils.checkpoint.checkpoint(self.encoder, images, use_reentrant=False)
         else:
-            return self.encoder(images)
+            output = self.encoder(images)
+        return output
 
     def quantize(self, encodings: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         x_loss, x = self.quantizer(encodings)
         return x, x_loss
 
     def decode(self, quantizations: torch.Tensor) -> torch.Tensor:
+        output: torch.Tensor
+
         if self.use_checkpointing:
-            return torch.utils.checkpoint.checkpoint(self.decoder, quantizations, use_reentrant=False)
+            output = torch.utils.checkpoint.checkpoint(self.decoder, quantizations, use_reentrant=False)
         else:
-            return self.decoder(quantizations)
+            output = self.decoder(quantizations)
+        return output
 
     def index_quantize(self, images: torch.Tensor) -> torch.Tensor:
         return self.quantizer.quantize(self.encode(images=images))
