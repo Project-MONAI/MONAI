@@ -90,7 +90,7 @@ class Encoder(nn.Module):
         spatial_dims: number of spatial spatial_dims.
         in_channels: number of input channels.
         out_channels: number of channels in the latent space (embedding_dim).
-        num_channels: number of channels at each level.
+        channels: sequence containing the number of channels at each level of the encoder.
         num_res_layers: number of sequential residual layers at each level.
         num_res_channels: number of channels in the residual layers at each level.
         downsample_parameters: A Tuple of Tuples for defining the downsampling convolutions. Each Tuple should hold the
@@ -104,7 +104,7 @@ class Encoder(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        num_channels: Sequence[int],
+        channels: Sequence[int],
         num_res_layers: int,
         num_res_channels: Sequence[int],
         downsample_parameters: Sequence[Tuple[int, int, int, int]],
@@ -115,7 +115,7 @@ class Encoder(nn.Module):
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.num_channels = num_channels
+        self.channels = channels
         self.num_res_layers = num_res_layers
         self.num_res_channels = num_res_channels
         self.downsample_parameters = downsample_parameters
@@ -124,12 +124,12 @@ class Encoder(nn.Module):
 
         blocks: list[nn.Module] = []
 
-        for i in range(len(self.num_channels)):
+        for i in range(len(self.channels)):
             blocks.append(
                 Convolution(
                     spatial_dims=self.spatial_dims,
-                    in_channels=self.in_channels if i == 0 else self.num_channels[i - 1],
-                    out_channels=self.num_channels[i],
+                    in_channels=self.in_channels if i == 0 else self.channels[i - 1],
+                    out_channels=self.channels[i],
                     strides=self.downsample_parameters[i][0],
                     kernel_size=self.downsample_parameters[i][1],
                     adn_ordering="DA",
@@ -145,7 +145,7 @@ class Encoder(nn.Module):
                 blocks.append(
                     VQVAEResidualUnit(
                         spatial_dims=self.spatial_dims,
-                        in_channels=self.num_channels[i],
+                        in_channels=self.channels[i],
                         num_res_channels=self.num_res_channels[i],
                         act=self.act,
                         dropout=self.dropout,
@@ -155,7 +155,7 @@ class Encoder(nn.Module):
         blocks.append(
             Convolution(
                 spatial_dims=self.spatial_dims,
-                in_channels=self.num_channels[len(self.num_channels) - 1],
+                in_channels=self.channels[len(self.channels) - 1],
                 out_channels=self.out_channels,
                 strides=1,
                 kernel_size=3,
@@ -180,7 +180,7 @@ class Decoder(nn.Module):
         spatial_dims: number of spatial spatial_dims.
         in_channels: number of channels in the latent space (embedding_dim).
         out_channels: number of output channels.
-        num_channels: number of channels at each level.
+        channels: sequence containing the number of channels at each level of the decoder.
         num_res_layers: number of sequential residual layers at each level.
         num_res_channels: number of channels in the residual layers at each level.
         upsample_parameters: A Tuple of Tuples for defining the upsampling convolutions. Each Tuple should hold the
@@ -195,7 +195,7 @@ class Decoder(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        num_channels: Sequence[int],
+        channels: Sequence[int],
         num_res_layers: int,
         num_res_channels: Sequence[int],
         upsample_parameters: Sequence[Tuple[int, int, int, int, int]],
@@ -207,7 +207,7 @@ class Decoder(nn.Module):
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.num_channels = num_channels
+        self.channels = channels
         self.num_res_layers = num_res_layers
         self.num_res_channels = num_res_channels
         self.upsample_parameters = upsample_parameters
@@ -215,7 +215,7 @@ class Decoder(nn.Module):
         self.act = act
         self.output_act = output_act
 
-        reversed_num_channels = list(reversed(self.num_channels))
+        reversed_num_channels = list(reversed(self.channels))
 
         blocks: list[nn.Module] = []
         blocks.append(
@@ -231,7 +231,7 @@ class Decoder(nn.Module):
         )
 
         reversed_num_res_channels = list(reversed(self.num_res_channels))
-        for i in range(len(self.num_channels)):
+        for i in range(len(self.channels)):
             for _ in range(self.num_res_layers):
                 blocks.append(
                     VQVAEResidualUnit(
@@ -247,15 +247,15 @@ class Decoder(nn.Module):
                 Convolution(
                     spatial_dims=self.spatial_dims,
                     in_channels=reversed_num_channels[i],
-                    out_channels=self.out_channels if i == len(self.num_channels) - 1 else reversed_num_channels[i + 1],
+                    out_channels=self.out_channels if i == len(self.channels) - 1 else reversed_num_channels[i + 1],
                     strides=self.upsample_parameters[i][0],
                     kernel_size=self.upsample_parameters[i][1],
                     adn_ordering="DA",
                     act=self.act,
-                    dropout=self.dropout if i != len(self.num_channels) - 1 else None,
+                    dropout=self.dropout if i != len(self.channels) - 1 else None,
                     norm=None,
                     dilation=self.upsample_parameters[i][2],
-                    conv_only=i == len(self.num_channels) - 1,
+                    conv_only=i == len(self.channels) - 1,
                     is_transposed=True,
                     padding=self.upsample_parameters[i][3],
                     output_padding=self.upsample_parameters[i][4],
@@ -290,7 +290,7 @@ class VQVAE(nn.Module):
         upsample_parameters: A Tuple of Tuples for defining the upsampling convolutions. Each Tuple should hold the
             following information stride (int), kernel_size (int), dilation (int), padding (int), output_padding (int).
         num_res_layers: number of sequential residual layers at each level.
-        num_channels: number of channels at each level.
+        channels: number of channels at each level.
         num_res_channels: number of channels in the residual layers at each level.
         num_embeddings: VectorQuantization number of atomic elements in the codebook.
         embedding_dim: VectorQuantization number of channels of the input and atomic elements.
@@ -309,7 +309,7 @@ class VQVAE(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        num_channels: Sequence[int] = (96, 96, 192),
+        channels: Sequence[int] = (96, 96, 192),
         num_res_layers: int = 3,
         num_res_channels: Sequence[int] | int = (96, 96, 192),
         downsample_parameters: Sequence[Tuple[int, int, int, int]]
@@ -333,26 +333,26 @@ class VQVAE(nn.Module):
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.spatial_dims = spatial_dims
-        self.num_channels = num_channels
+        self.channels = channels
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
         self.use_checkpointing = use_checkpointing
 
         if isinstance(num_res_channels, int):
-            num_res_channels = ensure_tuple_rep(num_res_channels, len(num_channels))
+            num_res_channels = ensure_tuple_rep(num_res_channels, len(channels))
 
-        if len(num_res_channels) != len(num_channels):
+        if len(num_res_channels) != len(channels):
             raise ValueError(
                 "`num_res_channels` should be a single integer or a tuple of integers with the same length as "
                 "`num_channls`."
             )
         if all(isinstance(values, int) for values in upsample_parameters):
-            upsample_parameters_tuple: Sequence = (upsample_parameters,) * len(num_channels)
+            upsample_parameters_tuple: Sequence = (upsample_parameters,) * len(channels)
         else:
             upsample_parameters_tuple = upsample_parameters
 
         if all(isinstance(values, int) for values in downsample_parameters):
-            downsample_parameters_tuple: Sequence = (downsample_parameters,) * len(num_channels)
+            downsample_parameters_tuple: Sequence = (downsample_parameters,) * len(channels)
         else:
             downsample_parameters_tuple = downsample_parameters
 
@@ -371,12 +371,12 @@ class VQVAE(nn.Module):
             if len(parameter) != 5:
                 raise ValueError("`upsample_parameters` should be a tuple of tuples with 5 integers.")
 
-        if len(downsample_parameters_tuple) != len(num_channels):
+        if len(downsample_parameters_tuple) != len(channels):
             raise ValueError(
                 "`downsample_parameters` should be a tuple of tuples with the same length as `num_channels`."
             )
 
-        if len(upsample_parameters_tuple) != len(num_channels):
+        if len(upsample_parameters_tuple) != len(channels):
             raise ValueError(
                 "`upsample_parameters` should be a tuple of tuples with the same length as `num_channels`."
             )
@@ -388,7 +388,7 @@ class VQVAE(nn.Module):
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=embedding_dim,
-            num_channels=num_channels,
+            channels=channels,
             num_res_layers=num_res_layers,
             num_res_channels=num_res_channels,
             downsample_parameters=downsample_parameters_tuple,
@@ -400,7 +400,7 @@ class VQVAE(nn.Module):
             spatial_dims=spatial_dims,
             in_channels=embedding_dim,
             out_channels=out_channels,
-            num_channels=num_channels,
+            channels=channels,
             num_res_layers=num_res_layers,
             num_res_channels=num_res_channels,
             upsample_parameters=upsample_parameters_tuple,

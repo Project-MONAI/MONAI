@@ -26,7 +26,7 @@ TEST_CASES = [
             "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 1,
-            "num_channels": (4, 4),
+            "channels": (4, 4),
             "num_res_layers": 1,
             "num_res_channels": (4, 4),
             "downsample_parameters": ((2, 4, 1, 1),) * 2,
@@ -42,7 +42,7 @@ TEST_CASES = [
             "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 1,
-            "num_channels": (4, 4),
+            "channels": (4, 4),
             "num_res_layers": 1,
             "num_res_channels": 4,
             "downsample_parameters": ((2, 4, 1, 1),) * 2,
@@ -58,7 +58,7 @@ TEST_CASES = [
             "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 1,
-            "num_channels": (4, 4),
+            "channels": (4, 4),
             "num_res_layers": 1,
             "num_res_channels": (4, 4),
             "downsample_parameters": (2, 4, 1, 1),
@@ -74,7 +74,7 @@ TEST_CASES = [
             "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 1,
-            "num_channels": (4, 4),
+            "channels": (4, 4),
             "num_res_layers": 1,
             "num_res_channels": (4, 4),
             "downsample_parameters": ((2, 4, 1, 1),) * 2,
@@ -94,7 +94,7 @@ TEST_LATENT_SHAPE = {
     "downsample_parameters": ((2, 4, 1, 1),) * 2,
     "upsample_parameters": ((2, 4, 1, 1, 0),) * 2,
     "num_res_layers": 1,
-    "num_channels": (8, 8),
+    "channels": (8, 8),
     "num_res_channels": (8, 8),
     "num_embeddings": 16,
     "embedding_dim": 8,
@@ -136,7 +136,7 @@ class TestVQVAE(unittest.TestCase):
     #         downsample_parameters=((2, 4, 1, 1),) * 2,
     #         upsample_parameters=((2, 4, 1, 1, 0),) * 2,
     #         num_res_layers=1,
-    #         num_channels=(8, 8),
+    #         channels=(8, 8),
     #         num_res_channels=(8, 8),
     #         num_embeddings=16,
     #         embedding_dim=8,
@@ -145,37 +145,37 @@ class TestVQVAE(unittest.TestCase):
     #     test_data = torch.randn(1, 1, 16, 16)
     #     test_script_save(net, test_data)
 
-    def test_num_channels_not_same_size_of_num_res_channels(self):
+    def test_channels_not_same_size_of_num_res_channels(self):
         with self.assertRaises(ValueError):
             VQVAE(
                 spatial_dims=2,
                 in_channels=1,
                 out_channels=1,
-                num_channels=(16, 16),
+                channels=(16, 16),
                 num_res_channels=(16, 16, 16),
                 downsample_parameters=((2, 4, 1, 1),) * 2,
                 upsample_parameters=((2, 4, 1, 1, 0),) * 2,
             )
 
-    def test_num_channels_not_same_size_of_downsample_parameters(self):
+    def test_channels_not_same_size_of_downsample_parameters(self):
         with self.assertRaises(ValueError):
             VQVAE(
                 spatial_dims=2,
                 in_channels=1,
                 out_channels=1,
-                num_channels=(16, 16),
+                channels=(16, 16),
                 num_res_channels=(16, 16),
                 downsample_parameters=((2, 4, 1, 1),) * 3,
                 upsample_parameters=((2, 4, 1, 1, 0),) * 2,
             )
 
-    def test_num_channels_not_same_size_of_upsample_parameters(self):
+    def test_channels_not_same_size_of_upsample_parameters(self):
         with self.assertRaises(ValueError):
             VQVAE(
                 spatial_dims=2,
                 in_channels=1,
                 out_channels=1,
-                num_channels=(16, 16),
+                channels=(16, 16),
                 num_res_channels=(16, 16),
                 downsample_parameters=((2, 4, 1, 1),) * 2,
                 upsample_parameters=((2, 4, 1, 1, 0),) * 3,
@@ -187,7 +187,7 @@ class TestVQVAE(unittest.TestCase):
                 spatial_dims=2,
                 in_channels=1,
                 out_channels=1,
-                num_channels=(16, 16),
+                channels=(16, 16),
                 num_res_channels=(16, 16),
                 downsample_parameters=(("test", 4, 1, 1),) * 2,
                 upsample_parameters=((2, 4, 1, 1, 0),) * 2,
@@ -199,7 +199,7 @@ class TestVQVAE(unittest.TestCase):
                 spatial_dims=2,
                 in_channels=1,
                 out_channels=1,
-                num_channels=(16, 16),
+                channels=(16, 16),
                 num_res_channels=(16, 16),
                 downsample_parameters=((2, 4, 1, 1),) * 2,
                 upsample_parameters=(("test", 4, 1, 1, 0),) * 2,
@@ -211,7 +211,7 @@ class TestVQVAE(unittest.TestCase):
                 spatial_dims=2,
                 in_channels=1,
                 out_channels=1,
-                num_channels=(16, 16),
+                channels=(16, 16),
                 num_res_channels=(16, 16),
                 downsample_parameters=((2, 4, 1),) * 3,
                 upsample_parameters=((2, 4, 1, 1, 0),) * 2,
@@ -223,7 +223,7 @@ class TestVQVAE(unittest.TestCase):
                 spatial_dims=2,
                 in_channels=1,
                 out_channels=1,
-                num_channels=(16, 16),
+                channels=(16, 16),
                 num_res_channels=(16, 16, 16),
                 downsample_parameters=((2, 4, 1, 1),) * 2,
                 upsample_parameters=((2, 4, 1, 1, 0, 1),) * 3,
