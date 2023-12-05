@@ -27,7 +27,7 @@ class TestEMA(unittest.TestCase):
         outputs = layer(x)
         self.assertEqual(outputs[0].shape, input_shape)
         self.assertEqual(outputs[2].shape, (1, 8, 8))
-
+ 
         layer = layer.eval()
         outputs = layer(x)
         self.assertEqual(outputs[0].shape, input_shape)
