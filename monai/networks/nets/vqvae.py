@@ -35,7 +35,7 @@ class VQVAEResidualUnit(nn.Module):
 
     Args:
         spatial_dims: number of spatial spatial_dims of the input data.
-        num_channels: number of input channels.
+        in_channels: number of input channels.
         num_res_channels: number of channels in the residual layers.
         act: activation type and arguments. Defaults to RELU.
         dropout: dropout ratio. Defaults to no dropout.
@@ -45,7 +45,7 @@ class VQVAEResidualUnit(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        num_channels: int,
+        in_channels: int,
         num_res_channels: int,
         act: tuple | str | None = Act.RELU,
         dropout: float = 0.0,
@@ -54,7 +54,7 @@ class VQVAEResidualUnit(nn.Module):
         super().__init__()
 
         self.spatial_dims = spatial_dims
-        self.num_channels = num_channels
+        self.in_channels = in_channels
         self.num_res_channels = num_res_channels
         self.act = act
         self.dropout = dropout
@@ -62,7 +62,7 @@ class VQVAEResidualUnit(nn.Module):
 
         self.conv1 = Convolution(
             spatial_dims=self.spatial_dims,
-            in_channels=self.num_channels,
+            in_channels=self.in_channels,
             out_channels=self.num_res_channels,
             adn_ordering="DA",
             act=self.act,
@@ -73,7 +73,7 @@ class VQVAEResidualUnit(nn.Module):
         self.conv2 = Convolution(
             spatial_dims=self.spatial_dims,
             in_channels=self.num_res_channels,
-            out_channels=self.num_channels,
+            out_channels=self.in_channels,
             bias=self.bias,
             conv_only=True,
         )
@@ -145,7 +145,7 @@ class Encoder(nn.Module):
                 blocks.append(
                     VQVAEResidualUnit(
                         spatial_dims=self.spatial_dims,
-                        num_channels=self.num_channels[i],
+                        in_channels=self.num_channels[i],
                         num_res_channels=self.num_res_channels[i],
                         act=self.act,
                         dropout=self.dropout,
@@ -236,7 +236,7 @@ class Decoder(nn.Module):
                 blocks.append(
                     VQVAEResidualUnit(
                         spatial_dims=self.spatial_dims,
-                        num_channels=reversed_num_channels[i],
+                        in_channels=reversed_num_channels[i],
                         num_res_channels=reversed_num_res_channels[i],
                         act=self.act,
                         dropout=self.dropout,
