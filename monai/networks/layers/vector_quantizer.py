@@ -92,12 +92,12 @@ class EMAQuantizer(nn.Module):
         Given an input it projects it to the quantized space and returns additional tensors needed for EMA loss.
 
         Args:
-            inputs: Encoding space tensors
+            inputs: Encoding space tensors of shape [B, C, H, W, D].
 
         Returns:
-            torch.Tensor: Flatten version of the input of shape [B*D*H*W, C].
-            torch.Tensor: One-hot representation of the quantization indices of shape [B*D*H*W, self.num_embeddings].
-            torch.Tensor: Quantization indices of shape [B,D,H,W,1]
+            torch.Tensor: Flatten version of the input of shape [B*H*W*D, C].
+            torch.Tensor: One-hot representation of the quantization indices of shape [B*H*W*D, self.num_embeddings].
+            torch.Tensor: Quantization indices of shape [B,H,W,D,1]
 
         """
         with torch.cuda.amp.autocast(enabled=False):
