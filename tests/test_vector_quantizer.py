@@ -12,35 +12,42 @@
 from __future__ import annotations
 
 import unittest
+from math import prod
 
 import torch
+from parameterized import parameterized
 
 from monai.networks.layers import EMAQuantizer, VectorQuantizer
 
+TEST_CASES = [
+    [{"spatial_dims": 2, "num_embeddings": 16, "embedding_dim": 8}, (1, 8, 4, 4), (1, 4, 4)],
+    [{"spatial_dims": 3, "num_embeddings": 16, "embedding_dim": 8}, (1, 8, 4, 4, 4), (1, 4, 4, 4)],
+]
+
 
 class TestEMA(unittest.TestCase):
-    def test_ema_shape(self):
-        layer = EMAQuantizer(spatial_dims=2, num_embeddings=16, embedding_dim=8)
-        input_shape = (1, 8, 8, 8)
+    @parameterized.expand(TEST_CASES)
+    def test_ema_shape(self, input_param, input_shape, output_shape):
+        layer = EMAQuantizer(**input_param)
         x = torch.randn(input_shape)
         layer = layer.train()
         outputs = layer(x)
         self.assertEqual(outputs[0].shape, input_shape)
-        self.assertEqual(outputs[2].shape, (1, 8, 8))
+        self.assertEqual(outputs[2].shape, output_shape)
 
         layer = layer.eval()
         outputs = layer(x)
         self.assertEqual(outputs[0].shape, input_shape)
-        self.assertEqual(outputs[2].shape, (1, 8, 8))
+        self.assertEqual(outputs[2].shape, output_shape)
 
-    def test_ema_quantize(self):
-        layer = EMAQuantizer(spatial_dims=2, num_embeddings=16, embedding_dim=8)
-        input_shape = (1, 8, 8, 8)
+    @parameterized.expand(TEST_CASES)
+    def test_ema_quantize(self, input_param, input_shape, output_shape):
+        layer = EMAQuantizer(**input_param)
         x = torch.randn(input_shape)
         outputs = layer.quantize(x)
-        self.assertEqual(outputs[0].shape, (64, 8))  # (HxW, C)
-        self.assertEqual(outputs[1].shape, (64, 16))  # (HxW, E)
-        self.assertEqual(outputs[2].shape, (1, 8, 8))  # (1, H, W)
+        self.assertEqual(outputs[0].shape, (prod(input_shape[2:]), input_shape[1]))  # (HxW[xD], C)
+        self.assertEqual(outputs[1].shape, (prod(input_shape[2:]), input_param["num_embeddings"]))  # (HxW[xD], E)
+        self.assertEqual(outputs[2].shape, (input_shape[0],) + input_shape[2:])  # (1, H, W, [D])
 
     def test_ema(self):
         layer = EMAQuantizer(spatial_dims=2, num_embeddings=2, embedding_dim=2, epsilon=0, decay=0)
@@ -63,19 +70,19 @@ class TestEMA(unittest.TestCase):
 
 
 class TestVectorQuantizer(unittest.TestCase):
-    def test_vector_quantizer_shape(self):
-        layer = VectorQuantizer(EMAQuantizer(spatial_dims=2, num_embeddings=16, embedding_dim=8))
-        input_shape = (1, 8, 8, 8)
+    @parameterized.expand(TEST_CASES)
+    def test_vector_quantizer_shape(self, input_param, input_shape, output_shape):
+        layer = VectorQuantizer(EMAQuantizer(**input_param))
         x = torch.randn(input_shape)
         outputs = layer(x)
         self.assertEqual(outputs[1].shape, input_shape)
 
-    def test_vector_quantizer_quantize(self):
-        layer = VectorQuantizer(EMAQuantizer(spatial_dims=2, num_embeddings=16, embedding_dim=8))
-        input_shape = (1, 8, 8, 8)
+    @parameterized.expand(TEST_CASES)
+    def test_vector_quantizer_quantize(self, input_param, input_shape, output_shape):
+        layer = VectorQuantizer(EMAQuantizer(**input_param))
         x = torch.randn(input_shape)
         outputs = layer.quantize(x)
-        self.assertEqual(outputs.shape, (1, 8, 8))
+        self.assertEqual(outputs.shape, output_shape)
 
 
 if __name__ == "__main__":
