@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.transchex import Transchex
-from tests.utils import skip_if_quick
+from tests.utils import SkipIfAtLeastPyTorchVersion, skip_if_quick
 
 TEST_CASE_TRANSCHEX = []
 for drop_out in [0.4]:
@@ -46,6 +46,7 @@ for drop_out in [0.4]:
 
 
 @skip_if_quick
+@SkipIfAtLeastPyTorchVersion((1, 10))
 class TestTranschex(unittest.TestCase):
     @parameterized.expand(TEST_CASE_TRANSCHEX)
     def test_shape(self, input_param, expected_shape):
