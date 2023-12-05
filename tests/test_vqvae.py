@@ -39,7 +39,7 @@ TEST_CASES = [
     ],
     [
         {
-            "spatial_dims": 2,
+            "spatial_dims": 3,
             "in_channels": 1,
             "out_channels": 1,
             "channels": (4, 4),
@@ -50,8 +50,8 @@ TEST_CASES = [
             "num_embeddings": 8,
             "embedding_dim": 8,
         },
-        (1, 1, 8, 8),
-        (1, 1, 8, 8),
+        (1, 1, 8, 8, 8),
+        (1, 1, 8, 8, 8),
     ],
     [
         {
@@ -71,7 +71,7 @@ TEST_CASES = [
     ],
     [
         {
-            "spatial_dims": 2,
+            "spatial_dims": 3,
             "in_channels": 1,
             "out_channels": 1,
             "channels": (4, 4),
@@ -82,8 +82,8 @@ TEST_CASES = [
             "num_embeddings": 8,
             "embedding_dim": 8,
         },
-        (1, 1, 8, 8),
-        (1, 1, 8, 8),
+        (1, 1, 8, 8, 8),
+        (1, 1, 8, 8, 8),
     ],
 ]
 
