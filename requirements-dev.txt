@@ -33,7 +33,7 @@ tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pandas
 requests
 einops
-transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
+transformers<4.22; python_version <= '3.10'  # https://github.com/Project-MONAI/MONAI/issues/5157
 mlflow>=1.28.0
 clearml>=1.10.0rc0
 matplotlib!=3.5.0
