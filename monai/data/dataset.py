@@ -387,6 +387,12 @@ class PersistentDataset(Dataset):
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
+            except RuntimeError as e:
+                if "Invalid magic number; corrupt file" in str(e):
+                    warnings.warn(f"Corrupt cache file detected: {hashfile}. Deleting and recomputing.")
+                    hashfile.unlink()
+                else:
+                    raise e
 
         _item_transformed = self._pre_transform(deepcopy(item_transformed))  # keep the original hashed
         if hashfile is None:

@@ -662,13 +662,21 @@ class AddGuidanceFromPointsDeepEditd(Transform):
     def __call__(self, data):
         d = dict(data)
         meta_dict_key = self.meta_keys or f"{self.ref_image}_{self.meta_key_postfix}"
-        if meta_dict_key not in d:
-            raise RuntimeError(f"Missing meta_dict {meta_dict_key} in data!")
-        if "spatial_shape" not in d[meta_dict_key]:
+        # extract affine matrix from metadata
+        if isinstance(d[self.ref_image], MetaTensor):
+            meta_dict = d[self.ref_image].meta
+        elif meta_dict_key in d:
+            meta_dict = d[meta_dict_key]
+        else:
+            raise ValueError(
+                f"{meta_dict_key} is not found. Please check whether it is the correct the image meta key."
+            )
+
+        if "spatial_shape" not in meta_dict:
             raise RuntimeError('Missing "spatial_shape" in meta_dict!')
 
         # Assume channel is first and depth is last CHWD
-        original_shape = d[meta_dict_key]["spatial_shape"]
+        original_shape = meta_dict["spatial_shape"]
         current_shape = list(d[self.ref_image].shape)[1:]
 
         # in here we assume the depth dimension is in the last dimension of "original_shape" and "current_shape"
@@ -698,7 +706,19 @@ class ResizeGuidanceMultipleLabelDeepEditd(Transform):
         d = dict(data)
         # Assume channel is first and depth is last CHWD
         current_shape = d[self.ref_image].shape[1:]
-        original_shape = d["image_meta_dict"]["spatial_shape"]
+
+        meta_dict_key = "image_meta_dict"
+        # extract affine matrix from metadata
+        if isinstance(d[self.ref_image], MetaTensor):
+            meta_dict = d[self.ref_image].meta
+        elif meta_dict_key in d:
+            meta_dict = d[meta_dict_key]
+        else:
+            raise ValueError(
+                f"{meta_dict_key} is not found. Please check whether it is the correct the image meta key."
+            )
+
+        original_shape = meta_dict["spatial_shape"]
 
         factor = np.divide(current_shape, original_shape)
         all_guidances = {}

@@ -78,12 +78,27 @@ Segmentation Losses
 .. autoclass:: HausdorffDTLoss
     :members:
 
+`SoftclDiceLoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SoftclDiceLoss
+    :members:
+
+`SoftDiceclDiceLoss`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SoftDiceclDiceLoss
+    :members:
+
 Registration Losses
 -------------------
 
 `BendingEnergyLoss`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: BendingEnergyLoss
+    :members:
+
+`DiffusionLoss`
+~~~~~~~~~~~~~~~
+.. autoclass:: DiffusionLoss
     :members:
 
 `LocalNormalizedCrossCorrelationLoss`

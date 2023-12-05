@@ -20,6 +20,10 @@ Its ambitions are:
 - creating state-of-the-art, end-to-end training workflows for healthcare imaging;
 - providing researchers with an optimized and standardized way to create and evaluate deep learning models.
 
+.. image:: ../images/MONAI_arch.png
+    :alt: MONAI Architecture
+    :align: center
+
 Features
 --------
 

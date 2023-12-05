@@ -488,7 +488,7 @@ class EnsureTyped(MapTransform):
         self,
         keys: KeysCollection,
         data_type: str = "tensor",
-        dtype: DtypeLike | torch.dtype = None,
+        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = None,
         device: torch.device | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
@@ -500,6 +500,7 @@ class EnsureTyped(MapTransform):
                 See also: :py:class:`monai.transforms.compose.MapTransform`
             data_type: target data type to convert, should be "tensor" or "numpy".
             dtype: target data content type to convert, for example: np.float32, torch.float, etc.
+                It also can be a sequence of dtype, each element corresponds to a key in ``keys``.
             device: for Tensor data type, specify the target device.
             wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
                 E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
@@ -508,14 +509,15 @@ class EnsureTyped(MapTransform):
             allow_missing_keys: don't raise exception if key is missing.
         """
         super().__init__(keys, allow_missing_keys)
+        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.converter = EnsureType(
-            data_type=data_type, dtype=dtype, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta
+            data_type=data_type, device=device, wrap_sequence=wrap_sequence, track_meta=track_meta
         )
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.converter(d[key])
+        for key, dtype in self.key_iterator(d, self.dtype):
+            d[key] = self.converter(d[key], dtype)
         return d
 
 

@@ -34,6 +34,7 @@ jobs:
       wyli,\
       pxLi,\
       YanxuanLiu,\
+      KumoLiu,\
       ', format('{0},', github.actor)) && github.event.comment.body == '/build'
     steps:
       - name: Check if comment is issued by authorized person
@@ -49,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ fromJson(needs.Authorization.outputs.args).repo }}
           ref: ${{ fromJson(needs.Authorization.outputs.args).ref }}

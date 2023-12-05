@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.3.0] - 2023-10-06
+## [1.3.0] - 2023-10-12
 ### Added
 * Intensity transforms `ScaleIntensityFixedMean` and `RandScaleIntensityFixedMean` (#6542)
 * `UltrasoundConfidenceMapTransform` used for computing confidence map from an ultrasound image (#6709)
@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Support str type annotation to `device` in `ToTensorD` (#6737)
 * Improve logging message and file name extenstion in `DataAnalyzer` for `Auto3DSeg` (#6758)
 * Set `data_range` as a property in `SSIMLoss` (#6788)
+* Unify environment variable access (#7084)
 * `end_lr` support in `WarmupCosineSchedule` (#6662)
 * Add `ClearML` as optional dependency (#6827)
 * `yandex.disk` support in `download_url` (#6667)
@@ -52,6 +53,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Fix mismatched shape in `Spacing` (#6912)
 * Avoid FutureWarning in `CropForeground` (#6934)
 * Fix `Lazy=True` ignored when using `Dataset` call (#6975)
+* Shape check for arbitrary types for DataStats (#7082)
 #### data
 * Fix wrong spacing checking logic in `PydicomReader` and broken link in `ITKReader` (#6660)
 * Fix boolean indexing of batched `MetaTensor` (#6781)
@@ -65,6 +67,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 #### metrics and losses
 * Fixed bug in `GeneralizedDiceLoss` when `batch=True` (#6775)
 * Support for `BCEWithLogitsLoss` in `DiceCELoss` (#6924)
+* Support for `weight` in Dice and related losses (#7098)
 #### networks
 * Use `np.prod` instead of `np.product` (#6639)
 * Fix dimension issue in `MBConvBlock` (#6672)
@@ -87,8 +90,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Bundle syntax `#` as alias of `::` (#6955)
 * Fix bundle download naming issue (#6969, #6963)
 * Simplify the usage of `ckpt_export` (#6965)
+* `update_kwargs` in `monai.bundle.script` for merging multiple configs (#7109)
 #### engines and handlers
 * Added int options for `iteration_log` and `epoch_log` in `TensorBoardStatsHandler` (#7027)
+* Support to run validator at training start (#7108)
 #### misc.
 * Fix device fallback error in `DataAnalyzer` (#6658)
 * Add int check for  `current_mode` in `convert_applied_interp_mode` (#6719)
@@ -104,6 +109,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Add type check to avoid comparing a np.array with a string in `_check_kwargs_are_present` (#6624)
 * Fix md5 hashing with FIPS mode (#6635)
 * Capture failures from Auto3DSeg related subprocess calls (#6596)
+* Code formatting tool for user-specified directory (#7106)
+* Various docstring fixes
 ### Changed
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:23.08-py3` from `nvcr.io/nvidia/pytorch:23.03-py3`
 ### Deprecated
@@ -112,6 +119,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * `workflow` in `BundleWorkflow` in favor of `workflow_type`(#6768)
 * `pos_embed` in `PatchEmbeddingBlock` in favor of `proj_type`(#6986)
 * `net_name` and `net_kwargs` in `download` in favor of `model`(#7016)
+* `img_size` parameter in SwinUNETR (#7093)
 ### Removed
 * `pad_val`, `stride`, `per_channel` and `upsampler` in `OcclusionSensitivity` (#6642)
 * `compute_meaniou` (#7019)

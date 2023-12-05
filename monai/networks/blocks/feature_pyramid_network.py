@@ -194,8 +194,8 @@ class FeaturePyramidNetwork(nn.Module):
         conv_type_: type[nn.Module] = Conv[Conv.CONV, spatial_dims]
         for m in self.modules():
             if isinstance(m, conv_type_):
-                nn.init.kaiming_uniform_(m.weight, a=1)  # type: ignore
-                nn.init.constant_(m.bias, 0.0)  # type: ignore
+                nn.init.kaiming_uniform_(m.weight, a=1)
+                nn.init.constant_(m.bias, 0.0)
 
         if extra_blocks is not None:
             if not isinstance(extra_blocks, ExtraFPNBlock):

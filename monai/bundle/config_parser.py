@@ -412,13 +412,16 @@ class ConfigParser:
 
         Args:
             files: path of target files to load, supported postfixes: `.json`, `.yml`, `.yaml`.
-                if providing a list of files, wil merge the content of them.
+                if providing a list of files, will merge the content of them.
+                if providing a string with comma separated file paths, will merge the content of them.
                 if providing a dictionary, return it directly.
             kwargs: other arguments for ``json.load`` or ```yaml.safe_load``, depends on the file format.
         """
         if isinstance(files, dict):  # already a config dict
             return files
         parser = ConfigParser(config={})
+        if isinstance(files, str) and not Path(files).is_file() and "," in files:
+            files = files.split(",")
         for i in ensure_tuple(files):
             for k, v in (cls.load_config_file(i, **kwargs)).items():
                 parser[k] = v

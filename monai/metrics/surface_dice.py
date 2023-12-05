@@ -228,9 +228,6 @@ def compute_surface_dice(
             f"y_pred and y should have same shape, but instead, shapes are {y_pred.shape} (y_pred) and {y.shape} (y)."
         )
 
-    y = y.float()
-    y_pred = y_pred.float()
-
     batch_size, n_class = y_pred.shape[:2]
 
     if n_class != len(class_thresholds):
@@ -275,7 +272,7 @@ def compute_surface_dice(
             boundary_correct = gt_true + pred_true
         if boundary_complete == 0:
             # the class is neither present in the prediction, nor in the reference segmentation
-            nsd[b, c] = torch.nan
+            nsd[b, c] = torch.tensor(np.nan)
         else:
             nsd[b, c] = boundary_correct / boundary_complete
 

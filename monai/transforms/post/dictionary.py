@@ -270,7 +270,8 @@ class RemoveSmallObjectsd(MapTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.RemoveSmallObjectsd`.
 
     Args:
-        min_size: objects smaller than this size are removed.
+        min_size: objects smaller than this size (in number of voxels; or surface area/volume value
+            in whatever units your image is if by_measure is True) are removed.
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
@@ -278,6 +279,12 @@ class RemoveSmallObjectsd(MapTransform):
         independent_channels: Whether or not to consider channels as independent. If true, then
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False. e.g. if min_size is 3, by_measure is True and the units of your data is mm,
+            objects smaller than 3mm^3 are removed.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
 
     backend = RemoveSmallObjects.backend
@@ -288,10 +295,12 @@ class RemoveSmallObjectsd(MapTransform):
         min_size: int = 64,
         connectivity: int = 1,
         independent_channels: bool = True,
+        by_measure: bool = False,
+        pixdim: Sequence[float] | float | np.ndarray | None = None,
         allow_missing_keys: bool = False,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels)
+        self.converter = RemoveSmallObjects(min_size, connectivity, independent_channels, by_measure, pixdim)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)

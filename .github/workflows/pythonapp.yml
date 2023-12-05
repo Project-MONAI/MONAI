@@ -234,5 +234,6 @@ jobs:
         make clean
         make html 2>&1 | tee tmp_log
         if [[ $(grep -c "ERROR:" tmp_log) != 0 ]]; then echo "found errors"; grep "ERROR:" tmp_log; exit 1; fi
+        sed '/WARNING.*pip/d' tmp_log > tmp_log1; mv tmp_log1 tmp_log  # monai#7133
         if [[ $(grep -c "WARNING:" tmp_log) != 0 ]]; then echo "found warnings"; grep "WARNING:" tmp_log; exit 1; fi
       shell: bash

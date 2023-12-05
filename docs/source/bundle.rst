@@ -48,3 +48,5 @@ Model Bundle
 .. autofunction:: verify_metadata
 .. autofunction:: verify_net_in_out
 .. autofunction:: init_bundle
+.. autofunction:: push_to_hf_hub
+.. autofunction:: update_kwargs

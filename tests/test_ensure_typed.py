@@ -86,14 +86,24 @@ class TestEnsureTyped(unittest.TestCase):
             "extra": None,
         }
         for dtype in ("tensor", "numpy"):
-            result = EnsureTyped(keys="data", data_type=dtype, device="cpu")({"data": test_data})["data"]
-            self.assertTrue(isinstance(result, dict))
-            self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
-            assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]), type_test=False)
-            self.assertTrue(isinstance(result["meta"]["size"], torch.Tensor if dtype == "tensor" else np.ndarray))
-            assert_allclose(result["meta"]["size"], torch.as_tensor([1, 2, 3]), type_test=False)
-            self.assertEqual(result["meta"]["path"], "temp/test")
-            self.assertEqual(result["extra"], None)
+            trans = EnsureTyped(keys=["data", "label"], data_type=dtype, dtype=[np.float32, np.int8], device="cpu")(
+                {"data": test_data, "label": test_data}
+            )
+            for key in ("data", "label"):
+                result = trans[key]
+                self.assertTrue(isinstance(result, dict))
+                self.assertTrue(isinstance(result["img"], torch.Tensor if dtype == "tensor" else np.ndarray))
+                self.assertTrue(isinstance(result["meta"]["size"], torch.Tensor if dtype == "tensor" else np.ndarray))
+                self.assertEqual(result["meta"]["path"], "temp/test")
+                self.assertEqual(result["extra"], None)
+                assert_allclose(result["img"], torch.as_tensor([1.0, 2.0]), type_test=False)
+                assert_allclose(result["meta"]["size"], torch.as_tensor([1, 2, 3]), type_test=False)
+            if dtype == "numpy":
+                self.assertTrue(trans["data"]["img"].dtype == np.float32)
+                self.assertTrue(trans["label"]["img"].dtype == np.int8)
+            else:
+                self.assertTrue(trans["data"]["img"].dtype == torch.float32)
+                self.assertTrue(trans["label"]["img"].dtype == torch.int8)
 
 
 if __name__ == "__main__":

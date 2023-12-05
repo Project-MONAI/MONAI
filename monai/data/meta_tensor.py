@@ -462,7 +462,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def affine(self) -> torch.Tensor:
         """Get the affine. Defaults to ``torch.eye(4, dtype=torch.float64)``"""
-        return self.meta.get(MetaKeys.AFFINE, self.get_default_affine())
+        return self.meta.get(MetaKeys.AFFINE, self.get_default_affine())  # type: ignore
 
     @affine.setter
     def affine(self, d: NdarrayTensor) -> None:

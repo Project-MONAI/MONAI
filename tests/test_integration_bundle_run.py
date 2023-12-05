@@ -86,9 +86,8 @@ class TestBundleRun(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             # test wrong run_id="run"
             command_line_tests(cmd + ["run", "run", "--config_file", config_file])
-        with self.assertRaises(RuntimeError):
-            # test missing meta file
-            command_line_tests(cmd + ["run", "training", "--config_file", config_file])
+        # test missing meta file
+        self.assertIn("ERROR", command_line_tests(cmd + ["run", "training", "--config_file", config_file]))
 
     def test_scripts_fold(self):
         # test scripts directory has been added to Python search directories automatically
@@ -150,9 +149,8 @@ class TestBundleRun(unittest.TestCase):
         print(output)
         self.assertTrue(expected_condition in output)
 
-        with self.assertRaises(RuntimeError):
-            # test missing meta file
-            command_line_tests(cmd + ["run", "training", "--config_file", config_file])
+        # test missing meta file
+        self.assertIn("ERROR", command_line_tests(cmd + ["run", "training", "--config_file", config_file]))
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, config_file, expected_shape):

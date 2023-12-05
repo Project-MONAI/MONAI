@@ -14,7 +14,7 @@ from __future__ import annotations
 import warnings
 from functools import lru_cache, partial
 from types import ModuleType
-from typing import Any, Sequence
+from typing import Any, Iterable, Sequence
 
 import numpy as np
 import torch
@@ -95,37 +95,37 @@ def do_metric_reduction(
     # some elements might be Nan (if ground truth y was missing (zeros))
     # we need to account for it
     nans = torch.isnan(f)
-    not_nans = (~nans).float()
+    not_nans = ~nans
 
-    t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
+    t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
     reduction = look_up_option(reduction, MetricReduction)
     if reduction == MetricReduction.NONE:
-        return f, not_nans
+        return f, not_nans.float()
 
     f[nans] = 0
     if reduction == MetricReduction.MEAN:
         # 2 steps, first, mean by channel (accounting for nans), then by batch
-        not_nans = not_nans.sum(dim=1)
-        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+        not_nans = not_nans.sum(dim=1).float()
+        f = torch.where(not_nans > 0, f.sum(dim=1).float() / not_nans, t_zero)  # channel average
 
-        not_nans = (not_nans > 0).float().sum(dim=0)
-        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+        not_nans = (not_nans > 0).sum(dim=0).float()
+        f = torch.where(not_nans > 0, f.sum(dim=0).float() / not_nans, t_zero)  # batch average
 
     elif reduction == MetricReduction.SUM:
-        not_nans = not_nans.sum(dim=[0, 1])
+        not_nans = not_nans.sum(dim=[0, 1]).float()
         f = torch.sum(f, dim=[0, 1])  # sum over the batch and channel dims
     elif reduction == MetricReduction.MEAN_BATCH:
-        not_nans = not_nans.sum(dim=0)
-        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+        not_nans = not_nans.sum(dim=0).float()
+        f = torch.where(not_nans > 0, f.sum(dim=0).float() / not_nans, t_zero)  # batch average
     elif reduction == MetricReduction.SUM_BATCH:
-        not_nans = not_nans.sum(dim=0)
-        f = f.sum(dim=0)  # the batch sum
+        not_nans = not_nans.sum(dim=0).float()
+        f = f.sum(dim=0).float()  # the batch sum
     elif reduction == MetricReduction.MEAN_CHANNEL:
-        not_nans = not_nans.sum(dim=1)
-        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+        not_nans = not_nans.sum(dim=1).float()
+        f = torch.where(not_nans > 0, f.sum(dim=1).float() / not_nans, t_zero)  # channel average
     elif reduction == MetricReduction.SUM_CHANNEL:
-        not_nans = not_nans.sum(dim=1)
-        f = f.sum(dim=1)  # the channel sum
+        not_nans = not_nans.sum(dim=1).float()
+        f = f.sum(dim=1).float()  # the channel sum
     elif reduction != MetricReduction.NONE:
         raise ValueError(
             f"Unsupported reduction: {reduction}, available options are "
@@ -205,7 +205,7 @@ def get_mask_edges(
         or_vol = seg_pred | seg_gt
         if not or_vol.any():
             pred, gt = lib.zeros(seg_pred.shape, dtype=bool), lib.zeros(seg_gt.shape, dtype=bool)
-            return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
+            return (pred, gt) if spacing is None else (pred, gt, pred, gt)
         channel_first = [seg_pred[None], seg_gt[None], or_vol[None]]
         if spacing is None and not use_cucim:  # cpu only erosion
             seg_pred, seg_gt, or_vol = convert_to_tensor(channel_first, device="cpu", dtype=bool)
@@ -261,11 +261,9 @@ def get_surface_distance(
             - ``"euclidean"``, uses Exact Euclidean distance transform.
             - ``"chessboard"``, uses `chessboard` metric in chamfer type of transform.
             - ``"taxicab"``, uses `taxicab` metric in chamfer type of transform.
-        spacing: spacing of pixel (or voxel) along each axis. If a sequence, must be of
-            length equal to the image dimensions; if a single number, this is used for all axes.
-            If ``None``, spacing of unity is used. Defaults to ``None``.
         spacing: spacing of pixel (or voxel). This parameter is relevant only if ``distance_metric`` is set to ``"euclidean"``.
-            Several input options are allowed: (1) If a single number, isotropic spacing with that value is used.
+            Several input options are allowed:
+            (1) If a single number, isotropic spacing with that value is used.
             (2) If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
             (3) If ``None``, spacing of unity is used. Defaults to ``None``.
 
@@ -385,7 +383,7 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
         by_size: if True, largest instance will be assigned a smaller id.
 
     """
-    pred_id = list(pred.unique())
+    pred_id: Iterable[Any] = list(pred.unique())
     # the original implementation has the limitation that if there is no 0 in pred, error will happen
     pred_id = [i for i in pred_id if i != 0]
 

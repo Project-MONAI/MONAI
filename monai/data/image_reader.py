@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -403,8 +404,12 @@ class PydicomReader(ImageReader):
         label_dict: label of the dicom data. If provided, it will be used when loading segmentation data.
             Keys of the dict are the classes, and values are the corresponding class number. For example:
             for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
+        fname_regex: a regular expression to match the file names when the input is a folder.
+            If provided, only the matched files will be included. For example, to include the file name
+            "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`. Default to `""`.
+            Set it to `None` to use `pydicom.misc.is_dicom` to match valid files.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
-            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
+            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html
             If the `get_data` function will be called
             (for example, when using this reader with `monai.transforms.LoadImage`), please ensure that the argument
             `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
@@ -418,6 +423,7 @@ class PydicomReader(ImageReader):
         swap_ij: bool = True,
         prune_metadata: bool = True,
         label_dict: dict | None = None,
+        fname_regex: str = "",
         **kwargs,
     ):
         super().__init__()
@@ -427,6 +433,7 @@ class PydicomReader(ImageReader):
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
         self.label_dict = label_dict
+        self.fname_regex = fname_regex
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -467,9 +474,16 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                series_slcs = glob.glob(os.path.join(name, "*"))
-                series_slcs = [slc for slc in series_slcs if "LICENSE" not in slc]
-                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
+                if self.fname_regex is not None:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
+                else:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
+                slices = []
+                for slc in series_slcs:
+                    try:
+                        slices.append(pydicom.dcmread(fp=slc, **kwargs_))
+                    except pydicom.errors.InvalidDicomError as e:
+                        warnings.warn(f"Failed to read {slc} with exception: \n{e}.", stacklevel=2)
                 img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
                     self.has_series = True
@@ -1068,7 +1082,7 @@ class NumpyReader(ImageReader):
             img = np.load(name, allow_pickle=True, **kwargs_)
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
-                npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
+                npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys
                 for k in npz_keys:
                     img_.append(img[k])
             else:
@@ -1286,7 +1300,7 @@ class NrrdReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, *kwargs_))
+            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, **kwargs_))
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 

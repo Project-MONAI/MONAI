@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DenseNet, DenseNet121, SEResNet50
 from monai.visualize import GradCAM, GradCAMpp
-from tests.utils import assert_allclose
+from tests.utils import assert_allclose, skip_if_quick
 
 
 class DenseNetAdjoint(DenseNet121):
@@ -147,6 +147,7 @@ for cam in (GradCAM, GradCAMpp):
     TESTS_ILL.append([cam])
 
 
+@skip_if_quick
 class TestGradientClassActivationMap(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_shape(self, cam_class, input_data, expected_shape):
