@@ -31,7 +31,7 @@ class EMAQuantizer(nn.Module):
     on 22/10/2022. If you want to TorchScript your model, please turn set `ddp_sync` to False.
 
     Args:
-        spatial_dims :  number of spatial spatial_dims.
+        spatial_dims: number of spatial dimensions of the input.
         num_embeddings: number of atomic elements in the codebook.
         embedding_dim: number of channels of the input and atomic elements.
         commitment_cost: scaling factor of the MSE loss between input and its quantized version. Defaults to 0.25.
