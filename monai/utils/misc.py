@@ -527,6 +527,30 @@ class MONAIEnvVars:
     def doc_images() -> str | None:
         return os.environ.get("MONAI_DOC_IMAGES")
 
+    @staticmethod
+    def algo_hash() -> str | None:
+        return os.environ.get("MONAI_ALGO_HASH", "249bf4b")
+
+    @staticmethod
+    def trace_transform() -> str | None:
+        return os.environ.get("MONAI_TRACE_TRANSFORM", "1")
+
+    @staticmethod
+    def eval_expr() -> str | None:
+        return os.environ.get("MONAI_EVAL_EXPR", "1")
+
+    @staticmethod
+    def allow_missing_reference() -> str | None:
+        return os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "1")
+
+    @staticmethod
+    def extra_test_data() -> str | None:
+        return os.environ.get("MONAI_EXTRA_TEST_DATA", "1")
+
+    @staticmethod
+    def testing_algo_template() -> str | None:
+        return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+
 
 class ImageMetaKey:
     """
@@ -864,3 +888,13 @@ def is_sqrt(num: Sequence[int] | int) -> bool:
     sqrt_num = [int(math.sqrt(_num)) for _num in num]
     ret = [_i * _j for _i, _j in zip(sqrt_num, sqrt_num)]
     return ensure_tuple(ret) == num
+
+
+def unsqueeze_right(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+    """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    return arr[(...,) + (None,) * (ndim - arr.ndim)]
+
+
+def unsqueeze_left(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+    """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    return arr[(None,) * (ndim - arr.ndim)]

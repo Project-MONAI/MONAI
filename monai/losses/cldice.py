@@ -29,12 +29,12 @@ def soft_erode(img: torch.Tensor) -> torch.Tensor:  # type: ignore
     if len(img.shape) == 4:
         p1 = -(F.max_pool2d(-img, (3, 1), (1, 1), (1, 0)))
         p2 = -(F.max_pool2d(-img, (1, 3), (1, 1), (0, 1)))
-        return torch.min(p1, p2)  # type: ignore
+        return torch.min(p1, p2)
     elif len(img.shape) == 5:
         p1 = -(F.max_pool3d(-img, (3, 1, 1), (1, 1, 1), (1, 0, 0)))
         p2 = -(F.max_pool3d(-img, (1, 3, 1), (1, 1, 1), (0, 1, 0)))
         p3 = -(F.max_pool3d(-img, (1, 1, 3), (1, 1, 1), (0, 0, 1)))
-        return torch.min(torch.min(p1, p2), p3)  # type: ignore
+        return torch.min(torch.min(p1, p2), p3)
 
 
 def soft_dilate(img: torch.Tensor) -> torch.Tensor:  # type: ignore
@@ -48,9 +48,9 @@ def soft_dilate(img: torch.Tensor) -> torch.Tensor:  # type: ignore
         https://github.com/jocpae/clDice/blob/master/cldice_loss/pytorch/soft_skeleton.py#L18
     """
     if len(img.shape) == 4:
-        return F.max_pool2d(img, (3, 3), (1, 1), (1, 1))  # type: ignore
+        return F.max_pool2d(img, (3, 3), (1, 1), (1, 1))
     elif len(img.shape) == 5:
-        return F.max_pool3d(img, (3, 3, 3), (1, 1, 1), (1, 1, 1))  # type: ignore
+        return F.max_pool3d(img, (3, 3, 3), (1, 1, 1), (1, 1, 1))
 
 
 def soft_open(img: torch.Tensor) -> torch.Tensor:

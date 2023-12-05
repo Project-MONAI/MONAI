@@ -268,7 +268,7 @@ class LoadImage(Transform):
                         break
 
         if img is None or reader is None:
-            if isinstance(filename, tuple) and len(filename) == 1:
+            if isinstance(filename, Sequence) and len(filename) == 1:
                 filename = filename[0]
             msg = "\n".join([f"{e}" for e in err])
             raise RuntimeError(

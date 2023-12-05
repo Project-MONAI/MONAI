@@ -57,6 +57,7 @@ ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationEr
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
 requests_get, has_requests = optional_import("requests", name="get")
 onnx, _ = optional_import("onnx")
+huggingface_hub, _ = optional_import("huggingface_hub")
 
 logger = get_logger(module_name=__name__)
 
@@ -66,31 +67,44 @@ DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
 
 
-def _update_args(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
+def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
     """
-    Update the `args` with the input `kwargs`.
+    Update the `args` dictionary with the input `kwargs`.
     For dict data, recursively update the content based on the keys.
 
+    Example::
+
+        from monai.bundle import update_kwargs
+        update_kwargs({'exist': 1}, exist=2, new_arg=3)
+        # return {'exist': 2, 'new_arg': 3}
+
     Args:
-        args: source args to update.
+        args: source `args` dictionary (or a json/yaml filename to read as dictionary) to update.
         ignore_none: whether to ignore input args with None value, default to `True`.
-        kwargs: destination args to update.
+        kwargs: key=value pairs to be merged into `args`.
 
     """
     args_: dict = args if isinstance(args, dict) else {}
     if isinstance(args, str):
         # args are defined in a structured file
         args_ = ConfigParser.load_config_file(args)
+    if isinstance(args, (tuple, list)) and all(isinstance(x, str) for x in args):
+        primary, overrides = args
+        args_ = update_kwargs(primary, ignore_none, **update_kwargs(overrides, ignore_none, **kwargs))
+    if not isinstance(args_, dict):
+        return args_
     # recursively update the default args with new args
     for k, v in kwargs.items():
-        print(k, v)
         if ignore_none and v is None:
             continue
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
-            args_[k] = _update_args(args_[k], ignore_none, **v)
+            args_[k] = update_kwargs(args_[k], ignore_none, **v)
         else:
             args_[k] = v
     return args_
+
+
+_update_args = update_kwargs  # backward compatibility
 
 
 def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
@@ -207,7 +221,7 @@ def _download_from_ngc(
 
 def _get_latest_bundle_version_monaihosting(name):
     url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-    full_url = f"{url}/{name}"
+    full_url = f"{url}/{name.lower()}"
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
         resp = requests_get(full_url)
@@ -231,6 +245,14 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
+    elif source == "huggingface_hub":
+        refs = huggingface_hub.list_repo_refs(repo_id=repo)
+        if len(refs.tags) > 0:
+            all_versions = [t.name for t in refs.tags]  # git tags, not to be confused with `tag`
+            latest_version = ["latest_version" if "latest_version" in all_versions else all_versions[-1]][0]
+        else:
+            latest_version = [b.name for b in refs.branches][0]  # use the branch that was last updated
+        return latest_version
     else:
         raise ValueError(
             f"To get the latest bundle version, source should be 'github', 'monaihosting' or 'ngc', got {source}."
@@ -280,6 +302,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle from monaihosting with latest version:
         python -m monai.bundle download --name <bundle_name> --source "monaihosting" --bundle_dir "./"
 
+        # Execute this module as a CLI entry, and download bundle from Hugging Face Hub:
+        python -m monai.bundle download --name "bundle_name" --source "huggingface_hub" --repo "repo_owner/repo_name"
+
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
 
@@ -298,14 +323,15 @@ def download(
             "monai_brats_mri_segmentation" in ngc:
             https://catalog.ngc.nvidia.com/models?filters=&orderBy=scoreDESC&query=monai.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
-            the latest version.
+            the latest version (or the last commit to the `main` branch in the case of Hugging Face Hub).
         bundle_dir: target directory to store the downloaded data.
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "monaihosting" or "github".
-        repo: repo name. This argument is used when `url` is `None` and `source` is "github".
-            If used, it should be in the form of "repo_owner/repo_name/release_tag".
+            it should be "ngc", "monaihosting", "github", or "huggingface_hub".
+        repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
+            If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
+            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -318,7 +344,7 @@ def download(
             so that the command line inputs can be simplified.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         name=name,
         version=version,
@@ -338,9 +364,10 @@ def download(
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
     if repo_ is None:
         repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
-    if len(repo_.split("/")) != 3:
+    if len(repo_.split("/")) != 3 and source_ != "huggingface_hub":
         raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
-
+    elif len(repo_.split("/")) != 2 and source_ == "huggingface_hub":
+        raise ValueError("Hugging Face Hub repo should be in the form of `repo_owner/repo_name`")
     if url_ is not None:
         if name_ is not None:
             filepath = bundle_dir_ / f"{name_}.zip"
@@ -367,9 +394,12 @@ def download(
                 remove_prefix=remove_prefix_,
                 progress=progress_,
             )
+        elif source_ == "huggingface_hub":
+            extract_path = os.path.join(bundle_dir_, name_)
+            huggingface_hub.snapshot_download(repo_id=repo_, revision=version_, local_dir=extract_path)
         else:
             raise NotImplementedError(
-                "Currently only download from `url`, source 'github', 'monaihosting' or 'ngc' are implemented,"
+                "Currently only download from `url`, source 'github', 'monaihosting', 'huggingface_hub' or 'ngc' are implemented,"
                 f"got source: {source_}."
             )
 
@@ -414,7 +444,7 @@ def load(
             https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/mednist_gan/versions/0.2.0/files/mednist_gan_v0.2.0.zip
         model: a pytorch module to be updated. Default to None, using the "network_def" in the bundle.
         version: version name of the target bundle to download, like: "0.1.0". If `None`, will download
-            the latest version.
+            the latest version. If `source` is "huggingface_hub", this argument is a Git revision id.
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
@@ -427,9 +457,10 @@ def load(
         source: storage location name. This argument is used when `model_file` is not existing locally and need to be
             downloaded first.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "monaihosting" or "github".
-        repo: repo name. This argument is used when `url` is `None` and `source` is "github".
-            If used, it should be in the form of "repo_owner/repo_name/release_tag".
+            it should be "ngc", "monaihosting", "github", or "huggingface_hub".
+        repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
+            If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
+            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
         remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
             have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
             maintain the consistency between these three sources, remove prefix is necessary.
@@ -689,7 +720,7 @@ def get_bundle_info(
     if version not in bundle_info:
         raise ValueError(f"version: {version} of bundle: {bundle_name} is not existing.")
 
-    return bundle_info[version]  # type: ignore[no-any-return]
+    return bundle_info[version]
 
 
 def run(
@@ -834,7 +865,7 @@ def verify_metadata(
 
     """
 
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         meta_file=meta_file,
         filepath=filepath,
@@ -958,7 +989,7 @@ def verify_net_in_out(
 
     """
 
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         meta_file=meta_file,
@@ -1127,7 +1158,7 @@ def onnx_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         filepath=filepath,
@@ -1242,7 +1273,7 @@ def ckpt_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         filepath=filepath,
@@ -1260,7 +1291,6 @@ def ckpt_export(
         config_file_,
         filepath_,
         ckpt_file_,
-        bundle_root_,
         net_id_,
         meta_file_,
         key_in_ckpt_,
@@ -1272,7 +1302,6 @@ def ckpt_export(
         "config_file",
         filepath=None,
         ckpt_file=None,
-        bundle_root=os.getcwd(),
         net_id=None,
         meta_file=None,
         key_in_ckpt="",
@@ -1280,17 +1309,22 @@ def ckpt_export(
         input_shape=None,
         converter_kwargs={},
     )
+    bundle_root = _args.get("bundle_root", os.getcwd())
 
     parser = ConfigParser()
-
     parser.read_config(f=config_file_)
-    meta_file_ = os.path.join(bundle_root_, "configs", "metadata.json") if meta_file_ is None else meta_file_
-    filepath_ = os.path.join(bundle_root_, "models", "model.ts") if filepath_ is None else filepath_
-    ckpt_file_ = os.path.join(bundle_root_, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
-    if not os.path.exists(ckpt_file_):
-        raise FileNotFoundError(f'Checkpoint file "{ckpt_file_}" not found, please specify it in argument "ckpt_file".')
+    meta_file_ = os.path.join(bundle_root, "configs", "metadata.json") if meta_file_ is None else meta_file_
     if os.path.exists(meta_file_):
         parser.read_meta(f=meta_file_)
+
+    # the rest key-values in the _args are to override config content
+    for k, v in _args.items():
+        parser[k] = v
+
+    filepath_ = os.path.join(bundle_root, "models", "model.ts") if filepath_ is None else filepath_
+    ckpt_file_ = os.path.join(bundle_root, "models", "model.pt") if ckpt_file_ is None else ckpt_file_
+    if not os.path.exists(ckpt_file_):
+        raise FileNotFoundError(f'Checkpoint file "{ckpt_file_}" not found, please specify it in argument "ckpt_file".')
 
     net_id_ = "network_def" if net_id_ is None else net_id_
     try:
@@ -1299,10 +1333,6 @@ def ckpt_export(
         raise ValueError(
             f'Network definition "{net_id_}" cannot be found in "{config_file_}", specify name with argument "net_id".'
         ) from e
-
-    # the rest key-values in the _args are to override config content
-    for k, v in _args.items():
-        parser[k] = v
 
     # When export through torch.jit.trace without providing input_shape, will try to parse one from the parser.
     if (not input_shape_) and use_trace:
@@ -1401,7 +1431,7 @@ def trt_export(
             e.g. ``--_meta#network_data_format#inputs#image#num_channels 3``.
 
     """
-    _args = _update_args(
+    _args = update_kwargs(
         args=args_file,
         net_id=net_id,
         filepath=filepath,
@@ -1585,6 +1615,90 @@ def init_bundle(
         save_state(network, str(models_dir / "model.pt"))
 
 
+def _add_model_card_metadata(new_modelcard_path):
+    # Extract license from LICENSE file
+    license_name = "unknown"
+    license_path = os.path.join(os.path.dirname(new_modelcard_path), "LICENSE")
+    if os.path.exists(license_path):
+        with open(license_path) as file:
+            content = file.read()
+        if "Apache License" in content and "Version 2.0" in content:
+            license_name = "apache-2.0"
+        elif "MIT License" in content:
+            license_name = "mit"
+    # Add relevant tags
+    tags = "- monai\n- medical\nlibrary_name: monai\n"
+    # Create tag section
+    tag_content = f"---\ntags:\n{tags}license: {license_name}\n---"
+
+    # Update model card
+    with open(new_modelcard_path) as file:
+        content = file.read()
+    new_content = tag_content + "\n" + content
+    with open(new_modelcard_path, "w") as file:
+        file.write(new_content)
+
+
+def push_to_hf_hub(
+    repo: str,
+    name: str,
+    bundle_dir: str,
+    token: str | None = None,
+    private: bool | None = True,
+    version: str | None = None,
+    tag_as_latest_version: bool | None = False,
+    **upload_folder_kwargs: Any,
+) -> Any:
+    """
+    Push a MONAI bundle to the Hugging Face Hub.
+
+    Typical usage examples:
+
+    .. code-block:: bash
+
+        python -m monai.bundle push_to_hf_hub --repo <HF repository id> --name <bundle name> \
+            --bundle_dir <bundle directory> --version <version> ...
+
+    Args:
+        repo: namespace (user or organization) and a repo name separated by a /, e.g. `hf_username/bundle_name`
+        bundle_name: name of the bundle directory to push.
+        bundle_dir: path to the bundle directory.
+        token: Hugging Face authentication token. Default is `None` (will default to the stored token).
+        private: Private visibility of the repository on Hugging Face. Default is `True`.
+        version_name: Name of the version tag to create. Default is `None` (no version tag is created).
+        tag_as_latest_version: Whether to tag the commit as `latest_version`.
+            This version will downloaded by default when using `bundle.download()`. Default is `False`.
+        upload_folder_kwargs: Keyword arguments to pass to `HfApi.upload_folder`.
+
+    Returns:
+        repo_url: URL of the Hugging Face repo
+    """
+    # Connect to API and create repo
+    hf_api = huggingface_hub.HfApi(token=token)
+    hf_api.create_repo(repo_id=repo, private=private, exist_ok=True)
+
+    # Create model card in bundle directory
+    new_modelcard_path = os.path.join(bundle_dir, name, "README.md")
+    modelcard_path = os.path.join(bundle_dir, name, "docs", "README.md")
+    if os.path.exists(modelcard_path):
+        # Copy README from old path if it exists
+        copyfile(modelcard_path, new_modelcard_path)
+        _add_model_card_metadata(new_modelcard_path)
+
+    # Upload bundle folder to repo
+    repo_url = hf_api.upload_folder(repo_id=repo, folder_path=os.path.join(bundle_dir, name), **upload_folder_kwargs)
+
+    # Create version tag if specified
+    if version is not None:
+        hf_api.create_tag(repo_id=repo, tag=version, exist_ok=True)
+
+    # Optionally tag as `latest_version`
+    if tag_as_latest_version:
+        hf_api.create_tag(repo_id=repo, tag="latest_version", exist_ok=True)
+
+    return repo_url
+
+
 def create_workflow(
     workflow_name: str | BundleWorkflow | None = None,
     config_file: str | Sequence[str] | None = None,
@@ -1614,7 +1728,7 @@ def create_workflow(
         kwargs: arguments to instantiate the workflow class.
 
     """
-    _args = _update_args(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
+    _args = update_kwargs(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
     _log_input_summary(tag="run", args=_args)
     (workflow_name, config_file) = _pop_args(
         _args, workflow_name=ConfigWorkflow, config_file=None

@@ -22,7 +22,7 @@ isort>=5.1
 ruff
 pytype>=2020.6.1; platform_system != "Windows"
 types-pkg_resources
-mypy>=0.790
+mypy>=1.5.0
 ninja
 torchvision
 psutil
@@ -33,7 +33,7 @@ tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pandas
 requests
 einops
-transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
+transformers<4.22; python_version <= '3.10'  # https://github.com/Project-MONAI/MONAI/issues/5157
 mlflow>=1.28.0
 clearml>=1.10.0rc0
 matplotlib!=3.5.0
@@ -46,7 +46,7 @@ pynrrd
 pre-commit
 pydicom
 h5py
-nni
+nni; platform_system == "Linux"
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
 onnx>=1.13.0
@@ -56,3 +56,4 @@ filelock!=3.12.0  # https://github.com/microsoft/nni/issues/5523
 zarr
 lpips==0.1.4
 nvidia-ml-py
+huggingface_hub

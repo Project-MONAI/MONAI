@@ -28,7 +28,7 @@ jobs:
       options: --gpus all
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -79,7 +79,7 @@ jobs:
       matrix:
         python-version: ['3.8', '3.9', '3.10']
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
@@ -100,13 +100,14 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
+        rm -rf /opt/hostedtoolcache
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=0 ./runtests.sh --build --quick --unittests --disttests
+        BUILD_MONAI=0 ./runtests.sh --build --quick --unittests
         BUILD_MONAI=1 ./runtests.sh --build --quick --min
         coverage xml --ignore-errors
     - name: Upload coverage
@@ -145,11 +146,12 @@ jobs:
     - name: Install the default branch with build (dev branch only)
       if: github.ref == 'refs/heads/dev'
       run: |
+        rm -rf /opt/hostedtoolcache
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
     - name: Get the test cases (dev branch only)
       if: github.ref == 'refs/heads/dev'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: dev
     - name: Quick test installed (dev branch only)

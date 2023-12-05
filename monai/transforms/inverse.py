@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import os
 import warnings
 from collections.abc import Hashable, Mapping
 from contextlib import contextmanager
@@ -34,6 +33,7 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
 )
+from monai.utils.misc import MONAIEnvVars
 
 __all__ = ["TraceableTransform", "InvertibleTransform"]
 
@@ -70,7 +70,7 @@ class TraceableTransform(Transform):
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
 
-    tracing = os.environ.get("MONAI_TRACE_TRANSFORM", "1") != "0"
+    tracing = MONAIEnvVars.trace_transform() != "0"
 
     def set_tracing(self, tracing: bool) -> None:
         """Set whether to trace transforms."""

@@ -19,12 +19,11 @@ from __future__ import annotations
 import warnings
 from typing import Callable
 
-import numpy as np
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.metrics.utils import distance_transform_edt
 from monai.networks import one_hot
+from monai.transforms.utils import distance_transform_edt
 from monai.utils import LossReduction
 
 
@@ -95,7 +94,7 @@ class HausdorffDTLoss(_Loss):
         self.batch = batch
 
     @torch.no_grad()
-    def distance_field(self, img: np.ndarray) -> np.ndarray:
+    def distance_field(self, img: torch.Tensor) -> torch.Tensor:
         """Generate distance transform.
 
         Args:
@@ -104,18 +103,20 @@ class HausdorffDTLoss(_Loss):
         Returns:
             np.ndarray: Distance field.
         """
-        field = np.zeros_like(img)
+        field = torch.zeros_like(img)
 
-        for batch in range(len(img)):
-            fg_mask = img[batch] > 0.5
+        for batch_idx in range(len(img)):
+            fg_mask = img[batch_idx] > 0.5
 
-            if fg_mask.any():
+            # For cases where the mask is entirely background or entirely foreground
+            # the distance transform is not well defined for all 1s,
+            # which always would happen on either foreground or background, so skip
+            if fg_mask.any() and not fg_mask.all():
+                fg_dist: torch.Tensor = distance_transform_edt(fg_mask)  # type: ignore
                 bg_mask = ~fg_mask
+                bg_dist: torch.Tensor = distance_transform_edt(bg_mask)  # type: ignore
 
-                fg_dist = distance_transform_edt(fg_mask)
-                bg_dist = distance_transform_edt(bg_mask)
-
-                field[batch] = fg_dist + bg_dist
+                field[batch_idx] = fg_dist + bg_dist
 
         return field
 
@@ -181,8 +182,8 @@ class HausdorffDTLoss(_Loss):
         for i in range(input.shape[1]):
             ch_input = input[:, [i]]
             ch_target = target[:, [i]]
-            pred_dt = torch.from_numpy(self.distance_field(ch_input.detach().cpu().numpy())).float()
-            target_dt = torch.from_numpy(self.distance_field(ch_target.detach().cpu().numpy())).float()
+            pred_dt = self.distance_field(ch_input.detach()).float()
+            target_dt = self.distance_field(ch_target.detach()).float()
 
             pred_error = (ch_input - ch_target) ** 2
             distance = pred_dt**self.alpha + target_dt**self.alpha

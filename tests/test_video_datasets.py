@@ -39,7 +39,7 @@ class Base:
             return self.video_source
 
         def get_ds(self, *args, **kwargs) -> VideoDataset:
-            return self.ds(video_source=self.get_video_source(), transform=TRANSFORMS, *args, **kwargs)  # type: ignore
+            return self.ds(*args, video_source=self.get_video_source(), transform=TRANSFORMS, **kwargs)  # type: ignore
 
         @unittest.skipIf(has_cv2, "Only tested when OpenCV not installed.")
         def test_no_opencv_raises(self):

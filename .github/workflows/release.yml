@@ -15,7 +15,7 @@ jobs:
       matrix:
         python-version: ['3.9', '3.10', '3.11']
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
@@ -27,6 +27,7 @@ jobs:
         python -m pip install --user --upgrade setuptools wheel
     - name: Build and test source archive and wheel file
       run: |
+        rm -rf /opt/hostedtoolcache
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         root_dir=$PWD
         echo "$root_dir"
@@ -91,7 +92,7 @@ jobs:
     needs: packaging
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         # full history so that we can git describe
         with:
           fetch-depth: 0
@@ -101,6 +102,7 @@ jobs:
           python-version: '3.9'
       - shell: bash
         run: |
+          rm -rf /opt/hostedtoolcache
           git describe
           python -m pip install --user --upgrade setuptools wheel
           python setup.py build
@@ -121,7 +123,7 @@ jobs:
     needs: versioning
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download version
         uses: actions/download-artifact@v3
         with:

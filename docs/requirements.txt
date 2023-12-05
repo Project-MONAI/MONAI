@@ -21,7 +21,7 @@ sphinxcontrib-serializinghtml
 sphinx-autodoc-typehints==1.11.1
 pandas
 einops
-transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
+transformers<4.22; python_version <= '3.10'  # https://github.com/Project-MONAI/MONAI/issues/5157
 mlflow>=1.28.0
 clearml>=1.10.0rc0
 tensorboardX
@@ -39,3 +39,4 @@ opencv-python-headless
 onnx>=1.13.0
 onnxruntime; python_version <= '3.10'
 zarr
+huggingface_hub

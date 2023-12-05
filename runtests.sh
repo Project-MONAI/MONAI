@@ -63,7 +63,7 @@ function print_usage {
     echo "runtests.sh [--codeformat] [--autofix] [--black] [--isort] [--flake8] [--pylint] [--ruff]"
     echo "            [--clangformat] [--precommit] [--pytype] [-j number] [--mypy]"
     echo "            [--unittests] [--disttests] [--coverage] [--quick] [--min] [--net] [--build] [--list_tests]"
-    echo "            [--dryrun] [--copyright] [--clean] [--help] [--version]"
+    echo "            [--dryrun] [--copyright] [--clean] [--help] [--version] [--path] [--formatfix]"
     echo ""
     echo "MONAI unit testing utilities."
     echo ""
@@ -74,6 +74,7 @@ function print_usage {
     echo "./runtests.sh --quick --unittests     # run minimal unit tests, for quick verification during code developments."
     echo "./runtests.sh --autofix               # run automatic code formatting using \"isort\" and \"black\"."
     echo "./runtests.sh --clean                 # clean up temporary files and run \"${PY_EXE} setup.py develop --uninstall\"."
+    echo "./runtests.sh --formatfix -p /my/code # run automatic code formatting using \"isort\" and \"black\" in specified path."
     echo ""
     echo "Code style check options:"
     echo "    --autofix         : format code using \"isort\" and \"black\""
@@ -107,6 +108,8 @@ function print_usage {
     echo "    -c, --clean       : clean temporary files from tests and exit"
     echo "    -h, --help        : show this help message and exit"
     echo "    -v, --version     : show MONAI and system version information and exit"
+    echo "    -p, --path        : specify the path used for formatting, default is the current dir if unspecified"
+    echo "    --formatfix       : format code using \"isort\" and \"black\" for user specified directories"
     echo ""
     echo "${separator}For bug reports and feature requests, please file an issue at:"
     echo "    https://github.com/Project-MONAI/MONAI/issues/new/choose"
@@ -116,42 +119,42 @@ function print_usage {
 }
 
 # FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
-protobuf_major_version=$(${PY_EXE} -m pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
+protobuf_major_version=$("${PY_EXE}" -m pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
 if [ "$protobuf_major_version" -ge "4" ]
 then
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 fi
 
 function check_import {
-    echo "Python: ${PY_EXE}"
-    ${cmdPrefix}${PY_EXE} -W error -W ignore::DeprecationWarning -W ignore::ResourceWarning -c "import monai"
+    echo "Python: "${PY_EXE}""
+    ${cmdPrefix}"${PY_EXE}" -W error -W ignore::DeprecationWarning -W ignore::ResourceWarning -c "import monai"
 }
 
 function print_version {
-    ${cmdPrefix}${PY_EXE} -c 'import monai; monai.config.print_config()'  # project-monai/monai#6167
+    ${cmdPrefix}"${PY_EXE}" -c 'import monai; monai.config.print_config()'  # project-monai/monai#6167
 }
 
 function install_deps {
     echo "Pip installing MONAI development dependencies and compile MONAI cpp extensions..."
-    ${cmdPrefix}${PY_EXE} -m pip install -r requirements-dev.txt
+    ${cmdPrefix}"${PY_EXE}" -m pip install -r requirements-dev.txt
 }
 
 function compile_cpp {
     echo "Compiling and installing MONAI cpp extensions..."
     # depends on setup.py behaviour for building
     # currently setup.py uses environment variables: BUILD_MONAI and FORCE_CUDA
-    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
+    ${cmdPrefix}"${PY_EXE}" setup.py develop --user --uninstall
     if [[ "$OSTYPE" == "darwin"* ]];
     then  # clang for mac os
-        CC=clang CXX=clang++ ${cmdPrefix}${PY_EXE} setup.py develop --user
+        CC=clang CXX=clang++ ${cmdPrefix}"${PY_EXE}" setup.py develop --user
     else
-        ${cmdPrefix}${PY_EXE} setup.py develop --user
+        ${cmdPrefix}"${PY_EXE}" setup.py develop --user
     fi
 }
 
 function clang_format {
     echo "Running clang-format..."
-    ${cmdPrefix}${PY_EXE} -m tests.clang_format_utils
+    ${cmdPrefix}"${PY_EXE}" -m tests.clang_format_utils
     clang_format_tool='.clang-format-bin/clang-format'
     # Verify .
     if ! type -p "$clang_format_tool" >/dev/null; then
@@ -164,19 +167,19 @@ function clang_format {
 }
 
 function is_pip_installed() {
-	return $(${PY_EXE} -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
+	return $("${PY_EXE}" -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
 }
 
 function clean_py {
     if is_pip_installed coverage
     then
       # remove coverage history
-      ${cmdPrefix}${PY_EXE} -m coverage erase
+      ${cmdPrefix}"${PY_EXE}" -m coverage erase
     fi
 
     # uninstall the development package
     echo "Uninstalling MONAI development files..."
-    ${cmdPrefix}${PY_EXE} setup.py develop --user --uninstall
+    ${cmdPrefix}"${PY_EXE}" setup.py develop --user --uninstall
 
     # remove temporary files (in the directory of this script)
     TO_CLEAN="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
@@ -198,7 +201,7 @@ function clean_py {
 }
 
 function torch_validate {
-    ${cmdPrefix}${PY_EXE} -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
+    ${cmdPrefix}"${PY_EXE}" -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
 }
 
 function print_error_msg() {
@@ -208,11 +211,15 @@ function print_error_msg() {
 
 function print_style_fail_msg() {
     echo "${red}Check failed!${noColor}"
-    echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+    if [ "$homedir" = "$currentdir" ]
+    then
+        echo "Please run auto style fixes: ${green}./runtests.sh --autofix${noColor}"
+    else :
+    fi
 }
 
 function list_unittests() {
-    ${PY_EXE} - << END
+    "${PY_EXE}" - << END
 import unittest
 def print_suite(suite):
     if hasattr(suite, "__iter__"):
@@ -261,7 +268,7 @@ do
             doBlackFormat=true
             doIsortFormat=true
             doFlake8Format=true
-            doPylintFormat=true
+            # doPylintFormat=true  # https://github.com/Project-MONAI/MONAI/issues/7094
             doRuffFormat=true
             doCopyRight=true
         ;;
@@ -279,6 +286,12 @@ do
             doBlackFormat=true
             doRuffFormat=true
             doCopyRight=true
+        ;;
+        --formatfix)
+            doIsortFix=true
+            doBlackFix=true
+            doIsortFormat=true
+            doBlackFormat=true
         ;;
         --clangformat)
             doClangFormat=true
@@ -328,6 +341,10 @@ do
             print_error_msg "nounittest option is deprecated, no unit tests is the default setting"
             print_usage
         ;;
+        -p|--path)
+            testdir=$2
+            shift
+        ;;
         *)
             print_error_msg "Incorrect commandline provided, invalid key: $key"
             print_usage
@@ -337,7 +354,14 @@ do
 done
 
 # home directory
-homedir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+currentdir="$( cd -P "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+if [ -e "$testdir" ]
+then
+    homedir=$testdir
+else
+    homedir=$currentdir
+fi
+echo "Run tests under $homedir"
 cd "$homedir"
 
 # python path
@@ -424,7 +448,7 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}${PY_EXE} -m pre_commit run --all-files
+    ${cmdPrefix}"${PY_EXE}" -m pre_commit run --all-files
 
     pre_commit_status=$?
     if [ ${pre_commit_status} -ne 0 ]
@@ -453,13 +477,13 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}${PY_EXE} -m isort --version
+    ${cmdPrefix}"${PY_EXE}" -m isort --version
 
     if [ $doIsortFix = true ]
     then
-        ${cmdPrefix}${PY_EXE} -m isort "$(pwd)"
+        ${cmdPrefix}"${PY_EXE}" -m isort "$homedir"
     else
-        ${cmdPrefix}${PY_EXE} -m isort --check "$(pwd)"
+        ${cmdPrefix}"${PY_EXE}" -m isort --check "$homedir"
     fi
 
     isort_status=$?
@@ -489,13 +513,13 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}${PY_EXE} -m black --version
+    ${cmdPrefix}"${PY_EXE}" -m black --version
 
     if [ $doBlackFix = true ]
     then
-        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma "$(pwd)"
+        ${cmdPrefix}"${PY_EXE}" -m black --skip-magic-trailing-comma "$homedir"
     else
-        ${cmdPrefix}${PY_EXE} -m black --skip-magic-trailing-comma --check "$(pwd)"
+        ${cmdPrefix}"${PY_EXE}" -m black --skip-magic-trailing-comma --check "$homedir"
     fi
 
     black_status=$?
@@ -520,9 +544,9 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}${PY_EXE} -m flake8 --version
+    ${cmdPrefix}"${PY_EXE}" -m flake8 --version
 
-    ${cmdPrefix}${PY_EXE} -m flake8 "$(pwd)" --count --statistics
+    ${cmdPrefix}"${PY_EXE}" -m flake8 "$homedir" --count --statistics
 
     flake8_status=$?
     if [ ${flake8_status} -ne 0 ]
@@ -544,12 +568,12 @@ then
     if ! is_pip_installed pylint
     then
         echo "Pip installing pylint ..."
-        ${cmdPrefix}${PY_EXE} -m pip install pylint>2.16
+        ${cmdPrefix}"${PY_EXE}" -m pip install "pylint>2.16,!=3.0.0"
     fi
-    ${cmdPrefix}${PY_EXE} -m pylint --version
+    ${cmdPrefix}"${PY_EXE}" -m pylint --version
 
     ignore_codes="C,R,W,E1101,E1102,E0601,E1130,E1123,E0102,E1120,E1137,E1136"
-    ${cmdPrefix}${PY_EXE} -m pylint monai tests --disable=$ignore_codes -j $NUM_PARALLEL
+    ${cmdPrefix}"${PY_EXE}" -m pylint monai tests --disable=$ignore_codes -j $NUM_PARALLEL
     pylint_status=$?
 
     if [ ${pylint_status} -ne 0 ]
@@ -582,9 +606,9 @@ then
 
     if [ $doRuffFix = true ]
     then
-        ruff check --fix "$(pwd)"
+        ruff check --fix "$homedir"
     else
-        ruff check "$(pwd)"
+        ruff check "$homedir"
     fi
 
     ruff_status=$?
@@ -608,14 +632,14 @@ then
     then
         install_deps
     fi
-    pytype_ver=$(${cmdPrefix}${PY_EXE} -m pytype --version)
+    pytype_ver=$(${cmdPrefix}"${PY_EXE}" -m pytype --version)
     if [[ "$OSTYPE" == "darwin"* && "$pytype_ver" == "2021."* ]]; then
         echo "${red}pytype not working on macOS 2021 (https://github.com/Project-MONAI/MONAI/issues/2391). Please upgrade to 2022*.${noColor}"
         exit 1
     else
-        ${cmdPrefix}${PY_EXE} -m pytype --version
+        ${cmdPrefix}"${PY_EXE}" -m pytype --version
 
-        ${cmdPrefix}${PY_EXE} -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")" "$(pwd)"
+        ${cmdPrefix}"${PY_EXE}" -m pytype -j ${NUM_PARALLEL} --python-version="$(${PY_EXE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")" "$homedir"
 
         pytype_status=$?
         if [ ${pytype_status} -ne 0 ]
@@ -640,8 +664,8 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}${PY_EXE} -m mypy --version
-    ${cmdPrefix}${PY_EXE} -m mypy "$(pwd)"
+    ${cmdPrefix}"${PY_EXE}" -m mypy --version
+    ${cmdPrefix}"${PY_EXE}" -m mypy "$homedir"
 
     mypy_status=$?
     if [ ${mypy_status} -ne 0 ]
@@ -671,7 +695,7 @@ if [ $doMinTests = true ]
 then
     echo "${separator}${blue}min${noColor}"
     doCoverage=false
-    ${cmdPrefix}${PY_EXE} -m tests.min_tests
+    ${cmdPrefix}"${PY_EXE}" -m tests.min_tests
 fi
 
 # set coverage command
@@ -683,7 +707,7 @@ then
     then
         install_deps
     fi
-    cmd="${PY_EXE} -m coverage run --append"
+    cmd=""${PY_EXE}" -m coverage run --append"
 fi
 
 # # download test data if needed
@@ -739,6 +763,6 @@ then
     then
         install_deps
     fi
-    ${cmdPrefix}${PY_EXE} -m coverage combine --append .coverage/
-    ${cmdPrefix}${PY_EXE} -m coverage report --ignore-errors
+    ${cmdPrefix}"${PY_EXE}" -m coverage combine --append .coverage/
+    ${cmdPrefix}"${PY_EXE}" -m coverage report --ignore-errors
 fi

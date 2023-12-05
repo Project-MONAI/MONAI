@@ -333,6 +333,23 @@ class CastToType(Transform):
     """
     Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
     specified PyTorch data type.
+
+    Example:
+        >>> import numpy as np
+        >>> import torch
+        >>> transform = CastToType(dtype=np.float32)
+
+        >>> # Example with a numpy array
+        >>> img_np = np.array([0, 127, 255], dtype=np.uint8)
+        >>> img_np_casted = transform(img_np)
+        >>> img_np_casted
+        array([  0. , 127. , 255. ], dtype=float32)
+
+        >>> # Example with a PyTorch tensor
+        >>> img_tensor = torch.tensor([0, 127, 255], dtype=torch.uint8)
+        >>> img_tensor_casted = transform(img_tensor)
+        >>> img_tensor_casted
+        tensor([  0., 127., 255.])  # dtype is float32
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -355,7 +372,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]
 
 
 class ToTensor(Transform):
@@ -413,10 +430,26 @@ class EnsureType(Transform):
         dtype: target data content type to convert, for example: np.float32, torch.float, etc.
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
-            E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
         track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
             if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
+    Example with wrap_sequence=True:
+        >>> import numpy as np
+        >>> import torch
+        >>> transform = EnsureType(data_type="tensor", wrap_sequence=True)
+        >>> # Converting a list to a tensor
+        >>> data_list = [1, 2., 3]
+        >>> tensor_data = transform(data_list)
+        >>> tensor_data
+        tensor([1., 2., 3.])    # All elements have dtype float32
+
+    Example with wrap_sequence=False:
+        >>> transform = EnsureType(data_type="tensor", wrap_sequence=False)
+        >>> # Converting each element in a list to individual tensors
+        >>> data_list = [1, 2, 3]
+        >>> tensors_list = transform(data_list)
+        >>> tensors_list
+        [tensor(1), tensor(2.), tensor(3)]  # Only second element is float32 rest are int64
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -424,7 +457,7 @@ class EnsureType(Transform):
     def __init__(
         self,
         data_type: str = "tensor",
-        dtype: DtypeLike | torch.dtype | None = None,
+        dtype: DtypeLike | torch.dtype = None,
         device: torch.device | None = None,
         wrap_sequence: bool = True,
         track_meta: bool | None = None,
@@ -435,13 +468,14 @@ class EnsureType(Transform):
         self.wrap_sequence = wrap_sequence
         self.track_meta = get_track_meta() if track_meta is None else bool(track_meta)
 
-    def __call__(self, data: NdarrayOrTensor):
+    def __call__(self, data: NdarrayOrTensor, dtype: DtypeLike | torch.dtype = None):
         """
         Args:
             data: input data can be PyTorch Tensor, numpy array, list, dictionary, int, float, bool, str, etc.
                 will ensure Tensor, Numpy array, float, int, bool as Tensors or numpy arrays, strings and
                 objects keep the original. for dictionary, list or tuple, ensure every item as expected type
                 if applicable and `wrap_sequence=False`.
+            dtype: target data content type to convert, for example: np.float32, torch.float, etc.
 
         """
         if self.data_type == "tensor":
@@ -452,7 +486,7 @@ class EnsureType(Transform):
         out, *_ = convert_data_type(
             data=data,
             output_type=output_type,  # type: ignore
-            dtype=self.dtype,
+            dtype=self.dtype if dtype is None else dtype,
             device=self.device,
             wrap_sequence=self.wrap_sequence,
         )
@@ -681,7 +715,7 @@ class DataStats(Transform):
         if self.data_type if data_type is None else data_type:
             lines.append(f"Type: {type(img)} {img.dtype if hasattr(img, 'dtype') else None}")
         if self.data_shape if data_shape is None else data_shape:
-            lines.append(f"Shape: {img.shape}")
+            lines.append(f"Shape: {img.shape if hasattr(img, 'shape') else None}")
         if self.value_range if value_range is None else value_range:
             if isinstance(img, np.ndarray):
                 lines.append(f"Value range: ({np.min(img)}, {np.max(img)})")

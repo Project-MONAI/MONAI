@@ -72,7 +72,7 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
                 "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
                 "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
             },
-            0.758470,
+            0.455082,
         ]
     )
     TEST_CASES.append(
@@ -141,7 +141,7 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
                 "input": torch.tensor([[[[1.0, -1.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
                 "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
             },
-            3.450064,
+            1.870039,
         ]
     )
     TEST_CASES.append(
@@ -164,7 +164,7 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
                 "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
                 "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
             },
-            2.661359,
+            1.607137,
         ]
     )
     TEST_CASES.append(
@@ -174,7 +174,7 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
                 "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
                 "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
             },
-            2.661359,
+            1.607137,
         ]
     )
     TEST_CASES.append(
@@ -184,16 +184,21 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
                 "input": torch.tensor([[[[1.0, -0.0], [-1.0, 1.0]]], [[[1.0, -1.0], [-1.0, 1.0]]]], device=device),
                 "target": torch.tensor([[[[1.0, 1.0], [1.0, 1.0]]], [[[1.0, 0.0], [1.0, 0.0]]]], device=device),
             },
-            2.661359,
+            1.607137,
         ]
     )
 
 TEST_CASES_LOG = [[*inputs, np.log(np.array(output) + 1)] for *inputs, output in TEST_CASES]
 
 
+def _describe_test_case(test_func, test_number, params):
+    input_param, input_data, _ = params.args
+    return f"params:{input_param}, shape:{input_data['input'].shape}, device:{input_data['input'].device}"
+
+
 @skipUnless(has_scipy, "Scipy required")
 class TestHausdorffDTLoss(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TEST_CASES, doc_func=_describe_test_case)
     def test_shape(self, input_param, input_data, expected_val):
         result = HausdorffDTLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
@@ -229,7 +234,7 @@ class TestHausdorffDTLoss(unittest.TestCase):
 
 @skipUnless(has_scipy, "Scipy required")
 class TesLogtHausdorffDTLoss(unittest.TestCase):
-    @parameterized.expand(TEST_CASES_LOG)
+    @parameterized.expand(TEST_CASES_LOG, doc_func=_describe_test_case)
     def test_shape(self, input_param, input_data, expected_val):
         result = LogHausdorffDTLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)

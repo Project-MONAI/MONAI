@@ -521,7 +521,7 @@ def correct_crop_centers(
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
         valid_centers.append(int(center_i))
-    return ensure_tuple(valid_centers)  # type: ignore
+    return ensure_tuple(valid_centers)
 
 
 def generate_pos_neg_label_crop_centers(
@@ -579,7 +579,7 @@ def generate_pos_neg_label_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return ensure_tuple(centers)  # type: ignore
+    return ensure_tuple(centers)
 
 
 def generate_label_classes_crop_centers(
@@ -639,7 +639,7 @@ def generate_label_classes_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return ensure_tuple(centers)  # type: ignore
+    return ensure_tuple(centers)
 
 
 def create_grid(
@@ -1068,7 +1068,12 @@ def get_largest_connected_component_mask(
 
 
 def remove_small_objects(
-    img: NdarrayTensor, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True
+    img: NdarrayTensor,
+    min_size: int = 64,
+    connectivity: int = 1,
+    independent_channels: bool = True,
+    by_measure: bool = False,
+    pixdim: Sequence[float] | float | np.ndarray | None = None,
 ) -> NdarrayTensor:
     """
     Use `skimage.morphology.remove_small_objects` to remove small objects from images.
@@ -1085,6 +1090,11 @@ def remove_small_objects(
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
             documentation.
         independent_channels: Whether to consider each channel independently.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
     # if all equal to one value, no need to call skimage
     if len(unique(img)) == 1:
@@ -1092,6 +1102,23 @@ def remove_small_objects(
 
     if not has_morphology:
         raise RuntimeError("Skimage required.")
+
+    if by_measure:
+        sr = len(img.shape[1:])
+        if isinstance(img, monai.data.MetaTensor):
+            _pixdim = img.pixdim
+        elif pixdim is not None:
+            _pixdim = ensure_tuple_rep(pixdim, sr)
+        else:
+            warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
+            _pixdim = (1.0,) * sr
+        voxel_volume = np.prod(np.array(_pixdim))
+        if voxel_volume == 0:
+            warnings.warn("Invalid `pixdim` value detected, set it to 1. Please verify the pixdim settings.")
+            voxel_volume = 1
+        min_size = np.ceil(min_size / voxel_volume)
+    elif pixdim is not None:
+        warnings.warn("`pixdim` is specified but not in use when computing the volume.")
 
     img_np: np.ndarray
     img_np, *_ = convert_data_type(img, np.ndarray)
@@ -2099,9 +2126,10 @@ def distance_transform_edt(
 
     Returns:
         distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied.
-            It will have the same shape as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
+            It will have the same shape and type as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
             otherwise it will have dtype torch.float32. For SciPy: Will have dtype np.float64.
         indices: The calculated feature transform. It has an image-shaped array for each dimension of the image.
+            The type will be equal to the type of the image.
             Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
 
     """
@@ -2109,7 +2137,6 @@ def distance_transform_edt(
         "cucim.core.operations.morphology", name="distance_transform_edt"
     )
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == "cuda"
-
     if not return_distances and not return_indices:
         raise RuntimeError("Neither return_distances nor return_indices True")
 
@@ -2190,9 +2217,8 @@ def distance_transform_edt(
         r_vals.append(indices)
     if not r_vals:
         return None
-    if len(r_vals) == 1:
-        return r_vals[0]
-    return tuple(r_vals)  # type: ignore
+    device = img.device if isinstance(img, torch.Tensor) else None
+    return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]
 
 
 if __name__ == "__main__":

@@ -46,6 +46,7 @@ from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
+from monai.utils.misc import MONAIEnvVars
 from monai.utils.module import pytorch_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
@@ -75,7 +76,7 @@ def get_testing_algo_template_path():
 
     https://github.com/Project-MONAI/MONAI/blob/1.1.0/monai/apps/auto3dseg/bundle_gen.py#L380-L381
     """
-    return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+    return MONAIEnvVars.testing_algo_template()
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -723,22 +724,16 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     """
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
     device = "cpu"
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            convert_to_torchscript(
-                model=net,
-                filename_or_obj=os.path.join(tempdir, "model.ts"),
-                verify=True,
-                inputs=inputs,
-                device=device,
-                rtol=rtol,
-                atol=atol,
-            )
-    except (RuntimeError, AttributeError):
-        if sys.version_info.major == 3 and sys.version_info.minor == 11:
-            warnings.warn("skipping py 3.11")
-            return
-        raise
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_torchscript(
+            model=net,
+            filename_or_obj=os.path.join(tempdir, "model.ts"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
@@ -752,23 +747,17 @@ def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
     device = "cpu"
     _, has_onnxruntime = optional_import("onnxruntime")
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            convert_to_onnx(
-                model=net,
-                filename=os.path.join(tempdir, "model.onnx"),
-                verify=True,
-                inputs=inputs,
-                device=device,
-                use_ort=has_onnxruntime,
-                rtol=rtol,
-                atol=atol,
-            )
-    except (RuntimeError, AttributeError):
-        if sys.version_info.major == 3 and sys.version_info.minor == 11:
-            warnings.warn("skipping py 3.11")
-            return
-        raise
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_onnx(
+            model=net,
+            filename=os.path.join(tempdir, "model.onnx"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            use_ort=has_onnxruntime,
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def download_url_or_skip_test(*args, **kwargs):
@@ -817,10 +806,21 @@ def command_line_tests(cmd, copy_env=True):
     try:
         normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
         print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+        return repr(normal_out)
     except subprocess.CalledProcessError as e:
         output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
         errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
+
+
+def equal_state_dict(st_1, st_2):
+    """
+    assert equal state_dict (for the shared keys between st_1 and st_2).
+    """
+    for key_st_1, val_st_1 in st_1.items():
+        if key_st_1 in st_2:
+            val_st_2 = st_2.get(key_st_1)
+            assert_allclose(val_st_1, val_st_2)
 
 
 TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)
@@ -832,9 +832,9 @@ DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS
 TEST_NDARRAYS: tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
-TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 

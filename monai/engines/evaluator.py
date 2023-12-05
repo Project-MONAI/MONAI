@@ -142,7 +142,7 @@ class Evaluator(Workflow):
 
         """
         # init env value for current validation process
-        self.state.max_epochs = global_epoch
+        self.state.max_epochs = max(global_epoch, 1)  # at least one epoch of validation
         self.state.epoch = global_epoch - 1
         self.state.iteration = 0
         super().run()

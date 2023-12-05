@@ -4,7 +4,7 @@
 - Integrating MONAI Generative into MONAI core
 
 
-# Bundle usability enhancements
+## Bundle usability enhancements
 
 Based on the experience of building MONAI model zoo and the feedback from the community,
 MONAI 1.3 provides major enhancements in MONAI Bundle usability. These include:
@@ -16,7 +16,7 @@ MONAI 1.3 provides major enhancements in MONAI Bundle usability. These include:
 For more details please visit [the Bundle tutorials](https://github.com/Project-MONAI/tutorials/tree/main/bundle) and
 [the Model Zoo demos](https://github.com/Project-MONAI/tutorials/tree/main/model_zoo).
 
-# Integrating MONAI Generative into MONAI Core
+## Integrating MONAI Generative into MONAI Core
 
 Main modules developed at [MONAI GenerativeModels](https://github.com/Project-MONAI/GenerativeModels)
 are being ported into the core codebase, allowing for consistent maintenance and release of the key components for generative AI.

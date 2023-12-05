@@ -11,21 +11,14 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 import torch
 
-from monai.metrics.utils import (
-    do_metric_reduction,
-    get_mask_edges,
-    get_surface_distance,
-    ignore_background,
-    prepare_spacing,
-)
-from monai.utils import MetricReduction, convert_data_type
+from monai.metrics.utils import do_metric_reduction, get_edge_surface_distance, ignore_background, prepare_spacing
+from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
 
@@ -235,9 +228,6 @@ def compute_surface_dice(
             f"y_pred and y should have same shape, but instead, shapes are {y_pred.shape} (y_pred) and {y.shape} (y)."
         )
 
-    y = y.float()
-    y_pred = y_pred.float()
-
     batch_size, n_class = y_pred.shape[:2]
 
     if n_class != len(class_thresholds):
@@ -251,47 +241,39 @@ def compute_surface_dice(
     if any(np.array(class_thresholds) < 0):
         raise ValueError("All class thresholds need to be >= 0.")
 
-    nsd = np.empty((batch_size, n_class))
+    nsd = torch.empty((batch_size, n_class), device=y_pred.device, dtype=torch.float)
 
     img_dim = y_pred.ndim - 2
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
+        (edges_pred, edges_gt), (distances_pred_gt, distances_gt_pred), areas = get_edge_surface_distance(  # type: ignore
+            y_pred[b, c],
+            y[b, c],
+            distance_metric=distance_metric,
+            spacing=spacing_list[b],
+            use_subvoxels=use_subvoxels,
+            symetric=True,
+            class_index=c,
+        )
+        boundary_correct: int | torch.Tensor | float
+        boundary_complete: int | torch.Tensor | float
         if not use_subvoxels:
-            (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c], crop=True)
-            distances_pred_gt = get_surface_distance(
-                edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing_list[b]
-            )
-            distances_gt_pred = get_surface_distance(
-                edges_gt, edges_pred, distance_metric=distance_metric, spacing=spacing_list[b]
-            )
-
             boundary_complete = len(distances_pred_gt) + len(distances_gt_pred)
-            boundary_correct = np.sum(distances_pred_gt <= class_thresholds[c]) + np.sum(
+            boundary_correct = torch.sum(distances_pred_gt <= class_thresholds[c]) + torch.sum(
                 distances_gt_pred <= class_thresholds[c]
             )
         else:
-            _spacing = spacing_list[b] if spacing_list[b] is not None else [1] * img_dim
-            areas_pred: np.ndarray
-            areas_gt: np.ndarray
-            edges_pred, edges_gt, areas_pred, areas_gt = get_mask_edges(  # type: ignore
-                y_pred[b, c], y[b, c], crop=True, spacing=_spacing  # type: ignore
-            )
-            dist_pred_to_gt = get_surface_distance(edges_pred, edges_gt, distance_metric, spacing=spacing_list[b])
-            dist_gt_to_pred = get_surface_distance(edges_gt, edges_pred, distance_metric, spacing=spacing_list[b])
+            areas_pred, areas_gt = areas  # type: ignore
             areas_gt, areas_pred = areas_gt[edges_gt], areas_pred[edges_pred]
             boundary_complete = areas_gt.sum() + areas_pred.sum()
-            gt_true = areas_gt[dist_gt_to_pred <= class_thresholds[c]].sum() if len(areas_gt) > 0 else 0.0
-            pred_true = areas_pred[dist_pred_to_gt <= class_thresholds[c]].sum() if len(areas_pred) > 0 else 0.0
+            gt_true = areas_gt[distances_gt_pred <= class_thresholds[c]].sum() if len(areas_gt) > 0 else 0.0
+            pred_true = areas_pred[distances_pred_gt <= class_thresholds[c]].sum() if len(areas_pred) > 0 else 0.0
             boundary_correct = gt_true + pred_true
-        if not np.any(edges_gt):
-            warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
-        if not np.any(edges_pred):
-            warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
         if boundary_complete == 0:
             # the class is neither present in the prediction, nor in the reference segmentation
-            nsd[b, c] = np.nan
+            nsd[b, c] = torch.tensor(np.nan)
         else:
             nsd[b, c] = boundary_correct / boundary_complete
 
-    return convert_data_type(nsd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]
+    return nsd
