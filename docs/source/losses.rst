@@ -96,6 +96,11 @@ Registration Losses
 .. autoclass:: BendingEnergyLoss
     :members:
 
+`DiffusionLoss`
+~~~~~~~~~~~~~~~
+.. autoclass:: DiffusionLoss
+    :members:
+
 `LocalNormalizedCrossCorrelationLoss`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: LocalNormalizedCrossCorrelationLoss
