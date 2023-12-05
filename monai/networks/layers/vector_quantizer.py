@@ -100,7 +100,7 @@ class EMAQuantizer(nn.Module):
             torch.Tensor: Quantization indices of shape [B,D,H,W,1]
 
         """
-        with torch.autocast(device_type="cuda", enabled=False):
+        with torch.cuda.amp.autocast(enabled=False):
             encoding_indices_view = list(inputs.shape)
             del encoding_indices_view[1]
 
@@ -138,7 +138,7 @@ class EMAQuantizer(nn.Module):
         Returns:
             torch.Tensor: Quantize space representation of encoding_indices in channel first format.
         """
-        with torch.autocast(device_type="cuda", enabled=False):
+        with torch.cuda.amp.autocast(enabled=False):
             embedding: torch.Tensor = (
                 self.embedding(embedding_indices).permute(self.quantization_permutation).contiguous()
             )
