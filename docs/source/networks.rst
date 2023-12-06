@@ -603,6 +603,11 @@ Nets
 .. autoclass:: AutoEncoder
   :members:
 
+`AutoEncoderKL`
+~~~~~~~~~~~~~~~
+.. autoclass:: AutoencoderKL
+  :members:
+
 `VarAutoEncoder`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: VarAutoEncoder
