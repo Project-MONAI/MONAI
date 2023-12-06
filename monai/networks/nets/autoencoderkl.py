@@ -758,7 +758,6 @@ class AutoencoderKL(nn.Module):
         eps = torch.randn_like(z_sigma)
         z_vae = z_mu + eps * z_sigma
         return z_vae
-
     def reconstruct(self, x: torch.Tensor) -> torch.Tensor:
         """
         Encodes and decodes an input image.
