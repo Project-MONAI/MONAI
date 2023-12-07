@@ -38,7 +38,7 @@ class _Upsample(nn.Module):
     Convolution-based upsampling layer.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         in_channels: number of input channels to the layer.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
     """
@@ -98,7 +98,7 @@ class _Downsample(nn.Module):
     Convolution-based downsampling layer.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         in_channels: number of input channels.
     """
 
@@ -132,7 +132,7 @@ class _ResBlock(nn.Module):
     residual connection between input and output.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         in_channels: input channels to the layer.
         norm_num_groups: number of groups involved for the group normalisation layer. Ensure that your number of
             channels is divisible by this number.
@@ -206,7 +206,7 @@ class _AttentionBlock(nn.Module):
     Attention block.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         num_channels: number of input channels.
         num_head_channels: number of channels in each attention head.
         norm_num_groups: number of groups involved for the group normalisation layer. Ensure that your number of
@@ -325,7 +325,7 @@ class Encoder(nn.Module):
     Convolutional cascade that downsamples the image into a spatial latent space.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         in_channels: number of input channels.
         channels: sequence of block output channels.
         out_channels: number of channels in the bottom layer (latent space) of the autoencoder.
@@ -463,7 +463,7 @@ class Decoder(nn.Module):
     Convolutional cascade upsampling from a spatial latent space into an image space.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         channels: sequence of block output channels.
         in_channels: number of channels in the bottom layer (latent space) of the autoencoder.
         out_channels: number of output channels.
@@ -611,7 +611,7 @@ class AutoencoderKL(nn.Module):
     and Pinaya et al. "Brain Imaging Generation with Latent Diffusion Models" https://arxiv.org/abs/2209.07162
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         in_channels: number of input channels.
         out_channels: number of output channels.
         num_res_blocks: number of residual blocks (see _ResBlock) per level.

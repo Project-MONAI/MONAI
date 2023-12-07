@@ -258,6 +258,7 @@ N-Dim Fourier Transform
 .. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
 .. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
 
+
 Layers
 ------
 
@@ -407,6 +408,13 @@ Layers
 ~~~~~~
 .. autoclass:: LLTM
     :members:
+
+`Vector Quantizer`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: monai.networks.layers.vector_quantizer.EMAQuantizer
+   :members:
+.. autoclass:: monai.networks.layers.vector_quantizer.VectorQuantizer
+   :members:
 
 `Utilities`
 ~~~~~~~~~~~
@@ -727,6 +735,11 @@ Nets
    :members:
 
 .. autoclass:: voxelmorph
+
+`VQ-VAE`
+~~~~~~~~
+.. autoclass:: VQVAE
+   :members:
 
 Utilities
 ---------
