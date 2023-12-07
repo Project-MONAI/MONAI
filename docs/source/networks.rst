@@ -737,7 +737,7 @@ Nets
 .. autoclass:: voxelmorph
 
 `VQ-VAE`
-~~~~~~~~~~~~
+~~~~~~~~
 .. autoclass:: VQVAE
    :members:
 
