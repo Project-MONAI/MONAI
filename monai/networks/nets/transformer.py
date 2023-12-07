@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import math
 
 import torch
@@ -19,13 +18,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks.mlp import MLPBlock
+from monai.utils import optional_import
 
-if importlib.util.find_spec("xformers") is not None:
-    import xformers.ops as xops
-
-    has_xformers = True
-else:
-    has_xformers = False
+xops, has_xformers = optional_import("xformers.ops")
 __all__ = ["DecoderOnlyTransformer"]
 
 

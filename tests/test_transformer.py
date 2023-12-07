@@ -27,6 +27,18 @@ class TestDecoderOnlyTransformer(unittest.TestCase):
         with eval_mode(net):
             net.forward(torch.randint(0, 10, (1, 16)))
 
+    def test_models_with_flash_attention(self):
+        net = DecoderOnlyTransformer(
+            num_tokens=10,
+            max_seq_len=16,
+            attn_layers_dim=8,
+            attn_layers_depth=2,
+            attn_layers_heads=2,
+            use_flash_attention=True,
+        ).to(torch.device("cuda:0"))
+        with eval_mode(net):
+            net.forward(torch.randint(0, 10, (1, 16)).to(torch.device("cuda:0")))
+
     def test_conditioned_models(self):
         net = DecoderOnlyTransformer(
             num_tokens=10,
