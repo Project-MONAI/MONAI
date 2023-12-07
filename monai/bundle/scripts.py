@@ -221,7 +221,7 @@ def _download_from_ngc(
 
 def _get_latest_bundle_version_monaihosting(name):
     url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-    full_url = f"{url}/{name}"
+    full_url = f"{url}/{name.lower()}"
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
         resp = requests_get(full_url)
