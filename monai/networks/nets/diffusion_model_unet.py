@@ -125,7 +125,7 @@ class _CrossAttention(nn.Module):
         query = query.contiguous()
         key = key.contiguous()
         value = value.contiguous()
-        x = xops.memory_efficient_attention(query, key, value, attn_bias=None)
+        x : torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
         return x
 
     def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
@@ -157,7 +157,6 @@ class _CrossAttention(nn.Module):
         query = self.reshape_heads_to_batch_dim(query)
         key = self.reshape_heads_to_batch_dim(key)
         value = self.reshape_heads_to_batch_dim(value)
-
         if self.use_flash_attention:
             x = self._memory_efficient_attention_xformers(query, key, value)
         else:
@@ -165,8 +164,8 @@ class _CrossAttention(nn.Module):
 
         x = self.reshape_batch_dim_to_heads(x)
         x = x.to(query.dtype)
-
-        return self.to_out(x)
+        output : torch.Tensor = self.to_out(x)
+        return output
 
 
 class _BasicTransformerBlock(nn.Module):
@@ -406,7 +405,7 @@ class _AttentionBlock(nn.Module):
         query = query.contiguous()
         key = key.contiguous()
         value = value.contiguous()
-        x = xops.memory_efficient_attention(query, key, value, attn_bias=None)
+        x : torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
         return x
 
     def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
@@ -538,7 +537,8 @@ class _Downsample(nn.Module):
                 f"Input number of channels ({x.shape[1]}) is not equal to expected number of channels "
                 f"({self.num_channels})"
             )
-        return self.op(x)
+        output : torch.Tensor =  self.op(x)
+        return output
 
 
 class _Upsample(nn.Module):
@@ -575,8 +575,7 @@ class _Upsample(nn.Module):
                 padding=padding,
                 conv_only=True,
             )
-        else:
-            self.conv = None
+
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
         del emb
@@ -669,7 +668,7 @@ class _ResnetBlock(nn.Module):
                 conv_only=True,
             )
         )
-
+        self.skip_connection : nn.Module
         if self.out_channels == in_channels:
             self.skip_connection = nn.Identity()
         else:
@@ -709,8 +708,8 @@ class _ResnetBlock(nn.Module):
         h = self.norm2(h)
         h = self.nonlinearity(h)
         h = self.conv2(h)
-
-        return self.skip_connection(x) + h
+        output : torch.Tensor =  self.skip_connection(x) + h
+        return output
 
 
 class DownBlock(nn.Module):
@@ -764,6 +763,7 @@ class DownBlock(nn.Module):
         self.resnets = nn.ModuleList(resnets)
 
         if add_downsample:
+            self.downsampler : nn.Module | None
             if resblock_updown:
                 self.downsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
@@ -868,6 +868,7 @@ class AttnDownBlock(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
+        self.downsampler : nn.Module | None
         if add_downsample:
             if resblock_updown:
                 self.downsampler = _ResnetBlock(
@@ -988,6 +989,7 @@ class CrossAttnDownBlock(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
+        self.downsampler : nn.Module | None
         if add_downsample:
             if resblock_updown:
                 self.downsampler = _ResnetBlock(
@@ -1052,7 +1054,6 @@ class AttnMidBlock(nn.Module):
         use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
-        self.attention = None
 
         self.resnet_1 = _ResnetBlock(
             spatial_dims=spatial_dims,
@@ -1123,7 +1124,6 @@ class CrossAttnMidBlock(nn.Module):
         dropout_cattn: float = 0.0,
     ) -> None:
         super().__init__()
-        self.attention = None
 
         self.resnet_1 = _ResnetBlock(
             spatial_dims=spatial_dims,
@@ -1216,6 +1216,7 @@ class UpBlock(nn.Module):
 
         self.resnets = nn.ModuleList(resnets)
 
+        self.upsampler : nn.Module | None
         if add_upsample:
             if resblock_updown:
                 self.upsampler = _ResnetBlock(
@@ -1324,6 +1325,7 @@ class AttnUpBlock(nn.Module):
         self.resnets = nn.ModuleList(resnets)
         self.attentions = nn.ModuleList(attentions)
 
+        self.upsampler : nn.Module | None
         if add_upsample:
             if resblock_updown:
                 self.upsampler = _ResnetBlock(
@@ -1446,6 +1448,7 @@ class CrossAttnUpBlock(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
+        self.upsampler : nn.Module | None
         if add_upsample:
             if resblock_updown:
                 self.upsampler = _ResnetBlock(
@@ -1932,7 +1935,7 @@ class DiffusionModelUNet(nn.Module):
 
         # Additional residual conections for Controlnets
         if down_block_additional_residuals is not None:
-            new_down_block_res_samples = ()
+            new_down_block_res_samples : Sequence = ()
             for down_block_res_sample, down_block_additional_residual in zip(
                 down_block_res_samples, down_block_additional_residuals
             ):
@@ -1955,7 +1958,7 @@ class DiffusionModelUNet(nn.Module):
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
-        h = self.out(h)
+        h : torch.Tensor = self.out(h)
 
         return h
 
