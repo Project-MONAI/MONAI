@@ -125,7 +125,7 @@ class _CrossAttention(nn.Module):
         query = query.contiguous()
         key = key.contiguous()
         value = value.contiguous()
-        x : torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
+        x: torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
         return x
 
     def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
@@ -164,7 +164,7 @@ class _CrossAttention(nn.Module):
 
         x = self.reshape_batch_dim_to_heads(x)
         x = x.to(query.dtype)
-        output : torch.Tensor = self.to_out(x)
+        output: torch.Tensor = self.to_out(x)
         return output
 
 
@@ -405,7 +405,7 @@ class _AttentionBlock(nn.Module):
         query = query.contiguous()
         key = key.contiguous()
         value = value.contiguous()
-        x : torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
+        x: torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
         return x
 
     def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
@@ -537,7 +537,7 @@ class _Downsample(nn.Module):
                 f"Input number of channels ({x.shape[1]}) is not equal to expected number of channels "
                 f"({self.num_channels})"
             )
-        output : torch.Tensor =  self.op(x)
+        output: torch.Tensor = self.op(x)
         return output
 
 
@@ -575,7 +575,6 @@ class _Upsample(nn.Module):
                 padding=padding,
                 conv_only=True,
             )
-
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
         del emb
@@ -668,7 +667,7 @@ class _ResnetBlock(nn.Module):
                 conv_only=True,
             )
         )
-        self.skip_connection : nn.Module
+        self.skip_connection: nn.Module
         if self.out_channels == in_channels:
             self.skip_connection = nn.Identity()
         else:
@@ -708,7 +707,7 @@ class _ResnetBlock(nn.Module):
         h = self.norm2(h)
         h = self.nonlinearity(h)
         h = self.conv2(h)
-        output : torch.Tensor =  self.skip_connection(x) + h
+        output: torch.Tensor = self.skip_connection(x) + h
         return output
 
 
@@ -763,7 +762,7 @@ class DownBlock(nn.Module):
         self.resnets = nn.ModuleList(resnets)
 
         if add_downsample:
-            self.downsampler : nn.Module | None
+            self.downsampler: nn.Module | None
             if resblock_updown:
                 self.downsampler = _ResnetBlock(
                     spatial_dims=spatial_dims,
@@ -868,7 +867,7 @@ class AttnDownBlock(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
-        self.downsampler : nn.Module | None
+        self.downsampler: nn.Module | None
         if add_downsample:
             if resblock_updown:
                 self.downsampler = _ResnetBlock(
@@ -989,7 +988,7 @@ class CrossAttnDownBlock(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
-        self.downsampler : nn.Module | None
+        self.downsampler: nn.Module | None
         if add_downsample:
             if resblock_updown:
                 self.downsampler = _ResnetBlock(
@@ -1216,7 +1215,7 @@ class UpBlock(nn.Module):
 
         self.resnets = nn.ModuleList(resnets)
 
-        self.upsampler : nn.Module | None
+        self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
                 self.upsampler = _ResnetBlock(
@@ -1325,7 +1324,7 @@ class AttnUpBlock(nn.Module):
         self.resnets = nn.ModuleList(resnets)
         self.attentions = nn.ModuleList(attentions)
 
-        self.upsampler : nn.Module | None
+        self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
                 self.upsampler = _ResnetBlock(
@@ -1448,7 +1447,7 @@ class CrossAttnUpBlock(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
-        self.upsampler : nn.Module | None
+        self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
                 self.upsampler = _ResnetBlock(
@@ -1674,7 +1673,7 @@ class DiffusionModelUNet(nn.Module):
         in_channels: number of input channels.
         out_channels: number of output channels.
         num_res_blocks: number of residual blocks (see _ResnetBlock) per level.
-        num_channels: tuple of block output channels.
+        channels: tuple of block output channels.
         attention_levels: list of levels to add attention.
         norm_num_groups: number of groups for the normalization.
         norm_eps: epsilon for the normalization.
@@ -1696,7 +1695,7 @@ class DiffusionModelUNet(nn.Module):
         in_channels: int,
         out_channels: int,
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
-        num_channels: Sequence[int] = (32, 64, 64, 64),
+        channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
@@ -1724,10 +1723,10 @@ class DiffusionModelUNet(nn.Module):
             raise ValueError("Dropout cannot be negative or >1.0!")
 
         # All number of channels should be multiple of num_groups
-        if any((out_channel % norm_num_groups) != 0 for out_channel in num_channels):
+        if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
             raise ValueError("DiffusionModelUNet expects all num_channels being multiple of norm_num_groups")
 
-        if len(num_channels) != len(attention_levels):
+        if len(channels) != len(attention_levels):
             raise ValueError("DiffusionModelUNet expects num_channels being same size of attention_levels")
 
         if isinstance(num_head_channels, int):
@@ -1740,9 +1739,9 @@ class DiffusionModelUNet(nn.Module):
             )
 
         if isinstance(num_res_blocks, int):
-            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(num_channels))
+            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(channels))
 
-        if len(num_res_blocks) != len(num_channels):
+        if len(num_res_blocks) != len(channels):
             raise ValueError(
                 "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
                 "`num_channels`."
@@ -1757,7 +1756,7 @@ class DiffusionModelUNet(nn.Module):
             )
 
         self.in_channels = in_channels
-        self.block_out_channels = num_channels
+        self.block_out_channels = channels
         self.out_channels = out_channels
         self.num_res_blocks = num_res_blocks
         self.attention_levels = attention_levels
@@ -1768,7 +1767,7 @@ class DiffusionModelUNet(nn.Module):
         self.conv_in = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            out_channels=num_channels[0],
+            out_channels=channels[0],
             strides=1,
             kernel_size=3,
             padding=1,
@@ -1776,9 +1775,9 @@ class DiffusionModelUNet(nn.Module):
         )
 
         # time
-        time_embed_dim = num_channels[0] * 4
+        time_embed_dim = channels[0] * 4
         self.time_embed = nn.Sequential(
-            nn.Linear(num_channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
+            nn.Linear(channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
         )
 
         # class embedding
@@ -1788,11 +1787,11 @@ class DiffusionModelUNet(nn.Module):
 
         # down
         self.down_blocks = nn.ModuleList([])
-        output_channel = num_channels[0]
-        for i in range(len(num_channels)):
+        output_channel = channels[0]
+        for i in range(len(channels)):
             input_channel = output_channel
-            output_channel = num_channels[i]
-            is_final_block = i == len(num_channels) - 1
+            output_channel = channels[i]
+            is_final_block = i == len(channels) - 1
 
             down_block = get_down_block(
                 spatial_dims=spatial_dims,
@@ -1819,7 +1818,7 @@ class DiffusionModelUNet(nn.Module):
         # mid
         self.middle_block = get_mid_block(
             spatial_dims=spatial_dims,
-            in_channels=num_channels[-1],
+            in_channels=channels[-1],
             temb_channels=time_embed_dim,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
@@ -1834,7 +1833,7 @@ class DiffusionModelUNet(nn.Module):
 
         # up
         self.up_blocks = nn.ModuleList([])
-        reversed_block_out_channels = list(reversed(num_channels))
+        reversed_block_out_channels = list(reversed(channels))
         reversed_num_res_blocks = list(reversed(num_res_blocks))
         reversed_attention_levels = list(reversed(attention_levels))
         reversed_num_head_channels = list(reversed(num_head_channels))
@@ -1842,9 +1841,9 @@ class DiffusionModelUNet(nn.Module):
         for i in range(len(reversed_block_out_channels)):
             prev_output_channel = output_channel
             output_channel = reversed_block_out_channels[i]
-            input_channel = reversed_block_out_channels[min(i + 1, len(num_channels) - 1)]
+            input_channel = reversed_block_out_channels[min(i + 1, len(channels) - 1)]
 
-            is_final_block = i == len(num_channels) - 1
+            is_final_block = i == len(channels) - 1
 
             up_block = get_up_block(
                 spatial_dims=spatial_dims,
@@ -1871,12 +1870,12 @@ class DiffusionModelUNet(nn.Module):
 
         # out
         self.out = nn.Sequential(
-            nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels[0], eps=norm_eps, affine=True),
+            nn.GroupNorm(num_groups=norm_num_groups, num_channels=channels[0], eps=norm_eps, affine=True),
             nn.SiLU(),
             zero_module(
                 Convolution(
                     spatial_dims=spatial_dims,
-                    in_channels=num_channels[0],
+                    in_channels=channels[0],
                     out_channels=out_channels,
                     strides=1,
                     kernel_size=3,
@@ -1935,7 +1934,7 @@ class DiffusionModelUNet(nn.Module):
 
         # Additional residual conections for Controlnets
         if down_block_additional_residuals is not None:
-            new_down_block_res_samples : list[torch.Tensor]  = []
+            new_down_block_res_samples: list[torch.Tensor] = []
             for down_block_res_sample, down_block_additional_residual in zip(
                 down_block_res_samples, down_block_additional_residuals
             ):
@@ -1958,7 +1957,7 @@ class DiffusionModelUNet(nn.Module):
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
-        output : torch.Tensor = self.out(h)
+        output: torch.Tensor = self.out(h)
 
         return output
 
@@ -1973,7 +1972,7 @@ class DiffusionModelEncoder(nn.Module):
         in_channels: number of input channels.
         out_channels: number of output channels.
         num_res_blocks: number of residual blocks (see _ResnetBlock) per level.
-        num_channels: tuple of block output channels.
+        channels: tuple of block output channels.
         attention_levels: list of levels to add attention.
         norm_num_groups: number of groups for the normalization.
         norm_eps: epsilon for the normalization.
@@ -1992,7 +1991,7 @@ class DiffusionModelEncoder(nn.Module):
         in_channels: int,
         out_channels: int,
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
-        num_channels: Sequence[int] = (32, 64, 64, 64),
+        channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
@@ -2016,16 +2015,16 @@ class DiffusionModelEncoder(nn.Module):
             )
 
         # All number of channels should be multiple of num_groups
-        if any((out_channel % norm_num_groups) != 0 for out_channel in num_channels):
+        if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
             raise ValueError("DiffusionModelEncoder expects all num_channels being multiple of norm_num_groups")
-        if len(num_channels) != len(attention_levels):
+        if len(channels) != len(attention_levels):
             raise ValueError("DiffusionModelEncoder expects num_channels being same size of attention_levels")
 
         if isinstance(num_head_channels, int):
             num_head_channels = ensure_tuple_rep(num_head_channels, len(attention_levels))
 
         if isinstance(num_res_blocks, int):
-            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(num_channels))
+            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(channels))
 
         if len(num_head_channels) != len(attention_levels):
             raise ValueError(
@@ -2034,7 +2033,7 @@ class DiffusionModelEncoder(nn.Module):
             )
 
         self.in_channels = in_channels
-        self.block_out_channels = num_channels
+        self.block_out_channels = channels
         self.out_channels = out_channels
         self.num_res_blocks = num_res_blocks
         self.attention_levels = attention_levels
@@ -2045,7 +2044,7 @@ class DiffusionModelEncoder(nn.Module):
         self.conv_in = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            out_channels=num_channels[0],
+            out_channels=channels[0],
             strides=1,
             kernel_size=3,
             padding=1,
@@ -2053,9 +2052,9 @@ class DiffusionModelEncoder(nn.Module):
         )
 
         # time
-        time_embed_dim = num_channels[0] * 4
+        time_embed_dim = channels[0] * 4
         self.time_embed = nn.Sequential(
-            nn.Linear(num_channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
+            nn.Linear(channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
         )
 
         # class embedding
@@ -2065,11 +2064,11 @@ class DiffusionModelEncoder(nn.Module):
 
         # down
         self.down_blocks = nn.ModuleList([])
-        output_channel = num_channels[0]
-        for i in range(len(num_channels)):
+        output_channel = channels[0]
+        for i in range(len(channels)):
             input_channel = output_channel
-            output_channel = num_channels[i]
-            is_final_block = i == len(num_channels)  # - 1
+            output_channel = channels[i]
+            is_final_block = i == len(channels)  # - 1
 
             down_block = get_down_block(
                 spatial_dims=spatial_dims,
@@ -2134,6 +2133,6 @@ class DiffusionModelEncoder(nn.Module):
             h, _ = downsample_block(hidden_states=h, temb=emb, context=context)
 
         h = h.reshape(h.shape[0], -1)
-        output : torch.Tensor = self.out(h)
+        output: torch.Tensor = self.out(h)
 
         return output
