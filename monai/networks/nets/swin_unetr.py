@@ -1024,7 +1024,7 @@ class SwinTransformer(nn.Module):
                 self.layers4.append(layer)
             if self.use_v2:
                 layerc = UnetrBasicBlock(
-                    spatial_dims=3,
+                    spatial_dims=spatial_dims,
                     in_channels=embed_dim * 2**i_layer,
                     out_channels=embed_dim * 2**i_layer,
                     kernel_size=3,
