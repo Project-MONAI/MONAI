@@ -1935,12 +1935,12 @@ class DiffusionModelUNet(nn.Module):
 
         # Additional residual conections for Controlnets
         if down_block_additional_residuals is not None:
-            new_down_block_res_samples : Sequence = ()
+            new_down_block_res_samples : list[torch.Tensor]  = []
             for down_block_res_sample, down_block_additional_residual in zip(
                 down_block_res_samples, down_block_additional_residuals
             ):
                 down_block_res_sample = down_block_res_sample + down_block_additional_residual
-                new_down_block_res_samples += (down_block_res_sample,)
+                new_down_block_res_samples += [down_block_res_sample]
 
             down_block_res_samples = new_down_block_res_samples
 
@@ -1958,9 +1958,9 @@ class DiffusionModelUNet(nn.Module):
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
-        h : torch.Tensor = self.out(h)
+        output : torch.Tensor = self.out(h)
 
-        return h
+        return output
 
 
 class DiffusionModelEncoder(nn.Module):
@@ -2023,6 +2023,9 @@ class DiffusionModelEncoder(nn.Module):
 
         if isinstance(num_head_channels, int):
             num_head_channels = ensure_tuple_rep(num_head_channels, len(attention_levels))
+
+        if isinstance(num_res_blocks, int):
+            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(num_channels))
 
         if len(num_head_channels) != len(attention_levels):
             raise ValueError(
@@ -2131,6 +2134,6 @@ class DiffusionModelEncoder(nn.Module):
             h, _ = downsample_block(hidden_states=h, temb=emb, context=context)
 
         h = h.reshape(h.shape[0], -1)
-        output = self.out(h)
+        output : torch.Tensor = self.out(h)
 
         return output
