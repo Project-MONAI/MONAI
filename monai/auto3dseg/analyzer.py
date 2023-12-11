@@ -460,7 +460,7 @@ class LabelStats(Analyzer):
         torch.set_grad_enabled(False)
 
         ndas: list[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
-        ndas_label: MetaTensor = d[self.label_key].astype(np.int8)  # (H,W,D)
+        ndas_label: MetaTensor = d[self.label_key].astype(torch.int8)  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
