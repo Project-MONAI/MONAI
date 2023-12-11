@@ -35,7 +35,7 @@ class ConjugateGradient(nn.Module):
             num_iter: Number of iterations to run CG
             dbprint [False]: Print residual at each iteration
         """
-        super(ConjugateGradient, self).__init__()
+        super().__init__()
 
         self.A = linear_op
         self.num_iter = num_iter

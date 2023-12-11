@@ -29,7 +29,7 @@ class TestSURELoss(unittest.TestCase):
         y_pseudo_gt = torch.randn(2, 1, 128, 128)
         x = torch.randn(2, 1, 128, 128)
         loss = sure_loss_real(operator, x, y_pseudo_gt, complex_input=False)
-        self.assertAlmostEquals(loss.item(), 0.0)
+        self.assertAlmostEqual(loss.item(), 0.0)
         print("real value test passed")
 
     def test_complex_value(self):
@@ -42,7 +42,7 @@ class TestSURELoss(unittest.TestCase):
         y_pseudo_gt = torch.randn(2, 2, 128, 128)
         x = torch.randn(2, 2, 128, 128)
         loss = sure_loss_complex(operator, x, y_pseudo_gt, complex_input=True)
-        self.assertAlmostEquals(loss.item(), 0.0)
+        self.assertAlmostEqual(loss.item(), 0.0)
         print("complex value test passed")
 
     def test_complex_general_input(self):
@@ -66,7 +66,7 @@ class TestSURELoss(unittest.TestCase):
 
         loss_real = sure_loss_real(operator, x_real, y_pseudo_gt_real, complex_input=False)
         loss_complex = sure_loss_complex(operator, x_complex, y_pseudo_gt_complex, complex_input=True)
-        self.assertAlmostEquals(loss_real.item(), loss_complex.abs().item())
+        self.assertAlmostEqual(loss_real.item(), loss_complex.abs().item())
         print("complex general input test passed")
 
 
