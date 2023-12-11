@@ -126,7 +126,9 @@ class SURELoss(_Loss):
     the diffusion model based MRI reconstruction is proposed in [2].
 
     Reference
+
     [1] Stein, C.M.: Estimation of the mean of a multivariate normal distribution. Annals of Statistics
+
     [2] B. Ozturkler et al. SMRD: SURE-based Robust MRI Reconstruction with Diffusion Models.
     (https://arxiv.org/pdf/2310.01799.pdf)
     """
@@ -134,13 +136,8 @@ class SURELoss(_Loss):
     def __init__(self, perturb_noise: torch.Tensor = None, eps: float = None) -> None:
         """
         Args:
-
-        perturb_noise (torch.Tensor, optional): The noise vector of shape (B,
-        C, H, W). Defaults to None.  For complex input, the shape is (B, 2, H,
-        W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
-
-        eps (float, optional): The perturbation scalar. Defaults to None.
-
+            perturb_noise (torch.Tensor, optional): The noise vector of shape (B, C, H, W). Defaults to None.  For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
+            eps (float, optional): The perturbation scalar. Defaults to None.
         """
 
         super().__init__()
@@ -157,19 +154,9 @@ class SURELoss(_Loss):
     ) -> torch.Tensor:
         """
         Args:
-            operator (function): The operator function that takes in an input tensor
-            x and returns an output tensor y. We will use this to compute the
-            divergence. More specifically, we will perturb the input x by a small
-            amount and compute the divergence between the perturbed output and the
-            reference output
-
-            x (torch.Tensor): The input tensor of shape (B, C, H, W) to the operator. C=1 or 2:
-            For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
-
-            y_pseudo_gt (torch.Tensor): The pseudo ground truth tensor of shape
-            (B, C, H, W) used to compute the L2 loss. C=1 or 2:
-            For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
-
+            operator (function): The operator function that takes in an input tensor x and returns an output tensor y. We will use this to compute the divergence. More specifically, we will perturb the input x by a small amount and compute the divergence between the perturbed output and the reference output
+            x (torch.Tensor): The input tensor of shape (B, C, H, W) to the operator. C=1 or 2: For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
+            y_pseudo_gt (torch.Tensor): The pseudo ground truth tensor of shape (B, C, H, W) used to compute the L2 loss. C=1 or 2: For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
             y_ref (torch.Tensor, optional): The reference output tensor of the same shape as y_pseudo_gt
 
         Returns:
