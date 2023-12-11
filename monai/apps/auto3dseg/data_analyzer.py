@@ -359,7 +359,9 @@ class DataAnalyzer:
                         d = summarizer(batch_data)
                     except BaseException as err:
                         logger.info(f"Unable to process data {filename} on {device}. {err}")
-                continue
+                        continue
+                else:
+                    continue
 
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
