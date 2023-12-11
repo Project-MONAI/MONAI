@@ -42,3 +42,4 @@ from .spectral_loss import JukeboxLoss
 from .ssim_loss import SSIMLoss
 from .tversky import TverskyLoss
 from .unified_focal_loss import AsymmetricUnifiedFocalLoss
+from .sure_loss import SURELoss

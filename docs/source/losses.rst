@@ -134,6 +134,11 @@ Reconstruction Losses
 .. autoclass:: JukeboxLoss
     :members:
 
+`SURELoss`
+~~~~~~~~~~~~~~
+.. autoclass:: SURELoss
+    :members:
+
 
 Loss Wrappers
 -------------
