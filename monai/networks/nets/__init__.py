@@ -106,6 +106,7 @@ from .senet import (
 from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
+from .transformer import DecoderOnlyTransformer
 from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
