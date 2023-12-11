@@ -407,6 +407,11 @@ Layers
 ~~~~~~
 .. autoclass:: LLTM
     :members:
+    
+`ConjugateGradient`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConjugateGradient
+    :members:
 
 `Utilities`
 ~~~~~~~~~~~
