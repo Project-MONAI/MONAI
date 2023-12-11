@@ -43,7 +43,7 @@ class ConjugateGradient(nn.Module):
 
     def _zdot(self, x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         """
-        Complex dot product between tensors x1 and x2.
+        Complex dot product between tensors x1 and x2: sum(x1.*x2)
         """
         if torch.is_complex(x1):
             assert torch.is_complex(x2), "x1 and x2 must both be complex"
@@ -95,8 +95,8 @@ class ConjugateGradient(nn.Module):
         run conjugate gradient for num_iter iterations to solve Ax = y
 
         Args:
-            x: B H W tensor (real or complex); Initial guess for linear system Ax = y
-            y: B H W tensor (real or complex); Measurement
+            x: tensor (real or complex); Initial guess for linear system Ax = y. The size of x should be applicable to the linear operator. For example, if the linear operator is FFT, then x is HCHW; if the linear operator is a matrix multiplication, then x is a vector
+            y: tensor (real or complex); Measurement. Same size as x
 
         Returns:
             x: Solution to Ax = y
