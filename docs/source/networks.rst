@@ -583,6 +583,11 @@ Nets
 .. autoclass:: VNet
   :members:
 
+`DiffusionModelUnet`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DiffusionModelUNet
+  :members:
+
 `RegUNet`
 ~~~~~~~~~
 .. autoclass:: RegUNet

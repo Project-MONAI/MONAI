@@ -35,6 +35,7 @@ from .densenet import (
     densenet201,
     densenet264,
 )
+from .diffusion_model_unet import DiffusionModelUNet
 from .dints import DiNTS, TopologyConstruction, TopologyInstance, TopologySearch
 from .dynunet import DynUNet, DynUnet, Dynunet
 from .efficientnet import (
