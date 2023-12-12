@@ -618,6 +618,11 @@ Nets
 .. autoclass:: VarAutoEncoder
   :members:
 
+`DecoderOnlyTransformer`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DecoderOnlyTransformer
+    :members:
+
 `ViT`
 ~~~~~
 .. autoclass:: ViT
