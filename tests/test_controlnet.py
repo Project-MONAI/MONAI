@@ -19,7 +19,42 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets.controlnet import ControlNet
 
-TEST_CASES = [
+UNCOND_CASES_2D = [
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (8, 8, 8),
+            "attention_levels": (False, False, False),
+            "norm_num_groups": 8,
+        },
+        (1, 8, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (8, 8, 8),
+            "attention_levels": (False, False, False),
+            "norm_num_groups": 8,
+            "resblock_updown": True,
+        },
+        (1, 8, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (4, 4, 4),
+            "attention_levels": (False, False, True),
+            "num_head_channels": 4,
+            "norm_num_groups": 4,
+        },
+        (1, 4, 4, 4),
+    ],
     [
         {
             "spatial_dims": 2,
@@ -29,25 +64,113 @@ TEST_CASES = [
             "attention_levels": (False, False, True),
             "num_head_channels": 8,
             "norm_num_groups": 8,
-            "conditioning_embedding_in_channels": 1,
-            "conditioning_embedding_num_channels": (8, 8),
+            "resblock_updown": True,
         },
-        6,
         (1, 8, 4, 4),
-    ]
+    ],
+]
+
+UNCOND_CASES_3D = [
+    [
+        {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (8, 8, 8),
+            "attention_levels": (False, False, False),
+            "norm_num_groups": 8,
+        },
+        (1, 8, 4, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (4, 4, 4),
+            "num_head_channels": 4,
+            "attention_levels": (False, False, False),
+            "norm_num_groups": 4,
+            "resblock_updown": True,
+        },
+        (1, 4, 4, 4, 4),
+    ],
+]
+
+COND_CASES_2D = [
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (8, 8, 8),
+            "attention_levels": (False, False, False),
+            "norm_num_groups": 8,
+            "with_conditioning": True,
+            "transformer_num_layers": 1,
+            "cross_attention_dim": 3,
+        },
+        (1, 8, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (8, 8, 8),
+            "attention_levels": (False, False, False),
+            "norm_num_groups": 8,
+            "with_conditioning": True,
+            "transformer_num_layers": 1,
+            "cross_attention_dim": 3,
+            "resblock_updown": True,
+        },
+        (1, 8, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "num_res_blocks": 1,
+            "channels": (8, 8, 8),
+            "attention_levels": (False, False, False),
+            "norm_num_groups": 8,
+            "with_conditioning": True,
+            "transformer_num_layers": 1,
+            "cross_attention_dim": 3,
+            "upcast_attention": True,
+        },
+        (1, 8, 4, 4),
+    ],
 ]
 
 
 class TestControlNet(unittest.TestCase):
-    @parameterized.expand(TEST_CASES)
-    def test_shape_unconditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
+    @parameterized.expand(UNCOND_CASES_2D + UNCOND_CASES_3D)
+    def test_shape_unconditioned_models(self, input_param, expected_output_shape):
+        input_param["conditioning_embedding_in_channels"] = input_param["in_channels"]
+        input_param["conditioning_embedding_num_channels"] = (input_param["channels"][0],)
         net = ControlNet(**input_param)
         with eval_mode(net):
-            result = net.forward(
-                torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long(), torch.rand((1, 1, 32, 32))
-            )
-            self.assertEqual(len(result[0]), expected_num_down_blocks_residuals)
-            self.assertEqual(result[1].shape, expected_shape)
+            x = torch.rand((1, 1) + (16,) * input_param["spatial_dims"])
+            timesteps = torch.randint(0, 1000, (1,)).long()
+            controlnet_cond = torch.rand((1, 1) + (16,) * input_param["spatial_dims"])
+            result = net.forward(x, timesteps=timesteps, controlnet_cond=controlnet_cond)
+            self.assertEqual(len(result[0]), 2 * len(input_param["channels"]))
+            self.assertEqual(result[1].shape, expected_output_shape)
+
+    @parameterized.expand(COND_CASES_2D)
+    def test_shape_conditioned_models(self, input_param, expected_output_shape):
+        input_param["conditioning_embedding_in_channels"] = input_param["in_channels"]
+        input_param["conditioning_embedding_num_channels"] = (input_param["channels"][0],)
+        net = ControlNet(**input_param)
+        with eval_mode(net):
+            x = torch.rand((1, 1) + (16,) * input_param["spatial_dims"])
+            timesteps = torch.randint(0, 1000, (1,)).long()
+            controlnet_cond = torch.rand((1, 1) + (16,) * input_param["spatial_dims"])
+            result = net.forward(x, timesteps=timesteps, controlnet_cond=controlnet_cond, context=torch.rand((1, 1, 3)))
+            self.assertEqual(len(result[0]), 2 * len(input_param["channels"]))
+            self.assertEqual(result[1].shape, expected_output_shape)
 
 
 if __name__ == "__main__":
