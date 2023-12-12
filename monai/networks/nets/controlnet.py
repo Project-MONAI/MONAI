@@ -47,15 +47,13 @@ class ControlNetConditioningEmbedding(nn.Module):
     Network to encode the conditioning into a latent space.
     """
 
-    def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, num_channels: Sequence[int] = (16, 32, 96, 256)
-    ):
+    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, channels: Sequence[int]):
         super().__init__()
 
         self.conv_in = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            out_channels=num_channels[0],
+            out_channels=channels[0],
             strides=1,
             kernel_size=3,
             padding=1,
@@ -64,9 +62,9 @@ class ControlNetConditioningEmbedding(nn.Module):
 
         self.blocks = nn.ModuleList([])
 
-        for i in range(len(num_channels) - 1):
-            channel_in = num_channels[i]
-            channel_out = num_channels[i + 1]
+        for i in range(len(channels) - 1):
+            channel_in = channels[i]
+            channel_out = channels[i + 1]
             self.blocks.append(
                 Convolution(
                     spatial_dims=spatial_dims,
@@ -94,7 +92,7 @@ class ControlNetConditioningEmbedding(nn.Module):
         self.conv_out = zero_module(
             Convolution(
                 spatial_dims=spatial_dims,
-                in_channels=num_channels[-1],
+                in_channels=channels[-1],
                 out_channels=out_channels,
                 strides=1,
                 kernel_size=3,
@@ -131,7 +129,7 @@ class ControlNet(nn.Module):
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
         num_res_blocks: number of residual blocks (see ResnetBlock) per level.
-        num_channels: tuple of block output channels.
+        channels: tuple of block output channels.
         attention_levels: list of levels to add attention.
         norm_num_groups: number of groups for the normalization.
         norm_eps: epsilon for the normalization.
@@ -153,7 +151,7 @@ class ControlNet(nn.Module):
         spatial_dims: int,
         in_channels: int,
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
-        num_channels: Sequence[int] = (32, 64, 64, 64),
+        channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
@@ -166,7 +164,7 @@ class ControlNet(nn.Module):
         upcast_attention: bool = False,
         use_flash_attention: bool = False,
         conditioning_embedding_in_channels: int = 1,
-        conditioning_embedding_num_channels: Sequence[int] | None = (16, 32, 96, 256),
+        conditioning_embedding_num_channels: Sequence[int] = (16, 32, 96, 256),
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
@@ -180,10 +178,10 @@ class ControlNet(nn.Module):
             )
 
         # All number of channels should be multiple of num_groups
-        if any((out_channel % norm_num_groups) != 0 for out_channel in num_channels):
+        if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
             raise ValueError("DiffusionModelUNet expects all num_channels being multiple of norm_num_groups")
 
-        if len(num_channels) != len(attention_levels):
+        if len(channels) != len(attention_levels):
             raise ValueError("DiffusionModelUNet expects num_channels being same size of attention_levels")
 
         if isinstance(num_head_channels, int):
@@ -196,9 +194,9 @@ class ControlNet(nn.Module):
             )
 
         if isinstance(num_res_blocks, int):
-            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(num_channels))
+            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(channels))
 
-        if len(num_res_blocks) != len(num_channels):
+        if len(num_res_blocks) != len(channels):
             raise ValueError(
                 "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
                 "`num_channels`."
@@ -210,7 +208,7 @@ class ControlNet(nn.Module):
             )
 
         self.in_channels = in_channels
-        self.block_out_channels = num_channels
+        self.block_out_channels = channels
         self.num_res_blocks = num_res_blocks
         self.attention_levels = attention_levels
         self.num_head_channels = num_head_channels
@@ -220,7 +218,7 @@ class ControlNet(nn.Module):
         self.conv_in = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            out_channels=num_channels[0],
+            out_channels=channels[0],
             strides=1,
             kernel_size=3,
             padding=1,
@@ -228,9 +226,9 @@ class ControlNet(nn.Module):
         )
 
         # time
-        time_embed_dim = num_channels[0] * 4
+        time_embed_dim = channels[0] * 4
         self.time_embed = nn.Sequential(
-            nn.Linear(num_channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
+            nn.Linear(channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
         )
 
         # class embedding
@@ -242,14 +240,14 @@ class ControlNet(nn.Module):
         self.controlnet_cond_embedding = ControlNetConditioningEmbedding(
             spatial_dims=spatial_dims,
             in_channels=conditioning_embedding_in_channels,
-            num_channels=conditioning_embedding_num_channels,
-            out_channels=num_channels[0],
+            channels=conditioning_embedding_num_channels,
+            out_channels=channels[0],
         )
 
         # down
         self.down_blocks = nn.ModuleList([])
         self.controlnet_down_blocks = nn.ModuleList([])
-        output_channel = num_channels[0]
+        output_channel = channels[0]
 
         controlnet_block = Convolution(
             spatial_dims=spatial_dims,
@@ -263,10 +261,10 @@ class ControlNet(nn.Module):
         controlnet_block = zero_module(controlnet_block.conv)
         self.controlnet_down_blocks.append(controlnet_block)
 
-        for i in range(len(num_channels)):
+        for i in range(len(channels)):
             input_channel = output_channel
-            output_channel = num_channels[i]
-            is_final_block = i == len(num_channels) - 1
+            output_channel = channels[i]
+            is_final_block = i == len(channels) - 1
 
             down_block = get_down_block(
                 spatial_dims=spatial_dims,
@@ -316,7 +314,7 @@ class ControlNet(nn.Module):
                 self.controlnet_down_blocks.append(controlnet_block)
 
         # mid
-        mid_block_channel = num_channels[-1]
+        mid_block_channel = channels[-1]
 
         self.middle_block = get_mid_block(
             spatial_dims=spatial_dims,
@@ -352,7 +350,7 @@ class ControlNet(nn.Module):
         conditioning_scale: float = 1.0,
         context: torch.Tensor | None = None,
         class_labels: torch.Tensor | None = None,
-    ) -> tuple[tuple[torch.Tensor], torch.Tensor]:
+    ) -> tuple[list[torch.Tensor], torch.Tensor]:
         """
         Args:
             x: input tensor (N, C, SpatialDims).
@@ -399,15 +397,15 @@ class ControlNet(nn.Module):
         h = self.middle_block(hidden_states=h, temb=emb, context=context)
 
         # 6. Control net blocks
-        controlnet_down_block_res_samples = ()
+        controlnet_down_block_res_samples = []
 
         for down_block_res_sample, controlnet_block in zip(down_block_res_samples, self.controlnet_down_blocks):
             down_block_res_sample = controlnet_block(down_block_res_sample)
-            controlnet_down_block_res_samples += (down_block_res_sample,)
+            controlnet_down_block_res_samples.append(down_block_res_sample)
 
         down_block_res_samples = controlnet_down_block_res_samples
 
-        mid_block_res_sample = self.controlnet_mid_block(h)
+        mid_block_res_sample: torch.Tensor = self.controlnet_mid_block(h)
 
         # 6. scaling
         down_block_res_samples = [h * conditioning_scale for h in down_block_res_samples]

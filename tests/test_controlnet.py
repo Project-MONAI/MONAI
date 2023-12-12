@@ -25,7 +25,7 @@ TEST_CASES = [
             "spatial_dims": 2,
             "in_channels": 1,
             "num_res_blocks": 1,
-            "num_channels": (8, 8, 8),
+            "channels": (8, 8, 8),
             "attention_levels": (False, False, True),
             "num_head_channels": 8,
             "norm_num_groups": 8,
