@@ -37,11 +37,7 @@ TEST_CASE_4 = [
     False,
 ]
 
-TEST_CASE_5 = [
-    torch.randint(0, 255, (3, 2, 4, 5), dtype=torch.uint8),
-    ".dcm",
-    False,
-]
+TEST_CASE_5 = [torch.randint(0, 255, (3, 2, 4, 5), dtype=torch.uint8), ".dcm", False]
 
 
 @unittest.skipUnless(has_itk, "itk not installed")

@@ -467,7 +467,11 @@ class SaveImage(Transform):
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
         kw = self.fname_formatter(meta_data, self)
         if filename is not None:
-            filename += f".{self.output_ext}" if self.output_ext and not self.output_ext.startswith(".") else f"{self.output_ext}"
+            filename += (
+                f".{self.output_ext}"
+                if self.output_ext and not self.output_ext.startswith(".")
+                else f"{self.output_ext}"
+            )
         else:
             filename = self.folder_layout.filename(**kw)
 
