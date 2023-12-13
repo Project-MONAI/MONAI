@@ -458,7 +458,7 @@ class SaveImage(Transform):
             self.write_kwargs.update(write_kwargs)
         return self
 
-    def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None):
+    def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None, filename: str | None = None):
         """
         Args:
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.
@@ -466,7 +466,11 @@ class SaveImage(Transform):
         """
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
         kw = self.fname_formatter(meta_data, self)
-        filename = self.folder_layout.filename(**kw)
+        if filename is not None:
+            filename += f".{self.output_ext}" if self.output_ext and not self.output_ext.startswith(".") else f"{self.output_ext}"
+        else:
+            filename = self.folder_layout.filename(**kw)
+
         if meta_data:
             meta_spatial_shape = ensure_tuple(meta_data.get("spatial_shape", ()))
             if len(meta_spatial_shape) >= len(img.shape):

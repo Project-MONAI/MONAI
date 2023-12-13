@@ -37,6 +37,12 @@ TEST_CASE_4 = [
     False,
 ]
 
+TEST_CASE_5 = [
+    torch.randint(0, 255, (3, 2, 4, 5), dtype=torch.uint8),
+    ".dcm",
+    False,
+]
+
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestSaveImage(unittest.TestCase):
@@ -57,6 +63,20 @@ class TestSaveImage(unittest.TestCase):
 
             filepath = "testfile0" if meta_data is not None else "0"
             self.assertTrue(os.path.exists(os.path.join(tempdir, filepath + "_trans" + output_ext)))
+
+    @parameterized.expand([TEST_CASE_5])
+    def test_saved_content_with_filename(self, test_data, output_ext, resample):
+        with tempfile.TemporaryDirectory() as tempdir:
+            trans = SaveImage(
+                output_dir=tempdir,
+                output_ext=output_ext,
+                resample=resample,
+                separate_folder=False,  # test saving into the same folder
+            )
+            filename = str(os.path.join(tempdir, "test"))
+            trans(test_data, filename=filename)
+
+            self.assertTrue(os.path.exists(filename + output_ext))
 
 
 if __name__ == "__main__":
