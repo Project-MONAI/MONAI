@@ -414,6 +414,7 @@ class SaveImage(Transform):
             self.fname_formatter = output_name_formatter
 
         self.output_ext = output_ext.lower() or output_format.lower()
+        self.output_ext = f".{self.output_ext}" if self.output_ext and not self.output_ext.startswith(".") else self.output_ext
         if isinstance(writer, str):
             writer_, has_built_in = optional_import("monai.data", name=f"{writer}")  # search built-in
             if not has_built_in:
@@ -470,11 +471,7 @@ class SaveImage(Transform):
         """
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
         if filename is not None:
-            filename = str(filename) + (
-                f".{self.output_ext}"
-                if self.output_ext and not self.output_ext.startswith(".")
-                else f"{self.output_ext}"
-            )
+            filename = f"{filename}{self.output_ext}"
         else:
             kw = self.fname_formatter(meta_data, self)
             filename = self.folder_layout.filename(**kw)
