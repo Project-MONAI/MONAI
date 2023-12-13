@@ -221,9 +221,8 @@ class SpatialPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        LazyTransform.__init__(self, lazy)
         padder = SpatialPad(spatial_size, method, lazy=lazy, **kwargs)
-        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        Padd.__init__(self, keys, lazy=lazy, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class BorderPadd(Padd):
@@ -274,9 +273,9 @@ class BorderPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        LazyTransform.__init__(self, lazy)
         padder = BorderPad(spatial_border=spatial_border, lazy=lazy, **kwargs)
-        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        Padd.__init__(self, keys, lazy=lazy, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        # Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class DivisiblePadd(Padd):
@@ -324,9 +323,8 @@ class DivisiblePadd(Padd):
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
-        LazyTransform.__init__(self, lazy)
         padder = DivisiblePad(k=k, method=method, lazy=lazy, **kwargs)
-        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        Padd.__init__(self, keys, lazy=lazy, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class Cropd(MapTransform, InvertibleTransform, LazyTransform):
