@@ -470,7 +470,7 @@ class SaveImage(Transform):
         """
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
         if filename is not None:
-            filename += (
+            filename = str(filename) + (
                 f".{self.output_ext}"
                 if self.output_ext and not self.output_ext.startswith(".")
                 else f"{self.output_ext}"
