@@ -414,7 +414,9 @@ class SaveImage(Transform):
             self.fname_formatter = output_name_formatter
 
         self.output_ext = output_ext.lower() or output_format.lower()
-        self.output_ext = f".{self.output_ext}" if self.output_ext and not self.output_ext.startswith(".") else self.output_ext
+        self.output_ext = (
+            f".{self.output_ext}" if self.output_ext and not self.output_ext.startswith(".") else self.output_ext
+        )
         if isinstance(writer, str):
             writer_, has_built_in = optional_import("monai.data", name=f"{writer}")  # search built-in
             if not has_built_in:
