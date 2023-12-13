@@ -170,7 +170,7 @@ class ControlNet(nn.Module):
         if with_conditioning is True and cross_attention_dim is None:
             raise ValueError(
                 "DiffusionModelUNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
-                "when using with_conditioning."
+                "to be specified when with_conditioning=True."
             )
         if cross_attention_dim is not None and with_conditioning is False:
             raise ValueError(
@@ -179,17 +179,24 @@ class ControlNet(nn.Module):
 
         # All number of channels should be multiple of num_groups
         if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
-            raise ValueError("DiffusionModelUNet expects all num_channels being multiple of norm_num_groups")
+            raise ValueError(
+                f"DiffusionModelUNet expects all channels to be a multiple of norm_num_groups, but got"
+                f" channels={channels} and norm_num_groups={norm_num_groups}"
+            )
 
         if len(channels) != len(attention_levels):
-            raise ValueError("DiffusionModelUNet expects num_channels being same size of attention_levels")
+            raise ValueError(
+                f"DiffusionModelUNet expects channels to have the same length as attention_levels, but got "
+                f"channels={channels} and attention_levels={attention_levels}"
+            )
 
         if isinstance(num_head_channels, int):
             num_head_channels = ensure_tuple_rep(num_head_channels, len(attention_levels))
 
         if len(num_head_channels) != len(attention_levels):
             raise ValueError(
-                "num_head_channels should have the same length as attention_levels. For the i levels without attention,"
+                f"num_head_channels should have the same length as attention_levels, but got channels={channels} and "
+                f"attention_levels={attention_levels} . For the i levels without attention,"
                 " i.e. `attention_level[i]=False`, the num_head_channels[i] will be ignored."
             )
 
@@ -198,8 +205,8 @@ class ControlNet(nn.Module):
 
         if len(num_res_blocks) != len(channels):
             raise ValueError(
-                "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
-                "`num_channels`."
+                f"`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
+                f"`num_channels`, but got num_res_blocks={num_res_blocks} and channels={channels}."
             )
 
         if use_flash_attention is True and not torch.cuda.is_available():
