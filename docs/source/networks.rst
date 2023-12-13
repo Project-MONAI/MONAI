@@ -751,12 +751,12 @@ Nets
 .. autoclass:: VQVAE
    :members:
 
-`PatchGanDiscriminator`
+`PatchGANDiscriminator`
 ~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: PatchGanDiscriminator
+.. autoclass:: PatchDiscriminator
    :members:
 
-.. autoclass:: MultiScalePatchGanDiscriminator
+.. autoclass:: MultiScalePatchDiscriminator
    :members:
 
 Utilities
