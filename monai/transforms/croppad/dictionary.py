@@ -275,7 +275,6 @@ class BorderPadd(Padd):
         """
         padder = BorderPad(spatial_border=spatial_border, lazy=lazy, **kwargs)
         Padd.__init__(self, keys, lazy=lazy, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
-        # Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
 
 
 class DivisiblePadd(Padd):
