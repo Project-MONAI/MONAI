@@ -360,11 +360,11 @@ class ControlNet(nn.Module):
     ) -> tuple[list[torch.Tensor], torch.Tensor]:
         """
         Args:
-            x: input tensor (N, C, SpatialDims).
+            x: input tensor (N, C, H, W, [D]).
             timesteps: timestep tensor (N,).
-            controlnet_cond: controlnet conditioning tensor (N, C, SpatialDims).
+            controlnet_cond: controlnet conditioning tensor (N, C, H, W, [D])
             conditioning_scale: conditioning scale.
-            context: context tensor (N, 1, ContextDim).
+            context: context tensor (N, 1, cross_attention_dim), where cross_attention_dim is specified in the model init.
             class_labels: context tensor (N, ).
         """
         # 1. time
