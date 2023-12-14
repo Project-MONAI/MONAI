@@ -756,6 +756,14 @@ Nets
 .. autoclass:: VQVAE
    :members:
 
+`PatchGANDiscriminator`
+~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PatchDiscriminator
+   :members:
+
+.. autoclass:: MultiScalePatchDiscriminator
+   :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils

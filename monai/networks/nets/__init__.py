@@ -55,6 +55,7 @@ from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
+from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
 from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
