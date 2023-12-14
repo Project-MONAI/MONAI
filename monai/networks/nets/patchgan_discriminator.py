@@ -23,9 +23,7 @@ from monai.networks.layers import Act
 class MultiScalePatchDiscriminator(nn.Sequential):
     """
     Multi-scale Patch-GAN discriminator based on Pix2PixHD:
-
-    High-Resolution Image Synthesis and Semantic Manipulation with Conditional GANs
-    Ting-Chun Wang
+    High-Resolution Image Synthesis and Semantic Manipulation with Conditional GANs (https://arxiv.org/abs/1711.11585)
 
     The Multi-scale discriminator made up of several PatchGAN discriminators, that process the images
     at different spatial scales.
@@ -117,8 +115,8 @@ class MultiScalePatchDiscriminator(nn.Sequential):
 class PatchDiscriminator(nn.Sequential):
     """
     Patch-GAN discriminator based on Pix2PixHD:
-    High-Resolution Image Synthesis and Semantic Manipulation with Conditional GANs.
-    Ting-Chun Wang, Ming-Yu Liu, Jun-Yan Zhu, Andrew Tao, Jan Kautz, Bryan Catanzaro
+    High-Resolution Image Synthesis and Semantic Manipulation with Conditional GANs (https://arxiv.org/abs/1711.11585)
+
 
     Args:
         spatial_dims: number of spatial dimensions (1D, 2D etc.)
