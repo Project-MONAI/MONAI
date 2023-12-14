@@ -105,6 +105,8 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
+from .spade_autoencoderkl import SPADEAutoencoderKL
+from .spade_diffusion_model_unet import SPADEDiffusionModelUNet
 from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
