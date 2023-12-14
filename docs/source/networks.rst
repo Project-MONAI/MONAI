@@ -248,6 +248,7 @@ Blocks
 .. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
    :members:
 
+
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.networks.blocks.fft_utils_t
@@ -258,6 +259,10 @@ N-Dim Fourier Transform
 .. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
 .. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
 
+`SPADE`
+~~~~~~~
+.. autoclass:: monai.networks.blocks.spade_norm.SPADE
+    :members:
 
 Layers
 ------
@@ -588,6 +593,11 @@ Nets
 .. autoclass:: DiffusionModelUNet
   :members:
 
+`SPADEDiffusionModelUNet`
+~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SPADEDiffusionModelUNet
+  :members:
+
 `ControlNet`
 ~~~~~~~~~~~~
 .. autoclass:: ControlNet
@@ -616,6 +626,11 @@ Nets
 `AutoEncoderKL`
 ~~~~~~~~~~~~~~~
 .. autoclass:: AutoencoderKL
+  :members:
+
+`SPADEAutoencoderKL`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SPADEAutoencoderKL
   :members:
 
 `VarAutoEncoder`
