@@ -588,6 +588,11 @@ Nets
 .. autoclass:: DiffusionModelUNet
   :members:
 
+`ControlNet`
+~~~~~~~~~~~~
+.. autoclass:: ControlNet
+  :members:
+
 `RegUNet`
 ~~~~~~~~~
 .. autoclass:: RegUNet
