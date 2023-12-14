@@ -127,9 +127,9 @@ class PatchDiscriminator(nn.Sequential):
         out_channels: number of output channels
         num_layers_d: number of Convolution layers (Conv + activation + normalisation + [dropout]) in the discriminator.
         kernel_size: kernel size of the convolution layers
-        activation: activation layer type
-        norm: normalisation type
-        bias: introduction of layer bias
+        act: activation type and arguments. Defaults to LeakyReLU.
+        norm: feature normalization type and arguments. Defaults to batch norm.
+        bias: whether to have a bias term in convolution blocks. Defaults to False.
         padding: padding to be applied to the convolutional layers
         dropout: proportion of dropout applied, defaults to 0.
         last_conv_kernel_size: kernel size of the last convolutional layer.
