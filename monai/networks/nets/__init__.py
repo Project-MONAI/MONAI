@@ -18,6 +18,7 @@ from .autoencoderkl import AutoencoderKL
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetplusplus
 from .classifier import Classifier, Critic, Discriminator
+from .controlnet import ControlNet
 from .daf3d import DAF3D
 from .densenet import (
     DenseNet,
