@@ -253,7 +253,7 @@ def compute_surface_dice(
             distance_metric=distance_metric,
             spacing=spacing_list[b],
             use_subvoxels=use_subvoxels,
-            symetric=True,
+            symmetric=True,
             class_index=c,
         )
         boundary_correct: int | torch.Tensor | float
