@@ -190,7 +190,7 @@ def compute_hausdorff_distance(
             y[b, c],
             distance_metric=distance_metric,
             spacing=spacing_list[b],
-            symetric=not directed,
+            symmetric=not directed,
             class_index=c,
         )
         percentile_distances = [_compute_percentile_hausdorff_distance(d, percentile) for d in distances]
