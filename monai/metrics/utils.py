@@ -295,7 +295,7 @@ def get_edge_surface_distance(
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
     use_subvoxels: bool = False,
-    symetric: bool = False,
+    symmetric: bool = False,
     class_index: int = -1,
 ) -> tuple[
     tuple[torch.Tensor, torch.Tensor],
@@ -314,7 +314,7 @@ def get_edge_surface_distance(
             See :py:func:`monai.metrics.utils.get_surface_distance`.
         use_subvoxels: whether to use subvoxel resolution (using the spacing).
             This will return the areas of the edges.
-        symetric: whether to compute the surface distance from `y_pred` to `y` and from `y` to `y_pred`.
+        symmetric: whether to compute the surface distance from `y_pred` to `y` and from `y` to `y_pred`.
         class_index: The class-index used for context when warning about empty ground truth or prediction.
 
     Returns:
@@ -338,7 +338,7 @@ def get_edge_surface_distance(
             " this may result in nan/inf distance."
         )
     distances: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor]
-    if symetric:
+    if symmetric:
         distances = (
             get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),
             get_surface_distance(edges_gt, edges_pred, distance_metric, spacing),
