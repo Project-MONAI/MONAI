@@ -414,6 +414,9 @@ class SaveImage(Transform):
             self.fname_formatter = output_name_formatter
 
         self.output_ext = output_ext.lower() or output_format.lower()
+        self.output_ext = (
+            f".{self.output_ext}" if self.output_ext and not self.output_ext.startswith(".") else self.output_ext
+        )
         if isinstance(writer, str):
             writer_, has_built_in = optional_import("monai.data", name=f"{writer}")  # search built-in
             if not has_built_in:
@@ -458,15 +461,23 @@ class SaveImage(Transform):
             self.write_kwargs.update(write_kwargs)
         return self
 
-    def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None):
+    def __call__(
+        self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None, filename: str | PathLike | None = None
+    ):
         """
         Args:
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.
             meta_data: key-value pairs of metadata corresponding to the data.
+            filename: str or file-like object which to save img.
+                If specified, will ignore `self.output_name_formatter` and `self.folder_layout`.
         """
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
-        kw = self.fname_formatter(meta_data, self)
-        filename = self.folder_layout.filename(**kw)
+        if filename is not None:
+            filename = f"{filename}{self.output_ext}"
+        else:
+            kw = self.fname_formatter(meta_data, self)
+            filename = self.folder_layout.filename(**kw)
+
         if meta_data:
             meta_spatial_shape = ensure_tuple(meta_data.get("spatial_shape", ()))
             if len(meta_spatial_shape) >= len(img.shape):

@@ -177,7 +177,7 @@ def compute_average_surface_distance(
             y[b, c],
             distance_metric=distance_metric,
             spacing=spacing_list[b],
-            symetric=symmetric,
+            symmetric=symmetric,
             class_index=c,
         )
         surface_distance = torch.cat(distances)
