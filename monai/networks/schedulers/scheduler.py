@@ -163,7 +163,7 @@ class Scheduler(nn.Module):
         self.one = torch.tensor(1.0)
 
         # settable values
-        self.num_inference_steps = None
+        self.num_inference_steps : int | None = None
         self.timesteps = torch.arange(num_train_timesteps - 1, -1, -1)
 
     def add_noise(self, original_samples: torch.Tensor, noise: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
@@ -182,8 +182,8 @@ class Scheduler(nn.Module):
         self.alphas_cumprod = self.alphas_cumprod.to(device=original_samples.device, dtype=original_samples.dtype)
         timesteps = timesteps.to(original_samples.device)
 
-        sqrt_alpha_cumprod = unsqueeze_right(self.alphas_cumprod[timesteps] ** 0.5, original_samples.ndim)
-        sqrt_one_minus_alpha_prod = unsqueeze_right((1 - self.alphas_cumprod[timesteps]) ** 0.5, original_samples.ndim)
+        sqrt_alpha_cumprod : torch.Tensor = unsqueeze_right(self.alphas_cumprod[timesteps] ** 0.5, original_samples.ndim)
+        sqrt_one_minus_alpha_prod : torch.Tensor = unsqueeze_right((1 - self.alphas_cumprod[timesteps]) ** 0.5, original_samples.ndim)
 
         noisy_samples = sqrt_alpha_cumprod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples

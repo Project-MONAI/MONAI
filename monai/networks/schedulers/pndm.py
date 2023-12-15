@@ -111,7 +111,7 @@ class PNDMScheduler(Scheduler):
         self.cur_model_output = 0
         self.counter = 0
         self.cur_sample = None
-        self.ets = []
+        self.ets : list = []
 
         # default the number of inference timesteps to the number of train steps
         self.set_timesteps(num_train_timesteps)
