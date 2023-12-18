@@ -23,7 +23,7 @@ class SPADE(nn.Module):
     Spatially Adaptive Normalization (SPADE) block, allowing for normalization of activations conditioned on a
     semantic map. This block is used in SPADE-based image-to-image translation models, as described in
     Semantic Image Synthesis with Spatially-Adaptive Normalization (https://arxiv.org/abs/1903.07291).
-    
+
     Args:
         label_nc: number of semantic labels
         norm_nc: number of output channels
