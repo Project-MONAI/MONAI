@@ -81,7 +81,7 @@ class SPADE(nn.Module):
         """
         Args:
             x: input tensor
-            segmap: input segmentation map (bxcx[spatial-dimensions]) where c is the number of semantic channels.
+            segmap: input segmentation map (B, C, [spatial-dimensions]) where C is the number of semantic channels.
             The map will be interpolated to the dimension of x internally.
         """
 
