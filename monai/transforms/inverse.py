@@ -189,7 +189,7 @@ class TraceableTransform(Transform):
                 affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
             except RuntimeError as e:
                 raise RuntimeError(
-                    f"mismatch affine matrix, ensured that the batch dimension is not included in the calculation."
+                    "mismatch affine matrix, ensured that the batch dimension is not included in the calculation."
                 ) from e
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
 
