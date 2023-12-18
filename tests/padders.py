@@ -136,6 +136,9 @@ class PadTest(unittest.TestCase):
             # TODO: mode="bilinear" may report error
             overrides = {"mode": "nearest", "padding_mode": mode[1], "align_corners": False}
             result = apply_pending(pending_result, overrides=overrides)[0]
+            # lazy in constructor
+            pad_fn_lazy = self.Padder(mode=mode[0], lazy=True, **input_param)
+            self.assertTrue(pad_fn_lazy.lazy)
             # compare
             assert_allclose(result, expected, rtol=1e-5)
             if isinstance(result, MetaTensor) and not isinstance(pad_fn, MapTransform):
