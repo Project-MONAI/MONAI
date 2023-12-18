@@ -612,7 +612,7 @@ class SPADEDiffusionModelUNet(nn.Module):
     semantic conditioning (Park et.al (2019): https://github.com/NVlabs/SPADE). An example tutorial can be found at
     https://github.com/Project-MONAI/GenerativeModels/tree/main/tutorials/generative/2d_spade_ldm
 
-    Args:
+    Args: 
         spatial_dims: number of spatial dimensions.
         in_channels: number of input channels.
         out_channels: number of output channels.
