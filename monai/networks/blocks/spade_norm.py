@@ -79,7 +79,7 @@ class SPADE(nn.Module):
     def forward(self, x: torch.Tensor, segmap: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: input tensor
+            x: input tensor with shape (B, C, [spatial-dimensions]) where C is the number of semantic channels.
             segmap: input segmentation map (B, C, [spatial-dimensions]) where C is the number of semantic channels.
             The map will be interpolated to the dimension of x internally.
         """
