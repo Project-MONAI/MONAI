@@ -608,10 +608,9 @@ def get_spade_up_block(
 
 class SPADEDiffusionModelUNet(nn.Module):
     """
-    Unet network with timestep embedding and attention mechanisms for conditioning based on
-    Rombach et al. "High-Resolution Image Synthesis with Latent Diffusion Models" https://arxiv.org/abs/2112.10752
-    and Pinaya et al. "Brain Imaging Generation with Latent Diffusion Models" https://arxiv.org/abs/2209.07162
-    Enables SPADE normalisation for semantic conditioning (Park et. al (2019): https://github.com/NVlabs/SPADE)
+    UNet network with timestep embedding and attention mechanisms for conditioning, with added SPADE normalization for
+    semantic conditioning (Park et.al (2019): https://github.com/NVlabs/SPADE). An example tutorial can be found at
+    https://github.com/Project-MONAI/GenerativeModels/tree/main/tutorials/generative/2d_spade_ldm
 
     Args:
         spatial_dims: number of spatial dimensions.
