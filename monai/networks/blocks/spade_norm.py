@@ -23,12 +23,11 @@ class SPADE(nn.Module):
     Spatially Adaptive Normalization (SPADE) block, allowing for normalization of activations conditioned on a
     semantic map. This block is used in SPADE-based image-to-image translation models, as described in
     Semantic Image Synthesis with Spatially-Adaptive Normalization (https://arxiv.org/abs/1903.07291).
-    
+
     Args:
         label_nc: number of semantic labels
         norm_nc: number of output channels
         kernel_size: kernel size
-        padding: padding size for convolutions
         spatial_dims: number of spatial dimensions
         hidden_channels: number of channels in the intermediate gamma and beta layers
         norm: type of base normalisation used before applying the SPADE normalisation
@@ -40,7 +39,6 @@ class SPADE(nn.Module):
         label_nc: int,
         norm_nc: int,
         kernel_size: int = 3,
-        padding: int = 1,
         spatial_dims: int = 2,
         hidden_channels: int = 64,
         norm: str | tuple = "INSTANCE",
@@ -61,7 +59,6 @@ class SPADE(nn.Module):
             out_channels=hidden_channels,
             kernel_size=kernel_size,
             norm=None,
-            padding=padding,
             act="LEAKYRELU",
         )
         self.mlp_gamma = Convolution(
@@ -69,7 +66,6 @@ class SPADE(nn.Module):
             in_channels=hidden_channels,
             out_channels=norm_nc,
             kernel_size=kernel_size,
-            padding=padding,
             act=None,
         )
         self.mlp_beta = Convolution(
@@ -77,7 +73,6 @@ class SPADE(nn.Module):
             in_channels=hidden_channels,
             out_channels=norm_nc,
             kernel_size=kernel_size,
-            padding=padding,
             act=None,
         )
 
