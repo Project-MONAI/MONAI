@@ -248,7 +248,6 @@ Blocks
 .. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
    :members:
 
-
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.networks.blocks.fft_utils_t
