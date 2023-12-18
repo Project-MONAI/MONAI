@@ -222,7 +222,7 @@ class SpatialPadd(Padd):
 
         """
         padder = SpatialPad(spatial_size, method, lazy=lazy, **kwargs)
-        Padd.__init__(self, keys, lazy=lazy, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class BorderPadd(Padd):
