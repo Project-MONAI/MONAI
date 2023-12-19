@@ -144,7 +144,7 @@ class DDPMScheduler(Scheduler):
         x_0_coefficient = alpha_prod_t_prev.sqrt() * self.betas[timestep] / (1 - alpha_prod_t)
         x_t_coefficient = alpha_t.sqrt() * (1 - alpha_prod_t_prev) / (1 - alpha_prod_t)
 
-        mean = x_0_coefficient * x_0 + x_t_coefficient * x_t
+        mean : torch.Tensor = x_0_coefficient * x_0 + x_t_coefficient * x_t
 
         return mean
 
@@ -165,15 +165,15 @@ class DDPMScheduler(Scheduler):
         # For t > 0, compute predicted variance βt (see formula (6) and (7) from https://arxiv.org/pdf/2006.11239.pdf)
         # and sample from it to get previous sample
         # x_{t-1} ~ N(pred_prev_sample, variance) == add variance to pred_sample
-        variance = (1 - alpha_prod_t_prev) / (1 - alpha_prod_t) * self.betas[timestep]
+        variance : torch.Tensor = (1 - alpha_prod_t_prev) / (1 - alpha_prod_t) * self.betas[timestep]
         # hacks - were probably added for training stability
         if self.variance_type == DDPMVarianceType.FIXED_SMALL:
             variance = torch.clamp(variance, min=1e-20)
         elif self.variance_type == DDPMVarianceType.FIXED_LARGE:
             variance = self.betas[timestep]
-        elif self.variance_type == DDPMVarianceType.LEARNED:
+        elif self.variance_type == DDPMVarianceType.LEARNED and predicted_variance is not None:
             return predicted_variance
-        elif self.variance_type == DDPMVarianceType.LEARNED_RANGE:
+        elif self.variance_type == DDPMVarianceType.LEARNED_RANGE and predicted_variance is not None:
             min_log = variance
             max_log = self.betas[timestep]
             frac = (predicted_variance + 1) / 2
