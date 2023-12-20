@@ -121,7 +121,8 @@ class Scheduler(nn.Module):
     can be provided by using the NoiseSchedules.add_def, for example:
 
     .. code-block:: python
-        from generative.networks.schedulers import NoiseSchedules, DDPMScheduler
+
+        from monai.networks.schedulers import NoiseSchedules, DDPMScheduler
 
         @NoiseSchedules.add_def("my_beta_schedule", "Some description of your function")
         def _beta_function(num_train_timesteps, beta_start=1e-4, beta_end=2e-2):

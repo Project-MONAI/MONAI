@@ -764,6 +764,26 @@ Nets
 .. autoclass:: MultiScalePatchDiscriminator
    :members:
 
+Diffusion Schedulers
+--------------------
+.. autoclass:: monai.networks.schedulers.Scheduler
+  :members:
+
+`DDPM Scheduler`
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.networks.schedulers.DDPMScheduler
+   :members:
+
+`DDIM Scheduler`
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.networks.schedulers.DDIMScheduler
+    :members:
+
+`PNDM Scheduler`
+~~~~~~~~~~~~~~~~
+.. autoclass:: monai.networks.schedulers.PNDMScheduler
+    :members:
+
 Utilities
 ---------
 .. automodule:: monai.networks.utils
