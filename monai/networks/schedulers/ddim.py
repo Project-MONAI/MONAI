@@ -106,7 +106,7 @@ class DDIMScheduler(Scheduler):
         self.steps_offset = steps_offset
 
         # default the number of inference timesteps to the number of train steps
-        self.num_inference_steps : int
+        self.num_inference_steps: int
         self.set_timesteps(self.num_train_timesteps)
 
     def set_timesteps(self, num_inference_steps: int, device: str | torch.device | None = None) -> None:
@@ -138,7 +138,7 @@ class DDIMScheduler(Scheduler):
         beta_prod_t = 1 - alpha_prod_t
         beta_prod_t_prev = 1 - alpha_prod_t_prev
 
-        variance : torch.Tensor = (beta_prod_t_prev / beta_prod_t) * (1 - alpha_prod_t / alpha_prod_t_prev)
+        variance: torch.Tensor = (beta_prod_t_prev / beta_prod_t) * (1 - alpha_prod_t / alpha_prod_t_prev)
 
         return variance
 
