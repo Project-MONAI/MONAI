@@ -17,6 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.schedulers import DDIMScheduler
+from tests.utils import assert_allclose
 
 TEST_2D_CASE = []
 for beta_schedule in ["linear_beta", "scaled_linear_beta"]:
@@ -28,10 +29,14 @@ for beta_schedule in ["linear_beta", "scaled_linear_beta"]:
 
 TEST_CASES = TEST_2D_CASE + TEST_3D_CASE
 
+TEST_FULl_LOOP = [
+    [{"schedule": "linear_beta"}, (1, 1, 2, 2), torch.Tensor([[[[-0.9579, -0.6457], [0.4684, -0.9694]]]])]
+]
+
 
 class TestDDPMScheduler(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_add_noise_2d_shape(self, input_param, input_shape, expected_shape):
+    def test_add_noise(self, input_param, input_shape, expected_shape):
         scheduler = DDIMScheduler(**input_param)
         scheduler.set_timesteps(num_inference_steps=100)
         original_sample = torch.zeros(input_shape)
@@ -50,6 +55,17 @@ class TestDDPMScheduler(unittest.TestCase):
         output_step = scheduler.step(model_output=model_output, timestep=500, sample=sample)
         self.assertEqual(output_step[0].shape, expected_shape)
         self.assertEqual(output_step[1].shape, expected_shape)
+
+    @parameterized.expand(TEST_FULl_LOOP)
+    def test_full_timestep_loop(self, input_param, input_shape, expected_output):
+        scheduler = DDIMScheduler(**input_param)
+        scheduler.set_timesteps(50)
+        torch.manual_seed(42)
+        model_output = torch.randn(input_shape)
+        sample = torch.randn(input_shape)
+        for t in range(50):
+            sample, _ = scheduler.step(model_output=model_output, timestep=t, sample=sample)
+        assert_allclose(sample, expected_output, rtol=1e-3, atol=1e-3)
 
     def test_set_timesteps(self):
         scheduler = DDIMScheduler(num_train_timesteps=1000)
