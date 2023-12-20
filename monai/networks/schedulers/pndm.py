@@ -108,10 +108,10 @@ class PNDMScheduler(Scheduler):
         self.steps_offset = steps_offset
 
         # running values
-        self.cur_model_output = 0
+        self.cur_model_output = torch.Tensor()
         self.counter = 0
-        self.cur_sample = None
-        self.ets : list = []
+        self.cur_sample = torch.Tensor()
+        self.ets: list = []
 
         # default the number of inference timesteps to the number of train steps
         self.set_timesteps(num_train_timesteps)
@@ -162,9 +162,7 @@ class PNDMScheduler(Scheduler):
         self.ets = []
         self.counter = 0
 
-    def step(
-        self, model_output: torch.FloatTensor, timestep: int, sample: torch.FloatTensor
-    ) -> tuple[torch.Tensor, Any]:
+    def step(self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor) -> tuple[torch.Tensor, Any]:
         """
         Predict the sample at the previous timestep by reversing the SDE. Core function to propagate the diffusion
         process from the learned model outputs (most often the predicted noise).
@@ -184,7 +182,7 @@ class PNDMScheduler(Scheduler):
         else:
             return self.step_plms(model_output=model_output, timestep=timestep, sample=sample), None
 
-    def step_prk(self, model_output: torch.FloatTensor, timestep: int, sample: torch.FloatTensor) -> torch.Tensor:
+    def step_prk(self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor) -> torch.Tensor:
         """
         Step function propagating the sample with the Runge-Kutta method. RK takes 4 forward passes to approximate the
         solution to the differential equation.
@@ -207,7 +205,7 @@ class PNDMScheduler(Scheduler):
         timestep = self.prk_timesteps[self.counter // 4 * 4]
 
         if self.counter % 4 == 0:
-            self.cur_model_output += 1 / 6 * model_output
+            self.cur_model_output = 1 / 6 * model_output
             self.ets.append(model_output)
             self.cur_sample = sample
         elif (self.counter - 1) % 4 == 0:
@@ -216,17 +214,17 @@ class PNDMScheduler(Scheduler):
             self.cur_model_output += 1 / 3 * model_output
         elif (self.counter - 3) % 4 == 0:
             model_output = self.cur_model_output + 1 / 6 * model_output
-            self.cur_model_output = 0
+            self.cur_model_output = torch.Tensor()
 
-        # cur_sample should not be `None`
-        cur_sample = self.cur_sample if self.cur_sample is not None else sample
+        # cur_sample should not be an empty torch.Tensor()
+        cur_sample = self.cur_sample if self.cur_sample.numel() != 0 else sample
 
-        prev_sample = self._get_prev_sample(cur_sample, timestep, prev_timestep, model_output)
+        prev_sample: torch.Tensor = self._get_prev_sample(cur_sample, timestep, prev_timestep, model_output)
         self.counter += 1
 
         return prev_sample
 
-    def step_plms(self, model_output: torch.FloatTensor, timestep: int, sample: torch.FloatTensor) -> torch.Tensor:
+    def step_plms(self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor) -> Any:
         """
         Step function propagating the sample with the linear multi-step method. This has one forward pass with multiple
         times to approximate the solution.
@@ -265,7 +263,7 @@ class PNDMScheduler(Scheduler):
         elif len(self.ets) == 1 and self.counter == 1:
             model_output = (model_output + self.ets[-1]) / 2
             sample = self.cur_sample
-            self.cur_sample = None
+            self.cur_sample = torch.Tensor()
         elif len(self.ets) == 2:
             model_output = (3 * self.ets[-1] - self.ets[-2]) / 2
         elif len(self.ets) == 3:
