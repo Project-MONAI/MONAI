@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from .evaluator import EnsembleEvaluator, Evaluator, SupervisedEvaluator
-from .trainer import GanTrainer, SupervisedTrainer, Trainer
+from .trainer import AdversarialTrainer, GanTrainer, SupervisedTrainer, Trainer
 from .utils import (
     IterationEvents,
     PrepareBatch,
