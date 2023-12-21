@@ -30,7 +30,9 @@ from monai.data.thread_buffer import ThreadBuffer
 from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
-from monai.networks.nets import SPADEAutoencoderKL, SPADEDiffusionModelUNet
+from monai.networks.nets import VQVAE, AutoencoderKL, DiffusionModelUNet, SPADEAutoencoderKL, SPADEDiffusionModelUNet
+
+# from monai.networks.schedulers import Scheduler
 from monai.transforms import CenterSpatialCrop, SpatialPad
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
@@ -762,7 +764,7 @@ class SliceInferer(SlidingWindowInferer):
         return tuple(out_i.unsqueeze(dim=self.spatial_dim + 2) for out_i in out)
 
 
-class DiffusionInferer(Inferer):
+class DiffusionInferer(nn.Module):
     """
     DiffusionInferer takes a trained diffusion model and a scheduler and can be used to perform a signal forward pass
     for a training iteration, and sample from the model.
@@ -778,7 +780,7 @@ class DiffusionInferer(Inferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        diffusion_model: Callable[..., torch.Tensor],
+        diffusion_model: DiffusionModelUNet,
         noise: torch.Tensor,
         timesteps: torch.Tensor,
         condition: torch.Tensor | None = None,
@@ -801,16 +803,19 @@ class DiffusionInferer(Inferer):
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
 
-        noisy_image = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
+        noisy_image: torch.Tensor = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
         if mode == "concat":
-            noisy_image = torch.cat([noisy_image, condition], dim=1)
-            condition = None
+            if condition is None:
+                raise ValueError("Conditioning is required for concat condition")
+            else:
+                noisy_image = torch.cat([noisy_image, condition], dim=1)
+                condition = None
         diffusion_model = (
             partial(diffusion_model, seg=seg)
             if isinstance(diffusion_model, SPADEDiffusionModelUNet)
             else diffusion_model
         )
-        prediction = diffusion_model(x=noisy_image, timesteps=timesteps, context=condition)
+        prediction: torch.Tensor = diffusion_model(x=noisy_image, timesteps=timesteps, context=condition)
 
         return prediction
 
@@ -818,8 +823,8 @@ class DiffusionInferer(Inferer):
     def sample(
         self,
         input_noise: torch.Tensor,
-        diffusion_model: Callable[..., torch.Tensor],
-        scheduler: Callable[..., torch.Tensor] | None = None,
+        diffusion_model: DiffusionModelUNet,
+        scheduler: Scheduler | None = None,
         save_intermediates: bool | None = False,
         intermediate_steps: int | None = 100,
         conditioning: torch.Tensor | None = None,
@@ -880,7 +885,7 @@ class DiffusionInferer(Inferer):
     def get_likelihood(
         self,
         inputs: torch.Tensor,
-        diffusion_model: Callable[..., torch.Tensor],
+        diffusion_model: DiffusionModelUNet,
         scheduler: Callable[..., torch.Tensor] | None = None,
         save_intermediates: bool | None = False,
         conditioning: torch.Tensor | None = None,
@@ -1281,7 +1286,7 @@ class LatentDiffusionInferer(DiffusionInferer):
         return outputs
 
 
-class ControlNetDiffusionInferer(DiffusionInferer):
+class ControlNetDiffusionInferer(nn.Module):
     """
     ControlNetDiffusionInferer takes a trained diffusion model and a scheduler and can be used to perform a signal
     forward pass for a training iteration, and sample from the model, supporting ControlNet-based conditioning.
@@ -1826,7 +1831,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         return outputs
 
 
-class VQVAETransformerInferer(Inferer):
+class VQVAETransformerInferer(nn.Module):
     """
     Class to perform inference with a VQVAE + Transformer model.
     """
