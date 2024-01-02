@@ -64,6 +64,10 @@ class SABlock(nn.Module):
         self.att_mat = torch.Tensor()
 
     def forward(self, x):
+        """
+        Args:
+            x (Tensor): [b x (s_dim_1 * … * s_dim_n) x dim]
+        """
         output = self.input_rearrange(self.qkv(x))
         q, k, v = output[0], output[1], output[2]
         att_mat = (torch.einsum("blxd,blyd->blxy", q, k) * self.scale).softmax(dim=-1)
