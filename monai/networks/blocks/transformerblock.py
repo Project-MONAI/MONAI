@@ -19,6 +19,10 @@ import torch.nn.functional as F
 
 from monai.networks.blocks.mlp import MLPBlock
 from monai.networks.blocks.selfattention import SABlock
+from monai.utils import optional_import
+
+
+rearrange, _ = optional_import("einops", name="rearrange")
 
 
 class TransformerBlock(nn.Module):
@@ -36,6 +40,7 @@ class TransformerBlock(nn.Module):
         qkv_bias: bool = False,
         save_attn: bool = False,
         window_size: int = 0,
+        input_size: Tuple = (),
     ) -> None:
         """
         Args:
@@ -47,8 +52,8 @@ class TransformerBlock(nn.Module):
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
             window_size (int): Window size for local attention as used in Segment Anything https://arxiv.org/abs/2304.02643.
                 If 0, global attention used. Only 2D inputs are supported for local attention (window_size > 0).
-                If local attention is used, the input tensor should have the following shape during the forward pass: [B, H, W, C].
                 See https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py.
+            input_size (Tuple): spatial input dimensions (h, w, and d). Has to be set if local window attention is used.
 
         """
 
@@ -65,19 +70,28 @@ class TransformerBlock(nn.Module):
         self.attn = SABlock(hidden_size, num_heads, dropout_rate, qkv_bias, save_attn)
         self.norm2 = nn.LayerNorm(hidden_size)
         self.window_size = window_size
+        self.input_size = input_size
 
     def forward(self, x):
+        """
+        Args:
+            x (Tensor): [b x (s_dim_1 * … * s_dim_n) x dim]
+        """
         shortcut = x
         x = self.norm1(x)
         # Window partition
         if self.window_size > 0:
-            h, w = x.shape[1], x.shape[2]
+            h, w = self.input_size
+            x = rearrange(x, "b (h w) d -> b h w d", h=h, w=w)
             x, pad_hw = window_partition(x, self.window_size)
+            x = rearrange(x, "b h w d -> b (h w) d", h=self.window_size, w=self.window_size)
 
         x = self.attn(x)
         # Reverse window partition
         if self.window_size > 0:
+            x = rearrange(x, "b (h w) d -> b h w d", h=self.window_size, w=self.window_size)
             x = window_unpartition(x, self.window_size, pad_hw, (h, w))
+            x = rearrange(x, "b h w d -> b (h w) d", h=h, w=w)
 
         x = shortcut + x
         x = x + self.mlp(self.norm2(x))
