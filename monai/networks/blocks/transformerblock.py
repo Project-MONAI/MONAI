@@ -50,7 +50,7 @@ class TransformerBlock(nn.Module):
             qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
             window_size (int): Window size for local attention as used in Segment Anything https://arxiv.org/abs/2304.02643.
-                If 0, global attention used. Only 2D inputs are supported for local attention (window_size > 0).
+                If 0, global attention used.
                 See https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py.
             input_size (Tuple): spatial input dimensions (h, w, and d). Has to be set if local window attention is used.
 

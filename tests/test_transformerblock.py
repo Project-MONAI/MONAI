@@ -57,6 +57,22 @@ for window_size in [0, 2, 3, 4]:
     ]
     TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN.append(test_case)
 
+TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN_3D = []
+for window_size in [0, 2, 3, 4]:
+    test_case = [
+        {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "mlp_dim": 1024,
+            "dropout_rate": 0,
+            "window_size": window_size,
+            "input_size": (3, 3, 3),
+        },
+        (2, 27, 360),
+        (2, 27, 360),
+    ]
+    TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN_3D.append(test_case)
+
 
 class TestTransformerBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_TRANSFORMERBLOCK)
@@ -114,6 +130,14 @@ class TestTransformerBlock(unittest.TestCase):
     @parameterized.expand(TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN)
     @skipUnless(has_einops, "Requires einops")
     def test_local_window(self, input_param, input_shape, expected_shape):
+        net = TransformerBlock(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN_3D)
+    @skipUnless(has_einops, "Requires einops")
+    def test_local_window_3d(self, input_param, input_shape, expected_shape):
         net = TransformerBlock(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
