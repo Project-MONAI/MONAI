@@ -421,7 +421,7 @@ def _copy_algos_folder(folder, at_path):
     algos_all = {}
     for name in os.listdir(at_path):
         if os.path.exists(os.path.join(folder, name, "scripts", "algo.py")):
-            algos_all[name] = dict(_target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path=at_path)
+            algos_all[name] = dict(_target_=f"{name}.scripts.algo.{name.capitalize()}Algo", template_path="../algorithm_templates")
             logger.info(f"Copying template: {name} -- {algos_all[name]}")
     if not algos_all:
         raise ValueError(f"Unable to find any algos in {folder}")
