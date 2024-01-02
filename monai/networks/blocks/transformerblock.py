@@ -21,7 +21,6 @@ from monai.networks.blocks.mlp import MLPBlock
 from monai.networks.blocks.selfattention import SABlock
 from monai.utils import optional_import
 
-
 rearrange, _ = optional_import("einops", name="rearrange")
 
 
