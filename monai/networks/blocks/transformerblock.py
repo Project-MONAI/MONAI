@@ -65,6 +65,11 @@ class TransformerBlock(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError("hidden_size should be divisible by num_heads.")
 
+        if window_size > 0 and len(input_size) not in [2, 3]:
+            raise ValueError(
+                "If local window attention is used (window_size > 0), input_size should be specified: (h, w) or (h, w, d)"
+            )
+
         self.mlp = MLPBlock(hidden_size, mlp_dim, dropout_rate)
         self.norm1 = nn.LayerNorm(hidden_size)
         self.attn = SABlock(hidden_size, num_heads, dropout_rate, qkv_bias, save_attn)
@@ -72,7 +77,7 @@ class TransformerBlock(nn.Module):
         self.window_size = window_size
         self.input_size = input_size
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         """
         Args:
             x (Tensor): [b x (s_dim_1 * … * s_dim_n) x dim]
@@ -81,6 +86,11 @@ class TransformerBlock(nn.Module):
         x = self.norm1(x)
         # Window partition
         if self.window_size > 0:
+            if x.shape[1] != int(torch.prod(torch.tensor(self.input_size))):
+                raise ValueError(
+                    f"Input tensor spatial dimension {x.shape[1]} should be equal to {self.input_size} product"
+                )
+
             h, w = self.input_size
             x = rearrange(x, "b (h w) d -> b h w d", h=h, w=w)
             x, pad_hw = window_partition(x, self.window_size)
