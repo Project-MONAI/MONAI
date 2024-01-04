@@ -34,9 +34,8 @@ from __future__ import annotations
 import numpy as np
 import torch
 
-
-from .scheduler import Scheduler
 from .ddpm import DDPMPredictionType
+from .scheduler import Scheduler
 
 DDIMPredictionType = DDPMPredictionType
 
@@ -121,7 +120,6 @@ class DDIMScheduler(Scheduler):
                 f" the max train timestep."
             )
 
-
         # creates integer timesteps by multiplying by ratio
         # casting to int to avoid issues when num_inference_step is power of 3
         timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.int64)
@@ -163,7 +161,7 @@ class DDIMScheduler(Scheduler):
         """
         # See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
         # Ideally, read DDIM paper in-detail understanding
- 
+
         # Notation (<variable name> -> <name in paper>
         # - model_output -> e_theta(x_t, t)
         # - pred_original_sample -> f_theta(x_t, t) or x_0
