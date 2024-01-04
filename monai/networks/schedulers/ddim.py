@@ -122,6 +122,7 @@ class DDIMScheduler(Scheduler):
                 f" the max train timestep."
             )
 
+
         # creates integer timesteps by multiplying by ratio
         # casting to int to avoid issues when num_inference_step is power of 3
         timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.int64)
