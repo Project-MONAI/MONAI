@@ -164,7 +164,7 @@ class DDIMScheduler(Scheduler):
         """
         # See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
         # Ideally, read DDIM paper in-detail understanding
-
+ 
         # Notation (<variable name> -> <name in paper>
         # - model_output -> e_theta(x_t, t)
         # - pred_original_sample -> f_theta(x_t, t) or x_0
