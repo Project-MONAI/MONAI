@@ -30,8 +30,8 @@ from monai.data.thread_buffer import ThreadBuffer
 from monai.inferers.merger import AvgMerger, Merger
 from monai.inferers.splitter import Splitter
 from monai.inferers.utils import compute_importance_map, sliding_window_inference
-from monai.networks.nets import VQVAE, AutoencoderKL, DiffusionModelUNet, SPADEAutoencoderKL, SPADEDiffusionModelUNet
-
+from monai.networks.nets import VQVAE, AutoencoderKL, DiffusionModelUNet, SPADEAutoencoderKL, SPADEDiffusionModelUNet, ControlNet, DecoderOnlyTransformer
+from monai.networks.schedulers import Scheduler
 # from monai.networks.schedulers import Scheduler
 from monai.transforms import CenterSpatialCrop, SpatialPad
 from monai.utils import BlendMode, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
@@ -773,8 +773,9 @@ class DiffusionInferer(nn.Module):
         scheduler: diffusion scheduler.
     """
 
-    def __init__(self, scheduler: nn.Module) -> None:
-        Inferer.__init__(self)
+    def __init__(self, scheduler: Scheduler) -> None:
+        super().__init__()
+
         self.scheduler = scheduler
 
     def __call__(
@@ -846,7 +847,8 @@ class DiffusionInferer(nn.Module):
         """
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
-
+        if mode == "concat" and conditioning is None:
+            raise ValueError("Conditioning must be supplied for if condition mode is concat.")
         if not scheduler:
             scheduler = self.scheduler
         image = input_noise
@@ -862,7 +864,7 @@ class DiffusionInferer(nn.Module):
                 if isinstance(diffusion_model, SPADEDiffusionModelUNet)
                 else diffusion_model
             )
-            if mode == "concat":
+            if mode == "concat" and conditioning is not None:
                 model_input = torch.cat([image, conditioning], dim=1)
                 model_output = diffusion_model(
                     model_input, timesteps=torch.Tensor((t,)).to(input_noise.device), context=None
@@ -886,12 +888,12 @@ class DiffusionInferer(nn.Module):
         self,
         inputs: torch.Tensor,
         diffusion_model: DiffusionModelUNet,
-        scheduler: Callable[..., torch.Tensor] | None = None,
+        scheduler: Scheduler | None = None,
         save_intermediates: bool | None = False,
         conditioning: torch.Tensor | None = None,
         mode: str = "crossattn",
-        original_input_range: tuple | None = (0, 255),
-        scaled_input_range: tuple | None = (0, 1),
+        original_input_range: tuple = (0, 255),
+        scaled_input_range: tuple = (0, 1),
         verbose: bool = True,
         seg: torch.Tensor | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
@@ -920,6 +922,8 @@ class DiffusionInferer(nn.Module):
             )
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
+        if mode == "concat" and conditioning is None:
+            raise ValueError("Conditioning must be supplied for if condition mode is concat.")
         if verbose and has_tqdm:
             progress_bar = tqdm(scheduler.timesteps)
         else:
@@ -935,7 +939,7 @@ class DiffusionInferer(nn.Module):
                 if isinstance(diffusion_model, SPADEDiffusionModelUNet)
                 else diffusion_model
             )
-            if mode == "concat":
+            if mode == "concat" and conditioning is not None:
                 noisy_image = torch.cat([noisy_image, conditioning], dim=1)
                 model_output = diffusion_model(noisy_image, timesteps=timesteps, context=None)
             else:
@@ -999,7 +1003,7 @@ class DiffusionInferer(nn.Module):
                     + torch.exp(log_posterior_variance - log_predicted_variance)
                     + ((posterior_mean - predicted_mean) ** 2) * torch.exp(-log_predicted_variance)
                 )
-            total_kl += kl.view(kl.shape[0], -1).mean(axis=1)
+            total_kl += kl.view(kl.shape[0], -1).mean(dim=1)
             if save_intermediates:
                 intermediates.append(kl.cpu())
 
@@ -1023,8 +1027,8 @@ class DiffusionInferer(nn.Module):
         inputs: torch.Tensor,
         means: torch.Tensor,
         log_scales: torch.Tensor,
-        original_input_range: tuple | None = (0, 255),
-        scaled_input_range: tuple | None = (0, 1),
+        original_input_range: tuple = (0, 255),
+        scaled_input_range: tuple = (0, 1),
     ) -> torch.Tensor:
         """
         Compute the log-likelihood of a Gaussian distribution discretizing to a
@@ -1076,7 +1080,7 @@ class LatentDiffusionInferer(DiffusionInferer):
 
     def __init__(
         self,
-        scheduler: nn.Module,
+        scheduler: Scheduler,
         scale_factor: float = 1.0,
         ldm_latent_shape: list | None = None,
         autoencoder_latent_shape: list | None = None,
@@ -1084,18 +1088,18 @@ class LatentDiffusionInferer(DiffusionInferer):
         super().__init__(scheduler=scheduler)
         self.scale_factor = scale_factor
         if (ldm_latent_shape is None) ^ (autoencoder_latent_shape is None):
-            raise ValueError("If ldm_latent_shape is None, autoencoder_latent_shape must be None" "and vice versa.")
+            raise ValueError("If ldm_latent_shape is None, autoencoder_latent_shape must be None, and vice versa.")
         self.ldm_latent_shape = ldm_latent_shape
         self.autoencoder_latent_shape = autoencoder_latent_shape
-        if self.ldm_latent_shape is not None:
+        if self.ldm_latent_shape is not None and self.autoencoder_latent_shape is not None:
             self.ldm_resizer = SpatialPad(spatial_size=self.ldm_latent_shape)
             self.autoencoder_resizer = CenterSpatialCrop(roi_size=self.autoencoder_latent_shape)
 
     def __call__(
         self,
         inputs: torch.Tensor,
-        autoencoder_model: Callable[..., torch.Tensor],
-        diffusion_model: Callable[..., torch.Tensor],
+        autoencoder_model: AutoencoderKL | VQVAE,
+        diffusion_model: DiffusionModelUNet,
         noise: torch.Tensor,
         timesteps: torch.Tensor,
         condition: torch.Tensor | None = None,
@@ -1125,7 +1129,7 @@ class LatentDiffusionInferer(DiffusionInferer):
         if isinstance(diffusion_model, SPADEDiffusionModelUNet):
             call = partial(super().__call__, seg=seg)
 
-        prediction = call(
+        prediction : torch.Tensor = call(
             inputs=latent,
             diffusion_model=diffusion_model,
             noise=noise,
@@ -1139,9 +1143,9 @@ class LatentDiffusionInferer(DiffusionInferer):
     def sample(
         self,
         input_noise: torch.Tensor,
-        autoencoder_model: Callable[..., torch.Tensor],
-        diffusion_model: Callable[..., torch.Tensor],
-        scheduler: Callable[..., torch.Tensor] | None = None,
+        autoencoder_model: AutoencoderKL | VQVAE,
+        diffusion_model: DiffusionModelUNet,
+        scheduler: Scheduler | None = None,
         save_intermediates: bool | None = False,
         intermediate_steps: int | None = 100,
         conditioning: torch.Tensor | None = None,
@@ -1221,9 +1225,9 @@ class LatentDiffusionInferer(DiffusionInferer):
     def get_likelihood(
         self,
         inputs: torch.Tensor,
-        autoencoder_model: Callable[..., torch.Tensor],
-        diffusion_model: Callable[..., torch.Tensor],
-        scheduler: Callable[..., torch.Tensor] | None = None,
+        autoencoder_model: AutoencoderKL | VQVAE,
+        diffusion_model: DiffusionModelUNet,
+        scheduler: Scheduler | None = None,
         save_intermediates: bool | None = False,
         conditioning: torch.Tensor | None = None,
         mode: str = "crossattn",
@@ -1295,15 +1299,15 @@ class ControlNetDiffusionInferer(nn.Module):
         scheduler: diffusion scheduler.
     """
 
-    def __init__(self, scheduler: nn.Module) -> None:
+    def __init__(self, scheduler: Scheduler) -> None:
         Inferer.__init__(self)
         self.scheduler = scheduler
 
     def __call__(
         self,
         inputs: torch.Tensor,
-        diffusion_model: Callable[..., torch.Tensor],
-        controlnet: Callable[..., torch.Tensor],
+        diffusion_model: DiffusionModelUNet,
+        controlnet: ControlNet,
         noise: torch.Tensor,
         timesteps: torch.Tensor,
         cn_cond: torch.Tensor,
@@ -1355,10 +1359,10 @@ class ControlNetDiffusionInferer(nn.Module):
     def sample(
         self,
         input_noise: torch.Tensor,
-        diffusion_model: Callable[..., torch.Tensor],
-        controlnet: Callable[..., torch.Tensor],
+        diffusion_model: DiffusionModelUNet,
+        controlnet: ControlNet,
         cn_cond: torch.Tensor,
-        scheduler: Callable[..., torch.Tensor] | None = None,
+        scheduler: Scheduler | None = None,
         save_intermediates: bool | None = False,
         intermediate_steps: int | None = 100,
         conditioning: torch.Tensor | None = None,
@@ -1432,10 +1436,10 @@ class ControlNetDiffusionInferer(nn.Module):
     def get_likelihood(
         self,
         inputs: torch.Tensor,
-        diffusion_model: Callable[..., torch.Tensor],
-        controlnet: Callable[..., torch.Tensor],
+        diffusion_model: DiffusionModelUNet,
+        controlnet: ControlNet,
         cn_cond: torch.Tensor,
-        scheduler: Callable[..., torch.Tensor] | None = None,
+        scheduler: Scheduler | None = None,
         save_intermediates: bool | None = False,
         conditioning: torch.Tensor | None = None,
         mode: str = "crossattn",
@@ -1591,7 +1595,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
 
     def __init__(
         self,
-        scheduler: nn.Module,
+        scheduler: Scheduler,
         scale_factor: float = 1.0,
         ldm_latent_shape: list | None = None,
         autoencoder_latent_shape: list | None = None,
@@ -1609,9 +1613,9 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
     def __call__(
         self,
         inputs: torch.Tensor,
-        autoencoder_model: Callable[..., torch.Tensor],
-        diffusion_model: Callable[..., torch.Tensor],
-        controlnet: Callable[..., torch.Tensor],
+        autoencoder_model: AutoencoderKL | VQVAE,
+        diffusion_model: DiffusionModelUNet,
+        controlnet: ControlNet,
         noise: torch.Tensor,
         timesteps: torch.Tensor,
         cn_cond: torch.Tensor,
@@ -1664,9 +1668,9 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
     def sample(
         self,
         input_noise: torch.Tensor,
-        autoencoder_model: Callable[..., torch.Tensor],
-        diffusion_model: Callable[..., torch.Tensor],
-        controlnet: Callable[..., torch.Tensor],
+        autoencoder_model: AutoencoderKL | VQVAE,
+        diffusion_model: DiffusionModelUNet,
+        controlnet: ControlNet,
         cn_cond: torch.Tensor,
         scheduler: Callable[..., torch.Tensor] | None = None,
         save_intermediates: bool | None = False,
@@ -1756,11 +1760,11 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
     def get_likelihood(
         self,
         inputs: torch.Tensor,
-        autoencoder_model: Callable[..., torch.Tensor],
-        diffusion_model: Callable[..., torch.Tensor],
-        controlnet: Callable[..., torch.Tensor],
+        autoencoder_model: AutoencoderKL | VQVAE,
+        diffusion_model: DiffusionModelUNet,
+        controlnet: ControlNet,
         cn_cond: torch.Tensor,
-        scheduler: Callable[..., torch.Tensor] | None = None,
+        scheduler: Scheduler | None = None,
         save_intermediates: bool | None = False,
         conditioning: torch.Tensor | None = None,
         mode: str = "crossattn",
@@ -1842,8 +1846,8 @@ class VQVAETransformerInferer(nn.Module):
     def __call__(
         self,
         inputs: torch.Tensor,
-        vqvae_model: Callable[..., torch.Tensor],
-        transformer_model: Callable[..., torch.Tensor],
+        vqvae_model: VQVAE,
+        transformer_model: DecoderOnlyTransformer,
         ordering: Callable[..., torch.Tensor],
         condition: torch.Tensor | None = None,
         return_latent: bool = False,
@@ -1893,8 +1897,8 @@ class VQVAETransformerInferer(nn.Module):
         self,
         latent_spatial_dim: Sequence[int, int, int] | Sequence[int, int],
         starting_tokens: torch.Tensor,
-        vqvae_model: Callable[..., torch.Tensor],
-        transformer_model: Callable[..., torch.Tensor],
+        vqvae_model: VQVAE,
+        transformer_model: DecoderOnlyTransformer,
         ordering: Callable[..., torch.Tensor],
         conditioning: torch.Tensor | None = None,
         temperature: float = 1.0,
@@ -1956,8 +1960,8 @@ class VQVAETransformerInferer(nn.Module):
     def get_likelihood(
         self,
         inputs: torch.Tensor,
-        vqvae_model: Callable[..., torch.Tensor],
-        transformer_model: Callable[..., torch.Tensor],
+        vqvae_model: VQVAE,
+        transformer_model: DecoderOnlyTransformer,
         ordering: Callable[..., torch.Tensor],
         condition: torch.Tensor | None = None,
         resample_latent_likelihoods: bool = False,
