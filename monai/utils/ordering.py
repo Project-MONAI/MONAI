@@ -156,7 +156,7 @@ class Ordering:
 
     @staticmethod
     def raster_scan_idx(rows: int, cols: int, depths: int | None = None) -> np.ndarray:
-        idx : list[tuple]= []
+        idx: list[tuple] = []
 
         for r in range(rows):
             for c in range(cols):
@@ -172,7 +172,7 @@ class Ordering:
 
     @staticmethod
     def s_curve_idx(rows: int, cols: int, depths: int | None = None) -> np.ndarray:
-        idx : list[tuple] = []
+        idx: list[tuple] = []
 
         for r in range(rows):
             col_idx = range(cols) if r % 2 == 0 else range(cols - 1, -1, -1)
@@ -191,7 +191,7 @@ class Ordering:
 
     @staticmethod
     def random_idx(rows: int, cols: int, depths: int | None = None) -> np.ndarray:
-        idx : list[tuple] = []
+        idx: list[tuple] = []
 
         for r in range(rows):
             for c in range(cols):
