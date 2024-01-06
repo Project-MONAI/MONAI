@@ -18,6 +18,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
+from monai.networks.blocks.attention_utils import window_partition, window_unpartition
 from monai.utils import optional_import
 
 xops, has_xformers = optional_import("xformers.ops")
@@ -26,9 +27,14 @@ Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 class SABlock(nn.Module):
     """
-    A self-attention block, based on: "Dosovitskiy et al.,
-    An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
-    One can setup relative positional embedding as described in <https://arxiv.org/abs/2112.01526>
+        A self-attention block, based on: "Dosovitskiy et al.,
+        An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
+    <<<<<<< HEAD
+        One can setup relative positional embedding as described in <https://arxiv.org/abs/2112.01526>
+    =======
+        and some additional features:
+        - local window attention
+    >>>>>>> f7aca872 (refacto)
     """
 
     def __init__(
@@ -43,6 +49,7 @@ class SABlock(nn.Module):
         causal: bool = False,
         sequence_length: int | None = None,
         use_flash_attention: bool = False,
+        window_size: int = 0,
     ) -> None:
         """
         Args:
@@ -53,11 +60,13 @@ class SABlock(nn.Module):
             rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map.
                 For now only "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
-                positional parameter size.
+                positional parameter size. Has to be set if local window attention is used
             causal (bool): wether to use causal attention. If true `sequence_length` has to be set
             sequence_length (int, optional): if causal is True, it is necessary to specify the sequence length.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
-
+            window_size (int): Window size for local attention as used in Segment Anything https://arxiv.org/abs/2304.02643.
+                If 0, global attention used.
+                See https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py.
         """
 
         super().__init__()
@@ -81,6 +90,10 @@ class SABlock(nn.Module):
 
         if use_flash_attention and not has_xformers:
             raise ValueError("use_flash_attention is True but xformers is not installed.")
+        if window_size > 0 and len(input_size) not in [2, 3]:
+            raise ValueError(
+                "If local window attention is used (window_size > 0), input_size should be specified: (h, w) or (h, w, d)"
+            )
 
         self.num_heads = num_heads
         self.out_proj = nn.Linear(hidden_size, hidden_size)
@@ -101,6 +114,7 @@ class SABlock(nn.Module):
             if rel_pos_embedding is not None
             else None
         )
+        self.window_size = window_size
         self.input_size = input_size
 
         if causal and sequence_length is not None:
@@ -119,6 +133,10 @@ class SABlock(nn.Module):
         Return:
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
         """
+
+        if self.window_size > 0:
+            x, pad = window_partition(x, self.window_size, self.input_size)
+
         _, t, _ = x.size()
         output = self.input_rearrange(self.qkv(x))  # 3 x B x (s_dim_1 * ... * s_dim_n) x h x C/h
         q, k, v = output[0], output[1], output[2]
@@ -156,4 +174,9 @@ class SABlock(nn.Module):
         x = self.out_rearrange(x)
         x = self.out_proj(x)
         x = self.drop_output(x)
+
+        # Reverse window partition
+        if self.window_size > 0:
+            x = window_unpartition(x, self.window_size, pad, self.input_size)
+
         return x
