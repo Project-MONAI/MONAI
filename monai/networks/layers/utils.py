@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch.nn
 
 from monai.networks.layers.factories import Act, Dropout, Norm, Pool, RelPosEmbedding, split_args
@@ -126,7 +128,7 @@ def get_pool_layer(name: tuple | str, spatial_dims: int | None = 1):
     return pool_type(**pool_args)
 
 
-def get_rel_pos_embedding_layer(name: tuple | str, s_input_dims: tuple, c_dim: int, num_heads: int):
+def get_rel_pos_embedding_layer(name: tuple | str, s_input_dims: Optional[tuple], c_dim: int, num_heads: int):
     embedding_name, embedding_args = split_args(name)
     kw_args = dict(embedding_args)
     embedding_type = RelPosEmbedding[embedding_name]
