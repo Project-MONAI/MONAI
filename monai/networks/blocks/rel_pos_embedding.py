@@ -17,17 +17,7 @@ from torch import nn
 from monai.networks.blocks.attention_utils import add_decomposed_rel_pos
 
 
-class RelativePosEmbedding(nn.Module):
-    def __init__(
-        self,
-    ) -> None:
-        super().__init__()
-
-    def forward(self, x: torch.Tensor, att_mat: torch.Tensor) -> torch.Tensor:
-        ...
-
-
-class DecomposedRelativePosEmbedding(RelativePosEmbedding):
+class DecomposedRelativePosEmbedding(nn.Module):
     def __init__(self, s_input_dims: Tuple, c_dim: int, num_heads: int) -> None:
         """
         Args:
