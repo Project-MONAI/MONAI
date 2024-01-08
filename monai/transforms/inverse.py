@@ -185,7 +185,17 @@ class TraceableTransform(Transform):
             # not lazy evaluation, directly update the metatensor affine (don't push to the stack)
             orig_affine = data_t.peek_pending_affine()
             orig_affine = convert_to_dst_type(orig_affine, affine, dtype=torch.float64)[0]
-            affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
+            try:
+                affine = orig_affine @ to_affine_nd(len(orig_affine) - 1, affine, dtype=torch.float64)
+            except RuntimeError as e:
+                if orig_affine.ndim > 2:
+                    if data_t.is_batch:
+                        msg = "Transform applied to batched tensor, should be applied to instances only"
+                    else:
+                        msg = "Mismatch affine matrix, ensured that the batch dimension is not included in the calculation."
+                    raise RuntimeError(msg) from e
+                else:
+                    raise
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
