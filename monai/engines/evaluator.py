@@ -17,6 +17,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from monai.config import IgniteInfo, KeysCollection
+from monai.data import MetaTensor
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
@@ -25,7 +26,7 @@ from monai.transforms import Transform
 from monai.utils import ForwardMode, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 from monai.utils.enums import EngineStatsKeys as ESKeys
-from monai.utils.module import look_up_option
+from monai.utils.module import look_up_option, pytorch_after
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
@@ -213,6 +214,10 @@ class SupervisedEvaluator(Evaluator):
             `device`, `non_blocking`.
         amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
             https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        compile: whether to use compile, default is False.
+            If set to True, the inputs will be converted to `torch.Tensor` internally.
+        compile_kwargs: dict of the args for `torch.compile()` API, for more details:
+            https://pytorch.org/docs/stable/generated/torch.compile.html#torch-compile.
 
     """
 
@@ -238,6 +243,8 @@ class SupervisedEvaluator(Evaluator):
         decollate: bool = True,
         to_kwargs: dict | None = None,
         amp_kwargs: dict | None = None,
+        compile: bool = False,
+        compile_kwargs: dict = {},
     ) -> None:
         super().__init__(
             device=device,
@@ -259,8 +266,12 @@ class SupervisedEvaluator(Evaluator):
             to_kwargs=to_kwargs,
             amp_kwargs=amp_kwargs,
         )
-
-        self.network = network
+        if compile:
+            assert pytorch_after(2, 1)
+            self.network = torch.compile(network, **compile_kwargs)
+        else:
+            self.network = network
+        self.compile = compile
         self.inferer = SimpleInferer() if inferer is None else inferer
 
     def _iteration(self, engine: SupervisedEvaluator, batchdata: dict[str, torch.Tensor]) -> dict:
@@ -288,7 +299,9 @@ class SupervisedEvaluator(Evaluator):
             kwargs: dict = {}
         else:
             inputs, targets, args, kwargs = batch
-
+        if self.compile:
+            inputs = torch.Tensor(inputs) if isinstance(inputs, MetaTensor) else inputs
+            targets = torch.Tensor(targets) if isinstance(targets, MetaTensor) else targets
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
         # execute forward computation
