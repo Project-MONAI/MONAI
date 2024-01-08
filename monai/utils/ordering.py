@@ -20,19 +20,19 @@ class Ordering:
     """
     Ordering class that projects a 2D or 3D image into a 1D sequence. It also allows the image to be transformed with
     one of the following transformations:
-        - Reflection - see np.flip for more details.
-        - Transposition - see np.transpose for more details.
-        - 90-degree rotation - see np.rot90 for more details.
+    Reflection (see np.flip for more details).
+    Transposition (see np.transpose for more details).
+    90-degree rotation (see np.rot90 for more details).
 
     The transformations are applied in the order specified by the transformation_order parameter.
 
     Args:
         ordering_type: The ordering type. One of the following:
             - 'raster_scan': The image is projected into a 1D sequence by scanning the image from left to right and from
-                top to bottom. Also called a row major ordering.
+            top to bottom. Also called a row major ordering.
             - 's_curve': The image is projected into a 1D sequence by scanning the image in a circular snake like
-                pattern from top left towards right gowing in a spiral towards the center.
-            - 'random': The image is projected into a 1D sequence by randomly shuffling the image.
+            pattern from top left towards right gowing in a spiral towards the center.
+            - random': The image is projected into a 1D sequence by randomly shuffling the image.
         spatial_dims: The number of spatial dimensions of the image.
         dimensions: The dimensions of the image.
         reflected_spatial_dims: A tuple of booleans indicating whether to reflect the image along each spatial dimension.
