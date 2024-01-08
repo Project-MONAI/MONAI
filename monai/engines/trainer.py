@@ -24,9 +24,9 @@ from monai.engines.workflow import Workflow
 from monai.inferers import Inferer, SimpleInferer
 from monai.transforms import Transform
 from monai.utils import GanKeys, min_version, optional_import
-from monai.utils.module import pytorch_after
 from monai.utils.enums import CommonKeys as Keys
 from monai.utils.enums import EngineStatsKeys as ESKeys
+from monai.utils.module import pytorch_after
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
