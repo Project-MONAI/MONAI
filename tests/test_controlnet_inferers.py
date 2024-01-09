@@ -26,6 +26,9 @@ from monai.networks.nets import (
     SPADEDiffusionModelUNet,
 )
 from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
+from monai.utils import optional_import
+
+_, has_scipy = optional_import("scipy")
 
 CNDM_TEST_CASES = [
     [
@@ -589,6 +592,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape, input.shape)
         self.assertEqual(likelihood.shape[0], input.shape[0])
 
+    @unittest.skipUnless(has_scipy, "Requires scipy library.")
     def test_normal_cdf(self):
         from scipy.stats import norm
 
