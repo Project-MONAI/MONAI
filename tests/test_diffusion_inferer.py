@@ -23,7 +23,7 @@ from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
 TEST_CASES = [
     [
         {
-            "spatial_dimss": 2,
+            "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 1,
             "channels": [8],
