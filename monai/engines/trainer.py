@@ -186,7 +186,9 @@ class SupervisedTrainer(Trainer):
             if pytorch_after(2, 1):
                 self.network = torch.compile(network, **compile_kwargs)
             else:
-                warnings.warn("Network compilation (compile=True) not supported for Pytorch versions before 2.1, no compilation done")
+                warnings.warn(
+                    "Network compilation (compile=True) not supported for Pytorch versions before 2.1, no compilation done"
+                )
         else:
             self.network = network
         self.compile = compile
