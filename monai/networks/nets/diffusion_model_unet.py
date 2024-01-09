@@ -430,7 +430,7 @@ class _AttentionBlock(nn.Module):
             batch, channel, height, width, depth = x.shape
 
         # norm
-        x = self.norm(x)
+        x = self.norm(x.contiguous())
 
         if self.spatial_dims == 2:
             x = x.view(batch, channel, height * width).transpose(1, 2)
