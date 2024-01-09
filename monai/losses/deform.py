@@ -60,7 +60,7 @@ class BendingEnergyLoss(_Loss):
         Args:
             normalize:
                 Whether to divide out spatial sizes in order to make the computation roughly
-                invariant to imacdge scale (i.e. vector field sampling resolution). Defaults to False.
+                invariant to image scale (i.e. vector field sampling resolution). Defaults to False.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
