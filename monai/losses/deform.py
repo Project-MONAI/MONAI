@@ -46,7 +46,10 @@ def spatial_gradient(x: torch.Tensor, dim: int) -> torch.Tensor:
 
 class BendingEnergyLoss(_Loss):
     """
-    Calculate the bending energy based on second-order differentiation of pred using central finite difference.
+    Calculate the bending energy based on second-order differentiation of ``pred`` using central finite difference.
+
+    For more information,
+    see https://github.com/Project-MONAI/tutorials/blob/main/modules/bending_energy_diffusion_loss_notes.ipynb.
 
     Adapted from:
         DeepReg (https://github.com/DeepRegNet/DeepReg)
@@ -57,7 +60,7 @@ class BendingEnergyLoss(_Loss):
         Args:
             normalize:
                 Whether to divide out spatial sizes in order to make the computation roughly
-                invariant to image scale (i.e. vector field sampling resolution). Defaults to False.
+                invariant to imacdge scale (i.e. vector field sampling resolution). Defaults to False.
             reduction: {``"none"``, ``"mean"``, ``"sum"``}
                 Specifies the reduction to apply to the output. Defaults to ``"mean"``.
 
@@ -75,6 +78,9 @@ class BendingEnergyLoss(_Loss):
 
         Raises:
             ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
+            ValueError: When ``pred`` is not 3-d, 4-d or 5-d.
+            ValueError: When any spatial dimension of ``pred`` has size less than or equal to 4.
+            ValueError: When the number of channels of ``pred`` does not match the number of spatial dimensions.
 
         """
         if pred.ndim not in [3, 4, 5]:
@@ -84,7 +90,8 @@ class BendingEnergyLoss(_Loss):
                 raise ValueError(f"All spatial dimensions must be > 4, got spatial dimensions {pred.shape[2:]}")
         if pred.shape[1] != pred.ndim - 2:
             raise ValueError(
-                f"Number of vector components, {pred.shape[1]}, does not match number of spatial dimensions, {pred.ndim-2}"
+                f"Number of vector components, i.e. number of channels of the input DDF, {pred.shape[1]}, "
+                f"does not match number of spatial dimensions, {pred.ndim - 2}"
             )
 
         # first order gradient
@@ -120,11 +127,14 @@ class BendingEnergyLoss(_Loss):
 
 class DiffusionLoss(_Loss):
     """
-    Calculate the diffusion based on first-order differentiation of pred using central finite difference.
+    Calculate the diffusion based on first-order differentiation of ``pred`` using central finite difference.
     For the original paper, please refer to
     VoxelMorph: A Learning Framework for Deformable Medical Image Registration,
     Guha Balakrishnan, Amy Zhao, Mert R. Sabuncu, John Guttag, Adrian V. Dalca
     IEEE TMI: Transactions on Medical Imaging. 2019. eprint arXiv:1809.05231.
+
+    For more information,
+    see https://github.com/Project-MONAI/tutorials/blob/main/modules/bending_energy_diffusion_loss_notes.ipynb.
 
     Adapted from:
         VoxelMorph (https://github.com/voxelmorph/voxelmorph)
