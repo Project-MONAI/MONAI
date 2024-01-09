@@ -245,7 +245,7 @@ class SupervisedEvaluator(Evaluator):
         to_kwargs: dict | None = None,
         amp_kwargs: dict | None = None,
         compile: bool = False,
-        compile_kwargs: dict = {},
+        compile_kwargs: dict | None = None,
     ) -> None:
         super().__init__(
             device=device,
@@ -269,6 +269,7 @@ class SupervisedEvaluator(Evaluator):
         )
         if compile:
             if pytorch_after(2, 1):
+                compile_kwargs = {} if compile_kwargs is None else compile_kwargs
                 self.network = torch.compile(network, **compile_kwargs)
             else:
                 warnings.warn(
