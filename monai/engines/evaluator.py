@@ -267,10 +267,10 @@ class SupervisedEvaluator(Evaluator):
             amp_kwargs=amp_kwargs,
         )
         if compile:
-            assert pytorch_after(2, 1)
-            self.network = torch.compile(network, **compile_kwargs)
-        else:
-            self.network = network
+            if pytorch_after(2, 1):
+                self.network = torch.compile(network, **compile_kwargs)
+            else:
+                warnings.warn("Network compilation (compile=True) not supported for Pytorch versions before 2.2, no compilation done")
         self.compile = compile
         self.inferer = SimpleInferer() if inferer is None else inferer
 
