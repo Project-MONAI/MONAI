@@ -19,6 +19,9 @@ from parameterized import parameterized
 from monai.inferers import DiffusionInferer
 from monai.networks.nets import DiffusionModelUNet
 from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
+from monai.utils import optional_import
+
+_, has_scipy = optional_import("scipy")
 
 TEST_CASES = [
     [
@@ -150,6 +153,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape, input.shape)
         self.assertEqual(likelihood.shape[0], input.shape[0])
 
+    @unittest.skipUnless(has_scipy, "Requires scipy library.")
     def test_normal_cdf(self):
         from scipy.stats import norm
 
