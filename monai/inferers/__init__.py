@@ -23,6 +23,7 @@ from .inferer import (
     SliceInferer,
     SlidingWindowInferer,
     SlidingWindowInfererAdapt,
+VQVAETransformerInferer
 )
 from .merger import AvgMerger, Merger, ZarrAvgMerger
 from .splitter import SlidingWindowSplitter, Splitter, WSISlidingWindowSplitter
