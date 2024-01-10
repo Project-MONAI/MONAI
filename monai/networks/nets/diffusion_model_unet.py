@@ -682,7 +682,7 @@ class _ResnetBlock(nn.Module):
             )
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
-        h = x.contiguous()
+        h = x#.contiguous()
         h = self.norm1(h)
         h = self.nonlinearity(h)
 
