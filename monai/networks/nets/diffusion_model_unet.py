@@ -1957,7 +1957,7 @@ class DiffusionModelUNet(nn.Module):
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
-        output: torch.Tensor = self.out(h)
+        output: torch.Tensor = self.out(h.contiguous())
 
         return output
 

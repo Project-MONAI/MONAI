@@ -771,7 +771,7 @@ class SliceInferer(SlidingWindowInferer):
         return tuple(out_i.unsqueeze(dim=self.spatial_dim + 2) for out_i in out)
 
 
-class DiffusionInferer(nn.Module):
+class DiffusionInferer(Inferer):
     """
     DiffusionInferer takes a trained diffusion model and a scheduler and can be used to perform a signal forward pass
     for a training iteration, and sample from the model.
