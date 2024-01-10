@@ -41,7 +41,6 @@ from monai.networks.nets import (
 )
 from monai.networks.schedulers import Scheduler
 
-# from monai.networks.schedulers import Scheduler
 from monai.transforms import CenterSpatialCrop, SpatialPad
 from monai.utils import BlendMode, Ordering, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
