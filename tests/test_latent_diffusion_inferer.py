@@ -105,6 +105,35 @@ TEST_CASES = [
         (1, 1, 16, 16, 16),
         (1, 3, 4, 4, 4),
     ],
+    [
+        "AutoencoderKL",
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4),
+            "latent_channels": 3,
+            "attention_levels": [False, False],
+            "num_res_blocks": 1,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+            "norm_num_groups": 4,
+        },
+        "SPADEDiffusionModelUNet",
+        {
+            "spatial_dims": 2,
+            "label_nc": 3,
+            "in_channels": 3,
+            "out_channels": 3,
+            "channels": [4, 4],
+            "norm_num_groups": 4,
+            "attention_levels": [False, False],
+            "num_res_blocks": 1,
+            "num_head_channels": 4,
+        },
+        (1, 1, 8, 8),
+        (1, 3, 4, 4),
+    ],
 ]
 TEST_CASES_DIFF_SHAPES = [
     [
@@ -407,12 +436,14 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             else:
                 input_shape_seg[1] = autoencoder_params["label_nc"]
             input_seg = torch.randn(input_shape_seg).to(device)
-            sample = inferer.sample(
+            sample, intermediates = inferer.sample(
                 input_noise=noise,
                 autoencoder_model=stage_1,
                 diffusion_model=stage_2,
                 scheduler=scheduler,
                 seg=input_seg,
+                save_intermediates=True,
+                intermediate_steps=1,
             )
         else:
             sample, intermediates = inferer.sample(

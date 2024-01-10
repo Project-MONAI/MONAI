@@ -40,7 +40,6 @@ from monai.networks.nets import (
     SPADEDiffusionModelUNet,
 )
 from monai.networks.schedulers import Scheduler
-
 from monai.transforms import CenterSpatialCrop, SpatialPad
 from monai.utils import BlendMode, Ordering, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
@@ -1134,8 +1133,6 @@ class LatentDiffusionInferer(DiffusionInferer):
             latent = torch.stack([self.ldm_resizer(i) for i in decollate_batch(latent)], 0)
 
         call = super().__call__
-        if isinstance(diffusion_model, SPADEDiffusionModelUNet):
-            call = partial(super().__call__, seg=seg)
 
         prediction: torch.Tensor = call(
             inputs=latent,
@@ -1144,6 +1141,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             timesteps=timesteps,
             condition=condition,
             mode=mode,
+            seg=seg,
         )
         return prediction
 
@@ -1187,8 +1185,6 @@ class LatentDiffusionInferer(DiffusionInferer):
             )
 
         sample = super().sample
-        if isinstance(diffusion_model, SPADEDiffusionModelUNet):
-            sample = partial(super().sample, seg=seg)
 
         outputs = sample(
             input_noise=input_noise,
@@ -1199,6 +1195,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             conditioning=conditioning,
             mode=mode,
             verbose=verbose,
+            seg=seg,
         )
 
         if save_intermediates:
