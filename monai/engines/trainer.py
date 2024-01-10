@@ -185,13 +185,12 @@ class SupervisedTrainer(Trainer):
         if compile:
             if pytorch_after(2, 1):
                 compile_kwargs = {} if compile_kwargs is None else compile_kwargs
-                self.network = torch.compile(network, **compile_kwargs)
+                network = torch.compile(network, **compile_kwargs)
             else:
                 warnings.warn(
                     "Network compilation (compile=True) not supported for Pytorch versions before 2.1, no compilation done"
                 )
-        else:
-            self.network = network
+        self.network = network
         self.compile = compile
         self.optimizer = optimizer
         self.loss_function = loss_function
