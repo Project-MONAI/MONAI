@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: dispatch
-        uses: peter-evans/slash-command-dispatch@v3.0.1
+        uses: peter-evans/slash-command-dispatch@v3.0.2
         with:
           token: ${{ secrets.PR_MAINTAIN }}
           reaction-token: ${{ secrets.GITHUB_TOKEN }}
