@@ -1049,7 +1049,8 @@ class DiffusionInferer(Inferer):
             original_input_range: the [min,max] intensity range of the input data before any scaling was applied.
             scaled_input_range: the [min,max] intensity range of the input data after scaling.
         """
-        assert inputs.shape == means.shape
+        if inputs.shape != means.shape:
+            raise ValueError(f"Inputs and means must have the same shape, got {inputs.shape} and {means.shape}")
         bin_width = (scaled_input_range[1] - scaled_input_range[0]) / (
             original_input_range[1] - original_input_range[0]
         )
@@ -1067,7 +1068,6 @@ class DiffusionInferer(Inferer):
             log_cdf_plus,
             torch.where(inputs > 0.999, log_one_minus_cdf_min, torch.log(cdf_delta.clamp(min=1e-12))),
         )
-        assert log_probs.shape == inputs.shape
         return log_probs
 
 
@@ -1178,8 +1178,9 @@ class LatentDiffusionInferer(DiffusionInferer):
             and autoencoder_model.decoder.label_nc != diffusion_model.label_nc
         ):
             raise ValueError(
-                "If both autoencoder_model and diffusion_model implement SPADE, the number of semantic"
-                "labels for each must be compatible. "
+                f"If both autoencoder_model and diffusion_model implement SPADE, the number of semantic"
+                f"labels for each must be compatible, but got {autoencoder_model.decoder.label_nc} and"
+                f"{diffusion_model.label_nc}"
             )
 
         outputs = super().sample(
@@ -1277,7 +1278,7 @@ class LatentDiffusionInferer(DiffusionInferer):
             conditioning=conditioning,
             mode=mode,
             verbose=verbose,
-            seg=seg
+            seg=seg,
         )
 
         if save_intermediates and resample_latent_likelihoods:
@@ -1654,7 +1655,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             cn_cond=cn_cond,
             condition=condition,
             mode=mode,
-            seg=seg
+            seg=seg,
         )
 
         return prediction
@@ -1716,7 +1717,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             conditioning=conditioning,
             mode=mode,
             verbose=verbose,
-            seg=seg
+            seg=seg,
         )
 
         if save_intermediates:
@@ -1813,7 +1814,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             conditioning=conditioning,
             mode=mode,
             verbose=verbose,
-            seg=seg
+            seg=seg,
         )
 
         if save_intermediates and resample_latent_likelihoods:
