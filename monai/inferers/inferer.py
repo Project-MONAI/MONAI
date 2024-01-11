@@ -1801,11 +1801,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         if self.ldm_latent_shape is not None:
             latents = torch.stack([self.ldm_resizer(i) for i in decollate_batch(latents)], 0)
 
-        get_likelihood = super().get_likelihood
-        if isinstance(diffusion_model, SPADEDiffusionModelUNet):
-            get_likelihood = partial(super().get_likelihood, seg=seg)
-
-        outputs = get_likelihood(
+        outputs = super().get_likelihood(
             inputs=latents,
             diffusion_model=diffusion_model,
             controlnet=controlnet,
