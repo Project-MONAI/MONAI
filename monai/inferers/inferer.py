@@ -1132,9 +1132,7 @@ class LatentDiffusionInferer(DiffusionInferer):
         if self.ldm_latent_shape is not None:
             latent = torch.stack([self.ldm_resizer(i) for i in decollate_batch(latent)], 0)
 
-        call = super().__call__
-
-        prediction: torch.Tensor = call(
+        prediction: torch.Tensor = super().__call__(
             inputs=latent,
             diffusion_model=diffusion_model,
             noise=noise,
