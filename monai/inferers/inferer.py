@@ -1654,6 +1654,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             cn_cond=cn_cond,
             condition=condition,
             mode=mode,
+            seg=seg
         )
 
         return prediction
