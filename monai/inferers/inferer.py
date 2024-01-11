@@ -1704,11 +1704,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         if cn_cond.shape[2:] != input_noise.shape[2:]:
             cn_cond = F.interpolate(cn_cond, input_noise.shape[2:])
 
-        sample = super().sample
-        if isinstance(diffusion_model, SPADEDiffusionModelUNet):
-            sample = partial(super().sample, seg=seg)
-
-        outputs = sample(
+        outputs = super().sample(
             input_noise=input_noise,
             diffusion_model=diffusion_model,
             controlnet=controlnet,
