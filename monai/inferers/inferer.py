@@ -1645,11 +1645,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         if cn_cond.shape[2:] != latent.shape[2:]:
             cn_cond = F.interpolate(cn_cond, latent.shape[2:])
 
-        call = super().__call__
-        if isinstance(diffusion_model, SPADEDiffusionModelUNet):
-            call = partial(super().__call__, seg=seg)
-
-        prediction = call(
+        prediction = super().__call__(
             inputs=latent,
             diffusion_model=diffusion_model,
             controlnet=controlnet,
