@@ -703,6 +703,125 @@ class Flip(InvertibleTransform, LazyTransform):
         with flipper.trace_transform(False):
             return flipper(data)
 
+from monai.transforms.spatial.operator import Operator
+import inspect
+import logging
+import traceback
+from pydoc import locate
+from typing import Callable
+
+import numpy as np
+import torch
+
+from monai.config import DtypeLike, NdarrayOrTensor, PathLike
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms.transform import Transform
+from monai.utils import GridSamplePadMode
+from monai.utils import ImageMetaKey as Key
+from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
+SUPPORTED_OPERATORS = {
+    "flipbox": FlipBoxOp
+}
+
+#! new Flip
+class Flip(InvertibleTransform, LazyTransform):
+    backend = [TransformBackends.TORCH]
+
+    def __init__(
+        self,
+        spatial_axis: Sequence[int] | int | None = None,
+        lazy: bool = False,
+        operator=None,
+        *args,
+        **kwargs,
+    ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
+        self.spatial_axis = spatial_axis
+        self.auto_select = operator is None
+        self.operator: list[Operator] = []
+        for r in SUPPORTED_OPERATORS:  # set predefined operators as default
+            try:
+                self.register(SUPPORTED_OPERATORS[r](*args, **kwargs))
+            except OptionalImportError:
+                logging.getLogger(self.__class__.__name__).debug(
+                    f"required package for operator {r} is not installed, or the version doesn't match requirement."
+                )
+            except TypeError:  # the operator doesn't have the corresponding args/kwargs
+                logging.getLogger(self.__class__.__name__).debug(
+                    f"{r} is not supported with the given parameters {args} {kwargs}."
+                )
+                self.register(SUPPORTED_OPERATORS[r]())
+        if operator is None:
+            return  # no user-specified operator, no need to register
+
+        for _r in ensure_tuple(operator):
+            if isinstance(_r, str):
+                the_operator, has_built_in = optional_import("monai.transforms.spatial", name=f"{_r}")  # search built-in
+                if not has_built_in:
+                    the_operator = locate(f"{_r}")  # search dotted path
+                if the_operator is None:
+                    the_operator = look_up_option(_r.lower(), SUPPORTED_OPERATORS)
+                try:
+                    self.register(the_operator(*args, **kwargs))
+                except OptionalImportError:
+                    warnings.warn(
+                        f"required package for operator {_r} is not installed, or the version doesn't match requirement."
+                    )
+                except TypeError:  # the operator doesn't have the corresponding args/kwargs
+                    warnings.warn(f"{_r} is not supported with the given parameters {args} {kwargs}.")
+                    self.register(the_operator())
+            elif inspect.isclass(_r):
+                self.register(_r(*args, **kwargs))
+            else:
+                self.register(_r)  # operator instance, ignoring the constructor args/kwargs
+        return
+
+    def register(self, operator: Operator):
+        """
+        Register image operator to load image file and metadata.
+
+        Args:
+            operator: operator instance to be registered with this loader.
+
+        """
+        if not isinstance(operator, Operator):
+            warnings.warn(f"Preferably the operator should inherit Operator, but got {type(operator)}.")
+        self.operators.append(operator)
+
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None, operator: Operator | None = None) -> torch.Tensor:
+        """
+        Args:
+            img: channel first array, must have shape: (num_channels, H[, W, ..., ])
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        lazy_ = self.lazy if lazy is None else lazy
+
+        if operator is not None:
+            img = operator.apply(img)  # runtime specified operator
+        else:
+            for operator in self.operators[::-1]:
+                if self.auto_select:  # rely on the img extension to choose the operator
+                    if operator.verify_suffix(img):
+                        img = operator.apply(img)
+                        break
+                else:  # try the user designated operators
+                    try:
+                        img = operator.apply(img)
+                    except Exception as e:
+                        err.append(traceback.format_exc())
+                        logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
+                        logging.getLogger(self.__class__.__name__).info(
+                            f"{operator.__class__.__name__}: unable to apply {img}.\n"
+                        )
+                    else:
+                        err = []
+                        break
+
+        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+
 
 class Resize(InvertibleTransform, LazyTransform):
     """
