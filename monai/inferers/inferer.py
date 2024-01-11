@@ -1811,6 +1811,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             conditioning=conditioning,
             mode=mode,
             verbose=verbose,
+            seg=seg
         )
 
         if save_intermediates and resample_latent_likelihoods:
