@@ -1182,9 +1182,7 @@ class LatentDiffusionInferer(DiffusionInferer):
                 "labels for each must be compatible. "
             )
 
-        sample = super().sample
-
-        outputs = sample(
+        outputs = super().sample(
             input_noise=input_noise,
             diffusion_model=diffusion_model,
             scheduler=scheduler,
