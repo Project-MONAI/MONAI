@@ -1699,7 +1699,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         ):
             raise ValueError(
                 "If both autoencoder_model and diffusion_model implement SPADE, the number of semantic"
-                "labels for each must be compatible. "
+                "labels for each must be compatible. Got {autoencoder_model.decoder.label_nc} and {diffusion_model.label_nc}"
             )
 
         if cn_cond.shape[2:] != input_noise.shape[2:]:
