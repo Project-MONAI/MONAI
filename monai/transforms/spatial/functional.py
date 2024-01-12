@@ -24,6 +24,7 @@ import torch
 import monai
 from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import get_spatial_dims
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
@@ -263,6 +264,39 @@ def flip(img, sp_axes, lazy, transform_info):
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip_point(points, spatial_size, sp_axes):
+    """
+    Functional implementation of flip points.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        points: point coordinates, [x, y] or [x, y, z], Nx2 or Nx3 torch tensor or ndarray
+        spatial_size: image spatial size.
+        sp_axes: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+
+    Returns:
+        flipped points, with same data type as ``points``, does not share memory with ``points``
+    """
+    spatial_dims: int = get_spatial_dims(points=points)
+    spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
+    if sp_axes is None:
+        sp_axes = tuple(range(0, spatial_dims))
+    sp_axes = ensure_tuple(sp_axes)
+
+    # flip box
+    _flip_points: NdarrayTensor = points.clone() if isinstance(points, torch.Tensor) else deepcopy(points)  # type: ignore[assignment]
+
+    for axis in sp_axes:
+        _flip_points[:, axis] = spatial_size[axis] - points[:, axis]
+
+    return _flip_points
 
 
 def resize(
