@@ -4,39 +4,16 @@ A collection of "operator" transforms for spatial operations.
 
 from __future__ import annotations
 
-import math
-import warnings
 from collections.abc import Sequence
 from abc import ABC, abstractmethod
-from enum import Enum
 
-import numpy as np
 import torch
 
-import monai
-from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.meta_obj import get_track_meta
-from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
-from monai.networks.layers import AffineTransform
-from monai.transforms.croppad.array import ResizeWithPadOrCrop
-from monai.transforms.intensity.array import GaussianSmooth
-from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
-from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
-    LazyAttr,
-    TraceKeys,
-    convert_to_dst_type,
-    convert_to_numpy,
-    convert_to_tensor,
-    ensure_tuple,
-    ensure_tuple_rep,
-    fall_back_tuple,
     optional_import,
 )
-from monai.transforms.spatial.functional import _maybe_new_metatensor, flip
+from monai.transforms.spatial.functional import flip
 from monai.apps.detection.transforms.box_ops import flip_boxes
 
 nib, has_nib = optional_import("nibabel")
@@ -82,7 +59,7 @@ class Operator(ABC):
 class FlipImageOp(Operator):
     def __init__(self) -> None:
         super().__init__()
-    
+
     def apply(self, img, sp_axes, lazy, transform_info, **kwargs):
         """
         Functional implementation of flip.
@@ -114,4 +91,3 @@ class FlipPointOp(Operator):
         """
 
         return flip_boxes(boxes, spatial_size=spatial_size, spatial_axis=spatial_axis)
-
