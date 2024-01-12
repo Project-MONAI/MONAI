@@ -824,7 +824,7 @@ class FlipPoint(InvertibleTransform):
         self.pop_transform(data)
         flipper = FlipPoint(spatial_axis=self.spatial_axis)
         return self.inverse_transform(data, flipper)
-    
+
     def inverse_transform(self, data: torch.Tensor, transform):
         spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
         with transform.trace_transform(False):
