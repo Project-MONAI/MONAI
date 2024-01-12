@@ -41,6 +41,7 @@ from monai.transforms.spatial.functional import (
     rotate90,
     spatial_resample,
     zoom,
+    flip_point,
 )
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
@@ -807,12 +808,28 @@ class Flip(InvertibleTransform, LazyTransform):
         return ret
 
 
-class FlipPoint():
+class FlipPoint(InvertibleTransform):
     def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
-        pass
+        self.spatial_axis = spatial_axis
 
-    def __call__(self, spatial_size, *args: Any, **kwds: Any) -> Any:
-        pass
+    def __call__(self, data: torch.Tensor, spatial_size: Sequence[int] | int | None = None) -> torch.Tensor:
+        """
+        Args:
+            data: point coordinates, [x, y] or [x, y, z], Nx2 or Nx3 torch tensor or ndarray
+        """
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        return flip_point(data, self.spatial_axis, spatial_size)  # type: ignore
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        self.pop_transform(data)
+        flipper = FlipPoint(spatial_axis=self.spatial_axis)
+        return self.inverse_transform(data, flipper)
+    
+    def inverse_transform(self, data: torch.Tensor, transform):
+        spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+        with transform.trace_transform(False):
+            data = transform(data, spatial_size)
+        return data
 
 
 class Resize(InvertibleTransform, LazyTransform):

@@ -266,7 +266,7 @@ def flip(img, sp_axes, lazy, transform_info):
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def flip_point(points, spatial_size, sp_axes):
+def flip_point(points, sp_axes, spatial_size, transform_info):
     """
     Functional implementation of flip points.
     This function operates eagerly or lazily according to
@@ -274,12 +274,12 @@ def flip_point(points, spatial_size, sp_axes):
 
     Args:
         points: point coordinates, [x, y] or [x, y, z], Nx2 or Nx3 torch tensor or ndarray
-        spatial_size: image spatial size.
         sp_axes: spatial axes along which to flip over. Default is None.
             The default `axis=None` will flip over all of the axes of the input array.
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
+        spatial_size: image spatial size.
 
     Returns:
         flipped points, with same data type as ``points``, does not share memory with ``points``
@@ -288,15 +288,23 @@ def flip_point(points, spatial_size, sp_axes):
     spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
     if sp_axes is None:
         sp_axes = tuple(range(0, spatial_dims))
+    extra_info = {
+        "axes": sp_axes,  # track the spatial axes
+        "spatial_size": spatial_size,
+        "type": "box_key",
+    }
     sp_axes = ensure_tuple(sp_axes)
 
+    meta_info = TraceableTransform.track_transform_meta(
+        points, extra_info=extra_info, transform_info=transform_info
+    )
+
     # flip box
-    _flip_points: NdarrayTensor = points.clone() if isinstance(points, torch.Tensor) else deepcopy(points)  # type: ignore[assignment]
-
+    out: NdarrayTensor = points.clone() if isinstance(points, torch.Tensor) else deepcopy(points)  # type: ignore[assignment]
     for axis in sp_axes:
-        _flip_points[:, axis] = spatial_size[axis] - points[:, axis]
+        out[:, axis] = spatial_size[axis] - points[:, axis]
 
-    return _flip_points
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
 def resize(
