@@ -36,6 +36,8 @@ from monai.utils import (
     fall_back_tuple,
     optional_import,
 )
+from monai.transforms.spatial.functional import _maybe_new_metatensor, flip
+from monai.apps.detection.transforms.box_ops import flip_boxes
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -45,8 +47,7 @@ np_ndi, _ = optional_import("scipy.ndimage")
 __all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
 
 
-from monai.transforms.spatial.functional import _maybe_new_metatensor, flip
-from monai.apps.detection.transforms.box_ops import flip_boxes
+
 class Operator(ABC):
     """
     An abstract class defines APIs to load image files.
@@ -78,7 +79,7 @@ class Operator(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-class FlipImgOp(Operator):
+class FlipImageOp(Operator):
     def __init__(self) -> None:
         super().__init__()
     
@@ -101,7 +102,7 @@ class FlipImgOp(Operator):
         return flip(img, sp_axes, lazy=lazy, transform_info=transform_info)  # type: ignore
 
 
-class FlipBoxOp(Operator):
+class FlipPointOp(Operator):
     def __init__(self) -> None:
         super().__init__()
 

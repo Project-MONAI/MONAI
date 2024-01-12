@@ -34,6 +34,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
     Flip,
+    FlipPoint,
     GridDistortion,
     GridPatch,
     GridSplit,
@@ -1524,6 +1525,75 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.flipper.inverse(d[key])
+        return d
+
+
+class Flipd(MapTransform, InvertibleTransform, LazyTransform):
+    backend = Flip.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        point_keys: KeysCollection | None = None,
+        point_ref_image_keys: KeysCollection | None = None,
+        spatial_axis: Sequence[int] | int | None = None,
+        allow_missing_keys: bool = False,
+        lazy: bool = False,
+    ) -> None:
+        self.image_keys = ensure_tuple(keys)
+        self.point_keys = ensure_tuple(point_keys)
+        MapTransform.__init__(self, self.image_keys + self.point_keys, allow_missing_keys)
+        LazyTransform.__init__(self, lazy=lazy)
+        self.flipper = Flip(spatial_axis=spatial_axis)
+        self.point_ref_image_keys = point_ref_image_keys
+        if point_keys is not None:
+            self.point_ref_image_keys = ensure_tuple_rep(point_ref_image_keys, len(self.point_keys))
+            self.point_flipper = FlipPoint(spatial_axis=self.flipper.spatial_axis)
+
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self.flipper.lazy = val
+        self._lazy = val
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+        """
+        Args:
+            data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
+                in this dictionary must be tensor like arrays that are channel first and have at most
+                three spatial dimensions
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
+
+        Returns:
+            a dictionary containing the transformed data, as well as any other data present in the dictionary
+        """
+        d = dict(data)
+        lazy_ = self.lazy if lazy is None else lazy
+        for key in self.image_keys:
+            d[key] = self.flipper(d[key], lazy=lazy_)
+        if self.point_keys is not None:
+            for point_key, point_ref_image_key in zip(self.point_keys, self.point_ref_image_keys):
+                spatial_size = d[point_ref_image_key].shape[1:]
+                d[point_key] = self.point_flipper(d[point_key], spatial_size)
+                self.push_transform(d, point_key, extra_info={"spatial_size": spatial_size, "type": "box_key"})
+        return d
+
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            transform = self.get_most_recent_transform(d, key, check=False)
+            key_type = transform.get(TraceKeys.EXTRA_INFO, {}).get("type", "image_key")
+            # flip image, copied from monai.transforms.spatial.dictionary.Flipd
+            if key_type == "image_key":
+                d[key] = self.flipper.inverse(d[key])
+
+            # flip boxes
+            if key_type == "box_key":
+                spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
+                d[key] = self.point_flipper(d[key], spatial_size)
+                # Remove the applied transform
+                self.pop_transform(d, key)
         return d
 
 

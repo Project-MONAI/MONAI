@@ -76,6 +76,8 @@ from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBack
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
+from monai.transforms.spatial.operator import Operator, FlipPointOp, FlipImageOp
+
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -659,71 +661,55 @@ class Orientation(InvertibleTransform, LazyTransform):
         return data
 
 
-# class Flip(InvertibleTransform, LazyTransform):
-#     """
-#     Reverses the order of elements along the given spatial axis. Preserves shape.
-#     See `torch.flip` documentation for additional details:
-#     https://pytorch.org/docs/stable/generated/torch.flip.html
+class Flip(InvertibleTransform, LazyTransform):
+    """
+    Reverses the order of elements along the given spatial axis. Preserves shape.
+    See `torch.flip` documentation for additional details:
+    https://pytorch.org/docs/stable/generated/torch.flip.html
 
-#     This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
-#     for more information.
+    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+    for more information.
 
-#     Args:
-#         spatial_axis: spatial axes along which to flip over. Default is None.
-#             The default `axis=None` will flip over all of the axes of the input array.
-#             If axis is negative it counts from the last to the first axis.
-#             If axis is a tuple of ints, flipping is performed on all of the axes
-#             specified in the tuple.
-#         lazy: a flag to indicate whether this transform should execute lazily or not.
-#             Defaults to False
+    Args:
+        spatial_axis: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+        lazy: a flag to indicate whether this transform should execute lazily or not.
+            Defaults to False
 
-#     """
+    """
 
-#     backend = [TransformBackends.TORCH]
+    backend = [TransformBackends.TORCH]
 
-#     def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
-#         LazyTransform.__init__(self, lazy=lazy)
-#         self.spatial_axis = spatial_axis
+    def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
+        self.spatial_axis = spatial_axis
 
-#     def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
-#         """
-#         Args:
-#             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
-#             lazy: a flag to indicate whether this transform should execute lazily or not
-#                 during this call. Setting this to False or True overrides the ``lazy`` flag set
-#                 during initialization for this call. Defaults to None.
-#         """
-#         img = convert_to_tensor(img, track_meta=get_track_meta())
-#         lazy_ = self.lazy if lazy is None else lazy
-#         return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+        """
+        Args:
+            img: channel first array, must have shape: (num_channels, H[, W, ..., ])
+            lazy: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy`` flag set
+                during initialization for this call. Defaults to None.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        lazy_ = self.lazy if lazy is None else lazy
+        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
-#     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-#         self.pop_transform(data)
-#         flipper = Flip(spatial_axis=self.spatial_axis)
-#         with flipper.trace_transform(False):
-#             return flipper(data)
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        self.pop_transform(data)
+        flipper = Flip(spatial_axis=self.spatial_axis)
+        with flipper.trace_transform(False):
+            return flipper(data)
 
-from monai.transforms.spatial.operator import Operator, FlipBoxOp
-import inspect
-import logging
-import traceback
-from pydoc import locate
-from typing import Callable
-
-import numpy as np
-import torch
-
-from monai.config import DtypeLike, NdarrayOrTensor, PathLike
-from monai.data.meta_tensor import MetaTensor
-from monai.transforms.transform import Transform
-from monai.utils import GridSamplePadMode
-from monai.utils import ImageMetaKey as Key
-from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
 SUPPORTED_OPERATORS = {
-    "flipbox": FlipBoxOp
+    "flippoint": FlipPointOp
 }
 
-#! new Flip
+#! Flip with operators
 class Flip(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH]
 
@@ -736,6 +722,7 @@ class Flip(InvertibleTransform, LazyTransform):
         **kwargs,
     ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
+        self.kwargs = kwargs
         self.spatial_axis = spatial_axis
         self.operators: list[Operator] = []
         for r in SUPPORTED_OPERATORS:  # set predefined operators as default
@@ -777,39 +764,29 @@ class Flip(InvertibleTransform, LazyTransform):
 
     def register(self, operator: Operator):
         """
-        Register image operator to load image file and metadata.
+        Register operator to flip the input.
 
         Args:
-            operator: operator instance to be registered with this loader.
+            operator: operator instance to be registered with Flip.
 
         """
         if not isinstance(operator, Operator):
             warnings.warn(f"Preferably the operator should inherit Operator, but got {type(operator)}.")
         self.operators.append(operator)
 
-    def __call__(self, img: torch.Tensor, lazy: bool | None = None, operator: Operator | None = None) -> torch.Tensor:
-        """
-        Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ])
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
-                during initialization for this call. Defaults to None.
-        """
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None, operator: Operator | None = None, **kwargs) -> torch.Tensor:
         img = convert_to_tensor(img, track_meta=get_track_meta())
         lazy_ = self.lazy if lazy is None else lazy
-        kwargs = {
-            "transform_info": self.get_transform_info(),
-            "lazy": lazy_,
-            "spatial_size": 
-        }
+        self.kwargs.update({"lazy": lazy_, "transform_info": self.get_transform_info()})
+
         ret, err = None, []
         if operator is not None:
-            ret =  operator.apply(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # runtime specified operator
+            ret =  operator.apply(img, self.spatial_axis, **self.kwargs)  # runtime specified operator
         else:
             for operator in self.operators[::-1]:
                 # try the user designated operators
                 try:
-                    ret = operator.apply(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())
+                    ret = operator.apply(img, self.spatial_axis, **self.kwargs)
                 except Exception as e:
                     err.append(traceback.format_exc())
                     logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
@@ -828,6 +805,14 @@ class Flip(InvertibleTransform, LazyTransform):
                 f"   The current registered: {self.operator}.\n{msg}"
             )
         return ret
+
+
+class FlipPoint():
+    def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
+        pass
+
+    def __call__(self, spatial_size, *args: Any, **kwds: Any) -> Any:
+        pass
 
 
 class Resize(InvertibleTransform, LazyTransform):
