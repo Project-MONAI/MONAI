@@ -659,51 +659,51 @@ class Orientation(InvertibleTransform, LazyTransform):
         return data
 
 
-class Flip(InvertibleTransform, LazyTransform):
-    """
-    Reverses the order of elements along the given spatial axis. Preserves shape.
-    See `torch.flip` documentation for additional details:
-    https://pytorch.org/docs/stable/generated/torch.flip.html
+# class Flip(InvertibleTransform, LazyTransform):
+#     """
+#     Reverses the order of elements along the given spatial axis. Preserves shape.
+#     See `torch.flip` documentation for additional details:
+#     https://pytorch.org/docs/stable/generated/torch.flip.html
 
-    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
-    for more information.
+#     This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
+#     for more information.
 
-    Args:
-        spatial_axis: spatial axes along which to flip over. Default is None.
-            The default `axis=None` will flip over all of the axes of the input array.
-            If axis is negative it counts from the last to the first axis.
-            If axis is a tuple of ints, flipping is performed on all of the axes
-            specified in the tuple.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
-            Defaults to False
+#     Args:
+#         spatial_axis: spatial axes along which to flip over. Default is None.
+#             The default `axis=None` will flip over all of the axes of the input array.
+#             If axis is negative it counts from the last to the first axis.
+#             If axis is a tuple of ints, flipping is performed on all of the axes
+#             specified in the tuple.
+#         lazy: a flag to indicate whether this transform should execute lazily or not.
+#             Defaults to False
 
-    """
+#     """
 
-    backend = [TransformBackends.TORCH]
+#     backend = [TransformBackends.TORCH]
 
-    def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
-        LazyTransform.__init__(self, lazy=lazy)
-        self.spatial_axis = spatial_axis
+#     def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
+#         LazyTransform.__init__(self, lazy=lazy)
+#         self.spatial_axis = spatial_axis
 
-    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
-        """
-        Args:
-            img: channel first array, must have shape: (num_channels, H[, W, ..., ])
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
-                during initialization for this call. Defaults to None.
-        """
-        img = convert_to_tensor(img, track_meta=get_track_meta())
-        lazy_ = self.lazy if lazy is None else lazy
-        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+#     def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+#         """
+#         Args:
+#             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
+#             lazy: a flag to indicate whether this transform should execute lazily or not
+#                 during this call. Setting this to False or True overrides the ``lazy`` flag set
+#                 during initialization for this call. Defaults to None.
+#         """
+#         img = convert_to_tensor(img, track_meta=get_track_meta())
+#         lazy_ = self.lazy if lazy is None else lazy
+#         return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        self.pop_transform(data)
-        flipper = Flip(spatial_axis=self.spatial_axis)
-        with flipper.trace_transform(False):
-            return flipper(data)
+#     def inverse(self, data: torch.Tensor) -> torch.Tensor:
+#         self.pop_transform(data)
+#         flipper = Flip(spatial_axis=self.spatial_axis)
+#         with flipper.trace_transform(False):
+#             return flipper(data)
 
-from monai.transforms.spatial.operator import Operator
+from monai.transforms.spatial.operator import Operator, FlipBoxOp
 import inspect
 import logging
 import traceback
@@ -737,8 +737,7 @@ class Flip(InvertibleTransform, LazyTransform):
     ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
-        self.auto_select = operator is None
-        self.operator: list[Operator] = []
+        self.operators: list[Operator] = []
         for r in SUPPORTED_OPERATORS:  # set predefined operators as default
             try:
                 self.register(SUPPORTED_OPERATORS[r](*args, **kwargs))
@@ -798,29 +797,37 @@ class Flip(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         lazy_ = self.lazy if lazy is None else lazy
-
+        kwargs = {
+            "transform_info": self.get_transform_info(),
+            "lazy": lazy_,
+            "spatial_size": 
+        }
+        ret, err = None, []
         if operator is not None:
-            img = operator.apply(img)  # runtime specified operator
+            ret =  operator.apply(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # runtime specified operator
         else:
             for operator in self.operators[::-1]:
-                if self.auto_select:  # rely on the img extension to choose the operator
-                    if operator.verify_suffix(img):
-                        img = operator.apply(img)
-                        break
-                else:  # try the user designated operators
-                    try:
-                        img = operator.apply(img)
-                    except Exception as e:
-                        err.append(traceback.format_exc())
-                        logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
-                        logging.getLogger(self.__class__.__name__).info(
-                            f"{operator.__class__.__name__}: unable to apply {img}.\n"
-                        )
-                    else:
-                        err = []
-                        break
-
-        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+                # try the user designated operators
+                try:
+                    ret = operator.apply(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())
+                except Exception as e:
+                    err.append(traceback.format_exc())
+                    logging.getLogger(self.__class__.__name__).debug(e, exc_info=True)
+                    logging.getLogger(self.__class__.__name__).info(
+                        f"{operator.__class__.__name__}: unable to apply {img}.\n"
+                    )
+                else:
+                    err = []
+                    break
+        
+        if ret is None or operator is None:
+            filename = img.meta[Key.FILENAME_OR_OBJ] if isinstance(img, MetaTensor) else None
+            msg = "\n".join([f"{e}" for e in err])
+            raise RuntimeError(
+                f"{self.__class__.__name__} cannot find a suitable operator for data: {filename}.\n"
+                f"   The current registered: {self.operator}.\n{msg}"
+            )
+        return ret
 
 
 class Resize(InvertibleTransform, LazyTransform):

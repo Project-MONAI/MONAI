@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from collections.abc import Sequence
 from abc import ABC, abstractmethod
 from enum import Enum
 
@@ -44,6 +45,8 @@ np_ndi, _ = optional_import("scipy.ndimage")
 __all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
 
 
+from monai.transforms.spatial.functional import _maybe_new_metatensor, flip
+from monai.apps.detection.transforms.box_ops import flip_boxes
 class Operator(ABC):
     """
     An abstract class defines APIs to load image files.
@@ -63,7 +66,7 @@ class Operator(ABC):
 
     """
     @abstractmethod
-    def apply(self, data: Sequence[PathLike] | PathLike, **kwargs) -> Sequence[Any] | Any:
+    def apply(self, img: torch.Tensor, **kwargs):
         """
         Read image data from specified file or files.
         Note that it returns a data object or a sequence of data objects.
@@ -75,11 +78,11 @@ class Operator(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-class FlipBoxOp(Operator):
+class FlipImgOp(Operator):
     def __init__(self) -> None:
         super().__init__()
     
-    def apply(self, img, sp_axes, lazy, transform_info):
+    def apply(self, img, sp_axes, lazy, transform_info, **kwargs):
         """
         Functional implementation of flip.
         This function operates eagerly or lazily according to
@@ -95,22 +98,19 @@ class FlipBoxOp(Operator):
             lazy: a flag that indicates whether the operation should be performed lazily or not
             transform_info: a dictionary with the relevant information pertaining to an applied transform.
         """
-        sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-        sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
-        extra_info = {"axes": sp_axes}  # track the spatial axes
-        axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
-        rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
-        # axes include the channel dim
-        xform = torch.eye(int(rank) + 1, dtype=torch.double)
-        for axis in axes:
-            sp = axis - 1
-            xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
-        meta_info = TraceableTransform.track_transform_meta(
-            img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
-        )
-        out = _maybe_new_metatensor(img)
-        if lazy:
-            return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
-        out = torch.flip(out, axes)
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+        return flip(img, sp_axes, lazy=lazy, transform_info=transform_info)  # type: ignore
+
+
+class FlipBoxOp(Operator):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def apply(self, boxes: NdarrayOrTensor, spatial_size: Sequence[int] | int, spatial_axis: Sequence[int] | int | None = None, **kwargs):
+        """
+        Args:
+            boxes: bounding boxes, Nx4 or Nx6 torch tensor or ndarray. The box mode is assumed to be ``StandardMode``
+            spatial_size: image spatial size.
+        """
+
+        return flip_boxes(boxes, spatial_size=spatial_size, spatial_axis=spatial_axis)
 
