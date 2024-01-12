@@ -1,19 +1,11 @@
-import os
-from typing import List, Dict, Optional, Sequence, Union, Tuple
-from monai.config.type_definitions import NdarrayOrTensor, KeysCollection
-from typing import Any, Callable, Hashable, Mapping, Dict, List, Union, Sequence, Optional
-from monai.transforms.transform import Transform, MapTransform
+from typing import List, Tuple
+from typing import List
 import cv2
 import json
-from monai.utils import ensure_tuple, look_up_option
-from monai.config import PathLike
-from pathlib import Path
 import numpy as np
-from random import shuffle
-import time
 from monai.transforms import Compose, ScaleIntensity, EnsureChannelFirst, \
     Flip, Rotate90, RepeatChannel, AsChannelLast, LoadImage, ToNumpy, ToTensor, Transpose, \
-    Resample, Resize, RandAdjustContrast, GaussianSmooth
+    Resize, RandAdjustContrast, GaussianSmooth
 
 
 def sanity_check(image, labels):
@@ -44,7 +36,7 @@ def sanity_check(image, labels):
     return img
 
 
-class ImageIntensityAndAnnotation(object):
+class ImageIntensityAndAnnotation:
     def __init__(self, gamma=2.0, prob=0.1, mode='RandAdjustContrast', sigma=1):
         self.gamma = gamma
         self.prob = prob
@@ -70,7 +62,7 @@ class ImageIntensityAndAnnotation(object):
         return {'images': image_np, 'labels': annotation}
 
 
-class LoadImageAndAnnotations(object):
+class LoadImageAndAnnotations:
     def __init__(self, labels: List[str]):
         self.labels = labels
 
@@ -80,7 +72,7 @@ class LoadImageAndAnnotations(object):
         image_transform_list = Compose([LoadImage(image_only=True), EnsureChannelFirst(),
                                         Flip(spatial_axis=1), Rotate90(), RepeatChannel(repeats=3), AsChannelLast()])
         image = image_transform_list(self.image_name)
-        fid = open(self.labelfile, 'r')
+        fid = open(self.labelfile)
         anno_dict_list = json.load(fid)['shapes']
         all_labels = []
         for _lab in self.labels:
@@ -92,7 +84,7 @@ class LoadImageAndAnnotations(object):
         return {'images': image, 'labels': all_labels}
 
 
-class RotateImageAndAnnotations(object):
+class RotateImageAndAnnotations:
     def __init__(self, angle: float = 10.0):
         self.angle = angle
 
@@ -130,7 +122,7 @@ class RotateImageAndAnnotations(object):
         return _rotated_image, calculated_point_list
 
 
-class FlipImageAndAnnotations(object):
+class FlipImageAndAnnotations:
     def __init__(self, flip_axes: int = 1):
         self.flip_axes = flip_axes
 
@@ -165,7 +157,7 @@ class FlipImageAndAnnotations(object):
 
         return np.asarray(new_point)
 
-class ResampleImageAndAnnotations(object):
+class ResampleImageAndAnnotations:
     def __init__(self, output_size: Tuple[int, ...]):
         self.output_size = output_size
         self.new_width = output_size[0]
