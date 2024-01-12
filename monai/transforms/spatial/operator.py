@@ -37,7 +37,7 @@ from monai.utils import (
     optional_import,
 )
 from monai.transforms.spatial.functional import _maybe_new_metatensor, flip
-from monai.apps.detection.transforms.box_ops import flip_boxes
+# from monai.apps.detection.transforms.box_ops import flip_boxes
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
