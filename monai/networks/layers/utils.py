@@ -135,5 +135,5 @@ def get_rel_pos_embedding_layer(name: tuple | str, s_input_dims: Optional[tuple]
     kw_args = {"s_input_dims": s_input_dims, "c_dim": c_dim, "num_heads": num_heads, **embedding_args}
     # filter out unused argument names
     kw_args = {k: v for k, v in kw_args.items() if has_option(embedding_type, k)}
-            
+
     return embedding_type(**kw_args)
