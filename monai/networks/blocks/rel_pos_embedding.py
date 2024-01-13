@@ -15,6 +15,7 @@ import torch
 from torch import nn
 
 from monai.networks.blocks.attention_utils import add_decomposed_rel_pos
+from monai.utils.misc import ensure_tuple_size
 
 
 class DecomposedRelativePosEmbedding(nn.Module):
@@ -41,8 +42,7 @@ class DecomposedRelativePosEmbedding(nn.Module):
     def forward(self, x: torch.Tensor, att_mat: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
         """"""
         batch = x.shape[0]
-        h, w = self.s_input_dims[:2]
-        d = self.s_input_dims[2] if len(self.s_input_dims) == 3 else 1
+        h, w, d = ensure_tuple_size(self.s_input_dims, 3, 1)
 
         att_mat = add_decomposed_rel_pos(
             att_mat.contiguous().view(batch * self.num_heads, h * w * d, h * w * d),
