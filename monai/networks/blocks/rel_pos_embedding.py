@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Iterable, Tuple
 
 import torch
 from torch import nn
@@ -18,14 +18,19 @@ from monai.networks.blocks.attention_utils import add_decomposed_rel_pos
 
 
 class DecomposedRelativePosEmbedding(nn.Module):
-    def __init__(self, s_input_dims: Tuple, c_dim: int, num_heads: int) -> None:
+    def __init__(self, s_input_dims: Tuple[int, int] | Tuple[int, int, int], c_dim: int, num_heads: int) -> None:
         """
         Args:
             s_input_dims (Tuple): input spatial dimension. (H, W) or (H, W, D)
             c_dim (int): channel dimension
-            num_heads(int): number of attentio heads
+            num_heads(int): number of attention heads
         """
         super().__init__()
+
+        # validate inputs
+        if not isinstance(s_input_dims, Iterable) or len(s_input_dims) not in [2, 3]:
+            raise ValueError("s_input_dims must be set as follows: (H, W) or (H, W, D)")
+
         self.s_input_dims = s_input_dims
         self.c_dim = c_dim
         self.num_heads = num_heads
@@ -36,8 +41,8 @@ class DecomposedRelativePosEmbedding(nn.Module):
     def forward(self, x: torch.Tensor, att_mat: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
         """"""
         batch = x.shape[0]
-        h, w = self.s_input_dims[:2] if self.s_input_dims is not None else (0, 0)
-        d = self.s_input_dims[2] if self.s_input_dims is not None and len(self.s_input_dims) > 2 else 1
+        h, w = self.s_input_dims[:2]
+        d = self.s_input_dims[2] if len(self.s_input_dims) == 3 else 1
 
         att_mat = add_decomposed_rel_pos(
             att_mat.contiguous().view(batch * self.num_heads, h * w * d, h * w * d),
