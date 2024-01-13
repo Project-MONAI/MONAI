@@ -130,14 +130,10 @@ def get_pool_layer(name: tuple | str, spatial_dims: int | None = 1):
 
 def get_rel_pos_embedding_layer(name: tuple | str, s_input_dims: Optional[tuple], c_dim: int, num_heads: int):
     embedding_name, embedding_args = split_args(name)
-    kw_args = dict(embedding_args)
     embedding_type = RelPosEmbedding[embedding_name]
-
-    if has_option(embedding_type, "s_input_dims") and "s_input_dims" not in kw_args:
-        embedding_args["s_input_dims"] = s_input_dims
-    if has_option(embedding_type, "c_dim") and "c_dim" not in kw_args:
-        embedding_args["c_dim"] = c_dim
-    if has_option(embedding_type, "num_heads") and "num_heads" not in kw_args:
-        embedding_args["num_heads"] = num_heads
-
-    return embedding_type(**embedding_args)
+    # create a dictionary with the default values which can be overridden by embedding_args
+    kw_args = {"s_input_dims": s_input_dims, "c_dim": c_dim, "num_heads": num_heads, **embedding_args}
+    # filter out unused argument names
+    kw_args = {k: v for k, v in kw_args.items() if has_option(embedding_type, k)}
+            
+    return embedding_type(**kw_args)
