@@ -248,6 +248,12 @@ Blocks
 .. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
    :members:
 
+`Attention utilities`
+~~~~~~~~~~~~~~~~~~~~~
+.. automodule:: monai.networks.blocks.attention_utils
+.. autofunction:: monai.networks.blocks.attention_utils.get_rel_pos
+.. autofunction:: monai.networks.blocks.attention_utils.add_decomposed_rel_pos
+
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.networks.blocks.fft_utils_t
