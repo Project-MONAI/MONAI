@@ -475,7 +475,7 @@ def constant_pad_factory(dim: int) -> type[nn.ConstantPad1d | nn.ConstantPad2d |
 
 
 @RelPosEmbedding.factory_function("decomposed")
-def decomposed_rel_pos_embedding() -> type[nn.Module}:
+def decomposed_rel_pos_embedding() -> type[nn.Module]:
     from monai.networks.blocks.rel_pos_embedding import DecomposedRelativePosEmbedding
 
     return DecomposedRelativePosEmbedding
