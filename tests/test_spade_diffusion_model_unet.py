@@ -25,7 +25,7 @@ UNCOND_CASES_2D = [
             "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 1,
-            "num_res_blocks": 1,
+            "num_res_fblocks": 1,
             "channels": (8, 8, 8),
             "attention_levels": (False, False, False),
             "norm_num_groups": 8,
