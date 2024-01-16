@@ -223,6 +223,7 @@ class SupervisedTrainer(Trainer):
             kwargs: dict = {}
         else:
             inputs, targets, args, kwargs = batch
+        # FIXME: workaround for https://github.com/pytorch/pytorch/issues/117026
         if self.compile:
             inputs = torch.Tensor(inputs) if isinstance(inputs, MetaTensor) else inputs
             targets = torch.Tensor(targets) if isinstance(targets, MetaTensor) else targets
