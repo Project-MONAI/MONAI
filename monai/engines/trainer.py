@@ -225,8 +225,12 @@ class SupervisedTrainer(Trainer):
             inputs, targets, args, kwargs = batch
         # FIXME: workaround for https://github.com/pytorch/pytorch/issues/117026
         if self.compile:
-            inputs = torch.Tensor(inputs) if isinstance(inputs, MetaTensor) else inputs
-            targets = torch.Tensor(targets) if isinstance(targets, MetaTensor) else targets
+            inputs_meta, targets_meta = None, None
+            if isinstance(inputs, MetaTensor):
+                inputs, inputs_meta = inputs.as_tensor(), inputs.meta
+            if isinstance(targets, MetaTensor):
+                targets, targets_meta = targets.as_tensor(), targets.meta
+            
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
@@ -252,7 +256,11 @@ class SupervisedTrainer(Trainer):
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             engine.optimizer.step()
         engine.fire_event(IterationEvents.MODEL_COMPLETED)
-
+        if self.compile:
+            if inputs_meta is not None:
+                engine.state.output[Keys.IMAGE] = MetaTensor(inputs, meta=inputs_meta)
+            if targets_meta is not None:
+                engine.state.output[Keys.LABEL] = MetaTensor(targets, meta=targets_meta)
         return engine.state.output
 
 
