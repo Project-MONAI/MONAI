@@ -230,7 +230,7 @@ class SupervisedTrainer(Trainer):
                 inputs, inputs_meta = inputs.as_tensor(), inputs.meta
             if isinstance(targets, MetaTensor):
                 targets, targets_meta = targets.as_tensor(), targets.meta
-            
+
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
 
