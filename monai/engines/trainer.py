@@ -225,11 +225,12 @@ class SupervisedTrainer(Trainer):
             inputs, targets, args, kwargs = batch
         # FIXME: workaround for https://github.com/pytorch/pytorch/issues/117026
         if self.compile:
-            inputs_meta, targets_meta = None, None
+            inputs_meta, targets_meta, inputs_applied_operations, targets_applied_operations = None, None, None, None
             if isinstance(inputs, MetaTensor):
-                inputs, inputs_meta = inputs.as_tensor(), inputs.meta
+                warnings.warn("Will convert to PyTorch Tensor if using compile, and casting back to MetaTensor after the forward pass.")
+                inputs, inputs_meta, inputs_applied_operations = inputs.as_tensor(), inputs.meta, inputs.applied_operations
             if isinstance(targets, MetaTensor):
-                targets, targets_meta = targets.as_tensor(), targets.meta
+                targets, targets_meta, targets_applied_operations = targets.as_tensor(), targets.meta, targets.applied_operations
 
         # put iteration outputs into engine.state
         engine.state.output = {Keys.IMAGE: inputs, Keys.LABEL: targets}
@@ -255,12 +256,17 @@ class SupervisedTrainer(Trainer):
             engine.state.output[Keys.LOSS].backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
             engine.optimizer.step()
-        engine.fire_event(IterationEvents.MODEL_COMPLETED)
+        # copy back meta info
         if self.compile:
             if inputs_meta is not None:
-                engine.state.output[Keys.IMAGE] = MetaTensor(inputs, meta=inputs_meta)
+                engine.state.output[Keys.IMAGE] = MetaTensor(inputs, meta=inputs_meta, applied_operations=inputs_applied_operations)
+                engine.state.output[Keys.PRED] = MetaTensor(
+                    engine.state.output[Keys.PRED], meta=inputs_meta, applied_operations=inputs_applied_operations
+                )
             if targets_meta is not None:
-                engine.state.output[Keys.LABEL] = MetaTensor(targets, meta=targets_meta)
+                engine.state.output[Keys.LABEL] = MetaTensor(targets, meta=targets_meta, applied_operations=targets_applied_operations)
+        engine.fire_event(IterationEvents.MODEL_COMPLETED)
+
         return engine.state.output
 
 
