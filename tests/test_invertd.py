@@ -113,13 +113,19 @@ class TestInvertd(unittest.TestCase):
 
                 # check the case that different items use different interpolation mode to invert transforms
                 d = item["image_inverted1"]
+                d_1 = d.to(torch.float)
+                d_2 = d.to(torch.uint8).to(torch.float)
                 # if the interpolation mode is nearest, accumulated diff should be smaller than 1
-                self.assertLess(torch.sum(d.to(torch.float) - d.to(torch.uint8).to(torch.float)).item(), 1.0)
+                self.assertLess(torch.sum(d_1 -d_2).item(), 1.0)
+                del d_1, d_2
                 self.assertTupleEqual(d.shape, (1, 101, 100, 107))
 
                 d = item["label_inverted1"]
+                d_1 = d.to(torch.float)
+                d_2 = d.to(torch.uint8).to(torch.float)
                 # if the interpolation mode is not nearest, accumulated diff should be greater than 10000
-                self.assertGreater(torch.sum(d.to(torch.float) - d.to(torch.uint8).to(torch.float)).item(), 10000.0)
+                self.assertGreater(torch.sum(d_1 - d_2).item(), 10000.0)
+                del d_1, d_2
                 self.assertTupleEqual(d.shape, (1, 101, 100, 107))
 
         # check labels match
