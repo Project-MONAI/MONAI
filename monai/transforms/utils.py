@@ -26,6 +26,7 @@ import torch
 import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose
@@ -131,6 +132,10 @@ __all__ = [
     "resolves_modes",
     "has_status_keys",
     "distance_transform_edt",
+    "extents_from_shape",
+    "shape_from_extents",
+    "transform_shape",
+    "get_input_shape_and_dtype",
 ]
 
 
@@ -2192,6 +2197,294 @@ def distance_transform_edt(
         return None
     device = img.device if isinstance(img, torch.Tensor) else None
     return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]  # type: ignore
+
+
+def extents_from_shape(
+        shape: Sequence[int],
+        dtype=torch.float32
+):
+    """
+    This method calculates a set of extents given a shape. Each extent is a point in a coordinate
+    system that can be multiplied with a homogeneous matrix. As such, extents for 2D data have
+    three values, and extends for 3D data have four values.
+
+    For shapes representing 2D data, this is an array of four extents, for shape s:
+     - (0, 0, 1), (0, s[1], 1), (s[0], 0, 1), (s[0], s[1], 1).
+
+    For shapes representing 3D data, this is an array of eight extents, representing a cuboid:
+     - (0, 0, 0, 1), (0, 0, s[2], 1), (0, s[1], 0, 1), (0, s[1], s[2], 1),
+     - (s[0], 0, 0, 1), (s[0], 0, s[2], 1), (s[0], s[1], 0, 1), (s[0], s[1], s[2], 1)
+
+    Args:
+         shape: A shape from a numpy array or tensor
+         dtype: The dtype to use for the resulting extents
+
+    Returns:
+        An array of arrays representing the shape extents
+    """
+    extents = [[0, shape[i]] for i in range(1, len(shape))]
+
+    extents = itertools.product(*extents)
+    # return [torch.as_tensor(e + (1,), dtype=dtype) for e in extents]
+    return [np.asarray(e + (1,), dtype=dtype) for e in extents]
+
+
+def shape_from_extents(
+        src_shape: Sequence,
+        extents: Sequence[np.ndarray] | Sequence[torch.Tensor] | np.ndarray | torch.Tensor
+):
+    """
+    This method, given a sequence of homogeneous vertices representing the corners of a rectangle
+    or cuboid, will calculate the resulting shape values from those extents.
+
+    Args:
+        src_shape: The shape into which the resulting spatial shape values will be written. Note
+                   that initial shape value is appended to the spatial shape components.
+        extents: The extents from which the spatial shape values should be calculated
+
+    Returns:
+        A tuple composed of the first element of `src_shape` with the spatial shape values appended
+        to it.
+    """
+    if isinstance(extents, (list, tuple)):
+        if isinstance(extents[0], np.ndarray):
+            extents_ = np.asarray(extents)
+        else:
+            extents_ = torch.stack(extents)
+            extents_ = extents_.numpy()
+    else:
+        if isinstance(extents, np.ndarray):
+            extents_ = extents
+        else:
+            extents_ = extents.numpy()
+
+    mins = extents_.min(axis=0)
+    maxes = extents_.max(axis=0)
+    values = np.round(maxes - mins).astype(int)[:-1].tolist()
+    return (src_shape[0],) + tuple(values)
+
+
+def transform_shape(input_shape: Sequence[int], matrix: torch.Tensor):
+    """
+    TODO: this method should accept Matrix and Grid types also
+    TODO: this method should be moved to transforms.utils
+    Transform `input_shape` according to `transform`. This can be used for any transforms that
+    widen / narrow the resulting region of interest (typically transforms that have a 'keep_size'
+    parameter such as rotate.
+
+    Args:
+        input_shape: the shape to be transformed
+        matrix: the matrix to apply to it
+
+    Returns:
+        The resulting shape
+    """
+    if not Affine.is_affine_shaped(matrix):
+        raise ValueError("'matrix' must have a valid 2d or 3d homogenous matrix shape but has shape "
+                         f"{matrix.shape}")
+    im_extents = extents_from_shape(input_shape, matrix.dtype)
+    im_extents = [matrix @ e for e in im_extents]
+    output_shape = shape_from_extents(input_shape, im_extents)
+    return output_shape
+
+
+def get_input_shape_and_dtype(shape_override, dtype_override, img):
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+    input_dtype = dtype_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()
+        else:
+            input_shape = img.shape
+    if input_dtype is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_dtype = img.peek_pending_dtype()
+        else:
+            input_dtype = img.dtype
+    return input_shape, input_dtype
+
+
+def apply_align_corners(matrix, spatial_size, op):
+    """
+    TODO: ensure that this functionality is correct and produces the same result as the existing ways of handling align corners
+    """
+    inflated_spatial_size = tuple(s + 1 for s in spatial_size)
+    scale_factors = tuple(s / i for s, i in zip(spatial_size, inflated_spatial_size))
+    scale_mat = op(scale_factors)
+    # scale_mat = scale_mat.double()
+    return matmul(scale_mat, matrix)
+
+
+class Affine:
+    """A class to represent an affine transform matrix."""
+
+    __slots__ = ("data",)
+
+    def __init__(self, data):
+        self.data = data
+
+    @staticmethod
+    def is_affine_shaped(data):
+        """Check if the data is an affine matrix."""
+        if isinstance(data, Affine):
+            return True
+        if isinstance(data, DisplacementField):
+            return False
+        if not hasattr(data, "shape") or len(data.shape) < 2:
+            return False
+        return data.shape[-1] in (3, 4) and data.shape[-1] == data.shape[-2]
+
+
+class DisplacementField:
+    """A class to represent a dense displacement field."""
+
+    __slots__ = ("data",)
+
+    def __init__(self, data):
+        self.data = data
+
+    @staticmethod
+    def is_ddf_shaped(data):
+        """Check if the data is a DDF."""
+        if isinstance(data, DisplacementField):
+            return True
+        if isinstance(data, Affine):
+            return False
+        if not hasattr(data, "shape") or len(data.shape) < 3:
+            return False
+        return not Affine.is_affine_shaped(data)
+
+
+def combine_transforms(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+    """Given transforms A and B to be applied to x, return the combined transform (AB), so that A(B(x)) becomes AB(x)"""
+    if Affine.is_affine_shaped(left) and Affine.is_affine_shaped(right):  # linear transforms
+        left = convert_to_tensor(left.data if isinstance(left, Affine) else left, wrap_sequence=True)
+        right = convert_to_tensor(right.data if isinstance(right, Affine) else right, wrap_sequence=True)
+        return torch.matmul(left, right)
+    if DisplacementField.is_ddf_shaped(left) and DisplacementField.is_ddf_shaped(
+        right
+    ):  # adds DDFs, do we need metadata if metatensor input?
+        left = convert_to_tensor(left.data if isinstance(left, DisplacementField) else left, wrap_sequence=True)
+        right = convert_to_tensor(right.data if isinstance(right, DisplacementField) else right, wrap_sequence=True)
+        return left + right
+    raise NotImplementedError
+
+
+def matmul(
+        left: Affine | DisplacementField | NdarrayOrTensor,
+        right: Affine | DisplacementField | NdarrayOrTensor
+):
+    matrix_types = (Affine, DisplacementField, torch.Tensor, np.ndarray)
+
+    if not isinstance(left, matrix_types):
+        raise TypeError(f"'left' must be one of {matrix_types} but is {type(left)}")
+    if not isinstance(right, matrix_types):
+        raise TypeError(f"'second' must be one of {matrix_types} but is {type(right)}")
+
+    left_ = left
+    right_ = right
+
+    put_in_grid = isinstance(left, DisplacementField) or isinstance(right, DisplacementField)
+
+    put_in_matrix = isinstance(left, Affine) or isinstance(right, Affine)
+    put_in_matrix = False if put_in_grid is True else put_in_matrix
+
+    promote_to_tensor = not (isinstance(left_, np.ndarray) and isinstance(right_, np.ndarray))
+
+    left_raw = left_.data if isinstance(left_, (Affine, DisplacementField)) else left_
+    right_raw = right_.data if isinstance(right_, (Affine, DisplacementField)) else right_
+
+    if promote_to_tensor:
+        left_raw = torch.as_tensor(left_raw)
+        right_raw = torch.as_tensor(right_raw)
+
+    if isinstance(left_, DisplacementField):
+        if isinstance(right_, DisplacementField):
+            raise RuntimeError("Unable to matrix multiply two Grids")
+        else:
+            result = matmul_grid_matrix(left_raw, right_raw)
+    else:
+        if isinstance(right_, DisplacementField):
+            result = matmul_matrix_grid(left_raw, right_raw)
+        else:
+            result = matmul_matrix_matrix(left_raw, right_raw)
+
+    if put_in_grid:
+        result = DisplacementField(result)
+    elif put_in_matrix:
+        result = Affine(result)
+
+    return result
+
+
+def matmul_matrix_grid(
+        left: NdarrayOrTensor,
+        right: NdarrayOrTensor
+):
+    if not Affine.is_affine_shaped(left):
+        raise ValueError(f"'left' should be a 2D or 3D homogenous matrix but has shape {left.shape}")
+
+    if not DisplacementField.is_ddf_shaped(right):
+        raise ValueError(
+            "'right' should be a 3D array with shape[0] == 2 or a "
+            f"4D array with shape[0] == 3 but has shape {right.shape}"
+        )
+
+    # flatten the grid to take advantage of torch batch matrix multiply
+    right_flat = right.reshape(right.shape[0], -1)
+    result_flat = left @ right_flat
+    # restore the grid shape
+    result = result_flat.reshape((-1,) + result_flat.shape[1:])
+    return result
+
+
+def matmul_grid_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
+    if not DisplacementField.is_ddf_shaped(left):
+        raise ValueError(
+            "'left' should be a 3D array with shape[0] == 2 or a "
+            f"4D array with shape[0] == 3 but has shape {left.shape}"
+        )
+
+    if not Affine.is_affine_shaped(right):
+        raise ValueError(f"'right' should be a 2D or 3D homogenous matrix but has shape {right.shape}")
+
+    try:
+        inv_matrix = torch.inverse(right)
+    except RuntimeError:
+        # the matrix is not invertible, so we will have to perform a slow grid to matrix operation
+        return matmul_grid_matrix_slow(left, right)
+
+    # invert the matrix and swap the arguments, taking advantage of
+    # matrix @ vector == vector_transposed @ matrix_inverse
+    return matmul_matrix_grid(inv_matrix, left)
+
+
+def matmul_grid_matrix_slow(left: NdarrayOrTensor, right: NdarrayOrTensor):
+    if not DisplacementField.is_ddf_shaped(left):
+        raise ValueError(
+            "'left' should be a 3D array with shape[0] == 2 or a "
+            f"4D array with shape[0] == 3 but has shape {left.shape}"
+        )
+
+    if not Affine.is_affine_shaped(right):
+        raise ValueError(f"'right' should be a 2D or 3D homogenous matrix but has shape {right.shape}")
+
+    flat_left = left.reshape(left.shape[0], -1)
+    result_flat = torch.zeros_like(flat_left)
+    for i in range(flat_left.shape[1]):
+        vector = flat_left[:, i][None, :]
+        result_vector = vector @ right
+        result_flat[:, i] = result_vector[0, :]
+
+    # restore the grid shape
+    result = result_flat.reshape((-1,) + result_flat.shape[1:])
+    return result
+
+
+def matmul_matrix_matrix(left: NdarrayOrTensor, right: NdarrayOrTensor):
+    return left @ right
 
 
 if __name__ == "__main__":

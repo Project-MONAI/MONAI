@@ -11,13 +11,14 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, Tuple
 
 import torch
 
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
 from monai.data.meta_tensor import MetaTensor
+from monai.data.meta_obj import get_track_meta
 from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
     affine_from_pending,
@@ -78,6 +79,50 @@ def _log_applied_info(data: Any, key=None, logger_name: bool | str = False):
 
     key_str = "" if key is None else f"key: '{key}', "
     logger.info(f"Pending transforms applied: {key_str}applied_operations: {len(data.applied_operations)}")
+
+
+def lazily_apply_op(
+        tensor,
+        op,
+        lazy_evaluation,
+        track_meta=True
+) -> MetaTensor | Tuple[torch.Tensor, dict | None]:
+    """
+    This function is intended for use only by developers of spatial functional transforms that
+    can be lazily executed.
+
+    This function will immediately apply the op to the given tensor if `lazy_evaluation` is set to
+    False. Its precise behaviour depends on whether it is passed a Tensor or MetaTensor:
+
+
+    If passed a Tensor, it returns a tuple of Tensor, MetaMatrix:
+     - if the operation was applied, Tensor, None is returned
+     - if the operation was not applied, Tensor, MetaMatrix is returned
+
+    If passed a MetaTensor, only the tensor itself is returned
+
+    Args:
+          tensor: the tensor to have the operation lazily applied to
+          op: the MetaMatrix containing the transform and metadata
+          lazy_evaluation: a boolean flag indicating whether to apply the operation lazily
+    """
+    if isinstance(tensor, MetaTensor):
+        tensor.push_pending_operation(op)
+        if lazy_evaluation is False:
+            response = apply_pending(tensor, track_meta=track_meta)
+            result, pending = response if isinstance(response, tuple) else (response, None)
+            # result, pending = apply_transforms(tensor, track_meta=track_meta)
+            return result
+        else:
+            return tensor
+    else:
+        if lazy_evaluation is False:
+            response = apply_pending(tensor, [op], track_meta=track_meta)
+            result, pending = response if isinstance(response, tuple) else (response, None)
+            # result, pending = apply_transforms(tensor, [op], track_meta=track_meta)
+            return (result, op) if get_track_meta() is True else result
+        else:
+            return (tensor, op) if get_track_meta() is True else tensor
 
 
 def apply_pending_transforms(

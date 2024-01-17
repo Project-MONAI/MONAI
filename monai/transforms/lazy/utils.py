@@ -19,65 +19,11 @@ import torch
 import monai
 from monai.config import NdarrayOrTensor
 from monai.data.utils import AFFINE_TOL
+from monai.transforms.utils import Affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import LazyAttr, convert_to_numpy, convert_to_tensor, look_up_option
 
 __all__ = ["resample", "combine_transforms"]
-
-
-class Affine:
-    """A class to represent an affine transform matrix."""
-
-    __slots__ = ("data",)
-
-    def __init__(self, data):
-        self.data = data
-
-    @staticmethod
-    def is_affine_shaped(data):
-        """Check if the data is an affine matrix."""
-        if isinstance(data, Affine):
-            return True
-        if isinstance(data, DisplacementField):
-            return False
-        if not hasattr(data, "shape") or len(data.shape) < 2:
-            return False
-        return data.shape[-1] in (3, 4) and data.shape[-1] == data.shape[-2]
-
-
-class DisplacementField:
-    """A class to represent a dense displacement field."""
-
-    __slots__ = ("data",)
-
-    def __init__(self, data):
-        self.data = data
-
-    @staticmethod
-    def is_ddf_shaped(data):
-        """Check if the data is a DDF."""
-        if isinstance(data, DisplacementField):
-            return True
-        if isinstance(data, Affine):
-            return False
-        if not hasattr(data, "shape") or len(data.shape) < 3:
-            return False
-        return not Affine.is_affine_shaped(data)
-
-
-def combine_transforms(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
-    """Given transforms A and B to be applied to x, return the combined transform (AB), so that A(B(x)) becomes AB(x)"""
-    if Affine.is_affine_shaped(left) and Affine.is_affine_shaped(right):  # linear transforms
-        left = convert_to_tensor(left.data if isinstance(left, Affine) else left, wrap_sequence=True)
-        right = convert_to_tensor(right.data if isinstance(right, Affine) else right, wrap_sequence=True)
-        return torch.matmul(left, right)
-    if DisplacementField.is_ddf_shaped(left) and DisplacementField.is_ddf_shaped(
-        right
-    ):  # adds DDFs, do we need metadata if metatensor input?
-        left = convert_to_tensor(left.data if isinstance(left, DisplacementField) else left, wrap_sequence=True)
-        right = convert_to_tensor(right.data if isinstance(right, DisplacementField) else right, wrap_sequence=True)
-        return left + right
-    raise NotImplementedError
 
 
 def affine_from_pending(pending_item):
