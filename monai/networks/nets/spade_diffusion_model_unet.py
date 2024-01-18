@@ -618,7 +618,7 @@ class SPADEDiffusionModelUNet(nn.Module):
         out_channels: number of output channels.
         label_nc: number of semantic channels for SPADE normalisation.
         num_res_blocks: number of residual blocks (see ResnetBlock) per level.
-        num_channels: tuple of block output channels.
+        channels: tuple of block output channels.
         attention_levels: list of levels to add attention.
         norm_num_groups: number of groups for the normalization.
         norm_eps: epsilon for the normalization.
@@ -641,7 +641,7 @@ class SPADEDiffusionModelUNet(nn.Module):
         out_channels: int,
         label_nc: int,
         num_res_blocks: Sequence[int] | int = (2, 2, 2, 2),
-        num_channels: Sequence[int] = (32, 64, 64, 64),
+        channels: Sequence[int] = (32, 64, 64, 64),
         attention_levels: Sequence[bool] = (False, False, True, True),
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
@@ -667,10 +667,10 @@ class SPADEDiffusionModelUNet(nn.Module):
             )
 
         # All number of channels should be multiple of num_groups
-        if any((out_channel % norm_num_groups) != 0 for out_channel in num_channels):
+        if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
             raise ValueError("SPADEDiffusionModelUNet expects all num_channels being multiple of norm_num_groups")
 
-        if len(num_channels) != len(attention_levels):
+        if len(channels) != len(attention_levels):
             raise ValueError("SPADEDiffusionModelUNet expects num_channels being same size of attention_levels")
 
         if isinstance(num_head_channels, int):
@@ -683,9 +683,9 @@ class SPADEDiffusionModelUNet(nn.Module):
             )
 
         if isinstance(num_res_blocks, int):
-            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(num_channels))
+            num_res_blocks = ensure_tuple_rep(num_res_blocks, len(channels))
 
-        if len(num_res_blocks) != len(num_channels):
+        if len(num_res_blocks) != len(channels):
             raise ValueError(
                 "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
                 "`num_channels`."
@@ -700,7 +700,7 @@ class SPADEDiffusionModelUNet(nn.Module):
             )
 
         self.in_channels = in_channels
-        self.block_out_channels = num_channels
+        self.block_out_channels = channels
         self.out_channels = out_channels
         self.num_res_blocks = num_res_blocks
         self.attention_levels = attention_levels
@@ -712,7 +712,7 @@ class SPADEDiffusionModelUNet(nn.Module):
         self.conv_in = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
-            out_channels=num_channels[0],
+            out_channels=channels[0],
             strides=1,
             kernel_size=3,
             padding=1,
@@ -720,9 +720,9 @@ class SPADEDiffusionModelUNet(nn.Module):
         )
 
         # time
-        time_embed_dim = num_channels[0] * 4
+        time_embed_dim = channels[0] * 4
         self.time_embed = nn.Sequential(
-            nn.Linear(num_channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
+            nn.Linear(channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
         )
 
         # class embedding
@@ -732,11 +732,11 @@ class SPADEDiffusionModelUNet(nn.Module):
 
         # down
         self.down_blocks = nn.ModuleList([])
-        output_channel = num_channels[0]
-        for i in range(len(num_channels)):
+        output_channel = channels[0]
+        for i in range(len(channels)):
             input_channel = output_channel
-            output_channel = num_channels[i]
-            is_final_block = i == len(num_channels) - 1
+            output_channel = channels[i]
+            is_final_block = i == len(channels) - 1
 
             down_block = get_down_block(
                 spatial_dims=spatial_dims,
@@ -762,7 +762,7 @@ class SPADEDiffusionModelUNet(nn.Module):
         # mid
         self.middle_block = get_mid_block(
             spatial_dims=spatial_dims,
-            in_channels=num_channels[-1],
+            in_channels=channels[-1],
             temb_channels=time_embed_dim,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
@@ -776,7 +776,7 @@ class SPADEDiffusionModelUNet(nn.Module):
 
         # up
         self.up_blocks = nn.ModuleList([])
-        reversed_block_out_channels = list(reversed(num_channels))
+        reversed_block_out_channels = list(reversed(channels))
         reversed_num_res_blocks = list(reversed(num_res_blocks))
         reversed_attention_levels = list(reversed(attention_levels))
         reversed_num_head_channels = list(reversed(num_head_channels))
@@ -784,9 +784,9 @@ class SPADEDiffusionModelUNet(nn.Module):
         for i in range(len(reversed_block_out_channels)):
             prev_output_channel = output_channel
             output_channel = reversed_block_out_channels[i]
-            input_channel = reversed_block_out_channels[min(i + 1, len(num_channels) - 1)]
+            input_channel = reversed_block_out_channels[min(i + 1, len(channels) - 1)]
 
-            is_final_block = i == len(num_channels) - 1
+            is_final_block = i == len(channels) - 1
 
             up_block = get_spade_up_block(
                 spatial_dims=spatial_dims,
@@ -814,12 +814,12 @@ class SPADEDiffusionModelUNet(nn.Module):
 
         # out
         self.out = nn.Sequential(
-            nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels[0], eps=norm_eps, affine=True),
+            nn.GroupNorm(num_groups=norm_num_groups, num_channels=channels[0], eps=norm_eps, affine=True),
             nn.SiLU(),
             zero_module(
                 Convolution(
                     spatial_dims=spatial_dims,
-                    in_channels=num_channels[0],
+                    in_channels=channels[0],
                     out_channels=out_channels,
                     strides=1,
                     kernel_size=3,
