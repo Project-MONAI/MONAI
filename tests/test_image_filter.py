@@ -131,6 +131,7 @@ class TestImageFilter(unittest.TestCase):
         out_tensor = filter(image)
         self.assertTrue(isinstance(out_tensor, MetaTensor))
 
+
 class TestImageFilterDict(unittest.TestCase):
     @parameterized.expand(SUPPORTED_FILTERS)
     def test_init_from_string_dict(self, filter_name):
