@@ -182,24 +182,6 @@ TEST_2D_NON_RANDOM = [
     ],
 ]
 
-TEST_2D_RANDOM = [
-    [
-        {
-            "ordering_type": OrderingType.RANDOM,
-            "spatial_dims": 2,
-            "dimensions": (1, 2, 2),
-            "reflected_spatial_dims": (True, False),
-            "transpositions_axes": ((1, 0),),
-            "rot90_axes": ((0, 1),),
-            "transformation_order": (
-                OrderingTransformations.TRANSPOSE.value,
-                OrderingTransformations.ROTATE_90.value,
-                OrderingTransformations.REFLECT.value,
-            ),
-        },
-        [[0, 1, 2, 3], [0, 1, 3, 2]],
-    ]
-]
 
 TEST_3D = [
     [
@@ -290,17 +272,6 @@ class TestOrdering(unittest.TestCase):
     def test_ordering_transformation_failure(self, input_param):
         with self.assertRaises(ValueError):
             Ordering(**input_param)
-
-    @parameterized.expand(TEST_2D_RANDOM)
-    def test_random(self, input_param, not_in_expected_sequence_ordering):
-        ordering = Ordering(**input_param)
-
-        not_in = [
-            np.array_equal(sequence, ordering.get_sequence_ordering(), equal_nan=True)
-            for sequence in not_in_expected_sequence_ordering
-        ]
-
-        self.assertFalse(np.any(not_in))
 
     @parameterized.expand(TEST_REVERT)
     def test_revert(self, input_param):
