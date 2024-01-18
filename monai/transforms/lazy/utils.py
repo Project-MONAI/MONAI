@@ -23,7 +23,7 @@ from monai.transforms.utils import Affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import LazyAttr, convert_to_numpy, convert_to_tensor, look_up_option
 
-__all__ = ["resample", "combine_transforms"]
+__all__ = ["resample_image", "combine_transforms"]
 
 
 def affine_from_pending(pending_item):
@@ -91,7 +91,7 @@ def requires_interp(matrix, atol=AFFINE_TOL):
 __override_lazy_keywords = {*list(LazyAttr), "atol"}
 
 
-def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
+def resample_image(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
     """
     Resample `data` using the affine transformation defined by ``matrix``.
 
@@ -173,3 +173,8 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     resampler.lazy = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`
         return resampler(img=img, **call_kwargs)
+
+
+def resample_points(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = None):
+    # Handle all point resampling here
+    raise NotImplementedError()

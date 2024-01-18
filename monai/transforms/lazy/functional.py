@@ -27,7 +27,8 @@ from monai.transforms.lazy.utils import (
     combine_transforms,
     is_compatible_apply_kwargs,
     kwargs_from_pending,
-    resample,
+    resample_image,
+    resample_points,
 )
 from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
@@ -336,7 +337,7 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
             # carry out an intermediate resample here due to incompatibility between arguments
             _cur_kwargs = cur_kwargs.copy()
             _cur_kwargs.update(override_kwargs)
-            data = resample(data.to(device), cumulative_xform, _cur_kwargs)
+            data = resample_image(data.to(device), cumulative_xform, _cur_kwargs)
 
         next_matrix = affine_from_pending(p)
         if next_matrix.shape[0] == 3:
@@ -345,7 +346,10 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(override_kwargs)
-    data = resample(data.to(device), cumulative_xform, cur_kwargs)
+    if data.kind() == 'pixel':
+        data = resample_image(data.to(device), cumulative_xform, cur_kwargs)
+    elif data.kind() == 'point':
+        data = resample_points(data.to(device), cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         for p in pending:
             data.push_applied_operation(p)

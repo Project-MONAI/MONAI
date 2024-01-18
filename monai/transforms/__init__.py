@@ -239,7 +239,7 @@ from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, Sa
 from .lazy.array import ApplyPending
 from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
 from .lazy.functional import apply_pending
-from .lazy.utils import combine_transforms, resample
+from .lazy.utils import combine_transforms, resample_image
 from .meta_utility.dictionary import (
     FromMetaTensord,
     FromMetaTensorD,

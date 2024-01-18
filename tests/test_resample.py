@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.transforms.lazy.functional import resample
+from monai.transforms.lazy.functional import resample_image
 from monai.utils import convert_to_tensor
 from tests.utils import assert_allclose, get_arange_img
 
@@ -37,12 +37,12 @@ RESAMPLE_FUNCTION_CASES = [
 class TestResampleFunction(unittest.TestCase):
     @parameterized.expand(RESAMPLE_FUNCTION_CASES)
     def test_resample_function_impl(self, img, matrix, expected):
-        out = resample(convert_to_tensor(img), matrix, {"lazy_shape": img.shape[1:], "lazy_padding_mode": "border"})
+        out = resample_image(convert_to_tensor(img), matrix, {"lazy_shape": img.shape[1:], "lazy_padding_mode": "border"})
         assert_allclose(out[0], expected, type_test=False)
 
         img = convert_to_tensor(img, dtype=torch.uint8)
-        out = resample(img, matrix, {"lazy_resample_mode": "auto", "lazy_dtype": torch.float})
-        out_1 = resample(img, matrix, {"lazy_resample_mode": "other value", "lazy_dtype": torch.float})
+        out = resample_image(img, matrix, {"lazy_resample_mode": "auto", "lazy_dtype": torch.float})
+        out_1 = resample_image(img, matrix, {"lazy_resample_mode": "other value", "lazy_dtype": torch.float})
         self.assertIs(out.dtype, out_1.dtype)  # testing dtype in different lazy_resample_mode
 
 
