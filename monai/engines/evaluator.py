@@ -215,7 +215,7 @@ class SupervisedEvaluator(Evaluator):
             `device`, `non_blocking`.
         amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
             https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
-        compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to 
+        compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to
             `torch.Tensor` before forward pass,  then converted back afterward with copied meta information.
         compile_kwargs: dict of the args for `torch.compile()` API, for more details:
             https://pytorch.org/docs/stable/generated/torch.compile.html#torch-compile.
