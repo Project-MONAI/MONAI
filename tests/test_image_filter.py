@@ -17,6 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms import ImageFilter, ImageFilterd, RandImageFilter, RandImageFilterd
 
@@ -114,6 +115,21 @@ class TestImageFilter(unittest.TestCase):
         filter = ImageFilter(filter_name, 3, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(SAMPLE_IMAGE_3D)
         self.assertEqual(out_tensor.shape[1:], SAMPLE_IMAGE_3D.shape[1:])
+
+    def test_pass_applied_operations(self):
+        "Test that applied operations are passed through"
+        applied_operations = ["op1", "op2"]
+        image = MetaTensor(SAMPLE_IMAGE_2D, applied_operations=applied_operations)
+        filter = ImageFilter(SUPPORTED_FILTERS[0], 3, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(image)
+        self.assertEqual(out_tensor.applied_operations, applied_operations)
+
+    def test_pass_empty_metadata_dict(self):
+        "Test that applied operations are passed through"
+        image = MetaTensor(SAMPLE_IMAGE_2D, meta={})
+        filter = ImageFilter(SUPPORTED_FILTERS[0], 3, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(image)
+        self.assertTrue(isinstance(out_tensor, MetaTensor))
 
 
 class TestImageFilterDict(unittest.TestCase):
