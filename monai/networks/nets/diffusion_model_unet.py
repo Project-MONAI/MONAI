@@ -430,7 +430,7 @@ class _AttentionBlock(nn.Module):
             batch, channel, height, width, depth = x.shape
 
         # norm
-        x = self.norm(x)
+        x = self.norm(x.contiguous())
 
         if self.spatial_dims == 2:
             x = x.view(batch, channel, height * width).transpose(1, 2)
@@ -682,7 +682,7 @@ class _ResnetBlock(nn.Module):
             )
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
-        h = x
+        h = x.contiguous()
         h = self.norm1(h)
         h = self.nonlinearity(h)
 
@@ -1957,7 +1957,7 @@ class DiffusionModelUNet(nn.Module):
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
-        output: torch.Tensor = self.out(h)
+        output: torch.Tensor = self.out(h.contiguous())
 
         return output
 
