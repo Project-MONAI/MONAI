@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Sequence, Tuple
 
+import copy
+
 import torch
 
 from monai.apps.utils import get_logger
@@ -123,6 +125,16 @@ def lazily_apply_op(
             return (result, op) if get_track_meta() is True else result
         else:
             return (tensor, op) if get_track_meta() is True else tensor
+
+
+def invert(
+        data: torch.tensor | MetaTensor,
+        lazy_evaluation=True
+):
+    metadata = data.applied_operations.pop()
+    inv_metadata = copy.deepcopy(metadata)
+    inv_metadata.invert()
+    return lazily_apply_op(data, inv_metadata, lazy_evaluation, False)
 
 
 def apply_pending_transforms(

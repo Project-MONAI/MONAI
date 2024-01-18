@@ -32,9 +32,11 @@ from monai.networks.layers import AffineTransform, GaussianFilter, grid_pull
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCrop
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.lazy import invert
 from monai.transforms.spatial.functional import (
     affine_func,
     flip,
+    identity,
     orientation,
     resize,
     rotate,
@@ -1039,15 +1041,18 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
     """
     With probability `prob`, input arrays are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
-
-    This transform is capable of lazy execution. See the :ref:`Lazy Resampling topic<lazy_resampling>`
-    for more information.
     """
 
     backend = Rotate90.backend
 
     def __init__(
-        self, prob: float = 0.1, max_k: int = 3, spatial_axes: tuple[int, int] = (0, 1), lazy: bool = False
+            self,
+            prob: float = 0.1,
+            max_k: int = 3,
+            spatial_axes: tuple[int, int] = (0, 1),
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
     ) -> None:
         """
         Args:
@@ -1060,10 +1065,10 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
                 Defaults to False
         """
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
+
         self.max_k = max_k
         self.spatial_axes = spatial_axes
-
         self._rand_k = 0
 
     def randomize(self, data: Any | None = None) -> None:
@@ -1072,7 +1077,13 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             return None
         self._rand_k = self.R.randint(self.max_k) + 1
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: bool = True,
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -1081,26 +1092,17 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
                 during this call. Setting this to False or True overrides the ``lazy`` flag set
                 during initialization for this call. Defaults to None.
         """
-
         if randomize:
             self.randomize()
 
         lazy_ = self.lazy if lazy is None else lazy
         if self._do_transform:
-            xform = Rotate90(self._rand_k, self.spatial_axes, lazy=lazy_)
-            out = xform(img)
+            return rotate90(img, self._rand_k, self.spatial_axes, lazy=lazy_)
         else:
-            out = convert_to_tensor(img, track_meta=get_track_meta())
+            return identity(img, None, None, lazy=lazy_)
 
-        self.push_transform(out, replace=True, lazy=lazy_)
-        return out
-
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        xform_info = self.pop_transform(data)
-        if not xform_info[TraceKeys.DO_TRANSFORM]:
-            return data
-        rotate_xform = xform_info[TraceKeys.EXTRA_INFO]
-        return Rotate90().inverse_transform(data, rotate_xform)
+    def inverse(self, data):
+        return invert(data, self.lazy)
 
 
 class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1139,58 +1141,50 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
     backend = Rotate.backend
 
     def __init__(
-        self,
-        range_x: tuple[float, float] | float = 0.0,
-        range_y: tuple[float, float] | float = 0.0,
-        range_z: tuple[float, float] | float = 0.0,
-        prob: float = 0.1,
-        keep_size: bool = True,
-        mode: str = GridSampleMode.BILINEAR,
-        padding_mode: str = GridSamplePadMode.BORDER,
-        align_corners: bool = False,
-        dtype: DtypeLike | torch.dtype = np.float32,
-        lazy: bool = False,
+            self,
+            range_x: tuple[float, float] | float = 0.0,
+            range_y: tuple[float, float] | float = 0.0,
+            range_z: tuple[float, float] | float = 0.0,
+            prob: float = 0.1,
+            keep_size: bool = True,
+            mode: str = GridSampleMode.BILINEAR,
+            padding_mode: str = GridSamplePadMode.BORDER,
+            align_corners: bool = False,
+            dtype: DtypeLike | torch.dtype = np.float32,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.range_x = ensure_tuple(range_x)
-        if len(self.range_x) == 1:
-            self.range_x = tuple(sorted([-self.range_x[0], self.range_x[0]]))
-        self.range_y = ensure_tuple(range_y)
-        if len(self.range_y) == 1:
-            self.range_y = tuple(sorted([-self.range_y[0], self.range_y[0]]))
-        self.range_z = ensure_tuple(range_z)
-        if len(self.range_z) == 1:
-            self.range_z = tuple(sorted([-self.range_z[0], self.range_z[0]]))
-
+        LazyTransform.__init__(self, lazy)
         self.keep_size = keep_size
-        self.mode: str = mode
-        self.padding_mode: str = padding_mode
+        self.mode: str = look_up_option(mode, GridSampleMode)
+        self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
         self.align_corners = align_corners
         self.dtype = dtype
-
-        self.x = 0.0
-        self.y = 0.0
-        self.z = 0.0
+        self.range_x, self.range_y, self.range_z = range_x, range_y, range_z
+        self._rand_x, self._rand_y, self._rand_z = 0, 0, 0
 
     def randomize(self, data: Any | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self.x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
-        self.y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
-        self.z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
+        self._rand_x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+        self._rand_y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+        self._rand_z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
 
     def __call__(
-        self,
-        img: torch.Tensor,
-        mode: str | None = None,
-        padding_mode: str | None = None,
-        align_corners: bool | None = None,
-        dtype: DtypeLike | torch.dtype = None,
-        randomize: bool = True,
-        lazy: bool | None = None,
-    ):
+            self,
+            img: torch.Tensor,
+            mode: str | None = None,
+            padding_mode: str | None = None,
+            align_corners: bool | None = None,
+            dtype: DtypeLike | torch.dtype = None,
+            randomize: bool = True,
+            get_matrix: bool = False,
+            shape_override: Sequence | None = None,
+            lazy: bool | None = None,
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
@@ -1213,29 +1207,23 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         if randomize:
             self.randomize()
 
+        mode_ = mode or self.mode
+        padding_mode_ = padding_mode or self.padding_mode
+        align_corners_ = align_corners or self.align_corners
+        dtype_ = dtype or self.dtype
         lazy_ = self.lazy if lazy is None else lazy
+
+        # TODO: ideally, the rotate function should be told that it was called by the RandRotate class for
+        # pending / applied op descriptions
         if self._do_transform:
             ndim = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
-            rotator = Rotate(
-                angle=self.x if ndim == 2 else (self.x, self.y, self.z),
-                keep_size=self.keep_size,
-                mode=mode or self.mode,
-                padding_mode=padding_mode or self.padding_mode,
-                align_corners=self.align_corners if align_corners is None else align_corners,
-                dtype=dtype or self.dtype or img.dtype,
-                lazy=lazy_,
-            )
-            out = rotator(img)
+            angles=self._rand_x if ndim == 2 else (self._rand_x, self._rand_y, self._rand_z),
+            return rotate(img, angles, self.keep_size, mode_, padding_mode_, align_corners_, dtype_, lazy=lazy_)
         else:
-            out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        self.push_transform(out, replace=True, lazy=lazy_)
-        return out
+            return identity(img, None, None, lazy=lazy_)
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        xform_info = self.pop_transform(data)
-        if not xform_info[TraceKeys.DO_TRANSFORM]:
-            return data
-        return Rotate(0).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
+    def inverse(self, data):
+        return invert(data, self.lazy)
 
 
 class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1256,17 +1244,26 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     backend = Flip.backend
 
-    def __init__(self, prob: float = 0.1, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
+    def __init__(
+            self,
+            prob: float = 0.1,
+            spatial_axis: Sequence[int] | int | None = None,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
+        ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.flipper = Flip(spatial_axis=spatial_axis, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
+        self.spatial_axis = spatial_axis
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.flipper.lazy = val
-        self._lazy = val
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: bool = True,
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
@@ -1278,17 +1275,14 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
         if randomize:
             self.randomize(None)
         lazy_ = self.lazy if lazy is None else lazy
-        out = self.flipper(img, lazy=lazy_) if self._do_transform else img
-        out = convert_to_tensor(out, track_meta=get_track_meta())
-        self.push_transform(out, replace=True, lazy=lazy_)
-        return out
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        if not transform[TraceKeys.DO_TRANSFORM]:
-            return data
-        data.applied_operations.append(transform[TraceKeys.EXTRA_INFO])  # type: ignore
-        return self.flipper.inverse(data)
+        if self._do_transform:
+            return flip(img, self.spatial_axis, lazy=lazy_)
+        else:
+            return identity(img, None, None, lazy=lazy_)
+
+    def inverse(self, data):
+        return invert(data, self.lazy)
 
 
 class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1308,24 +1302,31 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     backend = Flip.backend
 
-    def __init__(self, prob: float = 0.1, lazy: bool = False) -> None:
+    def __init__(
+            self,
+            prob: float = 0.1,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
+    ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
-        self._axis: int | None = None
-        self.flipper = Flip(spatial_axis=self._axis)
+        LazyTransform.__init__(self, lazy)
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.flipper.lazy = val
-        self._lazy = val
+        self._rand_axis = None
 
     def randomize(self, data: NdarrayOrTensor) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._axis = self.R.randint(data.ndim - 1)
+        self._rand_axis = self.R.randint(data.ndim - 1)
 
-    def __call__(self, img: torch.Tensor, randomize: bool = True, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(
+            self,
+            img: torch.Tensor,
+            randomize: bool = True,
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
@@ -1339,20 +1340,12 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 
         lazy_ = self.lazy if lazy is None else lazy
         if self._do_transform:
-            self.flipper.spatial_axis = self._axis
-            out = self.flipper(img, lazy=lazy_)
+            return flip(img, self._rand_axis, lazy=lazy_)
         else:
-            out = convert_to_tensor(img, track_meta=get_track_meta())
-        self.push_transform(out, replace=True, lazy=lazy_)
-        return out
+            return identity(img, None, None, lazy=lazy_)
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        transform = self.pop_transform(data)
-        if not transform[TraceKeys.DO_TRANSFORM]:
-            return data
-        flipper = Flip(spatial_axis=transform[TraceKeys.EXTRA_INFO][TraceKeys.EXTRA_INFO]["axes"])
-        with flipper.trace_transform(False):
-            return flipper(data)
+    def inverse(self, data):
+        return invert(data, self.lazy)
 
 
 class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1394,62 +1387,59 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             Defaults to False
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
-
     """
 
-    backend = Zoom.backend
-
     def __init__(
-        self,
-        prob: float = 0.1,
-        min_zoom: Sequence[float] | float = 0.9,
-        max_zoom: Sequence[float] | float = 1.1,
-        mode: str = InterpolateMode.AREA,
-        padding_mode: str = NumpyPadMode.EDGE,
-        align_corners: bool | None = None,
-        dtype: DtypeLike | torch.dtype = torch.float32,
-        keep_size: bool = True,
-        lazy: bool = False,
-        **kwargs,
+            self,
+            prob: float = 0.1,
+            min_zoom: Sequence[float] | float = 0.9,
+            max_zoom: Sequence[float] | float = 1.1,
+            mode: str = InterpolateMode.AREA,
+            padding_mode: str = NumpyPadMode.EDGE,
+            align_corners: bool | None = None,
+            keep_size: bool = True,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
+            **kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
             raise ValueError(
                 f"min_zoom and max_zoom must have same length, got {len(self.min_zoom)} and {len(self.max_zoom)}."
             )
-        self.mode = mode
+        self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
         self.padding_mode = padding_mode
         self.align_corners = align_corners
-        self.dtype = dtype
         self.keep_size = keep_size
+        self.lazy = lazy
         self.kwargs = kwargs
-
-        self._zoom: Sequence[float] = [1.0]
+        self._rand_zoom = [1.0]
 
     def randomize(self, img: NdarrayOrTensor) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        self._zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
-        if len(self._zoom) == 1:
+        self._rand_zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+        if len(self.rand_zoom) == 1:
             # to keep the spatial shape ratio, use same random zoom factor for all dims
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 1)
-        elif len(self._zoom) == 2 and img.ndim > 3:
+            self._rand_zoom = ensure_tuple_rep(self._rand_zoom[0], img.ndim - 1)
+        elif len(self._rand_zoom) == 2 and img.ndim > 3:
             # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
-            self._zoom = ensure_tuple_rep(self._zoom[0], img.ndim - 2) + ensure_tuple(self._zoom[-1])
+            self._rand_zoom = ensure_tuple_rep(self._rand_zoom[0], img.ndim - 2) + ensure_tuple(self._rand_zoom[-1])
 
     def __call__(
-        self,
-        img: torch.Tensor,
-        mode: str | None = None,
-        padding_mode: str | None = None,
-        align_corners: bool | None = None,
-        dtype: DtypeLike | torch.dtype = None,
-        randomize: bool = True,
-        lazy: bool | None = None,
+            self,
+            img: torch.Tensor,
+            mode: str | None = None,
+            padding_mode: str | None = None,
+            align_corners: bool | None = None,
+            randomize: bool = True,
+            shape_override: Sequence = None,
+            lazy: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1479,28 +1469,17 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             self.randomize(img=img)
 
         lazy_ = self.lazy if lazy is None else lazy
-        if not self._do_transform:
-            out = convert_to_tensor(img, track_meta=get_track_meta(), dtype=torch.float32)
-        else:
-            xform = Zoom(
-                self._zoom,
-                keep_size=self.keep_size,
-                mode=mode or self.mode,
-                padding_mode=padding_mode or self.padding_mode,
-                align_corners=self.align_corners if align_corners is None else align_corners,
-                dtype=dtype or self.dtype,
-                lazy=lazy_,
-                **self.kwargs,
-            )
-            out = xform(img)
-        self.push_transform(out, replace=True, lazy=lazy_)
-        return out  # type: ignore
+        if self._do_transform:
+            mode_ = mode or self.mode
+            padding_mode_ = padding_mode or self.padding_mode
+            align_corners_ = align_corners or self.align_corners
 
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        xform_info = self.pop_transform(data)
-        if not xform_info[TraceKeys.DO_TRANSFORM]:
-            return data
-        return Zoom(self._zoom).inverse_transform(data, xform_info[TraceKeys.EXTRA_INFO])
+            return zoom(img, self._rand_zoom, mode_, padding_mode_, align_corners_, self.keep_size, lazy=lazy_)
+        else:
+            return identity(img, None, None, lazy=lazy_)
+
+    def inverse(self, data):
+        return invert(data, self.lazy)
 
 
 class AffineGrid(LazyTransform):

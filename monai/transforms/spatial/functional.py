@@ -36,6 +36,7 @@ from monai.transforms.inverse import TraceableTransform
 from monai.transforms.lazy.functional import lazily_apply_op
 from monai.transforms.utils import (
     apply_align_corners,
+    create_identity,
     create_flip,
     create_rotate,
     create_rotate_90,
@@ -75,7 +76,16 @@ cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
+__all__ = [
+    "spatial_resample",
+    "orientation",
+    "flip",
+    "resize",
+    "rotate",
+    "zoom",
+    "rotate90",
+    "affine_func"
+]
 
 
 def _maybe_new_metatensor(img, dtype=None, device=None):
@@ -87,6 +97,44 @@ def _maybe_new_metatensor(img, dtype=None, device=None):
         track_meta=get_track_meta(),
         wrap_sequence=True,
     )
+
+
+def identity(
+    img: torch.Tensor,
+    mode: InterpolateMode | str = None,
+    padding_mode: NumpyPadMode | GridSamplePadMode | str = None,
+    dtype: DtypeLike | torch.dtype = None,
+    shape_override: Sequence[int] | None = None,
+    dtype_override: DtypeLike | torch.dtype | None = None,
+    lazy: bool = False
+):
+    img_ = convert_to_tensor(img, track_meta=get_track_meta())
+
+    input_shape, input_dtype = get_input_shape_and_dtype(shape_override, dtype_override, img_)
+
+    input_ndim = len(input_shape) - 1
+
+    mode_ = None if mode is None else look_up_option(mode, GridSampleMode)
+    padding_mode_ = None if padding_mode is None else look_up_option(padding_mode, GridSamplePadMode)
+    dtype_ = get_equivalent_dtype(dtype or img_.dtype, torch.Tensor)
+
+    transform = create_identity(input_ndim)
+
+    metadata = {
+        "transform": transform,
+        "op": "identity",
+        LazyAttr.IN_SHAPE: input_shape,
+        LazyAttr.IN_DTYPE: input_dtype,
+        LazyAttr.OUT_SHAPE: input_shape,
+        LazyAttr.OUT_DTYPE: dtype_,
+    }
+    if mode_ is not None:
+        metadata[LazyAttr.INTERP_MODE] = mode_
+    if padding_mode_ is not None:
+        metadata[LazyAttr.PADDING_MODE] = padding_mode_
+    # metadata[LazyAttr.DTYPE] = dtype_
+
+    return lazily_apply_op(img_, metadata, lazy)
 
 
 def spatial_resample(
