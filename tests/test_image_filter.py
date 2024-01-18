@@ -124,6 +124,12 @@ class TestImageFilter(unittest.TestCase):
         out_tensor = filter(image)
         self.assertEqual(out_tensor.applied_operations, applied_operations)
 
+    def test_pass_empty_metadata_dict(self):
+        "Test that applied operations are passed through"
+        image = MetaTensor(SAMPLE_IMAGE_2D, meta={})
+        filter = ImageFilter(SUPPORTED_FILTERS[0], 3, **ADDITIONAL_ARGUMENTS)
+        out_tensor = filter(image)
+        self.assertTrue(isinstance(out_tensor, MetaTensor))
 
 class TestImageFilterDict(unittest.TestCase):
     @parameterized.expand(SUPPORTED_FILTERS)

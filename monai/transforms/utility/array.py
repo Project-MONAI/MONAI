@@ -1587,7 +1587,7 @@ class ImageFilter(Transform):
             self.filter = ApplyFilter(self.filter)
 
         img_ = self._apply_filter(img_)
-        if meta_dict or applied_operations is not None:
+        if meta_dict is not None or applied_operations is not None:
             img_ = MetaTensor(img_, meta=meta_dict, applied_operations=applied_operations)
         else:
             img_, *_ = convert_data_type(img_, prev_type, device)
