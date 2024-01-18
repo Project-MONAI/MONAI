@@ -31,6 +31,15 @@ from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
 from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.lazy import invert
+from monai.transforms.spatial.functional import (
+    flip,
+    identity,
+    resize,
+    rotate,
+    rotate90,
+    zoom,
+)
 from monai.transforms.spatial.array import (
     Affine,
     Flip,
@@ -618,12 +627,12 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
     backend = Rotate90.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        k: int = 1,
-        spatial_axes: tuple[int, int] = (0, 1),
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
+            self,
+            keys: KeysCollection,
+            k: int = 1,
+            spatial_axes: tuple[int, int] = (0, 1),
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
     ) -> None:
         """
         Args:
@@ -635,15 +644,15 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
                 Defaults to False
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.rotator = Rotate90(k, spatial_axes, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
+        self.k = k
+        self.spatial_axes = spatial_axes
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
-        self._lazy = val
-        self.rotator.lazy = val
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -656,17 +665,17 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
+        rd = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
-        for key in self.key_iterator(d):
-            d[key] = self.rotator(d[key], lazy=lazy_)
-        return d
+        for key in self.key_iterator(rd):
+            rd[key] = rotate90(rd[key], self.k, self.spatial_axes, lazy=self.lazy)
+        return rd
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.rotator.inverse(d[key])
-        return d
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
@@ -682,13 +691,15 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
     backend = Rotate90.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        prob: float = 0.1,
-        max_k: int = 3,
-        spatial_axes: tuple[int, int] = (0, 1),
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
+            self,
+            keys: KeysCollection,
+            prob: float = 0.1,
+            max_k: int = 3,
+            spatial_axes: tuple[int, int] = (0, 1),
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
     ) -> None:
         """
         Args:
@@ -706,7 +717,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
 
         self.max_k = max_k
         self.spatial_axes = spatial_axes
@@ -718,7 +729,9 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         super().randomize(None)
 
     def __call__(
-        self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
     ) -> Mapping[Hashable, torch.Tensor]:
         """
         Args:
@@ -732,27 +745,22 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        self.randomize()
-        d = dict(data)
-
-        # FIXME: here we didn't use array version `RandRotate90` transform as others, because we need
-        # to be compatible with the random status of some previous integration tests
+        rd = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
-        rotator = Rotate90(self._rand_k, self.spatial_axes, lazy=lazy_)
-        for key in self.key_iterator(d):
-            d[key] = rotator(d[key]) if self._do_transform else convert_to_tensor(d[key], track_meta=get_track_meta())
-            self.push_transform(d[key], replace=True, lazy=lazy_)
-        return d
+        k = self.randomizer.sample()
+        for key in self.key_iterator(rd):
+            if self._do_transform:
+                rd[key] = rotate90(rd[key], k, self.spatial_axes, lazy=lazy_)
+            else:
+                rd[key] = identity(rd[key], None, None, lazy=lazy_)
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            if not isinstance(d[key], MetaTensor):
-                continue
-            xform = self.pop_transform(d[key])
-            if xform[TraceKeys.DO_TRANSFORM]:
-                d[key] = Rotate90().inverse_transform(d[key], xform[TraceKeys.EXTRA_INFO])
-        return d
+        return rd
+
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class Resized(MapTransform, InvertibleTransform, LazyTransform):
@@ -801,33 +809,32 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
     backend = Resize.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        spatial_size: Sequence[int] | int,
-        size_mode: str = "all",
-        mode: SequenceStr = InterpolateMode.AREA,
-        align_corners: Sequence[bool | None] | bool | None = None,
-        anti_aliasing: Sequence[bool] | bool = False,
-        anti_aliasing_sigma: Sequence[Sequence[float] | float | None] | Sequence[float] | float | None = None,
-        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
+            self,
+            keys: KeysCollection,
+            spatial_size: Sequence[int] | int,
+            size_mode: str = "all",
+            mode: SequenceStr = InterpolateMode.AREA,
+            align_corners: Sequence[bool | None] | bool | None = None,
+            anti_aliasing: Sequence[bool] | bool = False,
+            anti_aliasing_sigma: Sequence[Sequence[float] | float | None] | Sequence[float] | float | None = None,
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
+
+        self.spatial_size = spatial_size
+        self.size_mode = size_mode
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
-        self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode, lazy=lazy)
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
-        self._lazy = val
-        self.resizer.lazy = val
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -840,27 +847,21 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
+        rd = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
-        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma, dtype in self.key_iterator(
-            d, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma, self.dtype
+        for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
+            rd, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
         ):
-            d[key] = self.resizer(
-                d[key],
-                mode=mode,
-                align_corners=align_corners,
-                anti_aliasing=anti_aliasing,
-                anti_aliasing_sigma=anti_aliasing_sigma,
-                dtype=dtype,
-                lazy=lazy_,
-            )
-        return d
+            rd[key] = resize(rd[key], spatial_size=self.spatial_size, size_mode=self.size_mode, mode=mode,
+                             align_corners=align_corners, anti_aliasing=anti_aliasing,
+                             anti_aliasing_sigma=anti_aliasing_sigma, lazy=lazy_)
+        return rd
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.resizer.inverse(d[key])
-        return d
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class Affined(MapTransform, InvertibleTransform, LazyTransform):
@@ -1486,22 +1487,21 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
     backend = Flip.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        spatial_axis: Sequence[int] | int | None = None,
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
+            self,
+            keys: KeysCollection,
+            spatial_axis: Sequence[int] | int | None = None,
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.flipper = Flip(spatial_axis=spatial_axis)
+        LazyTransform.__init__(self, lazy)
+        self.spatial_axis = spatial_axis
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.flipper.lazy = val
-        self._lazy = val
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -1514,17 +1514,17 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
+        rd = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
-        for key in self.key_iterator(d):
-            d[key] = self.flipper(d[key], lazy=lazy_)
-        return d
+        for key in self.key_iterator(rd):
+            rd[key] = flip(rd[key], self.spatial_axis, lazy=lazy_)
+        return rd
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.flipper.inverse(d[key])
-        return d
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
@@ -1549,28 +1549,26 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
     backend = Flip.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        prob: float = 0.1,
-        spatial_axis: Sequence[int] | int | None = None,
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
+            self,
+            keys: KeysCollection,
+            prob: float = 0.1,
+            spatial_axis: Sequence[int] | int | None = None,
+            allow_missing_keys: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
+            lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.flipper = Flip(spatial_axis=spatial_axis, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.flipper.lazy = val
-        self._lazy = val
+        self.spatial_axis = spatial_axis
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandFlipd:
-        super().set_random_state(seed, state)
-        return self
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -1583,27 +1581,22 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
-        self.randomize(None)
-
+        rd = dict(data)
+        self.randomize()
         lazy_ = self.lazy if lazy is None else lazy
-        for key in self.key_iterator(d):
+        for key in self.key_iterator(rd):
             if self._do_transform:
-                d[key] = self.flipper(d[key], lazy=lazy_)
+                rd[key] = flip(rd[key], self.spatial_axis, lazy=lazy_)
             else:
-                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            self.push_transform(d[key], replace=True, lazy=lazy_)
-        return d
+                rd[key] = identity(rd[key], None, None, lazy=lazy_)
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            xform = self.pop_transform(d[key])
-            if not xform[TraceKeys.DO_TRANSFORM]:
-                continue
-            with self.flipper.trace_transform(False):
-                d[key] = self.flipper(d[key])
-        return d
+        return rd
+
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
@@ -1627,24 +1620,30 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
     backend = RandAxisFlip.backend
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, allow_missing_keys: bool = False, lazy: bool = False
+            self,
+            keys: KeysCollection,
+            prob: float = 0.1,
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.flipper = RandAxisFlip(prob=1.0, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
+        self._rand_axis = 0
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.flipper.lazy = val
-        self._lazy = val
+    def randomize(self, data: NdarrayOrTensor) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        self._rand_axis = self.R.randint(data.ndim - 1)
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAxisFlipd:
-        super().set_random_state(seed, state)
-        self.flipper.set_random_state(seed, state)
-        return self
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -1657,33 +1656,27 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
-        first_key: Hashable = self.first_key(d)
+        rd = dict(data)
+        first_key: Hashable = self.first_key(rd)
         if first_key == ():
-            return d
+            return rd
 
-        self.randomize(None)
-
-        # all the keys share the same random selected axis
-        self.flipper.randomize(d[first_key])
+        self.randomize(rd[first_key])
 
         lazy_ = self.lazy if lazy is None else lazy
-        for key in self.key_iterator(d):
+        for key in self.key_iterator(rd):
             if self._do_transform:
-                d[key] = self.flipper(d[key], randomize=False, lazy=lazy_)
+                rd[key] = flip(rd[key], self._rand_axis, lazy=self.lazy)
             else:
-                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
-            self.push_transform(d[key], replace=True, lazy=lazy_)
-        return d
+                rd[key] = identity(rd[key], None, None, lazy=lazy_)
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            xform = self.pop_transform(d[key])
-            if xform[TraceKeys.DO_TRANSFORM]:
-                d[key].applied_operations.append(xform[TraceKeys.EXTRA_INFO])  # type: ignore
-                d[key] = self.flipper.inverse(d[key])
-        return d
+        return rd
+
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class Rotated(MapTransform, InvertibleTransform, LazyTransform):
@@ -1722,32 +1715,31 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     backend = Rotate.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        angle: Sequence[float] | float,
-        keep_size: bool = True,
-        mode: SequenceStr = GridSampleMode.BILINEAR,
-        padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Sequence[bool] | bool = False,
-        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
+            self,
+            keys: KeysCollection,
+            angle: Sequence[float] | float,
+            keep_size: bool = True,
+            mode: SequenceStr = GridSampleMode.BILINEAR,
+            padding_mode: SequenceStr = GridSamplePadMode.BORDER,
+            align_corners: Sequence[bool] | bool = False,
+            dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.rotator = Rotate(angle=angle, keep_size=keep_size, lazy=lazy)
+        LazyTransform.__init__(self, lazy)
 
+        self.angle = angle
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.rotator.lazy = val
-        self._lazy = val
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -1765,19 +1757,19 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
-            d[key] = self.rotator(
+            d[key] = rotate(
                 d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy_
             )
         return d
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.rotator.inverse(d[key])
-        return d
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
-class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
+class RandRotated(RandomizableTransform,MapTransform, InvertibleTransform, LazyTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandRotate`
     Randomly rotates the input arrays.
@@ -1816,46 +1808,53 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
-
     backend = RandRotate.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        range_x: tuple[float, float] | float = 0.0,
-        range_y: tuple[float, float] | float = 0.0,
-        range_z: tuple[float, float] | float = 0.0,
-        prob: float = 0.1,
-        keep_size: bool = True,
-        mode: SequenceStr = GridSampleMode.BILINEAR,
-        padding_mode: SequenceStr = GridSamplePadMode.BORDER,
-        align_corners: Sequence[bool] | bool = False,
-        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
+            self,
+            keys: KeysCollection,
+            range_x: tuple[float, float] | float = 0.0,
+            range_y: tuple[float, float] | float = 0.0,
+            range_z: tuple[float, float] | float = 0.0,
+            prob: float = 0.1,
+            keep_size: bool = True,
+            mode: SequenceStr = GridSampleMode.BILINEAR,
+            padding_mode: SequenceStr = GridSamplePadMode.BORDER,
+            align_corners: Sequence[bool] | bool = False,
+            dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.rand_rotate = RandRotate(
-            range_x=range_x, range_y=range_y, range_z=range_z, prob=1.0, keep_size=keep_size, lazy=lazy
-        )
-        self.mode = ensure_tuple_rep(mode, len(self.keys))
-        self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
-        self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        LazyTransform.__init__(self, lazy)
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.rand_rotate.lazy = val
-        self._lazy = val
+        self.keys = keys
+        self.keep_size = keep_size
+        self.allow_missing_keys = allow_missing_keys
+        self.mode = ensure_tuple_rep(mode, len(keys))
+        self.padding_mode = ensure_tuple_rep(padding_mode, len(keys))
+        self.align_corners = align_corners
+        self.dtype = ensure_tuple_rep(dtype, len(keys))
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandRotated:
-        super().set_random_state(seed, state)
-        self.rand_rotate.set_random_state(seed, state)
-        return self
+        self.range_x, self.range_y, self.range_z = range_x, range_y, range_z
+        self._rand_x, self._rand_y, self._rand_z = 0, 0, 0
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def randomize(self, data: Any | None = None) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        self._rand_x = self.R.uniform(low=self.range_x[0], high=self.range_x[1])
+        self._rand_y = self.R.uniform(low=self.range_y[0], high=self.range_y[1])
+        self._rand_z = self.R.uniform(low=self.range_z[0], high=self.range_z[1])
+
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -1868,40 +1867,29 @@ class RandRotated(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
-        self.randomize(None)
+        self.randomize()
 
-        # all the keys share the same random rotate angle
-        self.rand_rotate.randomize()
+        rd = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
-
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        for key_, mode_, padding_mode_, dtype_ in self.key_iterator(
+            rd, self.mode, self.padding_mode, self.dtype
         ):
             if self._do_transform:
-                d[key] = self.rand_rotate(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=align_corners,
-                    dtype=dtype,
-                    randomize=False,
-                    lazy=lazy_,
-                )
+                ndim = len(rd[key_].peek_pending_shape() if isinstance(rd[key_], MetaTensor) else rd[key_].shape[1:])
+                angles=self._rand_x if ndim == 2 else (self._rand_x, self._rand_y, self._rand_z),
+
+                rd[key_] = rotate(rd[key_], angles, self.keep_size,
+                                mode_, padding_mode_, self.align_corners, dtype_,
+                                None, lazy=lazy_)
             else:
-                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            self.push_transform(d[key], replace=True, lazy=lazy_)
-        return d
+                rd[key_] = identity(rd[key_], None, None, lazy=lazy_)
+        return rd
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            xform = self.pop_transform(d[key])
-            if xform[TraceKeys.DO_TRANSFORM]:
-                d[key].applied_operations.append(xform[TraceKeys.EXTRA_INFO])  # type: ignore
-                d[key] = self.rand_rotate.inverse(d[key])
-        return d
-
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
     """
@@ -1944,33 +1932,30 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
     backend = Zoom.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        zoom: Sequence[float] | float,
-        mode: SequenceStr = InterpolateMode.AREA,
-        padding_mode: SequenceStr = NumpyPadMode.EDGE,
-        align_corners: Sequence[bool | None] | bool | None = None,
-        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
-        keep_size: bool = True,
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
-        **kwargs,
+            self,
+            keys: KeysCollection,
+            zoom: Sequence[float] | float,
+            mode: SequenceStr = InterpolateMode.AREA,
+            padding_mode: SequenceStr = NumpyPadMode.EDGE,
+            align_corners: Sequence[bool | None] | bool | None = None,
+            keep_size: bool = True,
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
+            **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
-
+        LazyTransform.__init__(self, lazy)
+        self.zoom = zoom
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.zoomer = Zoom(zoom=zoom, keep_size=keep_size, lazy=lazy, **kwargs)
+        self.keep_size = keep_size
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.zoomer.lazy = val
-        self._lazy = val
-
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
@@ -1983,21 +1968,21 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
+        rd = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        for key, mode, padding_mode, align_corners in self.key_iterator(
+            rd, self.mode, self.padding_mode, self.align_corners
         ):
-            d[key] = self.zoomer(
-                d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy_
-            )
-        return d
+            rd[key] = zoom(rd[key], self.zoom, mode=mode,
+                          padding_mode=padding_mode, align_corners=align_corners,
+                          lazy=lazy_)
+        return rd
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            d[key] = self.zoomer.inverse(d[key])
-        return d
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTransform):
@@ -2048,92 +2033,99 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
     backend = RandZoom.backend
 
     def __init__(
-        self,
-        keys: KeysCollection,
-        prob: float = 0.1,
-        min_zoom: Sequence[float] | float = 0.9,
-        max_zoom: Sequence[float] | float = 1.1,
-        mode: SequenceStr = InterpolateMode.AREA,
-        padding_mode: SequenceStr = NumpyPadMode.EDGE,
-        align_corners: Sequence[bool | None] | bool | None = None,
-        dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
-        keep_size: bool = True,
-        allow_missing_keys: bool = False,
-        lazy: bool = False,
-        **kwargs,
+            self,
+            keys: KeysCollection,
+            prob: float = 0.1,
+            min_zoom: Sequence[float] | float = 0.9,
+            max_zoom: Sequence[float] | float = 1.1,
+            mode: SequenceStr = InterpolateMode.AREA,
+            padding_mode: SequenceStr = NumpyPadMode.EDGE,
+            align_corners: Sequence[bool | None] | bool | None = None,
+            keep_size: bool = True,
+            allow_missing_keys: bool = False,
+            lazy: bool = False,
+            seed: int | None = None,
+            state: np.random.RandomState | None = None,
+            **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.rand_zoom = RandZoom(
-            prob=1.0, min_zoom=min_zoom, max_zoom=max_zoom, keep_size=keep_size, lazy=lazy, **kwargs
-        )
+        LazyTransform.__init__(self, lazy)
+
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
-        self.dtype = ensure_tuple_rep(dtype, len(self.keys))
+        self.keep_size = keep_size
+        self.allow_missing_keys = allow_missing_keys
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool):
-        self.rand_zoom.lazy = val
-        self._lazy = val
+        self.min_zoom, self.max_zoom = min_zoom, max_zoom
+        self._rand_zoom = [1.0]
 
-    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandZoomd:
-        super().set_random_state(seed, state)
-        self.rand_zoom.set_random_state(seed, state)
-        return self
+    def randomize(self, img: NdarrayOrTensor) -> None:
+        super().randomize(None)
+        if not self._do_transform:
+            return None
+        self._rand_zoom = [self.R.uniform(l, h) for l, h in zip(self.min_zoom, self.max_zoom)]
+        if len(self.rand_zoom) == 1:
+            # to keep the spatial shape ratio, use same random zoom factor for all dims
+            self._rand_zoom = ensure_tuple_rep(self._rand_zoom[0], img.ndim - 1)
+        elif len(self._rand_zoom) == 2 and img.ndim > 3:
+            # if 2 zoom factors provided for 3D data, use the first factor for H and W dims, second factor for D dim
+            self._rand_zoom = ensure_tuple_rep(self._rand_zoom[0], img.ndim - 2) + ensure_tuple(self._rand_zoom[-1])
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(
+            self,
+            data: Mapping[Hashable, torch.Tensor],
+            lazy: bool | None = None,
+    ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
-            data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
-                in this dictionary must be tensor like arrays that are channel first and have at most
-                three spatial dimensions
+            img: channel first array, must have shape 2D: (nchannels, H, W), or 3D: (nchannels, H, W, D).
+            mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``, ``"bilinear"``, ``"bicubic"``, ``"trilinear"``,
+                ``"area"``}, the interpolation mode. Defaults to ``self.mode``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            padding_mode: available modes for numpy array:{``"constant"``, ``"edge"``, ``"linear_ramp"``, ``"maximum"``,
+                ``"mean"``, ``"median"``, ``"minimum"``, ``"reflect"``, ``"symmetric"``, ``"wrap"``, ``"empty"``}
+                available modes for PyTorch Tensor: {``"constant"``, ``"reflect"``, ``"replicate"``, ``"circular"``}.
+                One of the listed string values or a user supplied function. Defaults to ``"constant"``.
+                The mode to pad data after zooming.
+                See also: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
+                https://pytorch.org/docs/stable/generated/torch.nn.functional.pad.html
+            align_corners: This only has an effect when mode is
+                'linear', 'bilinear', 'bicubic' or 'trilinear'. Defaults to ``self.align_corners``.
+                See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+            dtype: data type for resampling computation. Defaults to ``self.dtype``.
+                If None, use the data type of input data.
+            randomize: whether to execute `randomize()` function first, default to True.
             lazy: a flag to indicate whether this transform should execute lazily or not
                 during this call. Setting this to False or True overrides the ``lazy`` flag set
                 during initialization for this call. Defaults to None.
-
-        Returns:
-            a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        d = dict(data)
-        first_key: Hashable = self.first_key(d)
+        rd = dict(data)
+        first_key: Hashable = self.first_key(rd)
         if first_key == ():
-            out: dict[Hashable, torch.Tensor] = convert_to_tensor(d, track_meta=get_track_meta())
+            out: dict[Hashable, torch.Tensor] = convert_to_tensor(rd, track_meta=get_track_meta())
             return out
 
-        self.randomize(None)
-
-        # all the keys share the same random zoom factor
-        self.rand_zoom.randomize(d[first_key])
         lazy_ = self.lazy if lazy is None else lazy
 
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+        self.randomize(rd[first_key])
+
+        for key, mode, padding_mode, align_corners in self.key_iterator(
+            rd, self.mode, self.padding_mode, self.align_corners
         ):
             if self._do_transform:
-                d[key] = self.rand_zoom(
-                    d[key],
-                    mode=mode,
-                    padding_mode=padding_mode,
-                    align_corners=align_corners,
-                    dtype=dtype,
-                    randomize=False,
-                    lazy=lazy_,
-                )
+                rd[key] = zoom(rd[key], self._rand_zoom, mode=mode, padding_mode=padding_mode, align_corners=align_corners,
+                               lazy=lazy_)
             else:
-                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
-            self.push_transform(d[key], replace=True, lazy=lazy_)
-        return d
+                rd[key] = identity(rd[key], None, None, lazy=lazy_)
+        return rd
 
-    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
-        d = dict(data)
-        for key in self.key_iterator(d):
-            xform = self.pop_transform(d[key])
-            if xform[TraceKeys.DO_TRANSFORM]:
-                d[key].applied_operations.append(xform[TraceKeys.EXTRA_INFO])  # type: ignore
-                d[key] = self.rand_zoom.inverse(d[key])
-        return d
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy)
+        return rd
 
 
 class GridDistortiond(MapTransform):
