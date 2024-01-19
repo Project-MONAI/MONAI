@@ -15,10 +15,12 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from monai.engines.utils import DiffusionPrepareBatch
-from monai.networks.nets import DiffusionModelUNet
+
 from monai.engines import SupervisedEvaluator
-from tests.utils import assert_allclose
+from monai.engines.utils import DiffusionPrepareBatch
+from monai.inferers import DiffusionInferer
+from monai.networks.nets import DiffusionModelUNet
+from monai.networks.schedulers import DDPMScheduler
 
 TEST_CASES = [
     [
@@ -50,38 +52,52 @@ TEST_CASES = [
 ]
 
 
-
 class TestPrepareBatchDiffusion(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
-    def test_content(self, input_args, image_size):
+    def test_output_sizes(self, input_args, image_size):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        dataloader = [
-            {
-                "image": torch.randn(image_size).to(device),
-            }
-        ]
-        # set up engine
+        dataloader = [{"image": torch.randn(image_size).to(device)}]
+        scheduler = DDPMScheduler(num_train_timesteps=20)
+        inferer = DiffusionInferer(scheduler=scheduler)
         network = DiffusionModelUNet(**input_args).to(device)
-        num_train_timesteps = 10
-        scheduler = DDPMScheduler(num_train_timesteps=num_train_timesteps)
-        inferer = DiffusionInferer()
         evaluator = SupervisedEvaluator(
             device=device,
             val_data_loader=dataloader,
             epoch_length=1,
             network=network,
+            inferer=inferer,
             non_blocking=True,
             prepare_batch=DiffusionPrepareBatch(num_train_timesteps=20),
             decollate=False,
         )
         evaluator.run()
         output = evaluator.state.output
-        assert_allclose(output["image"], torch.tensor([1, 2], device=device))
-        for k, v in output["pred"].items():
-            if isinstance(v, torch.Tensor):
-                assert_allclose(v, expected_value[k].to(device))
-            else:
-                self.assertEqual(v, expected_value[k])
+        # check shapes are the same
+        self.assertEqual(output["pred"].shape, image_size)
+        self.assertEqual(output["label"].shape, output["image"].shape)
+
+    @parameterized.expand(TEST_CASES)
+    def test_conditioning(self, input_args, image_size):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        dataloader = [{"image": torch.randn(image_size).to(device), "context": torch.randn((2, 4, 3)).to(device)}]
+        scheduler = DDPMScheduler(num_train_timesteps=20)
+        inferer = DiffusionInferer(scheduler=scheduler)
+        network = DiffusionModelUNet(**input_args, with_conditioning=True, cross_attention_dim=3).to(device)
+        evaluator = SupervisedEvaluator(
+            device=device,
+            val_data_loader=dataloader,
+            epoch_length=1,
+            network=network,
+            inferer=inferer,
+            non_blocking=True,
+            prepare_batch=DiffusionPrepareBatch(num_train_timesteps=20, condition_name="context"),
+            decollate=False,
+        )
+        evaluator.run()
+        output = evaluator.state.output
+        # check shapes are the same
+        self.assertEqual(output["pred"].shape, image_size)
+        self.assertEqual(output["label"].shape, output["image"].shape)
 
 
 if __name__ == "__main__":

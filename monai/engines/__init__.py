@@ -14,10 +14,12 @@ from __future__ import annotations
 from .evaluator import EnsembleEvaluator, Evaluator, SupervisedEvaluator
 from .trainer import AdversarialTrainer, GanTrainer, SupervisedTrainer, Trainer
 from .utils import (
+    DiffusionPrepareBatch,
     IterationEvents,
     PrepareBatch,
     PrepareBatchDefault,
     PrepareBatchExtraInput,
+    VPredictionPrepareBatch,
     default_make_latent,
     default_metric_cmp_fn,
     default_prepare_batch,
