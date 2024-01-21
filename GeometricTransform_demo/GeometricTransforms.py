@@ -1,4 +1,3 @@
-import os
 import random
 from typing import List, Tuple
 import cv2
@@ -210,7 +209,7 @@ def main():
     sample_data = {'images': './sample_data/Mammo_194_LMLO_N_080839.jpg'
                    , 'labels': './sample_data/Mammo_194_LMLO_N_080839.json'}
 
-    t = LoadImageAndAnnotations(labels=['pent'])(sample_data)
+    LoadImageAndAnnotations(labels=['pent'])(sample_data)
 
     transform = Compose([LoadImageAndAnnotations(labels=['pent', 'line']),
                          RotateImageAndAnnotations(angle=10.0),
