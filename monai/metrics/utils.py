@@ -38,10 +38,6 @@ from monai.utils import (
 binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
 distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
 distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
-cucim_binary_erosion, has_cucim_binary_erosion = optional_import("cucim.skimage.morphology", name="binary_erosion")
-cucim_distance_transform_edt, has_cucim_distance_transform_edt = optional_import(
-    "cucim.core.operations.morphology", name="distance_transform_edt"
-)
 
 __all__ = [
     "ignore_background",
@@ -179,6 +175,7 @@ def get_mask_edges(
         always_return_as_numpy: whether to a numpy array regardless of the input type.
             If False, return the same type as inputs.
     """
+    cucim_binary_erosion, has_cucim_binary_erosion = optional_import("cucim.skimage.morphology", name="binary_erosion")
     if seg_pred.shape != seg_gt.shape:
         raise ValueError(f"seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
     converter: Any
