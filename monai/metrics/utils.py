@@ -175,7 +175,7 @@ def get_mask_edges(
         always_return_as_numpy: whether to a numpy array regardless of the input type.
             If False, return the same type as inputs.
     """
-    # move in the funciton to avoid using all the GPUs 
+    # move in the funciton to avoid using all the GPUs
     cucim_binary_erosion, has_cucim_binary_erosion = optional_import("cucim.skimage.morphology", name="binary_erosion")
     if seg_pred.shape != seg_gt.shape:
         raise ValueError(f"seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
