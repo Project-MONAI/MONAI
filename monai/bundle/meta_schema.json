@@ -1,181 +1,218 @@
 {
-  "$schema": "https://json-schema.org/draft/2019-09/schema",
-  "$defs": {
-    "tensor": {
-      "$comment": "Represents a tensor object argument/return value, can be MetaTensor.",
-      "type": "object",
-      "properties": {
-        "type": { "type": "string" },
-        "format": { "type": "string" },
-        "num_channels": { "type": "integer" },
-        "spatial_shape": {
-          "type": "array",
-          "items": {
-            "type": ["string", "integer"]
-          }
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "$defs": {
+        "tensor": {
+            "$comment": "Represents a tensor object argument/return value, can be MetaTensor.",
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "num_channels": {
+                    "type": "integer"
+                },
+                "spatial_shape": {
+                    "type": "array",
+                    "items": {
+                        "type": [
+                            "string",
+                            "integer"
+                        ]
+                    }
+                },
+                "dtype": {
+                    "type": "string"
+                },
+                "value_range": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "is_patch_data": {
+                    "type": "boolean"
+                },
+                "channel_def": {
+                    "type": "object"
+                }
+            },
+            "required": [
+                "type",
+                "format",
+                "num_channels",
+                "spatial_shape",
+                "dtype",
+                "value_range"
+            ]
         },
-        "dtype": { "type": "string" },
-        "value_range": {
-          "type": "array",
-          "items": { "type": "number" }
+        "argument": {
+            "$comment": "Acceptable input types for model forward pass, arbitrary Python objects not covered.",
+            "anyOf": [
+                {
+                    "type": "number"
+                },
+                {
+                    "type": "integer"
+                },
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "boolean"
+                },
+                {
+                    "$ref": "#/$defs/tensor"
+                }
+            ]
         },
-        "is_patch_data": { "type": "boolean" },
-        "channel_def": { "type": "object" }
-      },
-      "required": [
-        "type",
-        "format",
-        "num_channels",
-        "spatial_shape",
-        "dtype",
-        "value_range"
-      ]
-    },
-    "argument": {
-      "$comment": "Acceptable input types for model forward pass, arbitrary Python objects not covered.",
-      "anyOf": [
-        { "type": "number" },
-        { "type": "integer" },
-        { "type": "string" },
-        { "type": "boolean" },
-        { "$ref": "#/$defs/tensor" }
-      ]
-    },
-    "result": {
-      "$comment": "Return value from a model's forward pass, same as an argument for now.",
-      "$ref": "#/$defs/argument"
-    },
-    "network_io": {
-      "description": "Defines the format, shape, and meaning of inputs and outputs to the model.",
-      "type": "object",
-      "$comment": "Arguments/return values described by pattern property, order considered significant.",
-      "properties": {
-        "inputs": {
-          "type": "object",
-          "patternProperties": {
-            "^.+$": { "$ref": "#/$defs/argument" }
-          }
+        "result": {
+            "$comment": "Return value from a model's forward pass, same as an argument for now.",
+            "$ref": "#/$defs/argument"
         },
-        "outputs": {
-          "type": "object",
-          "patternProperties": {
-            "^.+$": { "$ref": "#/$defs/result" }
-          }
-        },
-        "post_processed_outputs": {
-          "$comment": "Return value format after post-processing, not needed if not changed.",
-          "type": "object",
-          "patternProperties": {
-            "^.+$": { "$ref": "#/$defs/result" }
-          }
+        "network_io": {
+            "description": "Defines the format, shape, and meaning of inputs and outputs to the model.",
+            "type": "object",
+            "$comment": "Arguments/return values described by pattern property, order considered significant.",
+            "properties": {
+                "inputs": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^.+$": {
+                            "$ref": "#/$defs/argument"
+                        }
+                    }
+                },
+                "outputs": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^.+$": {
+                            "$ref": "#/$defs/result"
+                        }
+                    }
+                },
+                "post_processed_outputs": {
+                    "$comment": "Return value format after post-processing, not needed if not changed.",
+                    "type": "object",
+                    "patternProperties": {
+                        "^.+$": {
+                            "$ref": "#/$defs/result"
+                        }
+                    }
+                }
+            },
+            "required": [
+                "inputs",
+                "outputs"
+            ]
         }
-      },
-      "required": [
-        "inputs",
-        "outputs"
-      ]
-    }
-  },
-  "type": "object",
-  "properties": {
-    "schema": {
-      "description": "URL of the schema file.",
-      "type": "string"
     },
-    "version": {
-      "description": "Version number of the bundle.",
-      "type": "string"
+    "type": "object",
+    "properties": {
+        "schema": {
+            "description": "URL of the schema file.",
+            "type": "string"
+        },
+        "version": {
+            "description": "Version number of the bundle.",
+            "type": "string"
+        },
+        "changelog": {
+            "description": "Dictionary relating previous version names to strings describing the version.",
+            "type": "object"
+        },
+        "monai_version": {
+            "description": "Version of MONAI the bundle was generated with.",
+            "type": "string"
+        },
+        "pytorch_version": {
+            "description": "Version of PyTorch the bundle was generated with.",
+            "type": "string"
+        },
+        "numpy_version": {
+            "description": "Version of NumPy the bundlewas generated with.",
+            "type": "string"
+        },
+        "required_packages_version": {
+            "description": "Dictionary relating required additional package names to their versions.",
+            "type": "object"
+        },
+        "optional_packages_version": {
+            "description": "Dictionary relating optional additional package names to their versions.",
+            "type": "object"
+        },
+        "task": {
+            "description": "Plain-language description of what the bundle is meant to do.",
+            "type": "string"
+        },
+        "description": {
+            "description": "Longer form description of what the bundle is, what it does, etc.",
+            "type": "string"
+        },
+        "authors": {
+            "description": "State author(s) of the bundle.",
+            "type": "string"
+        },
+        "copyright": {
+            "description": "State copyright of the bundle.",
+            "type": "string"
+        },
+        "data_source": {
+            "description": "Where to download or prepare the data used in this bundle.",
+            "type": "string"
+        },
+        "data_type": {
+            "description": "Type of the data, like: `dicom`, `nibabel`, etc.",
+            "type": "string"
+        },
+        "image_classes": {
+            "description": "Description for every class of the input tensors.",
+            "type": "string"
+        },
+        "label_classes": {
+            "description": "Description for every class of the input tensors if present.",
+            "type": "string"
+        },
+        "pred_classes": {
+            "description": "Description for every class of the output prediction(s).",
+            "type": "string"
+        },
+        "eval_metrics": {
+            "description": "Dictionary relating evaluation metrics to the achieved scores.",
+            "type": "object"
+        },
+        "intended_use": {
+            "description": "What the bundle is to be used for, ie. what task it accomplishes.",
+            "type": "string"
+        },
+        "references": {
+            "description": "List of published referenced relating to the bundle.",
+            "type": "array"
+        },
+        "network_data_format": {
+            "$ref": "#/$defs/network_io"
+        }
     },
-    "changelog": {
-      "description": "Dictionary relating previous version names to strings describing the version.",
-      "type": "object"
+    "$comment": "This permits definitions for multiple networks with format <network-name>_data_format",
+    "patternProperties": {
+        "^[_a-zA-Z0-9]+_data_format$": {
+            "$ref": "#/$defs/network_io"
+        }
     },
-    "monai_version": {
-      "description": "Version of MONAI the bundle was generated with.",
-      "type": "string"
-    },
-    "pytorch_version": {
-      "description": "Version of PyTorch the bundle was generated with.",
-      "type": "string"
-    },
-    "numpy_version": {
-      "description": "Version of NumPy the bundlewas generated with.",
-      "type": "string"
-    },
-    "required_packages_version": {
-      "description": "Dictionary relating required additional package names to their versions.",
-      "type": "object"
-    },
-    "optional_packages_version": {
-      "description": "Dictionary relating optional additional package names to their versions.",
-      "type": "object"
-    },
-    "task": {
-      "description": "Plain-language description of what the bundle is meant to do.",
-      "type": "string"
-    },
-    "description": {
-      "description": "Longer form description of what the bundle is, what it does, etc.",
-      "type": "string"
-    },
-    "authors": {
-      "description": "State author(s) of the bundle.",
-      "type": "string"
-    },
-    "copyright": {
-      "description": "State copyright of the bundle.",
-      "type": "string"
-    },
-    "data_source": {
-      "description": "Where to download or prepare the data used in this bundle.",
-      "type": "string"
-    },
-    "data_type": {
-      "description": "Type of the data, like: `dicom`, `nibabel`, etc.",
-      "type": "string"
-    },
-    "image_classes": {
-      "description": "Description for every class of the input tensors.",
-      "type": "string"
-    },
-    "label_classes": {
-      "description": "Description for every class of the input tensors if present.",
-      "type": "string"
-    },
-    "pred_classes": {
-      "description": "Description for every class of the output prediction(s).",
-      "type": "string"
-    },
-    "eval_metrics": {
-      "description": "Dictionary relating evaluation metrics to the achieved scores.",
-      "type": "object"
-    },
-    "intended_use": {
-      "description": "What the bundle is to be used for, ie. what task it accomplishes.",
-      "type": "string"
-    },
-    "references": {
-      "description": "List of published referenced relating to the bundle.",
-      "type": "array"
-    },
-    "network_data_format": { "$ref": "#/$defs/network_io" }
-  },
-  "$comment": "This permits definitions for multiple networks with format <network-name>_data_format",
-  "patternProperties": {
-    "^[_a-zA-Z0-9]+_data_format$": { "$ref": "#/$defs/network_io" }
-  },
-  "required": [
-    "schema",
-    "version",
-    "monai_version",
-    "pytorch_version",
-    "numpy_version",
-    "required_packages_version",
-    "optional_packages_version",
-    "task",
-    "description",
-    "authors",
-    "copyright",
-    "network_data_format"
-  ]
+    "required": [
+        "schema",
+        "version",
+        "monai_version",
+        "pytorch_version",
+        "numpy_version",
+        "required_packages_version",
+        "optional_packages_version",
+        "task",
+        "description",
+        "authors",
+        "copyright",
+        "network_data_format"
+    ]
 }
