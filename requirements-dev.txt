@@ -1,7 +1,7 @@
 # Full requirements for developments
 -r requirements-min.txt
 pytorch-ignite==0.4.11
-gdown>=4.4.0
+gdown>=4.4.0, <=4.6.3
 scipy>=1.7.1
 itk>=5.2
 nibabel

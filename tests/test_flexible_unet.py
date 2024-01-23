@@ -39,7 +39,7 @@ class DummyEncoder(BaseEncoder):
     def get_encoder_parameters(cls):
         basic_dict = {"spatial_dims": 2, "in_channels": 3, "pretrained": False}
         param_dict_list = [basic_dict]
-        for key in basic_dict:
+        for key in basic_dict.keys():
             cur_dict = basic_dict.copy()
             del cur_dict[key]
             param_dict_list.append(cur_dict)

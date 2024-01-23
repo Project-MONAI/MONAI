@@ -35,6 +35,13 @@ class TestVisibleDevices(unittest.TestCase):
         )
         self.assertEqual(num_gpus_before, num_gpus_after)
 
+        # test import monai won't affect setting CUDA_VISIBLE_DEVICES
+        num_gpus_after_monai = self.run_process_and_get_exit_code(
+            'python -c "import os; import torch; import monai; '
+            + "os.environ['CUDA_VISIBLE_DEVICES'] = '0'; exit(torch.cuda.device_count())\""
+        )
+        self.assertEqual(num_gpus_after_monai, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

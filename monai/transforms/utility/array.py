@@ -1562,17 +1562,22 @@ class ImageFilter(Transform):
         self.filter_size = filter_size
         self.additional_args_for_filter = kwargs
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: dict | None = None) -> NdarrayOrTensor:
+    def __call__(
+        self, img: NdarrayOrTensor, meta_dict: dict | None = None, applied_operations: list | None = None
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
             meta_dict: An optional dictionary with metadata
+            applied_operations: An optional list of operations that have been applied to the data
 
         Returns:
             A MetaTensor with the same shape as `img` and identical metadata
         """
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
+            applied_operations = img.applied_operations
+
         img_, prev_type, device = convert_data_type(img, torch.Tensor)
         ndim = img_.ndim - 1  # assumes channel first format
 
@@ -1582,8 +1587,8 @@ class ImageFilter(Transform):
             self.filter = ApplyFilter(self.filter)
 
         img_ = self._apply_filter(img_)
-        if meta_dict:
-            img_ = MetaTensor(img_, meta=meta_dict)
+        if meta_dict is not None or applied_operations is not None:
+            img_ = MetaTensor(img_, meta=meta_dict, applied_operations=applied_operations)
         else:
             img_, *_ = convert_data_type(img_, prev_type, device)
         return img_
