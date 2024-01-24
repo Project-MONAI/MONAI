@@ -1323,7 +1323,7 @@ class NrrdReader(ImageReader):
             header = dict(i.header)
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
-            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(header)
 
             if self.affine_lps_to_ras:
                 header = self._switch_lps_ras(header)
@@ -1344,7 +1344,7 @@ class NrrdReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_affine(self, img: NrrdImage) -> np.ndarray:
+    def _get_affine(self, header: dict) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -1353,8 +1353,8 @@ class NrrdReader(ImageReader):
             img: A `NrrdImage` loaded from image file
 
         """
-        direction = img.header["space directions"]
-        origin = img.header["space origin"]
+        direction = header["space directions"]
+        origin = header["space origin"]
 
         x, y = direction.shape
         affine_diam = min(x, y) + 1
