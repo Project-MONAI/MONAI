@@ -31,18 +31,21 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
             for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
                 for input_size in [(16, 32), (8, 8, 8)]:
-                    test_case = [
-                        {
-                            "hidden_size": hidden_size,
-                            "num_heads": num_heads,
-                            "dropout_rate": dropout_rate,
-                            "rel_pos_embedding": rel_pos_embedding,
-                            "input_size": input_size,
-                        },
-                        (2, 512, hidden_size),
-                        (2, 512, hidden_size),
-                    ]
-                    TEST_CASE_SABLOCK.append(test_case)
+                    for causal in [False, True]:
+                        test_case = [
+                            {
+                                "hidden_size": hidden_size,
+                                "num_heads": num_heads,
+                                "dropout_rate": dropout_rate,
+                                "rel_pos_embedding": rel_pos_embedding,
+                                "input_size": input_size,
+                                "causal": causal,
+                                "sequence_length": 512,
+                            },
+                            (2, 512, hidden_size),
+                            (2, 512, hidden_size),
+                        ]
+                        TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
