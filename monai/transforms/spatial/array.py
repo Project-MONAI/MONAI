@@ -77,7 +77,6 @@ from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBack
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
-from monai.transforms.spatial.operator import Operator, FlipPointOp
 
 
 nib, has_nib = optional_import("nibabel")
