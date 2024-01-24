@@ -168,8 +168,8 @@ class ITKReader(ImageReader):
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
         reverse_indexing: whether to use a reversed spatial indexing convention for the returned data array.
-            If ``False``, the spatial indexing follows the numpy convention;
-            otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
+            If ``False``, the spatial indexing convention is reversed to be compatible with ITK;
+            otherwise, the spatial indexing follows the numpy convention. Default is ``False``.
             This option does not affect the metadata.
         series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
             This flag is checked only when loading DICOM series. Default is ``False``.
