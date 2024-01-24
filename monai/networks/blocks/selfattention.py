@@ -38,6 +38,8 @@ class SABlock(nn.Module):
         save_attn: bool = False,
         rel_pos_embedding: Optional[str] = None,
         input_size: Optional[Tuple] = None,
+        causal: bool = False,
+        sequence_length: int | None = None,
     ) -> None:
         """
         Args:
@@ -49,6 +51,8 @@ class SABlock(nn.Module):
                 For now only "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
                 positional parameter size.
+            causal (bool): wether to use causal attention. If true `sequence_length` has to be set
+            sequence_length (int, optional): if causal is True, it is necessary to specify the sequence length.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
 
         """
@@ -61,6 +65,9 @@ class SABlock(nn.Module):
         if hidden_size % num_heads != 0:
             raise ValueError("hidden size should be divisible by num_heads.")
 
+        if causal and sequence_length is None:
+            raise ValueError("sequence_length is necessary for causal attention.")
+
         self.num_heads = num_heads
         self.out_proj = nn.Linear(hidden_size, hidden_size)
         self.qkv = nn.Linear(hidden_size, hidden_size * 3, bias=qkv_bias)
@@ -70,6 +77,8 @@ class SABlock(nn.Module):
         self.drop_weights = nn.Dropout(dropout_rate)
         self.head_dim = hidden_size // num_heads
         self.scale = self.head_dim**-0.5
+        self.causal = causal
+        self.sequence_length = sequence_length
         self.save_attn = save_attn
         self.att_mat = torch.Tensor()
         self.rel_positional_embedding = (
@@ -79,6 +88,14 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
+        if causal and sequence_length is not None:
+            # causal mask to ensure that attention is only applied to the left in the input sequence
+            self.register_buffer(
+                "causal_mask",
+                torch.tril(torch.ones(sequence_length, sequence_length)).view(1, 1, sequence_length, sequence_length),
+            )
+            self.causal_mask: torch.Tensor
+
     def forward(self, x: torch.Tensor):
         """
         Args:
@@ -87,12 +104,15 @@ class SABlock(nn.Module):
         Return:
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
         """
+        _, t, _ = x.size()
         output = self.input_rearrange(self.qkv(x))
         q, k, v = output[0], output[1], output[2]
         att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
         # apply relative positional embedding if defined
         att_mat = self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
+        # apply causal mask if set
+        att_mat = att_mat.masked_fill(self.causal_mask[:, :, :t, :t] == 0, float("-inf")) if self.causal else att_mat
 
         att_mat = att_mat.softmax(dim=-1)
 
