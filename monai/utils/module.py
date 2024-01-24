@@ -235,7 +235,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
         __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"partial"``: returns ``functools.partial(component, **kwargs)`` if ``kwargs`` is not empty, otherwise returns ``component``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
         kwargs: keyword arguments to the callable represented by ``__path``.
@@ -260,7 +260,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
         if m == CompInitMode.DEFAULT:
             return component(**kwargs)
         if m == CompInitMode.PARTIAL:
-            return partial(component, **kwargs)
+            return partial(component, **kwargs) if kwargs else component
         if m == CompInitMode.DEBUG:
             warnings.warn(
                 f"\n\npdb: instantiating component={component}, mode={m}\n"
