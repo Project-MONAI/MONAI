@@ -24,7 +24,7 @@ from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
-from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
+from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys, KindKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
@@ -347,7 +347,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @staticmethod
     def get_default_kind() -> str:
-        return "image"
+        return KindKeys.PIXEL
 
     def as_tensor(self) -> torch.Tensor:
         """

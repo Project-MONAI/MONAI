@@ -73,7 +73,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends, KindKeys
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -684,11 +684,17 @@ class Flip(InvertibleTransform, LazyTransform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
+    def __init__(
+            self,
+            spatial_axis: Sequence[int] | int | None = None,
+            spatial_size: Sequence[int] | int | None = None,
+            lazy: bool = False
+        ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
+        self.spatial_size = spatial_size
 
-    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, spatial_size: Sequence[int] | int | None = None, lazy: bool | None = None) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
@@ -698,13 +704,19 @@ class Flip(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         lazy_ = self.lazy if lazy is None else lazy
-        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+        spatial_size_ = self.spatial_size if spatial_size is None else spatial_size
+        kind_ = img.kind if isinstance(img, MetaTensor) else KindKeys.PIXEL
+        if kind_ == KindKeys.PIXEL:
+            return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+        elif kind_ == KindKeys.POINT:
+            return flip_point(img, self.spatial_axis, spatial_size_, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         self.pop_transform(data)
         flipper = Flip(spatial_axis=self.spatial_axis)
+        spatial_size = flipper.get([TraceKeys.EXTRA_INFO]["spatial_size"], None)
         with flipper.trace_transform(False):
-            return flipper(data)
+            return flipper(data, spatial_size)
 
 
 class FlipPoint(InvertibleTransform):
