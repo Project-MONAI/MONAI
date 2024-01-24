@@ -345,6 +345,10 @@ class MetaTensor(MetaObj, torch.Tensor):
     def get_default_affine(dtype=torch.float64) -> torch.Tensor:
         return torch.eye(4, device=torch.device("cpu"), dtype=dtype)
 
+    @staticmethod
+    def get_default_kind() -> str:
+        return "image"
+
     def as_tensor(self) -> torch.Tensor:
         """
         Return the `MetaTensor` as a `torch.Tensor`.
@@ -468,6 +472,16 @@ class MetaTensor(MetaObj, torch.Tensor):
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
         self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
+
+    @property
+    def kind(self) -> torch.Tensor:
+        """Get the affine. Defaults to ``torch.eye(4, dtype=torch.float64)``"""
+        return self.meta.get(MetaKeys.KIND, self.get_default_kind())  # type: ignore
+
+    @kind.setter
+    def kind(self, d: str) -> None:
+        """Set the data kind."""
+        self.meta[MetaKeys.KIND] = d
 
     @property
     def pixdim(self):
