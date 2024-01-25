@@ -535,7 +535,7 @@ class SpaceKeys(StrEnum):
 
 class KindKeys(StrEnum):
     """
-    
+
     """
 
     PIXEL = "pixel"
