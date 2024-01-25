@@ -266,7 +266,7 @@ def flip(img, sp_axes, lazy, transform_info):
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def flip_point(points, sp_axes, spatial_size, transform_info):
+def flip_point(points, sp_axes, spatial_size, lazy, transform_info):
     """
     Functional implementation of flip points.
     This function operates eagerly or lazily according to
@@ -291,7 +291,6 @@ def flip_point(points, sp_axes, spatial_size, transform_info):
     extra_info = {
         "axes": sp_axes,  # track the spatial axes
         "spatial_size": spatial_size,
-        "type": "box_key",
     }
     sp_axes = ensure_tuple(sp_axes)
 

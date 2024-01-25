@@ -685,11 +685,11 @@ class Flip(InvertibleTransform, LazyTransform):
     backend = [TransformBackends.TORCH]
 
     def __init__(
-            self,
-            spatial_axis: Sequence[int] | int | None = None,
-            spatial_size: Sequence[int] | int | None = None,
-            lazy: bool = False
-        ) -> None:
+        self,
+        spatial_axis: Sequence[int] | int | None = None,
+        spatial_size: Sequence[int] | int | None = None,
+        lazy: bool = False
+    ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
         self.spatial_size = spatial_size
@@ -712,35 +712,11 @@ class Flip(InvertibleTransform, LazyTransform):
             return flip_point(img, self.spatial_axis, spatial_size_, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        self.pop_transform(data)
+        xform_info = self.pop_transform(data)
         flipper = Flip(spatial_axis=self.spatial_axis)
-        spatial_size = flipper.get([TraceKeys.EXTRA_INFO]["spatial_size"], None)
+        spatial_size = xform_info[TraceKeys.EXTRA_INFO].get("spatial_size", None)
         with flipper.trace_transform(False):
             return flipper(data, spatial_size)
-
-
-class FlipPoint(InvertibleTransform):
-    def __init__(self, spatial_axis: Sequence[int] | int | None = None) -> None:
-        self.spatial_axis = spatial_axis
-
-    def __call__(self, data: torch.Tensor, spatial_size: Sequence[int] | int | None = None) -> torch.Tensor:
-        """
-        Args:
-            data: point coordinates, [x, y] or [x, y, z], Nx2 or Nx3 torch tensor or ndarray
-        """
-        data = convert_to_tensor(data, track_meta=get_track_meta())
-        return flip_point(data, self.spatial_axis, spatial_size)  # type: ignore
-
-    def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        self.pop_transform(data)
-        flipper = FlipPoint(spatial_axis=self.spatial_axis)
-        return self.inverse_transform(data, flipper)
-
-    def inverse_transform(self, data: torch.Tensor, transform):
-        spatial_size = transform[TraceKeys.EXTRA_INFO]["spatial_size"]
-        with transform.trace_transform(False):
-            data = transform(data, spatial_size)
-        return data
 
 
 class Resize(InvertibleTransform, LazyTransform):
