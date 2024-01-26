@@ -294,22 +294,22 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    def __init__(self, lazy: bool | None = False):
-        if lazy is not None:
-            if not isinstance(lazy, bool):
-                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
-        self._lazy = lazy
+    def __init__(self, lazy_evaluation: bool | None = False):
+        if lazy_evaluation is not None:
+            if not isinstance(lazy_evaluation, bool):
+                raise TypeError(f"lazy must be a bool but is of type {type(lazy_evaluation)}")
+        self._lazy = lazy_evaluation
 
     @property
-    def lazy(self):
+    def lazy_evaluation(self):
         return self._lazy
 
-    @lazy.setter
-    def lazy(self, lazy: bool | None):
-        if lazy is not None:
-            if not isinstance(lazy, bool):
-                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
-        self._lazy = lazy
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, lazy_evaluation: bool | None):
+        if lazy_evaluation is not None:
+            if not isinstance(lazy_evaluation, bool):
+                raise TypeError(f"lazy_evaluation must be a bool but is of type {type(lazy_evaluation)}")
+        self._lazy = lazy_evaluation
 
     @property
     def requires_current_data(self):

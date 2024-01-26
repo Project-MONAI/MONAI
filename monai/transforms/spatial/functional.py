@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Sequence, Tuple
 
+import copy
 import math
 import warnings
 from enum import Enum
@@ -106,7 +107,7 @@ def identity(
     dtype: DtypeLike | torch.dtype = None,
     shape_override: Sequence[int] | None = None,
     dtype_override: DtypeLike | torch.dtype | None = None,
-    lazy: bool = False
+    lazy_evaluation: bool = False
 ):
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
 
@@ -134,16 +135,15 @@ def identity(
         metadata[LazyAttr.PADDING_MODE] = padding_mode_
     # metadata[LazyAttr.DTYPE] = dtype_
 
-    return lazily_apply_op(img_, metadata, lazy)
+    return lazily_apply_op(img_, metadata, lazy_evaluation)
 
 
 def spatial_resample(
-    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, lazy, transform_info
+    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, lazy_evaluation, transform_info
 ) -> torch.Tensor:
     """
     Functional implementation of resampling the input image to the specified ``dst_affine`` matrix and ``spatial_size``.
-    This function operates eagerly or lazily according to
-    ``lazy`` (default ``False``).
+    This function operates eagerly or lazily according to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be resampled, assuming `img` is channel-first.
@@ -164,7 +164,7 @@ def spatial_resample(
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         dtype_pt: data `dtype` for resampling computation.
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy_evaluation: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -208,13 +208,13 @@ def spatial_resample(
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=spatial_size,
-        affine=None if affine_unchanged and not lazy else xform,
+        affine=None if affine_unchanged and not lazy_evaluation else xform,
         extra_info=extra_info,
         orig_size=original_spatial_shape,
         transform_info=transform_info,
-        lazy=lazy,
+        lazy_evaluation=lazy_evaluation,
     )
-    if lazy:
+    if lazy_evaluation:
         out = _maybe_new_metatensor(img)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     if affine_unchanged:
@@ -256,18 +256,17 @@ def spatial_resample(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> torch.Tensor:
+def orientation(img, original_affine, spatial_ornt, lazy_evaluation, transform_info) -> torch.Tensor:
     """
     Functional implementation of changing the input image's orientation into the specified based on `spatial_ornt`.
-    This function operates eagerly or lazily according to
-    ``lazy`` (default ``False``).
+    This function operates eagerly or lazily according to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
         original_affine: original affine of the input image.
         spatial_ornt: orientations of the spatial axes,
             see also https://nipy.org/nibabel/reference/nibabel.orientations.html
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy_evaluation: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -290,10 +289,10 @@ def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> tor
         extra_info=extra_info,
         orig_size=spatial_shape,
         transform_info=transform_info,
-        lazy=lazy,
+        lazy_evaluation=lazy_evaluation,
     )
     out = _maybe_new_metatensor(img)
-    if lazy:
+    if lazy_evaluation:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     if axes:
         out = torch.flip(out, dims=axes)
@@ -307,12 +306,11 @@ def flip(
         spatial_axis: Sequence[int] | int,
         shape_override: Sequence | None = None,
         dtype_override: DtypeLike | torch.dtype | None = None,
-        lazy: bool = False
+        lazy_evaluation: bool = False
 ):
     """
     Functional implementation of flip.
-    This function operates eagerly or lazily according to
-    ``lazy`` (default ``False``).
+    This function operates eagerly or lazily according to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -321,7 +319,7 @@ def flip(
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy_evaluation: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
@@ -345,7 +343,8 @@ def flip(
         LazyAttr.OUT_SHAPE: input_shape,
         LazyAttr.OUT_DTYPE: input_dtype,
     }
-    return lazily_apply_op(img_, metadata, lazy)
+    return lazily_apply_op(img_, metadata, lazy_evaluation)
+
 
 def resize(
         img: torch.Tensor,
@@ -358,12 +357,11 @@ def resize(
         dtype: DtypeLike | torch.dtype | None = None,
         shape_override: Sequence[int] | None = None,
         dtype_override: DtypeLike | torch.dtype | None = None,
-        lazy: bool = False
+        lazy_evaluation: bool = False
 ):
     """
     Functional implementation of resize.
-    This function operates eagerly or lazily according to
-    ``lazy`` (default ``False``).
+    This function operates eagerly or lazily according to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -381,7 +379,7 @@ def resize(
             the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
         anti_aliasing_sigma: {float, tuple of floats}, optional
             Standard deviation for Gaussian filtering used when anti-aliasing.
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy_evaluation: a flag that indicates whether the operation should be performed lazily or not
     """
 
     img_ = convert_to_tensor(img, track_meta=get_track_meta())
@@ -432,7 +430,7 @@ def resize(
         LazyAttr.OUT_SHAPE: output_shape,
         LazyAttr.OUT_DTYPE: dtype_,
     }
-    return lazily_apply_op(img_, metadata, lazy)
+    return lazily_apply_op(img_, metadata, lazy_evaluation)
 
 
 def rotate(
@@ -445,7 +443,7 @@ def rotate(
         dtype: DtypeLike | torch.dtype = None,
         shape_override: Sequence[int] | None = None,
         dtype_override: DtypeLike | torch.dtype = None,
-        lazy: bool = False
+        lazy_evaluation: bool = False
 ):
     """
     Args:
@@ -491,15 +489,8 @@ def rotate(
     rotate_tx = create_rotate(input_ndim, angle_).astype(np.float64)
     output_shape = input_shape if keep_size is True else transform_shape(input_shape, rotate_tx)
 
-    if align_corners is True:
-        # op = lambda scale_factors: compatible_scale(img_, scale_factors)
-        op = lambda scale_factors: create_scale(input_ndim, scale_factors).astype(np.float64)
-        transform = apply_align_corners(rotate_tx, output_shape[1:], op)
-    else:
-        transform = rotate_tx
-
     metadata = {
-        "transform": transform,
+        "transform": rotate_tx,
         "op": "rotate",
         "angle": angle,
         "keep_size": keep_size,
@@ -511,7 +502,7 @@ def rotate(
         LazyAttr.OUT_SHAPE: output_shape,
         LazyAttr.OUT_DTYPE: dtype_,
     }
-    return lazily_apply_op(img_, metadata, lazy)
+    return lazily_apply_op(img_, metadata, lazy_evaluation)
 
 
 def zoom(
@@ -524,12 +515,11 @@ def zoom(
         dtype: DtypeLike | torch.dtype | None = None,
         shape_override: Sequence[int] | None = None,
         dtype_override: DtypeLike | torch.dtype | None = None,
-        lazy: bool = False
+        lazy_evaluation: bool = False
 ):
     """
     Functional implementation of zoom.
-    This function operates eagerly or lazily according to
-    ``lazy`` (default ``False``).
+    This function operates eagerly or lazily according to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -547,7 +537,7 @@ def zoom(
         dtype: data type for resampling computation.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``float32``.
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy_evaluation: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
 
     """
@@ -600,7 +590,7 @@ def zoom(
         LazyAttr.OUT_DTYPE: dtype_,
     }
 
-    return lazily_apply_op(img_, metadata, lazy)
+    return lazily_apply_op(img_, metadata, lazy_evaluation)
 
 
 def rotate90(
@@ -609,19 +599,18 @@ def rotate90(
         spatial_axes: Tuple[int, int] = (0, 1),
         shape_override: Sequence[int] | None = None,
         dtype_override: DtypeLike | torch.dtype | None = None,
-        lazy: bool = False
+        lazy_evaluation: bool = False
 ):
     """
     Functional implementation of rotate90.
-    This function operates eagerly or lazily according to
-    ``lazy`` (default ``False``).
+    This function operates eagerly or lazily according to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
         axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
             If axis is negative it counts from the last to the first axis.
         k: number of times to rotate by 90 degrees.
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy_evaluation: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     if len(spatial_axes) != 2:
@@ -660,16 +649,15 @@ def rotate90(
         LazyAttr.OUT_SHAPE: output_shape,
         LazyAttr.OUT_DTYPE: input_dtype,
     }
-    return lazily_apply_op(img_, metadata, lazy)
+    return lazily_apply_op(img_, metadata, lazy_evaluation)
 
 
 def affine_func(
-    img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, lazy, transform_info
+    img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, lazy_evaluation, transform_info
 ):
     """
     Functional implementation of affine.
-    This function operates eagerly or lazily according to
-    ``lazy`` (default ``False``).
+    This function operates eagerly or lazily according to ``lazy_evaluation`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -693,7 +681,7 @@ def affine_func(
         do_resampling: whether to do the resampling, this is a flag for the use case of updating metadata but
             skipping the actual (potentially heavy) resampling operation.
         image_only: if True return only the image volume, otherwise return (image, affine).
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy_evaluation: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
 
     """
@@ -716,9 +704,9 @@ def affine_func(
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
-        lazy=lazy,
+        lazy_evaluation=lazy_evaluation,
     )
-    if lazy:
+    if lazy_evaluation:
         out = _maybe_new_metatensor(img)
         out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
         return out if image_only else (out, affine)
@@ -729,3 +717,73 @@ def affine_func(
         out = _maybe_new_metatensor(img, dtype=torch.float32, device=resampler.device)
     out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     return out if image_only else (out, affine)
+
+
+def transform_like(
+        data,
+        data_applied_ops,
+        data_pending_ops,
+        reference,
+        reference_applied_ops,
+        reference_pending_ops,
+        lazy_evaluation=False
+):
+    """
+    Functional implementation for adapting a tensor.
+    This function operates eagerly or lazily accoring to ``lazy`` (default ``False``).
+
+    `transform_like` takes a tensor ``data`` and a reference tensor ``reference``, and applies the
+    latest transform from ``reference`` to ``data``.
+
+    ``transform_like`` is designed to work with MONAI's ``MetaTensor`` as well as with standard
+    pytorch ``tensor``.
+     - in the case that a pytorch ``tensor`` is provided for ``data``, one or both of
+     ``data_applied_ops`` and ``data_pending_ops`` must also be provided.
+     - ``reference`` should only be supplied if it is a ``MetaTensor``. Otherwise, one or both of
+       ``reference_applied_ops`` and ``reference_pending_ops`` should be provided instead
+
+    Args:
+        data: the ``tensor`` / ``MetaTensor`` to be transformed
+        data_applied_ops: a list of ops that have been applied to ``data``, if data is not a
+            ``MetaTensor``. It should be None if ``data`` is a ``MetaTensor``
+        data_pending_ops: a list of ops that are due to be applied to ``data``, if data is not a
+            ``MetaTensor``. It should be None if ``data`` is a ``MetaTensor``
+        reference: the ``MetaTensor`` that ``data`` is being matched to. If the reference tensor
+            is not a ``MetaTensor``, ``reference`` should be `None`
+        reference_applied_ops: a list of ops that have been applied to a reference tensor
+            (which is not supplied if this parameter is set)
+        reference_pending_ops: a list of ops that are due to be applied to a reference tensor (not
+            (which is not supplied if this parameter is set)
+    """
+
+    if not isinstance(data, (MetaTensor, torch.Tensor)):
+        raise TypeError(
+            f"If 'data' is provided, it must be one of (MetaTensor, torch.Tensor) but is of type {type(data)}"
+        )
+    if isinstance(data, MetaTensor) and any(p is not None for p in (data_applied_ops, data_pending_ops)):
+        raise ValueError(f"is 'data' is a MetaTensor, 'data_applied_ops' and 'data_pending_ops' must be None")
+
+    if reference is not None and not isinstance(reference, MetaTensor):
+        raise TypeError(
+            f"If 'reference' is provided, it must be of type MetaTensor, but is of type {type(reference)}"
+        )
+    if reference is not None and any(p is not None for p in (reference_applied_ops, reference_pending_ops)):
+        raise ValueError(f"If 'reference' is set, 'reference_applied_ops' and 'reference_pending_ops' must be None")
+
+    op_to_apply = None
+    if reference is MetaTensor:
+        if reference.has_pending_operations():
+            op_to_apply = copy.deepcopy(reference.pending_operations[-1])
+        elif len(reference.applied_operations) > 0:
+            op_to_apply = copy.deepcopy(reference.applied_operations[-1])
+    else:
+        if reference_pending_ops is not None and len(reference_pending_ops) > 0:
+            op_to_apply = copy.deepcopy(reference_pending_ops[-1])
+        elif reference_applied_ops is not None and len(reference_applied_ops) > 0:
+            op_to_apply = copy.deepcopy(reference_applied_ops[-1])
+
+    if op_to_apply is not None:
+        if isinstance(data, MetaTensor):
+            data.push_pending_operation(op_to_apply)
+
+    return lazily_apply_op(data, op_to_apply, lazy_evaluation)

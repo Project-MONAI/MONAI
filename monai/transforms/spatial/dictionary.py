@@ -38,6 +38,7 @@ from monai.transforms.spatial.functional import (
     resize,
     rotate,
     rotate90,
+    transform_like,
     zoom,
 )
 from monai.transforms.spatial.array import (
@@ -185,7 +186,7 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         dst_keys: KeysCollection | None = "dst_affine",
         allow_missing_keys: bool = False,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -213,37 +214,37 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
             dst_keys: the key of the corresponding ``dst_affine`` in the metadata dictionary.
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
-        self.sp_transform = SpatialResample(lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
+        self.sp_transform = SpatialResample(lazy_evaluation=lazy_evaluation)
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.dst_keys = ensure_tuple_rep(dst_keys, len(self.keys))
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.sp_transform.lazy = val
+        self.sp_transform.lazy_evaluation = val
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         d: dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, dst_key in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
@@ -256,7 +257,7 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
-                lazy=lazy_,
+                lazy_evaluation=lazy_,
             )
         return d
 
@@ -287,7 +288,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
         align_corners: Sequence[bool] | bool = False,
         dtype: Sequence[DtypeLike] | DtypeLike = np.float64,
         allow_missing_keys: bool = False,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ):
         """
         Args:
@@ -315,37 +316,37 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
                 the output data type is always ``float32``.
                 It also can be a sequence of dtypes, each element corresponds to a key in ``keys``.
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.key_dst = key_dst
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
         self.align_corners = ensure_tuple_rep(align_corners, len(self.keys))
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
-        self.resampler = ResampleToMatch(lazy=lazy)
+        self.resampler = ResampleToMatch(lazy_evaluation=lazy_evaluation)
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.resampler.lazy = val
+        self.resampler.lazy_evaluation = val
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         d = dict(data)
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
@@ -357,7 +358,7 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
                 padding_mode=padding_mode,
                 align_corners=align_corners,
                 dtype=dtype,
-                lazy=lazy_,
+                lazy_evaluation=lazy_,
             )
         return d
 
@@ -402,7 +403,7 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         max_pixdim: Sequence[float] | float | None = None,
         ensure_same_shape: bool = True,
         allow_missing_keys: bool = False,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -462,18 +463,18 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
             ensure_same_shape: when the inputs have the same spatial shape, and almost the same pixdim,
                 whether to ensure exactly the same output spatial shape.  Default to True.
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.spacing_transform = Spacing(
             pixdim,
             diagonal=diagonal,
             recompute_affine=recompute_affine,
             min_pixdim=min_pixdim,
             max_pixdim=max_pixdim,
-            lazy=lazy,
+            lazy_evaluation=lazy_evaluation,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -482,19 +483,19 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
         self.scale_extent = ensure_tuple_rep(scale_extent, len(self.keys))
         self.ensure_same_shape = ensure_same_shape
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.spacing_transform.lazy = val
+        self.spacing_transform.lazy_evaluation = val
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
@@ -504,7 +505,7 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
 
         _init_shape, _pixdim, should_match = None, None, False
         output_shape_k = None  # tracking output shape
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
         for key, mode, padding_mode, align_corners, dtype, scale_extent in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.scale_extent
@@ -524,7 +525,7 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
                 dtype=dtype,
                 scale_extent=scale_extent,
                 output_spatial_shape=output_shape_k if should_match else None,
-                lazy=lazy_,
+                lazy_evaluation=lazy_,
             )
             if output_shape_k is None:
                 output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
@@ -558,7 +559,7 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
         as_closest_canonical: bool = False,
         labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
         allow_missing_keys: bool = False,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -572,7 +573,7 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
         See Also:
@@ -580,33 +581,33 @@ class Orientationd(MapTransform, InvertibleTransform, LazyTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.ornt_transform = Orientation(
-            axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels, lazy=lazy
+            axcodes=axcodes, as_closest_canonical=as_closest_canonical, labels=labels, lazy_evaluation=lazy_evaluation
         )
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.ornt_transform.lazy = val
+        self.ornt_transform.lazy_evaluation = val
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         d: dict = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(d):
-            d[key] = self.ornt_transform(d[key], lazy=lazy_)
+            d[key] = self.ornt_transform(d[key], lazy_evaluation=lazy_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -632,7 +633,7 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
             k: int = 1,
             spatial_axes: tuple[int, int] = (0, 1),
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -640,41 +641,41 @@ class Rotate90d(MapTransform, InvertibleTransform, LazyTransform):
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.k = k
         self.spatial_axes = spatial_axes
 
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         rd = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(rd):
-            rd[key] = rotate90(rd[key], self.k, self.spatial_axes, lazy=self.lazy)
+            rd[key] = rotate90(rd[key], self.k, self.spatial_axes, lazy_evaluation=self.lazy_evaluation)
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -697,7 +698,7 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
             max_k: int = 3,
             spatial_axes: tuple[int, int] = (0, 1),
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
     ) -> None:
@@ -712,12 +713,12 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.max_k = max_k
         self.spatial_axes = spatial_axes
@@ -731,35 +732,35 @@ class RandRotate90d(RandomizableTransform, MapTransform, InvertibleTransform, La
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> Mapping[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         rd = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         k = self.randomizer.sample()
         for key in self.key_iterator(rd):
             if self._do_transform:
-                rd[key] = rotate90(rd[key], k, self.spatial_axes, lazy=lazy_)
+                rd[key] = rotate90(rd[key], k, self.spatial_axes, lazy_evaluation=lazy_)
             else:
-                rd[key] = identity(rd[key], None, None, lazy=lazy_)
+                rd[key] = identity(rd[key], None, None, lazy_evaluation=lazy_)
 
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -802,7 +803,7 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -818,10 +819,10 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
             anti_aliasing: Sequence[bool] | bool = False,
             anti_aliasing_sigma: Sequence[Sequence[float] | float | None] | Sequence[float] | float | None = None,
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.spatial_size = spatial_size
         self.size_mode = size_mode
@@ -833,34 +834,34 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         rd = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key, mode, align_corners, anti_aliasing, anti_aliasing_sigma in self.key_iterator(
             rd, self.mode, self.align_corners, self.anti_aliasing, self.anti_aliasing_sigma
         ):
             rd[key] = resize(rd[key], spatial_size=self.spatial_size, size_mode=self.size_mode, mode=mode,
                              align_corners=align_corners, anti_aliasing=anti_aliasing,
-                             anti_aliasing_sigma=anti_aliasing_sigma, lazy=lazy_)
+                             anti_aliasing_sigma=anti_aliasing_sigma, lazy_evaluation=lazy_)
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -889,7 +890,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
         dtype: DtypeLike | torch.dtype = np.float32,
         align_corners: bool = False,
         allow_missing_keys: bool = False,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -940,7 +941,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
         See also:
@@ -949,7 +950,7 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.affine = Affine(
             rotate_params=rotate_params,
             shear_params=shear_params,
@@ -960,33 +961,33 @@ class Affined(MapTransform, InvertibleTransform, LazyTransform):
             device=device,
             dtype=dtype,  # type: ignore
             align_corners=align_corners,
-            lazy=lazy,
+            lazy_evaluation=lazy_evaluation,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.affine.lazy = val
+        self.affine.lazy_evaluation = val
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None) -> dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation: bool | None = None) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         d = dict(data)
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
-            d[key], _ = self.affine(d[key], mode=mode, padding_mode=padding_mode, lazy=lazy_)
+            d[key], _ = self.affine(d[key], mode=mode, padding_mode=padding_mode, lazy_evaluation=lazy_)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
@@ -1020,7 +1021,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         cache_grid: bool = False,
         device: torch.device | None = None,
         allow_missing_keys: bool = False,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -1074,7 +1075,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
                 accelerate the transform.
             device: device on which the tensor will be allocated.
             allow_missing_keys: don't raise exception if key is missing.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
         See also:
@@ -1084,7 +1085,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.rand_affine = RandAffine(
             prob=1.0,  # because probability handled in this class
             rotate_range=rotate_range,
@@ -1094,15 +1095,15 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
             spatial_size=spatial_size,
             cache_grid=cache_grid,
             device=device,
-            lazy=lazy,
+            lazy_evaluation=lazy_evaluation,
         )
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.rand_affine.lazy = val
+        self.rand_affine.lazy_evaluation = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> RandAffined:
         self.rand_affine.set_random_state(seed, state)
@@ -1110,15 +1111,15 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         return self
 
     def __call__(
-        self, data: Mapping[Hashable, NdarrayOrTensor], lazy: bool | None = None
+        self, data: Mapping[Hashable, NdarrayOrTensor], lazy_evaluation: bool | None = None
     ) -> dict[Hashable, NdarrayOrTensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
@@ -1136,7 +1137,7 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
 
         item = d[first_key]
         spatial_size = item.peek_pending_shape() if isinstance(item, MetaTensor) else item.shape[1:]
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
         sp_size = fall_back_tuple(self.rand_affine.spatial_size, spatial_size)
         # change image size or do random transform
@@ -1144,19 +1145,19 @@ class RandAffined(RandomizableTransform, MapTransform, InvertibleTransform, Lazy
         # converting affine to tensor because the resampler currently only support torch backend
         grid = None
         if do_resampling:  # need to prepare grid
-            grid = self.rand_affine.get_identity_grid(sp_size, lazy=lazy_)
+            grid = self.rand_affine.get_identity_grid(sp_size, lazy_evaluation=lazy_)
             if self._do_transform:  # add some random factors
-                grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid, lazy=lazy_)
+                grid = self.rand_affine.rand_affine_grid(sp_size, grid=grid, lazy_evaluation=lazy_)
         grid = 0 if grid is None else grid  # always provide a grid to self.rand_affine
 
         for key, mode, padding_mode in self.key_iterator(d, self.mode, self.padding_mode):
             # do the transform
             if do_resampling:
-                d[key] = self.rand_affine(d[key], None, mode, padding_mode, True, grid, lazy=lazy_)  # type: ignore
+                d[key] = self.rand_affine(d[key], None, mode, padding_mode, True, grid, lazy_evaluation=lazy_)  # type: ignore
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
             self._do_transform = do_resampling  # TODO: unify self._do_transform and do_resampling
-            self.push_transform(d[key], replace=True, lazy=lazy_)
+            self.push_transform(d[key], replace=True, lazy_evaluation=lazy_)
         return d
 
     def inverse(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
@@ -1480,7 +1481,7 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
         keys: Keys to pick data for transformation.
         spatial_axis: Spatial axes along which to flip over. Default is None.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1491,39 +1492,39 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
             keys: KeysCollection,
             spatial_axis: Sequence[int] | int | None = None,
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
 
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         rd = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(rd):
-            rd[key] = flip(rd[key], self.spatial_axis, lazy=lazy_)
+            rd[key] = flip(rd[key], self.spatial_axis, lazy_evaluation=lazy_)
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -1542,7 +1543,7 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         prob: Probability of flipping.
         spatial_axis: Spatial axes along which to flip over. Default is None.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1556,26 +1557,26 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
             allow_missing_keys: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.spatial_axis = spatial_axis
 
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
@@ -1583,19 +1584,19 @@ class RandFlipd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         """
         rd = dict(data)
         self.randomize()
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(rd):
             if self._do_transform:
-                rd[key] = flip(rd[key], self.spatial_axis, lazy=lazy_)
+                rd[key] = flip(rd[key], self.spatial_axis, lazy_evaluation=lazy_)
             else:
-                rd[key] = identity(rd[key], None, None, lazy=lazy_)
+                rd[key] = identity(rd[key], None, None, lazy_evaluation=lazy_)
 
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -1613,7 +1614,7 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
         keys: Keys to pick data for transformation.
         prob: Probability of flipping.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1624,13 +1625,13 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
             keys: KeysCollection,
             prob: float = 0.1,
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self._rand_axis = 0
 
     def randomize(self, data: NdarrayOrTensor) -> None:
@@ -1642,15 +1643,15 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
@@ -1663,19 +1664,19 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
 
         self.randomize(rd[first_key])
 
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key in self.key_iterator(rd):
             if self._do_transform:
-                rd[key] = flip(rd[key], self._rand_axis, lazy=self.lazy)
+                rd[key] = flip(rd[key], self._rand_axis, lazy_evaluation=self.lazy_evaluation)
             else:
-                rd[key] = identity(rd[key], None, None, lazy=lazy_)
+                rd[key] = identity(rd[key], None, None, lazy_evaluation=lazy_)
 
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -1708,7 +1709,7 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
             the output data type is always ``float32``.
             It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1724,10 +1725,10 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
             align_corners: Sequence[bool] | bool = False,
             dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.angle = angle
         self.mode = ensure_tuple_rep(mode, len(self.keys))
@@ -1738,34 +1739,34 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         d = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
             d, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             d[key] = rotate(
-                d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy_
+                d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy_evaluation=lazy_
             )
         return d
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -1805,7 +1806,7 @@ class RandRotated(RandomizableTransform,MapTransform, InvertibleTransform, LazyT
             the output data type is always ``float32``.
             It also can be a sequence of dtype or None, each element corresponds to a key in ``keys``.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
     backend = RandRotate.backend
@@ -1823,13 +1824,13 @@ class RandRotated(RandomizableTransform,MapTransform, InvertibleTransform, LazyT
             align_corners: Sequence[bool] | bool = False,
             dtype: Sequence[DtypeLike | torch.dtype] | DtypeLike | torch.dtype = np.float32,
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.keys = keys
         self.keep_size = keep_size
@@ -1853,15 +1854,15 @@ class RandRotated(RandomizableTransform,MapTransform, InvertibleTransform, LazyT
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
@@ -1870,7 +1871,7 @@ class RandRotated(RandomizableTransform,MapTransform, InvertibleTransform, LazyT
         self.randomize()
 
         rd = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key_, mode_, padding_mode_, dtype_ in self.key_iterator(
             rd, self.mode, self.padding_mode, self.dtype
         ):
@@ -1880,15 +1881,15 @@ class RandRotated(RandomizableTransform,MapTransform, InvertibleTransform, LazyT
 
                 rd[key_] = rotate(rd[key_], angles, self.keep_size,
                                 mode_, padding_mode_, self.align_corners, dtype_,
-                                None, lazy=lazy_)
+                                None, lazy_evaluation=lazy_)
             else:
-                rd[key_] = identity(rd[key_], None, None, lazy=lazy_)
+                rd[key_] = identity(rd[key_], None, None, lazy_evaluation=lazy_)
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
@@ -1922,7 +1923,7 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
             If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -1940,11 +1941,11 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
             align_corners: Sequence[bool | None] | bool | None = None,
             keep_size: bool = True,
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.zoom = zoom
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -1954,34 +1955,34 @@ class Zoomd(MapTransform, InvertibleTransform, LazyTransform):
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
             data: a dictionary containing the tensor-like data to be processed. The ``keys`` specified
                 in this dictionary must be tensor like arrays that are channel first and have at most
                 three spatial dimensions
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
             a dictionary containing the transformed data, as well as any other data present in the dictionary
         """
         rd = dict(data)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         for key, mode, padding_mode, align_corners in self.key_iterator(
             rd, self.mode, self.padding_mode, self.align_corners
         ):
             rd[key] = zoom(rd[key], self.zoom, mode=mode,
                           padding_mode=padding_mode, align_corners=align_corners,
-                          lazy=lazy_)
+                          lazy_evaluation=lazy_)
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -2024,7 +2025,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
             If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
         allow_missing_keys: don't raise exception if key is missing.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
         kwargs: other args for `np.pad` API, note that `np.pad` treats channel dimension as the first dimension.
             more details: https://numpy.org/doc/1.18/reference/generated/numpy.pad.html
@@ -2043,14 +2044,14 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
             align_corners: Sequence[bool | None] | bool | None = None,
             keep_size: bool = True,
             allow_missing_keys: bool = False,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
             **kwargs,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.mode = ensure_tuple_rep(mode, len(self.keys))
         self.padding_mode = ensure_tuple_rep(padding_mode, len(self.keys))
@@ -2076,7 +2077,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
     def __call__(
             self,
             data: Mapping[Hashable, torch.Tensor],
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> dict[Hashable, torch.Tensor]:
         """
         Args:
@@ -2097,8 +2098,8 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data.
             randomize: whether to execute `randomize()` function first, default to True.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         rd = dict(data)
@@ -2107,7 +2108,7 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
             out: dict[Hashable, torch.Tensor] = convert_to_tensor(rd, track_meta=get_track_meta())
             return out
 
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
         self.randomize(rd[first_key])
 
@@ -2116,15 +2117,15 @@ class RandZoomd(RandomizableTransform, MapTransform, InvertibleTransform, LazyTr
         ):
             if self._do_transform:
                 rd[key] = zoom(rd[key], self._rand_zoom, mode=mode, padding_mode=padding_mode, align_corners=align_corners,
-                               lazy=lazy_)
+                               lazy_evaluation=lazy_)
             else:
-                rd[key] = identity(rd[key], None, None, lazy=lazy_)
+                rd[key] = identity(rd[key], None, None, lazy_evaluation=lazy_)
         return rd
 
     def inverse(self, data):
         rd = dict(data)
         for key in self.key_iterator(rd):
-            rd[key] = invert(rd[key], self.lazy)
+            rd[key] = invert(rd[key], self.lazy_evaluation)
         return rd
 
 
@@ -2603,6 +2604,36 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
         return d
 
 
+class TransformLiked(MapTransform, InvertibleTransform, LazyTransform):
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            reference_key = Hashable,
+            allow_missing_keys: bool = False,
+            lazy_evaluation: bool = False,
+    ):
+        MapTransform().__init__(self, keys, allow_missing_keys)
+        LazyTransform().__init__(self, lazy_evaluation)
+        self.reference_key = reference_key
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor], lazy_evaluation=None):
+
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else self.lazy_evaluation
+        d: dict = dict(data)
+        reference = data[self.reference_key]
+        for key in self.key_iterator(d):
+            d[key] = transform_like(data=d[key], reference=reference, lazy_evaluation=lazy_)
+
+        return d
+
+    def inverse(self, data):
+        rd = dict(data)
+        for key in self.key_iterator(rd):
+            rd[key] = invert(rd[key], self.lazy_evaluation)
+        return rd
+
+
 SpatialResampleD = SpatialResampleDict = SpatialResampled
 ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
@@ -2627,3 +2658,4 @@ GridSplitD = GridSplitDict = GridSplitd
 GridPatchD = GridPatchDict = GridPatchd
 RandGridPatchD = RandGridPatchDict = RandGridPatchd
 RandSimulateLowResolutionD = RandSimulateLowResolutionDict = RandSimulateLowResolutiond
+TransformLikeD = TransformLikeDict = TransformLiked

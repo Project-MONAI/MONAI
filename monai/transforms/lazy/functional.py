@@ -97,16 +97,19 @@ def lazily_apply_op(
     This function will immediately apply the op to the given tensor if `lazy_evaluation` is set to
     False. Its precise behaviour depends on whether it is passed a Tensor or MetaTensor:
 
+    If passed a Tensor, `lazily_apply_op` returns a tuple of Tensor and operation description:
+     - if `lazy_evaluation` is False, the transformed tensor and op is returned
+     - if `lazy_evaluation` is True, the tensor and op is returned
 
-    If passed a Tensor, it returns a tuple of Tensor, MetaMatrix:
-     - if the operation was applied, Tensor, None is returned
-     - if the operation was not applied, Tensor, MetaMatrix is returned
-
-    If passed a MetaTensor, only the tensor itself is returned
+    If passed a MetaTensor, only the tensor itself is returned:
+     - if `lazy_evaluation` is False, the transformed tensor is returned, with the op added to
+       the applied operations
+     - if `lazy_evaluation` is True, the untransformed tensor is returned, with the op added to
+       the pending operations
 
     Args:
           tensor: the tensor to have the operation lazily applied to
-          op: the MetaMatrix containing the transform and metadata
+          op: the operation description containing the transform and metadata
           lazy_evaluation: a boolean flag indicating whether to apply the operation lazily
     """
     if isinstance(tensor, MetaTensor):

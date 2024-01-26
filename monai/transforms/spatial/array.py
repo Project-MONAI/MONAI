@@ -42,6 +42,7 @@ from monai.transforms.spatial.functional import (
     rotate,
     rotate90,
     spatial_resample,
+    transform_like,
     zoom,
 )
 from monai.transforms.traits import MultiSampleTrait
@@ -138,7 +139,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike = np.float64,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ):
         """
         Args:
@@ -157,10 +158,10 @@ class SpatialResample(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``float64`` for best precision.
                 If ``None``, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.mode = mode
         self.padding_mode = padding_mode
         self.align_corners = align_corners
@@ -175,7 +176,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         padding_mode: str | None = None,
         align_corners: bool | None = None,
         dtype: DtypeLike = None,
-        lazy: bool | None = None,
+        lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -207,8 +208,8 @@ class SpatialResample(InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         The spatial rank is determined by the smallest among ``img.ndim -1``, ``len(src_affine) - 1``, and ``3``.
 
@@ -221,7 +222,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
         align_corners = align_corners if align_corners is not None else self.align_corners
         mode = mode if mode is not None else self.mode
         padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         return spatial_resample(
             img,
             dst_affine,
@@ -230,7 +231,7 @@ class SpatialResample(InvertibleTransform, LazyTransform):
             padding_mode,
             align_corners,
             dtype_pt,
-            lazy=lazy_,
+            lazy_evaluation=lazy_,
             transform_info=self.get_transform_info(),
         )
 
@@ -269,7 +270,7 @@ class ResampleToMatch(SpatialResample):
         padding_mode: str | None = None,
         align_corners: bool | None = None,
         dtype: DtypeLike = None,
-        lazy: bool | None = None,
+        lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -293,8 +294,8 @@ class ResampleToMatch(SpatialResample):
             dtype: data type for resampling computation. Defaults to ``self.dtype`` or
                 ``np.float64`` (for best precision). If ``None``, use the data type of input data.
                 To be compatible with other modules, the output data type is always `float32`.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Raises:
@@ -305,7 +306,7 @@ class ResampleToMatch(SpatialResample):
         if img_dst is None:
             raise RuntimeError("`img_dst` is missing.")
         dst_affine = img_dst.peek_pending_affine() if isinstance(img_dst, MetaTensor) else torch.eye(4)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         img = super().__call__(
             img=img,
             dst_affine=dst_affine,
@@ -314,7 +315,7 @@ class ResampleToMatch(SpatialResample):
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
-            lazy=lazy_,
+            lazy_evaluation=lazy_,
         )
         if not lazy_:
             if isinstance(img, MetaTensor):
@@ -327,7 +328,7 @@ class ResampleToMatch(SpatialResample):
             if isinstance(img, MetaTensor) and isinstance(img_dst, MetaTensor):
                 original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
                 meta_dict = deepcopy(img_dst.meta)
-                for k in ("affine", "spatial_shape"):  # keys that don't copy from img_dst in lazy evaluation
+                for k in ("affine", "spatial_shape"):  # keys that don't copy from img_dst in lazy_evaluation evaluation
                     meta_dict.pop(k, None)
                 img.meta.update(meta_dict)
                 img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
@@ -356,7 +357,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         recompute_affine: bool = False,
         min_pixdim: Sequence[float] | float | np.ndarray | None = None,
         max_pixdim: Sequence[float] | float | np.ndarray | None = None,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -409,10 +410,10 @@ class Spacing(InvertibleTransform, LazyTransform):
             max_pixdim: maximal input spacing to be resampled. If provided, input image with a smaller spacing than this
                 value will be kept in its original spacing (not be resampled to `pixdim`). Set it to `None` to use the
                 value of `pixdim`. Default to `None`.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.pixdim = np.array(ensure_tuple(pixdim), dtype=np.float64)
         self.min_pixdim = np.array(ensure_tuple(min_pixdim), dtype=np.float64)
         self.max_pixdim = np.array(ensure_tuple(max_pixdim), dtype=np.float64)
@@ -425,13 +426,13 @@ class Spacing(InvertibleTransform, LazyTransform):
                 raise ValueError(f"min_pixdim {self.min_pixdim} must be positive, smaller than max {self.max_pixdim}.")
 
         self.sp_resample = SpatialResample(
-            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy
+            mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy_evaluation=lazy_evaluation
         )
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.sp_resample.lazy = val
+        self.sp_resample.lazy_evaluation = val
 
     def __call__(
         self,
@@ -442,7 +443,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         dtype: DtypeLike = None,
         scale_extent: bool | None = None,
         output_spatial_shape: Sequence[int] | np.ndarray | int | None = None,
-        lazy: bool | None = None,
+        lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -472,8 +473,8 @@ class Spacing(InvertibleTransform, LazyTransform):
             output_spatial_shape: specify the shape of the output data_array. This is typically useful for
                 the inverse of `Spacingd` where sometimes we could not compute the exact shape due to the quantization
                 error with the affine.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Raises:
@@ -523,7 +524,7 @@ class Spacing(InvertibleTransform, LazyTransform):
         new_affine[:sr, -1] = offset[:sr]
 
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
@@ -532,7 +533,7 @@ class Spacing(InvertibleTransform, LazyTransform):
             padding_mode=padding_mode,
             align_corners=align_corners,
             dtype=dtype,
-            lazy=lazy_,
+            lazy_evaluation=lazy_,
         )
         if self.recompute_affine and isinstance(data_array, MetaTensor):
             if lazy_:
@@ -560,7 +561,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         axcodes: str | None = None,
         as_closest_canonical: bool = False,
         labels: Sequence[tuple[str, str]] | None = (("L", "R"), ("P", "A"), ("I", "S")),
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -573,7 +574,7 @@ class Orientation(InvertibleTransform, LazyTransform):
             labels: optional, None or sequence of (2,) sequences
                 (2,) sequences are labels for (beginning, end) of output axis.
                 Defaults to ``(('L', 'R'), ('P', 'A'), ('I', 'S'))``.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
         Raises:
@@ -582,7 +583,7 @@ class Orientation(InvertibleTransform, LazyTransform):
         See Also: `nibabel.orientations.ornt2axcodes`.
 
         """
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         if axcodes is None and not as_closest_canonical:
             raise ValueError("Incompatible values: axcodes=None and as_closest_canonical=True.")
         if axcodes is not None and as_closest_canonical:
@@ -591,15 +592,15 @@ class Orientation(InvertibleTransform, LazyTransform):
         self.as_closest_canonical = as_closest_canonical
         self.labels = labels
 
-    def __call__(self, data_array: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(self, data_array: torch.Tensor, lazy_evaluation: bool | None = None) -> torch.Tensor:
         """
         If input type is `MetaTensor`, original affine is extracted with `data_array.affine`.
         If input type is `torch.Tensor`, original affine is assumed to be identity.
 
         Args:
             data_array: in shape (num_channels, H[, W, ...]).
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Raises:
@@ -645,8 +646,8 @@ class Orientation(InvertibleTransform, LazyTransform):
                     f"axcodes must match data_array spatially, got axcodes={len(self.axcodes)}D data_array={sr}D"
                 )
             spatial_ornt = nib.orientations.ornt_transform(src, dst)
-        lazy_ = self.lazy if lazy is None else lazy
-        return orientation(data_array, affine_np, spatial_ornt, lazy=lazy_, transform_info=self.get_transform_info())
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        return orientation(data_array, affine_np, spatial_ornt, lazy_evaluation=lazy_, transform_info=self.get_transform_info())
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -681,9 +682,9 @@ class Flip(LazyTransform, InvertibleTransform):
     def __init__(
             self,
             spatial_axis: Sequence[int] | int | None = None,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
 	) -> None:
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
 
     def __call__(
@@ -691,17 +692,17 @@ class Flip(LazyTransform, InvertibleTransform):
             img: NdarrayOrTensor,
             spatial_axis: Optional[Union[Sequence[int], int]] = None,
             shape_override: Optional[Sequence] = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ):
         spatial_axis_ = spatial_axis or self.spatial_axis
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
-        img_t = flip(img, spatial_axis_, lazy=lazy_)
+        img_t = flip(img, spatial_axis_, lazy_evaluation=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class Resize(LazyTransform, InvertibleTransform):
@@ -720,7 +721,7 @@ class Resize(LazyTransform, InvertibleTransform):
             anti_aliasing: bool = False,
             anti_aliasing_sigma: Sequence[float] | float | None = None,
             dtype: Optional[Union[DtypeLike, torch.dtype]] = np.float32,
-            lazy: Optional[bool] = True,
+            lazy_evaluation: Optional[bool] = True,
     ) -> None:
         """
         Resize the input image to given spatial size (with scaling, not cropping/padding).
@@ -752,7 +753,7 @@ class Resize(LazyTransform, InvertibleTransform):
                 downsampling factor, where s > 1. For the up-size case, s < 1, no
                 anti-aliasing is performed prior to rescaling.
         """
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_size = spatial_size
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.mode: InterpolateMode = look_up_option(mode, InterpolateMode)
@@ -769,7 +770,7 @@ class Resize(LazyTransform, InvertibleTransform):
             anti_aliasing: bool | None = None,
             anti_aliasing_sigma: Sequence[float] | float | None = None,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -799,15 +800,15 @@ class Resize(LazyTransform, InvertibleTransform):
         align_corners_ = align_corners or self.align_corners
         anti_aliasing_ = anti_aliasing or self.anti_aliasing
         anti_aliasing_sigma_ = anti_aliasing_sigma or self.anti_aliasing_sigma
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
         img_t = resize(img, self.spatial_size, self.size_mode, mode_, align_corners_, anti_aliasing_,
-                       anti_aliasing_sigma_, self.dtype, lazy=lazy_)
+                       anti_aliasing_sigma_, self.dtype, lazy_evaluation=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class Rotate(InvertibleTransform, LazyTransform):
@@ -821,7 +822,7 @@ class Rotate(InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
         dtype: DtypeLike | torch.dtype = torch.float32,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Rotates an input image by given angle using :py:class:`monai.networks.layers.AffineTransform`.
@@ -843,7 +844,7 @@ class Rotate(InvertibleTransform, LazyTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
         """
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.angle = angle
         self.keep_size = keep_size
         self.mode: str = look_up_option(mode, GridSampleMode)
@@ -859,7 +860,7 @@ class Rotate(InvertibleTransform, LazyTransform):
             align_corners: bool | None = None,
             dtype: DtypeLike | torch.dtype = None,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -887,14 +888,14 @@ class Rotate(InvertibleTransform, LazyTransform):
         align_corners_ = align_corners or self.align_corners
         keep_size = self.keep_size
         dtype_ = self.dtype
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
-        img_t = rotate(img, self.angle, keep_size, mode_, padding_mode_, align_corners_, dtype_, lazy=lazy_)
+        img_t = rotate(img, self.angle, keep_size, mode_, padding_mode_, align_corners_, dtype_, lazy_evaluation=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class Zoom(LazyTransform, InvertibleTransform):
@@ -908,7 +909,7 @@ class Zoom(LazyTransform, InvertibleTransform):
         padding_mode: str = NumpyPadMode.EDGE,
         align_corners: bool | None = None,
         keep_size: bool = True,
-        lazy: Optional[bool] = True,
+        lazy_evaluation: Optional[bool] = True,
         **kwargs,
     ) -> None:
         """
@@ -939,7 +940,7 @@ class Zoom(LazyTransform, InvertibleTransform):
             kwargs: other arguments for the `np.pad` or `torch.pad` function.
                 note that `np.pad` treats channel dimension as the first dimension.
         """
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.zoom = zoom
         self.mode: InterpolateMode = InterpolateMode(mode)
         self.padding_mode = padding_mode
@@ -954,7 +955,7 @@ class Zoom(LazyTransform, InvertibleTransform):
             padding_mode: str | None = None,
             align_corners: bool | None = None,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -978,14 +979,14 @@ class Zoom(LazyTransform, InvertibleTransform):
         mode_ = self.mode if mode is None else mode
         padding_mode_ = self.padding_mode if padding_mode is None else padding_mode
         align_corners_ = self.align_corners if align_corners is None else align_corners
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
-        img_t = zoom(img, self.zoom, mode_, padding_mode_, align_corners_, self.keep_size, img.dtype, lazy=lazy_)
+        img_t = zoom(img, self.zoom, mode_, padding_mode_, align_corners_, self.keep_size, img.dtype, lazy_evaluation=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class Rotate90(InvertibleTransform, LazyTransform):
@@ -1002,7 +1003,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
             self,
             k: int = 1,
             spatial_axes: tuple[int, int] = (0, 1),
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -1011,7 +1012,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
                 Default: (0, 1), this is the first two axis in spatial dimensions.
                 If axis is negative it counts from the last to the first axis.
         """
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.k = k
         spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
         if len(spatial_axes_) != 2:
@@ -1022,19 +1023,19 @@ class Rotate90(InvertibleTransform, LazyTransform):
             self,
             img: torch.Tensor,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
         """
-        lazy_ = self.lazy if lazy is None else lazy
-        img_t = rotate90(img, self.k, self.spatial_axes, lazy=lazy_)
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
+        img_t = rotate90(img, self.k, self.spatial_axes, lazy_evaluation=lazy_)
 
         return img_t
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1050,7 +1051,7 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             prob: float = 0.1,
             max_k: int = 3,
             spatial_axes: tuple[int, int] = (0, 1),
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
     ) -> None:
@@ -1061,11 +1062,11 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             max_k: number of rotations will be sampled from `np.random.randint(max_k) + 1`, (Default 3).
             spatial_axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
                 Default: (0, 1), this is the first two axis in spatial dimensions.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self.max_k = max_k
         self.spatial_axes = spatial_axes
@@ -1082,27 +1083,27 @@ class RandRotate90(RandomizableTransform, InvertibleTransform, LazyTransform):
             img: torch.Tensor,
             randomize: bool = True,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         if randomize:
             self.randomize()
 
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         if self._do_transform:
-            return rotate90(img, self._rand_k, self.spatial_axes, lazy=lazy_)
+            return rotate90(img, self._rand_k, self.spatial_axes, lazy_evaluation=lazy_)
         else:
-            return identity(img, None, None, lazy=lazy_)
+            return identity(img, None, None, lazy_evaluation=lazy_)
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1134,7 +1135,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``float32``.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1151,12 +1152,12 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             padding_mode: str = GridSamplePadMode.BORDER,
             align_corners: bool = False,
             dtype: DtypeLike | torch.dtype = np.float32,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.keep_size = keep_size
         self.mode: str = look_up_option(mode, GridSampleMode)
         self.padding_mode: str = look_up_option(padding_mode, GridSamplePadMode)
@@ -1183,7 +1184,7 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
             randomize: bool = True,
             get_matrix: bool = False,
             shape_override: Sequence | None = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> NdarrayOrTensor:
         """
         Args:
@@ -1200,8 +1201,8 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
                 If None, use the data type of input data. To be compatible with other modules,
                 the output data type is always ``float32``.
             randomize: whether to execute `randomize()` function first, default to True.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         if randomize:
@@ -1211,19 +1212,19 @@ class RandRotate(RandomizableTransform, InvertibleTransform, LazyTransform):
         padding_mode_ = padding_mode or self.padding_mode
         align_corners_ = align_corners or self.align_corners
         dtype_ = dtype or self.dtype
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
         # TODO: ideally, the rotate function should be told that it was called by the RandRotate class for
         # pending / applied op descriptions
         if self._do_transform:
             ndim = len(img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:])
             angles=self._rand_x if ndim == 2 else (self._rand_x, self._rand_y, self._rand_z),
-            return rotate(img, angles, self.keep_size, mode_, padding_mode_, align_corners_, dtype_, lazy=lazy_)
+            return rotate(img, angles, self.keep_size, mode_, padding_mode_, align_corners_, dtype_, lazy_evaluation=lazy_)
         else:
-            return identity(img, None, None, lazy=lazy_)
+            return identity(img, None, None, lazy_evaluation=lazy_)
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1238,7 +1239,7 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     Args:
         prob: Probability of flipping.
         spatial_axis: Spatial axes along which to flip over. Default is None.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1248,12 +1249,12 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             self,
             prob: float = 0.1,
             spatial_axis: Sequence[int] | int | None = None,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
         ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.spatial_axis = spatial_axis
 
 
@@ -1262,27 +1263,27 @@ class RandFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             img: torch.Tensor,
             randomize: bool = True,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ]),
             randomize: whether to execute `randomize()` function first, default to True.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         if randomize:
             self.randomize(None)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
 
         if self._do_transform:
-            return flip(img, self.spatial_axis, lazy=lazy_)
+            return flip(img, self.spatial_axis, lazy_evaluation=lazy_)
         else:
-            return identity(img, None, None, lazy=lazy_)
+            return identity(img, None, None, lazy_evaluation=lazy_)
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1296,7 +1297,7 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
 
     Args:
         prob: Probability of flipping.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1305,12 +1306,12 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
     def __init__(
             self,
             prob: float = 0.1,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
 
         self._rand_axis = None
 
@@ -1325,27 +1326,27 @@ class RandAxisFlip(RandomizableTransform, InvertibleTransform, LazyTransform):
             img: torch.Tensor,
             randomize: bool = True,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
             randomize: whether to execute `randomize()` function first, default to True.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         if randomize:
             self.randomize(data=img)
 
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         if self._do_transform:
-            return flip(img, self._rand_axis, lazy=lazy_)
+            return flip(img, self._rand_axis, lazy_evaluation=lazy_)
         else:
-            return identity(img, None, None, lazy=lazy_)
+            return identity(img, None, None, lazy_evaluation=lazy_)
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
@@ -1383,7 +1384,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         dtype: data type for resampling computation. Defaults to ``float32``.
             If None, use the data type of input data.
         keep_size: Should keep original size (pad if needed), default is True.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
         kwargs: other arguments for the `np.pad` or `torch.pad` function.
             note that `np.pad` treats channel dimension as the first dimension.
@@ -1398,13 +1399,13 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             padding_mode: str = NumpyPadMode.EDGE,
             align_corners: bool | None = None,
             keep_size: bool = True,
-            lazy: bool = False,
+            lazy_evaluation: bool = False,
             seed: int | None = None,
             state: np.random.RandomState | None = None,
             **kwargs,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy)
+        LazyTransform.__init__(self, lazy_evaluation)
         self.min_zoom = ensure_tuple(min_zoom)
         self.max_zoom = ensure_tuple(max_zoom)
         if len(self.min_zoom) != len(self.max_zoom):
@@ -1415,7 +1416,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
         self.padding_mode = padding_mode
         self.align_corners = align_corners
         self.keep_size = keep_size
-        self.lazy = lazy
+        self.lazy_evaluation = lazy_evaluation
         self.kwargs = kwargs
         self._rand_zoom = [1.0]
 
@@ -1439,7 +1440,7 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             align_corners: bool | None = None,
             randomize: bool = True,
             shape_override: Sequence = None,
-            lazy: bool | None = None,
+            lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -1460,26 +1461,26 @@ class RandZoom(RandomizableTransform, InvertibleTransform, LazyTransform):
             dtype: data type for resampling computation. Defaults to ``self.dtype``.
                 If None, use the data type of input data.
             randomize: whether to execute `randomize()` function first, default to True.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         # match the spatial image dim
         if randomize:
             self.randomize(img=img)
 
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         if self._do_transform:
             mode_ = mode or self.mode
             padding_mode_ = padding_mode or self.padding_mode
             align_corners_ = align_corners or self.align_corners
 
-            return zoom(img, self._rand_zoom, mode_, padding_mode_, align_corners_, self.keep_size, lazy=lazy_)
+            return zoom(img, self._rand_zoom, mode_, padding_mode_, align_corners_, self.keep_size, lazy_evaluation=lazy_)
         else:
-            return identity(img, None, None, lazy=lazy_)
+            return identity(img, None, None, lazy_evaluation=lazy_)
 
     def inverse(self, data):
-        return invert(data, self.lazy)
+        return invert(data, self.lazy_evaluation)
 
 
 class AffineGrid(LazyTransform):
@@ -1514,7 +1515,7 @@ class AffineGrid(LazyTransform):
         affine: If applied, ignore the params (`rotate_params`, etc.) and use the
             supplied matrix. Should be square with each side = num of image spatial
             dimensions + 1.
-        lazy: a flag to indicate whether this transform should execute lazily or not.
+        lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
     """
 
@@ -1530,9 +1531,9 @@ class AffineGrid(LazyTransform):
         dtype: DtypeLike = np.float32,
         align_corners: bool = False,
         affine: NdarrayOrTensor | None = None,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.rotate_params = rotate_params
         self.shear_params = shear_params
         self.translate_params = translate_params
@@ -1544,7 +1545,7 @@ class AffineGrid(LazyTransform):
         self.affine = affine
 
     def __call__(
-        self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None, lazy: bool | None = None
+        self, spatial_size: Sequence[int] | None = None, grid: torch.Tensor | None = None, lazy_evaluation: bool | None = None
     ) -> tuple[torch.Tensor | None, torch.Tensor]:
         """
         The grid can be initialized with a `spatial_size` parameter, or provided directly as `grid`.
@@ -1554,14 +1555,14 @@ class AffineGrid(LazyTransform):
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         Raises:
             ValueError: When ``grid=None`` and ``spatial_size=None``. Incompatible values.
 
         """
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         if not lazy_:
             if grid is None:  # create grid from spatial_size
                 if spatial_size is None:
@@ -1624,7 +1625,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
         scale_range: RandRange = None,
         device: torch.device | None = None,
         dtype: DtypeLike = np.float32,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -1653,7 +1654,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
             device: device to store the output grid data.
             dtype: data type for the grid computation. Defaults to ``np.float32``.
                 If ``None``, use the data type of input data (if `grid` is provided).
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
         See also:
@@ -1663,7 +1664,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
             - :py:meth:`monai.transforms.utils.create_scale`
 
         """
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.rotate_range = ensure_tuple(rotate_range)
         self.shear_range = ensure_tuple(shear_range)
         self.translate_range = ensure_tuple(translate_range)
@@ -1700,15 +1701,15 @@ class RandAffineGrid(Randomizable, LazyTransform):
         spatial_size: Sequence[int] | None = None,
         grid: NdarrayOrTensor | None = None,
         randomize: bool = True,
-        lazy: bool | None = None,
+        lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
             spatial_size: output grid size.
             grid: grid to be transformed. Shape must be (3, H, W) for 2D or (4, H, W, D) for 3D.
             randomize: boolean as to whether the grid parameters governing the grid should be randomized.
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
 
         Returns:
@@ -1716,7 +1717,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
         """
         if randomize:
             self.randomize()
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         affine_grid = AffineGrid(
             rotate_params=self.rotate_params,
             shear_params=self.shear_params,
@@ -1724,7 +1725,7 @@ class RandAffineGrid(Randomizable, LazyTransform):
             scale_params=self.scale_params,
             device=self.device,
             dtype=self.dtype,
-            lazy=lazy_,
+            lazy_evaluation=lazy_,
         )
         if lazy_:  # return the affine only, don't construct the grid
             self.affine = affine_grid(spatial_size, grid)[1]  # type: ignore
@@ -1966,7 +1967,7 @@ class Affine(InvertibleTransform, LazyTransform):
         dtype: DtypeLike = np.float32,
         align_corners: bool = False,
         image_only: bool = False,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         The affine transformations are applied in rotate, shear, translate, scale order.
@@ -2021,10 +2022,10 @@ class Affine(InvertibleTransform, LazyTransform):
             align_corners: Defaults to False.
                 See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
             image_only: if True return only the image volume, otherwise return (image, affine).
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
         """
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.affine_grid = AffineGrid(
             rotate_params=rotate_params,
             shear_params=shear_params,
@@ -2034,7 +2035,7 @@ class Affine(InvertibleTransform, LazyTransform):
             dtype=dtype,
             align_corners=align_corners,
             device=device,
-            lazy=lazy,
+            lazy_evaluation=lazy_evaluation,
         )
         self.image_only = image_only
         self.norm_coord = not normalized
@@ -2043,9 +2044,9 @@ class Affine(InvertibleTransform, LazyTransform):
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
-        self.affine_grid.lazy = val
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
+        self.affine_grid.lazy_evaluation = val
         self._lazy = val
 
     def __call__(
@@ -2054,7 +2055,7 @@ class Affine(InvertibleTransform, LazyTransform):
         spatial_size: Sequence[int] | int | None = None,
         mode: str | int | None = None,
         padding_mode: str | None = None,
-        lazy: bool | None = None,
+        lazy_evaluation: bool | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, NdarrayOrTensor]:
         """
         Args:
@@ -2076,17 +2077,17 @@ class Affine(InvertibleTransform, LazyTransform):
                 When `mode` is an integer, using numpy/cupy backends, this argument accepts
                 {'reflect', 'grid-mirror', 'constant', 'grid-constant', 'nearest', 'mirror', 'grid-wrap', 'wrap'}.
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
         sp_size = fall_back_tuple(self.spatial_size if spatial_size is None else spatial_size, img_size)
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        grid, affine = self.affine_grid(spatial_size=sp_size, lazy=lazy_)
+        grid, affine = self.affine_grid(spatial_size=sp_size, lazy_evaluation=lazy_)
 
         return affine_func(  # type: ignore
             img,
@@ -2098,7 +2099,7 @@ class Affine(InvertibleTransform, LazyTransform):
             _padding_mode,
             True,
             self.image_only,
-            lazy=lazy_,
+            lazy_evaluation=lazy_,
             transform_info=self.get_transform_info(),
         )
 
@@ -2160,7 +2161,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         padding_mode: str = GridSamplePadMode.REFLECTION,
         cache_grid: bool = False,
         device: torch.device | None = None,
-        lazy: bool = False,
+        lazy_evaluation: bool = False,
     ) -> None:
         """
         Args:
@@ -2210,7 +2211,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                 If the spatial size is not dynamically defined by input image, enabling this option could
                 accelerate the transform.
             device: device on which the tensor will be allocated.
-            lazy: a flag to indicate whether this transform should execute lazily or not.
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not.
                 Defaults to False
 
         See also:
@@ -2219,33 +2220,33 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
 
         """
         RandomizableTransform.__init__(self, prob)
-        LazyTransform.__init__(self, lazy=lazy)
+        LazyTransform.__init__(self, lazy_evaluation=lazy_evaluation)
         self.rand_affine_grid = RandAffineGrid(
             rotate_range=rotate_range,
             shear_range=shear_range,
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
-            lazy=lazy,
+            lazy_evaluation=lazy_evaluation,
         )
         self.resampler = Resample(device=device)
 
         self.spatial_size = spatial_size
         self.cache_grid = cache_grid
-        self._cached_grid = self._init_identity_cache(lazy)
+        self._cached_grid = self._init_identity_cache(lazy_evaluation)
         self.mode = mode
         self.padding_mode: str = padding_mode
 
-    @LazyTransform.lazy.setter  # type: ignore
-    def lazy(self, val: bool) -> None:
+    @LazyTransform.lazy_evaluation.setter  # type: ignore
+    def lazy_evaluation(self, val: bool) -> None:
         self._lazy = val
-        self.rand_affine_grid.lazy = val
+        self.rand_affine_grid.lazy_evaluation = val
 
-    def _init_identity_cache(self, lazy: bool):
+    def _init_identity_cache(self, lazy_evaluation: bool):
         """
         Create cache of the identity grid if cache_grid=True and spatial_size is known.
         """
-        if lazy:
+        if lazy_evaluation:
             return None
         if self.spatial_size is None:
             if self.cache_grid:
@@ -2265,14 +2266,14 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             return None
         return create_grid(spatial_size=_sp_size, device=self.rand_affine_grid.device, backend="torch")
 
-    def get_identity_grid(self, spatial_size: Sequence[int], lazy: bool):
+    def get_identity_grid(self, spatial_size: Sequence[int], lazy_evaluation: bool):
         """
         Return a cached or new identity grid depends on the availability.
 
         Args:
             spatial_size: non-dynamic spatial size
         """
-        if lazy:
+        if lazy_evaluation:
             return None
         ndim = len(spatial_size)
         if spatial_size != fall_back_tuple(spatial_size, [1] * ndim) or spatial_size != fall_back_tuple(
@@ -2304,7 +2305,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         padding_mode: str | None = None,
         randomize: bool = True,
         grid=None,
-        lazy: bool | None = None,
+        lazy_evaluation: bool | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -2328,8 +2329,8 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
                 See also: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.map_coordinates.html
             randomize: whether to execute `randomize()` function first, default to True.
             grid: precomputed grid to be used (mainly to accelerate `RandAffined`).
-            lazy: a flag to indicate whether this transform should execute lazily or not
-                during this call. Setting this to False or True overrides the ``lazy`` flag set
+            lazy_evaluation: a flag to indicate whether this transform should execute lazily or not
+                during this call. Setting this to False or True overrides the ``lazy_evaluation`` flag set
                 during initialization for this call. Defaults to None.
         """
         if randomize:
@@ -2341,12 +2342,12 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
         do_resampling = self._do_transform or (sp_size != ensure_tuple(ori_size))
         _mode = mode if mode is not None else self.mode
         _padding_mode = padding_mode if padding_mode is not None else self.padding_mode
-        lazy_ = self.lazy if lazy is None else lazy
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else lazy_evaluation
         img = convert_to_tensor(img, track_meta=get_track_meta())
         if lazy_:
             if self._do_transform:
                 if grid is None:
-                    self.rand_affine_grid(sp_size, randomize=randomize, lazy=True)
+                    self.rand_affine_grid(sp_size, randomize=randomize, lazy_evaluation=True)
                 affine = self.rand_affine_grid.get_transformation_matrix()
             else:
                 affine = convert_to_dst_type(torch.eye(len(sp_size) + 1), img, dtype=self.rand_affine_grid.dtype)[0]
@@ -2354,7 +2355,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             if grid is None:
                 grid = self.get_identity_grid(sp_size, lazy_)
                 if self._do_transform:
-                    grid = self.rand_affine_grid(grid=grid, randomize=randomize, lazy=lazy_)
+                    grid = self.rand_affine_grid(grid=grid, randomize=randomize, lazy_evaluation=lazy_)
             affine = self.rand_affine_grid.get_transformation_matrix()
         return affine_func(  # type: ignore
             img,
@@ -2366,7 +2367,7 @@ class RandAffine(RandomizableTransform, InvertibleTransform, LazyTransform):
             _padding_mode,
             do_resampling,
             True,
-            lazy=lazy_,
+            lazy_evaluation=lazy_,
             transform_info=self.get_transform_info(),
         )
 
@@ -2482,7 +2483,7 @@ class Rand2DElastic(RandomizableTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
-            lazy=False,
+            lazy_evaluation=False,
         )
         self.resampler = Resample(device=device)
 
@@ -2650,7 +2651,7 @@ class Rand3DElastic(RandomizableTransform):
             translate_range=translate_range,
             scale_range=scale_range,
             device=device,
-            lazy=False,
+            lazy_evaluation=False,
         )
         self.resampler = Resample(device=device)
 
@@ -3370,3 +3371,24 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         else:
             return img
+
+
+class TransformLike(InvertibleTransform, LazyTransform):
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, lazy_evaluation):
+        super().__init__(lazy_evaluation)
+
+
+    def __call__(self, data, reference, lazy_evaluation=None):
+
+        lazy_ = self.lazy_evaluation if lazy_evaluation is None else self.lazy_evaluation
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+
+        data_t = transform_like(data=data, reference=reference, lazy_evaluation=lazy_)
+
+        return data_t
+
+    def inverse(self, data):
+        return invert(data, self.lazy_evaluation)

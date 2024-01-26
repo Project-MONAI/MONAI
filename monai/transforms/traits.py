@@ -29,7 +29,7 @@ class LazyTrait:
     """
 
     @property
-    def lazy(self):
+    def lazy_evaluation(self):
         """
         Get whether lazy evaluation is enabled for this transform instance.
         Returns:
@@ -37,8 +37,8 @@ class LazyTrait:
         """
         raise NotImplementedError()
 
-    @lazy.setter
-    def lazy(self, enabled: bool):
+    @lazy_evaluation.setter
+    def lazy_evaluation(self, enabled: bool):
         """
         Set whether lazy evaluation is enabled for this transform instance.
         Args:
