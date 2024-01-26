@@ -42,6 +42,7 @@ from monai.transforms.spatial.functional import (
     spatial_resample,
     zoom,
     flip_point,
+    resize_point,
 )
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
@@ -55,6 +56,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     resolves_modes,
     scale_affine,
+    get_input_shape,
 )
 from monai.transforms.utils_pytorch_numpy_unification import argsort, argwhere, linalg_inv, moveaxis
 from monai.utils import (
@@ -762,6 +764,7 @@ class Resize(InvertibleTransform, LazyTransform):
     def __init__(
         self,
         spatial_size: Sequence[int] | int,
+        src_spatial_size: Sequence[int] | int | None = None,
         size_mode: str = "all",
         mode: str = InterpolateMode.AREA,
         align_corners: bool | None = None,
@@ -773,6 +776,7 @@ class Resize(InvertibleTransform, LazyTransform):
         LazyTransform.__init__(self, lazy=lazy)
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
+        self.src_spatial_size = src_spatial_size
         self.mode = mode
         self.align_corners = align_corners
         self.anti_aliasing = anti_aliasing
@@ -820,21 +824,22 @@ class Resize(InvertibleTransform, LazyTransform):
         anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
         anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
 
-        input_ndim = img.ndim - 1  # spatial ndim
+        input_shape = get_input_shape(self.src_spatial_size, img)
+        input_ndim = len(input_shape)
+
         if self.size_mode == "all":
-            output_ndim = len(ensure_tuple(self.spatial_size))
+            sp_size = fall_back_tuple(self.spatial_size, input_shape)
+            output_ndim = len(ensure_tuple(sp_size))
             if output_ndim > input_ndim:
-                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                input_shape = ensure_tuple_size(input_shape, output_ndim + 1, 1)
                 img = img.reshape(input_shape)
             elif output_ndim < input_ndim:
                 raise ValueError(
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            _sp = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-            sp_size = fall_back_tuple(self.spatial_size, _sp)
         else:  # for the "longest" mode
-            img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            img_size = input_shape
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
@@ -844,18 +849,22 @@ class Resize(InvertibleTransform, LazyTransform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         lazy_ = self.lazy if lazy is None else lazy
-        return resize(  # type: ignore
-            img,
-            tuple(int(_s) for _s in sp_size),
-            _mode,
-            _align_corners,
-            _dtype,
-            input_ndim,
-            anti_aliasing,
-            anti_aliasing_sigma,
-            lazy_,
-            self.get_transform_info(),
-        )
+        kind_ = img.kind if isinstance(img, MetaTensor) else KindKeys.PIXEL
+        if kind_ == KindKeys.PIXEL:
+            return resize(  # type: ignore
+                img,
+                tuple(int(_s) for _s in sp_size),
+                _mode,
+                _align_corners,
+                _dtype,
+                input_ndim,
+                anti_aliasing,
+                anti_aliasing_sigma,
+                lazy_,
+                self.get_transform_info(),
+            )
+        elif kind_ == KindKeys.POINT:
+            return resize_point(img, self.src_spatial_size, tuple(int(_s) for _s in sp_size), lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)

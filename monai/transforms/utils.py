@@ -24,6 +24,7 @@ import numpy as np
 import torch
 
 import monai
+from monai.data.meta_tensor import MetaTensor
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
@@ -2219,6 +2220,18 @@ def distance_transform_edt(
         return None
     device = img.device if isinstance(img, torch.Tensor) else None
     return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]
+
+
+def get_input_shape(shape_override, img):
+    # if shape_override is set, it always wins
+    input_shape = shape_override
+
+    if input_shape is None:
+        if isinstance(img, MetaTensor) and len(img.pending_operations) > 0:
+            input_shape = img.peek_pending_shape()[1:]
+        else:
+            input_shape = img.shape[1:]
+    return input_shape
 
 
 if __name__ == "__main__":

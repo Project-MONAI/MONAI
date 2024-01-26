@@ -804,6 +804,7 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         self,
         keys: KeysCollection,
         spatial_size: Sequence[int] | int,
+        src_spatial_size: Sequence[int] | int | None = None,
         size_mode: str = "all",
         mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Sequence[bool | None] | bool | None = None,
@@ -820,7 +821,7 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
-        self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode, lazy=lazy)
+        self.resizer = Resize(spatial_size=spatial_size, src_spatial_size=src_spatial_size, size_mode=size_mode, lazy=lazy)
 
     @LazyTransform.lazy.setter  # type: ignore
     def lazy(self, val: bool) -> None:
