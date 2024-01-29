@@ -24,9 +24,9 @@ import numpy as np
 import torch
 
 import monai
-from monai.data.meta_tensor import MetaTensor
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose

@@ -35,14 +35,14 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
     affine_func,
     flip,
+    flip_point,
     orientation,
     resize,
+    resize_point,
     rotate,
     rotate90,
     spatial_resample,
     zoom,
-    flip_point,
-    resize_point,
 )
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
@@ -53,10 +53,10 @@ from monai.transforms.utils import (
     create_scale,
     create_shear,
     create_translate,
+    get_input_shape,
     map_spatial_axes,
     resolves_modes,
     scale_affine,
-    get_input_shape,
 )
 from monai.transforms.utils_pytorch_numpy_unification import argsort, argwhere, linalg_inv, moveaxis
 from monai.utils import (
@@ -75,11 +75,10 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends, KindKeys
+from monai.utils.enums import GridPatchSort, KindKeys, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
-
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -689,13 +688,15 @@ class Flip(InvertibleTransform, LazyTransform):
         self,
         spatial_axis: Sequence[int] | int | None = None,
         spatial_size: Sequence[int] | int | None = None,
-        lazy: bool = False
+        lazy: bool = False,
     ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
         self.spatial_size = spatial_size
 
-    def __call__(self, img: torch.Tensor, spatial_size: Sequence[int] | int | None = None, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(
+        self, img: torch.Tensor, spatial_size: Sequence[int] | int | None = None, lazy: bool | None = None
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])

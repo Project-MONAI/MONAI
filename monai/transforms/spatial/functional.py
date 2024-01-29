@@ -32,9 +32,8 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine, create_scale
+from monai.transforms.utils import create_rotate, create_scale, create_translate, resolves_modes, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
-from monai.utils.type_conversion import convert_data_type
 from monai.utils import (
     LazyAttr,
     TraceKeys,
@@ -46,6 +45,7 @@ from monai.utils import (
     fall_back_tuple,
     optional_import,
 )
+from monai.utils.type_conversion import convert_data_type
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -289,15 +289,10 @@ def flip_point(points, sp_axes, spatial_size, lazy, transform_info):
     spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
     if sp_axes is None:
         sp_axes = tuple(range(0, spatial_dims))
-    extra_info = {
-        "axes": sp_axes,  # track the spatial axes
-        "spatial_size": spatial_size,
-    }
+    extra_info = {"axes": sp_axes, "spatial_size": spatial_size}  # track the spatial axes
     sp_axes = ensure_tuple(sp_axes)
 
-    meta_info = TraceableTransform.track_transform_meta(
-        points, extra_info=extra_info, transform_info=transform_info
-    )
+    meta_info = TraceableTransform.track_transform_meta(points, extra_info=extra_info, transform_info=transform_info)
 
     # flip box
     out: NdarrayTensor = points.clone() if isinstance(points, torch.Tensor) else deepcopy(points)  # type: ignore[assignment]
