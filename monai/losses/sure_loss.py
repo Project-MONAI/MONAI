@@ -52,7 +52,6 @@ def sure_loss_function(
     complex_input: Optional[bool] = False,
 ) -> torch.Tensor:
     """
-
     Args:
         operator (function): The operator function that takes in an input
         tensor x and returns an output tensor y. We will use this to compute
