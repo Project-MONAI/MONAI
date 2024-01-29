@@ -401,7 +401,7 @@ class MLFlowHandler:
             cur_optimizer = engine.optimizer
             for param_name in self.optimizer_param_names:
                 params = {
-                    f"{param_name} group_{i}": float(param_group[param_name])
+                    f"{param_name}_group_{i}": float(param_group[param_name])
                     for i, param_group in enumerate(cur_optimizer.param_groups)
                 }
                 self._log_metrics(params, step=engine.state.iteration)
