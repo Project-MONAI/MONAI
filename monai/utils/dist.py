@@ -50,15 +50,18 @@ def get_dist_device():
 
 
 @overload
-def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[True]) -> torch.Tensor: ...
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[True]) -> torch.Tensor:
+    ...
 
 
 @overload
-def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[False]) -> list[torch.Tensor]: ...
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[False]) -> list[torch.Tensor]:
+    ...
 
 
 @overload
-def evenly_divisible_all_gather(data: torch.Tensor, concat: bool) -> torch.Tensor | list[torch.Tensor]: ...
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool) -> torch.Tensor | list[torch.Tensor]:
+    ...
 
 
 def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True) -> torch.Tensor | list[torch.Tensor]:

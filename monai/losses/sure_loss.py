@@ -64,8 +64,8 @@ def sure_loss_function(
         operator.  For complex input, the shape is (B, 2, H, W) aka C=2 real.
         For real input, the shape is (B, 1, H, W) real.
 
-        y_pseudo_gt (torch.Tensor): The pseudo ground truth tensor of shape (B,
-        C, H, W) used to compute the L2 loss.  For complex input, the shape is
+        y_pseudo_gt (torch.Tensor): The pseudo ground truth tensor of shape
+        (B, C, H, W) used to compute the L2 loss.  For complex input, the shape is
         (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W)
         real.
 
@@ -77,9 +77,9 @@ def sure_loss_function(
         eps (float, optional): The perturbation scalar. Set to -1 to set it
         automatically estimated based on y_pseudo_gtk
 
-        perturb_noise (torch.Tensor, optional): The noise vector of shape (B,
-        C, H, W). Defaults to None.  For complex input, the shape is (B, 2, H,
-        W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
+        perturb_noise (torch.Tensor, optional): The noise vector of shape (B, C, H, W).
+        Defaults to None.  For complex input, the shape is (B, 2, H, W) aka C=2 real.
+        For real input, the shape is (B, 1, H, W) real.
 
         complex_input(bool, optional): Whether the input is complex or not.
         Defaults to False.
@@ -140,13 +140,11 @@ class SURELoss(_Loss):
         """
         Args:
             perturb_noise (torch.Tensor, optional): The noise vector of shape
-            (B, C, H, W). Defaults to None.  For complex input, the shape is (B,
-            2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W)
-            real.
+            (B, C, H, W). Defaults to None.  For complex input, the shape is (B, 2, H, W) aka C=2 real.
+            For real input, the shape is (B, 1, H, W) real.
 
             eps (float, optional): The perturbation scalar. Defaults to None.
         """
-
         super().__init__()
         self.perturb_noise = perturb_noise
         self.eps = eps
@@ -182,7 +180,6 @@ class SURELoss(_Loss):
         Returns:
             sure_loss (torch.Tensor): The SURE loss scalar.
         """
-        # TODO: support for C>2 real valued input
 
         # check inputs
         # dim check:
