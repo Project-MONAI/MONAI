@@ -97,7 +97,11 @@ class ConjugateGradient(nn.Module):
         run conjugate gradient for num_iter iterations to solve Ax = y
 
         Args:
-            x: tensor (real or complex); Initial guess for linear system Ax = y. The size of x should be applicable to the linear operator. For example, if the linear operator is FFT, then x is HCHW; if the linear operator is a matrix multiplication, then x is a vector
+            x: tensor (real or complex); Initial guess for linear system Ax = y.
+            The size of x should be applicable to the linear operator. For
+            example, if the linear operator is FFT, then x is HCHW; if the
+            linear operator is a matrix multiplication, then x is a vector
+
             y: tensor (real or complex); Measurement. Same size as x
 
         Returns:

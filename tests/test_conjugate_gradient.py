@@ -20,34 +20,35 @@ from monai.networks.layers import ConjugateGradient
 
 class TestConjugateGradient(unittest.TestCase):
     def test_real_valued_inverse(self):
-        """Test ConjugateGradient with real-valued input: when the input is real value, the output should be the inverse of the matrix."""
-        A_dim = 3
-        A_mat = torch.tensor([[1, 2, 3], [2, 1, 2], [3, 2, 1]], dtype=torch.float)
+        """Test ConjugateGradient with real-valued input: when the input is real
+        value, the output should be the inverse of the matrix."""
+        a_dim = 3
+        a_mat = torch.tensor([[1, 2, 3], [2, 1, 2], [3, 2, 1]], dtype=torch.float)
 
-        def A_op(x):
-            return A_mat @ x
+        def a_op(x):
+            return a_mat @ x
 
-        cg_solver = ConjugateGradient(A_op, num_iter=100, dbprint=False)
+        cg_solver = ConjugateGradient(a_op, num_iter=100, dbprint=False)
         # define the measurement
         y = torch.tensor([1, 2, 3], dtype=torch.float)
         # solve for x
-        x = cg_solver(torch.zeros(A_dim), y)
-        x_ref = torch.linalg.solve(A_mat, y)
+        x = cg_solver(torch.zeros(a_dim), y)
+        x_ref = torch.linalg.solve(a_mat, y)
         # assert torch.allclose(x, x_ref, atol=1e-6), 'CG solver failed to converge to reference solution'
         self.assertTrue(torch.allclose(x, x_ref, atol=1e-6))
         print("real value test passed")
 
     def test_complex_valued_inverse(self):
-        A_dim = 3
-        A_mat = torch.tensor([[1, 2, 3], [2, 1, 2], [3, 2, 1]], dtype=torch.complex64)
+        a_dim = 3
+        a_mat = torch.tensor([[1, 2, 3], [2, 1, 2], [3, 2, 1]], dtype=torch.complex64)
 
-        def A_op(x):
-            return A_mat @ x
+        def a_op(x):
+            return a_mat @ x
 
-        cg_solver = ConjugateGradient(A_op, num_iter=100, dbprint=False)
+        cg_solver = ConjugateGradient(a_op, num_iter=100, dbprint=False)
         y = torch.tensor([1, 2, 3], dtype=torch.complex64)
-        x = cg_solver(torch.zeros(A_dim, dtype=torch.complex64), y)
-        x_ref = torch.linalg.solve(A_mat, y)
+        x = cg_solver(torch.zeros(a_dim, dtype=torch.complex64), y)
+        x_ref = torch.linalg.solve(a_mat, y)
         self.assertTrue(torch.allclose(x, x_ref, atol=1e-6))
 
 

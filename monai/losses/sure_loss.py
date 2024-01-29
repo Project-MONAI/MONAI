@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 import torch
 import torch.nn as nn
@@ -47,7 +47,7 @@ def sure_loss_function(
     x: torch.Tensor,
     y_pseudo_gt: torch.Tensor,
     y_ref: Optional[torch.Tensor] = None,
-    eps: Optional[float] = None,
+    eps: Optional[float] = -1.0,
     perturb_noise: Optional[torch.Tensor] = None,
     complex_input: Optional[bool] = False,
 ) -> torch.Tensor:
@@ -74,7 +74,8 @@ def sure_loss_function(
         complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input,
         the shape is (B, 1, H, W) real.
 
-        eps (float, optional): The perturbation scalar. Defaults to None.
+        eps (float, optional): The perturbation scalar. Set to -1 to set it
+        automatically estimated based on y_pseudo_gtk
 
         perturb_noise (torch.Tensor, optional): The noise vector of shape (B,
         C, H, W). Defaults to None.  For complex input, the shape is (B, 2, H,
@@ -89,8 +90,8 @@ def sure_loss_function(
     # perturb input
     if perturb_noise is None:
         perturb_noise = torch.randn_like(x)
-    if eps is None:
-        eps = torch.abs(y_pseudo_gt.max()) / 1000
+    if eps == -1.0:
+        eps = float(torch.abs(y_pseudo_gt.max())) / 1000
     # get y_ref if not provided
     if y_ref is None:
         y_ref = operator(x)
@@ -99,7 +100,7 @@ def sure_loss_function(
     x_perturbed = x + eps * perturb_noise
     y_perturbed = operator(x_perturbed)
     # divergence
-    divergence = torch.sum(1 / eps * torch.matmul(perturb_noise.permute(0, 1, 3, 2), y_perturbed - y_ref))
+    divergence = torch.sum(1.0 / eps * torch.matmul(perturb_noise.permute(0, 1, 3, 2), y_perturbed - y_ref))
     # l2 loss between y_ref, y_pseudo_gt
     if complex_input:
         l2_loss = complex_diff_abs_loss(y_ref, y_pseudo_gt)
@@ -138,7 +139,11 @@ class SURELoss(_Loss):
     def __init__(self, perturb_noise: Optional[torch.Tensor] = None, eps: Optional[float] = None) -> None:
         """
         Args:
-            perturb_noise (torch.Tensor, optional): The noise vector of shape (B, C, H, W). Defaults to None.  For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
+            perturb_noise (torch.Tensor, optional): The noise vector of shape
+            (B, C, H, W). Defaults to None.  For complex input, the shape is (B,
+            2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W)
+            real.
+
             eps (float, optional): The perturbation scalar. Defaults to None.
         """
 
@@ -156,10 +161,23 @@ class SURELoss(_Loss):
     ) -> torch.Tensor:
         """
         Args:
-            operator (function): The operator function that takes in an input tensor x and returns an output tensor y. We will use this to compute the divergence. More specifically, we will perturb the input x by a small amount and compute the divergence between the perturbed output and the reference output
-            x (torch.Tensor): The input tensor of shape (B, C, H, W) to the operator. C=1 or 2: For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
-            y_pseudo_gt (torch.Tensor): The pseudo ground truth tensor of shape (B, C, H, W) used to compute the L2 loss. C=1 or 2: For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
-            y_ref (torch.Tensor, optional): The reference output tensor of the same shape as y_pseudo_gt
+            operator (function): The operator function that takes in an input
+            tensor x and returns an output tensor y. We will use this to compute
+            the divergence. More specifically, we will perturb the input x by a
+            small amount and compute the divergence between the perturbed output
+            and the reference output
+
+            x (torch.Tensor): The input tensor of shape (B, C, H, W) to the
+            operator. C=1 or 2: For complex input, the shape is (B, 2, H, W) aka
+            C=2 real.  For real input, the shape is (B, 1, H, W) real.
+
+            y_pseudo_gt (torch.Tensor): The pseudo ground truth tensor of shape
+            (B, C, H, W) used to compute the L2 loss. C=1 or 2: For complex
+            input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the
+            shape is (B, 1, H, W) real.
+
+            y_ref (torch.Tensor, optional): The reference output tensor of the
+            same shape as y_pseudo_gt
 
         Returns:
             sure_loss (torch.Tensor): The SURE loss scalar.
