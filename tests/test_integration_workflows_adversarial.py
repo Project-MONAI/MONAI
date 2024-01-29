@@ -17,7 +17,6 @@ import tempfile
 import unittest
 from glob import glob
 
-import nibabel as nib
 import numpy as np
 import torch
 
@@ -28,8 +27,10 @@ from monai.handlers import CheckpointSaver, StatsHandler, TensorBoardStatsHandle
 from monai.networks.nets import AutoEncoder, Discriminator
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, RandFlipd, ScaleIntensityd
 from monai.utils import AdversarialKeys as Keys
-from monai.utils import CommonKeys, set_determinism
+from monai.utils import CommonKeys, optional_import, set_determinism
 from tests.utils import DistTestCase, TimedCall, skip_if_quick
+
+nib, has_nibabel = optional_import("nibabel")
 
 
 def run_training_test(root_dir, device="cuda:0"):
@@ -139,6 +140,7 @@ def run_training_test(root_dir, device="cuda:0"):
 
 
 @skip_if_quick
+@unittest.skipUnless(has_nibabel, "Requires nibabel library.")
 class IntegrationWorkflowsAdversarialTrainer(DistTestCase):
     def setUp(self):
         set_determinism(seed=0)
