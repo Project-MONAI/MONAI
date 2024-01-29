@@ -108,7 +108,7 @@ def first(iterable: Iterable[T], default: T) -> T:
 
 
 @overload
-def first(iterable: Iterable[T]) -> T | None: 
+def first(iterable: Iterable[T]) -> T | None:
     ...
 
 
