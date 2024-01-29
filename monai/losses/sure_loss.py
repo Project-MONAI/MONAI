@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Callable, Optional
+
 import torch
 import torch.nn as nn
 from torch.nn.modules.loss import _Loss
@@ -41,13 +43,13 @@ def complex_diff_abs_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 def sure_loss_function(
-    operator: callable,
+    operator: Callable,
     x: torch.Tensor,
     y_pseudo_gt: torch.Tensor,
-    y_ref: torch.Tensor = None,
-    eps: float = None,
-    perturb_noise: torch.Tensor = None,
-    complex_input: bool = False,
+    y_ref: Optional[torch.Tensor] = None,
+    eps: Optional[float] = None,
+    perturb_noise: Optional[torch.Tensor] = None,
+    complex_input: Optional[bool] = False,
 ) -> torch.Tensor:
     """
 
@@ -133,7 +135,7 @@ class SURELoss(_Loss):
     (https://arxiv.org/pdf/2310.01799.pdf)
     """
 
-    def __init__(self, perturb_noise: torch.Tensor = None, eps: float = None) -> None:
+    def __init__(self, perturb_noise: Optional[torch.Tensor] = None, eps: Optional[float] = None) -> None:
         """
         Args:
             perturb_noise (torch.Tensor, optional): The noise vector of shape (B, C, H, W). Defaults to None.  For complex input, the shape is (B, 2, H, W) aka C=2 real.  For real input, the shape is (B, 1, H, W) real.
@@ -146,11 +148,11 @@ class SURELoss(_Loss):
 
     def forward(
         self,
-        operator: callable,
+        operator: Callable,
         x: torch.Tensor,
         y_pseudo_gt: torch.Tensor,
-        y_ref: torch.Tensor = None,
-        complex_input: bool = False,
+        y_ref: Optional[torch.Tensor] = None,
+        complex_input: Optional[bool] = False,
     ) -> torch.Tensor:
         """
         Args:

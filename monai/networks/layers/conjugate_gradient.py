@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Callable, Optional
+
 import torch
 from torch import nn
 
@@ -28,7 +30,7 @@ class ConjugateGradient(nn.Module):
     linear operator. For example, A could be a FFT/IFFT operation
     """
 
-    def __init__(self, linear_op: callable, num_iter: int, dbprint: bool = False):
+    def __init__(self, linear_op: Callable, num_iter: int, dbprint: Optional[bool] = False):
         """
         Args:
             linear_op: Linear operator
@@ -61,7 +63,7 @@ class ConjugateGradient(nn.Module):
         else:
             return res
 
-    def _update(self, iter: int) -> callable:
+    def _update(self, iter: int) -> Callable:
         """
         perform one iteration of the CG method. It takes the current solution x,
         the current search direction p, the current residual r, and the old
