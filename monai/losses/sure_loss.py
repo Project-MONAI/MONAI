@@ -99,7 +99,7 @@ def sure_loss_function(
     x_perturbed = x + eps * perturb_noise
     y_perturbed = operator(x_perturbed)
     # divergence
-    divergence = torch.sum(1.0 / eps * torch.matmul(perturb_noise.permute(0, 1, 3, 2), y_perturbed - y_ref))
+    divergence = torch.sum(1.0 / eps * torch.matmul(perturb_noise.permute(0, 1, 3, 2), y_perturbed - y_ref)) # type: ignore
     # l2 loss between y_ref, y_pseudo_gt
     if complex_input:
         l2_loss = complex_diff_abs_loss(y_ref, y_pseudo_gt)
