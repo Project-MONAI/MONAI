@@ -28,7 +28,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset, partition_dataset
 from monai.data.utils import no_collation
 from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
-from monai.utils import StrEnum, min_version, optional_import
+from monai.utils import ImageMetaKey, StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
 
@@ -343,19 +343,25 @@ class DataAnalyzer:
                 d = summarizer(batch_data)
             except BaseException as err:
                 if "image_meta_dict" in batch_data.keys():
-                    filename = batch_data["image_meta_dict"]["filename_or_obj"]
+                    filename = batch_data["image_meta_dict"][ImageMetaKey.FILENAME_OR_OBJ]
                 else:
-                    filename = batch_data[self.image_key].meta["filename_or_obj"]
+                    filename = batch_data[self.image_key].meta[ImageMetaKey.FILENAME_OR_OBJ]
                 logger.info(f"Unable to process data {filename} on {device}. {err}")
                 if self.device.type == "cuda":
                     logger.info("DataAnalyzer `device` set to GPU execution hit an exception. Falling back to `cpu`.")
-                    batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
-                    if self.label_key is not None:
-                        label = batch_data[self.label_key]
-                        if not _label_argmax:
-                            label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
-                        batch_data[self.label_key] = label.to("cpu")
-                    d = summarizer(batch_data)
+                    try:
+                        batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
+                        if self.label_key is not None:
+                            label = batch_data[self.label_key]
+                            if not _label_argmax:
+                                label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                            batch_data[self.label_key] = label.to("cpu")
+                        d = summarizer(batch_data)
+                    except BaseException as err:
+                        logger.info(f"Unable to process data {filename} on {device}. {err}")
+                        continue
+                else:
+                    continue
 
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],

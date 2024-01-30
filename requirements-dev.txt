@@ -1,7 +1,7 @@
 # Full requirements for developments
 -r requirements-min.txt
 pytorch-ignite==0.4.11
-gdown>=4.4.0
+gdown>=4.4.0, <=4.6.3
 scipy>=1.7.1
 itk>=5.2
 nibabel
@@ -27,13 +27,13 @@ ninja
 torchvision
 psutil
 cucim>=23.2.0; platform_system == "Linux"
-openslide-python==1.1.2
+openslide-python
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pandas
 requests
 einops
-transformers<4.22; python_version <= '3.10'  # https://github.com/Project-MONAI/MONAI/issues/5157
+transformers>=4.36.0
 mlflow>=1.28.0
 clearml>=1.10.0rc0
 matplotlib!=3.5.0
