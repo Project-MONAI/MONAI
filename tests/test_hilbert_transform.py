@@ -180,15 +180,17 @@ class TestHilbertTransformCPU(unittest.TestCase):
 @SkipIfNoModule("torch.fft")
 class TestHilbertTransformGPU(unittest.TestCase):
     @parameterized.expand(
-        []
-        if not torch.cuda.is_available()
-        else [
-            TEST_CASE_1D_SINE_GPU,
-            TEST_CASE_2D_SINE_GPU,
-            TEST_CASE_3D_SINE_GPU,
-            TEST_CASE_1D_2CH_SINE_GPU,
-            TEST_CASE_2D_2CH_SINE_GPU,
-        ],
+        (
+            []
+            if not torch.cuda.is_available()
+            else [
+                TEST_CASE_1D_SINE_GPU,
+                TEST_CASE_2D_SINE_GPU,
+                TEST_CASE_3D_SINE_GPU,
+                TEST_CASE_1D_2CH_SINE_GPU,
+                TEST_CASE_2D_2CH_SINE_GPU,
+            ]
+        ),
         skip_on_empty=True,
     )
     def test_value(self, arguments, image, expected_data, atol):
