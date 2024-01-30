@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
+from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
 
 einops, has_einops = optional_import("einops")
@@ -28,12 +29,20 @@ TEST_CASE_SABLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
     for hidden_size in [360, 480, 600, 768]:
         for num_heads in [4, 6, 8, 12]:
-            test_case = [
-                {"hidden_size": hidden_size, "num_heads": num_heads, "dropout_rate": dropout_rate},
-                (2, 512, hidden_size),
-                (2, 512, hidden_size),
-            ]
-            TEST_CASE_SABLOCK.append(test_case)
+            for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
+                for input_size in [(16, 32), (8, 8, 8)]:
+                    test_case = [
+                        {
+                            "hidden_size": hidden_size,
+                            "num_heads": num_heads,
+                            "dropout_rate": dropout_rate,
+                            "rel_pos_embedding": rel_pos_embedding,
+                            "input_size": input_size,
+                        },
+                        (2, 512, hidden_size),
+                        (2, 512, hidden_size),
+                    ]
+                    TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
