@@ -1765,9 +1765,9 @@ LambdaD = LambdaDict = Lambdad
 LabelToMaskD = LabelToMaskDict = LabelToMaskd
 FgBgToIndicesD = FgBgToIndicesDict = FgBgToIndicesd
 ClassesToIndicesD = ClassesToIndicesDict = ClassesToIndicesd
-ConvertToMultiChannelBasedOnBratsClassesD = (
-    ConvertToMultiChannelBasedOnBratsClassesDict
-) = ConvertToMultiChannelBasedOnBratsClassesd
+ConvertToMultiChannelBasedOnBratsClassesD = ConvertToMultiChannelBasedOnBratsClassesDict = (
+    ConvertToMultiChannelBasedOnBratsClassesd
+)
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
 RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond

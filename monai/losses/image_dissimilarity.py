@@ -277,9 +277,7 @@ class GlobalMutualInformationLoss(_Loss):
         if order == 0:
             weight = weight + (sample_bin_matrix < 0.5) + (sample_bin_matrix == 0.5) * 0.5
         elif order == 3:
-            weight = (
-                weight + (4 - 6 * sample_bin_matrix**2 + 3 * sample_bin_matrix**3) * (sample_bin_matrix < 1) / 6
-            )
+            weight = weight + (4 - 6 * sample_bin_matrix**2 + 3 * sample_bin_matrix**3) * (sample_bin_matrix < 1) / 6
             weight = weight + (2 - sample_bin_matrix) ** 3 * (sample_bin_matrix >= 1) * (sample_bin_matrix < 2) / 6
         else:
             raise ValueError(f"Do not support b-spline {order}-order parzen windowing")
