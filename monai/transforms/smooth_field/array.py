@@ -91,7 +91,7 @@ class SmoothField(Randomizable):
         self.crand_size = (self.channels,) + self.rand_size
 
         pad_slice = slice(None) if self.pad == 0 else slice(self.pad, -self.pad)
-        self.rand_slices = (0, slice(None)) + (pad_slice,) * len(self.rand_size)
+        self.rand_slices = (0, slice(None)) + (pad_slice,) * len(self.rand_size)  # type: ignore[index]
 
         self.set_spatial_size(spatial_size)
 
