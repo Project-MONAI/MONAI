@@ -91,12 +91,12 @@ class SmoothField(Randomizable):
         self.crand_size = (self.channels,) + self.rand_size
 
         pad_slice = slice(None) if self.pad == 0 else slice(self.pad, -self.pad)
-        self.rand_slices = (0, slice(None)) + (pad_slice,) * len(self.rand_size)  # type: ignore[index]
+        self.rand_slices = (0, slice(None)) + (pad_slice,) * len(self.rand_size)
 
         self.set_spatial_size(spatial_size)
 
     def randomize(self, data: Any | None = None) -> None:
-        self.field[self.rand_slices] = torch.from_numpy(self.R.uniform(self.low, self.high, self.crand_size))
+        self.field[self.rand_slices] = torch.from_numpy(self.R.uniform(self.low, self.high, self.crand_size))  # type: ignore[index]
 
     def set_spatial_size(self, spatial_size: Sequence[int] | None) -> None:
         """
