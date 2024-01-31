@@ -1498,6 +1498,7 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy=lazy)
+        self.spatial_size = spatial_size
         self.flipper = Flip(spatial_axis=spatial_axis, spatial_size=spatial_size)
 
     @LazyTransform.lazy.setter  # type: ignore
@@ -1521,7 +1522,13 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
         d = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(d):
-            d[key] = self.flipper(d[key], lazy=lazy_)
+            refer_key = d[key].meta.get("refer_key", None)
+            if self.spatial_size is None and refer_key is not None:
+                refer = d[refer_key]
+                spatial_size = refer.peek_pending_shape[1:] if isinstance(refer, MetaTensor) else refer.shape[1:] # remove channel dim
+            else:
+                spatial_size = None
+            d[key] = self.flipper(d[key], lazy=lazy_, spatial_size=spatial_size)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:

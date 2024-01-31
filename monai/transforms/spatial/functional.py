@@ -280,7 +280,7 @@ def flip_point(points, sp_axes, spatial_size, lazy, transform_info):
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
-        spatial_size: image spatial size.
+        spatial_size: image spatial size, if None, will flip in the world coordinates.
 
     Returns:
         flipped points, with same data type as ``points``, does not share memory with ``points``
@@ -296,8 +296,13 @@ def flip_point(points, sp_axes, spatial_size, lazy, transform_info):
 
     # flip box
     out: NdarrayTensor = points.clone() if isinstance(points, torch.Tensor) else deepcopy(points)  # type: ignore[assignment]
-    for axis in sp_axes:
-        out[:, axis] = spatial_size[axis] - points[:, axis]
+    if spatial_size is None:
+        warnings.warn("''spatial_size'' is None, will flip in the world coordinates.")
+        for axis in sp_axes:
+            out[:, axis] = -points[:, axis]
+    else:
+        for axis in sp_axes:
+            out[:, axis] = spatial_size[axis] - points[:, axis]
 
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 

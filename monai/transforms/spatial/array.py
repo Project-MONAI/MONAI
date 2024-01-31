@@ -677,6 +677,7 @@ class Flip(InvertibleTransform, LazyTransform):
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
+        spatial_size: image spatial size, if None, will flip in the world coordinates.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
 
@@ -700,6 +701,7 @@ class Flip(InvertibleTransform, LazyTransform):
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
+            spatial_size: image spatial size, if None, will flip in the world coordinates.
             lazy: a flag to indicate whether this transform should execute lazily or not
                 during this call. Setting this to False or True overrides the ``lazy`` flag set
                 during initialization for this call. Defaults to None.
