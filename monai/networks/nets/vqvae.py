@@ -312,10 +312,16 @@ class VQVAE(nn.Module):
         channels: Sequence[int] = (96, 96, 192),
         num_res_layers: int = 3,
         num_res_channels: Sequence[int] | int = (96, 96, 192),
-        downsample_parameters: Sequence[Tuple[int, int, int, int]]
-        | Tuple[int, int, int, int] = ((2, 4, 1, 1), (2, 4, 1, 1), (2, 4, 1, 1)),
-        upsample_parameters: Sequence[Tuple[int, int, int, int, int]]
-        | Tuple[int, int, int, int, int] = ((2, 4, 1, 1, 0), (2, 4, 1, 1, 0), (2, 4, 1, 1, 0)),
+        downsample_parameters: Sequence[Tuple[int, int, int, int]] | Tuple[int, int, int, int] = (
+            (2, 4, 1, 1),
+            (2, 4, 1, 1),
+            (2, 4, 1, 1),
+        ),
+        upsample_parameters: Sequence[Tuple[int, int, int, int, int]] | Tuple[int, int, int, int, int] = (
+            (2, 4, 1, 1, 0),
+            (2, 4, 1, 1, 0),
+            (2, 4, 1, 1, 0),
+        ),
         num_embeddings: int = 32,
         embedding_dim: int = 64,
         embedding_init: str = "normal",
