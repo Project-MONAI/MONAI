@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from copy import deepcopy
 from enum import Enum
 
 import numpy as np
@@ -244,7 +245,7 @@ def flip(img, sp_axes, lazy, transform_info):
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy: a flag that indicates whether the operation should be performed lazily or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -281,29 +282,37 @@ def flip_point(points, sp_axes, spatial_size, lazy, transform_info):
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
         spatial_size: image spatial size, if None, will flip in the world coordinates.
+        lazy: a flag that indicates whether the operation should be performed lazily or not.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
 
     Returns:
         flipped points, with same data type as ``points``, does not share memory with ``points``
     """
-    spatial_dims: int = get_spatial_dims(points=points)
-    spatial_size = ensure_tuple_rep(spatial_size, spatial_dims)
+    spatial_dims: int = get_spatial_dims(points=points[0])
+    sp_size = ensure_tuple_rep(spatial_size, spatial_dims)
+    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
     if sp_axes is None:
         sp_axes = tuple(range(0, spatial_dims))
-    extra_info = {"axes": sp_axes, "spatial_size": spatial_size}  # track the spatial axes
     sp_axes = ensure_tuple(sp_axes)
-
-    meta_info = TraceableTransform.track_transform_meta(points, extra_info=extra_info, transform_info=transform_info)
+    extra_info = {"axes": sp_axes, "ref_spatial_size": sp_size}  # track the spatial axes
+    # axes include the channel dim
+    xform = torch.eye(int(spatial_dims) + 1, dtype=torch.double)
+    for _axes in sp_axes:
+        xform[_axes, _axes], xform[_axes, -1] = xform[_axes, _axes] * -1, sp_size[_axes] - 1
+    meta_info = TraceableTransform.track_transform_meta(points, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info)
 
     # flip box
-    out: NdarrayTensor = points.clone() if isinstance(points, torch.Tensor) else deepcopy(points)  # type: ignore[assignment]
+    out = deepcopy(_maybe_new_metatensor(points))
+    print(type(out), meta_info)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if spatial_size is None:
         warnings.warn("''spatial_size'' is None, will flip in the world coordinates.")
-        for axis in sp_axes:
-            out[:, axis] = -points[:, axis]
+        for _axes in sp_axes:
+            out[..., _axes] = -points[..., _axes]
     else:
-        for axis in sp_axes:
-            out[:, axis] = spatial_size[axis] - points[:, axis]
-
+        for _axes in sp_axes:
+            out[..., _axes] = spatial_size[_axes] - points[..., _axes]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 

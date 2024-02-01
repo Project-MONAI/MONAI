@@ -25,10 +25,12 @@ from monai.transforms.lazy.utils import (
     is_compatible_apply_kwargs,
     kwargs_from_pending,
     resample,
+    resample_point,
 )
 from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
 from monai.utils import LazyAttr, look_up_option
+from monai.utils.enums import KindKeys
 
 __all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending"]
 
@@ -288,7 +290,12 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(override_kwargs)
-    data = resample(data.to(device), cumulative_xform, cur_kwargs)
+    print('****', cur_kwargs.keys(), pending[0])
+    kind_ = data.kind if isinstance(data, MetaTensor) else KindKeys.PIXEL
+    if kind_ == KindKeys.PIXEL:
+        data = resample(data.to(device), cumulative_xform, cur_kwargs)
+    else:
+        data = resample_point(data.to(device), cumulative_xform, cur_kwargs)
     if isinstance(data, MetaTensor):
         for p in pending:
             data.push_applied_operation(p)

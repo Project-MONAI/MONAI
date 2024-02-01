@@ -666,6 +666,7 @@ class LazyAttr(StrEnum):
     """
 
     SHAPE = "lazy_shape"  # spatial shape
+    REF_SHAPE = "lazy_ref_shape"  # reference spatial shape
     AFFINE = "lazy_affine"
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
