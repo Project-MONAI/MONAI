@@ -290,7 +290,6 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
         cumulative_xform = combine_transforms(cumulative_xform, next_matrix)
         cur_kwargs.update(new_kwargs)
     cur_kwargs.update(override_kwargs)
-    print('****', cur_kwargs.keys(), pending[0])
     kind_ = data.kind if isinstance(data, MetaTensor) else KindKeys.PIXEL
     if kind_ == KindKeys.PIXEL:
         data = resample(data.to(device), cumulative_xform, cur_kwargs)

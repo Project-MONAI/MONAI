@@ -718,7 +718,7 @@ class Flip(InvertibleTransform, LazyTransform):
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         xform_info = self.pop_transform(data)
         flipper = Flip(spatial_axis=self.spatial_axis)
-        spatial_size = xform_info[TraceKeys.EXTRA_INFO].get("spatial_size", None)
+        spatial_size = xform_info[TraceKeys.EXTRA_INFO].get(TraceKeys.REF_SIZE, None)
         with flipper.trace_transform(False):
             return flipper(data, spatial_size)
 

@@ -425,14 +425,14 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
 
 
 def resize_point(img, src_spatial_size, dst_spatial_size, lazy, transform_info):
-    spatial_dims = get_spatial_dims(points=img)
+    spatial_dims = get_spatial_dims(points=img[0])
     zoom = [dst_spatial_size[axis] / float(src_spatial_size[axis]) for axis in range(spatial_dims)]
     affine = create_scale(spatial_dims=spatial_dims, scaling_factor=zoom)
     # convert numpy to tensor if needed
     img_t, *_ = convert_data_type(img, torch.Tensor)
     affine_t, *_ = convert_to_dst_type(src=affine, dst=img_t)
 
-    ret: torch.Tensor = _apply_affine_to_points(img_t, affine_t, include_shift=True)
+    ret: torch.Tensor = _apply_affine_to_points(img_t[0], affine_t, include_shift=True)
 
     # convert tensor back to numpy if needed
     out: NdarrayOrTensor
