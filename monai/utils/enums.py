@@ -330,6 +330,7 @@ class TraceKeys(StrEnum):
     TRACING: str = "tracing"
     STATUSES: str = "statuses"
     LAZY: str = "lazy"
+    REF_SIZE: str = "ref_spatial_size"
 
 
 class TraceStatusKeys(StrEnum):
@@ -666,13 +667,14 @@ class LazyAttr(StrEnum):
     """
 
     SHAPE = "lazy_shape"  # spatial shape
-    REF_SHAPE = "lazy_ref_shape"  # reference spatial shape
+    REF_SIZE = "lazy_ref_size"  # reference spatial size
     AFFINE = "lazy_affine"
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"
     RESAMPLE_MODE = "lazy_resample_mode"
+    EXTRA_INFO = "lazy_extra_info"
 
 
 class BundleProperty(StrEnum):

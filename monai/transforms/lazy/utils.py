@@ -20,7 +20,7 @@ import monai
 from monai.config import NdarrayOrTensor
 from monai.data.utils import AFFINE_TOL
 from monai.transforms.utils_pytorch_numpy_unification import allclose
-from monai.utils import LazyAttr, convert_to_numpy, convert_to_tensor, look_up_option
+from monai.utils import LazyAttr, TraceKeys, convert_to_numpy, convert_to_tensor, look_up_option
 
 __all__ = ["resample", "combine_transforms"]
 
@@ -103,6 +103,8 @@ def kwargs_from_pending(pending_item):
         ret[LazyAttr.SHAPE] = pending_item[LazyAttr.SHAPE]
     if LazyAttr.DTYPE in pending_item:
         ret[LazyAttr.DTYPE] = pending_item[LazyAttr.DTYPE]
+    if LazyAttr.REF_SIZE in pending_item:
+        ret[LazyAttr.REF_SIZE] = pending_item[LazyAttr.REF_SIZE]
     return ret  # adding support of pending_item['extra_info']??
 
 
@@ -287,17 +289,16 @@ def resample_point(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | N
             img = img.permute(full_transpose[: len(img.shape)])
         in_shape = img.shape[1 : ndim + 1]  # requires that ``img`` has empty pending operations
         matrix_np[:ndim] = matrix_np[[x - 1 for x in full_transpose[1:]]]
-        flip = [idx for idx, val in enumerate(matrix_np[:ndim]) if val[idx] == -1]
-        ref_spatial_size = kwargs.get("ref_spatial_size", None)
-        print("*****", flip, ref_spatial_size, kwargs.keys())
+        flip = [idx + 1 for idx, val in enumerate(matrix_np[:ndim]) if val[idx] == -1]
+        ref_spatial_size = kwargs.get(LazyAttr.REF_SIZE, None)
         if flip:
             if ref_spatial_size is None:
                 warnings.warn("''ref_spatial_size'' is None, will flip in the world coordinates.")
                 for _axes in flip:
-                    img[..., _axes] = -img[..., _axes]
+                    img[..., _axes-1] = -img[..., _axes-1]
             else:
                 for _axes in flip:
-                    img[..., _axes] = ref_spatial_size[_axes] - img[..., _axes]
+                    img[..., _axes-1] = ref_spatial_size[_axes-1] - img[..., _axes-1]
             for f in flip:
                 ind_f = f - 1
                 matrix_np[ind_f, ind_f] = 1
@@ -305,7 +306,7 @@ def resample_point(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | N
         if not np.all(out_spatial_size > 0):
             raise ValueError(f"Resampling out_spatial_size should be positive, got {out_spatial_size}.")
         if (
-            allclose(matrix_np, np.eye(len(matrix_np)), atol=atol)
+            allclose(matrix_np[:ndim, :ndim], np.eye(len(matrix_np)-1), atol=atol)
             and len(in_shape) == len(out_spatial_size)
             and allclose(convert_to_numpy(in_shape, wrap_sequence=True), out_spatial_size)
         ):
