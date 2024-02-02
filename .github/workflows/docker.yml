@@ -62,7 +62,7 @@ jobs:
     - name: docker_build
       shell: bash
       run: |
-        rm -rf /opt/hostedtoolcache
+        find /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         docker --version
         # get tag info for versioning
         cat _version.py

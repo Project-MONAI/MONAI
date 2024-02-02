@@ -44,7 +44,7 @@ jobs:
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -90,7 +90,7 @@ jobs:
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -135,7 +135,7 @@ jobs:
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
