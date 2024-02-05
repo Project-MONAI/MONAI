@@ -86,7 +86,7 @@ class BundleAlgo(Algo):
         self.data_stats_files = ""
         self.data_list_file = ""
         self.mlflow_tracking_uri: str | None = None
-        self.mlflow_experiment_name: str | None  = None
+        self.mlflow_experiment_name: str | None = None
         self.output_path = ""
         self.name = ""
         self.best_metric = None
