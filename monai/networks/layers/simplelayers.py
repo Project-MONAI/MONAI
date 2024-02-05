@@ -552,6 +552,7 @@ class MedianFilter(nn.Module):
 
 
 class GaussianFilter(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -607,6 +608,7 @@ class GaussianFilter(nn.Module):
 
 
 class LLTMFunction(Function):
+
     @staticmethod
     def forward(ctx, input, weights, bias, old_h, old_cell):
         outputs = _C.lltm_forward(input, weights, bias, old_h, old_cell)

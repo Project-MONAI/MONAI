@@ -3441,7 +3441,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
             idx = self.R.permutation(image_np.shape[0])
             idx = idx[: self.num_patches]
             idx_np = convert_data_type(idx, np.ndarray)[0]
-            image_np = image_np[idx]  # type: ignore
+            image_np = image_np[idx]
             locations = locations[idx_np]
             return image_np, locations
         elif self.sort_fn not in (None, GridPatchSort.MIN, GridPatchSort.MAX):

@@ -43,6 +43,7 @@ TEST_CASE_2 = [
 
 
 class TestSelectCrossValidationFolds(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_value(self, input_param, result):
         partitions = partition_dataset(**input_param)

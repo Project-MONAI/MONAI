@@ -24,6 +24,7 @@ from monai.transforms import Compose, LoadImaged, SimulateDelayd
 
 
 class _Stream:
+
     def __init__(self, data):
         self.data = data
 
@@ -32,6 +33,7 @@ class _Stream:
 
 
 class TestIterableDataset(unittest.TestCase):
+
     def test_shape(self):
         expected_shape = (128, 128, 128)
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))

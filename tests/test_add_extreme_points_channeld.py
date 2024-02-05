@@ -64,6 +64,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestAddExtremePointsChanneld(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_correct_results(self, input_data, expected):
         add_extreme_points_channel = AddExtremePointsChanneld(

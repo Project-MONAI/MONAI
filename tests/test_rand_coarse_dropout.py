@@ -63,6 +63,7 @@ TEST_CASE_7 = [
 
 
 class TestRandCoarseDropout(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
     )

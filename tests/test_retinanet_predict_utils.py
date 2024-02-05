@@ -85,6 +85,7 @@ TEST_CASES_TS = [TEST_CASE_1]
 
 
 class NaiveNetwork(torch.nn.Module):
+
     def __init__(self, spatial_dims, num_classes, **kwargs):
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -103,6 +104,7 @@ class NaiveNetwork(torch.nn.Module):
 
 
 class NaiveNetwork2(torch.nn.Module):
+
     def __init__(self, spatial_dims, num_classes, **kwargs):
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -121,6 +123,7 @@ class NaiveNetwork2(torch.nn.Module):
 
 
 class TestPredictor(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_naive_predictor(self, input_param, input_shape):
         net = NaiveNetwork(**input_param)

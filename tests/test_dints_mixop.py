@@ -61,6 +61,7 @@ TEST_CASES_2D = [
 
 
 class TestMixOP(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_3D)
     def test_mixop_3d(self, input_param, ops, weight, input_shape, expected_shape):
         net = MixedOp(ops=Cell.OPS3D, **input_param)

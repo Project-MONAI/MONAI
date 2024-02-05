@@ -21,6 +21,7 @@ from tests.utils import assert_allclose
 
 
 class TestBoxTransform(unittest.TestCase):
+
     def test_value(self):
         box_coder = BoxCoder(weights=[1, 1, 1, 1, 1, 1])
         test_dtype = [torch.float32, torch.float16]

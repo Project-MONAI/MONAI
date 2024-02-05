@@ -27,6 +27,7 @@ nib, has_nibabel = optional_import("nibabel")
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKWriter(unittest.TestCase):
+
     def test_channel_shape(self):
         with tempfile.TemporaryDirectory() as tempdir:
             for c in (0, 1, 2, 3):

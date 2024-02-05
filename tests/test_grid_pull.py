@@ -63,6 +63,7 @@ for bound in bounds:
 
 @skip_if_no_cpp_extension
 class TestGridPull(unittest.TestCase):
+
     @parameterized.expand(TEST_1D_GP, skip_on_empty=True)
     def test_grid_pull(self, input_param, expected):
         result = grid_pull(**input_param)

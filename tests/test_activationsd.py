@@ -50,6 +50,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestActivationsd(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, test_input, output, expected_shape):
         result = Activationsd(**input_param)(test_input)

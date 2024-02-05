@@ -61,6 +61,7 @@ for dropout_rate in [0.6]:
 
 @skip_if_quick
 class TestViT(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_Vit)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ViT(**input_param)

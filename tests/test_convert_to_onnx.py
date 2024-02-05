@@ -36,6 +36,7 @@ onnx, _ = optional_import("onnx")
 @SkipIfBeforePyTorchVersion((1, 9))
 @skip_if_quick
 class TestConvertToOnnx(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_unet(self, device, use_trace, use_ort):
         if use_ort:

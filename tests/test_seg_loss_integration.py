@@ -47,6 +47,7 @@ TEST_CASES = [
 
 
 class TestSegLossIntegration(unittest.TestCase):
+
     def setUp(self):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
@@ -92,6 +93,7 @@ class TestSegLossIntegration(unittest.TestCase):
 
         # define a one layer model
         class OnelayerNet(nn.Module):
+
             def __init__(self):
                 super().__init__()
                 self.layer_1 = nn.Linear(num_voxels, 200)

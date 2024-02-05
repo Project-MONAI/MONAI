@@ -23,6 +23,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedConfusionMatrix(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         self._compute()

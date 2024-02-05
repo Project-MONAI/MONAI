@@ -76,6 +76,7 @@ TEST_CASES_CATEGORICAL = [
 
 @unittest.skipIf(not has_metrics, "MetricsReloaded not available.")
 class TestMetricsReloaded(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_BINARY)
     def test_binary(self, input_param, input_data, expected_val):
         metric = MetricsReloadedBinary(**input_param)

@@ -24,6 +24,7 @@ from tests.utils import skip_if_downloading_fails, skip_if_quick, testing_data_c
 
 
 class TestDownloadAndExtract(unittest.TestCase):
+
     @skip_if_quick
     def test_actions(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")

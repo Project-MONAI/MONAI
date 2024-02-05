@@ -495,6 +495,7 @@ TEST_CASES = [
 
 @skip_if_no_cpp_extension
 class CRFTestCaseCpu(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test(self, test_case_description, params, input, features, expected):
         # Create input tensors

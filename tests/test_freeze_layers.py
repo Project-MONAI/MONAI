@@ -27,6 +27,7 @@ for _x in __devices:
 
 
 class TestModuleState(unittest.TestCase):
+
     def tearDown(self):
         set_determinism(None)
 

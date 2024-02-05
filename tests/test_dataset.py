@@ -30,6 +30,7 @@ TEST_CASE_1 = [(128, 128, 128)]
 
 
 class TestDataset(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))

@@ -421,6 +421,7 @@ def optional_import(
         msg += f" ({exception_str})"
 
     class _LazyRaise:
+
         def __init__(self, *_args, **_kwargs):
             _default_msg = (
                 f"{msg}."
@@ -456,6 +457,7 @@ def optional_import(
         return _LazyRaise(), False
 
     class _LazyCls(_LazyRaise):
+
         def __init__(self, *_args, **kwargs):
             super().__init__()
             if not as_type.startswith("decorator"):

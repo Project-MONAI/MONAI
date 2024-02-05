@@ -157,6 +157,7 @@ class IgniteMetricHandler(Metric):
 
 @deprecated(since="1.2", removed="1.4", msg_suffix="Use IgniteMetricHandler instead of IgniteMetric.")
 class IgniteMetric(IgniteMetricHandler):
+
     def __init__(
         self,
         metric_fn: CumulativeIterationMetric | None = None,

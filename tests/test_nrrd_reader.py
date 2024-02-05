@@ -48,6 +48,7 @@ TEST_CASE_8 = [
 
 @skipUnless(has_nrrd, "nrrd required")
 class TestNrrdReader(unittest.TestCase):
+
     def test_verify_suffix(self):
         reader = NrrdReader()
         self.assertFalse(reader.verify_suffix("test_image.nrd"))

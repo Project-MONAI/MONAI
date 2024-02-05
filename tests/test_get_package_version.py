@@ -17,6 +17,7 @@ from monai.utils.module import get_package_version
 
 
 class TestGetVersion(unittest.TestCase):
+
     def test_default(self):
         output = get_package_version("42foobarnoexist")
         self.assertTrue("UNKNOWN" in output)

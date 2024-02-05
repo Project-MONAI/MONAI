@@ -32,6 +32,7 @@ TEST_CASE_3 = ["model", "True"]
 
 @skip_if_windows
 class TestCKPTExport(unittest.TestCase):
+
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:
