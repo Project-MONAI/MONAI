@@ -72,7 +72,6 @@ TEST_CASE_1 = [
 
 
 class TestClass:
-
     @staticmethod
     def compute(a, b, func=lambda x, y: x + y):
         return func(a, b)
@@ -127,7 +126,6 @@ TEST_CASE_DUPLICATED_KEY_YAML = [
 
 
 class TestConfigParser(unittest.TestCase):
-
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
@@ -183,7 +181,7 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
             if id in ("compute", "cls_compute"):
-                parser[f"{id}#_mode_"] = "debug"
+                parser[f"{id}#_mode_"] = "callable"
             func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.ref_resolver.resolved_content)
             if id == "error_func":
@@ -279,7 +277,7 @@ class TestConfigParser(unittest.TestCase):
 
     def test_non_str_target(self):
         configs = {
-            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "debug"},
+            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "callable"},
             "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
         }
         self.assertTrue(callable(ConfigParser(config=configs).fwd))
