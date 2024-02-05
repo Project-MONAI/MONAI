@@ -66,6 +66,7 @@ TEST_CASE_Vitautoenc.append(
 
 @skip_if_quick
 class TestVitAutoenc(unittest.TestCase):
+
     def setUp(self):
         self.threads = torch.get_num_threads()
         torch.set_num_threads(4)

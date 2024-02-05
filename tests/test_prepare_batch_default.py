@@ -20,11 +20,13 @@ from tests.utils import assert_allclose
 
 
 class TestNet(torch.nn.Module):
+
     def forward(self, x: torch.Tensor):
         return x
 
 
 class TestPrepareBatchDefault(unittest.TestCase):
+
     def test_dict_content(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dataloader = [

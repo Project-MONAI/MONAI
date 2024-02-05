@@ -39,6 +39,7 @@ TEST_CASES = os.path.join(os.path.dirname(__file__), "testing_data", "transform_
 
 @unittest.skipUnless(has_nib, "Requires nibabel package.")
 class TestMetaTensorIntegration(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

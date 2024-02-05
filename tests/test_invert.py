@@ -41,6 +41,7 @@ from tests.utils import assert_allclose, make_nifti_image
 
 
 class TestInvert(unittest.TestCase):
+
     def test_invert(self):
         set_determinism(seed=0)
         im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete

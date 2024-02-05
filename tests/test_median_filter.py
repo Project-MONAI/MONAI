@@ -20,6 +20,7 @@ from monai.networks.layers import MedianFilter
 
 
 class MedianFilterTestCase(unittest.TestCase):
+
     def test_3d_big(self):
         a = torch.ones(1, 1, 2, 3, 5)
         g = MedianFilter([1, 2, 4]).to(torch.device("cpu:0"))

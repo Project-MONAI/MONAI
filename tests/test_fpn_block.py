@@ -44,6 +44,7 @@ TEST_CASES2 = [
 
 
 class TestFPNBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_fpn_block(self, input_param, input_shape, expected_shape):
         net = FeaturePyramidNetwork(**input_param)
@@ -67,6 +68,7 @@ class TestFPNBlock(unittest.TestCase):
 
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 class TestFPN(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES2)
     def test_fpn(self, input_param, input_shape, expected_shape):
         net = _resnet_fpn_extractor(backbone=resnet50(), spatial_dims=input_param["spatial_dims"], returned_layers=[1])

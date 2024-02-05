@@ -32,6 +32,7 @@ TEST_CASE_5 = ["b4dc3c246b298eae37cefdfdd2a50b091ffd5e69", "sha1", True]
 
 
 class TestCheckMD5(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_result(self, md5_value, t, expected_result):
         test_image = np.ones((5, 5, 3))

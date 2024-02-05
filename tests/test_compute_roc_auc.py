@@ -100,6 +100,7 @@ TEST_CASE_10 = [
 
 
 class TestComputeROCAUC(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_1,

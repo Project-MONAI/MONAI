@@ -22,6 +22,7 @@ from monai.utils import set_determinism
 
 
 class _TestModelOne(torch.nn.Module):
+
     def __init__(self, n_n, n_m, n_class):
         super().__init__()
         self.layer = torch.nn.Linear(n_n, n_m)
@@ -34,6 +35,7 @@ class _TestModelOne(torch.nn.Module):
 
 
 class _TestModelTwo(torch.nn.Module):
+
     def __init__(self, n_n, n_m, n_d, n_class):
         super().__init__()
         self.layer = torch.nn.Linear(n_n, n_m)
@@ -55,6 +57,7 @@ for _x in __devices:
 
 
 class TestModuleState(unittest.TestCase):
+
     def tearDown(self):
         set_determinism(None)
 

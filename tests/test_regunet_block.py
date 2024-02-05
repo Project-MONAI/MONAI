@@ -65,6 +65,7 @@ TEST_CASE_EXTRACTION = [
 
 
 class TestRegistrationResidualConvBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_RESIDUAL)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = RegistrationResidualConvBlock(**input_param)
@@ -74,6 +75,7 @@ class TestRegistrationResidualConvBlock(unittest.TestCase):
 
 
 class TestRegistrationDownSampleBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_DOWN_SAMPLE)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = RegistrationDownSampleBlock(**input_param)
@@ -88,6 +90,7 @@ class TestRegistrationDownSampleBlock(unittest.TestCase):
 
 
 class TestRegistrationExtractionBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_EXTRACTION)
     def test_shape(self, input_param, input_shapes, image_size, expected_shape):
         net = RegistrationExtractionBlock(**input_param)

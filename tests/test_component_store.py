@@ -17,6 +17,7 @@ from monai.utils import ComponentStore
 
 
 class TestComponentStore(unittest.TestCase):
+
     def setUp(self):
         self.cs = ComponentStore("TestStore", "I am a test store, please ignore")
 

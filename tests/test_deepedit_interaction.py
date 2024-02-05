@@ -40,6 +40,7 @@ def add_one(engine):
 
 
 class TestInteractions(unittest.TestCase):
+
     def run_interaction(self, train):
         label_names = {"spleen": 1, "background": 0}
         np.random.seed(0)

@@ -224,6 +224,7 @@ TEST_CASES_NORM_F = [
 
 
 class TestGaussian1d(unittest.TestCase):
+
     def test_gaussian(self):
         np.testing.assert_allclose(
             gaussian_1d(0.5, 8),

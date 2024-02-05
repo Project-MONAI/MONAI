@@ -76,6 +76,7 @@ TEST_CASE_FILTER = [
 
 
 class TestSWINUNETR(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_SWIN_UNETR)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):

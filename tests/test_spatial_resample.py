@@ -133,6 +133,7 @@ for track_meta in (True,):
 
 
 class TestSpatialResample(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_flips(self, img, device, data_param, expected_output):
         for p in TEST_NDARRAYS_ALL:

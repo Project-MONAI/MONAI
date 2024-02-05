@@ -57,6 +57,7 @@ TEST_CASE_5 = [
 
 
 class TestMaskIntensityd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, arguments, image, expected_data):
         result = MaskIntensityd(**arguments)(image)

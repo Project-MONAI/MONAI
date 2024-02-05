@@ -64,6 +64,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestMapBinaryToIndices(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_data, expected_fg, expected_bg):
         fg_indices, bg_indices = map_binary_to_indices(**input_data)

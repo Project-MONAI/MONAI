@@ -165,6 +165,7 @@ ILL_CASES = [
 
 
 class TestUNET(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UNet(**input_param).to(device)

@@ -271,6 +271,7 @@ for d in TEST_DEVICES:
 
 @skip_if_quick
 class TestSpacingCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_spacing(
         self,

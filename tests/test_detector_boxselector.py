@@ -56,6 +56,7 @@ TEST_CASE.append(
 
 
 class TestBoxSelector(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE)
     def test_box_selector(self, input_param, boxes, logits, image_shape, expected_results):
         box_selector = BoxSelector(**input_param)

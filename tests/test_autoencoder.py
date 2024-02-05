@@ -74,6 +74,7 @@ TEST_CASE_FAIL = {  # 2-channel 2D, should fail because of stride/channel mismat
 
 
 class TestAutoEncoder(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = AutoEncoder(**input_param).to(device)

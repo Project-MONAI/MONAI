@@ -39,6 +39,7 @@ for dropout_rate in np.linspace(0, 1, 4):
 
 
 class TestTransformerBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_TRANSFORMERBLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = TransformerBlock(**input_param)

@@ -36,6 +36,7 @@ TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
 
 
 class TestComputeLossMetric(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1])
     def test_value_class(self, input_data, expected_value):
         loss_fn = input_data["loss_class"](**input_data["loss_kwargs"])

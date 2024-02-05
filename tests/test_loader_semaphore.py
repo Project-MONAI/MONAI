@@ -39,6 +39,7 @@ def _run_test():
 
 
 class TestImportLock(unittest.TestCase):
+
     def test_start(self):
         _run_test()
 

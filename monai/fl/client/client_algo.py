@@ -57,6 +57,7 @@ class BaseClient:
 
 
 class ClientAlgoStats(BaseClient):
+
     def get_data_stats(self, extra: dict | None = None) -> ExchangeObject:
         """
         Get summary statistics about the local data.

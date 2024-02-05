@@ -59,6 +59,7 @@ TEST_CORRECT_CASES = [
 
 
 class TestResized(NumpyImageTestCase2D):
+
     def test_invalid_inputs(self):
         with self.assertRaises(ValueError):
             resize = Resized(keys="img", spatial_size=(128, 128, 3), mode="order")

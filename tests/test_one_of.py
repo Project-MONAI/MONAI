@@ -39,31 +39,37 @@ from monai.utils.enums import TraceKeys
 
 
 class X(Transform):
+
     def __call__(self, x):
         return x
 
 
 class Y(Transform):
+
     def __call__(self, x):
         return x
 
 
 class A(Transform):
+
     def __call__(self, x):
         return x + 1
 
 
 class B(Transform):
+
     def __call__(self, x):
         return x + 2
 
 
 class C(Transform):
+
     def __call__(self, x):
         return x + 3
 
 
 class MapBase(MapTransform):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn, self.inv_fn = None, None
@@ -76,12 +82,14 @@ class MapBase(MapTransform):
 
 
 class NonInv(MapBase):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x * 2
 
 
 class Inv(MapBase, InvertibleTransform):
+
     def __call__(self, data):
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
@@ -98,6 +106,7 @@ class Inv(MapBase, InvertibleTransform):
 
 
 class InvA(Inv):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x + 1
@@ -105,6 +114,7 @@ class InvA(Inv):
 
 
 class InvB(Inv):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x + 100
@@ -123,6 +133,7 @@ TEST_INVERSES = [
 
 
 class TestOneOf(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_normalize_weights(self, transforms, input_weights, expected_weights):
         tr = OneOf(transforms, input_weights)
@@ -240,6 +251,7 @@ TEST_ONEOF_EXTENDED_TEST_CASES = [
 
 
 class TestOneOfAPITests(unittest.TestCase):
+
     @staticmethod
     def data_from_keys(keys):
         if keys is None:

@@ -36,6 +36,7 @@ TEST_CASES = [
 
 
 class TestMMDMetric(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_results(self, input_param, input_data, expected_val):
         metric = MMDMetric(**input_param)

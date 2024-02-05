@@ -79,6 +79,7 @@ TEST_CASES = [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
 class TestDetectorUtils(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_detector_utils(self, input_param, input_shape, expected_shape):
         size_divisible = 32 * ensure_tuple(input_param["conv1_t_stride"])[0]
