@@ -238,7 +238,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
         __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``.
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
         kwargs: keyword arguments to the callable represented by ``__path``.
