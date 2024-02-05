@@ -231,11 +231,14 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
 
     Args:
         __path: if a string is provided, it's interpreted as the full path of the target class or function component.
-            If a callable is provided, ``__path(**kwargs)`` or ``functools.partial(__path, **kwargs)`` will be returned.
+            If a callable is provided, ``__path(**kwargs)`` will be invoked and returned for ``__mode="default"``.
+            For ``__mode="callable"``, the callable will be returned as ``__path`` or, if ``kwargs`` are provided,
+            as ``functools.partial(__path, **kwargs)`` for future invoking.
+
         __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"partial"``: returns ``functools.partial(component, **kwargs)`` if ``kwargs`` is not empty, otherwise returns ``component``
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``.
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
         kwargs: keyword arguments to the callable represented by ``__path``.
@@ -259,7 +262,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return component
         if m == CompInitMode.DEFAULT:
             return component(**kwargs)
-        if m == CompInitMode.PARTIAL:
+        if m == CompInitMode.CALLABLE:
             return partial(component, **kwargs) if kwargs else component
         if m == CompInitMode.DEBUG:
             warnings.warn(

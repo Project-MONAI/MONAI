@@ -181,7 +181,7 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
             if id in ("compute", "cls_compute"):
-                parser[f"{id}#_mode_"] = "partial"
+                parser[f"{id}#_mode_"] = "debug"
             func = parser.get_parsed_content(id=id)
             self.assertTrue(id in parser.ref_resolver.resolved_content)
             if id == "error_func":
@@ -277,7 +277,7 @@ class TestConfigParser(unittest.TestCase):
 
     def test_non_str_target(self):
         configs = {
-            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "partial"},
+            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "debug"},
             "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
         }
         self.assertTrue(callable(ConfigParser(config=configs).fwd))
