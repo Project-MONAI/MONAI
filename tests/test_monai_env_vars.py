@@ -18,6 +18,7 @@ from monai.utils.misc import MONAIEnvVars
 
 
 class TestMONAIEnvVars(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()

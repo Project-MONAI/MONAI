@@ -160,6 +160,7 @@ for track_meta in (False, True):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImage(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
@@ -379,6 +380,7 @@ class TestLoadImage(unittest.TestCase):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImageMeta(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()

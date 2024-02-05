@@ -213,6 +213,7 @@ def setUpModule():
 
 
 class SlidingPatchWSIDatasetTests:
+
     class Tests(unittest.TestCase):
         backend = None
 
@@ -252,6 +253,7 @@ class SlidingPatchWSIDatasetTests:
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -259,6 +261,7 @@ class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestSlidingPatchWSIDatasetOpenSlide(SlidingPatchWSIDatasetTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"

@@ -41,6 +41,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGenerateInstanceType(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE)
     def test_shape(self, in_type, type_pred, seg_pred, bbox, expected):
         result = GenerateInstanceType()(in_type(type_pred[None]), in_type(seg_pred[None]), bbox, 1)

@@ -82,6 +82,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGaussianSharpend(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         result = GaussianSharpend(**arguments)(image)

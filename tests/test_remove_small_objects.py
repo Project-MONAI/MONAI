@@ -55,6 +55,7 @@ for dtype in (int, float):
 
 @SkipIfNoModule("skimage.morphology")
 class TestRemoveSmallObjects(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_remove_small_objects(self, dtype, im_type, lbl, expected, params=None):
         params = params or {}

@@ -111,6 +111,7 @@ TEST_CASE_ND_2 = [
 
 
 class TestComputeFpTp(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value(self, input_data, expected_fp, expected_tp, expected_num):
         fp_probs, tp_probs, num_tumors = compute_fp_tp_probs(**input_data)
@@ -120,6 +121,7 @@ class TestComputeFpTp(unittest.TestCase):
 
 
 class TestComputeFpTpNd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_ND_1, TEST_CASE_ND_2])
     def test_value(self, input_data, expected_fp, expected_tp, expected_num):
         fp_probs, tp_probs, num_tumors = compute_fp_tp_probs_nd(**input_data)
@@ -129,6 +131,7 @@ class TestComputeFpTpNd(unittest.TestCase):
 
 
 class TestComputeFrocScore(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_data, thresholds, expected_score):
         fps_per_image, total_sensitivity = compute_froc_curve_data(**input_data)

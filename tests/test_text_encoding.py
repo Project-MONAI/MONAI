@@ -18,6 +18,7 @@ from tests.utils import skip_if_downloading_fails
 
 
 class TestTextEncoder(unittest.TestCase):
+
     def test_test_encoding_shape(self):
         with skip_if_downloading_fails():
             # test 2D encoder

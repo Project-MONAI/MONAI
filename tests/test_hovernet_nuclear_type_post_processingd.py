@@ -42,6 +42,7 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class TestHoVerNetNuclearTypePostProcessingd(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE)
     def test_value(self, in_type, test_data, kwargs, expected):
         input = {

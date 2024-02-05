@@ -33,6 +33,7 @@ KEYS = ["image", "label"]
 
 
 class TestKSpaceSpikeNoised(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
         super().setUp()

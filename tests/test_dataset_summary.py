@@ -36,6 +36,7 @@ def test_collate(batch):
 
 
 class TestDatasetSummary(unittest.TestCase):
+
     def test_spacing_intensity(self):
         set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:

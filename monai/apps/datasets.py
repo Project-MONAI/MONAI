@@ -737,6 +737,7 @@ class CrossValidation:
         dataset_params_.update(dataset_params)
 
         class _NsplitsDataset(self.dataset_cls):  # type: ignore
+
             def _split_datalist(self, datalist: list[dict]) -> list[dict]:
                 data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=True, seed=seed)
                 return select_cross_validation_folds(partitions=data, folds=folds)

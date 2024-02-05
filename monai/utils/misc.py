@@ -103,13 +103,11 @@ T = TypeVar("T")
 
 
 @overload
-def first(iterable: Iterable[T], default: T) -> T:
-    ...
+def first(iterable: Iterable[T], default: T) -> T: ...
 
 
 @overload
-def first(iterable: Iterable[T]) -> T | None:
-    ...
+def first(iterable: Iterable[T]) -> T | None: ...
 
 
 def first(iterable: Iterable[T], default: T | None = None) -> T | None:
@@ -744,6 +742,7 @@ def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, 
 
 
 class CheckKeyDuplicatesYamlLoader(SafeLoader):
+
     def construct_mapping(self, node, deep=False):
         mapping = set()
         for key_node, _ in node.value:

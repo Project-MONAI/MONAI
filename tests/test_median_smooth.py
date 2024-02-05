@@ -31,6 +31,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestMedianSmooth(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         result = MedianSmooth(**arguments)(image)

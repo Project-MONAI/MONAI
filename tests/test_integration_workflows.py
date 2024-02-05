@@ -118,6 +118,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     )
 
     class _TestEvalIterEvents:
+
         def attach(self, engine):
             engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
 
@@ -160,6 +161,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     )
 
     class _TestTrainIterEvents:
+
         def attach(self, engine):
             engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
             engine.add_event_handler(IterationEvents.LOSS_COMPLETED, self._loss_completed)
@@ -284,6 +286,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
 @skip_if_quick
 class IntegrationWorkflows(DistTestCase):
+
     def setUp(self):
         set_determinism(seed=0)
 

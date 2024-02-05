@@ -77,6 +77,7 @@ for patch_size in [2]:
 
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestPatchEmbeddingBlock(unittest.TestCase):
+
     def setUp(self):
         self.threads = torch.get_num_threads()
         torch.set_num_threads(4)
@@ -162,6 +163,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
 
 
 class TestPatchEmbed(unittest.TestCase):
+
     def setUp(self):
         self.threads = torch.get_num_threads()
         torch.set_num_threads(4)

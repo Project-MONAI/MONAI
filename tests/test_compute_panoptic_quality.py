@@ -92,6 +92,7 @@ TEST_CLS_CASE_5 = [
 
 @SkipIfNoModule("scipy.optimize")
 class TestPanopticQualityMetric(unittest.TestCase):
+
     @parameterized.expand([TEST_FUNC_CASE_1, TEST_FUNC_CASE_2, TEST_FUNC_CASE_3, TEST_FUNC_CASE_4])
     def test_value(self, input_params, expected_value):
         result = compute_panoptic_quality(**input_params)

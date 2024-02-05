@@ -22,6 +22,7 @@ from monai.visualize import OcclusionSensitivity
 
 
 class DenseNetAdjoint(DenseNet121):
+
     def __call__(self, x, adjoint_info):
         if adjoint_info != 42:
             raise ValueError
@@ -104,6 +105,7 @@ TESTS_FAIL.append(
 
 
 class TestComputeOcclusionSensitivity(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, init_data, call_data, map_expected_shape, most_prob_expected_shape):
         occ_sens = OcclusionSensitivity(**init_data)

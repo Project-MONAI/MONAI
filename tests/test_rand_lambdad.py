@@ -37,6 +37,7 @@ class RandTest(Randomizable):
 
 
 class TestRandLambdad(unittest.TestCase):
+
     def check(self, tr: RandLambdad, input: dict, out: dict, expected: dict):
         if isinstance(input["img"], MetaTensor):
             self.assertEqual(len(input["img"].applied_operations), 0)

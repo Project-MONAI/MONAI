@@ -20,6 +20,7 @@ from monai.data.utils import create_file_basename
 
 
 class TestFilename(unittest.TestCase):
+
     def test_value(self):
         with tempfile.TemporaryDirectory() as tempdir:
             output_tmp = os.path.join(tempdir, "output")

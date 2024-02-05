@@ -369,8 +369,12 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
     def __init__(
         self,
         feature_map_scales: Sequence[int] | Sequence[float] = (1, 2, 4, 8),
-        base_anchor_shapes: Sequence[Sequence[int]]
-        | Sequence[Sequence[float]] = ((32, 32, 32), (48, 20, 20), (20, 48, 20), (20, 20, 48)),
+        base_anchor_shapes: Sequence[Sequence[int]] | Sequence[Sequence[float]] = (
+            (32, 32, 32),
+            (48, 20, 20),
+            (20, 48, 20),
+            (20, 20, 48),
+        ),
         indexing: str = "ij",
     ) -> None:
         nn.Module.__init__(self)
