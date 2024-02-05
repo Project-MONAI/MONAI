@@ -85,7 +85,8 @@ class BundleAlgo(Algo):
         self.template_path = template_path
         self.data_stats_files = ""
         self.data_list_file = ""
-        self.mlflow_tracking_uri = None
+        self.mlflow_tracking_uri: str | None = None
+        self.mlflow_experiment_name: str | None  = None
         self.output_path = ""
         self.name = ""
         self.best_metric = None
@@ -139,7 +140,16 @@ class BundleAlgo(Algo):
                 the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
                 the value is None.
         """
-        self.mlflow_tracking_uri = mlflow_tracking_uri  # type: ignore
+        self.mlflow_tracking_uri = mlflow_tracking_uri
+
+    def set_mlflow_experiment_name(self, mlflow_experiment_name: str | None) -> None:
+        """
+        Set the experiment name for MLflow server
+
+        Args:
+            mlflow_experiment_name: a string to specify the experiment name for MLflow server.
+        """
+        self.mlflow_experiment_name = mlflow_experiment_name
 
     def fill_template_config(self, data_stats_filename: str, algo_path: str, **kwargs: Any) -> dict:
         """
@@ -447,6 +457,7 @@ class BundleGen(AlgoGen):
         mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of
             the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
             the value is None.
+        mlfow_experiment_name: a string to specify the experiment name for MLflow server.
     .. code-block:: bash
 
         python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/datastats.yaml"
@@ -460,6 +471,7 @@ class BundleGen(AlgoGen):
         data_stats_filename: str | None = None,
         data_src_cfg_name: str | None = None,
         mlflow_tracking_uri: str | None = None,
+        mlflow_experiment_name: str | None = None,
     ):
         if algos is None or isinstance(algos, (list, tuple, str)):
             if templates_path_or_url is None:
@@ -513,6 +525,7 @@ class BundleGen(AlgoGen):
         self.data_stats_filename = data_stats_filename
         self.data_src_cfg_name = data_src_cfg_name
         self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_experiment_name = mlflow_experiment_name
         self.history: list[dict] = []
 
     def set_data_stats(self, data_stats_filename: str) -> None:
@@ -552,9 +565,22 @@ class BundleGen(AlgoGen):
         """
         self.mlflow_tracking_uri = mlflow_tracking_uri
 
+    def set_mlflow_experiment_name(self, mlflow_experiment_name):
+        """
+        Set the experiment name for MLflow server
+
+        Args:
+            mlflow_experiment_name: a string to specify the experiment name for MLflow server.
+        """
+        self.mlflow_experiment_name = mlflow_experiment_name
+
     def get_mlflow_tracking_uri(self):
         """Get the tracking URI for MLflow server"""
         return self.mlflow_tracking_uri
+
+    def get_mlflow_experiment_name(self):
+        """Get the experiment name for MLflow server"""
+        return self.mlflow_experiment_name
 
     def get_history(self) -> list:
         """Get the history of the bundleAlgo object with their names/identifiers"""
@@ -608,10 +634,12 @@ class BundleGen(AlgoGen):
                 data_stats = self.get_data_stats()
                 data_src_cfg = self.get_data_src()
                 mlflow_tracking_uri = self.get_mlflow_tracking_uri()
+                mlflow_experiment_name = self.get_mlflow_experiment_name()
                 gen_algo = deepcopy(algo)
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
                 gen_algo.set_mlflow_tracking_uri(mlflow_tracking_uri)
+                gen_algo.set_mlflow_experiment_name(mlflow_experiment_name)
                 name = f"{gen_algo.name}_{f_id}"
 
                 if allow_skip:
