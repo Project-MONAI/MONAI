@@ -43,6 +43,7 @@ INVALID_CASES = [((None, None), "bilinear", TypeError), ((0.9, 0.9), "s", ValueE
 
 
 class TestZoom(NumpyImageTestCase2D):
+
     @parameterized.expand(VALID_CASES)
     def test_pending_ops(self, zoom, mode, align_corners=False, keep_size=False):
         im = MetaTensor(self.imt[0], meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})

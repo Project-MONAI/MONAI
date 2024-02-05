@@ -46,6 +46,7 @@ for endianness in ["<", ">"]:
 
 
 class TestNiftiEndianness(unittest.TestCase):
+
     def setUp(self):
         self.im, _ = create_test_image_2d(100, 100)
         self.fname = tempfile.NamedTemporaryFile(suffix=".nii.gz").name

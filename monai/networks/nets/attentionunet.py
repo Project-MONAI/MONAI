@@ -23,6 +23,7 @@ __all__ = ["AttentionUnet"]
 
 
 class ConvBlock(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -67,6 +68,7 @@ class ConvBlock(nn.Module):
 
 
 class UpConv(nn.Module):
+
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size=3, strides=2, dropout=0.0):
         super().__init__()
         self.up = Convolution(
@@ -88,6 +90,7 @@ class UpConv(nn.Module):
 
 
 class AttentionBlock(nn.Module):
+
     def __init__(self, spatial_dims: int, f_int: int, f_g: int, f_l: int, dropout=0.0):
         super().__init__()
         self.W_g = nn.Sequential(
@@ -145,6 +148,7 @@ class AttentionBlock(nn.Module):
 
 
 class AttentionLayer(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,

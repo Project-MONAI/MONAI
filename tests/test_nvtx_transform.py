@@ -43,6 +43,7 @@ TEST_CASE_DICT_1 = [{"image": np.random.randn(3, 10, 10)}]
 
 
 class TestNVTXTransforms(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1, TEST_CASE_DICT_0, TEST_CASE_DICT_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_nvtx_transfroms_alone(self, input):

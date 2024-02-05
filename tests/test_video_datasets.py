@@ -31,6 +31,7 @@ TRANSFORMS = mt.Compose(
 
 
 class Base:
+
     class TestVideoDataset(unittest.TestCase):
         video_source: int | str
         ds: type[VideoDataset]

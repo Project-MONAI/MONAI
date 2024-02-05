@@ -38,6 +38,7 @@ def add_one(engine):
 
 
 class TestInteractions(unittest.TestCase):
+
     def run_interaction(self, train, compose):
         data = [{"image": np.ones((1, 2, 2, 2)).astype(np.float32), "label": np.ones((1, 2, 2, 2))} for _ in range(5)]
         network = torch.nn.Linear(2, 2)

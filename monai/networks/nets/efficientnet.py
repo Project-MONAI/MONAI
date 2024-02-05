@@ -73,6 +73,7 @@ url_map = {
 
 
 class MBConvBlock(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -227,6 +228,7 @@ class MBConvBlock(nn.Module):
 
 
 class EfficientNet(nn.Module):
+
     def __init__(
         self,
         blocks_args_str: list[str],
@@ -472,6 +474,7 @@ class EfficientNet(nn.Module):
 
 
 class EfficientNetBN(EfficientNet):
+
     def __init__(
         self,
         model_name: str,
@@ -558,6 +561,7 @@ class EfficientNetBN(EfficientNet):
 
 
 class EfficientNetBNFeatures(EfficientNet):
+
     def __init__(
         self,
         model_name: str,

@@ -742,6 +742,7 @@ def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, 
 
 
 class CheckKeyDuplicatesYamlLoader(SafeLoader):
+
     def construct_mapping(self, node, deep=False):
         mapping = set()
         for key_node, _ in node.value:

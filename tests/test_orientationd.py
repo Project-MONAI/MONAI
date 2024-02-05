@@ -65,6 +65,7 @@ for track_meta in (False, True):
 
 
 class TestOrientationdCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_orntd(
         self, init_param, img: torch.Tensor, affine: torch.Tensor | None, expected_shape, expected_code, device

@@ -120,6 +120,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandCropByLabelClassesd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
         result = RandCropByLabelClassesd(**input_param)(input_data)

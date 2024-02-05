@@ -35,6 +35,7 @@ pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
 
 @SkipIfNoModule("matplotlib")
 class TestMatshow3d(unittest.TestCase):
+
     def test_3d(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         keys = "image"

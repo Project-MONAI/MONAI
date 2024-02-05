@@ -116,6 +116,7 @@ TEST_EXTRACT_CASES = [
 
 @unittest.skip("deprecating mmar tests")
 class TestMMMARDownload(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
     def test_download(self, idx):

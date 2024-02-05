@@ -21,6 +21,7 @@ _, has_ignite = optional_import("ignite")
 
 
 class TestComponentLocator(unittest.TestCase):
+
     def test_locate(self):
         locator = ComponentLocator(excludes=None if has_ignite else ["monai.handlers"])
         # test init mapping table and get the module path of component

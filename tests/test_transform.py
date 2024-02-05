@@ -20,6 +20,7 @@ from monai.utils.misc import MONAIEnvVars
 
 
 class FaultyTransform(mt.Transform):
+
     def __call__(self, _):
         raise RuntimeError
 
@@ -29,6 +30,7 @@ def faulty_lambda(_):
 
 
 class TestTransform(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()

@@ -63,6 +63,7 @@ TEST_CASES = [
 
 
 class TestJukeboxLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_results(self, input_param, input_data, expected_val):
         results = JukeboxLoss(**input_param).forward(**input_data)

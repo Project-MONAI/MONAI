@@ -30,6 +30,7 @@ FILES = tuple(
 
 
 class TestLoadSpacingOrientation(unittest.TestCase):
+
     @staticmethod
     def load_image(filename):
         data = {"image": filename}

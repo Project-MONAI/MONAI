@@ -82,6 +82,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestClassesToIndices(unittest.TestCase):
+
     @parameterized.expand(TESTS_CASES)
     def test_value(self, input_args, label, image, expected_indices):
         indices = ClassesToIndices(**input_args)(label, image)

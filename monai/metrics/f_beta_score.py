@@ -22,6 +22,7 @@ from .metric import CumulativeIterationMetric
 
 
 class FBetaScore(CumulativeIterationMetric):
+
     def __init__(
         self,
         beta: float = 1.0,

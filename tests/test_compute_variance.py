@@ -109,6 +109,7 @@ TEST_CASE_7 = [  # y_pred (3, 1, 3), expected out (0.0)
 
 
 class TestComputeVariance(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, input_data, expected_value):
         result = compute_variance(**input_data)

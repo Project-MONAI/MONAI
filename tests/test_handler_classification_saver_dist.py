@@ -27,6 +27,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedHandlerClassificationSaver(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:

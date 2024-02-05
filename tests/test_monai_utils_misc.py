@@ -40,11 +40,13 @@ TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
 
 
 class MiscClass:
+
     def __init__(self, arg1, arg2, kwargs1=None, kwargs2=None):
         pass
 
 
 class TestToTupleOfDictionaries(unittest.TestCase):
+
     @parameterized.expand(TO_TUPLE_OF_DICTIONARIES_TEST_CASES)
     def test_to_tuple_of_dictionaries(self, dictionary, keys, expected):
         self._test_to_tuple_of_dictionaries(dictionary, keys, expected)
@@ -61,6 +63,7 @@ class TestToTupleOfDictionaries(unittest.TestCase):
 
 
 class TestMiscKwargs(unittest.TestCase):
+
     def test_kwargs(self):
         present, extra_args = self._custom_user_function(MiscClass, 1, kwargs1="value1", kwargs2="value2")
         self.assertEqual(present, True)
@@ -74,6 +77,7 @@ class TestMiscKwargs(unittest.TestCase):
 
 
 class TestCommandRunner(unittest.TestCase):
+
     def setUp(self):
         self.orig_flag = str(MONAIEnvVars.debug())
 

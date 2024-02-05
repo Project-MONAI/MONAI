@@ -20,6 +20,7 @@ from tests.utils import skip_if_no_cuda, skip_if_quick
 
 
 class TestAttentionUnet(unittest.TestCase):
+
     def test_attention_block(self):
         for dims in [2, 3]:
             block = att.AttentionBlock(dims, f_int=2, f_g=6, f_l=6)

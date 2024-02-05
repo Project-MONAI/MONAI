@@ -29,6 +29,7 @@ _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 @unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 @unittest.skipIf(not has_get_active_config_file, "ClearML 'get_active_config_file' not found")
 class TestHandlerClearMLImageHandler(unittest.TestCase):
+
     def test_task_init(self):
         handle, path = tempfile.mkstemp()
         with open(handle, "w") as new_config:
