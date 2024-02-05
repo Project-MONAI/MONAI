@@ -72,6 +72,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestFgBgToIndices(unittest.TestCase):
+
     @parameterized.expand(TESTS_CASES)
     def test_type_shape(self, input_data, label, image, expected_fg, expected_bg):
         fg_indices, bg_indices = FgBgToIndices(**input_data)(label, image)

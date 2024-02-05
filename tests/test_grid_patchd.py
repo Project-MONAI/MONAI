@@ -77,6 +77,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGridPatchd(unittest.TestCase):
+
     @parameterized.expand(TEST_SINGLE)
     @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_grid_patchd(self, in_type, input_parameters, image_dict, expected):

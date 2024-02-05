@@ -37,6 +37,7 @@ TEST_CASE_3 = [[[g_m], [h_m]], list, torch.Size([2, 3])]
 
 
 class TestListDataCollate(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_type_shape(self, input_data, expected_type, expected_shape):
         result = list_data_collate(input_data)

@@ -51,6 +51,7 @@ TESTS_PENDING_MODE = [["constant", "zeros"], ["edge", "border"]]
 
 
 class PadTest(unittest.TestCase):
+
     @staticmethod
     def get_arr(shape):
         return np.random.randint(100, size=shape).astype(float)

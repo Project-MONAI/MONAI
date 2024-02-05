@@ -124,6 +124,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestMapClassesToIndices(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, input_data, expected_indices):
         indices = map_classes_to_indices(**input_data)

@@ -25,5 +25,6 @@ class SubTensor(torch.Tensor):
 
 
 class SubWithTorchFunc(torch.Tensor):
+
     def __torch_function__(self, func, types, args=(), kwargs=None):
         return super().__torch_function__(func, types, args, {} if kwargs is None else kwargs)

@@ -54,6 +54,7 @@ EXPECTED_VALUE = {
 
 @skip_if_quick
 class TestGlobalMutualInformationLoss(unittest.TestCase):
+
     def setUp(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
         download_url_or_skip_test(
@@ -114,6 +115,7 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
 
 class TestGlobalMutualInformationLossIll(unittest.TestCase):
+
     def test_ill_shape(self):
         loss = GlobalMutualInformationLoss()
         with self.assertRaisesRegex(ValueError, ""):

@@ -25,6 +25,7 @@ VALID_CASES = [([0.0, 1.0],), ([0.01, 0.1],)]
 
 
 class TestSignalRandDropNumpy(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandDrop(boundaries), SignalRandDrop)
@@ -35,6 +36,7 @@ class TestSignalRandDropNumpy(unittest.TestCase):
 
 
 class TestSignalRandDropTorch(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandDrop(boundaries), SignalRandDrop)

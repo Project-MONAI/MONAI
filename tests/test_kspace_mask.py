@@ -26,6 +26,7 @@ TESTSM = [(ksp,)]
 
 
 class TestMRIUtils(unittest.TestCase):
+
     @parameterized.expand(TESTSM)
     def test_mask(self, test_data):
         # random mask

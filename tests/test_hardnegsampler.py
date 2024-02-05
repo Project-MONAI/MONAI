@@ -37,6 +37,7 @@ pool_size = 2
 
 
 class TestSampleSlices(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE)
     def test_shape(self, target_label0, target_label1, concat_fg_probs, expected_result_pos, expected_result_neg):
         compute_dtypes = [torch.float16, torch.float32]

@@ -31,6 +31,7 @@ VALID_CASES = [
 
 
 class TestRandZoomd(NumpyImageTestCase2D):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, min_zoom, max_zoom, mode, align_corners, keep_size):
         key = "img"

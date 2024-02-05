@@ -105,6 +105,7 @@ for track_meta in (False, True):
 
 
 class TestSpacingDCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_spacingd(self, _, data, kw_args, expected_shape, expected_affine, device):
         data = {k: v.to(device) for k, v in data.items()}

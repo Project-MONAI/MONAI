@@ -99,6 +99,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestGridDistortion(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_grid_distortion(self, input_param, input_data, expected_val):
         g = GridDistortion(**input_param)

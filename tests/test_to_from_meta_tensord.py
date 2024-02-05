@@ -42,6 +42,7 @@ def rand_string(min_len=5, max_len=10):
 
 @unittest.skipIf(config.USE_META_DICT, "skipping not metatensor")
 class TestToFromMetaTensord(unittest.TestCase):
+
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:

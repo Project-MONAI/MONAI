@@ -90,6 +90,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandSpatialCropSamplesd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, *TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape, expected_last):
         xform = RandSpatialCropSamplesd(**input_param)

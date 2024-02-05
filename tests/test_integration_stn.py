@@ -98,6 +98,7 @@ def compare_2d(is_ref=True, device=None, reverse_indexing=False):
 
 
 class TestSpatialTransformerCore(DistTestCase):
+
     def setUp(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 

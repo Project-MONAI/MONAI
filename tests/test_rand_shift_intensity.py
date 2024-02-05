@@ -21,6 +21,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandShiftIntensity(NumpyImageTestCase2D):
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_value(self, p):
         shifter = RandShiftIntensity(offsets=1.0, prob=1.0)

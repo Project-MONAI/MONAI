@@ -52,6 +52,7 @@ TEST_CASE_11 = ["collate_fn", "$var + 100"]
 
 
 class TestConfigItem(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1])
     def test_item(self, test_input, expected):
         item = ConfigItem(config=test_input)

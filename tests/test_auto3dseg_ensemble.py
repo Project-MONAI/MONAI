@@ -112,6 +112,7 @@ def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleBuilder(unittest.TestCase):
+
     def setUp(self) -> None:
         set_determinism(0)
         self.test_dir = tempfile.TemporaryDirectory()

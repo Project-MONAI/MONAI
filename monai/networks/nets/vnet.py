@@ -30,6 +30,7 @@ def get_acti_layer(act: tuple[str, dict] | str, nchan: int = 0):
 
 
 class LUConv(nn.Module):
+
     def __init__(self, spatial_dims: int, nchan: int, act: tuple[str, dict] | str, bias: bool = False):
         super().__init__()
 
@@ -58,6 +59,7 @@ def _make_nconv(spatial_dims: int, nchan: int, depth: int, act: tuple[str, dict]
 
 
 class InputTransition(nn.Module):
+
     def __init__(
         self, spatial_dims: int, in_channels: int, out_channels: int, act: tuple[str, dict] | str, bias: bool = False
     ):
@@ -91,6 +93,7 @@ class InputTransition(nn.Module):
 
 
 class DownTransition(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -127,6 +130,7 @@ class DownTransition(nn.Module):
 
 
 class UpTransition(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -165,6 +169,7 @@ class UpTransition(nn.Module):
 
 
 class OutputTransition(nn.Module):
+
     def __init__(
         self, spatial_dims: int, in_channels: int, out_channels: int, act: tuple[str, dict] | str, bias: bool = False
     ):

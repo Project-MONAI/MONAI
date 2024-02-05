@@ -245,6 +245,7 @@ TEST_CASE_ERROR_10 = [
 
 
 class PatchInfererTests(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_0_TENSOR,

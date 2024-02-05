@@ -70,6 +70,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGridSplitd(unittest.TestCase):
+
     @parameterized.expand(TEST_SINGLE)
     def test_split_patch_single_call(self, in_type, input_parameters, img_dict, expected):
         input_dict = {}

@@ -50,6 +50,7 @@ def case_1_seconds_bad(arg=None):
 
 
 class TestTimedCall(unittest.TestCase):
+
     def test_good_call(self):
         output = case_1_seconds()
         self.assertEqual(output, "good")

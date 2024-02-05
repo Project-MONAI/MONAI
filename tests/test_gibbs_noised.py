@@ -33,6 +33,7 @@ KEYS = ["im", "label"]
 
 
 class TestGibbsNoised(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
         super().setUp()
