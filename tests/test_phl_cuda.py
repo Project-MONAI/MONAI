@@ -150,6 +150,7 @@ TEST_CASES = [
 @skip_if_no_cuda
 @skip_if_no_cpp_extension
 class PHLFilterTestCaseCuda(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_cuda(self, test_case_description, sigmas, input, features, expected):
         # Create input tensors

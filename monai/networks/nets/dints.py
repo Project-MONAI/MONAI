@@ -73,6 +73,7 @@ def _dfs(node, paths):
 
 
 class _IdentityWithRAMCost(nn.Identity):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ram_cost = 0
@@ -105,6 +106,7 @@ class _ActiConvNormBlockWithRAMCost(ActiConvNormBlock):
 
 
 class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
+
     def __init__(
         self,
         in_channel: int,
@@ -122,6 +124,7 @@ class _P3DActiConvNormBlockWithRAMCost(P3DActiConvNormBlock):
 
 
 class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
+
     def __init__(
         self,
         in_channel: int,
@@ -138,6 +141,7 @@ class _FactorizedIncreaseBlockWithRAMCost(FactorizedIncreaseBlock):
 
 
 class _FactorizedReduceBlockWithRAMCost(FactorizedReduceBlock):
+
     def __init__(
         self,
         in_channel: int,

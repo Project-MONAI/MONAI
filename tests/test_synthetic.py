@@ -41,6 +41,7 @@ TEST_CASES = [
 
 
 class TestDiceCELoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_create_test_image(self, dim, input_param, expected_img, expected_seg, expected_shape, expected_max_cls):
         set_determinism(seed=0)

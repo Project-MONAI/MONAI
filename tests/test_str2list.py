@@ -17,6 +17,7 @@ from monai.utils.misc import str2list
 
 
 class TestStr2List(unittest.TestCase):
+
     def test_str_2_list(self):
         for i in ("1,2,3", "1, 2, 3", "1,2e-0,3.0", [1, 2, 3]):
             self.assertEqual(str2list(i), [1, 2, 3])

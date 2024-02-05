@@ -49,6 +49,7 @@ TEST_SENS = [(ksp_2d, sens_2d), (ksp_3d, sens_3d)]
 
 
 class TestReconNetUtils(unittest.TestCase):
+
     @parameterized.expand(TEST_RESHAPE)
     def test_reshape_channel_complex(self, test_data):
         result = reshape_complex_to_channel_dim(test_data)

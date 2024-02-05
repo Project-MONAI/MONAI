@@ -86,6 +86,7 @@ TEST_CASES = [
 
 
 class TestDiceCELoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_param, input_data, expected_val):
         diceceloss = DiceCELoss(**input_param)

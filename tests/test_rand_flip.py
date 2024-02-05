@@ -28,6 +28,7 @@ VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 
 
 class TestRandFlip(NumpyImageTestCase2D):
+
     @parameterized.expand(INVALID_CASES)
     def test_invalid_inputs(self, _, spatial_axis, raises):
         with self.assertRaises(raises):

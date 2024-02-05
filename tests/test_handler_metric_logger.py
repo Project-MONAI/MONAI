@@ -28,6 +28,7 @@ except ImportError:
 
 
 class TestHandlerMetricLogger(unittest.TestCase):
+
     @SkipIfNoModule("ignite")
     def test_metric_logging(self):
         dummy_name = "dummy"

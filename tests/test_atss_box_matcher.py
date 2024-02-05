@@ -33,6 +33,7 @@ TEST_CASES = [
 
 
 class TestATSS(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_atss(self, input_param, boxes, anchors, num_anchors_per_level, num_anchors_per_loc, expected_matches):
         matcher = ATSSMatcher(**input_param, debug=True)

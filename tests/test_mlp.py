@@ -33,6 +33,7 @@ for dropout_rate in np.linspace(0, 1, 4):
 
 
 class TestMLPBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_MLP)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = MLPBlock(**input_param)

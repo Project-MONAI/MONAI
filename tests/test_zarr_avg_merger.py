@@ -256,6 +256,7 @@ TEST_CASE_17_WITHOUT_LOCK = [
 
 @unittest.skipUnless(has_zarr and has_numcodecs, "Requires zarr (and numcodecs) packages.)")
 class ZarrAvgMergerTests(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_0_DEFAULT_DTYPE,

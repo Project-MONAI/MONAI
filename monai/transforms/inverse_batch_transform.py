@@ -30,6 +30,7 @@ __all__ = ["BatchInverseTransform", "Decollated", "DecollateD", "DecollateDict"]
 
 
 class _BatchInverseDataset(Dataset):
+
     def __init__(self, data: Sequence[Any], transform: InvertibleTransform, pad_collation_used: bool) -> None:
         self.data = data
         self.invertible_transform = transform

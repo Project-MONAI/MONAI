@@ -19,6 +19,7 @@ from monai.transforms import Compose, SpatialPad, SpatialPadd, allow_missing_key
 
 
 class TestWithAllowMissingKeysMode(unittest.TestCase):
+
     def setUp(self):
         self.data = {"image": np.arange(16, dtype=float).reshape(1, 4, 4)}
 

@@ -22,12 +22,14 @@ from monai.handlers import ValidationHandler
 
 
 class TestEvaluator(Evaluator):
+
     def _iteration(self, engine, batchdata):
         engine.state.output = "called"
         return engine.state.output
 
 
 class TestHandlerValidation(unittest.TestCase):
+
     def test_content(self):
         data = [0] * 8
 

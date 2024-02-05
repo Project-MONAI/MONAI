@@ -32,6 +32,7 @@ TEST_CASE_3 = [{"keys": "img"}, ["test_image.nii.gz", "test_image2.nii.gz", "tes
 
 
 class TestEnsureChannelFirstd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_load_nifti(self, input_param, filenames, original_channel_dim):
         if original_channel_dim is None:

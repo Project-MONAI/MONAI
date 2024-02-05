@@ -63,6 +63,7 @@ TEST_CASE_MILMODEL.append(
 
 
 class TestMilModel(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_MILMODEL)
     def test_shape(self, input_param, input_shape, expected_shape):
         with skip_if_downloading_fails():

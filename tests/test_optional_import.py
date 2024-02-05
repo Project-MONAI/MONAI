@@ -17,6 +17,7 @@ from monai.utils import OptionalImportError, exact_version, optional_import
 
 
 class TestOptionalImport(unittest.TestCase):
+
     def test_default(self):
         my_module, flag = optional_import("not_a_module")
         self.assertFalse(flag)

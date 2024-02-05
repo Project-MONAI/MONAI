@@ -23,6 +23,7 @@ TEST_CASES = [
 
 
 class TestclDiceLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_result(self, y_pred_data, expected_val):
         loss = SoftclDiceLoss()

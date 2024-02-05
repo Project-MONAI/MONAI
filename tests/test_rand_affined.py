@@ -216,6 +216,7 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
 
 
 class TestRandAffined(unittest.TestCase):
+
     @parameterized.expand(x + [y] for x, y in itertools.product(TESTS, (False, True)))
     def test_rand_affined(self, input_param, input_data, expected_val, track_meta):
         set_track_meta(track_meta)

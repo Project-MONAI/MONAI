@@ -20,6 +20,7 @@ from monai.data import Dataset, DatasetFunc, load_decathlon_datalist, partition_
 
 
 class TestDatasetFunc(unittest.TestCase):
+
     def test_seg_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # prepare test datalist file

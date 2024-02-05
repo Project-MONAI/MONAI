@@ -152,6 +152,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestResample(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_resample(self, input_param, input_data, expected_val):
         g = Resample(**input_param)

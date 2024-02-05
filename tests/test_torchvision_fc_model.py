@@ -153,6 +153,7 @@ TEST_CASE_PRETRAINED_6 = [
 
 
 class TestTorchVisionFCModel(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
         + ([TEST_CASE_8] if has_enum else [])
@@ -187,6 +188,7 @@ class TestTorchVisionFCModel(unittest.TestCase):
 
 
 class TestLookup(unittest.TestCase):
+
     def test_get_module(self):
         net = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32, 64), strides=(2, 2, 2, 2))
         self.assertEqual(look_up_named_module("", net), net)

@@ -19,11 +19,13 @@ from monai.transforms.transform import Randomizable
 
 
 class RandTest(Randomizable):
+
     def randomize(self, data=None):
         pass
 
 
 class TestRandomizable(unittest.TestCase):
+
     def test_default(self):
         inst = RandTest()
         r1 = inst.R.rand()

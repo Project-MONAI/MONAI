@@ -518,6 +518,7 @@ SINK_MASK_OUTPUT = np.array(
 
 
 class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
+
     def setUp(self):
         self.input_img_np = np.expand_dims(TEST_INPUT, axis=0)  # mock image (numpy array)
         self.input_mask_np = np.expand_dims(TEST_MASK, axis=0)  # mock mask (numpy array)
