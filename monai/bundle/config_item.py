@@ -181,7 +181,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         - ``"_mode_"`` (optional): operating mode for invoking the callable ``component`` defined by ``"_target_"``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
     Other fields in the config content are input arguments to the python module.
