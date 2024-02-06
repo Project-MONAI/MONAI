@@ -464,7 +464,7 @@ class EnsembleRunner:
             ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
         )
         if self.ensemble_method_name == "AlgoEnsembleBestN":
-            n_best = kwargs.pop("n_best", False) or 2
+            n_best = kwargs.pop("n_best", 2)
             self.ensemble_method = AlgoEnsembleBestN(n_best=n_best)
         elif self.ensemble_method_name == "AlgoEnsembleBestByFold":
             self.ensemble_method = AlgoEnsembleBestByFold(n_fold=self.num_fold)  # type: ignore
