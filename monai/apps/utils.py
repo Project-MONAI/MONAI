@@ -30,7 +30,7 @@ from urllib.request import urlopen, urlretrieve
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
-gdown, has_gdown = optional_import("gdown", "4.6.3")
+gdown, has_gdown = optional_import("gdown", "4.7.3")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
