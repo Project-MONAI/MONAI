@@ -63,3 +63,55 @@ As we roll this out, we can slowly start tightening the integration and chaining
 ![Untitled presentation](https://github.com/vikashg/MONAI/assets/3863212/b6b7bb5a-f317-46e6-a7de-9b4fa342f6a8)
 
 Similar to the above dataflow graph for loading images and points, we can have a data flow graph for transformations for points and images, where we implement point transformations.
+
+## A Middle ground
+I think we should have a mechanism for users to bring in their point transforms **cleanly** and they should mesh well with the existing workflow and or be able to overload the existing point transform we should be good.
+Of course, in practice, the users can go inside the code and change things if it does not suit their requirements, but that can be very tedious considering how tightly transforms are being integrated. I would love to have a `contrib` folder as was the case for TensorFlow in its early days, where users were writing their own data loaders and functions. 
+### A sample use case
+Please have a look at my `RotateImageandAnnotations` here
+```
+class RotateImageAndAnnotations:
+    def __init__(self, angle: float = 10.0):
+        self.angle = angle
+
+    def __call__(self, sample, *args, **kwargs):
+        self.image = sample['images']
+        self.label = sample['labels']
+        rotated_image, rotated_points = self._rotate_image_points()
+        return {'images': rotated_image, 'labels': rotated_points}
+
+    def _rotate_image_points(self):
+        h, w = self.image.shape[0], self.image.shape[1]
+        # print(h,w)
+        cX, cY = (w // 2, h // 2)
+        M = cv2.getRotationMatrix2D((cX, cY), -self.angle, 1.0)
+        cos = np.abs(M[0, 0])
+        sin = np.abs(M[0, 1])
+
+        nW = int((h * sin) + (w * cos))
+        nH = int((h * cos) + (w * sin))
+        M[0, 2] += (nW / 2) - cX
+        M[1, 2] += (nH / 2) - cY
+
+        calculated_point_list = []
+
+        for _points in self.label:
+            corners = _points.reshape(-1, 2)
+            corners = np.hstack((corners, np.ones((corners.shape[0], 1), dtype=type(corners[0][0]))))
+            new_points = np.dot(M, corners.T).T
+            calculated_point_list.append(new_points)
+
+        _image = ToNumpy()(self.image) # Ask about this added this to use warp affine
+        rotated_image = cv2.warpAffine(_image, M, (nW, nH), flags=cv2.INTER_LINEAR)
+        _rotated_image = ToTensor()(rotated_image)
+        return _rotated_image, calculated_point_list
+```
+This is a special use case for rotation. As we all know rotating an image changes its field of view and it cuts off portions of the images around the corners if we are not careful. One way to avoid that is first padding the image, rotating and then resampling/cropping the image. Most likely the correct way to implement the same is rotating the image, use some trigonometry to find out the new size of the image and then resample the image and points based on this new image size. 
+
+The point I am trying to make is that this is a specific use case and maybe applicable for pathology slides (where the whole image is important). In most general implementations, we do not need to do such thing. So, if there is a **clean** mechanism to build and integrate your own transforms as per your specific use case, that will be immensly helpful. We can have proper documentation for I/O for user-defined transforms and overloading processes. 
+So far, we were able to get away with this because of the following reason
+- We were only using Nifti and dicom for images which have pretty standard reading and writing mechanism.
+- Generally, we all agreed on image transforms (more or less).
+- Even if there were weird dicom images, the general (unwritten) practice I followed was to convert dicoms to Nifti or numpy before feeding them for training.
+But going forward we should allow for user-defined transforms that can overload the existing transforms if needed **cleanly**. 
+
