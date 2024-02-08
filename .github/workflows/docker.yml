@@ -33,6 +33,10 @@ jobs:
           python-version: '3.9'
       - shell: bash
         run: |
+          df -h
+          du -h -d 1 /home
+          du -h -d 1 /opt
+          echo "======================"
           git describe
           python -m pip install -U pip wheel setuptools
           python setup.py build
@@ -65,7 +69,8 @@ jobs:
       shell: bash
       run: |
         df -h
-        du -h -d 1 / 
+        du -h -d 1 /home
+        du -h -d 1 /opt
         rm -rf /opt/hostedtoolcache
         df -h
         docker --version
