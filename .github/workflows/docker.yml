@@ -33,9 +33,6 @@ jobs:
           python-version: '3.9'
       - shell: bash
         run: |
-          df -h
-          du -h -d 1 /usr/local
-          echo "======================"
           git describe
           python -m pip install -U pip wheel setuptools
           python setup.py build
@@ -72,7 +69,6 @@ jobs:
         rm -rf /opt/actionarchivecache
         rm -rf /opt/runner-cache
         rm -rf /opt/microsoft
-        rm -rf /opt/az
         docker --version
         # get tag info for versioning
         cat _version.py
