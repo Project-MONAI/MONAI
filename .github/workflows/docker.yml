@@ -65,7 +65,9 @@ jobs:
       shell: bash
       run: |
         df -h
+        sudo du -h -d 1 /dev/root 
         rm -rf /opt/hostedtoolcache
+        df -h
         docker --version
         # get tag info for versioning
         cat _version.py
