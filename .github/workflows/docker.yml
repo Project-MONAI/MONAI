@@ -65,6 +65,7 @@ jobs:
       shell: bash
       run: |
         df -h
+        ls -lh /opt
         rm -rf /opt/hostedtoolcache
         rm -rf /opt/actionarchivecache
         rm -rf /opt/runner-cache
