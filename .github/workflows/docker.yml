@@ -34,7 +34,7 @@ jobs:
       - shell: bash
         run: |
           df -h
-          du -h -d 1 /opt
+          du -h -d 1 /usr/local
           echo "======================"
           git describe
           python -m pip install -U pip wheel setuptools
@@ -69,7 +69,8 @@ jobs:
       run: |
         df -h
         du -h -d 1 /opt
-        du -h -d 1 /usr
+        echo "======================"
+        du -h -d 1 /usr/local
         ls -lh /usr
         rm -rf /opt/hostedtoolcache
         df -h
