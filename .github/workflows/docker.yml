@@ -69,7 +69,7 @@ jobs:
       run: |
         df -h
         du -h -d 1 /opt
-        ls -lh /opt
+        ls -lh /usr
         rm -rf /opt/hostedtoolcache
         df -h
         docker --version
