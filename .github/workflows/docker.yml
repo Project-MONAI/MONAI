@@ -68,13 +68,7 @@ jobs:
       shell: bash
       run: |
         df -h
-        du -h -d 1 /opt
-        echo "======================"
-        du -h -d 1 /usr/local/lib
-        ls -lh /usr/local/lib
-        rm -rf /opt/hostedtoolcache
-        rm -rf /usr/local/lib/android
-        df -h
+        rm -rf /opt
         docker --version
         # get tag info for versioning
         cat _version.py
