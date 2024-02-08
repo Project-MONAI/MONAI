@@ -34,7 +34,6 @@ jobs:
       - shell: bash
         run: |
           df -h
-          du -h -d 1 /home
           du -h -d 1 /opt
           echo "======================"
           git describe
@@ -69,7 +68,6 @@ jobs:
       shell: bash
       run: |
         df -h
-        du -h -d 1 /home
         du -h -d 1 /opt
         rm -rf /opt/hostedtoolcache
         df -h
