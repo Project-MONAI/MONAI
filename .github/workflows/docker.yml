@@ -73,6 +73,7 @@ jobs:
         du -h -d 1 /usr/local/lib
         ls -lh /usr/local/lib
         rm -rf /opt/hostedtoolcache
+        rm -rf /usr/local/lib/android
         df -h
         docker --version
         # get tag info for versioning
