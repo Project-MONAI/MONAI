@@ -69,7 +69,6 @@ jobs:
         rm -rf /opt/hostedtoolcache
         rm -rf /opt/actionarchivecache
         rm -rf /opt/runner-cache
-        rm -rf /opt/microsoft
         docker --version
         # get tag info for versioning
         cat _version.py
