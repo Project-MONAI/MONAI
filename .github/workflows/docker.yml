@@ -68,7 +68,11 @@ jobs:
       shell: bash
       run: |
         df -h
-        rm -rf /opt
+        rm -rf /opt/hostedtoolcache
+        rm -rf /opt/actionarchivecache
+        rm -rf /opt/runner-cache
+        rm -rf /opt/microsoft
+        rm -rf /opt/az
         docker --version
         # get tag info for versioning
         cat _version.py
