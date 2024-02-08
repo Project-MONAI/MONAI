@@ -69,6 +69,9 @@ jobs:
       run: |
         df -h
         du -h -d 1 /opt
+        apt update
+        apt install ncdu
+        ncdu /opt
         rm -rf /opt/hostedtoolcache
         df -h
         docker --version
