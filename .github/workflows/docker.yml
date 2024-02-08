@@ -69,6 +69,7 @@ jobs:
       run: |
         df -h
         du -h -d 1 /opt
+        du -h -d 1 /usr
         ls -lh /usr
         rm -rf /opt/hostedtoolcache
         df -h
