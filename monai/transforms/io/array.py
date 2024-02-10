@@ -180,10 +180,10 @@ class LoadImage(Transform):
         for r in SUPPORTED_READERS:  # set predefined readers as default
             try:
                 self.register(SUPPORTED_READERS[r](*args, **kwargs))
-            except OptionalImportError:
-                logging.getLogger(self.__class__.__name__).debug(
-                    f"required package for reader {r} is not installed, or the version doesn't match requirement."
-                )
+            except OptionalImportError as err:
+                raise ModuleNotFoundError(
+                    f"The required package for reader {r} is not installed, or the version doesn't match requirement."
+                ) from err
             except TypeError:  # the reader doesn't have the corresponding args/kwargs
                 logging.getLogger(self.__class__.__name__).debug(
                     f"{r} is not supported with the given parameters {args} {kwargs}."
