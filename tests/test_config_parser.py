@@ -72,6 +72,7 @@ TEST_CASE_1 = [
 
 
 class TestClass:
+
     @staticmethod
     def compute(a, b, func=lambda x, y: x + y):
         return func(a, b)
@@ -126,6 +127,7 @@ TEST_CASE_DUPLICATED_KEY_YAML = [
 
 
 class TestConfigParser(unittest.TestCase):
+
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
