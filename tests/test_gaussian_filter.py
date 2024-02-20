@@ -34,7 +34,7 @@ TEST_CASES_SLOW = [
 ]
 
 
-@SkipIfAtLeastPyTorchVersion((2, 2, 0))
+@SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class TestGaussianFilterBackprop(unittest.TestCase):
 
     def code_to_run(self, input_args):
@@ -95,7 +95,7 @@ class TestGaussianFilterBackprop(unittest.TestCase):
         self.code_to_run(input_args)
 
 
-@SkipIfAtLeastPyTorchVersion((2, 2, 0))
+@SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class GaussianFilterTestCase(unittest.TestCase):
 
     def test_1d(self):
