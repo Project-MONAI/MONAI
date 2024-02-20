@@ -208,7 +208,6 @@ def run_testsuit():
         "test_zarr_avg_merger",
         "test_perceptual_loss",
         "test_ultrasound_confidence_map_transform",
-        "test_gaussian_filter",  # https://github.com/Project-MONAI/MONAI/issues/7445
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
