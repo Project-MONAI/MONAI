@@ -209,7 +209,7 @@ def load_submodules(
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
                 mod = import_module(name)
-                importer.find_module(name).load_module(name)  # type: ignore
+                importer.find_spec(name).loader.load_module(name)  # type: ignore
                 submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
