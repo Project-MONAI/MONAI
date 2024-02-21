@@ -37,6 +37,7 @@ class nnUNetV2Runner:  # noqa: N801
     """
     ``nnUNetV2Runner`` provides an interface in MONAI to use `nnU-Net` V2 library to analyze, train, and evaluate
     neural networks for medical image segmentation tasks.
+    A version of nnunetv2 higher than 2.2 is needed for this class.
 
     ``nnUNetV2Runner`` can be used in two ways:
 
