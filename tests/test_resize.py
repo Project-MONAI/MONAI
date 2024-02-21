@@ -21,7 +21,14 @@ from parameterized import parameterized
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, is_tf32_env, pytorch_after
+from tests.utils import (
+    TEST_NDARRAYS_ALL,
+    NumpyImageTestCase2D,
+    SkipIfAtLeastPyTorchVersion,
+    assert_allclose,
+    is_tf32_env,
+    pytorch_after,
+)
 
 TEST_CASE_0 = [{"spatial_size": 15}, (6, 10, 15)]
 
@@ -39,7 +46,6 @@ diff_t = 0.3 if is_tf32_env() else 0.2
 
 
 class TestResize(NumpyImageTestCase2D):
-
     def test_invalid_inputs(self):
         with self.assertRaises(ValueError):
             resize = Resize(spatial_size=(128, 128, 3), mode="order")
@@ -112,6 +118,7 @@ class TestResize(NumpyImageTestCase2D):
             )
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_2_1, TEST_CASE_3, TEST_CASE_4])
+    @SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
     def test_longest_shape(self, input_param, expected_shape):
         input_data = np.random.randint(0, 2, size=[3, 4, 7, 10])
         input_param["size_mode"] = "longest"
