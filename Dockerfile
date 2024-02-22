@@ -12,7 +12,7 @@
 # To build with a different base image
 # please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
 ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:23.08-py3
-FROM ${PYTORCH_IMAGE} as build
+FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
 
@@ -42,28 +42,10 @@ ARG NGC_CLI_URI="https://ngc.nvidia.com/downloads/ngccli_linux.zip"
 RUN wget -q ${NGC_CLI_URI} && unzip ngccli_linux.zip && chmod u+x ngc-cli/ngc && \
     find ngc-cli/ -type f -exec md5sum {} + | LC_ALL=C sort | md5sum -c ngc-cli.md5 && \
     rm -rf ngccli_linux.zip ngc-cli.md5
-
+ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
 RUN apt-get update \
-  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0 zip \
+  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0  \
   && rm -rf /var/lib/apt/lists/*
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
-ENV PATH=${PATH}:/opt/tools:/opt/tools/ngc-cli
-
-WORKDIR /opt
-RUN zip -r opt.zip ./monai ./tools/ngc-cli
-
-# create a final stage with fewer layers
-FROM ${PYTORCH_IMAGE} as final
-
-WORKDIR /opt
-
-COPY --from=build /opt/opt.zip .
-
-RUN apt-get update \
-  && DEBIAN_FRONTEND="noninteractive" apt-get install -y libopenslide0 zip \
-  && unzip opt.zip \
-  && python -m pip install --upgrade --no-cache-dir pip \
-  && (cd monai && python -m pip install --no-cache-dir -r requirements-dev.txt) \
-  && rm -rf opt.zip /var/lib/apt/lists/*
-
+ENV PATH=${PATH}:/opt/tools
 WORKDIR /opt/monai
