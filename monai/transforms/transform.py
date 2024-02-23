@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator, Hashable, Iterable, Mapping
-from typing import Any, TypeVar
+from typing import Any, Tuple, TypeVar
 
 import numpy as np
 import torch
@@ -395,7 +395,17 @@ class MapTransform(Transform):
                 cls.inverse: Any = transforms.attach_hook(cls.inverse, transforms.InvertibleTransform.inverse_update)
         return Transform.__new__(cls)
 
-    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+    def __init__(
+            self,
+            keys: KeysCollection,
+            allow_missing_keys: bool = False
+    ) -> None:
+        """
+        Args:
+            keys: a collection of keys that should be visited by this transform instance
+            allow_missing_keys: a flag to indicate whether the transform instance tolerates missing keys from the input data
+        """
+        # TODO: KindType is provided by https://github.com/Project-MONAI/MONAI/pull/7488
         super().__init__()
         self.keys: tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
@@ -453,7 +463,7 @@ class MapTransform(Transform):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def key_iterator(self, data: Mapping[Hashable, Any], *extra_iterables: Iterable | None) -> Generator:
+    def key_iterator(self, data: Mapping[Hashable, Any], kind: KindType | None = None, *extra_iterables: Iterable | None) -> Generator:
         """
         Iterate across keys and optionally extra iterables. If key is missing, exception is raised if
         `allow_missing_keys==False` (default). If `allow_missing_keys==True`, key is skipped.
@@ -470,14 +480,17 @@ class MapTransform(Transform):
         for key, *_ex_iters in zip(self.keys, *ex_iters):
             # all normal, yield (what we yield depends on whether extra iterables were given)
             if key in data:
-                yield (key,) + tuple(_ex_iters) if extra_iterables else key
+                if kind is None or data[key].kind == kind:
+                    yield (key,) + tuple(_ex_iters) if extra_iterables else key
             elif not self.allow_missing_keys:
                 raise KeyError(
                     f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the data"
                     " and allow_missing_keys==False."
                 )
 
-    def first_key(self, data: dict[Hashable, Any]):
+
+
+    def first_key(self, data: dict[Hashable, Any], kind: KindType | None = None) -> Hashable | Tuple:
         """
         Get the first available key of `self.keys` in the input `data` dictionary.
         If no available key, return an empty tuple `()`.
@@ -486,4 +499,4 @@ class MapTransform(Transform):
             data: data that the transform will be applied to.
 
         """
-        return first(self.key_iterator(data), ())
+        return first(self.key_iterator(data, kind=kind), ())
