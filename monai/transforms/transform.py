@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator, Hashable, Iterable, Mapping
-from typing import Any, Tuple, TypeVar
+from typing import Any, TypeVar
 
 import numpy as np
 import torch
@@ -490,7 +490,7 @@ class MapTransform(Transform):
 
 
 
-    def first_key(self, data: dict[Hashable, Any], kind: KindType | None = None) -> Hashable | Tuple:
+    def first_key(self, data: dict[Hashable, Any], kind: KindType | None = None) -> Hashable | tuple:
         """
         Get the first available key of `self.keys` in the input `data` dictionary.
         If no available key, return an empty tuple `()`.
