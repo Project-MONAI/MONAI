@@ -476,7 +476,7 @@ class MetaTensor(MetaObj, torch.Tensor):
     @property
     def kind(self) -> str:
         """Get the data kind. Defaults to ``KindKeys.PIXEL``"""
-        return self.meta.get(MetaKeys.KIND, self.get_default_kind())
+        return self.meta.get(MetaKeys.KIND, self.get_default_kind())  # type: ignore
 
     @kind.setter
     def kind(self, d: str) -> None:
