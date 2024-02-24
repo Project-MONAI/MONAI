@@ -33,7 +33,7 @@ def complex_diff_abs_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         x = torch.view_as_complex(x.permute(0, 2, 3, 1).contiguous())
     if not y.is_complex():
         y = torch.view_as_complex(y.permute(0, 2, 3, 1).contiguous())
-        
+
     diff = torch.abs(x - y)
     return nn.functional.mse_loss(diff, torch.zeros_like(diff), reduction="mean")
 
