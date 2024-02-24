@@ -677,6 +677,7 @@ class NumpyImageTestCase2D(unittest.TestCase):
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
+
     def setUp(self):
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -707,6 +708,7 @@ class NumpyImageTestCase3D(unittest.TestCase):
 
 
 class TorchImageTestCase3D(NumpyImageTestCase3D):
+
     def setUp(self):
         NumpyImageTestCase3D.setUp(self)
         self.imt = torch.tensor(self.imt)

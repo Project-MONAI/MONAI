@@ -38,6 +38,7 @@ TEST_CASES = [
 
 
 class TestAsymmetricUnifiedFocalLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_data, expected_val):
         loss = AsymmetricUnifiedFocalLoss()

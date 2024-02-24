@@ -106,6 +106,7 @@ if USE_COMPILED:
 
 @skip_if_quick
 class TestWarp(unittest.TestCase):
+
     def setUp(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
         download_url_or_skip_test(

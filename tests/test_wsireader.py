@@ -402,6 +402,7 @@ def setUpModule():
 
 
 class WSIReaderTests:
+
     class Tests(unittest.TestCase):
         backend = None
 
@@ -640,6 +641,7 @@ class WSIReaderTests:
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestCuCIM(WSIReaderTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -647,6 +649,7 @@ class TestCuCIM(WSIReaderTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestOpenSlide(WSIReaderTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"
@@ -654,6 +657,7 @@ class TestOpenSlide(WSIReaderTests.Tests):
 
 @skipUnless(has_tiff, "Requires tifffile")
 class TestTiffFile(WSIReaderTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "tifffile"

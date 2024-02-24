@@ -28,6 +28,7 @@ TEST_ERRORS = [[{"drop_prob": 2, "scale_by_keep": False}, (1, 24, 6)]]
 
 
 class TestDropPath(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape):
         im = torch.rand(input_shape)

@@ -31,21 +31,25 @@ from tests.test_random_order import InvC, InvD
 
 
 class A(Transform):
+
     def __call__(self, x):
         return 2 * x
 
 
 class B(Transform):
+
     def __call__(self, x):
         return 3 * x
 
 
 class C(Transform):
+
     def __call__(self, x):
         return 5 * x
 
 
 class D(Transform):
+
     def __call__(self, x):
         return 7 * x
 
@@ -71,6 +75,7 @@ TEST_INVERSES = [
 
 
 class TestSomeOf(unittest.TestCase):
+
     def setUp(self):
         set_determinism(seed=0)
 
@@ -221,6 +226,7 @@ TEST_SOMEOF_EXTENDED_TEST_CASES = [
 
 
 class TestSomeOfAPITests(unittest.TestCase):
+
     @staticmethod
     def data_from_keys(keys):
         if keys is None:

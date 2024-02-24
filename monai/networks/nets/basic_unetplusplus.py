@@ -24,6 +24,7 @@ __all__ = ["BasicUnetPlusPlus", "BasicunetPlusPlus", "basicunetplusplus", "Basic
 
 
 class BasicUNetPlusPlus(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int = 3,

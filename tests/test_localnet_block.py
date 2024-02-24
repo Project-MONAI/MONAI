@@ -48,6 +48,7 @@ in_size = 4
 
 
 class TestLocalNetDownSampleBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_DOWN_SAMPLE)
     def test_shape(self, input_param):
         net = LocalNetDownSampleBlock(**input_param)
@@ -74,6 +75,7 @@ class TestLocalNetDownSampleBlock(unittest.TestCase):
 
 
 class TestLocalNetUpSampleBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_UP_SAMPLE)
     def test_shape(self, input_param):
         net = LocalNetUpSampleBlock(**input_param)
@@ -100,6 +102,7 @@ class TestLocalNetUpSampleBlock(unittest.TestCase):
 
 
 class TestExtractBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_EXTRACT)
     def test_shape(self, input_param):
         net = LocalNetFeatureExtractorBlock(**input_param)

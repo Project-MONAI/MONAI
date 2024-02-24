@@ -63,6 +63,7 @@ TEST_CASE_REGUNET_3D = [
 
 
 class TestREGUNET(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_REGUNET_2D + TEST_CASE_REGUNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = RegUNet(**input_param).to(device)

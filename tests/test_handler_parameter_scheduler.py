@@ -21,6 +21,7 @@ from tests.utils import assert_allclose
 
 
 class ToyNet(Module):
+
     def __init__(self, value):
         super().__init__()
         self.value = value
@@ -36,6 +37,7 @@ class ToyNet(Module):
 
 
 class TestHandlerParameterScheduler(unittest.TestCase):
+
     def test_linear_scheduler(self):
         # Testing step_constant
         net = ToyNet(value=-1)
@@ -116,6 +118,7 @@ class TestHandlerParameterScheduler(unittest.TestCase):
         assert_allclose(net.get_value(), 10 * 0.99 * 0.99)
 
     def test_custom_scheduler(self):
+
         def custom_logic(initial_value, gamma, current_step):
             return initial_value * gamma ** (current_step % 9)
 

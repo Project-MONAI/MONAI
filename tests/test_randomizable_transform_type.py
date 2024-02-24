@@ -21,11 +21,13 @@ class InheritsInterface(RandomizableTrait):
 
 
 class InheritsImplementation(RandomizableTransform):
+
     def __call__(self, data):
         return data
 
 
 class TestRandomizableTransformType(unittest.TestCase):
+
     def test_is_randomizable_transform_type(self):
         inst = InheritsInterface()
         self.assertIsInstance(inst, RandomizableTrait)

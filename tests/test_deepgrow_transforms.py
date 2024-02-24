@@ -337,6 +337,7 @@ FETCH_2D_SLICE_TEST_CASE_1 = [
 
 
 class TestFindAllValidSlicesd(unittest.TestCase):
+
     @parameterized.expand([FIND_SLICE_TEST_CASE_1, FIND_SLICE_TEST_CASE_2])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = FindAllValidSlicesd(**arguments)(input_data)
@@ -344,6 +345,7 @@ class TestFindAllValidSlicesd(unittest.TestCase):
 
 
 class TestSpatialCropForegroundd(unittest.TestCase):
+
     @parameterized.expand([CROP_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SpatialCropForegroundd(**arguments)(input_data)
@@ -368,6 +370,7 @@ class TestSpatialCropForegroundd(unittest.TestCase):
 
 
 class TestAddInitialSeedPointd(unittest.TestCase):
+
     @parameterized.expand([ADD_INITIAL_POINT_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         seed = 0
@@ -378,6 +381,7 @@ class TestAddInitialSeedPointd(unittest.TestCase):
 
 
 class TestAddGuidanceSignald(unittest.TestCase):
+
     @parameterized.expand([ADD_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = AddGuidanceSignald(**arguments)(input_data)
@@ -385,6 +389,7 @@ class TestAddGuidanceSignald(unittest.TestCase):
 
 
 class TestFindDiscrepancyRegionsd(unittest.TestCase):
+
     @parameterized.expand([FIND_DISCREPANCY_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = FindDiscrepancyRegionsd(**arguments)(input_data)
@@ -392,6 +397,7 @@ class TestFindDiscrepancyRegionsd(unittest.TestCase):
 
 
 class TestAddRandomGuidanced(unittest.TestCase):
+
     @parameterized.expand([ADD_RANDOM_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         seed = 0
@@ -402,6 +408,7 @@ class TestAddRandomGuidanced(unittest.TestCase):
 
 
 class TestAddGuidanceFromPointsd(unittest.TestCase):
+
     @parameterized.expand(
         [
             ADD_GUIDANCE_FROM_POINTS_TEST_CASE_1,
@@ -419,6 +426,7 @@ class TestAddGuidanceFromPointsd(unittest.TestCase):
 
 
 class TestSpatialCropGuidanced(unittest.TestCase):
+
     @parameterized.expand(
         [SPATIAL_CROP_GUIDANCE_TEST_CASE_1, SPATIAL_CROP_GUIDANCE_TEST_CASE_2, SPATIAL_CROP_GUIDANCE_TEST_CASE_3]
     )
@@ -428,6 +436,7 @@ class TestSpatialCropGuidanced(unittest.TestCase):
 
 
 class TestResizeGuidanced(unittest.TestCase):
+
     @parameterized.expand([RESIZE_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = ResizeGuidanced(**arguments)(input_data)
@@ -435,6 +444,7 @@ class TestResizeGuidanced(unittest.TestCase):
 
 
 class TestRestoreLabeld(unittest.TestCase):
+
     @parameterized.expand([RESTORE_LABEL_TEST_CASE_1, RESTORE_LABEL_TEST_CASE_2])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = RestoreLabeld(**arguments)(input_data)
@@ -442,6 +452,7 @@ class TestRestoreLabeld(unittest.TestCase):
 
 
 class TestFetch2DSliced(unittest.TestCase):
+
     @parameterized.expand([FETCH_2D_SLICE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = Fetch2DSliced(**arguments)(input_data)

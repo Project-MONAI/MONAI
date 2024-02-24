@@ -18,6 +18,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestIdentityd(NumpyImageTestCase2D):
+
     def test_identityd(self):
         for p in TEST_NDARRAYS:
             img = p(self.imt)

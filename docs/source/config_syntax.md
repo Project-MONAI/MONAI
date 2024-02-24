@@ -168,9 +168,10 @@ _Description:_ `_requires_`, `_disabled_`, `_desc_`, and `_mode_` are optional k
 - `_mode_` specifies the operating mode when the component is instantiated or the callable is called.
   it currently supports the following values:
   - `"default"` (default) -- return the return value of ``_target_(**kwargs)``
-  - `"partial"` -- return a partial function of ``functools.partial(_target_, **kwargs)`` (this is often
-    useful when some portion of the full set of arguments are supplied to the ``_target_``, and the user wants to
-    call it with additional arguments later).
+  - `"callable"` -- return a callable, either as ``_target_`` itself or, if ``kwargs`` are provided, as a
+    partial function of ``functools.partial(_target_, **kwargs)``. Useful for defining a class or function
+    that will be instantied or called later. User can pre-define some arguments to the ``_target_`` and call
+    it with additional arguments later.
   - `"debug"` -- execute with debug prompt and return the return value of ``pdb.runcall(_target_, **kwargs)``,
     see also [`pdb.runcall`](https://docs.python.org/3/library/pdb.html#pdb.runcall).
 

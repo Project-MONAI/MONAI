@@ -234,6 +234,7 @@ class RegUNet(nn.Module):
 
 
 class AffineHead(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -375,6 +376,7 @@ class GlobalNet(RegUNet):
 
 
 class AdditiveUpSampleBlock(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,

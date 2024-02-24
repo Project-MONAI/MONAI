@@ -23,6 +23,7 @@ from monai.data import CSVSaver
 
 
 class TestCSVSaver(unittest.TestCase):
+
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             saver = CSVSaver(output_dir=tempdir, filename="predictions.csv", delimiter="\t")

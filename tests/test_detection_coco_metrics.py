@@ -23,6 +23,7 @@ from monai.data.box_utils import box_iou
 
 
 class TestCOCOMetrics(unittest.TestCase):
+
     def test_coco_run(self):
         coco_metric = COCOMetric(classes=["c0", "c1", "c2"], iou_list=[0.1], max_detection=[10])
 

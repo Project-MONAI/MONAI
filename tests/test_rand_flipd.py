@@ -26,6 +26,7 @@ VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 
 
 class TestRandFlipd(NumpyImageTestCase2D):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
         for p in TEST_NDARRAYS_ALL:

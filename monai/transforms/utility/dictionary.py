@@ -670,6 +670,7 @@ class DeleteItemsd(MapTransform):
         self.use_re = ensure_tuple_rep(use_re, len(self.keys))
 
     def __call__(self, data):
+
         def _delete_item(keys, d, use_re: bool = False):
             key = keys[0]
             if len(keys) > 1:

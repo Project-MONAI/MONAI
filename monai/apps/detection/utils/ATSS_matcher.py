@@ -164,6 +164,7 @@ class Matcher(ABC):
 
 
 class ATSSMatcher(Matcher):
+
     def __init__(
         self,
         num_candidates: int = 4,

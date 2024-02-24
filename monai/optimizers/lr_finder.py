@@ -43,6 +43,7 @@ __all__ = ["LearningRateFinder"]
 
 
 class DataLoaderIter:
+
     def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
         if not isinstance(data_loader, DataLoader):
             raise ValueError(
@@ -71,6 +72,7 @@ class DataLoaderIter:
 
 
 class TrainDataLoaderIter(DataLoaderIter):
+
     def __init__(
         self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable, auto_reset: bool = True
     ) -> None:

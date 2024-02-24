@@ -177,6 +177,7 @@ ILL_CASES = [
 
 
 class TestOrientationCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_ornt_meta(
         self,

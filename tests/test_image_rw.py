@@ -33,6 +33,7 @@ _, has_itk = optional_import("itk", allow_namespace_pkg=True)
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSaveNifti(unittest.TestCase):
+
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
 
@@ -97,6 +98,7 @@ class TestLoadSaveNifti(unittest.TestCase):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSavePNG(unittest.TestCase):
+
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
 
@@ -137,6 +139,7 @@ class TestLoadSavePNG(unittest.TestCase):
 
 
 class TestRegRes(unittest.TestCase):
+
     def test_0_default(self):
         self.assertTrue(len(resolve_writer(".png")) > 0, "has png writer")
         self.assertTrue(len(resolve_writer(".nrrd")) > 0, "has nrrd writer")
@@ -153,6 +156,7 @@ class TestRegRes(unittest.TestCase):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadSaveNrrd(unittest.TestCase):
+
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
 

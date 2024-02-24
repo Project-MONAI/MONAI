@@ -83,6 +83,7 @@ TEST_ILL_TO_NORM_AFFINE_CASES = [
 
 
 class TestNormTransform(unittest.TestCase):
+
     @parameterized.expand(TEST_NORM_CASES)
     def test_norm_xform(self, input_shape, align_corners, expected, zero_centered=False):
         norm = normalize_transform(
@@ -107,6 +108,7 @@ class TestNormTransform(unittest.TestCase):
 
 
 class TestToNormAffine(unittest.TestCase):
+
     @parameterized.expand(TEST_TO_NORM_AFFINE_CASES)
     def test_to_norm_affine(self, affine, src_size, dst_size, align_corners, expected, zero_centered=False):
         affine = torch.as_tensor(affine, device=torch.device("cpu:0"), dtype=torch.float32)
@@ -130,6 +132,7 @@ class TestToNormAffine(unittest.TestCase):
 
 
 class TestAffineTransform(unittest.TestCase):
+
     def test_affine_shift(self):
         affine = torch.as_tensor([[1.0, 0.0, 0.0], [0.0, 1.0, -1.0]])
         image = torch.as_tensor([[[[4.0, 1.0, 3.0, 2.0], [7.0, 6.0, 8.0, 5.0], [3.0, 5.0, 3.0, 6.0]]]])

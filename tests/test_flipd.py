@@ -35,6 +35,7 @@ for track_meta in (False, True):
 
 
 class TestFlipd(NumpyImageTestCase2D):
+
     @parameterized.expand(INVALID_CASES)
     def test_invalid_cases(self, _, spatial_axis, raises):
         with self.assertRaises(raises):
