@@ -16,6 +16,7 @@ from typing import Callable, Optional
 import torch
 from torch import nn
 
+
 def _zdot(x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
     """
     Complex dot product between tensors x1 and x2: sum(x1.*x2)
@@ -25,6 +26,7 @@ def _zdot(x1: torch.Tensor, x2: torch.Tensor) -> torch.Tensor:
         return torch.sum(x1.conj() * x2)
     else:
         return torch.sum(x1 * x2)
+
 
 def _zdot_single(x: torch.Tensor) -> torch.Tensor:
     """
@@ -50,7 +52,7 @@ class ConjugateGradient(nn.Module):
     linear operator. For example, A could be a FFT/IFFT operation
     """
 
-    def __init__(self, linear_op: Callable, num_iter: int,):
+    def __init__(self, linear_op: Callable, num_iter: int):
         """
         Args:
             linear_op: Linear operator
@@ -63,7 +65,7 @@ class ConjugateGradient(nn.Module):
 
     def update(
         self, x: torch.Tensor, p: torch.Tensor, r: torch.Tensor, rsold: torch.Tensor
-        ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         perform one iteration of the CG method. It takes the current solution x,
         the current search direction p, the current residual r, and the old

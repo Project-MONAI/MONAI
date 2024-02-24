@@ -28,7 +28,7 @@ class TestConjugateGradient(unittest.TestCase):
         def a_op(x):
             return a_mat @ x
 
-        cg_solver = ConjugateGradient(a_op, num_iter=100,)
+        cg_solver = ConjugateGradient(a_op, num_iter=100)
         # define the measurement
         y = torch.tensor([1, 2, 3], dtype=torch.float)
         # solve for x
@@ -45,7 +45,7 @@ class TestConjugateGradient(unittest.TestCase):
         def a_op(x):
             return a_mat @ x
 
-        cg_solver = ConjugateGradient(a_op, num_iter=100,)
+        cg_solver = ConjugateGradient(a_op, num_iter=100)
         y = torch.tensor([1, 2, 3], dtype=torch.complex64)
         x = cg_solver(torch.zeros(a_dim, dtype=torch.complex64), y)
         x_ref = torch.linalg.solve(a_mat, y)
