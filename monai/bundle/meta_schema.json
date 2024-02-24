@@ -136,11 +136,11 @@
             "type": "string"
         },
         "required_packages_version": {
-            "description": "Dictionary relating required additional package names to their versions.",
+            "description": "Dictionary relating required package names to their versions. The bundle requires these packages to operate.",
             "type": "object"
         },
         "optional_packages_version": {
-            "description": "Dictionary relating optional additional package names to their versions.",
+            "description": "Dictionary relating optional additional package names to their versions. The bundle can operate without these packages but if present they enable specific functionality or features.",
             "type": "object"
         },
         "task": {
