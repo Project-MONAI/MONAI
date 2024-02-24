@@ -30,16 +30,12 @@ def complex_diff_abs_loss(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         l2_loss - scalar
     """
     if not x.is_complex():
-        x_ = torch.view_as_complex(x.permute(0, 2, 3, 1).contiguous())
-    else:
-        x_ = x
+        x = torch.view_as_complex(x.permute(0, 2, 3, 1).contiguous())
     if not y.is_complex():
-        y_ = torch.view_as_complex(y.permute(0, 2, 3, 1).contiguous())
-    else:
-        y_ = y
-    diff = x_ - y_
-    l2_loss = nn.functional.mse_loss(torch.abs(diff), torch.zeros_like(torch.abs(diff)), reduction="mean")
-    return l2_loss
+        y = torch.view_as_complex(y.permute(0, 2, 3, 1).contiguous())
+        
+    diff = torch.abs(x - y)
+    return nn.functional.mse_loss(diff, torch.zeros_like(diff), reduction="mean")
 
 
 def sure_loss_function(
