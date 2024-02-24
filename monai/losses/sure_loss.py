@@ -176,33 +176,17 @@ class SURELoss(_Loss):
             sure_loss (torch.Tensor): The SURE loss scalar.
         """
 
-        # check inputs
-        # dim check:
-        assert x.dim() == 4, "Input tensor x should be 4D."
-        assert y_pseudo_gt.dim() == 4, "Input tensor y_pseudo_gt should be 4D."
-        if y_ref is not None:
-            assert y_ref.dim() == 4, "Input tensor y_ref should be 4D."
-
-        # complex/real check:
-        if complex_input:
-            assert (
-                x.shape[1] == 2 and y_pseudo_gt.shape[1] == 2 and not x.is_complex() and not y_pseudo_gt.is_complex()
-            ), "For complex input, the shape is (B, 2, H, W) aka C=2 real or (B, 1, H, W) aka C=1 complex"
-            if y_ref is not None:
-                assert (
-                    y_ref.shape[1] == 2 and not y_ref.is_complex()
-                ), "For complex input, the shape is (B, 2, H, W) aka C=2 real or (B, 1, H, W) aka C=1 complex"
-        else:  # real input
-            assert (
-                x.shape[1] == 1 and y_pseudo_gt.shape[1] == 1 and not x.is_complex() and not y_pseudo_gt.is_complex()
-            ), "For real input, the shape is (B, 1, H, W) real."
-            if y_ref is not None:
-                assert y_ref.shape[1] == 1 and not y_ref.is_complex(), "For real input, the shape is (B, 1, H, W) real."
-
-        # shape check
-        assert x.shape == y_pseudo_gt.shape, "Input tensor x and y_pseudo_gt should have the same shape."
-        if y_ref is not None:
-            assert y_pseudo_gt.shape == y_ref.shape, "Input tensor y_pseudo_gt and y_ref should have the same shape."
+        # check inputs shapes
+        if x.dim() != 4: 
+            raise ValueError("Input tensor x should be 4D.")
+        if y_pseudo_gt.dim() != 4:
+            raise ValueError("Input tensor y_pseudo_gt should be 4D.")
+        if y_ref is not None and y_ref.dim() != 4:
+            raise ValueError("Input tensor y_ref should be 4D.")
+        if x.shape != y_pseudo_gt.shape:
+            raise ValueError("Input tensor x and y_pseudo_gt should have the same shape.")
+        if y_ref is not None and y_pseudo_gt.shape != y_ref.shape:
+            raise ValueError("Input tensor y_pseudo_gt and y_ref should have the same shape.")
 
         # compute loss
         loss = sure_loss_function(operator, x, y_pseudo_gt, y_ref, self.eps, self.perturb_noise, complex_input)
