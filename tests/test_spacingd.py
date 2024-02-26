@@ -83,6 +83,20 @@ for device in TEST_DEVICES:
             *device,
         )
     )
+    TESTS.append(
+        (
+            "interp sep",
+            {
+                "image": MetaTensor(torch.ones((2, 1, 10)), affine=torch.eye(4)),
+                "seg1": MetaTensor(torch.ones((2, 1, 10)), affine=torch.diag(torch.tensor([2, 2, 2, 1]))),
+                "seg2": MetaTensor(torch.ones((2, 1, 10)), affine=torch.eye(4)),
+            },
+            dict(keys=("image", "seg1", "seg2"), mode=("bilinear", "nearest", "nearest"), pixdim=(1, 1, 1)),
+            (2, 1, 10),
+            torch.as_tensor(np.diag((1, 1, 1, 1))),
+            *device,
+        )
+    )
 
 TESTS_TORCH = []
 for track_meta in (False, True):
@@ -91,6 +105,7 @@ for track_meta in (False, True):
 
 
 class TestSpacingDCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_spacingd(self, _, data, kw_args, expected_shape, expected_affine, device):
         data = {k: v.to(device) for k, v in data.items()}

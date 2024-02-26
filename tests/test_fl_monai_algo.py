@@ -36,7 +36,9 @@ TEST_TRAIN_1 = [
     {
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
-            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
+            config_file=os.path.join(_data_dir, "config_fl_train.json"),
+            workflow_type="train",
+            logging_file=_logging_file,
         ),
         "config_evaluate_filename": None,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
@@ -54,7 +56,9 @@ TEST_TRAIN_3 = [
     {
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
-            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
+            config_file=os.path.join(_data_dir, "config_fl_train.json"),
+            workflow_type="train",
+            logging_file=_logging_file,
         ),
         "config_evaluate_filename": None,
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
@@ -66,7 +70,7 @@ TEST_TRAIN_4 = [
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
             config_file=os.path.join(_data_dir, "config_fl_train.json"),
-            workflow="train",
+            workflow_type="train",
             logging_file=_logging_file,
             tracking={
                 "handlers_id": DEFAULT_HANDLERS_ID,
@@ -95,7 +99,7 @@ TEST_EVALUATE_1 = [
                 os.path.join(_data_dir, "config_fl_train.json"),
                 os.path.join(_data_dir, "config_fl_evaluate.json"),
             ],
-            workflow="train",
+            workflow_type="train",
             logging_file=_logging_file,
             tracking="mlflow",
             tracking_uri=path_to_uri(_data_dir) + "/mlflow_1",
@@ -130,7 +134,7 @@ TEST_EVALUATE_3 = [
                 os.path.join(_data_dir, "config_fl_train.json"),
                 os.path.join(_data_dir, "config_fl_evaluate.json"),
             ],
-            workflow="train",
+            workflow_type="train",
             logging_file=_logging_file,
         ),
         "config_filters_filename": os.path.join(_data_dir, "config_fl_filters.json"),
@@ -141,7 +145,9 @@ TEST_GET_WEIGHTS_1 = [
     {
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
-            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
+            config_file=os.path.join(_data_dir, "config_fl_train.json"),
+            workflow_type="train",
+            logging_file=_logging_file,
         ),
         "config_evaluate_filename": None,
         "send_weight_diff": False,
@@ -161,7 +167,9 @@ TEST_GET_WEIGHTS_3 = [
     {
         "bundle_root": _data_dir,
         "train_workflow": ConfigWorkflow(
-            config_file=os.path.join(_data_dir, "config_fl_train.json"), workflow="train", logging_file=_logging_file
+            config_file=os.path.join(_data_dir, "config_fl_train.json"),
+            workflow_type="train",
+            logging_file=_logging_file,
         ),
         "config_evaluate_filename": None,
         "send_weight_diff": True,
@@ -173,6 +181,7 @@ TEST_GET_WEIGHTS_3 = [
 @SkipIfNoModule("ignite")
 @SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
+
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3, TEST_TRAIN_4])
     def test_train(self, input_params):
         # initialize algo

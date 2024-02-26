@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 import pickle
+import subprocess
 import sys
 from copy import deepcopy
 from numbers import Number
@@ -28,7 +29,7 @@ from monai.bundle.utils import ID_SEP_KEY
 from monai.config import PathLike
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground, ToCupy
-from monai.utils import min_version, optional_import
+from monai.utils import min_version, optional_import, run_cmd
 
 __all__ = [
     "get_foreground_image",
@@ -61,7 +62,7 @@ def get_foreground_image(image: MetaTensor) -> np.ndarray:
         the size of the output is smaller than the input.
     """
 
-    copper = CropForeground(select_fn=lambda x: x > 0)
+    copper = CropForeground(select_fn=lambda x: x > 0, allow_smaller=True)
     image_foreground = copper(image)
     return cast(np.ndarray, image_foreground)
 
@@ -93,11 +94,11 @@ def get_label_ccp(mask_index: MetaTensor, use_gpu: bool = True) -> tuple[list[An
             regardless of this setting.
 
     """
-    cucim, has_cucim = optional_import("cucim")
+    skimage, has_cucim = optional_import("cucim.skimage")
     shape_list = []
     if mask_index.device.type == "cuda" and has_cp and has_cucim and use_gpu:
         mask_cupy = ToCupy()(mask_index.short())
-        labeled = cucim.skimage.measure.label(mask_cupy)
+        labeled = skimage.measure.label(mask_cupy)
         vals = cp.unique(labeled[cp.nonzero(labeled)])
 
         for ncomp in vals:
@@ -372,3 +373,152 @@ def algo_from_pickle(pkl_filename: str, template_path: PathLike | None = None, *
         algo_meta_data.update({k: v})
 
     return algo, algo_meta_data
+
+
+def list_to_python_fire_arg_str(args: list) -> str:
+    """
+    Convert a list of arguments to a string that can be used in python-fire.
+
+    Args:
+        args: the list of arguments.
+
+    Returns:
+        the string that can be used in python-fire.
+    """
+    args_str = ",".join([str(arg) for arg in args])
+    return f"'{args_str}'"
+
+
+def check_and_set_optional_args(params: dict) -> str:
+    """convert `params` into '--key_1=value_1 --key_2=value_2 ...'"""
+    cmd_mod_opt = ""
+    for k, v in params.items():
+        if isinstance(v, dict):
+            raise ValueError("Nested dict is not supported.")
+        elif isinstance(v, list):
+            v = list_to_python_fire_arg_str(v)
+        cmd_mod_opt += f" --{k}={v}"
+    return cmd_mod_opt
+
+
+def _prepare_cmd_default(cmd: str, cmd_prefix: str | None = None, **kwargs: Any) -> str:
+    """
+    Prepare the command for subprocess to run the script with the given arguments.
+
+    Args:
+        cmd: the command or script to run in the distributed job.
+        cmd_prefix: the command prefix to run the script, e.g., "python", "python -m", "python3", "/opt/conda/bin/python3.8 ".
+        kwargs: the keyword arguments to be passed to the script.
+
+    Returns:
+        the command to run with ``subprocess``.
+
+    Examples:
+        To prepare a subprocess command
+        "python train.py run -k --config 'a,b'", the function can be called as
+        - _prepare_cmd_default("train.py run -k", config=['a','b'])
+        - _prepare_cmd_default("train.py run -k --config 'a,b'")
+
+    """
+    params = kwargs.copy()
+
+    if not cmd_prefix or "None" in cmd_prefix:  # defaulting to 'python'
+        cmd_prefix = "python"
+
+    if not cmd_prefix.endswith(" "):
+        cmd_prefix += " "  # ensure a space after the command prefix so that the script can be appended
+
+    return cmd_prefix + cmd + check_and_set_optional_args(params)
+
+
+def _prepare_cmd_torchrun(cmd: str, **kwargs: Any) -> str:
+    """
+    Prepare the command for multi-gpu/multi-node job execution using torchrun.
+
+    Args:
+        cmd: the command or script to run in the distributed job.
+        kwargs: the keyword arguments to be passed to the script.
+
+    Returns:
+        the command to append to ``torchrun``
+
+    Examples:
+        For command "torchrun --nnodes=1 --nproc_per_node=8 train.py run -k --config 'a,b'",
+        it only prepares command after the torchrun arguments, i.e., "train.py run -k --config 'a,b'".
+        The function can be called as
+        - _prepare_cmd_torchrun("train.py run -k", config=['a','b'])
+        - _prepare_cmd_torchrun("train.py run -k --config 'a,b'")
+    """
+    params = kwargs.copy()
+    return cmd + check_and_set_optional_args(params)
+
+
+def _prepare_cmd_bcprun(cmd: str, cmd_prefix: str | None = None, **kwargs: Any) -> str:
+    """
+    Prepare the command for distributed job running using bcprun.
+
+    Args:
+        script: the script to run in the distributed job.
+        cmd_prefix: the command prefix to run the script, e.g., "python".
+        kwargs: the keyword arguments to be passed to the script.
+
+    Returns:
+        The command to run the script in the distributed job.
+
+    Examples:
+        For command "bcprun -n 2 -p 8 -c python train.py run -k --config 'a,b'",
+        it only prepares command after the bcprun arguments, i.e., "train.py run -k --config 'a,b'".
+        the function can be called as
+        - _prepare_cmd_bcprun("train.py run -k", config=['a','b'], n=2, p=8)
+        - _prepare_cmd_bcprun("train.py run -k --config 'a,b'", n=2, p=8)
+    """
+
+    return _prepare_cmd_default(cmd, cmd_prefix=cmd_prefix, **kwargs)
+
+
+def _run_cmd_torchrun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
+    """
+    Run the command with torchrun.
+
+    Args:
+        cmd: the command to run. Typically it is prepared by ``_prepare_cmd_torchrun``.
+        kwargs: the keyword arguments to be passed to the ``torchrun``.
+
+    Return:
+        the return code of the subprocess command.
+    """
+    params = kwargs.copy()
+
+    cmd_list = cmd.split()
+
+    # append arguments to the command list
+    torchrun_list = ["torchrun"]
+    required_args = ["nnodes", "nproc_per_node"]
+    for arg in required_args:
+        if arg not in params:
+            raise ValueError(f"Missing required argument {arg} for torchrun.")
+        torchrun_list += [f"--{arg}", str(params.pop(arg))]
+    torchrun_list += cmd_list
+    return run_cmd(torchrun_list, run_cmd_verbose=True, **params)
+
+
+def _run_cmd_bcprun(cmd: str, **kwargs: Any) -> subprocess.CompletedProcess:
+    """
+    Run the command with bcprun.
+
+    Args:
+        cmd: the command to run. Typically it is prepared by ``_prepare_cmd_bcprun``.
+        kwargs: the keyword arguments to be passed to the ``bcprun``.
+
+    Returns:
+        the return code of the subprocess command.
+    """
+    params = kwargs.copy()
+    cmd_list = ["bcprun"]
+    required_args = ["n", "p"]
+    for arg in required_args:
+        if arg not in params:
+            raise ValueError(f"Missing required argument {arg} for bcprun.")
+        cmd_list += [f"-{arg}", str(params.pop(arg))]
+    cmd_list.extend(["-c", cmd])
+    return run_cmd(cmd_list, run_cmd_verbose=True, **params)

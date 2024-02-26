@@ -68,7 +68,9 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+docs/build/
+docs/source/_gen
+docs/source/*_properties.csv
 _build/
 
 # PyBuilder
@@ -113,6 +115,7 @@ venv.bak/
 examples/scd_lvsegs.npz
 temp/
 .idea/
+.dmypy.json
 
 *~
 
@@ -139,6 +142,9 @@ tests/testing_data/train_data_stats_by_case.yaml
 tests/testing_data/eval_data_stats_by_case.yaml
 tests/testing_data/CT_2D_head_fixed.mha
 tests/testing_data/CT_2D_head_moving.mha
+tests/testing_data/config_executed.json
+tests/testing_data/eval
+tests/testing_data/nrrd_example.nrrd
 
 # clang format tool
 .clang-format-bin/
@@ -150,3 +156,9 @@ tests/testing_data/CT_2D_head_moving.mha
 # profiling results
 *.prof
 runs
+
+*.gz
+
+*.pth
+
+*zarr/*

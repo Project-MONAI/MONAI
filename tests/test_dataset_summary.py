@@ -36,6 +36,7 @@ def test_collate(batch):
 
 
 class TestDatasetSummary(unittest.TestCase):
+
     def test_spacing_intensity(self):
         set_determinism(seed=0)
         with tempfile.TemporaryDirectory() as tempdir:
@@ -54,7 +55,7 @@ class TestDatasetSummary(unittest.TestCase):
 
             t = Compose(
                 [
-                    LoadImaged(keys=["image", "label"]),
+                    LoadImaged(keys=["image", "label"], image_only=False),
                     ToNumpyd(keys=["image", "label", "image_meta_dict", "label_meta_dict"]),
                 ]
             )

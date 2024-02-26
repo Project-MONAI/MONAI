@@ -30,7 +30,7 @@ TEST_GET_DATA_STATS_1 = [
     {
         "bundle_root": _data_dir,
         "workflow": ConfigWorkflow(
-            workflow="train",
+            workflow_type="train",
             config_file=os.path.join(_data_dir, "config_fl_stats_1.json"),
             logging_file=_logging_file,
             meta_file=None,
@@ -49,7 +49,7 @@ TEST_GET_DATA_STATS_3 = [
     {
         "bundle_root": _data_dir,
         "workflow": ConfigWorkflow(
-            workflow="train",
+            workflow_type="train",
             config_file=[
                 os.path.join(_data_dir, "config_fl_stats_1.json"),
                 os.path.join(_data_dir, "config_fl_stats_2.json"),
@@ -64,6 +64,7 @@ TEST_GET_DATA_STATS_3 = [
 
 @SkipIfNoModule("ignite")
 class TestFLMonaiAlgo(unittest.TestCase):
+
     @parameterized.expand([TEST_GET_DATA_STATS_1, TEST_GET_DATA_STATS_2, TEST_GET_DATA_STATS_3])
     def test_get_data_stats(self, input_params):
         # initialize algo

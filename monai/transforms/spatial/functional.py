@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "functional" transforms for spatial operations
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "functional" transforms for spatial operations.
 """
 
 from __future__ import annotations
@@ -66,12 +65,12 @@ def _maybe_new_metatensor(img, dtype=None, device=None):
 
 
 def spatial_resample(
-    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, transform_info
+    img, dst_affine, spatial_size, mode, padding_mode, align_corners, dtype_pt, lazy, transform_info
 ) -> torch.Tensor:
     """
     Functional implementation of resampling the input image to the specified ``dst_affine`` matrix and ``spatial_size``.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be resampled, assuming `img` is channel-first.
@@ -92,6 +91,7 @@ def spatial_resample(
         align_corners: Geometrically, we consider the pixels of the input as squares rather than points.
             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
         dtype_pt: data `dtype` for resampling computation.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     original_spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -132,17 +132,16 @@ def spatial_resample(
     affine_unchanged = (
         allclose(src_affine, dst_affine, atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size)
     ) or (allclose(xform, np.eye(len(xform)), atol=AFFINE_TOL) and allclose(spatial_size, in_spatial_size))
-    lazy_evaluation = transform_info.get(TraceKeys.LAZY_EVALUATION, False)
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=spatial_size,
-        affine=None if affine_unchanged and not lazy_evaluation else xform,
+        affine=None if affine_unchanged and not lazy else xform,
         extra_info=extra_info,
         orig_size=original_spatial_shape,
         transform_info=transform_info,
-        lazy_evaluation=lazy_evaluation,
+        lazy=lazy,
     )
-    if lazy_evaluation:
+    if lazy:
         out = _maybe_new_metatensor(img)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     if affine_unchanged:
@@ -184,17 +183,18 @@ def spatial_resample(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def orientation(img, original_affine, spatial_ornt, transform_info):
+def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> torch.Tensor:
     """
     Functional implementation of changing the input image's orientation into the specified based on `spatial_ornt`.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
         original_affine: original affine of the input image.
         spatial_ornt: orientations of the spatial axes,
             see also https://nipy.org/nibabel/reference/nibabel.orientations.html
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     spatial_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -217,23 +217,23 @@ def orientation(img, original_affine, spatial_ornt, transform_info):
         extra_info=extra_info,
         orig_size=spatial_shape,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
     out = _maybe_new_metatensor(img)
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info  # type: ignore
     if axes:
         out = torch.flip(out, dims=axes)
     if not np.all(full_transpose == np.arange(len(out.shape))):
         out = out.permute(full_transpose.tolist())
-    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def flip(img, sp_axes, transform_info):
+def flip(img, sp_axes, lazy, transform_info):
     """
     Functional implementation of flip.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -242,6 +242,7 @@ def flip(img, sp_axes, transform_info):
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -255,25 +256,22 @@ def flip(img, sp_axes, transform_info):
         sp = axis - 1
         xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
     meta_info = TraceableTransform.track_transform_meta(
-        img,
-        sp_size=sp_size,
-        affine=xform,
-        extra_info=extra_info,
-        transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
     )
     out = _maybe_new_metatensor(img)
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, transform_info):
+def resize(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
     """
     Functional implementation of resize.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -291,6 +289,7 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
             the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
         anti_aliasing_sigma: {float, tuple of floats}, optional
             Standard deviation for Gaussian filtering used when anti-aliasing.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     img = convert_to_tensor(img, track_meta=get_track_meta())
@@ -308,10 +307,10 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
-        if anti_aliasing and transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
+        if anti_aliasing and lazy:
             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
         out = _maybe_new_metatensor(img)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -340,11 +339,11 @@ def resize(img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing,
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, transform_info):
+def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -360,6 +359,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
         dtype: data type for resampling computation.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``float32``.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
 
     """
@@ -393,10 +393,10 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
         extra_info=extra_info,
         orig_size=im_shape,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
     out = _maybe_new_metatensor(img)
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     _, _m, _p, _ = resolves_modes(mode, padding_mode)
     xform = AffineTransform(
@@ -410,11 +410,11 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, t
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, transform_info):
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of zoom.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -432,6 +432,7 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         dtype: data type for resampling computation.
             If None, use the data type of input data. To be compatible with other modules,
             the output data type is always ``float32``.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
 
     """
@@ -447,9 +448,9 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     }
     if keep_size:
         do_pad_crop = not np.allclose(output_size, im_shape)
-        if do_pad_crop and transform_info.get(TraceKeys.LAZY_EVALUATION, False):  # update for lazy evaluation
+        if do_pad_crop and lazy:  # update for lazy evaluation
             _pad_crop = ResizeWithPadOrCrop(spatial_size=im_shape, mode=padding_mode)
-            _pad_crop.lazy_evaluation = True
+            _pad_crop.lazy = True
             _tmp_img = MetaTensor([], affine=torch.eye(len(output_size) + 1))
             _tmp_img.push_pending_operation({LazyAttr.SHAPE: list(output_size), LazyAttr.AFFINE: xform})
             lazy_cropped = _pad_crop(_tmp_img)
@@ -465,10 +466,10 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         extra_info=extra_info,
         orig_size=im_shape,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
     out = _maybe_new_metatensor(img)
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     img_t = out.to(dtype)
     _, _m, _, _ = resolves_modes(mode, torch_interpolate_spatial_nd=len(img_t.shape) - 1)
@@ -493,17 +494,18 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     return out
 
 
-def rotate90(img, axes, k, transform_info):
+def rotate90(img, axes, k, lazy, transform_info):
     """
     Functional implementation of rotate90.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
         axes: 2 int numbers, defines the plane to rotate with 2 spatial axes.
             If axis is negative it counts from the last to the first axis.
         k: number of times to rotate by 90 degrees.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     extra_info = {"axes": [d - 1 for d in axes], "k": k}
@@ -533,20 +535,22 @@ def rotate90(img, axes, k, transform_info):
         extra_info=extra_info,
         orig_size=ori_shape,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
     out = _maybe_new_metatensor(img)
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.rot90(out, k, axes)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, transform_info):
+def affine_func(
+    img, affine, grid, resampler, sp_size, mode, padding_mode, do_resampling, image_only, lazy, transform_info
+):
     """
     Functional implementation of affine.
     This function operates eagerly or lazily according to
-    ``transform_info[TraceKeys.LAZY_EVALUATION]`` (default ``False``).
+    ``lazy`` (default ``False``).
 
     Args:
         img: data to be changed, assuming `img` is channel-first.
@@ -570,6 +574,7 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         do_resampling: whether to do the resampling, this is a flag for the use case of updating metadata but
             skipping the actual (potentially heavy) resampling operation.
         image_only: if True return only the image volume, otherwise return (image, affine).
+        lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
 
     """
@@ -592,9 +597,9 @@ def affine_func(img, affine, grid, resampler, sp_size, mode, padding_mode, do_re
         extra_info=extra_info,
         orig_size=img_size,
         transform_info=transform_info,
-        lazy_evaluation=transform_info.get(TraceKeys.LAZY_EVALUATION, False),
+        lazy=lazy,
     )
-    if transform_info.get(TraceKeys.LAZY_EVALUATION, False):
+    if lazy:
         out = _maybe_new_metatensor(img)
         out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
         return out if image_only else (out, affine)

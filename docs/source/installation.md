@@ -10,8 +10,8 @@
 		- [Uninstall the packages](#uninstall-the-packages)
 	- [From conda-forge](#from-conda-forge)
 	- [From GitHub](#from-github)
-		- [Option 1 (as a part of your system-wide module)](#option-1-as-a-part-of-your-system-wide-module)
-		- [Option 2 (editable installation)](#option-2-editable-installation)
+		- [Option 1 (as a part of your system-wide module):](#option-1-as-a-part-of-your-system-wide-module)
+		- [Option 2 (editable installation):](#option-2-editable-installation)
 	- [Validating the install](#validating-the-install)
 	- [MONAI version string](#monai-version-string)
 	- [From DockerHub](#from-dockerhub)
@@ -30,7 +30,7 @@ Ignite](https://pytorch.org/ignite/), please follow the instructions:
 
 - [Installing the recommended dependencies](#installing-the-recommended-dependencies)
 
-The installation commands bellow usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
+The installation commands below usually end up installing CPU variant of PyTorch. To install GPU-enabled PyTorch:
 
 1. Install the latest NVIDIA driver.
 1. Check [PyTorch Official Guide](https://pytorch.org/get-started/locally/) for the recommended CUDA versions. For Pip package, the user needs to download the CUDA manually, install it on the system, and ensure CUDA_PATH is set properly.
@@ -228,7 +228,7 @@ Alternatively, to install all optional dependencies:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-pip install -e '.[all]'
+pip install -e ".[all]"
 ```
 
 To install all optional dependencies with `pip` based on MONAI development environment settings:
@@ -254,10 +254,10 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 - The options are
 
 ```
-[nibabel, skimage, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime]
+[nibabel, skimage, scipy, pillow, tensorboard, gdown, ignite, torchvision, itk, tqdm, lmdb, psutil, cucim, openslide, pandas, einops, transformers, mlflow, clearml, matplotlib, tensorboardX, tifffile, imagecodecs, pyyaml, fire, jsonschema, ninja, pynrrd, pydicom, h5py, nni, optuna, onnx, onnxruntime, zarr, lpips, pynvml, huggingface_hub]
 ```
 
-which correspond to `nibabel`, `scikit-image`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, respectively.
+which correspond to `nibabel`, `scikit-image`,`scipy`, `pillow`, `tensorboard`,
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, and `huggingface_hub` respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

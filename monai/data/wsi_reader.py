@@ -111,7 +111,7 @@ class BaseWSIReader(ImageReader):
         self.set_device(device)
         self.mode = mode
         self.kwargs = kwargs
-        self.mpp: tuple[float, float] | None = ensure_tuple_rep(mpp, 2) if mpp is not None else None  # type: ignore
+        self.mpp: tuple[float, float] | None = ensure_tuple_rep(mpp, 2) if mpp is not None else None
         self.power = power
         self.mpp_rtol = mpp_rtol
         self.mpp_atol = mpp_atol
@@ -158,7 +158,7 @@ class BaseWSIReader(ImageReader):
         if value in value_at_levels:
             return value_at_levels.index(value)
 
-        closest_value = min(value_at_levels, key=lambda a_value: sum([abs(x - y) for x, y in zip(a_value, value)]))  # type: ignore
+        closest_value = min(value_at_levels, key=lambda a_value: sum([abs(x - y) for x, y in zip(a_value, value)]))
         for i in range(len(value)):
             if abs(closest_value[i] - value[i]) > atol + rtol * abs(value[i]):
                 raise ValueError(

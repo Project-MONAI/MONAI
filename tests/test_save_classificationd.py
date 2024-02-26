@@ -26,6 +26,7 @@ from monai.utils.enums import PostFix
 
 
 class TestSaveClassificationd(unittest.TestCase):
+
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             data = [

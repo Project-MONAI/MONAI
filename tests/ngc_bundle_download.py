@@ -70,6 +70,7 @@ TESTCASE_WEIGHTS = {
 
 @skip_if_windows
 class TestNgcBundleDownload(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_NGC_1, TEST_CASE_NGC_2])
     @skip_if_quick
     def test_ngc_download_bundle(self, bundle_name, version, remove_prefix, download_name, file_path, hash_val):
@@ -82,16 +83,26 @@ class TestNgcBundleDownload(unittest.TestCase):
                 self.assertTrue(os.path.exists(full_file_path))
                 self.assertTrue(check_hash(filepath=full_file_path, val=hash_val))
 
-                weights = load(
-                    name=bundle_name, source="ngc", version=version, bundle_dir=tempdir, remove_prefix=remove_prefix
+                model = load(
+                    name=bundle_name,
+                    source="ngc",
+                    version=version,
+                    bundle_dir=tempdir,
+                    remove_prefix=remove_prefix,
+                    return_state_dict=False,
                 )
                 assert_allclose(
-                    weights[TESTCASE_WEIGHTS["key"]], TESTCASE_WEIGHTS["value"], atol=1e-4, rtol=1e-4, type_test=False
+                    model.state_dict()[TESTCASE_WEIGHTS["key"]],
+                    TESTCASE_WEIGHTS["value"],
+                    atol=1e-4,
+                    rtol=1e-4,
+                    type_test=False,
                 )
 
 
 @unittest.skip("deprecating mmar tests")
 class TestAllDownloadingMMAR(unittest.TestCase):
+
     def setUp(self):
         print_debug_info()
         self.test_dir = "./"

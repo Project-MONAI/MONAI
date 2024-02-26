@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.config import USE_COMPILED
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_COORDS, TESTS, TEST_LAZY_ERROR = [], [], []
@@ -99,6 +99,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestCropForeground(unittest.TestCase):
+
     @parameterized.expand(TEST_COORDS + TESTS)
     def test_value(self, arguments, image, expected_data, _):
         cropper = CropForeground(**arguments)
@@ -126,13 +127,14 @@ class TestCropForeground(unittest.TestCase):
         expected = crop_fn(image)
         self.assertIsInstance(expected, MetaTensor)
         # lazy
-        crop_fn.lazy_evaluation = True
+        crop_fn.lazy = True
         pending_result = crop_fn(image)
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # only support nearest
-        result = apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
+        overrides = {"mode": "nearest", "align_corners": align_corners}
+        result = apply_pending(pending_result, overrides=overrides)[0]
         # compare
         assert_allclose(result, expected, rtol=1e-5)
 
@@ -142,17 +144,18 @@ class TestCropForeground(unittest.TestCase):
         with self.assertRaises(ValueError):
             crop_fn = CropForeground(**input_param)
             # lazy
-            crop_fn.lazy_evaluation = True
+            crop_fn.lazy = True
             pending_result = crop_fn(image)
-            return apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
+            overrides = {"mode": "nearest", "align_corners": align_corners}
+            return apply_pending(pending_result, overrides=overrides)[0]
 
     @parameterized.expand(TEST_COORDS + TESTS)
     def test_inverse_pending_ops(self, input_param, image, _expected_data, align_corners):
         crop_fn = CropForeground(**input_param)
-        crop_fn.lazy_evaluation = True
+        crop_fn.lazy = True
         pending_result = crop_fn(image)
         self.assertIsInstance(pending_result, MetaTensor)
-        result = apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
+        result = apply_pending(pending_result, overrides={"mode": "nearest", "align_corners": align_corners})[0]
         inverted = crop_fn.inverse(result)
         self.assertEqual(image.shape, inverted.shape)
         self.assertTrue((not inverted.applied_operations) and (not inverted.pending_operations))

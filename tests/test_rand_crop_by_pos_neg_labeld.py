@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandCropByPosNegLabeld
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = [
@@ -107,6 +107,7 @@ TESTS = [
 
 
 class TestRandCropByPosNegLabeld(unittest.TestCase):
+
     @staticmethod
     def convert_data_type(im_type, d, keys=("img", "image", "label")):
         out = deepcopy(d)
@@ -153,15 +154,16 @@ class TestRandCropByPosNegLabeld(unittest.TestCase):
             self.assertIsInstance(expected[0]["image"], MetaTensor)
             # lazy
             cropper.set_random_state(0)
-            cropper.lazy_evaluation = True
+            cropper.lazy = True
             pending_result = cropper(input_data_mod)
             for i, _pending_result in enumerate(pending_result):
                 self.assertIsInstance(_pending_result["image"], MetaTensor)
                 assert_allclose(_pending_result["image"].peek_pending_affine(), expected[i]["image"].affine)
                 assert_allclose(_pending_result["image"].peek_pending_shape(), expected[i]["image"].shape[1:])
                 # only support nearest
-                result_image = apply_transforms(_pending_result["image"], mode="nearest", align_corners=False)[0]
-                result_extra = apply_transforms(_pending_result["extra"], mode="nearest", align_corners=False)[0]
+                overrides = {"mode": "nearest", "align_corners": False}
+                result_image = apply_pending(_pending_result["image"], overrides=overrides)[0]
+                result_extra = apply_pending(_pending_result["extra"], overrides=overrides)[0]
                 # compare
                 assert_allclose(result_image, expected[i]["image"], rtol=1e-5)
                 assert_allclose(result_extra, expected[i]["extra"], rtol=1e-5)

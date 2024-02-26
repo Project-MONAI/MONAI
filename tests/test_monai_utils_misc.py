@@ -11,11 +11,12 @@
 
 from __future__ import annotations
 
+import os
 import unittest
 
 from parameterized import parameterized
 
-from monai.utils.misc import check_kwargs_exist_in_class_init, to_tuple_of_dictionaries
+from monai.utils.misc import MONAIEnvVars, check_kwargs_exist_in_class_init, run_cmd, to_tuple_of_dictionaries
 
 TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
     ({}, tuple(), tuple()),
@@ -39,11 +40,13 @@ TO_TUPLE_OF_DICTIONARIES_TEST_CASES = [
 
 
 class MiscClass:
+
     def __init__(self, arg1, arg2, kwargs1=None, kwargs2=None):
         pass
 
 
 class TestToTupleOfDictionaries(unittest.TestCase):
+
     @parameterized.expand(TO_TUPLE_OF_DICTIONARIES_TEST_CASES)
     def test_to_tuple_of_dictionaries(self, dictionary, keys, expected):
         self._test_to_tuple_of_dictionaries(dictionary, keys, expected)
@@ -60,6 +63,7 @@ class TestToTupleOfDictionaries(unittest.TestCase):
 
 
 class TestMiscKwargs(unittest.TestCase):
+
     def test_kwargs(self):
         present, extra_args = self._custom_user_function(MiscClass, 1, kwargs1="value1", kwargs2="value2")
         self.assertEqual(present, True)
@@ -70,6 +74,30 @@ class TestMiscKwargs(unittest.TestCase):
 
     def _custom_user_function(self, cls, *args, **kwargs):
         return check_kwargs_exist_in_class_init(cls, kwargs)
+
+
+class TestCommandRunner(unittest.TestCase):
+
+    def setUp(self):
+        self.orig_flag = str(MONAIEnvVars.debug())
+
+    def tearDown(self):
+        if self.orig_flag is not None:
+            os.environ["MONAI_DEBUG"] = self.orig_flag
+        else:
+            os.environ.pop("MONAI_DEBUG")
+
+    def test_run_cmd(self):
+        cmd1 = "python"
+        cmd2 = "-c"
+        cmd3 = 'import sys; print("\\tThis is on stderr\\n", file=sys.stderr); sys.exit(1)'
+        os.environ["MONAI_DEBUG"] = str(True)
+        try:
+            run_cmd([cmd1, cmd2, cmd3], check=True)
+        except RuntimeError as err:
+            self.assertIn("This is on stderr", str(err))
+            self.assertNotIn("\\n", str(err))
+            self.assertNotIn("\\t", str(err))
 
 
 if __name__ == "__main__":

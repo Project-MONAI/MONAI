@@ -21,9 +21,17 @@ from monai.utils import optional_import
 requests_get, has_requests = optional_import("requests", name="get")
 pd, has_pandas = optional_import("pandas")
 
-__all__ = ["get_tcia_metadata", "download_tcia_series_instance", "get_tcia_ref_uid", "match_tcia_ref_uid_in_study"]
-
+DCM_FILENAME_REGEX = r"^(?!.*LICENSE).*"  # excluding the file with "LICENSE" in its name
 BASE_URL = "https://services.cancerimagingarchive.net/nbia-api/services/v1/"
+
+__all__ = [
+    "get_tcia_metadata",
+    "download_tcia_series_instance",
+    "get_tcia_ref_uid",
+    "match_tcia_ref_uid_in_study",
+    "DCM_FILENAME_REGEX",
+    "BASE_URL",
+]
 
 
 def get_tcia_metadata(query: str, attribute: str | None = None) -> list:

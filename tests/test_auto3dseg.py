@@ -165,12 +165,13 @@ class TestImageAnalyzer(Analyzer):
 
 
 class TestDataAnalyzer(unittest.TestCase):
+
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()
         work_dir = self.test_dir.name
         self.dataroot_dir = os.path.join(work_dir, "sim_dataroot")
         self.datalist_file = os.path.join(work_dir, "sim_datalist.json")
-        self.datastat_file = os.path.join(work_dir, "datastats.yaml")
+        self.datastat_file = os.path.join(work_dir, "datastats.yml")
         ConfigParser.export_config_file(sim_datalist, self.datalist_file)
 
     @parameterized.expand(SIM_CPU_TEST_CASES)
@@ -188,6 +189,21 @@ class TestDataAnalyzer(unittest.TestCase):
         )
         datastat = analyser.get_all_case_stats()
 
+        assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
+
+    def test_data_analyzer_histogram(self):
+        create_sim_data(
+            self.dataroot_dir, sim_datalist, [32] * 3, image_only=True, rad_max=8, rad_min=1, num_seg_classes=1
+        )
+        analyser = DataAnalyzer(
+            self.datalist_file,
+            self.dataroot_dir,
+            output_path=self.datastat_file,
+            label_key=None,
+            device=device,
+            histogram_only=True,
+        )
+        datastat = analyser.get_all_case_stats()
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
     @parameterized.expand(SIM_GPU_TEST_CASES)

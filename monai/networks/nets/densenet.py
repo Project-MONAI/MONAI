@@ -42,6 +42,7 @@ __all__ = [
 
 
 class _DenseLayer(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -88,6 +89,7 @@ class _DenseLayer(nn.Module):
 
 
 class _DenseBlock(nn.Sequential):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -119,6 +121,7 @@ class _DenseBlock(nn.Sequential):
 
 
 class _Transition(nn.Sequential):
+
     def __init__(
         self,
         spatial_dims: int,

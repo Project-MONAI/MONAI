@@ -22,13 +22,13 @@ from typing import Any
 import numpy as np
 
 import monai
-import monai.transforms as mt
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
 from monai.transforms.inverse import InvertibleTransform
-from monai.transforms.traits import ThreadUnsafe
 
 # For backwards compatibility (so this still works: from monai.transforms.compose import MapTransform)
+from monai.transforms.lazy.functional import apply_pending_transforms
+from monai.transforms.traits import ThreadUnsafe
 from monai.transforms.transform import (  # noqa: F401
     LazyTransform,
     MapTransform,
@@ -37,85 +37,11 @@ from monai.transforms.transform import (  # noqa: F401
     Transform,
     apply_transform,
 )
-from monai.utils import MAX_SEED, TraceKeys, ensure_tuple, get_seed, to_tuple_of_dictionaries
+from monai.utils import MAX_SEED, TraceKeys, TraceStatusKeys, ensure_tuple, get_seed
 
 logger = get_logger(__name__)
 
-__all__ = ["Compose", "OneOf", "RandomOrder", "evaluate_with_overrides", "SomeOf"]
-
-
-def evaluate_with_overrides(
-    data,
-    upcoming,
-    lazy_evaluation: bool | None = False,
-    overrides: dict | None = None,
-    override_keys: Sequence[str] | None = None,
-    verbose: bool = False,
-):
-    """
-    The previously applied transform may have been lazily applied to MetaTensor `data` and
-    made `data.has_pending_operations` equals to True. Given the upcoming transform ``upcoming``,
-    this function determines whether `data.pending_operations` should be evaluated. If so, it will
-    evaluate the lazily applied transforms.
-
-    Currently, the conditions for evaluation are:
-
-        - ``lazy_evaluation`` is ``True``, AND
-        - the data is a ``MetaTensor`` and has pending operations, AND
-        - the upcoming transform is an instance of ``Identity`` or ``IdentityD`` or ``None``.
-
-    The returned `data` will then be ready for the ``upcoming`` transform.
-
-    Args:
-        data: data to be evaluated.
-        upcoming: the upcoming transform.
-        lazy_evaluation: whether to evaluate the pending operations.
-        override: keyword arguments to apply transforms.
-        override_keys: to which the override arguments are used when apply transforms.
-        verbose: whether to print debugging info when evaluate MetaTensor with pending operations.
-
-    """
-    if not lazy_evaluation:
-        return data  # eager evaluation
-    overrides = (overrides or {}).copy()
-    if isinstance(data, monai.data.MetaTensor):
-        if data.has_pending_operations and (
-            (upcoming is None)
-            or (isinstance(upcoming, mt.Identity))
-            or (isinstance(upcoming, mt.Identityd) and override_keys in upcoming.keys)
-        ):
-            data, _ = mt.apply_transforms(data, None, overrides=overrides)
-            if verbose:
-                next_name = "final output" if upcoming is None else f"'{upcoming.__class__.__name__}'"
-                logger.info(f"Evaluated - '{override_keys}' - up-to-date for - {next_name}")
-        elif verbose:
-            logger.info(
-                f"Lazy - '{override_keys}' - upcoming: '{upcoming.__class__.__name__}'"
-                f"- pending {len(data.pending_operations)}"
-            )
-        return data
-    override_keys = ensure_tuple(override_keys)
-    if isinstance(data, dict):
-        if isinstance(upcoming, MapTransform):
-            applied_keys = {k for k in data if k in upcoming.keys}
-            if not applied_keys:
-                return data
-        else:
-            applied_keys = set(data.keys())
-
-        keys_to_override = {k for k in applied_keys if k in override_keys}
-        # generate a list of dictionaries with the appropriate override value per key
-        dict_overrides = to_tuple_of_dictionaries(overrides, override_keys)
-        for k in data:
-            if k in keys_to_override:
-                dict_for_key = dict_overrides[override_keys.index(k)]
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, dict_for_key, k, verbose)
-            else:
-                data[k] = evaluate_with_overrides(data[k], upcoming, lazy_evaluation, None, k, verbose)
-
-    if isinstance(data, (list, tuple)):
-        return [evaluate_with_overrides(v, upcoming, lazy_evaluation, overrides, override_keys, verbose) for v in data]
-    return data
+__all__ = ["Compose", "OneOf", "RandomOrder", "SomeOf", "execute_compose"]
 
 
 def execute_compose(
@@ -125,12 +51,10 @@ def execute_compose(
     unpack_items: bool = False,
     start: int = 0,
     end: int | None = None,
-    lazy_evaluation: bool = False,
+    lazy: bool | None = False,
     overrides: dict | None = None,
-    override_keys: Sequence[str] | None = None,
     threading: bool = False,
-    log_stats: bool = False,
-    verbose: bool = False,
+    log_stats: bool | str = False,
 ) -> NdarrayOrTensor | Sequence[NdarrayOrTensor] | Mapping[Any, NdarrayOrTensor]:
     """
     ``execute_compose`` provides the implementation that the ``Compose`` class uses to execute a sequence
@@ -146,28 +70,22 @@ def execute_compose(
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         start: the index of the first transform to be executed. If not set, this defaults to 0
-        end: the index after the last transform to be exectued. If set, the transform at index-1
+        end: the index after the last transform to be executed. If set, the transform at index-1
             is the last transform that is executed. If this is not set, it defaults to len(transforms)
-        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+        lazy: whether to enable :ref:`lazy evaluation<lazy_resampling>` for lazy transforms. If False, transforms will be
             carried out on a transform by transform basis. If True, all lazy transforms will
             be executed by accumulating changes and resampling as few times as possible.
-            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
-            the pending operations and make the primary data up-to-date.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
-            is True. If lazy_evaluation is False they are ignored.
-            currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`lazy evaluation<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
         threading: whether executing is happening in a threaded environment. If set, copies are made
             of transforms that have the ``RandomizedTrait`` interface.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
-        verbose: whether to print debugging info when lazy_evaluation=True.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
 
     Returns:
         A tensorlike, sequence of tensorlikes or dict of tensorlists containing the result of running
@@ -176,6 +94,8 @@ def execute_compose(
     end_ = len(transforms) if end is None else end
     if start is None:
         raise ValueError(f"'start' ({start}) cannot be None")
+    if start < 0:
+        raise ValueError(f"'start' ({start}) cannot be less than 0")
     if start > end_:
         raise ValueError(f"'start' ({start}) must be less than 'end' ({end_})")
     if end_ > len(transforms):
@@ -188,22 +108,14 @@ def execute_compose(
     for _transform in transforms[start:end]:
         if threading:
             _transform = deepcopy(_transform) if isinstance(_transform, ThreadUnsafe) else _transform
-        data = evaluate_with_overrides(
-            data,
-            _transform,
-            lazy_evaluation=lazy_evaluation,
-            overrides=overrides,
-            override_keys=override_keys,
-            verbose=verbose,
+        data = apply_transform(
+            _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, log_stats=log_stats
         )
-        data = apply_transform(_transform, data, map_items, unpack_items, log_stats)
-    data = evaluate_with_overrides(
-        data, None, lazy_evaluation=lazy_evaluation, overrides=overrides, override_keys=override_keys, verbose=verbose
-    )
+    data = apply_pending_transforms(data, None, overrides, logger_name=log_stats)
     return data
 
 
-class Compose(Randomizable, InvertibleTransform):
+class Compose(Randomizable, InvertibleTransform, LazyTransform):
     """
     ``Compose`` provides the ability to chain a series of callables together in
     a sequential manner. Each transform in the sequence must take a single
@@ -272,35 +184,24 @@ class Compose(Randomizable, InvertibleTransform):
         them are called on the labels.
 
     Lazy resampling:
+
         Lazy resampling is an experimental feature introduced in 1.2. Its purpose is
         to reduce the number of resample operations that must be carried out when executing
         a pipeline of transforms. This can provide significant performance improvements in
-        terms of pipeline executing speed and memory usage, but can also significantly
+        terms of pipeline executing speed and memory usage, and can also significantly
         reduce the loss of information that occurs when performing a number of spatial
         resamples in succession.
 
-        Lazy resampling can be thought of as acting in a similar fashion to the `Affine` & `RandAffine`
-        transforms, in that they allow several spatial transform operations can be specified and carried out with
-        a single resample step. Unlike these transforms, however, lazy resampling can operate on any set of
-        transforms specified in any ordering. The user is free to mix monai transforms with transforms from other
-        libraries; lazy resampling will determine the minimum number of resample steps required in order to
-        execute the pipeline.
+        Lazy resampling can be enabled or disabled through the ``lazy`` parameter, either by
+        specifying it at initialisation time or overriding it at call time.
 
-        Lazy resampling works with monai `Dataset` classes that provide caching and persistence. However, if you
-        are implementing your own caching dataset implementation and wish to make use of lazy resampling, you
-        should ensure that you fully execute the part of the pipeline that generates the data to be cached
-        before caching it. This is quite simply done however, as shown by the following example.
+        * False (default): Don't perform any lazy resampling
+        * None: Perform lazy resampling based on the 'lazy' properties of the transform instances.
+        * True: Always perform lazy resampling if possible. This will ignore the ``lazy`` properties
+          of the transform instances
 
-        Example:
-            # run the part of the pipeline that needs to be cached
-            data = self.transform(data, end=self.post_cache_index)
-
-            # ---
-
-            # fetch the data from the cache and run the rest of the pipeline
-            data = get_data_from_my_cache(data)
-            data = self.transform(data, start=self.post_cache_index)
-
+        Please see the :ref:`Lazy Resampling topic<lazy_resampling>` for more details of this feature
+        and examples of its use.
 
     Args:
         transforms: sequence of callables.
@@ -308,24 +209,19 @@ class Compose(Randomizable, InvertibleTransform):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
-        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
-            carried out on a transform by transform basis. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible.
-            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
-            the pending operations and make the primary data up-to-date.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            perform lazy execution on lazy transforms that have their `lazy` property set to True.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
-            is True. If lazy_evaluation is False they are ignored.
-            currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
-        verbose: whether to print debugging info when lazy_evaluation=True.
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
     """
 
     def __init__(
@@ -333,29 +229,31 @@ class Compose(Randomizable, InvertibleTransform):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
-        lazy_evaluation: bool | None = None,
+        log_stats: bool | str = False,
+        lazy: bool | None = False,
         overrides: dict | None = None,
-        override_keys: Sequence[str] | None = None,
-        verbose: bool = False,
     ) -> None:
+        LazyTransform.__init__(self, lazy=lazy)
+
         if transforms is None:
             transforms = []
+
+        if not isinstance(map_items, bool):
+            raise ValueError(
+                f"Argument 'map_items' should be boolean. Got {type(map_items)}."
+                "Check brackets when passing a sequence of callables."
+            )
+
         self.transforms = ensure_tuple(transforms)
         self.map_items = map_items
         self.unpack_items = unpack_items
         self.log_stats = log_stats
         self.set_random_state(seed=get_seed())
-
-        self.lazy_evaluation = lazy_evaluation
         self.overrides = overrides
-        self.override_keys = override_keys
-        self.verbose = verbose
 
-        if self.lazy_evaluation is not None:
-            for t in self.flatten().transforms:  # TODO: test Compose of Compose/OneOf
-                if isinstance(t, LazyTransform):
-                    t.lazy_evaluation = self.lazy_evaluation
+    @LazyTransform.lazy.setter  # type: ignore
+    def lazy(self, val: bool):
+        self._lazy = val
 
     def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> Compose:
         super().set_random_state(seed=seed, state=state)
@@ -432,51 +330,56 @@ class Compose(Randomizable, InvertibleTransform):
         """Return number of transformations."""
         return len(self.flatten().transforms)
 
-    def evaluate_with_overrides(self, input_, upcoming_xform):
-        """
-        Args:
-            input_: input data to be transformed.
-            upcoming_xform: a transform used to determine whether to evaluate with override
-        """
-        return evaluate_with_overrides(
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
+        _lazy = self._lazy if lazy is None else lazy
+        result = execute_compose(
             input_,
-            upcoming_xform,
-            lazy_evaluation=self.lazy_evaluation,
-            overrides=self.overrides,
-            override_keys=self.override_keys,
-            verbose=self.verbose,
-        )
-
-    def __call__(self, input_, start=0, end=None, threading=False):
-        return execute_compose(
-            input_,
-            self.transforms,
+            transforms=self.transforms,
             start=start,
             end=end,
             map_items=self.map_items,
             unpack_items=self.unpack_items,
-            lazy_evaluation=self.lazy_evaluation,  # type: ignore
+            lazy=_lazy,
             overrides=self.overrides,
-            override_keys=self.override_keys,
             threading=threading,
             log_stats=self.log_stats,
-            verbose=self.verbose,
         )
 
+        return result
+
     def inverse(self, data):
+        self._raise_if_not_invertible(data)
+
         invertible_transforms = [t for t in self.flatten().transforms if isinstance(t, InvertibleTransform)]
         if not invertible_transforms:
             warnings.warn("inverse has been called but no invertible transforms have been supplied")
 
+        if self._lazy is True:
+            warnings.warn(
+                f"'lazy' is set to {self._lazy} but lazy execution is not supported when inverting. "
+                f"'lazy' has been overridden to False for the call to inverse"
+            )
         # loop backwards over transforms
         for t in reversed(invertible_transforms):
-            if isinstance(t, LazyTransform) and t.lazy_evaluation:
-                warnings.warn(
-                    f"inversing {t.__class__.__name__} lazily may not implemented"
-                    "please set `lazy_evaluation=False` before calling inverse."
-                )
-            data = apply_transform(t.inverse, data, self.map_items, self.unpack_items, self.log_stats)
+            data = apply_transform(
+                t.inverse, data, self.map_items, self.unpack_items, lazy=False, log_stats=self.log_stats
+            )
         return data
+
+    @staticmethod
+    def _raise_if_not_invertible(data: Any):
+        from monai.transforms.utils import has_status_keys
+
+        invertible, reasons = has_status_keys(
+            data, TraceStatusKeys.PENDING_DURING_APPLY, "Pending operations while applying an operation"
+        )
+
+        if invertible is False:
+            if reasons is not None:
+                reason_text = "\n".join(reasons)
+                raise RuntimeError(f"Unable to run inverse on 'data' for the following reasons:\n{reason_text}")
+            else:
+                raise RuntimeError("Unable to run inverse on 'data'; no reason logged in trace data")
 
 
 class OneOf(Compose):
@@ -492,24 +395,19 @@ class OneOf(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
-        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
-            carried out on a transform by transform basis.
-            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
-            the pending operations and make the primary data up-to-date.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            perform lazy execution on lazy transforms that have their `lazy` property set to True.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
-            is True. If lazy_evaluation is False they are ignored.
-            currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
-        verbose: whether to print debugging info when lazy_evaluation=True.
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
     """
 
     def __init__(
@@ -518,15 +416,11 @@ class OneOf(Compose):
         weights: Sequence[float] | float | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
-        lazy_evaluation: bool | None = None,
+        log_stats: bool | str = False,
+        lazy: bool | None = False,
         overrides: dict | None = None,
-        override_keys: Sequence[str] | None = None,
-        verbose: bool = False,
     ) -> None:
-        super().__init__(
-            transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys, verbose
-        )
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides)
         if len(self.transforms) == 0:
             weights = []
         elif weights is None or isinstance(weights, float):
@@ -537,6 +431,7 @@ class OneOf(Compose):
                 f"got {len(weights)} and {len(self.transforms)}."
             )
         self.weights = ensure_tuple(self._normalize_probabilities(weights))
+        self.log_stats = log_stats
 
     def _normalize_probabilities(self, weights):
         if len(weights) == 0:
@@ -565,21 +460,30 @@ class OneOf(Compose):
                 weights.append(w)
         return OneOf(transforms, weights, self.map_items, self.unpack_items)
 
-    def __call__(self, data, start=0, end=None, threading=False):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
+        if start != 0:
+            raise ValueError(f"OneOf requires 'start' parameter to be 0 (start set to {start})")
+        if end is not None:
+            raise ValueError(f"OneOf requires 'end' parameter to be None (end set to {end}")
+
         if len(self.transforms) == 0:
             return data
 
         index = self.R.multinomial(1, self.weights).argmax()
         _transform = self.transforms[index]
+        _lazy = self._lazy if lazy is None else lazy
 
         data = execute_compose(
             data,
             [_transform],
-            map_items=self.map_items,
-            unpack_items=self.unpack_items,
             start=start,
             end=end,
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            lazy=_lazy,
+            overrides=self.overrides,
             threading=threading,
+            log_stats=self.log_stats,
         )
 
         # if the data is a mapping (dictionary), append the OneOf transform to the end
@@ -625,24 +529,19 @@ class RandomOrder(Compose):
             defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
-        lazy_evaluation: whether to enable lazy evaluation for lazy transforms. If True, all lazy transforms will
-            be executed by accumulating changes and resampling as few times as possible. If False, transforms will be
-            carried out on a transform by transform basis.
-            A `monai.transforms.Identity[D]` transform in the pipeline will trigger the evaluation of
-            the pending operations and make the primary data up-to-date.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            perform lazy execution on lazy transforms that have their `lazy` property set to True.
         overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
             when executing a pipeline. These each parameter that is compatible with a given transform is then applied
-            to that transform before it is executed. Note that overrides are currently only applied when lazy_evaluation
-            is True. If lazy_evaluation is False they are ignored.
-            currently supported args are:
-            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``},
-            please see also :py:func:`monai.transforms.lazy.apply_transforms` for more details.
-        override_keys: this optional parameter specifies the keys to which ``overrides`` are to be applied. If
-            ``overrides`` is set, ``override_keys`` must also be set.
-        verbose: whether to print debugging info when lazy_evaluation=True.
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
     """
 
     def __init__(
@@ -650,30 +549,36 @@ class RandomOrder(Compose):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
-        lazy_evaluation: bool | None = None,
+        log_stats: bool | str = False,
+        lazy: bool | None = False,
         overrides: dict | None = None,
-        override_keys: Sequence[str] | None = None,
-        verbose: bool = False,
     ) -> None:
-        super().__init__(
-            transforms, map_items, unpack_items, log_stats, lazy_evaluation, overrides, override_keys, verbose
-        )
+        super().__init__(transforms, map_items, unpack_items, log_stats, lazy, overrides)
+        self.log_stats = log_stats
 
-    def __call__(self, input_, start=0, end=None, threading=False):
+    def __call__(self, input_, start=0, end=None, threading=False, lazy: bool | None = None):
+        if start != 0:
+            raise ValueError(f"RandomOrder requires 'start' parameter to be 0 (start set to {start})")
+        if end is not None:
+            raise ValueError(f"RandomOrder requires 'end' parameter to be None (end set to {end}")
+
         if len(self.transforms) == 0:
             return input_
+
         num = len(self.transforms)
         applied_order = self.R.permutation(range(num))
+        _lazy = self._lazy if lazy is None else lazy
 
         input_ = execute_compose(
             input_,
             [self.transforms[ind] for ind in applied_order],
-            map_items=self.map_items,
-            unpack_items=self.unpack_items,
             start=start,
             end=end,
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            lazy=_lazy,
             threading=threading,
+            log_stats=self.log_stats,
         )
 
         # if the data is a mapping (dictionary), append the RandomOrder transform to the end
@@ -708,7 +613,7 @@ class RandomOrder(Compose):
         for o in reversed(applied_order):
             if isinstance(self.transforms[o], InvertibleTransform):
                 data = apply_transform(
-                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats
+                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, log_stats=self.log_stats
                 )
         return data
 
@@ -727,14 +632,24 @@ class SomeOf(Compose):
             Defaults to `True`.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             Defaults to `False`.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. Default to `False`.
+        log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
         num_transforms: a 2-tuple, int, or None. The 2-tuple specifies the minimum and maximum (inclusive) number of
             transforms to sample at each iteration. If an int is given, the lower and upper bounds are set equal.
             None sets it to `len(transforms)`. Default to `None`.
         replace: whether to sample with replacement. Defaults to `False`.
         weights: weights to use in for sampling transforms. Will be normalized to 1. Default: None (uniform).
+        lazy: whether to enable :ref:`Lazy Resampling<lazy_resampling>` for lazy transforms. If False, transforms will
+            be carried out on a transform by transform basis. If True, all lazy transforms will be executed by
+            accumulating changes and resampling as few times as possible. If lazy is None, `Compose` will
+            perform lazy execution on lazy transforms that have their `lazy` property set to True.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
     """
 
     def __init__(
@@ -742,16 +657,18 @@ class SomeOf(Compose):
         transforms: Sequence[Callable] | Callable | None = None,
         map_items: bool = True,
         unpack_items: bool = False,
-        log_stats: bool = False,
-        *,
+        log_stats: bool | str = False,
         num_transforms: int | tuple[int, int] | None = None,
         replace: bool = False,
         weights: list[int] | None = None,
+        lazy: bool | None = False,
+        overrides: dict | None = None,
     ) -> None:
-        super().__init__(transforms, map_items, unpack_items, log_stats)
+        super().__init__(transforms, map_items, unpack_items, log_stats=log_stats, lazy=lazy, overrides=overrides)
         self.min_num_transforms, self.max_num_transforms = self._ensure_valid_num_transforms(num_transforms)
         self.replace = replace
         self.weights = self._normalize_probabilities(weights)
+        self.log_stats = log_stats
 
     def _ensure_valid_num_transforms(self, num_transforms: int | tuple[int, int] | None) -> tuple:
         if (
@@ -805,21 +722,30 @@ class SomeOf(Compose):
 
         return ensure_tuple(list(weights))
 
-    def __call__(self, data, start=0, end=None, threading=False):
+    def __call__(self, data, start=0, end=None, threading=False, lazy: bool | None = None):
+        if start != 0:
+            raise ValueError(f"SomeOf requires 'start' parameter to be 0 (start set to {start})")
+        if end is not None:
+            raise ValueError(f"SomeOf requires 'end' parameter to be None (end set to {end}")
+
         if len(self.transforms) == 0:
             return data
 
         sample_size = self.R.randint(self.min_num_transforms, self.max_num_transforms + 1)
         applied_order = self.R.choice(len(self.transforms), sample_size, replace=self.replace, p=self.weights).tolist()
+        _lazy = self._lazy if lazy is None else lazy
 
         data = execute_compose(
             data,
             [self.transforms[a] for a in applied_order],
-            map_items=self.map_items,
-            unpack_items=self.unpack_items,
             start=start,
             end=end,
+            map_items=self.map_items,
+            unpack_items=self.unpack_items,
+            lazy=_lazy,
+            overrides=self.overrides,
             threading=threading,
+            log_stats=self.log_stats,
         )
         if isinstance(data, monai.data.MetaTensor):
             self.push_transform(data, extra_info={"applied_order": applied_order})
@@ -852,10 +778,9 @@ class SomeOf(Compose):
 
         # loop backwards over transforms
         for o in reversed(applied_order):
-            transform = self.transforms[o]
-            if isinstance(transform, InvertibleTransform):
+            if isinstance(self.transforms[o], InvertibleTransform):
                 data = apply_transform(
-                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, self.log_stats
+                    self.transforms[o].inverse, data, self.map_items, self.unpack_items, log_stats=self.log_stats
                 )
 
         return data

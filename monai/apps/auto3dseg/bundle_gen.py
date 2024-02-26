@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import importlib
 import os
+import re
 import shutil
 import subprocess
 import sys
 import time
 import warnings
-from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -30,14 +30,22 @@ import torch
 from monai.apps import download_and_extract
 from monai.apps.utils import get_logger
 from monai.auto3dseg.algo_gen import Algo, AlgoGen
-from monai.auto3dseg.utils import algo_to_pickle
+from monai.auto3dseg.utils import (
+    _prepare_cmd_bcprun,
+    _prepare_cmd_default,
+    _prepare_cmd_torchrun,
+    _run_cmd_bcprun,
+    _run_cmd_torchrun,
+    algo_to_pickle,
+)
 from monai.bundle.config_parser import ConfigParser
 from monai.config import PathLike
-from monai.utils import ensure_tuple
+from monai.utils import ensure_tuple, look_up_option, run_cmd
 from monai.utils.enums import AlgoKeys
+from monai.utils.misc import MONAIEnvVars
 
 logger = get_logger(module_name=__name__)
-ALGO_HASH = os.environ.get("MONAI_ALGO_HASH", "642b1a1")
+ALGO_HASH = MONAIEnvVars.algo_hash()
 
 __all__ = ["BundleAlgo", "BundleGen"]
 
@@ -77,6 +85,8 @@ class BundleAlgo(Algo):
         self.template_path = template_path
         self.data_stats_files = ""
         self.data_list_file = ""
+        self.mlflow_tracking_uri: str | None = None
+        self.mlflow_experiment_name: str | None = None
         self.output_path = ""
         self.name = ""
         self.best_metric = None
@@ -88,7 +98,7 @@ class BundleAlgo(Algo):
             "n_devices": int(torch.cuda.device_count()),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
             "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
-            "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
+            "CMD_PREFIX": os.environ.get("CMD_PREFIX", ""),
         }
 
     def pre_check_skip_algo(self, skip_bundlegen: bool = False, skip_info: str = "") -> tuple[bool, str]:
@@ -120,6 +130,26 @@ class BundleAlgo(Algo):
                 "path_dir_data"}
         """
         self.data_list_file = data_src_cfg
+
+    def set_mlflow_tracking_uri(self, mlflow_tracking_uri: str | None) -> None:
+        """
+        Set the tracking URI for MLflow server
+
+        Args:
+            mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of
+                the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
+                the value is None.
+        """
+        self.mlflow_tracking_uri = mlflow_tracking_uri
+
+    def set_mlflow_experiment_name(self, mlflow_experiment_name: str | None) -> None:
+        """
+        Set the experiment name for MLflow server
+
+        Args:
+            mlflow_experiment_name: a string to specify the experiment name for MLflow server.
+        """
+        self.mlflow_experiment_name = mlflow_experiment_name
 
     def fill_template_config(self, data_stats_filename: str, algo_path: str, **kwargs: Any) -> dict:
         """
@@ -175,36 +205,45 @@ class BundleAlgo(Algo):
         train_py = os.path.join(self.output_path, "scripts", "train.py")
         config_dir = os.path.join(self.output_path, "configs")
 
+        config_files = []
         if os.path.isdir(config_dir):
-            base_cmd = ""
             for file in sorted(os.listdir(config_dir)):
-                if not (file.endswith("yaml") or file.endswith("json")):
-                    continue
-                base_cmd += f"{train_py} run --config_file=" if len(base_cmd) == 0 else ","
-                # Python Fire may be confused by single-quoted WindowsPath
-                config_yaml = Path(os.path.join(config_dir, file)).as_posix()
-                base_cmd += f"'{config_yaml}'"
-        cmd: str | None = self.device_setting["CMD_PREFIX"]  # type: ignore
-        # make sure cmd end with a space
-        if cmd is not None and not cmd.endswith(" "):
-            cmd += " "
-        if (int(self.device_setting["NUM_NODES"]) > 1 and self.device_setting["MN_START_METHOD"] == "bcprun") or (
-            int(self.device_setting["NUM_NODES"]) <= 1 and int(self.device_setting["n_devices"]) <= 1
-        ):
-            cmd = "python " if cmd is None else cmd
-        elif int(self.device_setting["NUM_NODES"]) > 1:
-            raise NotImplementedError(
-                f"{self.device_setting['MN_START_METHOD']} is not supported yet."
-                "Try modify BundleAlgo._create_cmd for your cluster."
+                if file.endswith("yaml") or file.endswith("json"):
+                    # Python Fire may be confused by single-quoted WindowsPath
+                    config_files.append(Path(os.path.join(config_dir, file)).as_posix())
+
+        if int(self.device_setting["NUM_NODES"]) > 1:
+            # multi-node command
+            # only bcprun is supported for now
+            try:
+                look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
+            except ValueError as err:
+                raise NotImplementedError(
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet."
+                    "Try modify BundleAlgo._create_cmd for your cluster."
+                ) from err
+
+            return (
+                _prepare_cmd_bcprun(
+                    f"{train_py} run",
+                    cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
+                    config_file=config_files,
+                    **params,
+                ),
+                "",
             )
+        elif int(self.device_setting["n_devices"]) > 1:
+            return _prepare_cmd_torchrun(f"{train_py} run", config_file=config_files, **params), ""
         else:
-            if cmd is None:
-                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
-        cmd += base_cmd
-        if params and isinstance(params, Mapping):
-            for k, v in params.items():
-                cmd += f" --{k}={v}"
-        return cmd, ""
+            return (
+                _prepare_cmd_default(
+                    f"{train_py} run",
+                    cmd_prefix=f"{self.device_setting['CMD_PREFIX']}",
+                    config_file=config_files,
+                    **params,
+                ),
+                "",
+            )
 
     def _run_cmd(self, cmd: str, devices_info: str = "") -> subprocess.CompletedProcess:
         """
@@ -216,34 +255,26 @@ class BundleAlgo(Algo):
 
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
+
+        # delete pattern "VAR=VALUE" at the beginning of the string, with optional leading/trailing whitespaces
+        cmd = re.sub(r"^\s*\w+=.*?\s+", "", cmd)
+
         if int(self.device_setting["NUM_NODES"]) > 1:
-            if self.device_setting["MN_START_METHOD"] == "bcprun":
-                cmd_list = [
-                    "bcprun",
-                    "-n",
-                    str(self.device_setting["NUM_NODES"]),
-                    "-p",
-                    str(self.device_setting["n_devices"]),
-                    "-c",
-                    cmd,
-                ]
-            else:
+            try:
+                look_up_option(self.device_setting["MN_START_METHOD"], ["bcprun"])
+            except ValueError as err:
                 raise NotImplementedError(
-                    f"{self.device_setting['MN_START_METHOD']} is not supported yet. "
+                    f"{self.device_setting['MN_START_METHOD']} is not supported yet."
                     "Try modify BundleAlgo._run_cmd for your cluster."
-                )
+                ) from err
+
+            return _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
+        elif int(self.device_setting["n_devices"]) > 1:
+            return _run_cmd_torchrun(
+                cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
+            )
         else:
-            cmd_list = cmd.split()
-
-        _idx = 0
-        for _idx, c in enumerate(cmd_list):
-            if "=" not in c:  # remove variable assignments before the command such as "OMP_NUM_THREADS=1"
-                break
-        cmd_list = cmd_list[_idx:]
-
-        logger.info(f"Launching: {' '.join(cmd_list)}")
-
-        return subprocess.run(cmd_list, env=ps_environ, check=True)
+            return run_cmd(cmd.split(), run_cmd_verbose=True, env=ps_environ, check=True)
 
     def train(
         self, train_params: None | dict = None, device_setting: None | dict = None
@@ -423,6 +454,10 @@ class BundleGen(AlgoGen):
         data_stats_filename: the path to the data stats file (generated by DataAnalyzer).
         data_src_cfg_name: the path to the data source config YAML file. The config will be in a form of
                            {"modality": "ct", "datalist": "path_to_json_datalist", "dataroot": "path_dir_data"}.
+        mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of
+            the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
+            the value is None.
+        mlfow_experiment_name: a string to specify the experiment name for MLflow server.
     .. code-block:: bash
 
         python -m monai.apps.auto3dseg BundleGen generate --data_stats_filename="../algorithms/datastats.yaml"
@@ -435,6 +470,8 @@ class BundleGen(AlgoGen):
         templates_path_or_url: str | None = None,
         data_stats_filename: str | None = None,
         data_src_cfg_name: str | None = None,
+        mlflow_tracking_uri: str | None = None,
+        mlflow_experiment_name: str | None = None,
     ):
         if algos is None or isinstance(algos, (list, tuple, str)):
             if templates_path_or_url is None:
@@ -487,6 +524,8 @@ class BundleGen(AlgoGen):
 
         self.data_stats_filename = data_stats_filename
         self.data_src_cfg_name = data_src_cfg_name
+        self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_experiment_name = mlflow_experiment_name
         self.history: list[dict] = []
 
     def set_data_stats(self, data_stats_filename: str) -> None:
@@ -515,6 +554,34 @@ class BundleGen(AlgoGen):
         """Get the data source filename"""
         return self.data_src_cfg_name
 
+    def set_mlflow_tracking_uri(self, mlflow_tracking_uri):
+        """
+        Set the tracking URI for MLflow server
+
+        Args:
+            mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of
+                the remote tracking Server; MLflow runs will be recorded locally in algorithms' model folder if
+                the value is None.
+        """
+        self.mlflow_tracking_uri = mlflow_tracking_uri
+
+    def set_mlflow_experiment_name(self, mlflow_experiment_name):
+        """
+        Set the experiment name for MLflow server
+
+        Args:
+            mlflow_experiment_name: a string to specify the experiment name for MLflow server.
+        """
+        self.mlflow_experiment_name = mlflow_experiment_name
+
+    def get_mlflow_tracking_uri(self):
+        """Get the tracking URI for MLflow server"""
+        return self.mlflow_tracking_uri
+
+    def get_mlflow_experiment_name(self):
+        """Get the experiment name for MLflow server"""
+        return self.mlflow_experiment_name
+
     def get_history(self) -> list:
         """Get the history of the bundleAlgo object with their names/identifiers"""
         return self.history
@@ -537,7 +604,7 @@ class BundleGen(AlgoGen):
                 parameters for each bundleAlgo based on gpus. Custom parameters are obtained through dummy
                 training to simulate the actual model training process and hyperparameter optimization (HPO)
                 experiments.
-            gpu_customization_specs (optinal): the dictionary to enable users overwrite the HPO settings. user can
+            gpu_customization_specs: the dictionary to enable users overwrite the HPO settings. user can
                 overwrite part of variables as follows or all of them. The structure is as follows.
             allow_skip: a switch to determine if some Algo in the default templates can be skipped based on the
                 analysis on the dataset from Auto3DSeg DataAnalyzer.
@@ -566,9 +633,13 @@ class BundleGen(AlgoGen):
             for f_id in ensure_tuple(fold_idx):
                 data_stats = self.get_data_stats()
                 data_src_cfg = self.get_data_src()
+                mlflow_tracking_uri = self.get_mlflow_tracking_uri()
+                mlflow_experiment_name = self.get_mlflow_experiment_name()
                 gen_algo = deepcopy(algo)
                 gen_algo.set_data_stats(data_stats)
                 gen_algo.set_data_source(data_src_cfg)
+                gen_algo.set_mlflow_tracking_uri(mlflow_tracking_uri)
+                gen_algo.set_mlflow_experiment_name(mlflow_experiment_name)
                 name = f"{gen_algo.name}_{f_id}"
 
                 if allow_skip:

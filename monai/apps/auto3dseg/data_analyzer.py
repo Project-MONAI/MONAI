@@ -28,7 +28,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.data import DataLoader, Dataset, partition_dataset
 from monai.data.utils import no_collation
 from monai.transforms import Compose, EnsureTyped, LoadImaged, Orientationd
-from monai.utils import StrEnum, min_version, optional_import
+from monai.utils import ImageMetaKey, StrEnum, min_version, optional_import
 from monai.utils.enums import DataStatsKeys, ImageStatsKeys
 
 
@@ -70,7 +70,7 @@ class DataAnalyzer:
             the DataAnalyzer will skip looking for labels and all label-related operations.
         hist_bins: bins to compute histogram for each image channel.
         hist_range: ranges to compute histogram for each image channel.
-        fmt: format used to save the analysis results. Defaults to "yaml".
+        fmt: format used to save the analysis results. Currently support ``"json"`` and ``"yaml"``, defaults to "yaml".
         histogram_only: whether to only compute histograms. Defaults to False.
         extra_params: other optional arguments. Currently supported arguments are :
             'allowed_shape_difference' (default 5) can be used to change the default tolerance of
@@ -161,9 +161,12 @@ class DataAnalyzer:
 
         """
 
+        if DataStatsKeys.SUMMARY not in result or DataStatsKeys.IMAGE_STATS not in result[DataStatsKeys.SUMMARY]:
+            return True
         constant_props = [result[DataStatsKeys.SUMMARY][DataStatsKeys.IMAGE_STATS][key] for key in keys]
         for prop in constant_props:
             if "stdev" in prop and np.any(prop["stdev"]):
+                logger.debug(f"summary image_stats {prop} has non-zero stdev {prop['stdev']}.")
                 return False
 
         return True
@@ -207,7 +210,7 @@ class DataAnalyzer:
             nprocs = torch.cuda.device_count()
             logger.info(f"Found {nprocs} GPUs for data analyzing!")
         if nprocs > 1:
-            tmp_ctx = get_context("forkserver")
+            tmp_ctx: Any = get_context("forkserver")
             with tmp_ctx.Manager() as manager:
                 manager_list = manager.list()
                 processes = []
@@ -242,15 +245,16 @@ class DataAnalyzer:
         if not self._check_data_uniformity([ImageStatsKeys.SPACING], result):
             logger.info("Data spacing is not completely uniform. MONAI transforms may provide unexpected result")
         if self.output_path:
+            logger.info(f"Writing data stats to {self.output_path}.")
             ConfigParser.export_config_file(
                 result, self.output_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
+            by_case_path = self.output_path.replace(f".{self.fmt}", f"_by_case.{self.fmt}")
+            if by_case_path == self.output_path:  # self.output_path not ended with self.fmt?
+                by_case_path += f".by_case.{self.fmt}"
+            logger.info(f"Writing by-case data stats to {by_case_path}, this may take a while.")
             ConfigParser.export_config_file(
-                result_bycase,
-                self.output_path.replace(".yaml", "_by_case.yaml"),
-                fmt=self.fmt,
-                default_flow_style=None,
-                sort_keys=False,
+                result_bycase, by_case_path, fmt=self.fmt, default_flow_style=None, sort_keys=False
             )
         # release memory
         if self.device.type == "cuda":
@@ -320,6 +324,9 @@ class DataAnalyzer:
         )
         result_bycase: dict[DataStatsKeys, Any] = {DataStatsKeys.SUMMARY: {}, DataStatsKeys.BY_CASE: []}
         device = self.device if self.device.type == "cpu" else torch.device("cuda", rank)
+        if device.type == "cuda" and not (torch.cuda.is_available() and torch.cuda.device_count() > 0):
+            logger.info(f"device={device} but CUDA device is not available, using CPU instead.")
+            device = torch.device("cpu")
         if not has_tqdm:
             warnings.warn("tqdm is not installed. not displaying the caching progress.")
 
@@ -327,33 +334,43 @@ class DataAnalyzer:
             batch_data = batch_data[0]
             try:
                 batch_data[self.image_key] = batch_data[self.image_key].to(device)
+                _label_argmax = False
                 if self.label_key is not None:
                     label = batch_data[self.label_key]
                     label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                    _label_argmax = True  # track if label is argmaxed
                     batch_data[self.label_key] = label.to(device)
                 d = summarizer(batch_data)
-            except BaseException:
+            except BaseException as err:
                 if "image_meta_dict" in batch_data.keys():
-                    filename = batch_data["image_meta_dict"]["filename_or_obj"]
+                    filename = batch_data["image_meta_dict"][ImageMetaKey.FILENAME_OR_OBJ]
                 else:
-                    filename = batch_data[self.image_key].meta["filename_or_obj"]
-                logger.info(f"Unable to process data {filename} on {device}.")
+                    filename = batch_data[self.image_key].meta[ImageMetaKey.FILENAME_OR_OBJ]
+                logger.info(f"Unable to process data {filename} on {device}. {err}")
                 if self.device.type == "cuda":
                     logger.info("DataAnalyzer `device` set to GPU execution hit an exception. Falling back to `cpu`.")
-                    batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
-                    if self.label_key is not None:
-                        label = batch_data[self.label_key]
-                        label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
-                        batch_data[self.label_key] = label.to("cpu")
-                    d = summarizer(batch_data)
+                    try:
+                        batch_data[self.image_key] = batch_data[self.image_key].to("cpu")
+                        if self.label_key is not None:
+                            label = batch_data[self.label_key]
+                            if not _label_argmax:
+                                label = torch.argmax(label, dim=0) if label.shape[0] > 1 else label[0]
+                            batch_data[self.label_key] = label.to("cpu")
+                        d = summarizer(batch_data)
+                    except BaseException as err:
+                        logger.info(f"Unable to process data {filename} on {device}. {err}")
+                        continue
+                else:
+                    continue
 
             stats_by_cases = {
                 DataStatsKeys.BY_CASE_IMAGE_PATH: d[DataStatsKeys.BY_CASE_IMAGE_PATH],
                 DataStatsKeys.BY_CASE_LABEL_PATH: d[DataStatsKeys.BY_CASE_LABEL_PATH],
-                DataStatsKeys.IMAGE_STATS: d[DataStatsKeys.IMAGE_STATS],
             }
+            if not self.histogram_only:
+                stats_by_cases[DataStatsKeys.IMAGE_STATS] = d[DataStatsKeys.IMAGE_STATS]
             if self.hist_bins != 0:
-                stats_by_cases.update({DataStatsKeys.IMAGE_HISTOGRAM: d[DataStatsKeys.IMAGE_HISTOGRAM]})
+                stats_by_cases[DataStatsKeys.IMAGE_HISTOGRAM] = d[DataStatsKeys.IMAGE_HISTOGRAM]
 
             if self.label_key is not None:
                 stats_by_cases.update(

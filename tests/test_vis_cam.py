@@ -67,6 +67,7 @@ TEST_CASE_3 = [
 
 
 class TestClassActivationMap(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_data, expected_shape):
         if input_data["model"] == "densenet2d":

@@ -17,16 +17,17 @@ jobs:
   versioning_dev:
     # compute versioning file from python setup.py
     # upload as artifact
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable docker build job  project-monai/monai#7450
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         # full history so that we can git describe
         with:
           ref: dev
           fetch-depth: 0
       - name: Set up Python 3.9
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
       - shell: bash
@@ -36,7 +37,7 @@ jobs:
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: _version.py
           path: build/lib/monai/_version.py
@@ -47,21 +48,22 @@ jobs:
           rm -rf {*,.[^.]*}
 
   docker_build_dev:
-    # builds projectmonai/monai:latest
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable docker build job  project-monai/monai#7450
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: dev
     - name: Download version
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: _version.py
     - name: docker_build
       shell: bash
       run: |
+        find /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         docker --version
         # get tag info for versioning
         cat _version.py
@@ -79,17 +81,17 @@ jobs:
         docker image prune -f
 
   docker_test_dockerhub:
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable self-hosted job  project-monai/monai#7039
     needs: docker_build_dev
     container:
       image: docker://projectmonai/monai:latest
       options: "--shm-size=4g --ipc=host"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, X64, docker]
     steps:
     - name: Import
       run: |
-        export CUDA_VISIBLE_DEVICES=$(python -m tests.utils | tail -n 1)
-        echo $CUDA_VISIBLE_DEVICES
+        export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=  # cpu-only
         python -c 'import monai; monai.config.print_debug_info()'
         cd /opt/monai
         ls -al

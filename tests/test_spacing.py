@@ -74,9 +74,11 @@ for device in TEST_DEVICES:
             torch.ones((1, 2, 1, 2)),  # data
             torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
             {},
-            torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
-            if USE_COMPILED
-            else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
+            (
+                torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
+                if USE_COMPILED
+                else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]])
+            ),
             *device,
         ]
     )
@@ -269,6 +271,7 @@ for d in TEST_DEVICES:
 
 @skip_if_quick
 class TestSpacingCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_spacing(
         self,
@@ -283,7 +286,7 @@ class TestSpacingCase(unittest.TestCase):
         tr = Spacing(**init_param)
         call_param = data_param.copy()
         call_param["data_array"] = img
-        res: MetaTensor = tr(**call_param)
+        res: MetaTensor = tr(**call_param)  # type: ignore
         self.assertEqual(img.device, res.device)
 
         test_resampler_lazy(tr, res, init_param=init_param, call_param=call_param)
@@ -306,7 +309,7 @@ class TestSpacingCase(unittest.TestCase):
 
         if track_meta:
             self.assertIsInstance(res, MetaTensor)
-            new_spacing = affine_to_spacing(res.affine, 3)
+            new_spacing = affine_to_spacing(res.affine, 3)  # type: ignore
             assert_allclose(new_spacing, pixdim, type_test=False)
             self.assertNotEqual(img.shape, res.shape)
             test_resampler_lazy(tr, res, init_param=init_param, call_param=call_param)

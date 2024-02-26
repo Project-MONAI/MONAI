@@ -242,6 +242,9 @@ def convert_box_to_mask(
     boxes_mask_np = np.ones((labels.shape[0],) + spatial_size, dtype=np.int16) * np.int16(bg_label)
 
     boxes_np: np.ndarray = convert_data_type(boxes, np.ndarray, dtype=np.int32)[0]
+    if np.any(boxes_np[:, spatial_dims:] > np.array(spatial_size)):
+        raise ValueError("Some boxes are larger than the image.")
+
     labels_np, *_ = convert_to_dst_type(src=labels, dst=boxes_np)
     for b in range(boxes_np.shape[0]):
         # generate a foreground mask
@@ -404,7 +407,7 @@ def rot90_boxes(
     spatial_dims: int = get_spatial_dims(boxes=boxes)
     spatial_size_ = list(ensure_tuple_rep(spatial_size, spatial_dims))
 
-    axes = ensure_tuple(axes)  # type: ignore
+    axes = ensure_tuple(axes)
 
     if len(axes) != 2:
         raise ValueError("len(axes) must be 2.")

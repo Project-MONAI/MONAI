@@ -276,7 +276,7 @@ class ImageWriter:
         # convert back at the end
         if isinstance(output_array, MetaTensor):
             output_array.applied_operations = []
-        data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
+        data_array, *_ = convert_data_type(output_array, output_type=orig_type)
         affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
         return data_array[0], affine
 

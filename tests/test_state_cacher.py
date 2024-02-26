@@ -36,6 +36,7 @@ TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
 class TestStateCacher(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_state_cacher(self, data_obj, params):
         key = "data_obj"

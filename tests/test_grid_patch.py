@@ -97,6 +97,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGridPatch(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     @SkipIfBeforePyTorchVersion((1, 11, 1))
     def test_grid_patch(self, in_type, input_parameters, image, expected):
@@ -109,7 +110,7 @@ class TestGridPatch(unittest.TestCase):
                 output_patch,
                 in_type(expected_patch),
                 type_test=False,
-                device_test=True if isinstance(in_type(expected_patch), torch.Tensor) else False,
+                device_test=bool(isinstance(in_type(expected_patch), torch.Tensor)),
             )
 
     @parameterized.expand([TEST_CASE_META_0, TEST_CASE_META_1])

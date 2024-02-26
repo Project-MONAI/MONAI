@@ -28,7 +28,7 @@ from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
-from monai.transforms.compose import Compose, OneOf
+from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform, Transform, apply_transform
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
@@ -52,6 +52,8 @@ from monai.utils import (
     PytorchPadMode,
     SplineMode,
     TraceKeys,
+    TraceStatusKeys,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -64,11 +66,17 @@ from monai.utils import (
     pytorch_after,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import (
+    convert_data_type,
+    convert_to_cupy,
+    convert_to_dst_type,
+    convert_to_numpy,
+    convert_to_tensor,
+)
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
-ndimage, _ = optional_import("scipy.ndimage")
+ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
 exposure, has_skimage = optional_import("skimage.exposure")
@@ -121,6 +129,8 @@ __all__ = [
     "sync_meta_info",
     "reset_ops_id",
     "resolves_modes",
+    "has_status_keys",
+    "distance_transform_edt",
 ]
 
 
@@ -184,7 +194,7 @@ def rescale_array(
     Args:
         arr: input array to rescale.
         minv: minimum value of target rescaled array.
-        maxv: maxmum value of target rescaled array.
+        maxv: maximum value of target rescaled array.
         dtype: if not None, convert input array to dtype before computation.
 
     """
@@ -511,7 +521,7 @@ def correct_crop_centers(
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
         valid_centers.append(int(center_i))
-    return ensure_tuple(valid_centers)  # type: ignore
+    return ensure_tuple(valid_centers)
 
 
 def generate_pos_neg_label_crop_centers(
@@ -569,7 +579,7 @@ def generate_pos_neg_label_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return ensure_tuple(centers)  # type: ignore
+    return ensure_tuple(centers)
 
 
 def generate_label_classes_crop_centers(
@@ -629,7 +639,7 @@ def generate_label_classes_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return ensure_tuple(centers)  # type: ignore
+    return ensure_tuple(centers)
 
 
 def create_grid(
@@ -943,6 +953,7 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
+@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
@@ -959,7 +970,6 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    If `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
     This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
@@ -968,8 +978,10 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-            than box size, default to `True`.
+        allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
+                the bounding boxes edges are aligned with the final box edges. Default to `True`.
+
     """
     check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
@@ -1022,11 +1034,11 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
-    cucim, has_cucim = optional_import("cucim")
+    skimage, has_cucim = optional_import("cucim.skimage")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
-        label = cucim.skimage.measure.label
+        label = skimage.measure.label
         lib = cp
     else:
         if not has_measure:
@@ -1056,7 +1068,12 @@ def get_largest_connected_component_mask(
 
 
 def remove_small_objects(
-    img: NdarrayTensor, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True
+    img: NdarrayTensor,
+    min_size: int = 64,
+    connectivity: int = 1,
+    independent_channels: bool = True,
+    by_measure: bool = False,
+    pixdim: Sequence[float] | float | np.ndarray | None = None,
 ) -> NdarrayTensor:
     """
     Use `skimage.morphology.remove_small_objects` to remove small objects from images.
@@ -1073,6 +1090,11 @@ def remove_small_objects(
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
             documentation.
         independent_channels: Whether to consider each channel independently.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
     # if all equal to one value, no need to call skimage
     if len(unique(img)) == 1:
@@ -1080,6 +1102,23 @@ def remove_small_objects(
 
     if not has_morphology:
         raise RuntimeError("Skimage required.")
+
+    if by_measure:
+        sr = len(img.shape[1:])
+        if isinstance(img, monai.data.MetaTensor):
+            _pixdim = img.pixdim
+        elif pixdim is not None:
+            _pixdim = ensure_tuple_rep(pixdim, sr)
+        else:
+            warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
+            _pixdim = (1.0,) * sr
+        voxel_volume = np.prod(np.array(_pixdim))
+        if voxel_volume == 0:
+            warnings.warn("Invalid `pixdim` value detected, set it to 1. Please verify the pixdim settings.")
+            voxel_volume = 1
+        min_size = np.ceil(min_size / voxel_volume)
+    elif pixdim is not None:
+        warnings.warn("`pixdim` is specified but not in use when computing the volume.")
 
     img_np: np.ndarray
     img_np, *_ = convert_data_type(img, np.ndarray)
@@ -1395,10 +1434,10 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
     trans_info = dict(trans_info)
     if "mode" in trans_info:
         current_mode = trans_info["mode"]
-        if current_mode[0] in _interp_modes:
-            trans_info["mode"] = [mode for _ in range(len(mode))]
-        elif current_mode in _interp_modes:
+        if isinstance(current_mode, int) or current_mode in _interp_modes:
             trans_info["mode"] = mode
+        elif isinstance(current_mode[0], int) or current_mode[0] in _interp_modes:
+            trans_info["mode"] = [mode for _ in range(len(mode))]
     if "align_corners" in trans_info:
         _align_corners = TraceKeys.NONE if align_corners is None else align_corners
         current_value = trans_info["align_corners"]
@@ -1549,6 +1588,7 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: H
         test_data: data to be used to count the number of conversions
         key: if using dictionary transforms, this key will be used to check the number of conversions.
     """
+    from monai.transforms.compose import OneOf
 
     def _get_data(obj, key):
         return obj if key is None else obj[key]
@@ -1663,7 +1703,7 @@ def print_transform_backends():
     print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
-    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+    print_color(f"Number of uncategorized: {n_uncategorized}", Colors.red)
 
 
 def convert_pad_mode(dst: NdarrayOrTensor, mode: str | None):
@@ -1706,8 +1746,8 @@ def convert_to_contiguous(
         return ascontiguousarray(data, **kwargs)
     elif isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
-    elif isinstance(data, Sequence) and not isinstance(data, bytes):
-        return [convert_to_contiguous(i, **kwargs) for i in data]  # type: ignore
+    elif isinstance(data, Sequence):
+        return type(data)(convert_to_contiguous(i, **kwargs) for i in data)  # type: ignore
     else:
         return data
 
@@ -1968,6 +2008,217 @@ def resolves_modes(
     else:
         _interp_mode = GridSampleMode(_interp_mode)
     return backend, _interp_mode, _padding_mode, _kwargs
+
+
+def check_applied_operations(entry: list | dict, status_key: str, default_message: str = "No message provided"):
+    """
+    Check the operations of a MetaTensor to determine whether there are any statuses
+    Args:
+        entry: a dictionary that may contain TraceKey.STATUS entries, or a list of such dictionaries
+        status_key: the status key to search for. This must be an entry in `TraceStatusKeys`_
+        default_message: The message to provide if no messages are provided for the given status key entry
+
+    Returns:
+        A list of status messages matching the providing status key
+
+    """
+    if isinstance(entry, list):
+        results = list()
+        for sub_entry in entry:
+            results.extend(check_applied_operations(sub_entry, status_key, default_message))
+        return results
+    else:
+        status_key_ = TraceStatusKeys(status_key)
+        if TraceKeys.STATUSES in entry:
+            if status_key_ in entry[TraceKeys.STATUSES]:
+                reason = entry[TraceKeys.STATUSES][status_key_]
+                if reason is None:
+                    return [default_message]
+                return reason if isinstance(reason, list) else [reason]
+        return []
+
+
+def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = "No message provided"):
+    """
+    Checks whether a given tensor is has a particular status key message on any of its
+    applied operations. If it doesn't, it returns the tuple `(False, None)`. If it does
+    it returns a tuple of True and a list of status messages for that status key.
+
+    Status keys are defined in :class:`TraceStatusKeys<monai.utils.enums.TraceStatusKeys>`.
+
+    This function also accepts:
+
+    * dictionaries of tensors
+    * lists or tuples of tensors
+    * list or tuples of dictionaries of tensors
+
+    In any of the above scenarios, it iterates through the collections and executes itself recursively until it is
+    operating on tensors.
+
+    Args:
+        data: a `torch.Tensor` or `MetaTensor` or collections of torch.Tensor or MetaTensor, as described above
+        status_key: the status key to look for, from `TraceStatusKeys`
+        default_message: a default message to use if the status key entry doesn't have a message set
+
+    Returns:
+        A tuple. The first entry is `False` or `True`. The second entry is the status messages that can be used for the
+        user to help debug their pipelines.
+
+    """
+    status_key_occurrences = list()
+    if isinstance(data, (list, tuple)):
+        for d in data:
+            _, reasons = has_status_keys(d, status_key, default_message)
+            if reasons is not None:
+                status_key_occurrences.extend(reasons)
+    elif isinstance(data, monai.data.MetaTensor):
+        for op in data.applied_operations:
+            status_key_occurrences.extend(check_applied_operations(op, status_key, default_message))
+    elif isinstance(data, dict):
+        for d in data.values():
+            _, reasons = has_status_keys(d, status_key, default_message)
+            if reasons is not None:
+                status_key_occurrences.extend(reasons)
+
+    if len(status_key_occurrences) > 0:
+        return False, status_key_occurrences
+    return True, None
+
+
+def distance_transform_edt(
+    img: NdarrayOrTensor,
+    sampling: None | float | list[float] = None,
+    return_distances: bool = True,
+    return_indices: bool = False,
+    distances: NdarrayOrTensor | None = None,
+    indices: NdarrayOrTensor | None = None,
+    *,
+    block_params: tuple[int, int, int] | None = None,
+    float64_distances: bool = False,
+) -> None | NdarrayOrTensor | tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    """
+    Euclidean distance transform, either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+
+    Args:
+        img: Input image on which the distance transform shall be run.
+            Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+            Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+            Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+            from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+            if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+        return_distances: Whether to calculate the distance transform.
+        return_indices: Whether to calculate the feature transform.
+        distances: An output array to store the calculated distance transform, instead of returning it.
+            `return_distances` must be True.
+        indices: An output array to store the calculated feature transform, instead of returning it. `return_indicies` must be True.
+        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look into `cuCIM`_.
+        float64_distances: This parameter is specific to cuCIM and does not exist in SciPy.
+            If True, use double precision in the distance computation (to match SciPy behavior).
+            Otherwise, single precision will be used for efficiency.
+
+    Returns:
+        distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied.
+            It will have the same shape and type as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
+            otherwise it will have dtype torch.float32. For SciPy: Will have dtype np.float64.
+        indices: The calculated feature transform. It has an image-shaped array for each dimension of the image.
+            The type will be equal to the type of the image.
+            Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
+
+    """
+    distance_transform_edt, has_cucim = optional_import(
+        "cucim.core.operations.morphology", name="distance_transform_edt"
+    )
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == "cuda"
+    if not return_distances and not return_indices:
+        raise RuntimeError("Neither return_distances nor return_indices True")
+
+    if not (img.ndim >= 3 and img.ndim <= 4):
+        raise RuntimeError("Wrong input dimensionality. Use (num_channels, H, W [,D])")
+
+    distances_original, indices_original = distances, indices
+    distances, indices = None, None
+    if use_cp:
+        distances_, indices_ = None, None
+        if return_distances:
+            dtype = torch.float64 if float64_distances else torch.float32
+            if distances is None:
+                distances = torch.zeros_like(img, dtype=dtype)  # type: ignore
+            else:
+                if not isinstance(distances, torch.Tensor) and distances.device != img.device:
+                    raise TypeError("distances must be a torch.Tensor on the same device as img")
+                if not distances.dtype == dtype:
+                    raise TypeError("distances must be a torch.Tensor of dtype float32 or float64")
+            distances_ = convert_to_cupy(distances)
+        if return_indices:
+            dtype = torch.int32
+            if indices is None:
+                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)  # type: ignore
+            else:
+                if not isinstance(indices, torch.Tensor) and indices.device != img.device:
+                    raise TypeError("indices must be a torch.Tensor on the same device as img")
+                if not indices.dtype == dtype:
+                    raise TypeError("indices must be a torch.Tensor of dtype int32")
+            indices_ = convert_to_cupy(indices)
+        img_ = convert_to_cupy(img)
+        for channel_idx in range(img_.shape[0]):
+            distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances_[channel_idx] if distances_ is not None else None,
+                indices=indices_[channel_idx] if indices_ is not None else None,
+                block_params=block_params,
+                float64_distances=float64_distances,
+            )
+    else:
+        if not has_ndimage:
+            raise RuntimeError("scipy.ndimage required if cupy is not available")
+        img_ = convert_to_numpy(img)
+        if return_distances:
+            if distances is None:
+                distances = np.zeros_like(img_, dtype=np.float64)
+            else:
+                if not isinstance(distances, np.ndarray):
+                    raise TypeError("distances must be a numpy.ndarray")
+                if not distances.dtype == np.float64:
+                    raise TypeError("distances must be a numpy.ndarray of dtype float64")
+        if return_indices:
+            if indices is None:
+                indices = np.zeros((img_.ndim,) + img_.shape, dtype=np.int32)
+            else:
+                if not isinstance(indices, np.ndarray):
+                    raise TypeError("indices must be a numpy.ndarray")
+                if not indices.dtype == np.int32:
+                    raise TypeError("indices must be a numpy.ndarray of dtype int32")
+
+        for channel_idx in range(img_.shape[0]):
+            ndimage.distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances[channel_idx] if distances is not None else None,
+                indices=indices[channel_idx] if indices is not None else None,
+            )
+
+    r_vals = []
+    if return_distances and distances_original is None:
+        r_vals.append(distances)
+    if return_indices and indices_original is None:
+        r_vals.append(indices)
+    if not r_vals:
+        return None
+    device = img.device if isinstance(img, torch.Tensor) else None
+    return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]
 
 
 if __name__ == "__main__":

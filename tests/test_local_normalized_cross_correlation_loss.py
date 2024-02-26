@@ -117,6 +117,7 @@ TEST_CASES = [
 
 
 class TestLocalNormalizedCrossCorrelationLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = LocalNormalizedCrossCorrelationLoss(**input_param).forward(**input_data)

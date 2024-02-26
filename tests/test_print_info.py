@@ -17,6 +17,7 @@ from monai.config import print_debug_info
 
 
 class TestPrintInfo(unittest.TestCase):
+
     def test_print_info(self):
         print_debug_info()
 

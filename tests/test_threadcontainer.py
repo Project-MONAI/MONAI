@@ -36,6 +36,7 @@ compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_
 
 
 class TestThreadContainer(unittest.TestCase):
+
     @SkipIfNoModule("ignite")
     def test_container(self):
         net = torch.nn.Conv2d(1, 1, 3, padding=1)

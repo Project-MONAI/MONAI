@@ -72,6 +72,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestNiftiLoadRead(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_orientation(self, array, affine, reader_param, expected):
         test_image = make_nifti_image(array, affine)
@@ -110,8 +111,7 @@ class TestNiftiLoadRead(unittest.TestCase):
         np.set_printoptions(suppress=True, precision=3)
         test_image = make_nifti_image(np.arange(64).reshape(1, 8, 8), np.diag([1.5, 1.5, 1.5, 1]))
         data = LoadImage(image_only=True, reader="NibabelReader", as_closest_canonical=False)(test_image)
-        header = data.meta
-        data = Spacing([0.8, 0.8, 0.8])(data[None], header["affine"], mode="nearest")
+        data = Spacing([0.8, 0.8, 0.8])(data[None], mode="nearest")
         original_affine = data.meta["original_affine"]
         data = Orientation("ILP")(data)
         new_affine = data.affine

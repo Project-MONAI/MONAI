@@ -471,6 +471,11 @@ Nets
 .. autoclass:: SegResNet
   :members:
 
+`SegResNetDS`
+~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS
+  :members:
+
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
@@ -694,6 +699,29 @@ Nets
 ~~~~~~~~~~~~
 .. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
    :members:
+
+`DAF3D`
+~~~~~~~~~~~~
+.. autoclass:: DAF3D
+   :members:
+
+`Quicknat`
+~~~~~~~~~~~~
+.. autoclass:: Quicknat
+   :members:
+
+`VoxelMorph`
+~~~~~~~~~~~~
+.. autoclass:: VoxelMorphUNet
+   :members:
+
+.. autoclass:: voxelmorphunet
+   :members:
+
+.. autoclass:: VoxelMorph
+   :members:
+
+.. autoclass:: voxelmorph
 
 Utilities
 ---------

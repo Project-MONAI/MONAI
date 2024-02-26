@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ClassesToIndicesd, RandCropByLabelClassesd
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
@@ -120,6 +120,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandCropByLabelClassesd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_param, input_data, expected_type, expected_shape):
         result = RandCropByLabelClassesd(**input_param)(input_data)
@@ -143,14 +144,14 @@ class TestRandCropByLabelClassesd(unittest.TestCase):
         self.assertIsInstance(expected[0]["img"], MetaTensor)
         # lazy
         cropper.set_random_state(0)
-        cropper.lazy_evaluation = True
+        cropper.lazy = True
         pending_result = cropper(input_data)
         for i, _pending_result in enumerate(pending_result):
             self.assertIsInstance(_pending_result["img"], MetaTensor)
             assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
             assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
             # only support nearest
-            result = apply_transforms(_pending_result["img"], mode="nearest", align_corners=False)[0]
+            result = apply_pending(_pending_result["img"], overrides={"mode": "nearest", "align_corners": False})[0]
             # compare
             assert_allclose(result, expected[i]["img"], rtol=1e-5)
 

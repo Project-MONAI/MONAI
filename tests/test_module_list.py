@@ -21,6 +21,7 @@ import monai
 
 
 class TestAllImport(unittest.TestCase):
+
     def test_public_api(self):
         """
         This is to check "monai.__all__" should be consistent with

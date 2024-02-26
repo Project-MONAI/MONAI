@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -23,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import DtypeLike, KeysCollection, PathLike
+from monai.config import KeysCollection, PathLike
 from monai.data.utils import (
     affine_to_spacing,
     correct_nifti_header_if_necessary,
@@ -31,7 +32,7 @@ from monai.data.utils import (
     is_supported_format,
     orientation_ras_lps,
 )
-from monai.utils import MetaKeys, SpaceKeys, TraceKeys, deprecated_arg, ensure_tuple, optional_import, require_pkg
+from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
 
 if TYPE_CHECKING:
     import itk
@@ -167,8 +168,8 @@ class ITKReader(ImageReader):
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
         reverse_indexing: whether to use a reversed spatial indexing convention for the returned data array.
-            If ``False``, the spatial indexing follows the numpy convention;
-            otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
+            If ``False``, the spatial indexing convention is reversed to be compatible with ITK;
+            otherwise, the spatial indexing follows the numpy convention. Default is ``False``.
             This option does not affect the metadata.
         series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
             This flag is checked only when loading DICOM series. Default is ``False``.
@@ -218,7 +219,7 @@ class ITKReader(ImageReader):
             data: file name or a list of file names to read,
             kwargs: additional args for `itk.imread` API, will override `self.kwargs` for existing keys.
                 More details about available args:
-                https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itkExtras.py
+                https://github.com/InsightSoftwareConsortium/ITK/blob/master/Wrapping/Generators/Python/itk/support/extras.py
 
         """
         img_ = []
@@ -230,7 +231,7 @@ class ITKReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                # https://itk.org/ITKExamples/src/IO/GDCM/ReadDICOMSeriesAndWrite3DImage
+                # https://examples.itk.org/src/io/gdcm/readdicomseriesandwrite3dimage/documentation
                 names_generator = itk.GDCMSeriesFileNames.New()
                 names_generator.SetUseSeriesDetails(True)
                 names_generator.AddSeriesRestriction("0008|0021")  # Series Date
@@ -244,6 +245,7 @@ class ITKReader(ImageReader):
                 series_identifier = series_uid[0] if not self.series_name else self.series_name
                 name = names_generator.GetFileNames(series_identifier)
 
+                name = name[0] if len(name) == 1 else name  # type: ignore
                 _obj = itk.imread(name, **kwargs_)
                 if self.series_meta:
                     _reader = itk.ImageSeriesReader.New(FileNames=name)
@@ -402,8 +404,12 @@ class PydicomReader(ImageReader):
         label_dict: label of the dicom data. If provided, it will be used when loading segmentation data.
             Keys of the dict are the classes, and values are the corresponding class number. For example:
             for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
+        fname_regex: a regular expression to match the file names when the input is a folder.
+            If provided, only the matched files will be included. For example, to include the file name
+            "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`. Default to `""`.
+            Set it to `None` to use `pydicom.misc.is_dicom` to match valid files.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
-            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
+            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html
             If the `get_data` function will be called
             (for example, when using this reader with `monai.transforms.LoadImage`), please ensure that the argument
             `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
@@ -417,6 +423,7 @@ class PydicomReader(ImageReader):
         swap_ij: bool = True,
         prune_metadata: bool = True,
         label_dict: dict | None = None,
+        fname_regex: str = "",
         **kwargs,
     ):
         super().__init__()
@@ -426,6 +433,7 @@ class PydicomReader(ImageReader):
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
         self.label_dict = label_dict
+        self.fname_regex = fname_regex
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -466,9 +474,16 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                series_slcs = glob.glob(os.path.join(name, "*"))
-                series_slcs = [slc for slc in series_slcs if "LICENSE" not in slc]
-                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
+                if self.fname_regex is not None:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
+                else:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
+                slices = []
+                for slc in series_slcs:
+                    try:
+                        slices.append(pydicom.dcmread(fp=slc, **kwargs_))
+                    except pydicom.errors.InvalidDicomError as e:
+                        warnings.warn(f"Failed to read {slc} with exception: \n{e}.", stacklevel=2)
                 img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
                     self.has_series = True
@@ -502,7 +517,7 @@ class PydicomReader(ImageReader):
                 slices.append(slc_ds)
             else:
                 warnings.warn(f"slice: {slc_ds.filename} does not have InstanceNumber tag, skip it.")
-        slices = sorted(slices, key=lambda s: s.InstanceNumber)  # type: ignore
+        slices = sorted(slices, key=lambda s: s.InstanceNumber)
 
         if len(slices) == 0:
             raise ValueError("the input does not have valid slices.")
@@ -512,19 +527,19 @@ class PydicomReader(ImageReader):
         first_array = self._get_array_data(first_slice)
         shape = first_array.shape
         spacing = getattr(first_slice, "PixelSpacing", [1.0, 1.0, 1.0])
-        pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
+        prev_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
         stack_array = [first_array]
         for idx in range(1, len(slices)):
             slc_array = self._get_array_data(slices[idx])
             slc_shape = slc_array.shape
-            slc_spacing = getattr(first_slice, "PixelSpacing", (1.0, 1.0, 1.0))
-            slc_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, float(idx)))[2]
-            if spacing != slc_spacing:
+            slc_spacing = getattr(slices[idx], "PixelSpacing", (1.0, 1.0, 1.0))
+            slc_pos = getattr(slices[idx], "ImagePositionPatient", (0.0, 0.0, float(idx)))[2]
+            if not np.allclose(slc_spacing, spacing):
                 warnings.warn(f"the list contains slices that have different spacings {spacing} and {slc_spacing}.")
             if shape != slc_shape:
                 warnings.warn(f"the list contains slices that have different shapes {shape} and {slc_shape}.")
-            average_distance += abs(pos - slc_pos)
-            pos = slc_pos
+            average_distance += abs(prev_pos - slc_pos)
+            prev_pos = slc_pos
             stack_array.append(slc_array)
 
         if len(slices) > 1:
@@ -631,7 +646,7 @@ class PydicomReader(ImageReader):
 
         if self.prune_metadata:
             prune_metadata = {}
-            for key in ["00200037", "00200032", "52009229", "52009230"]:
+            for key in ["00200037", "00200032", "00280030", "52009229", "52009230"]:
                 if key in metadata.keys():
                     prune_metadata[key] = metadata[key]
             return prune_metadata
@@ -661,7 +676,9 @@ class PydicomReader(ImageReader):
         rx, ry, rz, cx, cy, cz = metadata["00200037"]["Value"]
         # "00200032" is the tag of `ImagePositionPatient`
         sx, sy, sz = metadata["00200032"]["Value"]
-        dr, dc = metadata.get("spacing", (1.0, 1.0))[:2]
+        # "00280030" is the tag of `PixelSpacing`
+        spacing = metadata["00280030"]["Value"] if "00280030" in metadata else (1.0, 1.0)
+        dr, dc = metadata.get("spacing", spacing)[:2]
         affine[0, 0] = cx * dr
         affine[0, 1] = rx * dc
         affine[0, 3] = sx
@@ -670,7 +687,7 @@ class PydicomReader(ImageReader):
         affine[1, 3] = sy
         affine[2, 0] = cz * dr
         affine[2, 1] = rz * dc
-        affine[2, 2] = 0
+        affine[2, 2] = 1.0
         affine[2, 3] = sz
 
         # 3d
@@ -766,7 +783,8 @@ class PydicomReader(ImageReader):
             all_segs = np.zeros([*spatial_shape, n_classes])
 
         for i, (frames, description) in enumerate(self._get_frame_data(img)):
-            class_name = description.SegmentDescription
+            segment_label = getattr(description, "SegmentLabel", f"label_{i}")
+            class_name = getattr(description, "SegmentDescription", segment_label)
             if class_name not in metadata["labels"].keys():
                 metadata["labels"][class_name] = i
             class_num = metadata["labels"][class_name]
@@ -857,20 +875,17 @@ class NibabelReader(ImageReader):
 
     """
 
-    @deprecated_arg("dtype", since="1.0", msg_suffix="please modify dtype of the returned by ``get_data`` instead.")
     def __init__(
         self,
         channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
-        dtype: DtypeLike = np.float32,
         **kwargs,
     ):
         super().__init__()
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
-        self.dtype = dtype  # deprecated
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -1067,7 +1082,7 @@ class NumpyReader(ImageReader):
             img = np.load(name, allow_pickle=True, **kwargs_)
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
-                npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
+                npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys
                 for k in npz_keys:
                     img_.append(img[k])
             else:
@@ -1285,7 +1300,7 @@ class NrrdReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, *kwargs_))
+            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, **kwargs_))
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
@@ -1308,10 +1323,12 @@ class NrrdReader(ImageReader):
             header = dict(i.header)
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
-            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(header)
 
             if self.affine_lps_to_ras:
                 header = self._switch_lps_ras(header)
+            if header.get(MetaKeys.SPACE, "left-posterior-superior") == "left-posterior-superior":
+                header[MetaKeys.SPACE] = SpaceKeys.LPS  # assuming LPS if not specified
 
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
             header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
@@ -1327,7 +1344,7 @@ class NrrdReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_affine(self, img: NrrdImage) -> np.ndarray:
+    def _get_affine(self, header: dict) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -1336,8 +1353,8 @@ class NrrdReader(ImageReader):
             img: A `NrrdImage` loaded from image file
 
         """
-        direction = img.header["space directions"]
-        origin = img.header["space origin"]
+        direction = header["space directions"]
+        origin = header["space origin"]
 
         x, y = direction.shape
         affine_diam = min(x, y) + 1

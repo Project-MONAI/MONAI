@@ -18,7 +18,7 @@ import torch
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.transform import MapTransform
 from monai.utils.enums import NumpyPadMode, PytorchPadMode
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
@@ -51,6 +51,7 @@ TESTS_PENDING_MODE = [["constant", "zeros"], ["edge", "border"]]
 
 
 class PadTest(unittest.TestCase):
+
     @staticmethod
     def get_arr(shape):
         return np.random.randint(100, size=shape).astype(float)
@@ -127,18 +128,22 @@ class PadTest(unittest.TestCase):
             expected = result_non_lazy["img"] if is_map else result_non_lazy
             self.assertIsInstance(expected, MetaTensor)
             # lazy
-            pad_fn.lazy_evaluation = True
+            pad_fn.lazy = True
             pending_result = pad_fn(input_data)
             pending_result = pending_result["img"] if is_map else pending_result
             self.assertIsInstance(pending_result, MetaTensor)
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
             # TODO: mode="bilinear" may report error
-            result = apply_transforms(pending_result, mode="nearest", padding_mode=mode[1], align_corners=False)[0]
+            overrides = {"mode": "nearest", "padding_mode": mode[1], "align_corners": False}
+            result = apply_pending(pending_result, overrides=overrides)[0]
+            # lazy in constructor
+            pad_fn_lazy = self.Padder(mode=mode[0], lazy=True, **input_param)
+            self.assertTrue(pad_fn_lazy.lazy)
             # compare
             assert_allclose(result, expected, rtol=1e-5)
             if isinstance(result, MetaTensor) and not isinstance(pad_fn, MapTransform):
-                pad_fn.lazy_evaluation = False
+                pad_fn.lazy = False
                 inverted = pad_fn.inverse(result)
                 self.assertTrue((not inverted.pending_operations) and (not inverted.applied_operations))
                 self.assertEqual(inverted.shape, im.shape)
@@ -161,13 +166,14 @@ class PadTest(unittest.TestCase):
             # lazy
             pending_result = input_data
             for _func in _funcs:
-                _func.lazy_evaluation = True
+                _func.lazy = True
                 pending_result = _func(pending_result)
             pending_result = pending_result["img"] if is_map else pending_result
             self.assertIsInstance(pending_result, MetaTensor)
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
             # TODO: mode="bilinear" may report error
-            result = apply_transforms(pending_result, mode="nearest", padding_mode=mode[1], align_corners=False)[0]
+            overrides = {"mode": "nearest", "padding_mode": mode[1], "align_corners": False}
+            result = apply_pending(pending_result, overrides=overrides)[0]
             # compare
             assert_allclose(result, expected, rtol=1e-5)

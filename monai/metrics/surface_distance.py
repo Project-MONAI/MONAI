@@ -11,20 +11,13 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 import torch
 
-from monai.metrics.utils import (
-    do_metric_reduction,
-    get_mask_edges,
-    get_surface_distance,
-    ignore_background,
-    prepare_spacing,
-)
+from monai.metrics.utils import do_metric_reduction, get_edge_surface_distance, ignore_background, prepare_spacing
 from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
@@ -42,7 +35,7 @@ class SurfaceDistanceMetric(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip distance computation on the first channel of
+        include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
@@ -148,7 +141,7 @@ def compute_average_surface_distance(
             should be binarized.
         y: ground truth to compute mean the distance. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip distance computation on the first channel of
+        include_background: whether to include distance computation on the first channel of
             the predicted output. Defaults to ``False``.
         symmetric: whether to calculate the symmetric average surface distance between
             `seg_pred` and `seg_gt`. Defaults to ``False``.
@@ -173,25 +166,21 @@ def compute_average_surface_distance(
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
     batch_size, n_class = y_pred.shape[:2]
-    asd = np.empty((batch_size, n_class))
+    asd = torch.empty((batch_size, n_class), dtype=torch.float32, device=y_pred.device)
 
     img_dim = y_pred.ndim - 2
     spacing_list = prepare_spacing(spacing=spacing, batch_size=batch_size, img_dim=img_dim)
 
     for b, c in np.ndindex(batch_size, n_class):
-        (edges_pred, edges_gt) = get_mask_edges(y_pred[b, c], y[b, c])
-        if not np.any(edges_gt):
-            warnings.warn(f"the ground truth of class {c} is all 0, this may result in nan/inf distance.")
-        if not np.any(edges_pred):
-            warnings.warn(f"the prediction of class {c} is all 0, this may result in nan/inf distance.")
-        surface_distance = get_surface_distance(
-            edges_pred, edges_gt, distance_metric=distance_metric, spacing=spacing_list[b]
+        _, distances, _ = get_edge_surface_distance(
+            y_pred[b, c],
+            y[b, c],
+            distance_metric=distance_metric,
+            spacing=spacing_list[b],
+            symmetric=symmetric,
+            class_index=c,
         )
-        if symmetric:
-            surface_distance_2 = get_surface_distance(
-                edges_gt, edges_pred, distance_metric=distance_metric, spacing=spacing_list[b]
-            )
-            surface_distance = np.concatenate([surface_distance, surface_distance_2])
-        asd[b, c] = np.nan if surface_distance.shape == (0,) else surface_distance.mean()
+        surface_distance = torch.cat(distances)
+        asd[b, c] = torch.tensor(np.nan) if surface_distance.shape == (0,) else surface_distance.mean()
 
     return convert_data_type(asd, output_type=torch.Tensor, device=y_pred.device, dtype=torch.float)[0]

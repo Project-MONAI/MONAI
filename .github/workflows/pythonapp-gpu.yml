@@ -17,7 +17,8 @@ concurrency:
 
 jobs:
   GPU-quick-py3:  # GPU with full dependencies
-    if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
+    # if: ${{ github.repository == 'Project-MONAI/MONAI' && github.event.pull_request.merged != true }}
+    if: ${{ false }}  # disable self-hosted job project-monai/monai#7039
     strategy:
       matrix:
         environment:
@@ -25,7 +26,7 @@ jobs:
           - "PT110+CUDA111"
           - "PT112+CUDA118DOCKER"
           - "PT113+CUDA116"
-          - "PT114+CUDA120DOCKER"
+          - "PT210+CUDA121DOCKER"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
           - environment: PT19+CUDA114DOCKER
@@ -42,16 +43,16 @@ jobs:
           - environment: PT113+CUDA116
             pytorch: "torch==1.13.1 torchvision==0.14.1"
             base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
-          - environment: PT114+CUDA120DOCKER
-            # 23.03: 2.0.0a0+1767026
+          - environment: PT210+CUDA121DOCKER
+            # 23.08: 2.1.0a0+29c30b1
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
-            base: "nvcr.io/nvidia/pytorch:23.03-py3"
+            base: "nvcr.io/nvidia/pytorch:23.08-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
     runs-on: [self-hosted, linux, x64, common]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: apt install
       if: github.event.pull_request.merged != true
       run: |
@@ -136,6 +137,6 @@ jobs:
       shell: bash
     - name: Upload coverage
       if: ${{ github.head_ref != 'dev' && github.event.pull_request.merged != true }}
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         files: ./coverage.xml

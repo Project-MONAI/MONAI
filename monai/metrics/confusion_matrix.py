@@ -37,7 +37,7 @@ class ConfusionMatrixMetric(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip metric computation on the first channel of
+        include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
         metric_name: [``"sensitivity"``, ``"specificity"``, ``"precision"``, ``"negative predictive value"``,
             ``"miss rate"``, ``"fall out"``, ``"false discovery rate"``, ``"false omission rate"``,
@@ -143,7 +143,7 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
             The values should be binarized.
         y: ground truth to compute the metric. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip metric computation on the first channel of
+        include_background: whether to include metric computation on the first channel of
             the predicted output. Defaults to True.
 
     Raises:
@@ -152,9 +152,6 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
 
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
-
-    y = y.float()
-    y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
@@ -165,12 +162,12 @@ def get_confusion_matrix(y_pred: torch.Tensor, y: torch.Tensor, include_backgrou
     # As for classification tasks, S equals to 1.
     y_pred = y_pred.reshape(batch_size, n_class, -1)
     y = y.reshape(batch_size, n_class, -1)
-    tp = ((y_pred + y) == 2).float()
-    tn = ((y_pred + y) == 0).float()
+    tp = (y_pred + y) == 2
+    tn = (y_pred + y) == 0
 
-    tp = tp.sum(dim=[2])
-    tn = tn.sum(dim=[2])
-    p = y.sum(dim=[2])
+    tp = tp.sum(dim=[2]).float()
+    tn = tn.sum(dim=[2]).float()
+    p = y.sum(dim=[2]).float()
     n = y.shape[-1] - p
 
     fn = p - tp

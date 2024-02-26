@@ -25,9 +25,11 @@ TEST_CASE_1:
   - _target_: RandSpatialCropD
     keys: "@input_keys"
     roi_size: [76, 87, 73]
+    random_size: True
   - _target_: RandScaleCropD
     keys: "@input_keys"
     roi_scale: 0.9
+    random_size: True
   - _target_: ResizeWithPadOrCropD
     keys: "@input_keys"
     spatial_size: [32, 43, 54]

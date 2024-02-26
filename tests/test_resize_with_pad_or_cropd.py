@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCropd
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.test_resize_with_pad_or_crop import TESTS_PENDING_MODE
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
 
@@ -46,6 +46,7 @@ TEST_CASES = [
 
 
 class TestResizeWithPadOrCropd(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_data, expected_val):
         for p in TEST_NDARRAYS_ALL:
@@ -74,15 +75,18 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
             expected = padcropper(input_data)["img"]
             self.assertIsInstance(expected, MetaTensor)
             # lazy
-            padcropper.lazy_evaluation = True
+            padcropper.lazy = True
             pending_result = padcropper(input_data)["img"]
             self.assertIsInstance(pending_result, MetaTensor)
             assert_allclose(pending_result.peek_pending_affine(), expected.affine)
             assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
             # only support nearest
-            result = apply_transforms(
-                pending_result, mode="nearest", padding_mode=TESTS_PENDING_MODE[input_param["mode"]], align_corners=True
-            )[0]
+            overrides = {
+                "mode": "nearest",
+                "padding_mode": TESTS_PENDING_MODE[input_param["mode"]],
+                "align_corners": True,
+            }
+            result = apply_pending(pending_result, overrides=overrides)[0]
             # compare
             assert_allclose(result, expected, rtol=1e-5)
 

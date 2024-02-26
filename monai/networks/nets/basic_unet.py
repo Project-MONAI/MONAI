@@ -176,6 +176,7 @@ class UpCat(nn.Module):
 
 
 class BasicUNet(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int = 3,

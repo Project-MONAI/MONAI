@@ -20,6 +20,7 @@ from monai.utils import set_determinism
 
 
 class TestSSIMMetric(unittest.TestCase):
+
     def test2d_gaussian(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(2, 3, 16, 16))

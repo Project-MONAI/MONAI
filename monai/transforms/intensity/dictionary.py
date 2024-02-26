@@ -48,6 +48,7 @@ from monai.transforms.intensity.array import (
     RandKSpaceSpikeNoise,
     RandRicianNoise,
     RandScaleIntensity,
+    RandScaleIntensityFixedMean,
     RandShiftIntensity,
     RandStdShiftIntensity,
     SavitzkyGolaySmooth,
@@ -108,6 +109,9 @@ __all__ = [
     "StdShiftIntensityDict",
     "RandScaleIntensityD",
     "RandScaleIntensityDict",
+    "RandScaleIntensityFixedMeand",
+    "RandScaleIntensityFixedMeanDict",
+    "RandScaleIntensityFixedMeanD",
     "RandStdShiftIntensityD",
     "RandStdShiftIntensityDict",
     "RandBiasFieldD",
@@ -369,6 +373,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         prob: float = 0.1,
+        channel_wise: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         """
@@ -395,6 +400,8 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 used to extract the factor value is `factor_key` is not None.
             prob: probability of shift.
                 (Default 0.1, with 10% probability it returns an array shifted intensity.)
+            channel_wise: if True, shift intensity on each channel separately. For each channel, a random offset will be chosen.
+                Please ensure that the first dimension represents the channel of the image if True.
             allow_missing_keys: don't raise exception if key is missing.
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -405,7 +412,7 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
         if len(self.keys) != len(self.meta_keys):
             raise ValueError("meta_keys should have the same length as keys.")
         self.meta_key_postfix = ensure_tuple_rep(meta_key_postfix, len(self.keys))
-        self.shifter = RandShiftIntensity(offsets=offsets, safe=safe, prob=1.0)
+        self.shifter = RandShiftIntensity(offsets=offsets, safe=safe, prob=1.0, channel_wise=channel_wise)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -422,8 +429,15 @@ class RandShiftIntensityd(RandomizableTransform, MapTransform):
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
             return d
 
+        # expect all the specified keys have same spatial shape and share same random holes
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
+
         # all the keys share the same random shift factor
-        self.shifter.randomize(None)
+        self.shifter.randomize(d[first_key])
         for key, factor_key, meta_key, meta_key_postfix in self.key_iterator(
             d, self.factor_key, self.meta_keys, self.meta_key_postfix
         ):
@@ -582,6 +596,7 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         factors: tuple[float, float] | float,
         prob: float = 0.1,
+        channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
     ) -> None:
@@ -593,17 +608,91 @@ class RandScaleIntensityd(RandomizableTransform, MapTransform):
                 if single number, factor value is picked from (-factors, factors).
             prob: probability of scale.
                 (Default 0.1, with 10% probability it returns a scaled array.)
+            channel_wise: if True, scale on each channel separately. Please ensure
+                that the first dimension represents the channel of the image if True.
             dtype: output data type, if None, same as input image. defaults to float32.
             allow_missing_keys: don't raise exception if key is missing.
 
         """
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0)
+        self.scaler = RandScaleIntensity(factors=factors, dtype=dtype, prob=1.0, channel_wise=channel_wise)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
     ) -> RandScaleIntensityd:
+        super().set_random_state(seed, state)
+        self.scaler.set_random_state(seed, state)
+        return self
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        self.randomize(None)
+        if not self._do_transform:
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
+
+        # expect all the specified keys have same spatial shape and share same random holes
+        first_key: Hashable = self.first_key(d)
+        if first_key == ():
+            for key in self.key_iterator(d):
+                d[key] = convert_to_tensor(d[key], track_meta=get_track_meta())
+            return d
+
+        # all the keys share the same random scale factor
+        self.scaler.randomize(d[first_key])
+        for key in self.key_iterator(d):
+            d[key] = self.scaler(d[key], randomize=False)
+        return d
+
+
+class RandScaleIntensityFixedMeand(RandomizableTransform, MapTransform):
+    """
+    Dictionary-based version :py:class:`monai.transforms.RandScaleIntensity`.
+    Subtract the mean intensity before scaling with `factor`, then add the same value after scaling
+    to ensure that the output has the same mean as the input.
+    """
+
+    backend = RandScaleIntensityFixedMean.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        factors: Sequence[float] | float,
+        fixed_mean: bool = True,
+        preserve_range: bool = False,
+        prob: float = 0.1,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            factors: factor range to randomly scale by ``v = v * (1 + factor)``.
+                if single number, factor value is picked from (-factors, factors).
+            preserve_range: clips the output array/tensor to the range of the input array/tensor
+            fixed_mean: subtract the mean intensity before scaling with `factor`, then add the same value after scaling
+                to ensure that the output has the same mean as the input.
+            channel_wise: if True, scale on each channel separately. `preserve_range` and `fixed_mean` are also applied
+            on each channel separately if `channel_wise` is True. Please ensure that the first dimension represents the
+            channel of the image if True.
+            dtype: output data type, if None, same as input image. defaults to float32.
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        MapTransform.__init__(self, keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+        self.fixed_mean = fixed_mean
+        self.preserve_range = preserve_range
+        self.scaler = RandScaleIntensityFixedMean(
+            factors=factors, fixed_mean=self.fixed_mean, preserve_range=preserve_range, dtype=dtype, prob=1.0
+        )
+
+    def set_random_state(
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandScaleIntensityFixedMeand:
         super().set_random_state(seed, state)
         self.scaler.set_random_state(seed, state)
         return self
@@ -798,7 +887,7 @@ class ScaleIntensityRanged(MapTransform):
 class AdjustContrastd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AdjustContrast`.
-    Changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+    Changes image intensity with gamma transform. Each pixel/voxel intensity is updated as:
 
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
@@ -806,14 +895,32 @@ class AdjustContrastd(MapTransform):
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         gamma: gamma value to adjust the contrast as function.
+        invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
+            values with -1 before the gamma transform and again after the gamma transform. This behaviour is mimicked
+            from `nnU-Net <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
+        retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
+            ensure that the output intensity distribution has the same mean and standard deviation as the intensity
+            distribution of the input. This behaviour is mimicked from `nnU-Net
+            <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
     backend = AdjustContrast.backend
 
-    def __init__(self, keys: KeysCollection, gamma: float, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self,
+        keys: KeysCollection,
+        gamma: float,
+        invert_image: bool = False,
+        retain_stats: bool = False,
+        allow_missing_keys: bool = False,
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
-        self.adjuster = AdjustContrast(gamma)
+        self.adjuster = AdjustContrast(gamma, invert_image, retain_stats)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
@@ -825,7 +932,7 @@ class AdjustContrastd(MapTransform):
 class RandAdjustContrastd(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandAdjustContrast`.
-    Randomly changes image intensity by gamma. Each pixel/voxel intensity is updated as:
+    Randomly changes image intensity with gamma transform. Each pixel/voxel intensity is updated as:
 
         `x = ((x - min) / intensity_range) ^ gamma * intensity_range + min`
 
@@ -835,6 +942,17 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         prob: Probability of adjustment.
         gamma: Range of gamma values.
             If single number, value is picked from (0.5, gamma), default is (0.5, 4.5).
+        invert_image: whether to invert the image before applying gamma augmentation. If True, multiply all intensity
+            values with -1 before the gamma transform and again after the gamma transform. This behaviour is mimicked
+            from `nnU-Net <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
+        retain_stats: if True, applies a scaling factor and an offset to all intensity values after gamma transform to
+            ensure that the output intensity distribution has the same mean and standard deviation as the intensity
+            distribution of the input. This behaviour is mimicked from `nnU-Net
+            <https://www.nature.com/articles/s41592-020-01008-z>`_, specifically `this
+            <https://github.com/MIC-DKFZ/batchgenerators/blob/7fb802b28b045b21346b197735d64f12fbb070aa/batchgenerators/augmentations/color_augmentations.py#L107>`_
+            function.
         allow_missing_keys: don't raise exception if key is missing.
     """
 
@@ -845,11 +963,14 @@ class RandAdjustContrastd(RandomizableTransform, MapTransform):
         keys: KeysCollection,
         prob: float = 0.1,
         gamma: tuple[float, float] | float = (0.5, 4.5),
+        invert_image: bool = False,
+        retain_stats: bool = False,
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0)
+        self.adjuster = RandAdjustContrast(gamma=gamma, prob=1.0, invert_image=invert_image, retain_stats=retain_stats)
+        self.invert_image = invert_image
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -1801,6 +1922,7 @@ RandStdShiftIntensityD = RandStdShiftIntensityDict = RandStdShiftIntensityd
 RandBiasFieldD = RandBiasFieldDict = RandBiasFieldd
 ScaleIntensityD = ScaleIntensityDict = ScaleIntensityd
 RandScaleIntensityD = RandScaleIntensityDict = RandScaleIntensityd
+RandScaleIntensityFixedMeanD = RandScaleIntensityFixedMeanDict = RandScaleIntensityFixedMeand
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged

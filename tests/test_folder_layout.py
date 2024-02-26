@@ -60,6 +60,7 @@ TEST_CASES = [
 
 
 class TestFolderLayout(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_value(self, con_params, f_params, expected):
         fname = FolderLayout(**con_params).filename(**f_params)

@@ -58,11 +58,11 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     {
         # all the recursively parsed config items
-        "transform#1": {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
-        "transform#1#_target_": "RandTorchVisiond",
-        "transform#1#keys": "image",
-        "transform#1#name": "ColorJitter",
-        "transform#1#brightness": 0.25,
+        "transform::1": {"_target_": "RandTorchVisiond", "keys": "image", "name": "ColorJitter", "brightness": 0.25},
+        "transform#1::_target_": "RandTorchVisiond",
+        "transform::1::keys": "image",
+        "transform::1#name": "ColorJitter",
+        "transform::1::brightness": 0.25,
     },
     "transform#1",
     RandTorchVisiond,
@@ -70,12 +70,14 @@ TEST_CASE_3 = [
 
 
 class TestReferenceResolver(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
     def test_resolve(self, configs, expected_id, output_type):
         locator = ComponentLocator()
         resolver = ReferenceResolver()
         # add items to resolver
         for k, v in configs.items():
+            k = k.replace("#", "::")
             if ConfigComponent.is_instantiable(v):
                 resolver.add_item(ConfigComponent(config=v, id=k, locator=locator))
             elif ConfigExpression.is_expression(v):

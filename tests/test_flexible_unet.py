@@ -35,11 +35,12 @@ PIL, has_pil = optional_import("PIL")
 
 
 class DummyEncoder(BaseEncoder):
+
     @classmethod
     def get_encoder_parameters(cls):
         basic_dict = {"spatial_dims": 2, "in_channels": 3, "pretrained": False}
         param_dict_list = [basic_dict]
-        for key in basic_dict:
+        for key in basic_dict.keys():
             cur_dict = basic_dict.copy()
             del cur_dict[key]
             param_dict_list.append(cur_dict)
@@ -364,6 +365,7 @@ CASE_REGISTER_ENCODER = ["EfficientNetEncoder", "monai.networks.nets.EfficientNe
 
 @skip_if_quick
 class TestFLEXIBLEUNET(unittest.TestCase):
+
     @parameterized.expand(CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -404,6 +406,7 @@ class TestFLEXIBLEUNET(unittest.TestCase):
 
 
 class TestFlexUNetEncoderRegister(unittest.TestCase):
+
     @parameterized.expand(CASE_REGISTER_ENCODER)
     def test_regist(self, encoder):
         tmp_backbone = FlexUNetEncoderRegister()

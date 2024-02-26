@@ -32,6 +32,7 @@ TESTS.append([coil_sens_model, refinement_model, num_cascades, (2, 3, 50, 50, 2)
 
 
 class TestVarNet(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, coil_sens_model, refinement_model, num_cascades, input_shape, expected_shape):
         net = VariationalNetworkModel(coil_sens_model, refinement_model, num_cascades).to(device)

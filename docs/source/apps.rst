@@ -248,7 +248,7 @@ FastMRIReader
 ~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
 
-`auto3dseg`
+`Auto3DSeg`
 -----------
 .. automodule:: monai.apps.auto3dseg
   :members:

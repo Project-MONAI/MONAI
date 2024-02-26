@@ -29,7 +29,6 @@ from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage
 from monai.transforms.transform import MapTransform, Transform
 from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
-from monai.utils.deprecate_utils import deprecated_arg_default
 from monai.utils.enums import PostFix
 
 __all__ = ["LoadImaged", "LoadImageD", "LoadImageDict", "SaveImaged", "SaveImageD", "SaveImageDict"]
@@ -72,7 +71,6 @@ class LoadImaged(MapTransform):
 
     """
 
-    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -81,7 +79,7 @@ class LoadImaged(MapTransform):
         meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
-        image_only: bool = False,
+        image_only: bool = True,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
         prune_meta_pattern: str | None = None,
@@ -200,7 +198,7 @@ class SaveImaged(MapTransform):
                     Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_postfix: a string appended to all output file names, default to ``trans``.
                         Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
-        output_ext: output file extension name, available extensions: ``.nii.gz``, ``.nii``, ``.png``.
+        output_ext: output file extension name, available extensions: ``.nii.gz``, ``.nii``, ``.png``, ``.dcm``.
                     Handled by ``folder_layout`` instead, if ``folder_layout`` not ``None``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the ``spatial_shape`` (and ``original_affine``) from metadata.
@@ -259,7 +257,6 @@ class SaveImaged(MapTransform):
             to where the input image has been saved.
     """
 
-    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         keys: KeysCollection,
@@ -268,7 +265,7 @@ class SaveImaged(MapTransform):
         output_dir: Path | str = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
-        resample: bool = True,
+        resample: bool = False,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
         scale: int | None = None,

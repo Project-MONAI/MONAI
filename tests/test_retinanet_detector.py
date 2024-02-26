@@ -93,6 +93,7 @@ TEST_CASES_TS = [TEST_CASE_1]
 
 
 class NaiveNetwork(torch.nn.Module):
+
     def __init__(self, spatial_dims, num_classes, **kwargs):
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -114,6 +115,7 @@ class NaiveNetwork(torch.nn.Module):
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 @skip_if_quick
 class TestRetinaNetDetector(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_retina_detector_resnet_backbone_shape(self, input_param, input_shape):
         returned_layers = [1]

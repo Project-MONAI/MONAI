@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Affine, Resize
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from monai.utils import optional_import
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, test_local_inversion
@@ -167,6 +167,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestAffine(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_affine(self, input_param, input_data, expected_val):
         input_copy = deepcopy(input_data["img"])
@@ -199,6 +200,7 @@ class TestAffine(unittest.TestCase):
 
 @unittest.skipUnless(optional_import("scipy")[1], "Requires scipy library.")
 class TestAffineConsistency(unittest.TestCase):
+
     @parameterized.expand([[7], [8], [9]])
     def test_affine_resize(self, s):
         """s"""
@@ -208,16 +210,18 @@ class TestAffineConsistency(unittest.TestCase):
 
         def method_0(im, ac):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=sp_size)
-            xform.lazy_evaluation = True
+            xform.lazy = True
             out = xform(im)
-            out = apply_transforms(out, padding_mode="border", align_corners=ac)[0]
+            overrides = {"padding_mode": "border", "align_corners": ac}
+            out = apply_pending(out, overrides=overrides)[0]
             return out
 
         def method_1(im, ac):
             xform = Affine(align_corners=ac, affine=mat, image_only=True, spatial_size=sp_size)
-            xform.lazy_evaluation = True
+            xform.lazy = True
             out = xform(im)
-            out = apply_transforms(out, mode=1, padding_mode="nearest", align_corners=ac)[0]
+            overrides = {"mode": 1, "padding_mode": "nearest", "align_corners": ac}
+            out = apply_pending(out, overrides=overrides)[0]
             return out
 
         def method_2(im, ac):

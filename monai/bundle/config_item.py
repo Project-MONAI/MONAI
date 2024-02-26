@@ -18,6 +18,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from importlib import import_module
+from pprint import pformat
 from typing import Any
 
 from monai.bundle.utils import EXPR_KEY
@@ -157,7 +158,7 @@ class ConfigItem:
         return self.config
 
     def __repr__(self) -> str:
-        return str(self.config)
+        return f"{type(self).__name__}: \n{pformat(self.config)}"
 
 
 class ConfigComponent(ConfigItem, Instantiable):
@@ -180,7 +181,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         - ``"_mode_"`` (optional): operating mode for invoking the callable ``component`` defined by ``"_target_"``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
     Other fields in the config content are input arguments to the python module.
@@ -291,7 +292,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         try:
             return instantiate(modname, mode, **args)
         except Exception as e:
-            raise RuntimeError(f"Failed to instantiate {self}.") from e
+            raise RuntimeError(f"Failed to instantiate {self}") from e
 
 
 class ConfigExpression(ConfigItem):
@@ -372,7 +373,10 @@ class ConfigExpression(ConfigItem):
                     warnings.warn(f"the new global variable `{k}` conflicts with `self.globals`, override it.")
                 globals_[k] = v
         if not run_debug:
-            return eval(value[len(self.prefix) :], globals_, locals)
+            try:
+                return eval(value[len(self.prefix) :], globals_, locals)
+            except Exception as e:
+                raise RuntimeError(f"Failed to evaluate {self}") from e
         warnings.warn(
             f"\n\npdb: value={value}\n"
             f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"

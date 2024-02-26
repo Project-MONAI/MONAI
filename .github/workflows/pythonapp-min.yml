@@ -28,9 +28,9 @@ jobs:
         os: [windows-latest, macOS-latest, ubuntu-latest]
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.8'
     - name: Prepare pip wheel
@@ -44,7 +44,7 @@ jobs:
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -74,9 +74,9 @@ jobs:
         python-version: ['3.8', '3.9', '3.10', '3.11']
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Prepare pip wheel
@@ -90,7 +90,7 @@ jobs:
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -119,9 +119,9 @@ jobs:
         pytorch-version: ['1.9.1', '1.10.2', '1.11.0', '1.12.1', '1.13', 'latest']
     timeout-minutes: 40
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.8'
     - name: Prepare pip wheel
@@ -135,7 +135,7 @@ jobs:
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}

@@ -31,6 +31,7 @@ VALID_CASES = [
 
 
 class TestRandZoomd(NumpyImageTestCase2D):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, min_zoom, max_zoom, mode, align_corners, keep_size):
         key = "img"
@@ -58,7 +59,7 @@ class TestRandZoomd(NumpyImageTestCase2D):
                 test_resampler_lazy(
                     random_zoom, zoomed, init_param, call_param, key, seed=1234, atol=1e-4 if USE_COMPILED else 1e-6
                 )
-                random_zoom.lazy_evaluation = False
+                random_zoom.lazy = False
 
             test_local_inversion(random_zoom, zoomed, {key: im}, key)
             expected = [

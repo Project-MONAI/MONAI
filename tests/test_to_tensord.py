@@ -34,6 +34,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestToTensord(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_array_input(self, test_data, expected_shape):
         test_data = {"img": test_data}

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import warnings
 from copy import deepcopy
 from time import sleep
@@ -31,7 +30,7 @@ from monai.auto3dseg.utils import algo_to_pickle
 from monai.bundle import ConfigParser
 from monai.transforms import SaveImage
 from monai.utils import AlgoKeys, has_option, look_up_option, optional_import
-from monai.utils.misc import check_kwargs_exist_in_class_init
+from monai.utils.misc import check_kwargs_exist_in_class_init, run_cmd
 
 logger = get_logger(module_name=__name__)
 
@@ -84,6 +83,9 @@ class AutoRunner:
             zip url will be downloaded and extracted into the work_dir.
         allow_skip: a switch passed to BundleGen process which determines if some Algo in the default templates
             can be skipped based on the analysis on the dataset from Auto3DSeg DataAnalyzer.
+        mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of the remote
+            tracking Server; MLflow runs will be recorded locally in algorithms' model folder if the value is None.
+        mlflow_experiment_name: the name of the experiment in MLflow server.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -210,23 +212,15 @@ class AutoRunner:
         not_use_cache: bool = False,
         templates_path_or_url: str | None = None,
         allow_skip: bool = True,
+        mlflow_tracking_uri: str | None = None,
+        mlflow_experiment_name: str | None = None,
         **kwargs: Any,
     ):
-        logger.info(f"AutoRunner using work directory {work_dir}")
-        os.makedirs(work_dir, exist_ok=True)
-
-        self.work_dir = os.path.abspath(work_dir)
-        self.data_src_cfg = dict()
-        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
-        self.algos = algos
-        self.templates_path_or_url = templates_path_or_url
-        self.allow_skip = allow_skip
-        self.kwargs = deepcopy(kwargs)
-
-        if input is None and os.path.isfile(self.data_src_cfg_name):
-            input = self.data_src_cfg_name
+        if input is None and os.path.isfile(os.path.join(os.path.abspath(work_dir), "input.yaml")):
+            input = os.path.join(os.path.abspath(work_dir), "input.yaml")
             logger.info(f"Input config is not provided, using the default {input}")
 
+        self.data_src_cfg = dict()
         if isinstance(input, dict):
             self.data_src_cfg = input
         elif isinstance(input, str) and os.path.isfile(input):
@@ -234,6 +228,58 @@ class AutoRunner:
             logger.info(f"Loading input config {input}")
         else:
             raise ValueError(f"{input} is not a valid file or dict")
+
+        if "work_dir" in self.data_src_cfg:  # override from config
+            work_dir = self.data_src_cfg["work_dir"]
+        self.work_dir = os.path.abspath(work_dir)
+
+        logger.info(f"AutoRunner using work directory {self.work_dir}")
+        os.makedirs(self.work_dir, exist_ok=True)
+        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+
+        self.algos = algos
+        self.templates_path_or_url = templates_path_or_url
+        self.allow_skip = allow_skip
+
+        # cache.yaml
+        self.not_use_cache = not_use_cache
+        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
+        self.cache = self.read_cache()
+        self.export_cache()
+
+        # determine if we need to analyze, algo_gen or train from cache, unless manually provided
+        self.analyze = not self.cache["analyze"] if analyze is None else analyze
+        self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
+        self.train = train
+        self.ensemble = ensemble  # last step, no need to check
+        self.hpo = hpo and has_nni
+        self.hpo_backend = hpo_backend
+        self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_experiment_name = mlflow_experiment_name
+        self.kwargs = deepcopy(kwargs)
+
+        # parse input config for AutoRunner param overrides
+        for param in [
+            "analyze",
+            "algo_gen",
+            "train",
+            "hpo",
+            "ensemble",
+            "not_use_cache",
+            "allow_skip",
+        ]:  # override from config
+            if param in self.data_src_cfg and isinstance(self.data_src_cfg[param], bool):
+                setattr(self, param, self.data_src_cfg[param])  # e.g. self.analyze = self.data_src_cfg["analyze"]
+
+        for param in [
+            "algos",
+            "hpo_backend",
+            "templates_path_or_url",
+            "mlflow_tracking_uri",
+            "mlflow_experiment_name",
+        ]:  # override from config
+            if param in self.data_src_cfg:
+                setattr(self, param, self.data_src_cfg[param])  # e.g. self.algos = self.data_src_cfg["algos"]
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
@@ -253,6 +299,8 @@ class AutoRunner:
 
         # inspect and update folds
         num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
+        if "num_fold" in self.data_src_cfg:
+            num_fold = int(self.data_src_cfg["num_fold"])  # override from config
 
         self.data_src_cfg["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
         ConfigParser.export_config_file(
@@ -262,17 +310,6 @@ class AutoRunner:
         self.dataroot = self.data_src_cfg["dataroot"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
         self.datalist_filename = datalist_filename
-
-        self.not_use_cache = not_use_cache
-        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
-        self.cache = self.read_cache()
-        self.export_cache()
-
-        # determine if we need to analyze, algo_gen or train from cache, unless manually provided
-        self.analyze = not self.cache["analyze"] if analyze is None else analyze
-        self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
-        self.train = train
-        self.ensemble = ensemble  # last step, no need to check
 
         self.set_training_params()
         self.set_device_info()
@@ -285,12 +322,15 @@ class AutoRunner:
         self.gpu_customization_specs: dict[str, Any] = {}
 
         # hpo
-        if hpo_backend.lower() != "nni":
+        if self.hpo_backend.lower() != "nni":
             raise NotImplementedError("HPOGen backend only supports NNI")
-        self.hpo = hpo and has_nni
+        self.hpo = self.hpo and has_nni
         self.set_hpo_params()
         self.search_space: dict[str, dict[str, Any]] = {}
         self.hpo_tasks = 0
+
+        if "sigmoid" not in self.kwargs and "sigmoid" in self.data_src_cfg:
+            self.kwargs["sigmoid"] = self.data_src_cfg["sigmoid"]
 
     def read_cache(self):
         """
@@ -405,7 +445,7 @@ class AutoRunner:
 
     def set_gpu_customization(
         self, gpu_customization: bool = False, gpu_customization_specs: dict[str, Any] | None = None
-    ) -> None:
+    ) -> AutoRunner:
         """
         Set options for GPU-based parameter customization/optimization.
 
@@ -440,7 +480,9 @@ class AutoRunner:
         if gpu_customization_specs is not None:
             self.gpu_customization_specs = gpu_customization_specs
 
-    def set_num_fold(self, num_fold: int = 5) -> None:
+        return self
+
+    def set_num_fold(self, num_fold: int = 5) -> AutoRunner:
         """
         Set the number of cross validation folds for all algos.
 
@@ -452,7 +494,9 @@ class AutoRunner:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
         self.num_fold = num_fold
 
-    def set_training_params(self, params: dict[str, Any] | None = None) -> None:
+        return self
+
+    def set_training_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set the training params for all algos.
 
@@ -472,13 +516,15 @@ class AutoRunner:
                 DeprecationWarning,
             )
 
+        return self
+
     def set_device_info(
         self,
         cuda_visible_devices: list[int] | str | None = None,
         num_nodes: int | None = None,
         mn_start_method: str | None = None,
         cmd_prefix: str | None = None,
-    ) -> None:
+    ) -> AutoRunner:
         """
         Set the device related info
 
@@ -523,13 +569,15 @@ class AutoRunner:
         self.device_setting["MN_START_METHOD"] = mn_start_method
 
         if cmd_prefix is None:
-            cmd_prefix = os.environ.get("CMD_PREFIX")
+            cmd_prefix = os.environ.get("CMD_PREFIX", "")
         self.device_setting["CMD_PREFIX"] = cmd_prefix
 
         if cmd_prefix is not None:
             logger.info(f"Using user defined command running prefix {cmd_prefix}, will override other settings")
 
-    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
+        return self
+
+    def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> AutoRunner:
         """
         Set the bundle ensemble method name and parameters for save image transform parameters.
 
@@ -544,7 +592,9 @@ class AutoRunner:
         )
         self.kwargs.update(kwargs)
 
-    def set_image_save_transform(self, **kwargs: Any) -> None:
+        return self
+
+    def set_image_save_transform(self, **kwargs: Any) -> AutoRunner:
         """
         Set the ensemble output transform.
 
@@ -563,7 +613,9 @@ class AutoRunner:
                 "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
             )
 
-    def set_prediction_params(self, params: dict[str, Any] | None = None) -> None:
+        return self
+
+    def set_prediction_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set the prediction params for all algos.
 
@@ -579,7 +631,9 @@ class AutoRunner:
         """
         self.pred_params = deepcopy(params) if params is not None else {}
 
-    def set_analyze_params(self, params: dict[str, Any] | None = None) -> None:
+        return self
+
+    def set_analyze_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set the data analysis extra params.
 
@@ -593,7 +647,9 @@ class AutoRunner:
         else:
             self.analyze_params = deepcopy(params)
 
-    def set_hpo_params(self, params: dict[str, Any] | None = None) -> None:
+        return self
+
+    def set_hpo_params(self, params: dict[str, Any] | None = None) -> AutoRunner:
         """
         Set parameters for the HPO module and the algos before the training. It will attempt to (1) override bundle
         templates with the key-value pairs in ``params`` (2) change the config of the HPO module (e.g. NNI) if the
@@ -619,7 +675,9 @@ class AutoRunner:
         """
         self.hpo_params = self.train_params if params is None else params
 
-    def set_nni_search_space(self, search_space):
+        return self
+
+    def set_nni_search_space(self, search_space: dict[str, Any]) -> AutoRunner:
         """
         Set the search space for NNI parameter search.
 
@@ -635,6 +693,8 @@ class AutoRunner:
 
         self.search_space = search_space
         self.hpo_tasks = value_combinations
+
+        return self
 
     def _train_algo_in_sequence(self, history: list[dict[str, Any]]) -> None:
         """
@@ -716,7 +776,7 @@ class AutoRunner:
                 logger.info(f"AutoRunner HPO is in dry-run mode. Please manually launch: {cmd}")
                 continue
 
-            subprocess.run(cmd.split(), check=True)
+            run_cmd(cmd.split(), check=True)
 
             n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
             while n_trainings - last_total_tasks < max_trial:
@@ -724,7 +784,7 @@ class AutoRunner:
                 n_trainings = len(import_bundle_algo_history(self.work_dir, only_trained=True))
 
             cmd = "nnictl stop --all"
-            subprocess.run(cmd.split(), check=True)
+            run_cmd(cmd.split(), check=True)
             logger.info(f"NNI completes HPO on {name}")
             last_total_tasks = n_trainings
 
@@ -761,6 +821,8 @@ class AutoRunner:
                 templates_path_or_url=self.templates_path_or_url,
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
+                mlflow_tracking_uri=self.mlflow_tracking_uri,
+                mlflow_experiment_name=self.mlflow_experiment_name,
             )
 
             if self.gpu_customization:

@@ -43,6 +43,7 @@ KEYS = ["image", "label"]
 
 
 class TestInvertd(unittest.TestCase):
+
     def test_invert(self):
         set_determinism(seed=0)
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107, noise_max=100))
@@ -58,7 +59,7 @@ class TestInvertd(unittest.TestCase):
                 RandRotate90d(KEYS, prob=0, spatial_axes=(1, 2)),
                 RandZoomd(KEYS, prob=0.5, min_zoom=0.5, max_zoom=1.1, keep_size=True),
                 RandRotated(KEYS, prob=0.5, range_x=np.pi, mode="bilinear", align_corners=True, dtype=np.float64),
-                RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode="nearest"),
+                RandAffined(KEYS, prob=0.5, rotate_range=np.pi, mode=["nearest", 0]),
                 ResizeWithPadOrCropd(KEYS, 100),
                 CastToTyped(KEYS, dtype=[torch.uint8, np.uint8]),
                 CopyItemsd("label", times=2, names=["label_inverted", "label_inverted1"]),
@@ -112,15 +113,15 @@ class TestInvertd(unittest.TestCase):
                 self.assertTupleEqual(i.shape[1:], (101, 100, 107))
 
                 # check the case that different items use different interpolation mode to invert transforms
-                d = item["image_inverted1"]
+                j = item["image_inverted1"]
                 # if the interpolation mode is nearest, accumulated diff should be smaller than 1
-                self.assertLess(torch.sum(d.to(torch.float) - d.to(torch.uint8).to(torch.float)).item(), 1.0)
-                self.assertTupleEqual(d.shape, (1, 101, 100, 107))
+                self.assertLess(torch.sum(j.to(torch.float) - j.to(torch.uint8).to(torch.float)).item(), 1.0)
+                self.assertTupleEqual(j.shape, (1, 101, 100, 107))
 
-                d = item["label_inverted1"]
+                k = item["label_inverted1"]
                 # if the interpolation mode is not nearest, accumulated diff should be greater than 10000
-                self.assertGreater(torch.sum(d.to(torch.float) - d.to(torch.uint8).to(torch.float)).item(), 10000.0)
-                self.assertTupleEqual(d.shape, (1, 101, 100, 107))
+                self.assertGreater(torch.sum(k.to(torch.float) - k.to(torch.uint8).to(torch.float)).item(), 10000.0)
+                self.assertTupleEqual(k.shape, (1, 101, 100, 107))
 
         # check labels match
         reverted = item["label_inverted"].detach().cpu().numpy().astype(np.int32)

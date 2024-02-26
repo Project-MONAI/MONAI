@@ -37,6 +37,7 @@ for dropout_rate in np.linspace(0, 1, 4):
 
 
 class TestResBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_SABLOCK)
     @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -62,7 +63,7 @@ class TestResBlock(unittest.TestCase):
         # be  not able to access the matrix
         no_matrix_acess_blk = SABlock(hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate)
         no_matrix_acess_blk(torch.randn(input_shape))
-        assert type(no_matrix_acess_blk.att_mat) == torch.Tensor
+        assert isinstance(no_matrix_acess_blk.att_mat, torch.Tensor)
         # no of elements is zero
         assert no_matrix_acess_blk.att_mat.nelement() == 0
 

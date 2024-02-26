@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.data import MetaTensor
-from monai.transforms import AddChannel, Compose, Flip, Orientation, Spacing
+from monai.transforms import Compose, EnsureChannelFirst, Flip, Orientation, Spacing
 from monai.transforms.inverse import InvertibleTransform
 from monai.utils import optional_import
 from tests.utils import TEST_DEVICES
@@ -33,6 +33,7 @@ for use_compose in (False, True):
 
 @unittest.skipUnless(has_nib, "Requires nibabel")
 class TestInverseArray(unittest.TestCase):
+
     @staticmethod
     def get_image(dtype, device) -> MetaTensor:
         affine = torch.tensor([[0, 0, 1, 0], [-1, 0, 0, 0], [0, 10, 0, 0], [0, 0, 0, 1]]).to(dtype).to(device)
@@ -42,7 +43,14 @@ class TestInverseArray(unittest.TestCase):
     @parameterized.expand(TESTS)
     def test_inverse_array(self, use_compose: bool, dtype: torch.dtype, device: torch.device):
         img: MetaTensor
-        tr = Compose([AddChannel(), Orientation("RAS"), Flip(1), Spacing([1.0, 1.2, 0.9], align_corners=False)])
+        tr = Compose(
+            [
+                EnsureChannelFirst(channel_dim="no_channel"),
+                Orientation("RAS"),
+                Flip(1),
+                Spacing([1.0, 1.2, 0.9], align_corners=False),
+            ]
+        )
         num_invertible = len([i for i in tr.transforms if isinstance(i, InvertibleTransform)])
 
         # forward

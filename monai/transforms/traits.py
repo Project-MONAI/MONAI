@@ -14,7 +14,9 @@ A collection of generic traits for MONAI transforms.
 
 from __future__ import annotations
 
-__all__ = ["LazyTrait", "RandomizableTrait", "MultiSampleTrait", "ThreadUnsafe"]
+__all__ = ["LazyTrait", "InvertibleTrait", "RandomizableTrait", "MultiSampleTrait", "ThreadUnsafe"]
+
+from typing import Any
 
 
 class LazyTrait:
@@ -27,21 +29,40 @@ class LazyTrait:
     """
 
     @property
-    def lazy_evaluation(self):
+    def lazy(self):
         """
-        Get whether lazy_evaluation is enabled for this transform instance.
+        Get whether lazy evaluation is enabled for this transform instance.
         Returns:
             True if the transform is operating in a lazy fashion, False if not.
         """
         raise NotImplementedError()
 
-    @lazy_evaluation.setter
-    def lazy_evaluation(self, enabled: bool):
+    @lazy.setter
+    def lazy(self, enabled: bool):
         """
-        Set whether lazy_evaluation is enabled for this transform instance.
+        Set whether lazy evaluation is enabled for this transform instance.
         Args:
             enabled: True if the transform should operate in a lazy fashion, False if not.
         """
+        raise NotImplementedError()
+
+    @property
+    def requires_current_data(self):
+        """
+        Get whether the transform requires the input data to be up to date before the transform executes.
+        Such transforms can still execute lazily by adding pending operations to the output tensors.
+        Returns:
+            True if the transform requires its inputs to be up to date and False if it does not
+        """
+
+
+class InvertibleTrait:
+    """
+    An interface to indicate that the transform can be inverted, i.e. undone by performing
+    the inverse of the operation performed during `__call__`.
+    """
+
+    def inverse(self, data: Any) -> Any:
         raise NotImplementedError()
 
 

@@ -29,8 +29,8 @@ from monai.data import (
     pad_list_data_collate,
 )
 from monai.transforms import (
-    AddChanneld,
     Compose,
+    EnsureChannelFirstd,
     Flipd,
     LoadImaged,
     RandAffined,
@@ -98,12 +98,12 @@ class TestInverseCollation(unittest.TestCase):
 
         b_size = 11
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107))
-        load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
+        load_ims = Compose([LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel")])
         self.data_3d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
         b_size = 8
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_2d(62, 37, rad_max=10))
-        load_ims = Compose([LoadImaged(KEYS), AddChanneld(KEYS)])
+        load_ims = Compose([LoadImaged(KEYS), EnsureChannelFirstd(KEYS, channel_dim="no_channel")])
         self.data_2d = [load_ims({"image": im_fname, "label": seg_fname}) for _ in range(b_size)]
 
         self.batch_size = 7

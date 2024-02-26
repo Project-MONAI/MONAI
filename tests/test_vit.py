@@ -61,6 +61,7 @@ for dropout_rate in [0.6]:
 
 @skip_if_quick
 class TestViT(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_Vit)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ViT(**input_param)
@@ -160,7 +161,7 @@ class TestViT(unittest.TestCase):
         # no data in the matrix
         no_matrix_acess_blk = ViT(in_channels=in_channels, img_size=img_size, patch_size=patch_size)
         no_matrix_acess_blk(torch.randn(in_shape))
-        assert type(no_matrix_acess_blk.blocks[0].attn.att_mat) == torch.Tensor
+        assert isinstance(no_matrix_acess_blk.blocks[0].attn.att_mat, torch.Tensor)
         # no of elements is zero
         assert no_matrix_acess_blk.blocks[0].attn.att_mat.nelement() == 0
 

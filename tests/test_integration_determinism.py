@@ -20,13 +20,15 @@ from torch.utils.data import DataLoader, Dataset
 from monai.data import create_test_image_2d
 from monai.losses import DiceLoss
 from monai.networks.nets import UNet
-from monai.transforms import AddChannel, Compose, RandRotate90, RandSpatialCrop, ScaleIntensity
+from monai.transforms import Compose, EnsureChannelFirst, RandRotate90, RandSpatialCrop, ScaleIntensity
 from monai.utils import set_determinism
 from tests.utils import DistTestCase, TimedCall
 
 
 def run_test(batch_size=64, train_steps=200, device="cuda:0"):
+
     class _TestBatch(Dataset):
+
         def __init__(self, transforms):
             self.transforms = transforms
 
@@ -49,7 +51,12 @@ def run_test(batch_size=64, train_steps=200, device="cuda:0"):
     loss = DiceLoss(sigmoid=True)
     opt = torch.optim.Adam(net.parameters(), 1e-2)
     train_transforms = Compose(
-        [AddChannel(), ScaleIntensity(), RandSpatialCrop((96, 96), random_size=False), RandRotate90()]
+        [
+            EnsureChannelFirst(channel_dim="no_channel"),
+            ScaleIntensity(),
+            RandSpatialCrop((96, 96), random_size=False),
+            RandRotate90(),
+        ]
     )
 
     src = DataLoader(_TestBatch(train_transforms), batch_size=batch_size, shuffle=True)
@@ -71,6 +78,7 @@ def run_test(batch_size=64, train_steps=200, device="cuda:0"):
 
 
 class TestDeterminism(DistTestCase):
+
     def setUp(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 

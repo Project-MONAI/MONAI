@@ -20,7 +20,7 @@ from scipy.ndimage import zoom as zoom_scipy
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Zoom
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import (
     DEFAULT_TEST_AFFINE,
     TEST_NDARRAYS_ALL,
@@ -43,6 +43,7 @@ INVALID_CASES = [((None, None), "bilinear", TypeError), ((0.9, 0.9), "s", ValueE
 
 
 class TestZoom(NumpyImageTestCase2D):
+
     @parameterized.expand(VALID_CASES)
     def test_pending_ops(self, zoom, mode, align_corners=False, keep_size=False):
         im = MetaTensor(self.imt[0], meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
@@ -53,12 +54,13 @@ class TestZoom(NumpyImageTestCase2D):
         expected = zoom_fn(im)
         self.assertIsInstance(expected, MetaTensor)
         # lazy
-        zoom_fn.lazy_evaluation = True
+        zoom_fn.lazy = True
         pending_result = zoom_fn(im)
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
-        result = apply_transforms(pending_result, mode="bilinear", dtype=np.float64, align_corners=align_corners)[0]
+        overrides = {"mode": "bilinear", "dtype": np.float64, "align_corners": align_corners}
+        result = apply_pending(pending_result, overrides=overrides)[0]
         # compare
         match_ratio = np.sum(np.isclose(result, expected)) / np.prod(result.shape)
         self.assertGreater(match_ratio, 0.95)

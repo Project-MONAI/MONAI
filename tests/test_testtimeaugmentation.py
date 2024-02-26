@@ -25,11 +25,11 @@ from monai.losses import DiceLoss
 from monai.networks.nets import UNet
 from monai.transforms import (
     Activations,
-    AddChanneld,
     AsDiscrete,
     Compose,
     CropForegroundd,
     DivisiblePadd,
+    EnsureChannelFirstd,
     RandAffined,
     RandScaleIntensityd,
 )
@@ -52,6 +52,7 @@ trange = partial(tqdm.trange, desc="training") if has_tqdm else range
 
 
 class TestTestTimeAugmentation(unittest.TestCase):
+
     @staticmethod
     def get_data(num_examples, input_size, data_type=np.asarray, include_label=True):
         custom_create_test_image_2d = partial(
@@ -84,7 +85,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
         transforms = Compose(
             [
-                AddChanneld(keys),
+                EnsureChannelFirstd(keys, channel_dim="no_channel"),
                 RandAffined(
                     keys,
                     prob=1.0,
@@ -145,13 +146,17 @@ class TestTestTimeAugmentation(unittest.TestCase):
         self.assertIsInstance(vvc, float)
 
     def test_warn_non_random(self):
-        transforms = Compose([AddChanneld("im"), SpatialPadd("im", 1)])
+        transforms = Compose([EnsureChannelFirstd("im", channel_dim="no_channel"), SpatialPadd("im", 1)])
         with self.assertWarns(UserWarning):
             TestTimeAugmentation(transforms, None, None, None)
 
     def test_warn_random_but_has_no_invertible(self):
         transforms = Compose(
-            [AddChanneld("image"), RandFlipd("image", prob=1.0), RandScaleIntensityd("image", 0.1, prob=1.0)]
+            [
+                EnsureChannelFirstd("image", channel_dim="no_channel"),
+                RandFlipd("image", prob=1.0),
+                RandScaleIntensityd("image", 0.1, prob=1.0),
+            ]
         )
         with self.assertWarns(UserWarning):
             tta = TestTimeAugmentation(transforms, 5, 0, orig_key="image")
@@ -159,7 +164,9 @@ class TestTestTimeAugmentation(unittest.TestCase):
 
     def test_warn_random_but_all_not_invertible(self):
         """test with no invertible stack"""
-        transforms = Compose([AddChanneld("image"), RandScaleIntensityd("image", 0.1, prob=1.0)])
+        transforms = Compose(
+            [EnsureChannelFirstd("image", channel_dim="no_channel"), RandScaleIntensityd("image", 0.1, prob=1.0)]
+        )
         with self.assertWarns(UserWarning):
             tta = TestTimeAugmentation(transforms, 1, 0, orig_key="image")
             tta(self.get_data(1, (20, 20), data_type=np.float32))

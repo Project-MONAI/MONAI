@@ -21,7 +21,7 @@ import torch
 from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
-from monai.transforms import AddChanneld, Compose, LoadImaged, Orientationd, Spacingd
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd
 
 FILES = tuple(
     os.path.join(os.path.dirname(__file__), "testing_data", filename)
@@ -30,10 +30,11 @@ FILES = tuple(
 
 
 class TestLoadSpacingOrientation(unittest.TestCase):
+
     @staticmethod
     def load_image(filename):
         data = {"image": filename}
-        t = Compose([LoadImaged(keys="image"), AddChanneld(keys="image")])
+        t = Compose([LoadImaged(keys="image"), EnsureChannelFirstd(keys="image", channel_dim="no_channel")])
         return t(data)
 
     @parameterized.expand(FILES)

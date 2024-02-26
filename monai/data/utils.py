@@ -17,6 +17,7 @@ import logging
 import math
 import os
 import pickle
+import sys
 from collections import abc, defaultdict
 from collections.abc import Generator, Iterable, Mapping, Sequence, Sized
 from copy import deepcopy
@@ -49,7 +50,12 @@ from monai.utils import (
     issequenceiterable,
     look_up_option,
     optional_import,
+    pytorch_after,
 )
+
+if pytorch_after(1, 13):
+    # import private code for reuse purposes, comment in case things break in the future
+    from torch.utils.data._utils.collate import collate_tensor_fn, default_collate_fn_map
 
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
@@ -209,7 +215,7 @@ def iter_patch_position(
     image_size: Sequence[int],
     patch_size: Sequence[int] | int | np.ndarray,
     start_pos: Sequence[int] = (),
-    overlap: Sequence[float] | float = 0.0,
+    overlap: Sequence[float] | float | Sequence[int] | int = 0.0,
     padded: bool = False,
 ):
     """
@@ -221,8 +227,10 @@ def iter_patch_position(
         image_size: dimensions of array to iterate over
         patch_size: size of patches to generate slices for, 0 or None selects whole dimension
         start_pos: starting position in the array, default is 0 for each dimension
-        overlap: the amount of overlap of neighboring patches in each dimension (a value between 0.0 and 1.0).
-            If only one float number is given, it will be applied to all dimensions. Defaults to 0.0.
+        overlap: the amount of overlap of neighboring patches in each dimension.
+            Either a float or list of floats between 0.0 and 1.0 to define relative overlap to patch size, or
+            an int or list of ints to define number of pixels for overlap.
+            If only one float/int number is given, it will be applied to all dimensions. Defaults to 0.0.
         padded: if the image is padded so the patches can go beyond the borders. Defaults to False.
 
     Yields:
@@ -236,7 +244,10 @@ def iter_patch_position(
     overlap = ensure_tuple_rep(overlap, ndim)
 
     # calculate steps, which depends on the amount of overlap
-    steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+    if isinstance(overlap[0], float):
+        steps = tuple(round(p * (1.0 - o)) for p, o in zip(patch_size_, overlap))
+    else:
+        steps = tuple(p - o for p, o in zip(patch_size_, overlap))
 
     # calculate the last starting location (depending on the padding)
     end_pos = image_size if padded else tuple(s - round(p) + 1 for s, p in zip(image_size, patch_size_))
@@ -438,6 +449,23 @@ def pickle_operations(data, key=PICKLE_KEY_SUFFIX, is_encode: bool = True):
     return data
 
 
+def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
+    """
+    Collate a sequence of meta tensor into a single batched metatensor. This is called by `collage_meta_tensor`
+    and so should not be used as a collate function directly in dataloaders.
+    """
+    collate_fn = collate_tensor_fn if pytorch_after(1, 13) else default_collate
+    collated = collate_fn(batch)  # type: ignore
+    meta_dicts = [i.meta or TraceKeys.NONE for i in batch]
+    common_ = set.intersection(*[set(d.keys()) for d in meta_dicts if isinstance(d, dict)])
+    if common_:
+        meta_dicts = [{k: d[k] for k in common_} if isinstance(d, dict) else TraceKeys.NONE for d in meta_dicts]
+    collated.meta = default_collate(meta_dicts)
+    collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
+    collated.is_batch = True
+    return collated
+
+
 def collate_meta_tensor(batch):
     """collate a sequence of meta tensor sequences/dictionaries into
     a single batched metatensor or a dictionary of batched metatensor"""
@@ -445,11 +473,7 @@ def collate_meta_tensor(batch):
         raise NotImplementedError()
     elem_0 = first(batch)
     if isinstance(elem_0, MetaObj):
-        collated = default_collate(batch)
-        collated.meta = default_collate([i.meta or TraceKeys.NONE for i in batch])
-        collated.applied_operations = [i.applied_operations or TraceKeys.NONE for i in batch]
-        collated.is_batch = True
-        return collated
+        return collate_meta_tensor_fn(batch)
     if isinstance(elem_0, Mapping):
         return {k: collate_meta_tensor([d[k] for d in batch]) for k in elem_0}
     if isinstance(elem_0, (tuple, list)):
@@ -469,9 +493,16 @@ def list_data_collate(batch: Sequence):
         Need to use this collate if apply some transforms that can generate batch data.
 
     """
+
+    if pytorch_after(1, 13):
+        # needs to go here to avoid circular import
+        from monai.data.meta_tensor import MetaTensor
+
+        default_collate_fn_map.update({MetaTensor: collate_meta_tensor_fn})
     elem = batch[0]
     data = [i for k in batch for i in k] if isinstance(elem, list) else batch
     key = None
+    collate_fn = default_collate if pytorch_after(1, 13) else collate_meta_tensor
     try:
         if config.USE_META_DICT:
             data = pickle_operations(data)  # bc 0.9.0
@@ -480,9 +511,9 @@ def list_data_collate(batch: Sequence):
             for k in elem:
                 key = k
                 data_for_batch = [d[key] for d in data]
-                ret[key] = collate_meta_tensor(data_for_batch)
+                ret[key] = collate_fn(data_for_batch)
         else:
-            ret = collate_meta_tensor(data)
+            ret = collate_fn(data)
         return ret
     except RuntimeError as re:
         re_str = str(re)
@@ -1365,7 +1396,13 @@ def json_hashing(item) -> bytes:
 
     """
     # TODO: Find way to hash transforms content as part of the cache
-    cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
+    cache_key = ""
+    if sys.version_info.minor < 9:
+        cache_key = hashlib.md5(json.dumps(item, sort_keys=True).encode("utf-8")).hexdigest()
+    else:
+        cache_key = hashlib.md5(
+            json.dumps(item, sort_keys=True).encode("utf-8"), usedforsecurity=False  # type: ignore
+        ).hexdigest()
     return f"{cache_key}".encode()
 
 
@@ -1380,7 +1417,13 @@ def pickle_hashing(item, protocol=pickle.HIGHEST_PROTOCOL) -> bytes:
     Returns: the corresponding hash key
 
     """
-    cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
+    cache_key = ""
+    if sys.version_info.minor < 9:
+        cache_key = hashlib.md5(pickle.dumps(sorted_dict(item), protocol=protocol)).hexdigest()
+    else:
+        cache_key = hashlib.md5(
+            pickle.dumps(sorted_dict(item), protocol=protocol), usedforsecurity=False  # type: ignore
+        ).hexdigest()
     return f"{cache_key}".encode()
 
 

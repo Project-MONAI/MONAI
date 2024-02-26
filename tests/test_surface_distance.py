@@ -142,6 +142,7 @@ TEST_CASES_NANS = [
 
 
 class TestAllSurfaceMetrics(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_value(self, input_data, expected_value):
         if len(input_data) == 3:

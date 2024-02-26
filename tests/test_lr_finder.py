@@ -24,7 +24,7 @@ from torch.utils.data import DataLoader
 from monai.apps import MedNISTDataset
 from monai.networks.nets import DenseNet
 from monai.optimizers import LearningRateFinder
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd, ToTensord
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
 from monai.utils.misc import MONAIEnvVars
 from tests.utils import skip_if_downloading_fails
@@ -48,6 +48,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 @unittest.skipUnless(sys.platform == "linux", "requires linux")
 @unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
+
     def setUp(self):
         self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:
@@ -56,7 +57,7 @@ class TestLRFinder(unittest.TestCase):
         self.transforms = Compose(
             [
                 LoadImaged(keys="image"),
-                AddChanneld(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
                 ScaleIntensityd(keys="image"),
                 ToTensord(keys="image"),
             ]

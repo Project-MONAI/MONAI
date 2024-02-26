@@ -149,10 +149,26 @@ TEST_CASES = [
         },
         0.840058,
     ],
+    [  # shape: (2, 2, 3), (2, 1, 3) weight
+        {
+            "include_background": True,
+            "to_onehot_y": True,
+            "other_act": lambda x: torch.log_softmax(x, dim=1),
+            "smooth_nr": 1e-4,
+            "smooth_dr": 1e-4,
+            "weight": (0, 1),
+        },
+        {
+            "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
+            "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
+        },
+        -8.268515,
+    ],
 ]
 
 
 class TestDiceLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = DiceLoss(**input_param).forward(**input_data)

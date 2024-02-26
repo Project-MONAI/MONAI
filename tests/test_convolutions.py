@@ -18,6 +18,7 @@ from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
 
 
 class TestConvolution2D(TorchImageTestCase2D):
+
     def test_conv1(self):
         conv = Convolution(2, self.input_channels, self.output_channels)
         out = conv(self.imt)
@@ -69,6 +70,7 @@ class TestConvolution2D(TorchImageTestCase2D):
 
 
 class TestConvolution3D(TorchImageTestCase3D):
+
     def test_conv1(self):
         conv = Convolution(3, self.input_channels, self.output_channels, dropout=0.1, adn_ordering="DAN")
         out = conv(self.imt)
@@ -126,6 +128,7 @@ class TestConvolution3D(TorchImageTestCase3D):
 
 
 class TestResidualUnit2D(TorchImageTestCase2D):
+
     def test_conv_only1(self):
         conv = ResidualUnit(2, 1, self.output_channels)
         out = conv(self.imt)

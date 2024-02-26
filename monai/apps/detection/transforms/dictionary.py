@@ -43,7 +43,7 @@ from monai.config.type_definitions import DtypeLike, NdarrayOrTensor
 from monai.data.box_utils import COMPUTE_DTYPE, BoxMode, clip_boxes_to_image
 from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.data.utils import orientation_ras_lps
-from monai.transforms import Flip, RandFlip, RandRotate90d, RandZoom, Rotate90, SpatialCrop, Zoom
+from monai.transforms import Flip, RandFlip, RandZoom, Rotate90, SpatialCrop, Zoom
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.transform import MapTransform, Randomizable, RandomizableTransform
 from monai.transforms.utils import generate_pos_neg_label_crop_centers, map_binary_to_indices
@@ -1291,7 +1291,7 @@ class RotateBox90d(MapTransform, InvertibleTransform):
         return d
 
 
-class RandRotateBox90d(RandRotate90d):
+class RandRotateBox90d(RandomizableTransform, MapTransform, InvertibleTransform):
     """
     With probability `prob`, input boxes and images are rotated by 90 degrees
     in the plane specified by `spatial_axes`.
@@ -1323,7 +1323,13 @@ class RandRotateBox90d(RandRotate90d):
     ) -> None:
         self.image_keys = ensure_tuple(image_keys)
         self.box_keys = ensure_tuple(box_keys)
-        super().__init__(self.image_keys + self.box_keys, prob, max_k, spatial_axes, allow_missing_keys)
+
+        MapTransform.__init__(self, self.image_keys + self.box_keys, allow_missing_keys)
+        RandomizableTransform.__init__(self, prob)
+
+        self.max_k = max_k
+        self.spatial_axes = spatial_axes
+        self._rand_k = 0
         self.box_ref_image_keys = ensure_tuple_rep(box_ref_image_keys, len(self.box_keys))
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Mapping[Hashable, torch.Tensor]:
@@ -1363,6 +1369,10 @@ class RandRotateBox90d(RandRotate90d):
                     xform = self.pop_transform(d[key], check=False) if self._do_transform else {}
                     self.push_transform(d[key], extra_info=xform)
         return d
+
+    def randomize(self, data: Any | None = None) -> None:
+        self._rand_k = self.R.randint(self.max_k) + 1
+        super().randomize(None)
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)

@@ -41,6 +41,7 @@ from tests.utils import assert_allclose, make_nifti_image
 
 
 class TestInvert(unittest.TestCase):
+
     def test_invert(self):
         set_determinism(seed=0)
         im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete
@@ -50,7 +51,7 @@ class TestInvert(unittest.TestCase):
                 LoadImage(image_only=True),
                 EnsureChannelFirst(),
                 Orientation("RPS"),
-                Spacing(pixdim=(1.2, 1.01, 0.9), mode="bilinear", dtype=np.float32),
+                Spacing(pixdim=(1.2, 1.01, 0.9), mode=1, dtype=np.float32),
                 RandFlip(prob=0.5, spatial_axis=[1, 2]),
                 RandAxisFlip(prob=0.5),
                 RandRotate90(prob=0, spatial_axes=(1, 2)),
@@ -90,16 +91,15 @@ class TestInvert(unittest.TestCase):
         set_determinism(seed=None)
 
     def test_invert_warn_pending(self):
+        # this test shouldn't raise a warning or error any more as that issue was fixed
+        # by https://github.com/Project-MONAI/MONAI/pull/6257
         set_determinism(seed=0)
         im_fname = make_nifti_image(create_test_image_3d(101, 100, 107, noise_max=100)[1])  # label image, discrete
         transform = Compose(
-            [LoadImage(image_only=True), EnsureChannelFirst(), Orientation("RPS"), Lambda(func=lambda x: x)],
-            lazy_evaluation=True,
+            [LoadImage(image_only=True), EnsureChannelFirst(), Orientation("RPS"), Lambda(func=lambda x: x)], lazy=True
         )
         output = transform([im_fname for _ in range(2)])
-        with self.assertRaises(RuntimeError):  # transform id mismatch because of lambda
-            with self.assertWarns(Warning):  # warning of wrong ordering lazy + nonlazy_invertible
-                transform.inverse(output)
+        transform.inverse(output)
 
 
 if __name__ == "__main__":

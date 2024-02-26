@@ -13,12 +13,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from monai.handlers.ignite_metric import IgniteMetric
+from monai.handlers.ignite_metric import IgniteMetricHandler
 from monai.metrics import MeanIoU
 from monai.utils import MetricReduction
 
 
-class MeanIoUHandler(IgniteMetric):
+class MeanIoUHandler(IgniteMetricHandler):
     """
     Computes IoU score metric from full size Tensor and collects average over batch, class-channels, iterations.
     """
@@ -48,7 +48,7 @@ class MeanIoUHandler(IgniteMetric):
                 default to True, will save to `engine.state.metric_details` dict with the metric name as key.
 
         See also:
-            :py:meth:`monai.metrics.meaniou.compute_meaniou`
+            :py:meth:`monai.metrics.meaniou.compute_iou`
         """
         metric_fn = MeanIoU(include_background=include_background, reduction=reduction)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=save_details)
