@@ -98,11 +98,12 @@ class RandGaussianNoise(RandomizableTransform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-            self, prob: float = 0.1,
-            mean: float = 0.0,
-            std: float = 0.1,
-            dtype: DtypeLike = np.float32,
-            sample_std: bool = True,
+        self,
+        prob: float = 0.1,
+        mean: float = 0.0,
+        std: float = 0.1,
+        dtype: DtypeLike = np.float32,
+        sample_std: bool = True,
     ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.mean = mean

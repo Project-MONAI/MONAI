@@ -196,7 +196,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         std: float = 0.1,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
-        sample_std: bool = True
+        sample_std: bool = True,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
