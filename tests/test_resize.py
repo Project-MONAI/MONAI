@@ -46,6 +46,7 @@ diff_t = 0.3 if is_tf32_env() else 0.2
 
 
 class TestResize(NumpyImageTestCase2D):
+
     def test_invalid_inputs(self):
         with self.assertRaises(ValueError):
             resize = Resize(spatial_size=(128, 128, 3), mode="order")
