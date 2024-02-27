@@ -16,6 +16,12 @@ FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
 
+# TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
+WORKDIR /opt
+RUN git clone --recursive https://github.com/zarr-developers/numcodecs.git
+WORKDIR /opt/numcodecs
+RUN pip wheel .
+
 WORKDIR /opt/monai
 
 # install full deps
