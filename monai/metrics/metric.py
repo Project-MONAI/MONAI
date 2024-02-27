@@ -37,9 +37,6 @@ class Metric(ABC):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def __repr__(self):
-        return self.__class__.__name__
-
     def __str__(self):
         return self.__class__.__name__
 
