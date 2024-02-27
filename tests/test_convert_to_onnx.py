@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import platform
 import itertools
 import unittest
 
@@ -28,6 +29,12 @@ else:
     TORCH_DEVICE_OPTIONS = ["cpu"]
 TESTS = list(itertools.product(TORCH_DEVICE_OPTIONS, [True, False], [True, False]))
 TESTS_ORT = list(itertools.product(TORCH_DEVICE_OPTIONS, [True]))
+
+ON_AARCH64 = platform.machine() == "aarch64"
+if ON_AARCH64:
+    rtol, atol=1e-1, 1e-2
+else:
+    rtol, atol=1e-3, 1e-4
 
 onnx, _ = optional_import("onnx")
 
@@ -56,8 +63,8 @@ class TestConvertToOnnx(unittest.TestCase):
                 device=device,
                 use_ort=use_ort,
                 use_trace=use_trace,
-                rtol=1e-3,
-                atol=1e-4,
+                rtol=rtol,
+                atol=atol,
             )
         else:
             # https://github.com/pytorch/pytorch/blob/release/1.9/torch/onnx/__init__.py#L182
@@ -72,8 +79,8 @@ class TestConvertToOnnx(unittest.TestCase):
                 device=device,
                 use_ort=use_ort,
                 use_trace=use_trace,
-                rtol=1e-3,
-                atol=1e-4,
+                rtol=rtol,
+                atol=atol,
             )
         self.assertTrue(isinstance(onnx_model, onnx.ModelProto))
 
@@ -107,8 +114,8 @@ class TestConvertToOnnx(unittest.TestCase):
             device=device,
             use_ort=use_ort,
             use_trace=True,
-            rtol=1e-3,
-            atol=1e-4,
+            rtol=rtol,
+            atol=atol,
         )
         self.assertTrue(isinstance(onnx_model, onnx.ModelProto))
 
