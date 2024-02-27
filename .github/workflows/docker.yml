@@ -17,7 +17,8 @@ jobs:
   versioning_dev:
     # compute versioning file from python setup.py
     # upload as artifact
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable docker build job  project-monai/monai#7450
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +48,8 @@ jobs:
           rm -rf {*,.[^.]*}
 
   docker_build_dev:
-    # builds projectmonai/monai:latest
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable docker build job  project-monai/monai#7450
     needs: versioning_dev
     runs-on: ubuntu-latest
     steps:
