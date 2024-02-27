@@ -235,13 +235,7 @@ class TestRandAffined(unittest.TestCase):
                 resampler = RandAffined(**lazy_init_param).set_random_state(123)
                 expected_output = resampler(**call_param)
                 test_resampler_lazy(
-                    resampler,
-                    expected_output,
-                    lazy_init_param,
-                    call_param,
-                    seed=123,
-                    output_key=key,
-                    rtol=_rtol
+                    resampler, expected_output, lazy_init_param, call_param, seed=123, output_key=key, rtol=_rtol
                 )
             resampler.lazy = False
 

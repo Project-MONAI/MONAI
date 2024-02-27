@@ -27,9 +27,9 @@ InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceN
 
 ON_AARCH64 = platform.machine() == "aarch64"
 if ON_AARCH64:
-    rtol, atol=1e-2, 1e-2
+    rtol, atol = 1e-2, 1e-2
 else:
-    rtol, atol=1e-4, 1e-4
+    rtol, atol = 1e-4, 1e-4
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

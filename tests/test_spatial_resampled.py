@@ -26,9 +26,9 @@ from tests.utils import TEST_DEVICES, assert_allclose
 
 ON_AARCH64 = platform.machine() == "aarch64"
 if ON_AARCH64:
-    rtol, atol=1e-1, 1e-2
+    rtol, atol = 1e-1, 1e-2
 else:
-    rtol, atol=1e-3, 1e-4
+    rtol, atol = 1e-3, 1e-4
 
 TESTS = []
 

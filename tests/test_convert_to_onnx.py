@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-import platform
 import itertools
+import platform
 import unittest
 
 import torch
@@ -32,9 +32,9 @@ TESTS_ORT = list(itertools.product(TORCH_DEVICE_OPTIONS, [True]))
 
 ON_AARCH64 = platform.machine() == "aarch64"
 if ON_AARCH64:
-    rtol, atol=1e-1, 1e-2
+    rtol, atol = 1e-1, 1e-2
 else:
-    rtol, atol=1e-3, 1e-4
+    rtol, atol = 1e-3, 1e-4
 
 onnx, _ = optional_import("onnx")
 
