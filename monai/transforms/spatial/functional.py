@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from copy import deepcopy
 from enum import Enum
 
 import numpy as np
@@ -24,6 +25,7 @@ import torch
 import monai
 from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import get_spatial_dims
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
@@ -229,7 +231,7 @@ def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> tor
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def flip(img, sp_axes, lazy, transform_info):
+def flip_image(img, sp_axes, lazy, transform_info):
     """
     Functional implementation of flip.
     This function operates eagerly or lazily according to
@@ -245,6 +247,9 @@ def flip(img, sp_axes, lazy, transform_info):
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
+    # TODO
+    if img.meta["kind"] != "pixel":
+        return None
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
     extra_info = {"axes": sp_axes}  # track the spatial axes
@@ -262,6 +267,62 @@ def flip(img, sp_axes, lazy, transform_info):
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip_point(points, sp_axes, lazy, transform_info):
+    """
+    Functional implementation of flip points.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+    Args:
+        points: point coordinates, Nx2 or Nx3 torch tensor or ndarray
+        sp_axes: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+        lazy: a flag that indicates whether the operation should be performed lazily or not.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    Returns:
+        flipped points, with same data type as ``points``, does not share memory with ``points``
+    """
+    # TODO
+    if points.meta["kind"] != "point":
+        return None
+    if points.meta.get("refer_meta", None) is not None:
+        spatial_size = points.meta["refer_meta"]["spatial_shape"]
+    else:
+        spatial_size = None
+    spatial_dims: int = get_spatial_dims(points=points[0])
+    sp_size = ensure_tuple_rep(spatial_size, spatial_dims) if spatial_size is not None else None
+    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist() if spatial_size is not None else None
+    extra_info = {"axes": sp_axes}  # track the spatial axes
+    if sp_axes is None:
+        sp_axes = tuple(range(0, spatial_dims))
+    sp_axes = ensure_tuple(sp_axes)
+    sp_axes = monai.transforms.utils.map_spatial_axes(points.ndim, sp_axes)  # use the axes with channel dim
+    # axes include the channel dim
+    xform = torch.eye(int(spatial_dims) + 1, dtype=torch.double)
+    for axis in sp_axes:
+        sp = axis - 1
+        if sp_size is not None:
+            xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
+        else:
+            xform[sp, sp] *= -1
+    meta_info = TraceableTransform.track_transform_meta(points, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info)
+
+    # flip box
+    out = deepcopy(_maybe_new_metatensor(points))
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    if sp_size is None:
+        warnings.warn("''spatial_size'' is None, will flip in the world coordinates.")
+        for _axes in sp_axes:
+            out[..., _axes-1] = -points[..., _axes-1]
+    else:
+        for _axes in sp_axes:
+            out[..., _axes-1] = sp_size[_axes-1] - points[..., _axes-1]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
