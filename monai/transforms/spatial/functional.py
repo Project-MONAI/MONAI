@@ -25,7 +25,6 @@ import torch
 import monai
 from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import get_spatial_dims
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
