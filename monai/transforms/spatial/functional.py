@@ -346,7 +346,6 @@ def resize_image(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 from monai.transforms.utils import create_rotate, create_scale, create_translate, resolves_modes, scale_affine
-from monai.utils.type_conversion import convert_data_type
 from monai.data.box_utils import get_spatial_dims
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
     """
