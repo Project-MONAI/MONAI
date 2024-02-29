@@ -36,7 +36,8 @@ from monai.transforms.spatial.functional import (
     affine_func,
     flip,
     orientation,
-    resize,
+    resize_image,
+    resize_point,
     rotate,
     rotate90,
     spatial_resample,
@@ -764,6 +765,7 @@ class Resize(InvertibleTransform, LazyTransform):
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
         self.dtype = dtype
+        self.operators = [resize_point, resize_image]
 
     def __call__(
         self,
@@ -830,18 +832,24 @@ class Resize(InvertibleTransform, LazyTransform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         lazy_ = self.lazy if lazy is None else lazy
-        return resize(  # type: ignore
-            img,
-            tuple(int(_s) for _s in sp_size),
-            _mode,
-            _align_corners,
-            _dtype,
-            input_ndim,
-            anti_aliasing,
-            anti_aliasing_sigma,
-            lazy_,
-            self.get_transform_info(),
-        )
+        kwargs = {
+            "mode": _mode,
+            "align_corners": _align_corners,
+            "anti_aliasing": anti_aliasing,
+            "anti_aliasing_sigma": anti_aliasing_sigma
+        }
+        for operator in self.operators:
+            ret = operator(  # type: ignore
+                img,
+                tuple(int(_s) for _s in sp_size),
+                _dtype,
+                input_ndim,
+                lazy_,
+                self.get_transform_info(),
+                **kwargs
+            )
+            if ret is not None:
+                return ret
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
@@ -849,9 +857,9 @@ class Resize(InvertibleTransform, LazyTransform):
 
     def inverse_transform(self, data: torch.Tensor, transform) -> torch.Tensor:
         orig_size = transform[TraceKeys.ORIG_SIZE]
-        mode = transform[TraceKeys.EXTRA_INFO]["mode"]
-        align_corners = transform[TraceKeys.EXTRA_INFO]["align_corners"]
-        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
+        mode = transform[TraceKeys.EXTRA_INFO].get("mode", None)
+        align_corners = transform[TraceKeys.EXTRA_INFO].get("align_corners", None)
+        dtype = transform[TraceKeys.EXTRA_INFO].get("dtype", None)
         xform = Resize(
             spatial_size=orig_size,
             mode=mode,

@@ -265,8 +265,8 @@ def flip(img, sp_axes, lazy, transform_info):
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def resize(
-    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+def resize_image(
+    img, out_size, dtype, input_ndim, lazy, transform_info, **kwargs
 ):
     """
     Functional implementation of resize.
@@ -292,6 +292,13 @@ def resize(
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
+    # TODO
+    if img.meta.get("kind", "pixel") != "pixel":
+        return None
+    mode = kwargs.pop("mode")
+    align_corners = kwargs.pop("align_corners")
+    anti_aliasing = kwargs.pop("anti_aliasing")
+    anti_aliasing_sigma = kwargs.pop("anti_aliasing_sigma")
     img = convert_to_tensor(img, track_meta=get_track_meta())
     orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     extra_info = {
@@ -336,6 +343,76 @@ def resize(
         input=img_.unsqueeze(0), size=out_size, mode=_m, align_corners=align_corners
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+from monai.transforms.utils import create_rotate, create_scale, create_translate, resolves_modes, scale_affine
+from monai.utils.type_conversion import convert_data_type
+from monai.data.box_utils import get_spatial_dims
+def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
+    """
+    This internal function applies affine matrices to the point coordinate
+    Args:
+        points: point coordinates, Nx2 or Nx3 torch tensor or ndarray, representing [x, y] or [x, y, z]
+        affine: affine matrix to be applied to the point coordinates, sized (spatial_dims+1,spatial_dims+1)
+        include_shift: default True, whether the function apply translation (shift) in the affine transform
+    Returns:
+        transformed point coordinates, with same data type as ``points``, does not share memory with ``points``
+    """
+
+    spatial_dims = get_spatial_dims(points=points)
+
+    # compute new points
+    if include_shift:
+        # append 1 to form Nx(spatial_dims+1) vector, then transpose
+        points_affine = torch.cat(
+            [points, torch.ones(points.shape[0], 1, device=points.device, dtype=points.dtype)], dim=1
+        ).transpose(0, 1)
+        # apply affine
+        points_affine = torch.matmul(affine, points_affine)
+        # remove appended 1 and transpose back
+        points_affine = points_affine[:spatial_dims, :].transpose(0, 1)
+    else:
+        points_affine = points.transpose(0, 1)
+        points_affine = torch.matmul(affine[:spatial_dims, :spatial_dims], points_affine)
+        points_affine = points_affine.transpose(0, 1)
+
+    return points_affine
+
+def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kwargs):
+    # TODO
+    if points.meta.get("kind", "pixel") != "point":
+        return None
+    if points.meta.get("refer_meta", None) is not None:
+        src_spatial_size = points.meta["refer_meta"]["spatial_shape"]
+    else:
+        raise ValueError("Resize cannot be applied to a point without a reference meta.")
+    points = convert_to_tensor(points, track_meta=get_track_meta())
+    meta_info = TraceableTransform.track_transform_meta(
+        points,
+        sp_size=out_size,
+        affine=scale_affine(src_spatial_size, out_size),
+        extra_info={
+            "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+            "new_dim": len(src_spatial_size) - input_ndim,
+        },
+        orig_size=src_spatial_size,
+        transform_info=transform_info,
+        lazy=lazy,
+    )
+    if lazy:
+        out = _maybe_new_metatensor(points)
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    if tuple(convert_to_numpy(src_spatial_size)) == out_size:
+        out = _maybe_new_metatensor(points, dtype=torch.float32)
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+    spatial_dims = get_spatial_dims(points=points[0])
+    scaling_factor = [out_size[axis] / float(src_spatial_size[axis]) for axis in range(spatial_dims)]
+    affine = create_scale(spatial_dims=spatial_dims, scaling_factor=scaling_factor)
+    affine_t, *_ = convert_to_dst_type(src=affine, dst=points)
+    ret: torch.Tensor = _apply_affine_to_points(points[0], affine_t, include_shift=True)
+
+    out: NdarrayOrTensor
+    out, *_ = convert_to_dst_type(src=ret.unsqueeze(0), dst=points, dtype=dtype)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
