@@ -287,42 +287,40 @@ def flip_point(points, sp_axes, lazy, transform_info):
     Returns:
         flipped points, with same data type as ``points``, does not share memory with ``points``
     """
-    # TODO
+    # TODO: update to use enum
     if points.meta["kind"] != "point":
         return None
     if points.meta.get("refer_meta", None) is not None:
-        spatial_size = points.meta["refer_meta"]["spatial_shape"]
+        sp_size = points.meta["refer_meta"]["spatial_shape"]
     else:
-        spatial_size = None
-    spatial_dims: int = get_spatial_dims(points=points[0])
-    sp_size = ensure_tuple_rep(spatial_size, spatial_dims) if spatial_size is not None else None
-    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist() if spatial_size is not None else None
+        sp_size = None
+    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist() if sp_size is not None else None
     extra_info = {"axes": sp_axes}  # track the spatial axes
-    if sp_axes is None:
-        sp_axes = tuple(range(0, spatial_dims))
-    sp_axes = ensure_tuple(sp_axes)
-    sp_axes = monai.transforms.utils.map_spatial_axes(points.ndim, sp_axes)  # use the axes with channel dim
+    axes = monai.transforms.utils.map_spatial_axes(points.ndim, sp_axes)  # use the axes with channel dim
+    rank = points.peek_pending_rank() if isinstance(points, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
     # axes include the channel dim
-    xform = torch.eye(int(spatial_dims) + 1, dtype=torch.double)
-    for axis in sp_axes:
+    xform = torch.eye(int(rank) + 1, dtype=torch.double)
+    for axis in axes:
         sp = axis - 1
         if sp_size is not None:
             xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
         else:
             xform[sp, sp] *= -1
-    meta_info = TraceableTransform.track_transform_meta(points, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info)
+    meta_info = TraceableTransform.track_transform_meta(
+        points, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info
+    )
 
     # flip box
     out = deepcopy(_maybe_new_metatensor(points))
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if sp_size is None:
-        warnings.warn("''spatial_size'' is None, will flip in the world coordinates.")
-        for _axes in sp_axes:
-            out[..., _axes-1] = -points[..., _axes-1]
+        warnings.warn("''sp_size'' is None, will flip in the world coordinates.")
+        for _axes in axes:
+            out[..., _axes - 1] = - points[..., _axes - 1]
     else:
-        for _axes in sp_axes:
-            out[..., _axes-1] = sp_size[_axes-1] - points[..., _axes-1]
+        for _axes in axes:
+            out[..., _axes - 1] = sp_size[_axes - 1] - points[..., _axes - 1]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
