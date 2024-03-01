@@ -52,7 +52,17 @@ cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
+__all__ = [
+    "spatial_resample",
+    "orientation",
+    "flip_image",
+    "flip_point",
+    "resize",
+    "rotate",
+    "zoom",
+    "rotate90",
+    "affine_func",
+]
 
 
 def _maybe_new_metatensor(img, dtype=None, device=None):
@@ -248,7 +258,7 @@ def flip_image(img, sp_axes, lazy, transform_info):
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     # TODO
-    if img.meta["kind"] != "pixel":
+    if img.meta.get("kind", "pixel") != "pixel":
         return None
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
@@ -288,7 +298,7 @@ def flip_point(points, sp_axes, lazy, transform_info):
         flipped points, with same data type as ``points``, does not share memory with ``points``
     """
     # TODO: update to use enum
-    if points.meta["kind"] != "point":
+    if points.meta.get("kind", "pixel") != "point":
         return None
     if points.meta.get("refer_meta", None) is not None:
         sp_size = points.meta["refer_meta"]["spatial_shape"]
@@ -317,7 +327,7 @@ def flip_point(points, sp_axes, lazy, transform_info):
     if sp_size is None:
         warnings.warn("''sp_size'' is None, will flip in the world coordinates.")
         for _axes in axes:
-            out[..., _axes - 1] = - points[..., _axes - 1]
+            out[..., _axes - 1] = -points[..., _axes - 1]
     else:
         for _axes in axes:
             out[..., _axes - 1] = sp_size[_axes - 1] - points[..., _axes - 1]
