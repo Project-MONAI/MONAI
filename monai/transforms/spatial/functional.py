@@ -257,7 +257,8 @@ def flip_image(img, sp_axes, lazy, transform_info):
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     # TODO
-    if img.meta.get("kind", "pixel") != "pixel":
+    kind = img.meta.get("kind", "pixel") if isinstance(img, MetaTensor) else "pixel"
+    if kind != "pixel":
         return None
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
@@ -297,7 +298,8 @@ def flip_point(points, sp_axes, lazy, transform_info):
         flipped points, with same data type as ``points``, does not share memory with ``points``
     """
     # TODO: update to use enum
-    if points.meta.get("kind", "pixel") != "point":
+    kind = points.meta.get("kind", "pixel") if isinstance(points, MetaTensor) else "pixel"
+    if kind != "point":
         return None
     if points.meta.get("refer_meta", None) is not None:
         sp_size = points.meta["refer_meta"]["spatial_shape"]
