@@ -836,17 +836,11 @@ class Resize(InvertibleTransform, LazyTransform):
             "mode": _mode,
             "align_corners": _align_corners,
             "anti_aliasing": anti_aliasing,
-            "anti_aliasing_sigma": anti_aliasing_sigma
+            "anti_aliasing_sigma": anti_aliasing_sigma,
         }
         for operator in self.operators:
             ret = operator(  # type: ignore
-                img,
-                tuple(int(_s) for _s in sp_size),
-                _dtype,
-                input_ndim,
-                lazy_,
-                self.get_transform_info(),
-                **kwargs
+                img, tuple(int(_s) for _s in sp_size), _dtype, input_ndim, lazy_, self.get_transform_info(), **kwargs
             )
             if ret is not None:
                 return ret

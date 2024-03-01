@@ -24,6 +24,7 @@ import torch
 import monai
 from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import get_spatial_dims
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
@@ -31,7 +32,7 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
+from monai.transforms.utils import create_rotate, create_scale, create_translate, resolves_modes, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     LazyAttr,
@@ -50,7 +51,17 @@ cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
+__all__ = [
+    "spatial_resample",
+    "orientation",
+    "flip",
+    "resize_image",
+    "resize_point",
+    "rotate",
+    "zoom",
+    "rotate90",
+    "affine_func",
+]
 
 
 def _maybe_new_metatensor(img, dtype=None, device=None):
@@ -265,9 +276,7 @@ def flip(img, sp_axes, lazy, transform_info):
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def resize_image(
-    img, out_size, dtype, input_ndim, lazy, transform_info, **kwargs
-):
+def resize_image(img, out_size, dtype, input_ndim, lazy, transform_info, **kwargs):
     """
     Functional implementation of resize.
     This function operates eagerly or lazily according to
@@ -293,7 +302,8 @@ def resize_image(
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     # TODO
-    if img.meta.get("kind", "pixel") != "pixel":
+    kind = img.meta.get("kind", "pixel") if isinstance(img, MetaTensor) else "pixel"
+    if kind != "pixel":
         return None
     mode = kwargs.pop("mode")
     align_corners = kwargs.pop("align_corners")
@@ -345,8 +355,7 @@ def resize_image(
     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
-from monai.transforms.utils import create_rotate, create_scale, create_translate, resolves_modes, scale_affine
-from monai.data.box_utils import get_spatial_dims
+
 def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
     """
     This internal function applies affine matrices to the point coordinate
@@ -377,9 +386,11 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
 
     return points_affine
 
+
 def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kwargs):
     # TODO
-    if points.meta.get("kind", "pixel") != "point":
+    kind = points.meta.get("kind", "pixel") if isinstance(points, MetaTensor) else "pixel"
+    if kind != "point":
         return None
     if points.meta.get("refer_meta", None) is not None:
         src_spatial_size = points.meta["refer_meta"]["spatial_shape"]
