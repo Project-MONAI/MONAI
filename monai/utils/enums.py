@@ -533,6 +533,19 @@ class SpaceKeys(StrEnum):
     LPS = "LPS"
 
 
+class KindKeys(StrEnum):
+    """
+    This class provides an effective way to reference data types such as pixel-based data
+    and point-like data that consists of point coordinates.
+
+    - PIXEL: Represents data that corresponds to pixel-based data.
+    - POINT: Represents data consisting of the coordinates of points.
+    """
+
+    PIXEL = "pixel"
+    POINT = "point"
+
+
 class MetaKeys(StrEnum):
     """
     Typical keys for MetaObj.meta
@@ -543,6 +556,7 @@ class MetaKeys(StrEnum):
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
     ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or float("nan")
+    KIND = "kind"  # possible values of data kind type are defined in `KindKeys`
 
 
 class ColorOrder(StrEnum):
