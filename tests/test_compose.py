@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 import monai.transforms as mt
 from monai.data import DataLoader, Dataset
-from monai.transforms.compose import execute_compose
+from monai.transforms.compose import execute_compose, ranged_transform_iterator, transform_iterator
 from monai.transforms.transform import Randomizable
 from monai.utils import set_determinism
 
@@ -267,6 +267,142 @@ class TestCompose(unittest.TestCase):
 
     def test_backwards_compatible_imports(self):
         from monai.transforms.transform import MapTransform, RandomizableTransform, Transform  # noqa: F401
+
+
+class TestNestedCompose(unittest.TestCase):
+    def _test_nested_is_equivalent_impl(self, pipelines, data, lazy):
+        p0_result = pipelines[0](data, lazy=lazy)
+        for p in pipelines[1:]:
+            p_result = p(data, lazy=lazy)
+
+            self.assertTrue(torch.allclose(p0_result, p_result))
+
+    def test_nested_is_equivalent(self):
+        data = data_from_keys(None, 12, 16)
+
+        print(data.shape)
+        t1 = mt.Rotate(torch.pi / 8)
+        t2 = mt.Flip(0)
+        t3 = mt.Resize((64, 64))
+        t4 = mt.Rotate(-torch.pi / 16)
+        uc = mt.Compose([t1, t2, t3, t4])
+        n1c = mt.Compose([mt.Compose([t1, t2]), mt.Compose([t3, t4])])
+        n2c = mt.Compose([t1, mt.Compose([t2, t3]), t4])
+
+        self._test_nested_is_equivalent_impl((uc, n1c, n2c), data, lazy=False)
+        self._test_nested_is_equivalent_impl((uc, n1c, n2c), data, lazy=True)
+
+    def test_nested_is_equivalent_one_of(self):
+        t1 = mt.Rotate(torch.pi / 8)
+        t2 = mt.Flip(0)
+        t3a = mt.Rotate(torch.pi / 4)
+        t4a = mt.Rotate(torch.pi / 4)
+        t3b = mt.Rotate(torch.pi / 4, lazy=False)
+        t4b = mt.Rotate(torch.pi / 4, lazy=False)
+        t5 = mt.Zoom(0.8)
+        uo = mt.OneOf([t3a, t4a])
+        uo.set_random_state(seed=123456789)
+        uc = mt.Compose([t1, t2, uo, t5])
+        n1o = mt.OneOf([t3b, t4b])
+        n1o.set_random_state(seed=123456789)
+        n1c = mt.Compose([t1, mt.Compose([t2, n1o]), t5])
+
+        data = data_from_keys(None, 12, 16)
+        self._test_nested_is_equivalent_impl((uc, n1c), data, lazy=False)
+
+        data = data_from_keys(None, 12, 16)
+        self._test_nested_is_equivalent_impl((uc, n1c), data, lazy=True)
+
+
+class TestComposeIterator(unittest.TestCase):
+    def test_compose_iterator(self):
+        t1 = mt.Rotate(torch.pi / 8)
+        t2 = mt.Flip(0)
+        t3 = mt.Spacing(128, 128)
+        t4 = mt.RandRotate((-torch.pi / 16, torch.pi / 16))
+        c1 = mt.Compose([t1, t2])
+        c2 = mt.Compose([t3, t4])
+        c = mt.Compose([c1, c2])
+
+        for m in (False, True):
+            expected = [t1, t2, t3, t4]
+            self.assertListEqual(list(transform_iterator(c, step_into_all=m)), expected)
+            expected = [t2, t3]
+            self.assertListEqual(list(ranged_transform_iterator(c, start=1, end=3, step_into_all=m)), expected)
+            expected = [t1, t2, t3, t4]
+            self.assertListEqual(list(ranged_transform_iterator(c, step_into_all=m)), expected)
+
+    def test_compose_iterator_oneof(self):
+        t1 = mt.Rotate(torch.pi / 8)
+        t2 = mt.Flip(0)
+        t3 = mt.RandZoom(0.8, 1.2)
+        t4 = mt.RandRotate((-torch.pi / 16, torch.pi / 16))
+        t5 = mt.Spacing(128, 128)
+        c1 = mt.Compose([t1, t2])
+        c2 = mt.OneOf([t3, t4])
+
+        c = mt.Compose([c1, c2, t5])
+
+        for m in (False, True):
+            if m is False:
+                expected = [t1, t2, c2, t5]
+            else:
+                expected = [t1, t2, t3, t4, t5]
+            actual = list(transform_iterator(c, step_into_all=m))
+            self.assertListEqual(actual, expected)
+
+            expected = [t2, c2] if m is False else [t2, t3]
+            self.assertListEqual(list(ranged_transform_iterator(c, start=1, end=3, step_into_all=m)), expected)
+
+            if m is False:
+                expected = [t1, t2, c2, t5]
+            else:
+                expected = [t1, t2, t3, t4, t5]
+            self.assertListEqual(list(ranged_transform_iterator(c, step_into_all=m)), expected)
+
+
+class TestComposeSubRange(unittest.TestCase):
+    def test_sub_range(self):
+        t0 = mt.Zoom((0.8, 1.2))
+        t1 = mt.Rotate(-torch.pi / 16)
+        t2 = mt.Flip(0)
+        t3 = mt.Spacing(128, 128)
+        t4 = mt.Zoom((0.9, 1.1))
+        t5 = mt.Rotate90(1)
+        t6 = mt.Rotate(torch.pi / 32)
+        c1 = mt.Compose([t2, t3], lazy=False)
+        c2 = mt.Compose([t4, t5, t6], lazy=True)
+        c0 = mt.Compose([t0, t1, c1, c2])
+
+        r = c0.sub_range(2, 6)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertFalse(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t2)
+        self.assertIs(r.transforms[0].transforms[1], t3)
+        self.assertIsInstance(r.transforms[1], mt.Compose)
+        self.assertTrue(r.transforms[1].lazy)
+        self.assertIs(r.transforms[1].transforms[0], t4)
+        self.assertIs(r.transforms[1].transforms[1], t5)
+
+        r = c0.sub_range(2, 4)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertFalse(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t2)
+        self.assertIs(r.transforms[0].transforms[1], t3)
+
+        r = c0.sub_range(3, 5)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertFalse(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t3)
+        self.assertIsInstance(r.transforms[1], mt.Compose)
+        self.assertTrue(r.transforms[1].lazy)
+        self.assertIs(r.transforms[1].transforms[0], t4)
+
+        r = c0.sub_range(4, 6)
+        self.assertIsInstance(r.transforms[0], mt.Compose)
+        self.assertTrue(r.transforms[0].lazy)
+        self.assertIs(r.transforms[0].transforms[0], t4)
+        self.assertIs(r.transforms[0].transforms[1], t5)
 
 
 TEST_COMPOSE_EXECUTE_TEST_CASES = [

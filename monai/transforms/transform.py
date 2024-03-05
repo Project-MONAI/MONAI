@@ -88,14 +88,20 @@ def _apply_transform(
     Returns:
         ReturnType: The return type of `transform`.
     """
+    from monai.transforms.compose import Compose
     from monai.transforms.lazy.functional import apply_pending_transforms_in_order
 
     data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
 
+    kwargs: Mapping[str, Any] = dict()
+    if isinstance(transform, LazyTrait):
+        kwargs["lazy"] = lazy
+    if isinstance(transform, Compose):
+        kwargs["is_inner"] = True
     if isinstance(data, tuple) and unpack_parameters:
-        return transform(*data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(*data)
+        return transform(*data, **kwargs)
 
-    return transform(data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(data)
+    return transform(data, **kwargs)
 
 
 def apply_transform(
