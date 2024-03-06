@@ -766,9 +766,9 @@ class Resize(InvertibleTransform, LazyTransform):
         self.anti_aliasing = anti_aliasing
         self.anti_aliasing_sigma = anti_aliasing_sigma
         self.dtype = dtype
-        self.operators = [resize_point, resize_image]
+        self.operators = [resize_point, resize_image]  # type: ignore
 
-    def __call__(
+    def __call__(  # type: ignore[return]
         self,
         img: torch.Tensor,
         mode: str | None = None,
@@ -843,7 +843,7 @@ class Resize(InvertibleTransform, LazyTransform):
             "anti_aliasing_sigma": anti_aliasing_sigma,
         }
         for operator in self.operators:
-            ret = operator(  # type: ignore
+            ret: torch.Tensor = operator(  # type: ignore
                 img, tuple(int(_s) for _s in sp_size), _dtype, input_ndim, lazy_, self.get_transform_info(), **kwargs
             )
             if ret is not None:

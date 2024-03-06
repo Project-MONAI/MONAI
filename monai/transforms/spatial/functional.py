@@ -363,7 +363,7 @@ def resize_image(img, out_size, dtype, input_ndim, lazy, transform_info, **kwarg
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
+def _apply_affine_to_points(points, affine, include_shift: bool = True) -> torch.Tensor:
     """
     This internal function applies affine matrices to the point coordinate
     Args:
@@ -395,7 +395,6 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
         points_affine = points_affine.transpose(0, 1)
 
     # convert tensor back to numpy if needed
-    points_affine: NdarrayOrTensor
     points_affine, *_ = convert_to_dst_type(src=points_affine, dst=points)
 
     return points_affine
@@ -423,8 +422,8 @@ def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kw
         transform_info=transform_info,
         lazy=lazy,
     )
+    out = _maybe_new_metatensor(points)
     if lazy:
-        out = _maybe_new_metatensor(points)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if tuple(convert_to_numpy(src_spatial_size)) == out_size:
         out = _maybe_new_metatensor(points, dtype=dtype)
@@ -434,7 +433,6 @@ def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kw
     affine = create_scale(spatial_dims=spatial_dims, scaling_factor=scaling_factor)
     ret: torch.Tensor = _apply_affine_to_points(points[0], affine, include_shift=True)
 
-    out: NdarrayOrTensor
     out, *_ = convert_to_dst_type(src=ret.unsqueeze(0), dst=points, dtype=dtype)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
