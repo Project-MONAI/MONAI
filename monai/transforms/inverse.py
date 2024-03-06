@@ -225,10 +225,11 @@ class TraceableTransform(Transform):
             info[TraceKeys.EXTRA_INFO] = extra_info
 
         # update refer meta
-        if data_t.meta.get("refer_meta", None) is not None:
-            data_t.meta["refer_meta"]["spatial_shape"] = (
-                sp_size if sp_size is not None else info.get(TraceKeys.ORIG_SIZE, [])
-            )
+        if isinstance(data_t, MetaTensor):
+            if data_t.meta.get("refer_meta", None) is not None:
+                data_t.meta["refer_meta"]["spatial_shape"] = (
+                    sp_size if sp_size is not None else info.get(TraceKeys.ORIG_SIZE, [])
+                )
 
         # push the transform info to the applied_operation or pending_operation stack
         if lazy:
