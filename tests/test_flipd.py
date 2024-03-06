@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -32,6 +33,15 @@ TORCH_CASES = []
 for track_meta in (False, True):
     for device in TEST_DEVICES:
         TORCH_CASES.append([[0, 1], torch.zeros((1, 3, 2)), track_meta, *device])
+
+POINT_2D_WITH_REFER = MetaTensor(
+    [[[3, 4], [5, 7], [6, 2], [7, 8]]], meta={"kind": "point", "refer_meta": {"spatial_shape": (10, 10)}}
+)
+POINT_3D = MetaTensor([[[3, 4, 5], [5, 7, 6], [6, 2, 7]]], meta={"kind": "point"})
+POINT_CASES = []
+for spatial_axis in [[0], [1], [0, 1]]:
+    for point in [POINT_2D_WITH_REFER, POINT_3D]:
+        POINT_CASES.append([spatial_axis, point])
 
 
 class TestFlipd(NumpyImageTestCase2D):
@@ -79,6 +89,22 @@ class TestFlipd(NumpyImageTestCase2D):
         xform = Flipd("image", [0, 1])
         res = xform({"image": torch.zeros(1, 3, 4)})
         self.assertTrue(res["image"].applied_operations == res["image_transforms"])
+
+    @parameterized.expand(POINT_CASES)
+    def test_points(self, spatial_axis, point):
+        init_param = {"keys": "point", "spatial_axis": spatial_axis}
+        xform = Flipd(**init_param)
+        res = xform({"point": point})  # type: ignore[arg-type]
+        self.assertEqual(point.shape, res["point"].shape)
+        expected = deepcopy(point)
+        if point.meta.get("refer_meta", None) is not None:
+            for _axes in spatial_axis:
+                expected[..., _axes] = (10, 10)[_axes] - point[..., _axes]
+        else:
+            for _axes in spatial_axis:
+                expected[..., _axes] = -point[..., _axes]
+        assert_allclose(res["point"], expected, type_test="tensor")
+        test_local_inversion(xform, {"point": res["point"]}, {"point": point}, "point")
 
 
 if __name__ == "__main__":

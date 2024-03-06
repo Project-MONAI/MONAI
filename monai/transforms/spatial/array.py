@@ -34,7 +34,8 @@ from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCro
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
     affine_func,
-    flip,
+    flip_image,
+    flip_point,
     orientation,
     resize,
     rotate,
@@ -684,8 +685,9 @@ class Flip(InvertibleTransform, LazyTransform):
     def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
+        self.operators = [flip_point, flip_image]
 
-    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[return]
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
@@ -695,7 +697,10 @@ class Flip(InvertibleTransform, LazyTransform):
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         lazy_ = self.lazy if lazy is None else lazy
-        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+        for operator in self.operators:
+            ret: torch.Tensor = operator(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())
+            if ret is not None:
+                return ret
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         self.pop_transform(data)
