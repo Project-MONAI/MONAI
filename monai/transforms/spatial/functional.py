@@ -286,7 +286,8 @@ def flip_point(points, sp_axes, lazy, transform_info):
     This function operates eagerly or lazily according to
     ``lazy`` (default ``False``).
     Args:
-        points: point coordinates, Nx2 or Nx3 torch tensor or ndarray
+        points: point coordinates, represented by a torch tensor or ndarray with dimensions of 1xNx2 or 1xNx3.
+            Here 1 represents the channel dimension.
         sp_axes: spatial axes along which to flip over. Default is None.
             The default `axis=None` will flip over all of the axes of the input array.
             If axis is negative it counts from the last to the first axis.
@@ -320,10 +321,10 @@ def flip_point(points, sp_axes, lazy, transform_info):
     meta_info = TraceableTransform.track_transform_meta(
         points, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info
     )
-
     # flip box
     out = deepcopy(_maybe_new_metatensor(points))
     if lazy:
+        raise NotImplementedError
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if sp_size is None:
         warnings.warn("''sp_size'' is None, will flip in the world coordinates.")

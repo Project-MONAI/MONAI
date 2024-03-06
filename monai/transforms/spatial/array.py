@@ -687,7 +687,7 @@ class Flip(InvertibleTransform, LazyTransform):
         self.spatial_axis = spatial_axis
         self.operators = [flip_point, flip_image]
 
-    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:  # type: ignore[return]
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
@@ -698,7 +698,7 @@ class Flip(InvertibleTransform, LazyTransform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         lazy_ = self.lazy if lazy is None else lazy
         for operator in self.operators:
-            ret = operator(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())
+            ret: torch.Tensor = operator(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())
             if ret is not None:
                 return ret
 
