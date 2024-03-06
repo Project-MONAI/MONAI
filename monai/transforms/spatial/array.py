@@ -52,6 +52,7 @@ from monai.transforms.utils import (
     create_scale,
     create_shear,
     create_translate,
+    get_input_shape,
     map_spatial_axes,
     resolves_modes,
     scale_affine,
@@ -808,10 +809,13 @@ class Resize(InvertibleTransform, LazyTransform):
         anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
         anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
 
-        input_ndim = img.ndim - 1  # spatial ndim
+        input_shape = get_input_shape(img)  # spatial shape
+        input_ndim = len(input_shape)  # spatial ndim
         if self.size_mode == "all":
             output_ndim = len(ensure_tuple(self.spatial_size))
-            if output_ndim > input_ndim:
+            # only works for pixel data
+            kind = img.meta.get("kind", "pixel") if isinstance(img, MetaTensor) else "pixel"
+            if output_ndim > input_ndim and kind == "pixel":
                 input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
                 img = img.reshape(input_shape)
             elif output_ndim < input_ndim:
@@ -819,10 +823,10 @@ class Resize(InvertibleTransform, LazyTransform):
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            _sp = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            _sp = get_input_shape(img)
             sp_size = fall_back_tuple(self.spatial_size, _sp)
         else:  # for the "longest" mode
-            img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            img_size = input_shape
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)

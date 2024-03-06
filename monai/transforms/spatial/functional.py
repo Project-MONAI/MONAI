@@ -24,7 +24,7 @@ import torch
 import monai
 from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
-from monai.data.box_utils import get_spatial_dims
+from monai.data.box_utils import COMPUTE_DTYPE, get_spatial_dims
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
@@ -32,7 +32,14 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_scale, create_translate, resolves_modes, scale_affine
+from monai.transforms.utils import (
+    convert_data_type,
+    create_rotate,
+    create_scale,
+    create_translate,
+    resolves_modes,
+    scale_affine,
+)
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     LazyAttr,
@@ -366,23 +373,30 @@ def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_
     Returns:
         transformed point coordinates, with same data type as ``points``, does not share memory with ``points``
     """
-
-    spatial_dims = get_spatial_dims(points=points)
+    # convert numpy to tensor if needed
+    points_t, *_ = convert_data_type(points, torch.Tensor)
+    points_t = points_t.to(dtype=COMPUTE_DTYPE)
+    affine_t, *_ = convert_to_dst_type(src=affine, dst=points_t)
+    spatial_dims = get_spatial_dims(points=points_t)
 
     # compute new points
     if include_shift:
         # append 1 to form Nx(spatial_dims+1) vector, then transpose
         points_affine = torch.cat(
-            [points, torch.ones(points.shape[0], 1, device=points.device, dtype=points.dtype)], dim=1
+            [points_t, torch.ones(points_t.shape[0], 1, device=points_t.device, dtype=points_t.dtype)], dim=1
         ).transpose(0, 1)
         # apply affine
-        points_affine = torch.matmul(affine, points_affine)
+        points_affine = torch.matmul(affine_t, points_affine)
         # remove appended 1 and transpose back
         points_affine = points_affine[:spatial_dims, :].transpose(0, 1)
     else:
-        points_affine = points.transpose(0, 1)
-        points_affine = torch.matmul(affine[:spatial_dims, :spatial_dims], points_affine)
+        points_affine = points_t.transpose(0, 1)
+        points_affine = torch.matmul(affine_t[:spatial_dims, :spatial_dims], points_affine)
         points_affine = points_affine.transpose(0, 1)
+
+    # convert tensor back to numpy if needed
+    points_affine: NdarrayOrTensor
+    points_affine, *_ = convert_to_dst_type(src=points_affine, dst=points)
 
     return points_affine
 
@@ -393,7 +407,7 @@ def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kw
     if kind != "point":
         return None
     if points.meta.get("refer_meta", None) is not None:
-        src_spatial_size = points.meta["refer_meta"]["spatial_shape"]
+        src_spatial_size = points.meta["refer_meta"].get("spatial_shape", None)
     else:
         raise ValueError("Resize cannot be applied to a point without a reference meta.")
     points = convert_to_tensor(points, track_meta=get_track_meta())
@@ -413,13 +427,12 @@ def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kw
         out = _maybe_new_metatensor(points)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if tuple(convert_to_numpy(src_spatial_size)) == out_size:
-        out = _maybe_new_metatensor(points, dtype=torch.float32)
+        out = _maybe_new_metatensor(points, dtype=dtype)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     spatial_dims = get_spatial_dims(points=points[0])
     scaling_factor = [out_size[axis] / float(src_spatial_size[axis]) for axis in range(spatial_dims)]
     affine = create_scale(spatial_dims=spatial_dims, scaling_factor=scaling_factor)
-    affine_t, *_ = convert_to_dst_type(src=affine, dst=points)
-    ret: torch.Tensor = _apply_affine_to_points(points[0], affine_t, include_shift=True)
+    ret: torch.Tensor = _apply_affine_to_points(points[0], affine, include_shift=True)
 
     out: NdarrayOrTensor
     out, *_ = convert_to_dst_type(src=ret.unsqueeze(0), dst=points, dtype=dtype)
