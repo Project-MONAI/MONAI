@@ -285,6 +285,7 @@ def flip_point(points, sp_axes, lazy, transform_info):
     Functional implementation of flip points.
     This function operates eagerly or lazily according to
     ``lazy`` (default ``False``).
+
     Args:
         points: point coordinates, represented by a torch tensor or ndarray with dimensions of 1xNx2 or 1xNx3.
             Here 1 represents the channel dimension.
@@ -295,8 +296,6 @@ def flip_point(points, sp_axes, lazy, transform_info):
             specified in the tuple.
         lazy: a flag that indicates whether the operation should be performed lazily or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
-    Returns:
-        flipped points, with same data type as ``points``, does not share memory with ``points``
     """
     # TODO: update to use enum
     kind = points.meta.get("kind", "pixel") if isinstance(points, MetaTensor) else "pixel"
