@@ -178,7 +178,7 @@ class SURELoss(_Loss):
 
         # check inputs shapes
         if x.dim() != 4:
-            raise ValueError("Input tensor x should be 4D.")
+            raise ValueError(f"Input tensor x should be 4D, got {x.dim()}.")
         if y_pseudo_gt.dim() != 4:
             raise ValueError("Input tensor y_pseudo_gt should be 4D.")
         if y_ref is not None and y_ref.dim() != 4:
