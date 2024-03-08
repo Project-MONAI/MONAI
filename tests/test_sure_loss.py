@@ -43,7 +43,6 @@ class TestSURELoss(unittest.TestCase):
         x = torch.randn(2, 2, 128, 128)
         loss = sure_loss_complex(operator, x, y_pseudo_gt, complex_input=True)
         self.assertAlmostEqual(loss.item(), 0.0)
-        print("complex value test passed")
 
     def test_complex_general_input(self):
         """Test SURELoss with complex-valued input: when the input is general complex value, the loss should be 0.0."""
