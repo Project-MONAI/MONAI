@@ -49,7 +49,6 @@ class TestConjugateGradient(unittest.TestCase):
         x = cg_solver(torch.zeros(a_dim, dtype=torch.complex64), y)
         x_ref = torch.linalg.solve(a_mat, y)
         self.assertTrue(torch.allclose(x, x_ref, atol=1e-6))
-        print("complex value test passed")
 
 
 if __name__ == "__main__":
