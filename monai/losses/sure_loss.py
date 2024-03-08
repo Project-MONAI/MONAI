@@ -112,7 +112,7 @@ class SURELoss(_Loss):
     """
     Calculate the Stein's Unbiased Risk Estimator (SURE) loss for a given operator.
 
-    This is a differentiable loss function that can be used to train/giude an
+    This is a differentiable loss function that can be used to train/guide an
     operator (e.g. neural network), where the pseudo ground truth is available
     but the reference ground truth is not. For example, in the MRI
     reconstruction, the pseudo ground truth is the zero-filled reconstruction
