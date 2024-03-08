@@ -36,7 +36,6 @@ class TestConjugateGradient(unittest.TestCase):
         x_ref = torch.linalg.solve(a_mat, y)
         # assert torch.allclose(x, x_ref, atol=1e-6), 'CG solver failed to converge to reference solution'
         self.assertTrue(torch.allclose(x, x_ref, atol=1e-6))
-        print("real value test passed")
 
     def test_complex_valued_inverse(self):
         a_dim = 3
