@@ -135,7 +135,7 @@ Reconstruction Losses
     :members:
 
 `SURELoss`
-~~~~~~~~~~~~~~
+~~~~~~~~~~
 .. autoclass:: SURELoss
     :members:
 
