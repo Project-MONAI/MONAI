@@ -105,7 +105,7 @@ class ConjugateGradient(nn.Module):
         p = r
 
         # Update
-        for i in range(self.num_iter):
+        for _i in range(self.num_iter):
             x, p, r, rsold = self.update(x, p, r, rsold)
             if rsold < 1e-10:
                 break
