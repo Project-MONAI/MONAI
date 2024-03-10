@@ -850,7 +850,10 @@ def _onnx_trt_compile(
 
     # wrap the serialized TensorRT engine back to a TorchScript module.
     trt_model = torch_tensorrt.ts.embed_engine_in_new_module(
-        f.getvalue(), torch.device(f"cuda:{device}"), input_names, output_names
+        f.getvalue(),
+        device=torch.device(f"cuda:{device}"),
+        input_binding_names=input_names,
+        output_binding_names=output_names,
     )
     return trt_model
 
