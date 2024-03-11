@@ -19,10 +19,16 @@ from torch.nn.modules.loss import _Loss
 
 class BarlowTwinsLoss(_Loss):
     """
-    Compute the Barlow Twins loss defined in:
+    The Barlow Twins cost function takes the representations extracted by a neural network from two
+    distorted views and seeks to make the cross-correlation matrix of the two representations tend
+    towards identity. This encourages the neural network to learn similar representations with the least
+    amount of redundancy. This cost function can be used in particular in multimodal learning to work on
+    representations from two modalities. The most common use case is for unsupervised learning, where data
+    augmentations are used to generate 2 distorted views of the same sample to force the encoder to
+    extract useful features for downstream tasks.
 
-        Zbontar, Jure, et al. "Barlow Twins: Self-Supervised Learning via Redundancy Reduction" International
-        conference on machine learning. PMLR, 2020. (http://proceedings.mlr.press/v139/zbontar21a/zbontar21a.pdf)
+    Zbontar, Jure, et al. "Barlow Twins: Self-Supervised Learning via Redundancy Reduction" International
+    conference on machine learning. PMLR, 2020. (http://proceedings.mlr.press/v139/zbontar21a/zbontar21a.pdf)
 
     Adapted from:
         https://github.com/facebookresearch/barlowtwins
