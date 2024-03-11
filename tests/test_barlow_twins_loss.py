@@ -100,7 +100,7 @@ class TestBarlowTwinsLoss(unittest.TestCase):
         output = loss(i, j)
         np.testing.assert_allclose(output.detach().cpu().numpy(), 10.0, atol=1e-4, rtol=1e-4)
 
-    def check_warning_rasied(self):
+    def check_warning_raised(self):
         with self.assertWarns(Warning):
             BarlowTwinsLoss(lambd=5e-3, batch_size=1)
 
