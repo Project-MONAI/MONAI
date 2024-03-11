@@ -82,7 +82,7 @@ class TestBarlowTwinsLoss(unittest.TestCase):
 
     def test_ill_shape(self):
         loss = BarlowTwinsLoss(lambd=5e-3)
-        with self.assertRaisesRegex(ValueError, ""):
+        with self.assertRaises(ValueError):
             loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
 
     def test_ill_batch_size(self):
