@@ -139,8 +139,8 @@ __all__ = [
 def soft_clip(
     arr: NdarrayOrTensor,
     sharpness_factor: float = 1.0,
-    minv: float | None = None,
-    maxv: float | None = None,
+    minv: NdarrayOrTensor | float | int | None = None,
+    maxv: NdarrayOrTensor | float | int | None = None,
     dtype: DtypeLike | torch.dtype = np.float32,
 ) -> NdarrayOrTensor:
     """
