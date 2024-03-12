@@ -30,7 +30,7 @@ from monai.data.ultrasound_confidence_map import UltrasoundConfidenceMap
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
-from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
+from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array, soft_clip
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
@@ -54,6 +54,7 @@ __all__ = [
     "NormalizeIntensity",
     "ThresholdIntensity",
     "ScaleIntensityRange",
+    "ClipIntensityPercentiles",
     "AdjustContrast",
     "RandAdjustContrast",
     "ScaleIntensityRangePercentiles",
@@ -1005,6 +1006,118 @@ class ScaleIntensityRange(Transform):
         ret: NdarrayOrTensor = convert_data_type(img, dtype=dtype)[0]
 
         return ret
+
+
+class ClipIntensityPercentiles(Transform):
+    """
+    Apply clip based on the intensity distribution of input image.
+    If `sharpness_factor` is provided, the intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    From https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291
+
+    Soft clipping preserves the order of the values and maintains the gradient everywhere.
+    For example:
+
+    .. code-block:: python
+        :emphasize-lines: 11, 22
+
+        image = torch.Tensor(
+            [[[1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5]]])
+
+        # Hard clipping from lower and upper image intensity percentiles
+        hard_clipper = ClipIntensityPercentiles(30, 70)
+        print(hard_clipper(image))
+        metatensor([[[2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.]]])
+
+
+        # Soft clipping from lower and upper image intensity percentiles
+        soft_clipper = ClipIntensityPercentiles(30, 70, 10.)
+        print(soft_clipper(image))
+        metatensor([[[2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000]]])
+
+    See Also:
+
+        - :py:class:`monai.transforms.ScaleIntensityRangePercentiles`
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        lower: float | None,
+        upper: float | None,
+        sharpness_factor: float | None = None,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        """
+        Args:
+            lower: lower intensity percentile.
+            upper: upper intensity percentile.
+            sharpness_factor: if not None, the intensity values will be soft clipped according to
+                f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv)).
+                defaults to None.
+            channel_wise: if True, compute intensity percentile and normalize every channel separately.
+                default to False.
+            dtype: output data type, if None, same as input image. defaults to float32.
+        """
+        if lower is None and upper is None:
+            raise ValueError("lower or upper percentiles must be provided")
+        if lower is not None and (lower < 0.0 or lower > 100.0):
+            raise ValueError("Percentiles must be in the range [0, 100]")
+        if upper is not None and (upper < 0.0 or upper > 100.0):
+            raise ValueError("Percentiles must be in the range [0, 100]")
+        if upper is not None and lower is not None and upper < lower:
+            raise ValueError("upper must be greater than or equal to lower")
+        if sharpness_factor is not None and sharpness_factor <= 0:
+            raise ValueError("sharpness_factor must be greater than 0")
+
+        self.lower = lower
+        self.upper = upper
+        self.sharpness_factor = sharpness_factor
+        self.channel_wise = channel_wise
+        self.dtype = dtype
+
+    def _normalize(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        if self.sharpness_factor is not None:
+            lower_percentile = percentile(img, self.lower) if self.lower is not None else None
+            upper_percentile = percentile(img, self.upper) if self.upper is not None else None
+            img = soft_clip(img, self.sharpness_factor, lower_percentile, upper_percentile, self.dtype)
+        else:
+            lower_percentile = percentile(img, self.lower) if self.lower is not None else percentile(img, 0)
+            upper_percentile = percentile(img, self.upper) if self.upper is not None else percentile(img, 100)
+            img = clip(img, lower_percentile, upper_percentile)
+
+        img = convert_to_tensor(img, track_meta=False)
+        return img
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t = convert_to_tensor(img, track_meta=False)
+        if self.channel_wise:
+            img_t = torch.stack([self._normalize(img=d) for d in img_t])  # type: ignore
+        else:
+            img_t = self._normalize(img=img_t)
+
+        return convert_to_dst_type(img_t, dst=img)[0]
 
 
 class AdjustContrast(Transform):

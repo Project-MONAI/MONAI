@@ -38,6 +38,7 @@ from monai.transforms.utils_pytorch_numpy_unification import (
     nonzero,
     ravel,
     searchsorted,
+    softplus,
     unique,
     unravel_index,
     where,
@@ -131,7 +132,43 @@ __all__ = [
     "resolves_modes",
     "has_status_keys",
     "distance_transform_edt",
+    "soft_clip",
 ]
+
+
+def soft_clip(
+    arr: NdarrayOrTensor,
+    sharpness_factor: float = 1.0,
+    minv: float | None = None,
+    maxv: float | None = None,
+    dtype: DtypeLike | torch.dtype = np.float32,
+) -> NdarrayOrTensor:
+    """
+    Apply soft clip to the input array or tensor.
+    The intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    From https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291
+
+    To perform one-sided clipping, set either minv or maxv to None.
+    Args:
+        arr: input array to clip.
+        sharpness_factor: the sharpness of the soft clip function, default to 1.
+        minv: minimum value of target clipped array.
+        maxv: maximum value of target clipped array.
+        dtype: if not None, convert input array to dtype before computation.
+
+    """
+
+    if dtype is not None:
+        arr, *_ = convert_data_type(arr, dtype=dtype)
+
+    v = arr
+    if minv is not None:
+        v = v + softplus(-sharpness_factor * (arr - minv)) / sharpness_factor
+    if maxv is not None:
+        v = v - softplus(sharpness_factor * (arr - maxv)) / sharpness_factor
+
+    return v
 
 
 def rand_choice(prob: float = 0.5) -> bool:

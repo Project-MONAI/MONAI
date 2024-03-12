@@ -92,6 +92,7 @@ from .croppad.dictionary import (
 from .croppad.functional import crop_func, crop_or_pad_nd, pad_func, pad_nd
 from .intensity.array import (
     AdjustContrast,
+    ClipIntensityPercentiles,
     ComputeHoVerMaps,
     DetectEnvelope,
     ForegroundMask,
@@ -135,6 +136,9 @@ from .intensity.dictionary import (
     AdjustContrastd,
     AdjustContrastD,
     AdjustContrastDict,
+    ClipIntensityPercentilesd,
+    ClipIntensityPercentilesD,
+    ClipIntensityPercentilesDict,
     ComputeHoVerMapsd,
     ComputeHoVerMapsD,
     ComputeHoVerMapsDict,
