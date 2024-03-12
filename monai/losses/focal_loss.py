@@ -235,7 +235,7 @@ def sigmoid_focal_loss(
     # computing binary cross entropy with logits
     # equivalent to F.binary_cross_entropy_with_logits(input, target, reduction='none')
     # see also https://github.com/pytorch/pytorch/blob/main/aten/src/ATen/native/Loss.cpp#L363
-    loss: torch.Tensor = input - input * target  - F.logsigmoid(input)
+    loss: torch.Tensor = input - input * target - F.logsigmoid(input)
 
     # sigmoid(-i) if t==1; sigmoid(i) if t==0 <=>
     # 1-sigmoid(i) if t==1; sigmoid(i) if t==0 <=>
