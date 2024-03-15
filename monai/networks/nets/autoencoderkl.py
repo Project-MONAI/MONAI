@@ -104,7 +104,6 @@ class _Downsample(nn.Module):
 
     def __init__(self, spatial_dims: int, in_channels: int) -> None:
         super().__init__()
-        self.pad = (0, 1) * spatial_dims
 
         self.conv = Convolution(
             spatial_dims=spatial_dims,
@@ -112,12 +111,10 @@ class _Downsample(nn.Module):
             out_channels=in_channels,
             strides=2,
             kernel_size=3,
-            padding=0,
             conv_only=True,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = nn.functional.pad(x, self.pad, mode="constant", value=0.0)
         x = self.conv(x)
         return x
 
