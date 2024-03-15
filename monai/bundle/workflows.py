@@ -46,6 +46,9 @@ class BundleWorkflow(ABC):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
+        logging_file: config file for `logging` module in the program. for more details:
+            https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
 
     """
 
@@ -59,7 +62,13 @@ class BundleWorkflow(ABC):
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
     )
-    def __init__(self, workflow_type: str | None = None, workflow: str | None = None):
+    def __init__(
+        self,
+        workflow_type: str | None = None,
+        workflow: str | None = None,
+        meta_file: str | Sequence[str] | None = None,
+        logging_file: str | None = None,
+    ):
         workflow_type = workflow if workflow is not None else workflow_type
         if workflow_type is None:
             self.properties = copy(MetaProperties)
@@ -233,7 +242,7 @@ class ConfigWorkflow(BundleWorkflow):
         **override: Any,
     ) -> None:
         workflow_type = workflow if workflow is not None else workflow_type
-        super().__init__(workflow_type=workflow_type)
+        super().__init__(workflow_type=workflow_type, meta_file=meta_file, logging_file=logging_file)
         if config_file is not None:
             _config_files = ensure_tuple(config_file)
             self.config_root_path = Path(_config_files[0]).parent
