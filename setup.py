@@ -10,13 +10,9 @@
 # limitations under the License.
 
 import os
-import re
-import sys
 import warnings
 
-import pkg_resources
 from setuptools import find_packages, setup
-from setuptools.extension import Extension
 
 import versioneer
 
@@ -29,7 +25,7 @@ ext_modules = []
 if BUILD_MONAI:
     try:
         import torch
-        from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+        from torch.utils.cpp_extension import CUDAExtension
 
         print(f"Setup with torch {torch.__version__}")
 
@@ -54,4 +50,3 @@ setup(
     package_data={"monai": ["py.typed", "monai/csrc/*"]},
     ext_modules=ext_modules,
 )
-
