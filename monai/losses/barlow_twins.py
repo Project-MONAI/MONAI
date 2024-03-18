@@ -49,9 +49,6 @@ class BarlowTwinsLoss(_Loss):
         super().__init__()
         self.lambd = lambd
 
-        if batch_size != -1:
-            warn("batch_size is no longer required to be set. It will be estimated dynamically in the forward call")
-
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
         Args:
