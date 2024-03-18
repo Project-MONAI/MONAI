@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-
 import torch
 from torch.nn.modules.loss import _Loss
 
@@ -34,7 +33,7 @@ class BarlowTwinsLoss(_Loss):
 
     """
 
-    def __init__(self, lambd: float = 5e-3, batch_size: int = -1) -> None:
+    def __init__(self, lambd: float = 5e-3) -> None:
         """
         Args:
             lamb: Can be any float to handle the informativeness and invariance trade-off. Ideally set to 5e-3.
