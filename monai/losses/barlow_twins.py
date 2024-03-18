@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-from warnings import warn
 
 import torch
 from torch.nn.modules.loss import _Loss
