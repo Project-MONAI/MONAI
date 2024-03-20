@@ -105,16 +105,20 @@ class _Downsample(nn.Module):
     def __init__(self, spatial_dims: int, in_channels: int) -> None:
         super().__init__()
 
+        self.pad = (0, 1) * spatial_dims
+
         self.conv = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
             strides=2,
             kernel_size=3,
+            padding=0,
             conv_only=True,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = nn.functional.pad(x, self.pad, mode="constant", value=0.0)
         x = self.conv(x)
         return x
 
@@ -317,6 +321,38 @@ class _AttentionBlock(nn.Module):
         return x + residual
 
 
+class _AttentionBlockNew(nn.Module):
+    def __init__(self, spatial_dims, num_channels, num_head_channels):
+        super().__init__()
+        from monai.networks.blocks.selfattention import SABlock
+
+        self.spatial_dims = spatial_dims
+        self.norm = nn.GroupNorm(num_groups=32, num_channels=num_head_channels, eps=1e-6, affine=True)
+        self.attn = SABlock(hidden_size=num_channels, num_heads=1, qkv_bias=True)
+
+    def forward(self, x):
+        residual = x
+        # SAblck expects input in the form of B x C x (s_dim_1 * ... * s_dim_n)
+        from einops.layers.torch import Rearrange
+
+        if self.spatial_dims == 2:
+            h, w = x.shape[2], x.shape[3]
+            rearrange_input = Rearrange("b c h w -> b (h w) c")
+            rearrange_output = Rearrange("b (h w) c -> b c h w", h=h, w=w)
+        if self.spatial_dims == 3:
+            h, w, d = x.shape[2], x.shape[3], x.shape[4]
+            rearrange_input = Rearrange("b c h w d -> b (h w d) c")
+            rearrange_output = Rearrange("b (h w d) c -> b c h w d", h=h, w=w, d=d)
+
+        x = self.norm(x)
+        x = rearrange_input(x)  # B x (s_dim_1 * ... * s_dim_n) x C
+
+        x = self.attn(x)
+        x = rearrange_output(x)
+        x = x + residual
+        return x
+
+
 class Encoder(nn.Module):
     """
     Convolutional cascade that downsamples the image into a spatial latent space.
@@ -346,6 +382,7 @@ class Encoder(nn.Module):
         attention_levels: Sequence[bool],
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
+        new_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -391,9 +428,13 @@ class Encoder(nn.Module):
                 input_channel = output_channel
                 if attention_levels[i]:
                     blocks.append(
-                        _AttentionBlock(
+                        _AttentionBlockNew(
+                            spatial_dims=spatial_dims, num_channels=input_channel, num_head_channels=input_channel
+                        )
+                        if new_attention
+                        else _AttentionBlock(
                             spatial_dims=spatial_dims,
-                            num_channels=input_channel,
+                            num_channels=channels[-1],
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
                             use_flash_attention=use_flash_attention,
@@ -416,9 +457,13 @@ class Encoder(nn.Module):
             )
 
             blocks.append(
-                _AttentionBlock(
+                _AttentionBlockNew(
+                    spatial_dims=spatial_dims, num_channels=input_channel, num_head_channels=input_channel
+                )
+                if new_attention
+                else _AttentionBlock(
                     spatial_dims=spatial_dims,
-                    num_channels=channels[-1],
+                    num_channels=input_channel,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
                     use_flash_attention=use_flash_attention,
@@ -451,6 +496,7 @@ class Encoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.blocks:
+            # print(f'{block}: {x[0, 0, 0, 0]}')
             x = block(x)
         return x
 
@@ -486,6 +532,7 @@ class Decoder(nn.Module):
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
         use_convtranspose: bool = False,
+        new_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -526,7 +573,13 @@ class Decoder(nn.Module):
                 )
             )
             blocks.append(
-                _AttentionBlock(
+                _AttentionBlockNew(
+                    spatial_dims=spatial_dims,
+                    num_channels=reversed_block_out_channels[0],
+                    num_head_channels=reversed_block_out_channels[0],
+                )
+                if new_attention
+                else _AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -566,7 +619,11 @@ class Decoder(nn.Module):
 
                 if reversed_attention_levels[i]:
                     blocks.append(
-                        _AttentionBlock(
+                        _AttentionBlockNew(
+                            spatial_dims=spatial_dims, num_channels=block_in_ch, num_head_channels=block_in_ch
+                        )
+                        if new_attention
+                        else _AttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
@@ -640,6 +697,7 @@ class AutoencoderKL(nn.Module):
         use_flash_attention: bool = False,
         use_checkpoint: bool = False,
         use_convtranspose: bool = False,
+        new_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -675,6 +733,7 @@ class AutoencoderKL(nn.Module):
             attention_levels=attention_levels,
             with_nonlocal_attn=with_encoder_nonlocal_attn,
             use_flash_attention=use_flash_attention,
+            new_attention=new_attention,
         )
         self.decoder = Decoder(
             spatial_dims=spatial_dims,
@@ -688,6 +747,7 @@ class AutoencoderKL(nn.Module):
             with_nonlocal_attn=with_decoder_nonlocal_attn,
             use_flash_attention=use_flash_attention,
             use_convtranspose=use_convtranspose,
+            new_attention=new_attention,
         )
         self.quant_conv_mu = Convolution(
             spatial_dims=spatial_dims,
