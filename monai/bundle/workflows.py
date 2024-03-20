@@ -90,8 +90,13 @@ class BundleWorkflow(ABC):
             fileConfig(logging_file, disable_existing_loggers=False)
 
         if meta_file is not None:
-            if not os.path.exists(meta_file):
+            if isinstance(meta_file, str) and not os.path.exists(meta_file):
                 raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+            if isinstance(meta_file, list):
+                for f in meta_file:
+                    if not os.path.exists(f):
+                        raise FileNotFoundError(f"Cannot find the metadata config file: {f}.")
+
         self.meta_file = meta_file
 
     @abstractmethod
@@ -253,7 +258,7 @@ class ConfigWorkflow(BundleWorkflow):
         **override: Any,
     ) -> None:
         workflow_type = workflow if workflow is not None else workflow_type
-        super().__init__(workflow_type=workflow_type, meta_file=meta_file, logging_file=logging_file)
+        super().__init__(workflow_type=workflow_type)
         if config_file is not None:
             _config_files = ensure_tuple(config_file)
             self.config_root_path = Path(_config_files[0]).parent
@@ -288,6 +293,13 @@ class ConfigWorkflow(BundleWorkflow):
                 f"Cannot find the metadata config file: {meta_file}. "
                 "Please see: https://docs.monai.io/en/stable/mb_specification.html"
             )
+        elif isinstance(meta_file, list):
+            for f in meta_file:
+                if not os.path.exists(f):
+                    logger.error(
+                        f"Cannot find the metadata config file: {f}. "
+                        "Please see: https://docs.monai.io/en/stable/mb_specification.html"
+                    )
         else:
             self.parser.read_meta(f=meta_file)
 
