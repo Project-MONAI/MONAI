@@ -153,7 +153,9 @@ class TestBundleWorkflow(unittest.TestCase):
         self.assertEqual(inferer.meta_file, None)
         self._test_inferer(inferer)
 
-    @parameterized.expand([TEST_CASE_NON_CONFIG_WRONG_META, TEST_CASE_NON_CONFIG_WRONG_META_LIST, TEST_CASE_NON_CONFIG_WRONG_LOG])
+    @parameterized.expand(
+        [TEST_CASE_NON_CONFIG_WRONG_META, TEST_CASE_NON_CONFIG_WRONG_META_LIST, TEST_CASE_NON_CONFIG_WRONG_LOG]
+    )
     def test_non_config_wrong_cases(self, meta_file, logging_file, expected_error):
         with self.assertRaisesRegex(FileNotFoundError, expected_error):
             NonConfigWorkflow(self.filename, self.data_dir, meta_file, logging_file)
