@@ -434,7 +434,7 @@ class Encoder(nn.Module):
                         if new_attention
                         else _AttentionBlock(
                             spatial_dims=spatial_dims,
-                            num_channels=channels[-1],
+                            num_channels=input_channel,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
                             use_flash_attention=use_flash_attention,
@@ -458,12 +458,12 @@ class Encoder(nn.Module):
 
             blocks.append(
                 _AttentionBlockNew(
-                    spatial_dims=spatial_dims, num_channels=input_channel, num_head_channels=input_channel
+                    spatial_dims=spatial_dims, num_channels=channels[-1], num_head_channels=input_channel
                 )
                 if new_attention
                 else _AttentionBlock(
                     spatial_dims=spatial_dims,
-                    num_channels=input_channel,
+                    num_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
                     use_flash_attention=use_flash_attention,
