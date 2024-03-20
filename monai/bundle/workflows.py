@@ -83,6 +83,17 @@ class BundleWorkflow(ABC):
         else:
             raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
 
+        if logging_file is not None:
+            if not os.path.exists(logging_file):
+                raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
+            logger.info(f"Setting logging properties based on config: {logging_file}.")
+            fileConfig(logging_file, disable_existing_loggers=False)
+
+        if meta_file is not None:
+            if not os.path.exists(meta_file):
+                raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
+        self.meta_file = meta_file
+
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
         """
