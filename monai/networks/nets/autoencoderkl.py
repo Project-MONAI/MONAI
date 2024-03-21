@@ -89,37 +89,20 @@ class _Upsample(nn.Module):
         return x
 
 
-class _Downsample(nn.Module):
+class AsymmetricPad(nn.Module):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
-    Convolution-based downsampling layer.
+    Pad the input tensor asymmetrically along every spatial dimension.
 
     Args:
         spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
-        in_channels: number of input channels.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int) -> None:
+    def __init__(self, spatial_dims: int) -> None:
         super().__init__()
-
         self.pad = (0, 1) * spatial_dims
-
-        self.conv = Convolution(
-            spatial_dims=spatial_dims,
-            in_channels=in_channels,
-            out_channels=in_channels,
-            strides=2,
-            kernel_size=3,
-            padding=0,
-            conv_only=True,
-        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = nn.functional.pad(x, self.pad, mode="constant", value=0.0)
-        x = self.conv(x)
         return x
 
 
@@ -442,8 +425,21 @@ class Encoder(nn.Module):
                     )
 
             if not is_final_block:
-                blocks.append(_Downsample(spatial_dims=spatial_dims, in_channels=input_channel))
-
+                # assymetric padding and conv for downsampling so that each output_dim = input_dim // 2
+                blocks.append(
+                    nn.Sequential(
+                        AsymmetricPad(spatial_dims=spatial_dims),
+                        Convolution(
+                            spatial_dims=spatial_dims,
+                            in_channels=input_channel,
+                            out_channels=input_channel,
+                            strides=2,
+                            kernel_size=3,
+                            padding=0,
+                            conv_only=True,
+                        ),
+                    )
+                )
         # Non-local attention block
         if with_nonlocal_attn is True:
             blocks.append(
@@ -862,3 +858,73 @@ class AutoencoderKL(nn.Module):
     def decode_stage_2_outputs(self, z: torch.Tensor) -> torch.Tensor:
         image = self.decode(z)
         return image
+
+    def load_old_state_dict(self, old_state_dict: dict, verbose=False) -> None:
+        """
+        Load a state dict from an AutoencoderKL trained with MONAI Generative.
+
+        Args:
+            old_state_dict: state dict from the old AutoencoderKL model.
+        """
+
+        new_state_dict = self.state_dict()
+        # if all keys match, just load the state dict
+        if all(k in new_state_dict for k in old_state_dict):
+            print("All keys match, loading state dict.")
+            self.load_state_dict(old_state_dict)
+            return
+
+        if verbose:
+            # print all new_state_dict keys that are not in old_state_dict
+            for k in new_state_dict:
+                if k not in old_state_dict:
+                    print(f"key {k} not found in old state dict")
+            # and vice versa
+            print("----------------------------------------------")
+            for k in old_state_dict:
+                if k not in new_state_dict:
+                    print(f"key {k} not found in new state dict")
+
+        # copy over all matching keys
+        for k in new_state_dict:
+            if k in old_state_dict:
+                new_state_dict[k] = old_state_dict[k]
+
+        # fix the attention blocks
+        attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
+        for block in attention_blocks:
+            new_state_dict[f"{block}.attn.qkv.weight"] = torch.concat(
+                [
+                    old_state_dict[f"{block}.to_q.weight"],
+                    old_state_dict[f"{block}.to_k.weight"],
+                    old_state_dict[f"{block}.to_v.weight"],
+                ],
+                dim=0,
+            )
+            new_state_dict[f"{block}.attn.qkv.bias"] = torch.concat(
+                [
+                    old_state_dict[f"{block}.to_q.bias"],
+                    old_state_dict[f"{block}.to_k.bias"],
+                    old_state_dict[f"{block}.to_v.bias"],
+                ],
+                dim=0,
+            )
+            # old version did not have a projection so set these to the identity
+            new_state_dict[f"{block}.attn.out_proj.weight"] = torch.eye(
+                new_state_dict[f"{block}.attn.out_proj.weight"].shape[0]
+            )
+            new_state_dict[f"{block}.attn.out_proj.bias"] = torch.zeros(
+                new_state_dict[f"{block}.attn.out_proj.bias"].shape
+            )
+
+        # fix the downsample blocks
+        encoder_blocks = {int(k.split(".")[2]) for k in new_state_dict if "encoder.blocks." in k}
+        for block_num in encoder_blocks:
+            if f"encoder.blocks.{block_num}.conv.conv.weight" in old_state_dict:
+                new_state_dict[f"encoder.blocks.{block_num}.1.conv.weight"] = old_state_dict[
+                    f"encoder.blocks.{block_num}.conv.conv.weight"
+                ]
+                new_state_dict[f"encoder.blocks.{block_num}.1.conv.bias"] = old_state_dict[
+                    f"encoder.blocks.{block_num}.conv.conv.bias"
+                ]
+        self.load_state_dict(new_state_dict)

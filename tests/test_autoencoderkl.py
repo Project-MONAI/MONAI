@@ -293,42 +293,7 @@ class TestAutoEncoderKL(unittest.TestCase):
         ).to(device)
 
         old_state_dict = torch.load("/home/mark/data_drive/monai/autoencoderkl/autoencoder_kl_4.pth")
-        if new_attention:
-            new_state_dict = net.state_dict()
-            for k in new_state_dict:
-                if k in old_state_dict:
-                    new_state_dict[k] = old_state_dict[k]
-                # else:
-                #    print(f"key {k} not found in old state dict")
-            # get all prefixes for attention blocks
-            attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
-            for block in attention_blocks:
-                new_state_dict[f"{block}.attn.qkv.weight"] = torch.concat(
-                    [
-                        old_state_dict[f"{block}.to_q.weight"],
-                        old_state_dict[f"{block}.to_k.weight"],
-                        old_state_dict[f"{block}.to_v.weight"],
-                    ],
-                    dim=0,
-                )
-                new_state_dict[f"{block}.attn.qkv.bias"] = torch.concat(
-                    [
-                        old_state_dict[f"{block}.to_q.bias"],
-                        old_state_dict[f"{block}.to_k.bias"],
-                        old_state_dict[f"{block}.to_v.bias"],
-                    ],
-                    dim=0,
-                )
-                # looks like the old weights were not used
-                new_state_dict[f"{block}.attn.out_proj.weight"] = torch.eye(
-                    new_state_dict[f"{block}.attn.out_proj.weight"].shape[0]
-                )  # old_state_dict[f"{block}.proj_attn.weight"]
-                new_state_dict[f"{block}.attn.out_proj.bias"] = torch.zeros(
-                    new_state_dict[f"{block}.attn.out_proj.bias"].shape
-                )  # old_state_dict[f"{block}.proj_attn.bias"]
-            net.load_state_dict(new_state_dict)
-        else:
-            net.load_state_dict(old_state_dict)
+        net.load_old_state_dict(old_state_dict, verbose=True)
         with eval_mode(net):
             # set torch seed for reproducibility
             expected = torch.tensor(
@@ -356,7 +321,6 @@ class TestAutoEncoderKL(unittest.TestCase):
             print("debug")
 
     def test_load_brain_image_synthesis_ldm(self):
-        new_attention = True
         net = AutoencoderKL(
             spatial_dims=3,
             in_channels=1,
@@ -373,42 +337,7 @@ class TestAutoEncoderKL(unittest.TestCase):
         old_state_dict = torch.load(
             "/home/mark/projects/monai/models/brain_image_synthesis_latent_diffusion_model/autoencoder.pth"
         )
-        if new_attention:
-            new_state_dict = net.state_dict()
-            for k in new_state_dict:
-                if k in old_state_dict:
-                    new_state_dict[k] = old_state_dict[k]
-                # else:
-                #    print(f"key {k} not found in old state dict")
-            # get all prefixes for attention blocks
-            attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
-            for block in attention_blocks:
-                new_state_dict[f"{block}.attn.qkv.weight"] = torch.concat(
-                    [
-                        old_state_dict[f"{block}.to_q.weight"],
-                        old_state_dict[f"{block}.to_k.weight"],
-                        old_state_dict[f"{block}.to_v.weight"],
-                    ],
-                    dim=0,
-                )
-                new_state_dict[f"{block}.attn.qkv.bias"] = torch.concat(
-                    [
-                        old_state_dict[f"{block}.to_q.bias"],
-                        old_state_dict[f"{block}.to_k.bias"],
-                        old_state_dict[f"{block}.to_v.bias"],
-                    ],
-                    dim=0,
-                )
-                # looks like the old weights were not used
-                new_state_dict[f"{block}.attn.out_proj.weight"] = torch.eye(
-                    new_state_dict[f"{block}.attn.out_proj.weight"].shape[0]
-                )  # old_state_dict[f"{block}.proj_attn.weight"]
-                new_state_dict[f"{block}.attn.out_proj.bias"] = torch.zeros(
-                    new_state_dict[f"{block}.attn.out_proj.bias"].shape
-                )  # old_state_dict[f"{block}.proj_attn.bias"]
-            net.load_state_dict(new_state_dict)
-        else:
-            net.load_state_dict(old_state_dict)
+        net.load_old_state_dict(old_state_dict)
 
         # get the diffusion model with these params
         diffusion_model = DiffusionModelUNet(
