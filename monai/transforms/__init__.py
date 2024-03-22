@@ -603,6 +603,7 @@ from .utility.dictionary import (
     SqueezeDimd,
     SqueezeDimD,
     SqueezeDimDict,
+    SubtractItemsd,
     ToCupyd,
     ToCupyD,
     ToCupyDict,
