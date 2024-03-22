@@ -211,8 +211,16 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         target = medicalnet_intensity_normalisation(target)
 
         # Get model outputs
-        outs_input = self.model.forward(input)
-        outs_target = self.model.forward(target)
+        for ch_idx in range(input.shape[1]):
+            input_channel = input[:, ch_idx, ...].unsqueeze(1)
+            target_channel = target[:, ch_idx, ...].unsqueeze(1)
+
+            if ch_idx == 0:
+                outs_input = self.model.forward(input_channel)
+                outs_target = self.model.forward(target_channel)
+            else:
+                outs_input = torch.cat([outs_input, self.model.forward(input_channel)], dim=1)
+                outs_target = torch.cat([outs_target, self.model.forward(target_channel)], dim=1)
 
         # Normalise through the channels
         feats_input = normalize_tensor(outs_input)

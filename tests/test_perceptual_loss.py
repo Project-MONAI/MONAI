@@ -41,9 +41,19 @@ TEST_CASES = [
         (2, 1, 64, 64, 64),
     ],
     [
+        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False},
+        (2, 6, 64, 64, 64),
+        (2, 6, 64, 64, 64),
+    ],
+    [
         {"spatial_dims": 3, "network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False},
         (2, 1, 64, 64, 64),
         (2, 1, 64, 64, 64),
+    ],
+    [
+        {"spatial_dims": 3, "network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False},
+        (2, 6, 64, 64, 64),
+        (2, 6, 64, 64, 64),
     ],
     [
         {"spatial_dims": 3, "network_type": "resnet50", "is_fake_3d": True, "pretrained": True, "fake_3d_ratio": 0.2},
