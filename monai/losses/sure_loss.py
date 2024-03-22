@@ -185,11 +185,13 @@ class SURELoss(_Loss):
             raise ValueError(f"Input tensor y_ref should be 4D, but got {y_ref.dim()}.")
         if x.shape != y_pseudo_gt.shape:
             raise ValueError(
-                f"Input tensor x and y_pseudo_gt should have the same shape, but got x shape {x.shape}, y_pseudo_gt shape {y_pseudo_gt.shape}."
+                f"Input tensor x and y_pseudo_gt should have the same shape, but got x shape {x.shape}, "
+                f"y_pseudo_gt shape {y_pseudo_gt.shape}."
             )
         if y_ref is not None and y_pseudo_gt.shape != y_ref.shape:
             raise ValueError(
-                f"Input tensor y_pseudo_gt and y_ref should have the same shape, but got y_pseudo_gt shape {y_pseudo_gt.shape}, y_ref shape {y_ref.shape}."
+                f"Input tensor y_pseudo_gt and y_ref should have the same shape, but got y_pseudo_gt shape {y_pseudo_gt.shape}, "
+                f"y_ref shape {y_ref.shape}."
             )
 
         # compute loss
