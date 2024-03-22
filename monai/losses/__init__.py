@@ -41,5 +41,6 @@ from .perceptual import PerceptualLoss
 from .spatial_mask import MaskedLoss
 from .spectral_loss import JukeboxLoss
 from .ssim_loss import SSIMLoss
+from .sure_loss import SURELoss
 from .tversky import TverskyLoss
 from .unified_focal_loss import AsymmetricUnifiedFocalLoss
