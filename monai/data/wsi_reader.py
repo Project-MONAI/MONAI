@@ -602,7 +602,7 @@ class WSIReader(BaseWSIReader):
 
         """
         return self.reader.get_mpp(wsi, level)
-    
+
     def get_wsi_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
@@ -829,7 +829,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
                 closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=0)
                 print(f'Case 1: Downscaling using factor {(ds_factor_x, ds_factor_y)}')
-                
+
             else:
                 # Else: increase resolution (ie, decrement level) and then downsample
                 closest_lvl = closest_lvl - 1
@@ -1088,7 +1088,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         within_tolerance_x = (user_mpp_x >= lower_bound_x) & (user_mpp_x <= upper_bound_x)
         within_tolerance_y = (user_mpp_y >= lower_bound_y) & (user_mpp_y <= upper_bound_y)
         within_tolerance = within_tolerance_x & within_tolerance_y
-    
+
         if within_tolerance:
             # Take closest_level and continue with returning img at level
             print(f'User-provided MPP lies within tolerance of level {closest_lvl}, returning wsi at this level.')
@@ -1326,7 +1326,7 @@ class TiffFileWSIReader(BaseWSIReader):
         pil_image, _ = optional_import("PIL", name="Image")
         user_mpp_x, user_mpp_y = mpp
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]
-        closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5) 
+        closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
         # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
         mpp_closest_lvl = mpp_list[closest_lvl]
@@ -1348,7 +1348,7 @@ class TiffFileWSIReader(BaseWSIReader):
         within_tolerance_x = (user_mpp_x >= lower_bound_x) & (user_mpp_x <= upper_bound_x)
         within_tolerance_y = (user_mpp_y >= lower_bound_y) & (user_mpp_y <= upper_bound_y)
         within_tolerance = within_tolerance_x & within_tolerance_y
-    
+
         if within_tolerance:
             # Take closest_level and continue with returning img at level
             print(f'User-provided MPP lies within tolerance of level {closest_lvl}, returning wsi at this level.')
