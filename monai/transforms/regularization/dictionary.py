@@ -12,9 +12,9 @@
 from __future__ import annotations
 
 from monai.config import KeysCollection
-from monai.transforms import MapTransform
 from monai.utils.misc import ensure_tuple
 
+from ..transform import MapTransform
 from .array import CutMix, CutOut, MixUp
 
 __all__ = ["MixUpd", "MixUpD", "MixUpDict", "CutMixd", "CutMixD", "CutMixDict", "CutOutd", "CutOutD", "CutOutDict"]

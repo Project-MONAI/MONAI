@@ -16,12 +16,12 @@ from math import ceil, sqrt
 
 import torch
 
-from monai.transforms import Randomizable, Transform
+from ..transform import RandomizableTransform
 
 __all__ = ["MixUp", "CutMix", "CutOut"]
 
 
-class Mixer(Transform, Randomizable):
+class Mixer(RandomizableTransform):
     def __init__(self, batch_size: int, alpha: float = 1.0) -> None:
         super().__init__()
         if alpha <= 0:
