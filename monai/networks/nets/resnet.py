@@ -343,8 +343,8 @@ class ResNetFeatures(ResNet):
         model_name: str,
         pretrained: bool = True,
         block: type[ResNetBlock | ResNetBottleneck] | str = ResNetBlock,
-        layers: list[int] = (1, 1, 1, 1),
-        block_inplanes: list[int] = (64, 128, 256, 512),
+        layers: tuple[int] = (1, 1, 1, 1),
+        block_inplanes: tuple[int] = (64, 128, 256, 512),
         spatial_dims: int = 3,
         in_channels: int = 1,
         conv1_t_size: tuple[int] | int = 7,
@@ -386,7 +386,7 @@ class ResNetFeatures(ResNet):
             else:
                 raise ValueError("Pretrained resnet models are only available for in_channels=1 and spatial_dims=3.")
 
-    def forward(self, inputs: torch.Tensor) -> list[torch.Tensor]:
+    def forward(self, inputs: torch.Tensor):
         """
         Args:
             inputs: input should have spatially N dimensions
