@@ -27,7 +27,7 @@ from monai.networks.nets import (
     ResNetFeatures,
 )
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails, skip_if_quick
+from tests.utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
@@ -279,6 +279,7 @@ CASE_ERRORS = make_error_case()
 CASE_REGISTER_ENCODER = ["EfficientNetEncoder", "monai.networks.nets.EfficientNetEncoder"]
 
 
+@SkipIfNoModule("hf_hub_download")
 @skip_if_quick
 class TestFLEXIBLEUNET(unittest.TestCase):
 

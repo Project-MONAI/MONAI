@@ -37,7 +37,14 @@ from monai.networks.nets import (
 )
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
-from tests.utils import equal_state_dict, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick, test_script_save
+from tests.utils import (
+    SkipIfNoModule,
+    equal_state_dict,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+    test_script_save,
+)
 
 if TYPE_CHECKING:
     import torchvision
@@ -280,6 +287,7 @@ class TestResNet(unittest.TestCase):
         test_script_save(net, test_data)
 
 
+@SkipIfNoModule("hf_hub_download")
 class TestExtractFeatures(unittest.TestCase):
 
     @parameterized.expand(CASE_EXTRACT_FEATURES)
