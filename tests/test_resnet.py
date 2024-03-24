@@ -194,23 +194,7 @@ TEST_SCRIPT_CASES = [
 
 CASE_EXTRACT_FEATURES = [
     (
-        {
-            "model_name": "resnet10",
-            "pretrained": True,
-            "block": ResNetBlock,
-            "layers": [1, 1, 1, 1],
-            "block_inplanes": [64, 128, 256, 512],
-            "spatial_dims": 3,
-            "in_channels": 1,
-            "conv1_t_size": 7,
-            "conv1_t_stride": 2,
-            "no_max_pool": False,
-            "shortcut_type": "B",
-            "widen_factor": 1.0,
-            "num_classes": 400,
-            "feed_forward": False,
-            "bias_downsample": False,
-        },
+        {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
         [1, 1, 64, 64, 64],
         ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
     )

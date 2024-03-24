@@ -46,6 +46,19 @@ __all__ = [
     "resnet200",
 ]
 
+
+resnet_params = {
+    # model_name: (block, layers, shortcut_type, bias_downsample, datasets23)
+    "resnet10": ("basic", [1, 1, 1, 1], "B", False, True),
+    "resnet18": ("basic", [2, 2, 2, 2], "A", True, True),
+    "resnet34": ("basic", [3, 4, 6, 3], "A", True, True),
+    "resnet50": ("bottleneck", [3, 4, 6, 3], "B", False, True),
+    "resnet101": ("bottleneck", [3, 4, 23, 3], "B", False, False),
+    "resnet152": ("bottleneck", [3, 8, 36, 3], "B", False, False),
+    "resnet200": ("bottleneck", [3, 24, 36, 3], "B", False, False),
+}
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -338,51 +351,39 @@ class ResNet(nn.Module):
 
 class ResNetFeatures(ResNet):
 
-    def __init__(
-        self,
-        model_name: str,
-        pretrained: bool = True,
-        block: type[ResNetBlock | ResNetBottleneck] | str = ResNetBlock,
-        layers: tuple[int] = (1, 1, 1, 1),
-        block_inplanes: tuple[int] = (64, 128, 256, 512),
-        spatial_dims: int = 3,
-        in_channels: int = 1,
-        conv1_t_size: tuple[int] | int = 7,
-        conv1_t_stride: tuple[int] | int = 2,
-        no_max_pool: bool = False,
-        shortcut_type: str = "B",
-        widen_factor: float = 1.0,
-        num_classes: int = 400,
-        feed_forward: bool = False,
-        bias_downsample: bool = False,
-    ) -> None:
+    def __init__(self, model_name: str, pretrained: bool = True, spatial_dims: int = 3, in_channels: int = 1) -> None:
         """Initialize resnet18 to resnet200 models as a backbone, the backbone can be used as an encoder for
         segmentation and objection models.
 
         Compared with the class `ResNet`, the only different place is the forward function.
+
+        Args:
+            model_name: name of model to initialize, can be from [resnet10, ..., resnet200].
+            pretrained: whether to initialize pretrained Med3D weights,
+                only available for spatial_dims=3 and in_channels=1.
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of input channels for first convolutional layer.
         """
-        if model_name not in ResNetEncoder.backbone_names:
-            model_name_string = ", ".join(ResNetEncoder.backbone_names)
+        if model_name not in resnet_params:
+            model_name_string = ", ".join(resnet_params.keys())
             raise ValueError(f"invalid model_name {model_name} found, must be one of {model_name_string} ")
+
+        block, layers, shortcut_type, bias_downsample, datasets23 = resnet_params[model_name]
 
         super().__init__(
             block=block,
             layers=layers,
-            block_inplanes=block_inplanes,
+            block_inplanes=get_inplanes(),
             spatial_dims=spatial_dims,
             n_input_channels=in_channels,
-            conv1_t_size=conv1_t_size,
-            conv1_t_stride=conv1_t_stride,
-            no_max_pool=no_max_pool,
+            conv1_t_stride=2,
             shortcut_type=shortcut_type,
-            widen_factor=widen_factor,
-            num_classes=num_classes,
-            feed_forward=feed_forward,
+            feed_forward=False,
             bias_downsample=bias_downsample,
         )
         if pretrained:
             if spatial_dims == 3 and in_channels == 1:
-                _load_state_dict(self, model_name)
+                _load_state_dict(self, model_name, datasets23=datasets23)
             else:
                 raise ValueError("Pretrained resnet models are only available for in_channels=1 and spatial_dims=3.")
 
@@ -423,212 +424,16 @@ class ResNetFeatures(ResNet):
 class ResNetEncoder(ResNetFeatures, BaseEncoder):
     """Wrap the original resnet to an encoder for flexible-unet."""
 
-    backbone_names = [
-        "resnet10",
-        "resnet10_23datasets",
-        "resnet18",
-        "resnet18_23datasets",
-        "resnet34",
-        "resnet34_23datasets",
-        "resnet50",
-        "resnet50_23datasets",
-        "resnet101",
-        "resnet152",
-        "resnet200",
-    ]
+    backbone_names = ["resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
 
     @classmethod
     def get_encoder_parameters(cls) -> list[dict]:
         """Get the initialization parameter for resnet backbones."""
-        parameter_list = [
-            {
-                "model_name": "resnet10",
-                "pretrained": True,
-                "block": ResNetBlock,
-                "layers": [1, 1, 1, 1],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "B",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": False,
-            },
-            {
-                "model_name": "resnet10_23datasets",
-                "pretrained": True,
-                "block": ResNetBlock,
-                "layers": [1, 1, 1, 1],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "B",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": False,
-            },
-            {
-                "model_name": "resnet18",
-                "pretrained": True,
-                "block": ResNetBlock,
-                "layers": [2, 2, 2, 2],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "A",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": True,
-            },
-            {
-                "model_name": "resnet18_23datasets",
-                "pretrained": True,
-                "block": ResNetBlock,
-                "layers": [2, 2, 2, 2],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "A",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": True,
-            },
-            {
-                "model_name": "resnet34",
-                "pretrained": True,
-                "block": ResNetBlock,
-                "layers": [3, 4, 6, 3],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "A",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": True,
-            },
-            {
-                "model_name": "resnet34_23datasets",
-                "pretrained": True,
-                "block": ResNetBlock,
-                "layers": [3, 4, 6, 3],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "A",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": True,
-            },
-            {
-                "model_name": "resnet50",
-                "pretrained": True,
-                "block": ResNetBottleneck,
-                "layers": [3, 4, 6, 3],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "B",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": False,
-            },
-            {
-                "model_name": "resnet50_23datasets",
-                "pretrained": True,
-                "block": ResNetBottleneck,
-                "layers": [3, 4, 6, 3],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "B",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": False,
-            },
-            {
-                "model_name": "resnet101",
-                "pretrained": True,
-                "block": ResNetBottleneck,
-                "layers": [3, 4, 23, 3],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "B",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": False,
-            },
-            {
-                "model_name": "resnet152",
-                "pretrained": True,
-                "block": ResNetBottleneck,
-                "layers": [3, 8, 36, 3],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "B",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": False,
-            },
-            {
-                "model_name": "resnet200",
-                "pretrained": True,
-                "block": ResNetBottleneck,
-                "layers": [3, 24, 36, 3],
-                "block_inplanes": get_inplanes(),
-                "spatial_dims": 3,
-                "in_channels": 1,
-                "conv1_t_size": 7,
-                "conv1_t_stride": 2,
-                "no_max_pool": False,
-                "shortcut_type": "B",
-                "widen_factor": 1.0,
-                "num_classes": 400,
-                "feed_forward": False,
-                "bias_downsample": False,
-            },
-        ]
+        parameter_list = []
+        for backbone_name in cls.backbone_names:
+            parameter_list.append(
+                {"model_name": backbone_name, "pretrained": True, "spatial_dims": 3, "in_channels": 1}
+            )
         return parameter_list
 
     @classmethod
@@ -638,10 +443,6 @@ class ResNetEncoder(ResNetFeatures, BaseEncoder):
             (64, 64, 128, 256, 512),
             (64, 64, 128, 256, 512),
             (64, 64, 128, 256, 512),
-            (64, 64, 128, 256, 512),
-            (64, 64, 128, 256, 512),
-            (64, 64, 128, 256, 512),
-            (64, 256, 512, 1024, 2048),
             (64, 256, 512, 1024, 2048),
             (64, 256, 512, 1024, 2048),
             (64, 256, 512, 1024, 2048),
@@ -654,7 +455,7 @@ class ResNetEncoder(ResNetFeatures, BaseEncoder):
 
         Since every backbone contains the same 5 output feature maps, the number list should be `[5] * 7`.
         """
-        return [5] * 11
+        return [5] * 7
 
     @classmethod
     def get_encoder_names(cls) -> list[str]:
@@ -870,7 +671,7 @@ def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
     return bias_downsample, shortcut_type
 
 
-def _load_state_dict(model: nn.Module, model_name: str) -> None:
+def _load_state_dict(model: nn.Module, model_name: str, datasets23: bool = True) -> None:
     search_res = re.search(r"resnet(\d+)", model_name)
     if search_res:
         resnet_depth = int(search_res.group(1))
