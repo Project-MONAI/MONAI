@@ -607,8 +607,10 @@ class WSIReader(BaseWSIReader):
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
-        If the user-provided mpp is larger than the mpp of the closest level—indicating that the closest level has a higher resolution than requested—the image is downscaled to a resolution that matches the user-provided mpp.
-        Otherwise, if the closest level's resolution is not sufficient to meet the user's requested resolution, the next lower level (which has a higher resolution) is chosen.
+        If the user-provided mpp is larger than the mpp of the closest level,
+        the image is downscaled to a resolution that matches the user-provided mpp.
+        Otherwise, if the closest level's resolution is not sufficient to meet the user's requested resolution,
+        the next lower level (which has a higher resolution) is chosen.
         The image from this level is then down-scaled to achieve a resolution at the user-provided mpp value.
 
         Args:
@@ -765,8 +767,10 @@ class CuCIMWSIReader(BaseWSIReader):
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
-        If the user-provided mpp is larger than the mpp of the closest level—indicating that the closest level has a higher resolution than requested—the image is downscaled to a resolution that matches the user-provided mpp.
-        Otherwise, if the closest level's resolution is not sufficient to meet the user's requested resolution, the next lower level (which has a higher resolution) is chosen.
+        If the user-provided mpp is larger than the mpp of the closest level,
+        the image is downscaled to a resolution that matches the user-provided mpp.
+        Otherwise, if the closest level's resolution is not sufficient to meet the user's requested resolution,
+        the next lower level (which has a higher resolution) is chosen.
         The image from this level is then down-scaled to achieve a resolution at the user-provided mpp value.
 
         Args:
@@ -786,7 +790,7 @@ class CuCIMWSIReader(BaseWSIReader):
         # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
         mpp_closest_lvl = mpp_list[closest_lvl]
-        closest_lvl_dim = wsi.resolutions['level_dimensions'][closest_lvl]
+        closest_lvl_dim = wsi.resolutions['level_dimensions'][closest_lvl]  # x,y notation
 
         print(f'Closest Level: {closest_lvl} with MPP: {mpp_closest_lvl}')
         mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
@@ -805,7 +809,7 @@ class CuCIMWSIReader(BaseWSIReader):
         if within_tolerance:
             # Take closest_level and continue with returning img at level
             print(f'User-provided MPP lies within tolerance of level {closest_lvl}, returning wsi at this level.')
-            closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers)
+            closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers)  # size in x,y notation
 
         else:
             # If mpp_closest_level < mpp -> closest_level has higher res than img at mpp => downscale from closest_level to mpp
@@ -823,8 +827,7 @@ class CuCIMWSIReader(BaseWSIReader):
                 target_res_x = int(np.round(closest_lvl_dim[1] * ds_factor_x))
                 target_res_y = int(np.round(closest_lvl_dim[0] * ds_factor_y))
 
-                # closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), Image.BILINEAR)
-                closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=0)
+                closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=0)  # output_shape in row, col notation
                 print(f'Case 1: Downscaling using factor {(ds_factor_x, ds_factor_y)}')
                 
             else:
@@ -843,7 +846,6 @@ class CuCIMWSIReader(BaseWSIReader):
                 target_res_x = int(np.round(closest_lvl_dim[1] * ds_factor_x))
                 target_res_y = int(np.round(closest_lvl_dim[0] * ds_factor_y))
 
-                # closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), Image.BILINEAR)
                 closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=0)
                 print(f'Case 2: Downscaling using factor {(ds_factor_x, ds_factor_y)}, now from level {closest_lvl}')
 
@@ -1050,8 +1052,10 @@ class OpenSlideWSIReader(BaseWSIReader):
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
-        If the user-provided mpp is larger than the mpp of the closest level—indicating that the closest level has a higher resolution than requested—the image is downscaled to a resolution that matches the user-provided mpp.
-        Otherwise, if the closest level's resolution is not sufficient to meet the user's requested resolution, the next lower level (which has a higher resolution) is chosen.
+        If the user-provided mpp is larger than the mpp of the closest level,
+        the image is downscaled to a resolution that matches the user-provided mpp.
+        Otherwise, if the closest level's resolution is not sufficient to meet the user's requested resolution,
+        the next lower level (which has a higher resolution) is chosen.
         The image from this level is then down-scaled to achieve a resolution at the user-provided mpp value.
 
         Args:
@@ -1123,7 +1127,7 @@ class OpenSlideWSIReader(BaseWSIReader):
                 target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
                 target_res_y = int(np.round(closest_lvl_dim[1] * ds_factor_y))
 
-                closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
+                closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)  # Output size in x,y notation
                 print(f'Case 2: Downscaling using factor {(ds_factor_x, ds_factor_y)}, now from level {closest_lvl}')
 
         wsi_arr = np.array(closest_lvl_wsi)
@@ -1305,7 +1309,7 @@ class TiffFileWSIReader(BaseWSIReader):
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
-        If the user-provided mpp is larger than the mpp of the closest level—indicating that the closest level has a higher resolution than requested—the image is downscaled to a resolution that matches the user-provided mpp.
+        If the user-provided mpp is larger than the mpp of the closest level the image is downscaled to a resolution that matches the user-provided mpp.
         Otherwise, if the closest level's resolution is not sufficient to meet the user's requested resolution, the next lower level (which has a higher resolution) is chosen.
         The image from this level is then down-scaled to achieve a resolution at the user-provided mpp value.
 
@@ -1319,8 +1323,8 @@ class TiffFileWSIReader(BaseWSIReader):
 
         pil_image, _ = optional_import("PIL", name="Image")
         user_mpp_x, user_mpp_y = mpp
-        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]  # QuPath show 4 levels in the pyramid, but len(wsi.pages) is 1?
-        closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)  
+        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]
+        closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5) 
         # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
         mpp_closest_lvl = mpp_list[closest_lvl]
@@ -1358,7 +1362,6 @@ class TiffFileWSIReader(BaseWSIReader):
                 ds_factor_x = mpp_closest_lvl_x / user_mpp_x
                 ds_factor_y = mpp_closest_lvl_y / user_mpp_y
 
-                # closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers)
                 closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())  # Might be suboptimal
 
                 target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
@@ -1378,7 +1381,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
                 closest_lvl_dim = lvl_dims[closest_lvl]
                 closest_lvl_dim = (closest_lvl_dim[1], closest_lvl_dim[0])
-                # closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers)
+
                 closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())  # Might be suboptimal
 
                 target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
