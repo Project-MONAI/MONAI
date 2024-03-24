@@ -603,7 +603,7 @@ class WSIReader(BaseWSIReader):
         """
         return self.reader.get_mpp(wsi, level)
     
-    def get_img_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
+    def get_wsi_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
@@ -620,7 +620,7 @@ class WSIReader(BaseWSIReader):
             rtol: the acceptable relative tolerance for resolution in micro per pixel.
 
         """
-        return self.reader.get_img_at_mpp(wsi, mpp, atol, rtol)
+        return self.reader.get_wsi_at_mpp(wsi, mpp, atol, rtol)
 
     def get_power(self, wsi, level: int) -> float:
         """
@@ -763,7 +763,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         raise ValueError("`mpp` cannot be obtained for this file. Please use `level` instead.")
 
-    def get_img_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
+    def get_wsi_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
@@ -1048,7 +1048,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         raise ValueError("`mpp` cannot be obtained for this file. Please use `level` instead.")
 
-    def get_img_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
+    def get_wsi_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
@@ -1305,7 +1305,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         raise ValueError("`mpp`  cannot be obtained for this file. Please use `level` instead.")
 
-    def get_img_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
+    def get_wsi_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.array:
         """
         Returns the representation of the whole slide image at a given micro-per-pixel (mpp) resolution.
         The optional tolerance parameters are considered at the level whose mpp value is closest to the one provided by the user.
