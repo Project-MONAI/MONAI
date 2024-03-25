@@ -84,17 +84,17 @@ class BundleWorkflow(ABC):
             raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
 
         if logging_file is not None:
-            if not os.path.exists(logging_file):
+            if not os.path.isfile(logging_file):
                 raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             logger.info(f"Setting logging properties based on config: {logging_file}.")
             fileConfig(logging_file, disable_existing_loggers=False)
 
         if meta_file is not None:
-            if isinstance(meta_file, str) and not os.path.exists(meta_file):
+            if isinstance(meta_file, str) and not os.path.isfile(meta_file):
                 raise FileNotFoundError(f"Cannot find the metadata config file: {meta_file}.")
             if isinstance(meta_file, list):
                 for f in meta_file:
-                    if not os.path.exists(f):
+                    if not os.path.isfile(f):
                         raise FileNotFoundError(f"Cannot find the metadata config file: {f}.")
 
         self.meta_file = meta_file
@@ -276,7 +276,7 @@ class ConfigWorkflow(BundleWorkflow):
 
         logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
         if logging_file is not None:
-            if not os.path.exists(logging_file):
+            if not os.path.isfile(logging_file):
                 if logging_file == str(self.config_root_path / "logging.conf"):
                     logger.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
                 else:
@@ -288,14 +288,14 @@ class ConfigWorkflow(BundleWorkflow):
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
         meta_file = str(self.config_root_path / "metadata.json") if meta_file is None else meta_file
-        if isinstance(meta_file, str) and not os.path.exists(meta_file):
+        if isinstance(meta_file, str) and not os.path.isfile(meta_file):
             logger.error(
                 f"Cannot find the metadata config file: {meta_file}. "
                 "Please see: https://docs.monai.io/en/stable/mb_specification.html"
             )
         elif isinstance(meta_file, list):
             for f in meta_file:
-                if not os.path.exists(f):
+                if not os.path.isfile(f):
                     logger.error(
                         f"Cannot find the metadata config file: {f}. "
                         "Please see: https://docs.monai.io/en/stable/mb_specification.html"
