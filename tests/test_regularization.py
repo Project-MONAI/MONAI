@@ -26,7 +26,7 @@ class TestMixup(unittest.TestCase):
             mixup = MixUp(6, 1.0)
             output = mixup(sample)
             self.assertEqual(output.shape, sample.shape)
-            self.assertTrue(any([not torch.allclose(sample, mixup(sample)) for _ in range(10)]))
+            self.assertTrue(any(not torch.allclose(sample, mixup(sample)) for _ in range(10)))
 
         with self.assertRaises(ValueError):
             MixUp(6, -0.5)
@@ -59,7 +59,7 @@ class TestCutMix(unittest.TestCase):
             cutmix = CutMix(6, 1.0)
             output = cutmix(sample)
             self.assertEqual(output.shape, sample.shape)
-            self.assertTrue(any([not torch.allclose(sample, cutmix(sample)) for _ in range(10)]))
+            self.assertTrue(any(not torch.allclose(sample, cutmix(sample)) for _ in range(10)))
 
     def test_cutmixd(self):
         for dims in [2, 3]:
@@ -83,7 +83,7 @@ class TestCutOut(unittest.TestCase):
             cutout = CutOut(6, 1.0)
             output = cutout(sample)
             self.assertEqual(output.shape, sample.shape)
-            self.assertTrue(any([not torch.allclose(sample, cutout(sample)) for _ in range(10)]))
+            self.assertTrue(any(not torch.allclose(sample, cutout(sample)) for _ in range(10)))
 
 
 if __name__ == "__main__":
