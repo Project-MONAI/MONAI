@@ -19,6 +19,7 @@ from monai.networks.layers import ConjugateGradient
 
 
 class TestConjugateGradient(unittest.TestCase):
+
     def test_real_valued_inverse(self):
         """Test ConjugateGradient with real-valued input: when the input is real
         value, the output should be the inverse of the matrix."""
