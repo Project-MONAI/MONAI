@@ -30,18 +30,30 @@ TEST_CASES = [
     ],
     [{"spatial_dims": 2, "network_type": "radimagenet_resnet50"}, (2, 1, 64, 64), (2, 1, 64, 64)],
     [{"spatial_dims": 2, "network_type": "radimagenet_resnet50"}, (2, 3, 64, 64), (2, 3, 64, 64)],
+    [{"spatial_dims": 2, "network_type": "radimagenet_resnet50", "channelwise": True}, (2, 3, 64, 64), (2, 3, 64, 64)],
     [
         {"spatial_dims": 3, "network_type": "radimagenet_resnet50", "is_fake_3d": True, "fake_3d_ratio": 0.1},
         (2, 1, 64, 64, 64),
         (2, 1, 64, 64, 64),
     ],
     [
+        {"spatial_dims": 3, "network_type": "radimagenet_resnet50", "is_fake_3d": True, "fake_3d_ratio": 0.1,
+         'channelwise': True},
+        (2, 1, 64, 64, 64),
+        (2, 1, 64, 64, 64),
+    ],
+    [
         {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False},
         (2, 1, 64, 64, 64),
         (2, 1, 64, 64, 64),
     ],
     [
         {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False},
+        (2, 6, 64, 64, 64),
+        (2, 6, 64, 64, 64),
+    ],
+    [
+        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False, "channelwise": True},
         (2, 6, 64, 64, 64),
         (2, 6, 64, 64, 64),
     ],
@@ -60,6 +72,11 @@ TEST_CASES = [
         (2, 1, 64, 64, 64),
         (2, 1, 64, 64, 64),
     ],
+    [
+        {"spatial_dims": 3, "network_type": "resnet50", "pretrained": True, "fake_3d_ratio": 0.2, "channelwise": True},
+        (2, 3, 64, 64, 64),
+        (2, 3, 64, 64, 64),
+    ],
 ]
 
 
@@ -73,7 +90,11 @@ class TestPerceptualLoss(unittest.TestCase):
         with skip_if_downloading_fails():
             loss = PerceptualLoss(**input_param)
         result = loss(torch.randn(input_shape), torch.randn(target_shape))
-        self.assertEqual(result.shape, torch.Size([]))
+
+        if 'channelwise' in input_param.keys() and input_param['channelwise']:
+            self.assertEqual(result.shape, torch.Size([input_shape[1]]))
+        else:
+            self.assertEqual(result.shape, torch.Size([]))
 
     @parameterized.expand(TEST_CASES)
     def test_identical_input(self, input_param, input_shape, target_shape):
@@ -81,7 +102,11 @@ class TestPerceptualLoss(unittest.TestCase):
             loss = PerceptualLoss(**input_param)
         tensor = torch.randn(input_shape)
         result = loss(tensor, tensor)
-        self.assertEqual(result, torch.Tensor([0.0]))
+
+        if 'channelwise' in input_param.keys() and input_param['channelwise']:
+            self.assertEqual(result, torch.Tensor([0.0] * input_shape[1]))
+        else:
+            self.assertEqual(result, torch.Tensor([0.0]))
 
     def test_different_shape(self):
         with skip_if_downloading_fails():
