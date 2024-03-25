@@ -87,6 +87,9 @@ class PerceptualLoss(nn.Module):
                 "Argument is_fake_3d must be set to False."
             )
 
+        if channelwise and "medicalnet_" not in network_type:
+            raise ValueError("Channelwise loss is only compatible with MedicalNet networks.")
+
         if network_type.lower() not in list(PercetualNetworkType):
             raise ValueError(
                 "Unrecognised criterion entered for Adversarial Loss. Must be one in: %s"
@@ -107,16 +110,13 @@ class PerceptualLoss(nn.Module):
                 net=network_type, verbose=False, channelwise=channelwise
             )
         elif "radimagenet_" in network_type:
-            self.perceptual_function = RadImageNetPerceptualSimilarity(
-                net=network_type, verbose=False, channelwise=channelwise
-            )
+            self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False)
         elif network_type == "resnet50":
             self.perceptual_function = TorchvisionModelPerceptualSimilarity(
                 net=network_type,
                 pretrained=pretrained,
                 pretrained_path=pretrained_path,
                 pretrained_state_dict_key=pretrained_state_dict_key,
-                channelwise=channelwise,
             )
         else:
             self.perceptual_function = LPIPS(pretrained=pretrained, net=network_type, verbose=False)
@@ -176,9 +176,9 @@ class PerceptualLoss(nn.Module):
             loss = loss_sagittal + loss_axial + loss_coronal
         else:
             # 2D and real 3D cases
-            loss = self.perceptual_function(input, target)
+            loss = self.perceptual_function(input, target).squeeze()
 
-        return torch.mean(loss)
+        return torch.mean(loss, dim=0)
 
 
 class MedicalNetPerceptualSimilarity(nn.Module):
@@ -224,6 +224,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         target = medicalnet_intensity_normalisation(target)
 
         # Get model outputs
+        feats_per_ch = None
         for ch_idx in range(input.shape[1]):
             input_channel = input[:, ch_idx, ...].unsqueeze(1)
             target_channel = target[:, ch_idx, ...].unsqueeze(1)
@@ -231,6 +232,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
             if ch_idx == 0:
                 outs_input = self.model.forward(input_channel)
                 outs_target = self.model.forward(target_channel)
+                feats_per_ch = outs_input.shape[1]
             else:
                 outs_input = torch.cat([outs_input, self.model.forward(input_channel)], dim=1)
                 outs_target = torch.cat([outs_target, self.model.forward(target_channel)], dim=1)
@@ -239,10 +241,18 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         feats_input = normalize_tensor(outs_input)
         feats_target = normalize_tensor(outs_target)
 
-        results: torch.Tensor = (feats_input - feats_target) ** 2
-
+        feats_diff: torch.Tensor = (feats_input - feats_target) ** 2
         if self.channelwise:
-            results = results.sum(dim=1, keepdim=True)
+            results = torch.zeros(
+                feats_diff.shape[0], input.shape[1], feats_diff.shape[2], feats_diff.shape[3], feats_diff.shape[4]
+            )
+            for i in range(input.shape[1]):
+                l_idx = i * feats_per_ch
+                r_idx = (i + 1) * feats_per_ch
+                results[:, i, ...] = feats_diff[:, l_idx : i + r_idx, ...].sum(dim=1)
+        else:
+            results = feats_diff.sum(dim=1, keepdim=True)
+
         results = spatial_average_3d(results, keepdim=True)
 
         return results
@@ -276,12 +286,10 @@ class RadImageNetPerceptualSimilarity(nn.Module):
         verbose: if false, mute messages from torch Hub load function.
     """
 
-    def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False, channelwise: bool = False) -> None:
+    def __init__(self, net: str = "radimagenet_resnet50", verbose: bool = False) -> None:
         super().__init__()
         self.model = torch.hub.load("Warvito/radimagenet-models", model=net, verbose=verbose)
         self.eval()
-
-        self.channelwise = channelwise
 
         for param in self.parameters():
             param.requires_grad = False
@@ -315,10 +323,7 @@ class RadImageNetPerceptualSimilarity(nn.Module):
         feats_target = normalize_tensor(outs_target)
 
         results: torch.Tensor = (feats_input - feats_target) ** 2
-
-        if self.channelwise:
-            results = results.sum(dim=1, keepdim=True)
-        results = spatial_average(results, keepdim=True)
+        results = spatial_average(results.sum(dim=1, keepdim=True), keepdim=True)
 
         return results
 
@@ -345,7 +350,6 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         pretrained: bool = True,
         pretrained_path: str | None = None,
         pretrained_state_dict_key: str | None = None,
-        channelwise: bool = False,
     ) -> None:
         super().__init__()
         supported_networks = ["resnet50"]
@@ -368,8 +372,6 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         self.final_layer = "layer4.2.relu_2"
         self.model = torchvision.models.feature_extraction.create_feature_extractor(network, [self.final_layer])
         self.eval()
-
-        self.channelwise = channelwise
 
         for param in self.parameters():
             param.requires_grad = False
@@ -400,10 +402,7 @@ class TorchvisionModelPerceptualSimilarity(nn.Module):
         feats_target = normalize_tensor(outs_target)
 
         results: torch.Tensor = (feats_input - feats_target) ** 2
-
-        if self.channelwise:
-            results = results.sum(dim=1, keepdim=True)
-        results = spatial_average(results, keepdim=True)
+        results = spatial_average(results.sum(dim=1, keepdim=True), keepdim=True)
 
         return results
 
