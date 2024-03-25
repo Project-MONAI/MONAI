@@ -20,6 +20,7 @@ from monai.utils import set_determinism
 
 
 class TestMultiScaleSSIMMetric(unittest.TestCase):
+
     def test2d_gaussian(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(1, 1, 64, 64))

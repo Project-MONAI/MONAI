@@ -366,6 +366,7 @@ TEST_CASES = [
 @skip_if_no_cuda
 @skip_if_no_cpp_extension
 class BilateralFilterTestCaseCudaApprox(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_cuda_approx(self, test_case_description, sigmas, input, expected):
         # Skip this test

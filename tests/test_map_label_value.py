@@ -75,6 +75,7 @@ TESTS.extend(
 
 
 class TestMapLabelValue(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_value):
         result = MapLabelValue(**input_param)(input_data)

@@ -96,12 +96,14 @@ class ModelWithHooks:
             warnings.warn(f"Not all target_layers exist in the network module: targets: {self.target_layers}.")
 
     def backward_hook(self, name):
+
         def _hook(_module, _grad_input, grad_output):
             self.gradients[name] = grad_output[0]
 
         return _hook
 
     def forward_hook(self, name):
+
         def _hook(_module, _input, output):
             self.activations[name] = output
 

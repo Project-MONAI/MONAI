@@ -77,6 +77,7 @@ class TestTensor(torch.Tensor):
 
 
 class TestConvertDataType(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_convert_data_type(self, in_image, im_out, out_dtype, safe):
         converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), dtype=out_dtype, safe=safe)

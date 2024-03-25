@@ -48,6 +48,7 @@ TESTS_PENDING_MODE = {"constant": "zeros", "edge": "border", "reflect": "reflect
 
 
 class TestResizeWithPadOrCrop(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_shape, expected_shape, _):
         for p in TEST_NDARRAYS_ALL:

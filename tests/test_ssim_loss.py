@@ -23,6 +23,7 @@ from monai.utils import set_determinism
 
 
 class TestSSIMLoss(unittest.TestCase):
+
     def test_shape(self):
         set_determinism(0)
         preds = torch.abs(torch.randn(2, 3, 16, 16))

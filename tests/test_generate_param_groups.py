@@ -68,6 +68,7 @@ TEST_CASE_6 = [
 
 
 class TestGenerateParamGroups(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_lr_values(self, input_param, expected_values, expected_groups):
         device = "cuda" if torch.cuda.is_available() else "cpu"

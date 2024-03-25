@@ -27,6 +27,7 @@ def identity(x):
 
 
 class TestPatchDataset(unittest.TestCase):
+
     def test_shape(self):
         test_dataset = ["vwxyz", "hello", "world"]
         n_per_image = len(test_dataset[0])

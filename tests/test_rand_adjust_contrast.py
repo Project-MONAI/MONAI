@@ -25,6 +25,7 @@ TEST_CASE_2 = [1.5]
 
 
 class TestRandAdjustContrast(NumpyImageTestCase2D):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_correct_results(self, gamma):
         adjuster = RandAdjustContrast(prob=1.0, gamma=gamma)

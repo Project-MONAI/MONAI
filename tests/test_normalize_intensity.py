@@ -83,6 +83,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestNormalizeIntensity(NumpyImageTestCase2D):
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_default(self, im_type):
         im = im_type(self.imt.copy())

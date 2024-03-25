@@ -25,7 +25,9 @@ from tests.utils import DistTestCase, TimedCall, skip_if_quick
 
 
 def run_test(net_name="basicunet", batch_size=64, train_steps=100, device="cuda:0"):
+
     class _TestBatch(Dataset):
+
         def __getitem__(self, _unused_id):
             im, seg = create_test_image_2d(128, 128, noise_max=1, num_objs=4, num_seg_classes=1)
             return im[None], seg[None].astype(np.float32)
@@ -54,6 +56,7 @@ def run_test(net_name="basicunet", batch_size=64, train_steps=100, device="cuda:
 
 @skip_if_quick
 class TestIntegrationUnet2D(DistTestCase):
+
     @TimedCall(seconds=20, daemon=False)
     def test_unet_training(self):
         for n in ["basicunet", "unet"]:

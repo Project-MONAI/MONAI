@@ -28,6 +28,7 @@ TEST_CASE_3 = [{"keys": "meta_dict%0008\\|[0-9]", "sep": "%", "use_re": True}]
 
 
 class TestDeleteItemsd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_memory(self, input_param, expected_key_size):
         input_data = {"image": {}} if "sep" in input_param else {}

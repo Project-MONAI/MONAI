@@ -39,6 +39,7 @@ for c in criterion:
 
 
 class TestPatchAdversarialLoss(unittest.TestCase):
+
     def get_input(self, shape, is_positive):
         """
         Get tensor for the tests. The tensor is around (-1) or (+1), depending on

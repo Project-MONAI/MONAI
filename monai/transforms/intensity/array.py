@@ -91,24 +91,33 @@ class RandGaussianNoise(RandomizableTransform):
         mean: Mean or “centre” of the distribution.
         std: Standard deviation (spread) of distribution.
         dtype: output data type, if None, same as input image. defaults to float32.
+        sample_std: If True, sample the spread of the Gaussian distribution uniformly from 0 to std.
 
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, prob: float = 0.1, mean: float = 0.0, std: float = 0.1, dtype: DtypeLike = np.float32) -> None:
+    def __init__(
+        self,
+        prob: float = 0.1,
+        mean: float = 0.0,
+        std: float = 0.1,
+        dtype: DtypeLike = np.float32,
+        sample_std: bool = True,
+    ) -> None:
         RandomizableTransform.__init__(self, prob)
         self.mean = mean
         self.std = std
         self.dtype = dtype
         self.noise: np.ndarray | None = None
+        self.sample_std = sample_std
 
     def randomize(self, img: NdarrayOrTensor, mean: float | None = None) -> None:
         super().randomize(None)
         if not self._do_transform:
             return None
-        rand_std = self.R.uniform(0, self.std)
-        noise = self.R.normal(self.mean if mean is None else mean, rand_std, size=img.shape)
+        std = self.R.uniform(0, self.std) if self.sample_std else self.std
+        noise = self.R.normal(self.mean if mean is None else mean, std, size=img.shape)
         # noise is float64 array, convert to the output dtype to save memory
         self.noise, *_ = convert_data_type(noise, dtype=self.dtype)
 

@@ -140,13 +140,14 @@ for cache_grid in (False, True):
 
 
 class TestRandAffine(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_rand_affine(self, input_param, input_data, expected_val):
         g = RandAffine(**input_param)
         g.set_random_state(123)
         result = g(**input_data)
         g.rand_affine_grid.affine = torch.eye(4, dtype=torch.float64)  # reset affine
-        test_resampler_lazy(g, result, input_param, input_data, seed=123)
+        test_resampler_lazy(g, result, input_param, input_data, seed=123, rtol=_rtol)
         if input_param.get("cache_grid", False):
             self.assertTrue(g._cached_grid is not None)
         assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4, type_test="tensor")

@@ -40,6 +40,7 @@ TEST_CASE_5 = [(1, 3, 10, 10, 10)]
 @unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 @SkipIfBeforePyTorchVersion((1, 13))  # issue 6683
 class TestPlot2dOr3dImage(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_tb_image(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:

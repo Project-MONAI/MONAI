@@ -31,6 +31,7 @@ from tests.utils import (
 
 
 class TestRotate90(NumpyImageTestCase2D):
+
     def test_rotate90_default(self):
         rotate = Rotate90()
         for p in TEST_NDARRAYS_ALL:
@@ -102,6 +103,7 @@ class TestRotate90(NumpyImageTestCase2D):
 
 
 class TestRotate903d(NumpyImageTestCase3D):
+
     def test_rotate90_default(self):
         rotate = Rotate90()
         for p in TEST_NDARRAYS_ALL:
@@ -169,6 +171,7 @@ class TestRotate903d(NumpyImageTestCase3D):
 
 @unittest.skipUnless(optional_import("scipy")[1], "Requires scipy library.")
 class TestRot90Consistency(unittest.TestCase):
+
     @parameterized.expand([[2], [3], [4]])
     def test_affine_rot90(self, s):
         """s"""

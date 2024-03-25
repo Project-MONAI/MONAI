@@ -72,6 +72,7 @@ import numpy as np
 
 
 class COCOMetric:
+
     def __init__(
         self,
         classes: Sequence[str],

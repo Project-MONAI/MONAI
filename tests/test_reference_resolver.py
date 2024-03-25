@@ -70,6 +70,7 @@ TEST_CASE_3 = [
 
 
 class TestReferenceResolver(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
     def test_resolve(self, configs, expected_id, output_type):
         locator = ComponentLocator()

@@ -38,6 +38,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestITKWriter(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_AFFINE)
     def test_ras_to_lps(self, param, expected):
         assert_allclose(orientation_ras_lps(param), expected)

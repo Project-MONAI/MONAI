@@ -26,6 +26,7 @@ from monai.handlers import StatsHandler
 
 
 def get_event_filter(e):
+
     def event_filter(_, event):
         if event in e:
             return True
@@ -35,6 +36,7 @@ def get_event_filter(e):
 
 
 class TestHandlerStats(unittest.TestCase):
+
     @parameterized.expand([[True], [get_event_filter([1, 2])]])
     def test_metrics_print(self, epoch_log):
         log_stream = StringIO()

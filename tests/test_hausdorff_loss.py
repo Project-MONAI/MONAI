@@ -198,6 +198,7 @@ def _describe_test_case(test_func, test_number, params):
 
 @skipUnless(has_scipy, "Scipy required")
 class TestHausdorffDTLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES, doc_func=_describe_test_case)
     def test_shape(self, input_param, input_data, expected_val):
         result = HausdorffDTLoss(**input_param).forward(**input_data)
@@ -234,6 +235,7 @@ class TestHausdorffDTLoss(unittest.TestCase):
 
 @skipUnless(has_scipy, "Scipy required")
 class TesLogtHausdorffDTLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_LOG, doc_func=_describe_test_case)
     def test_shape(self, input_param, input_data, expected_val):
         result = LogHausdorffDTLoss(**input_param).forward(**input_data)

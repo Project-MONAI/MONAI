@@ -42,6 +42,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestAddCoordinateChannels(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input, expected_shape):
         result = AddCoordinateChannelsd(**input_param)(input)["img"]

@@ -29,6 +29,7 @@ VALID_CASES = [("wrap", 0.0, [-1.0, 1.0])]
 
 @skipUnless(has_scipy, "scipy required")
 class TestSignalRandShiftNumpy(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, mode, filling, boundaries):
         self.assertIsInstance(SignalRandShift(mode, filling, boundaries), SignalRandShift)
@@ -40,6 +41,7 @@ class TestSignalRandShiftNumpy(unittest.TestCase):
 
 @skipUnless(has_scipy, "scipy required")
 class TestSignalRandShiftTorch(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, mode, filling, boundaries):
         self.assertIsInstance(SignalRandShift(mode, filling, boundaries), SignalRandShift)

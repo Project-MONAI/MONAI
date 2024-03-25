@@ -65,6 +65,7 @@ TEST_CASE2 = [
 
 
 class TestMRIUtils(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE1, TEST_CASE2])
     def test_get_data(self, test_data, test_res, test_meta):
         reader = FastMRIReader()

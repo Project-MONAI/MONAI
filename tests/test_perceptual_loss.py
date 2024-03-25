@@ -41,6 +41,11 @@ TEST_CASES = [
         (2, 1, 64, 64, 64),
     ],
     [
+        {"spatial_dims": 3, "network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False},
+        (2, 1, 64, 64, 64),
+        (2, 1, 64, 64, 64),
+    ],
+    [
         {"spatial_dims": 3, "network_type": "resnet50", "is_fake_3d": True, "pretrained": True, "fake_3d_ratio": 0.2},
         (2, 1, 64, 64, 64),
         (2, 1, 64, 64, 64),
@@ -52,6 +57,7 @@ TEST_CASES = [
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 @skip_if_quick
 class TestPerceptualLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, target_shape):
         with skip_if_downloading_fails():

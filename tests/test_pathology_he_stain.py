@@ -73,6 +73,7 @@ NORMALIZE_STAINS_TEST_CASE_4 = [
 
 
 class TestExtractHEStains(unittest.TestCase):
+
     @parameterized.expand(
         [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_1]
     )
@@ -145,6 +146,7 @@ class TestExtractHEStains(unittest.TestCase):
 
 
 class TestNormalizeHEStains(unittest.TestCase):
+
     @parameterized.expand(
         [NEGATIVE_VALUE_TEST_CASE, INVALID_VALUE_TEST_CASE, NORMALIZE_STAINS_TEST_CASE_0, NORMALIZE_STAINS_TEST_CASE_1]
     )

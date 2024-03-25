@@ -38,6 +38,7 @@ for spatial_dims in range(2, 4):
 
 
 class TestResBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_RESBLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ResBlock(**input_param)

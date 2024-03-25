@@ -209,6 +209,7 @@ SplitPredsLabeld_TEST_CASE = [{"keys": "pred"}, DATA_11, (1, 10, 10)]  # argumen
 
 
 class TestAddGuidanceFromPointsCustomd(unittest.TestCase):
+
     @parameterized.expand([ADD_GUIDANCE_FROM_POINTS_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = AddGuidanceFromPointsDeepEditd(**arguments)
@@ -217,6 +218,7 @@ class TestAddGuidanceFromPointsCustomd(unittest.TestCase):
 
 
 class TestAddGuidanceSignalCustomd(unittest.TestCase):
+
     @parameterized.expand([ADD_GUIDANCE_CUSTOM_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = AddGuidanceSignalDeepEditd(**arguments)
@@ -225,6 +227,7 @@ class TestAddGuidanceSignalCustomd(unittest.TestCase):
 
 
 class TestAddInitialSeedPointMissingLabelsd(unittest.TestCase):
+
     @parameterized.expand([ADD_INITIAL_POINT_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         seed = 0
@@ -235,6 +238,7 @@ class TestAddInitialSeedPointMissingLabelsd(unittest.TestCase):
 
 
 class TestAddRandomGuidanceCustomd(unittest.TestCase):
+
     @parameterized.expand([ADD_RANDOM_GUIDANCE_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = AddRandomGuidanceDeepEditd(**arguments)
@@ -244,6 +248,7 @@ class TestAddRandomGuidanceCustomd(unittest.TestCase):
 
 
 class TestDiscardAddGuidanced(unittest.TestCase):
+
     @parameterized.expand([DISCARD_ADD_GUIDANCE_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = DiscardAddGuidanced(**arguments)
@@ -252,6 +257,7 @@ class TestDiscardAddGuidanced(unittest.TestCase):
 
 
 class TestFindAllValidSlicesMissingLabelsd(unittest.TestCase):
+
     @parameterized.expand([FIND_SLICE_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = FindAllValidSlicesMissingLabelsd(**arguments)
@@ -260,6 +266,7 @@ class TestFindAllValidSlicesMissingLabelsd(unittest.TestCase):
 
 
 class TestFindDiscrepancyRegionsCustomd(unittest.TestCase):
+
     @parameterized.expand([FIND_DISCREPANCY_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = FindDiscrepancyRegionsDeepEditd(**arguments)
@@ -268,6 +275,7 @@ class TestFindDiscrepancyRegionsCustomd(unittest.TestCase):
 
 
 class TestNormalizeLabelsDatasetd(unittest.TestCase):
+
     @parameterized.expand([NormalizeLabelsDatasetd_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = NormalizeLabelsInDatasetd(**arguments)
@@ -276,6 +284,7 @@ class TestNormalizeLabelsDatasetd(unittest.TestCase):
 
 
 class TestResizeGuidanceMultipleLabelCustomd(unittest.TestCase):
+
     @parameterized.expand([RESIZE_GUIDANCE_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = ResizeGuidanceMultipleLabelDeepEditd(**arguments)
@@ -284,6 +293,7 @@ class TestResizeGuidanceMultipleLabelCustomd(unittest.TestCase):
 
 
 class TestSingleLabelSelectiond(unittest.TestCase):
+
     @parameterized.expand([SingleLabelSelectiond_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = SingleLabelSelectiond(**arguments)
@@ -292,6 +302,7 @@ class TestSingleLabelSelectiond(unittest.TestCase):
 
 
 class TestSplitPredsLabeld(unittest.TestCase):
+
     @parameterized.expand([SplitPredsLabeld_TEST_CASE])
     def test_correct_results(self, arguments, input_data, expected_result):
         add_fn = SplitPredsLabeld(**arguments)
