@@ -103,11 +103,13 @@ class PerceptualLoss(nn.Module):
         self.spatial_dims = spatial_dims
         self.perceptual_function: nn.Module
         if spatial_dims == 3 and is_fake_3d is False:
-            self.perceptual_function = MedicalNetPerceptualSimilarity(net=network_type, verbose=False,
-                                                                      channelwise=channelwise)
+            self.perceptual_function = MedicalNetPerceptualSimilarity(
+                net=network_type, verbose=False, channelwise=channelwise
+            )
         elif "radimagenet_" in network_type:
-            self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False,
-                                                                       channelwise=channelwise)
+            self.perceptual_function = RadImageNetPerceptualSimilarity(
+                net=network_type, verbose=False, channelwise=channelwise
+            )
         elif network_type == "resnet50":
             self.perceptual_function = TorchvisionModelPerceptualSimilarity(
                 net=network_type,
@@ -193,10 +195,9 @@ class MedicalNetPerceptualSimilarity(nn.Module):
                 Defaults to ``False``.
     """
 
-    def __init__(self,
-                 net: str = "medicalnet_resnet10_23datasets",
-                 verbose: bool = False,
-                 channelwise: bool = False) -> None:
+    def __init__(
+        self, net: str = "medicalnet_resnet10_23datasets", verbose: bool = False, channelwise: bool = False
+    ) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
         self.model = torch.hub.load("warvito/MedicalNet-models", model=net, verbose=verbose)
