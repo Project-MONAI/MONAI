@@ -21,11 +21,7 @@ from einops.layers.torch import Rearrange
 
 from monai.networks.blocks import Convolution
 from monai.networks.blocks.selfattention import SABlock
-
-# To install xformers, use pip install xformers==0.0.16rc401
-from monai.utils import ensure_tuple_rep, optional_import
-
-xformers, has_xformers = optional_import("xformers")
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["AutoencoderKL"]
 

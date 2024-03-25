@@ -291,7 +291,7 @@ class TestAutoEncoderKL(unittest.TestCase):
         ).to(device)
 
         old_state_dict = torch.load("/home/mark/data_drive/monai/autoencoderkl/autoencoder_kl_4.pth")
-        net.load_old_state_dict(old_state_dict, verbose=False)
+        net.load_old_state_dict(old_state_dict, verbose=True)
         with eval_mode(net):
             # set torch seed for reproducibility
             expected = torch.tensor(
