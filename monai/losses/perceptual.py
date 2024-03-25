@@ -224,7 +224,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         target = medicalnet_intensity_normalisation(target)
 
         # Get model outputs
-        feats_per_ch = None
+        feats_per_ch = 0
         for ch_idx in range(input.shape[1]):
             input_channel = input[:, ch_idx, ...].unsqueeze(1)
             target_channel = target[:, ch_idx, ...].unsqueeze(1)
