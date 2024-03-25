@@ -505,6 +505,7 @@ from .utility.array import (
     ToDevice,
     ToNumpy,
     ToPIL,
+    TorchIO,
     TorchVision,
     ToTensor,
     Transpose,

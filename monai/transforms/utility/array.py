@@ -98,6 +98,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "TorchIO",
     "MapLabelValue",
     "IntensityStats",
     "ToDevice",
@@ -1154,6 +1155,42 @@ class TorchVision:
         """
         Args:
             img: PyTorch Tensor data for the TorchVision transform.
+
+        """
+        img_t, *_ = convert_data_type(img, torch.Tensor)
+
+        out = self.trans(img_t)
+        out, *_ = convert_to_dst_type(src=out, dst=img)
+        return out
+
+
+class TorchIO:
+    """
+    This is a wrapper transform for TorchIO transforms based on the specified transform name and args.
+    As most of the TorchIO transforms only work for PyTorch Tensor, this transform expects input
+    data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
+
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchIO package.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: PyTorch Tensor data for the TorchIO transform.
 
         """
         img_t, *_ = convert_data_type(img, torch.Tensor)
