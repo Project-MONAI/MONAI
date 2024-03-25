@@ -533,15 +533,15 @@ class nnUNetV2Runner:  # noqa: N801
                 gpu_ids_str = ""
                 for _i in range(len(gpu_id)):
                     gpu_ids_str += f"{gpu_id[_i]},"
-                set_visible_device = f"CUDA_VISIBLE_DEVICES={gpu_ids_str[:-1]}"
+                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_ids_str[:-1]}"
             else:
-                set_visible_device = f"CUDA_VISIBLE_DEVICES={gpu_id[0]}"
+                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id[0]}"
         else:
-            set_visible_device = f"CUDA_VISIBLE_DEVICES={gpu_id}"
+            device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id}"
         num_gpus = 1 if isinstance(gpu_id, int) or len(gpu_id) == 1 else len(gpu_id)
 
         cmd = (
-            f"{set_visible_device} nnUNetv2_train "
+            f"{device_setting} nnUNetv2_train "
             + f"{self.dataset_name_or_id} {config} {fold} "
             + f"-tr {self.trainer_class_name} -num_gpus {num_gpus}"
         )
