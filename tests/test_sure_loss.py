@@ -19,6 +19,7 @@ from monai.losses import SURELoss
 
 
 class TestSURELoss(unittest.TestCase):
+
     def test_real_value(self):
         """Test SURELoss with real-valued input: when the input is real value, the loss should be 0.0."""
         sure_loss_real = SURELoss(perturb_noise=torch.zeros(2, 1, 128, 128), eps=0.1)
