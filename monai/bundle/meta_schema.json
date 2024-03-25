@@ -136,7 +136,7 @@
             "type": "string"
         },
         "required_packages_version": {
-            "description": "Dictionary relating required package names to their versions. The bundle requires these packages to operate.",
+            "description": "Dictionary relating required package names to their versions. The bundle requires these packages to operate which are additional to the base requirements for MONAI.",
             "type": "object"
         },
         "optional_packages_version": {
@@ -208,7 +208,6 @@
         "pytorch_version",
         "numpy_version",
         "required_packages_version",
-        "optional_packages_version",
         "task",
         "description",
         "authors",
