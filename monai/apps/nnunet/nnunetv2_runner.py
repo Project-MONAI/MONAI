@@ -22,6 +22,7 @@ from monai.apps.nnunet.utils import NNUNETMode as M  # noqa: N814
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import
+from monai.utils.misc import run_cmd
 
 load_pickle, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_pickle")
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
@@ -522,38 +523,33 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs.pop("export_validation_probabilities")
             logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
+        # from nnunetv2.run.run_training import run_training
+        cmd = self.train_single_model_command(config, fold,gpu_id, kwargs)
+        run_cmd(cmd, shell=True)
+
+    def train_single_model_command(self, config, fold, gpu_id, kwargs):
         if isinstance(gpu_id, (tuple, list)):
             if len(gpu_id) > 1:
                 gpu_ids_str = ""
                 for _i in range(len(gpu_id)):
                     gpu_ids_str += f"{gpu_id[_i]},"
-                os.environ["CUDA_VISIBLE_DEVICES"] = gpu_ids_str[:-1]
+                set_visible_device = f"CUDA_VISIBLE_DEVICES={gpu_ids_str[:-1]}"
             else:
-                os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id[0]}"
+                set_visible_device = f"CUDA_VISIBLE_DEVICES={gpu_id[0]}"
         else:
-            os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+            set_visible_device = f"CUDA_VISIBLE_DEVICES={gpu_id}"
+        num_gpus = 1 if isinstance(gpu_id, int) or len(gpu_id) == 1 else len(gpu_id)
 
-        from nnunetv2.run.run_training import run_training
-
-        if isinstance(gpu_id, int) or len(gpu_id) == 1:
-            run_training(
-                dataset_name_or_id=self.dataset_name_or_id,
-                configuration=config,
-                fold=fold,
-                trainer_class_name=self.trainer_class_name,
-                export_validation_probabilities=self.export_validation_probabilities,
-                **kwargs,
-            )
-        else:
-            run_training(
-                dataset_name_or_id=self.dataset_name_or_id,
-                configuration=config,
-                fold=fold,
-                num_gpus=len(gpu_id),
-                trainer_class_name=self.trainer_class_name,
-                export_validation_probabilities=self.export_validation_probabilities,
-                **kwargs,
-            )
+        cmd = (
+            f"{set_visible_device} nnUNetv2_train "
+            + f"{self.dataset_name_or_id} {config} {fold} "
+            + f"-tr {self.trainer_class_name} -num_gpus {num_gpus}"
+        )
+        if self.export_validation_probabilities:
+            cmd += " --npz"
+        for _key, _value in kwargs.items():
+            cmd += f" --{_key} {_value}"
+        return cmd
 
     def train(
         self,
@@ -637,15 +633,7 @@ class nnUNetV2Runner:  # noqa: N801
                 if _config in ensure_tuple(configs):
                     for _i in range(self.num_folds):
                         the_device = gpu_id_for_all[_index % n_devices]  # type: ignore
-                        cmd = (
-                            "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
-                            + f"--input_config '{self.input_config_or_dict}' --work_dir '{self.work_dir}' "
-                            + f"--config '{_config}' --fold {_i} --gpu_id {the_device} "
-                            + f"--trainer_class_name {self.trainer_class_name} "
-                            + f"--export_validation_probabilities {self.export_validation_probabilities}"
-                        )
-                        for _key, _value in kwargs.items():
-                            cmd += f" --{_key} {_value}"
+                        cmd = self.train_single_model_command(_config, _i, the_device, kwargs)
                         all_cmds[-1][the_device].append(cmd)
                         _index += 1
         return all_cmds
@@ -686,7 +674,9 @@ class nnUNetV2Runner:  # noqa: N801
                     continue
                 cmd_str = "; ".join(stage[device_id])
                 logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                processes.append(subprocess.Popen(cmd_str, shell=True, stdout=subprocess.DEVNULL))
+                processes.append(subprocess.Popen(
+                    cmd_str, shell=True, stdout=subprocess.DEVNULL)
+                )
             # finish this stage first
             for p in processes:
                 p.wait()
