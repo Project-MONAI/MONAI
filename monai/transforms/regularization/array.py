@@ -88,16 +88,18 @@ class MixUp(Mixer):
 
 class CutMix(Mixer):
     """CutMix augmentation as described in:
-    Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo.
-    CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features,
-    ICCV 2019
+        Sangdoo Yun, Dongyoon Han, Seong Joon Oh, Sanghyuk Chun, Junsuk Choe, Youngjoon Yoo.
+        CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features,
+        ICCV 2019
 
-    Class derived from :py:class:`monai.transforms.Mixer`. See corresponding
-    documentation for details on the constructor parameters. Here, alpha not only determines
-    the mixing weight but also the size of the random rectangles used during for mixing.
-    Please refer to the paper for details.
+        Class derived from :py:class:`monai.transforms.Mixer`. See corresponding
+        documentation for details on the constructor parameters. Here, alpha not only determines
+        the mixing weight but also the size of the random rectangles used during for mixing.
+        Please refer to the paper for details.
 
-    The most common use case is something close to:
+        The most common use case is something close to:
+
+    .. code-block:: python
 
         cm = CutMix(batch_size=8, alpha=0.5)
         for batch in loader:
@@ -106,6 +108,7 @@ class CutMix(Mixer):
             output = model(augimg)
             loss = loss_function(output, auglabels)
             ...
+
     """
 
     def apply(self, data: torch.Tensor):
