@@ -19,7 +19,7 @@ import torch.nn.functional as F
 
 from monai.networks.blocks import Convolution
 from monai.networks.blocks.spade_norm import SPADE
-from monai.networks.nets.autoencoderkl import Encoder, _AttentionBlock, _Upsample
+from monai.networks.nets.autoencoderkl import AttentionBlock, Encoder, _Upsample
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["SPADEAutoencoderKL"]
@@ -136,7 +136,6 @@ class SPADEDecoder(nn.Module):
         attention_levels: indicate which level from channels contain an attention block.
         label_nc: number of semantic channels for SPADE normalisation.
         with_nonlocal_attn: if True use non-local attention block.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer.
     """
 
@@ -152,7 +151,6 @@ class SPADEDecoder(nn.Module):
         attention_levels: Sequence[bool],
         label_nc: int,
         with_nonlocal_attn: bool = True,
-        use_flash_attention: bool = False,
         spade_intermediate_channels: int = 128,
     ) -> None:
         super().__init__()
@@ -197,12 +195,11 @@ class SPADEDecoder(nn.Module):
                 )
             )
             blocks.append(
-                _AttentionBlock(
+                AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -241,12 +238,11 @@ class SPADEDecoder(nn.Module):
 
                 if reversed_attention_levels[i]:
                     blocks.append(
-                        _AttentionBlock(
+                        AttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
-                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -297,7 +293,6 @@ class SPADEAutoencoderKL(nn.Module):
         norm_eps: epsilon for the normalization.
         with_encoder_nonlocal_attn: if True use non-local attention block in the encoder.
         with_decoder_nonlocal_attn: if True use non-local attention block in the decoder.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer.
     """
 
@@ -315,7 +310,6 @@ class SPADEAutoencoderKL(nn.Module):
         norm_eps: float = 1e-6,
         with_encoder_nonlocal_attn: bool = True,
         with_decoder_nonlocal_attn: bool = True,
-        use_flash_attention: bool = False,
         spade_intermediate_channels: int = 128,
     ) -> None:
         super().__init__()
@@ -336,11 +330,6 @@ class SPADEAutoencoderKL(nn.Module):
                 "`channels`."
             )
 
-        if use_flash_attention is True and not torch.cuda.is_available():
-            raise ValueError(
-                "torch.cuda.is_available() should be True but is False. Flash attention is only available for GPU."
-            )
-
         self.encoder = Encoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -351,7 +340,6 @@ class SPADEAutoencoderKL(nn.Module):
             norm_eps=norm_eps,
             attention_levels=attention_levels,
             with_nonlocal_attn=with_encoder_nonlocal_attn,
-            use_flash_attention=use_flash_attention,
         )
         self.decoder = SPADEDecoder(
             spatial_dims=spatial_dims,
@@ -364,7 +352,6 @@ class SPADEAutoencoderKL(nn.Module):
             attention_levels=attention_levels,
             label_nc=label_nc,
             with_nonlocal_attn=with_decoder_nonlocal_attn,
-            use_flash_attention=use_flash_attention,
             spade_intermediate_channels=spade_intermediate_channels,
         )
         self.quant_conv_mu = Convolution(

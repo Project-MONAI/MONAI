@@ -279,7 +279,6 @@ class TestAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result.shape, expected_input_shape)
 
     def test_load_old_weights(self):
-        new_attention = True
         net = AutoencoderKL(
             spatial_dims=2,
             in_channels=1,
@@ -289,11 +288,10 @@ class TestAutoEncoderKL(unittest.TestCase):
             num_res_blocks=1,
             norm_num_groups=32,
             attention_levels=(False, False, True),
-            new_attention=new_attention,
         ).to(device)
 
         old_state_dict = torch.load("/home/mark/data_drive/monai/autoencoderkl/autoencoder_kl_4.pth")
-        net.load_old_state_dict(old_state_dict, verbose=True)
+        net.load_old_state_dict(old_state_dict, verbose=False)
         with eval_mode(net):
             # set torch seed for reproducibility
             expected = torch.tensor(

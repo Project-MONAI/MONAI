@@ -11,15 +11,16 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
 from typing import List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from einops.layers.torch import Rearrange
 
 from monai.networks.blocks import Convolution
+from monai.networks.blocks.selfattention import SABlock
 
 # To install xformers, use pip install xformers==0.0.16rc401
 from monai.utils import ensure_tuple_rep, optional_import
@@ -181,22 +182,15 @@ class _ResBlock(nn.Module):
         return x + h
 
 
-class _AttentionBlock(nn.Module):
-    """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
+class AttentionBlock(nn.Module):
+    """Perform spatial self-attention on the input tensor.
 
-    Attention block.
+    The input tensor is reshaped to B x (x_dim * y_dim [ * z_dim]) x C, where C is the number of channels.
 
     Args:
         spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
-        num_channels: number of input channels.
-        num_head_channels: number of channels in each attention head.
-        norm_num_groups: number of groups involved for the group normalisation layer. Ensure that your number of
-            channels is divisible by this number.
-        norm_eps: epsilon value to use for the normalisation.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+        num_channels: number of input channels. Must be divisible by num_head_channels.
+        num_head_channels: number of channels per head.
     """
 
     def __init__(
@@ -206,118 +200,25 @@ class _AttentionBlock(nn.Module):
         num_head_channels: int | None = None,
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
-        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
-        self.use_flash_attention = use_flash_attention
+
         self.spatial_dims = spatial_dims
-        self.num_channels = num_channels
-
-        self.num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
-        self.scale = 1 / math.sqrt(num_channels / self.num_heads)
-
         self.norm = nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels, eps=norm_eps, affine=True)
+        # check num_head_channels is divisible by num_channels
+        if num_head_channels is not None and num_channels % num_head_channels != 0:
+            raise ValueError("num_channels must be divisible by num_head_channels")
+        num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
 
-        self.to_q = nn.Linear(num_channels, num_channels)
-        self.to_k = nn.Linear(num_channels, num_channels)
-        self.to_v = nn.Linear(num_channels, num_channels)
+        self.attn = SABlock(hidden_size=num_channels, num_heads=num_heads, qkv_bias=True)
 
-        self.proj_attn = nn.Linear(num_channels, num_channels)
-
-    def reshape_heads_to_batch_dim(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Divide hidden state dimension to the multiple attention heads and reshape their input as instances in the batch.
-        """
-        batch_size, seq_len, dim = x.shape
-        x = x.reshape(batch_size, seq_len, self.num_heads, dim // self.num_heads)
-        x = x.permute(0, 2, 1, 3).reshape(batch_size * self.num_heads, seq_len, dim // self.num_heads)
-        return x
-
-    def reshape_batch_dim_to_heads(self, x: torch.Tensor) -> torch.Tensor:
-        """Combine the output of the attention heads back into the hidden state dimension."""
-        batch_size, seq_len, dim = x.shape
-        x = x.reshape(batch_size // self.num_heads, self.num_heads, seq_len, dim)
-        x = x.permute(0, 2, 1, 3).reshape(batch_size // self.num_heads, seq_len, dim * self.num_heads)
-        return x
-
-    def _memory_efficient_attention_xformers(
-        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
-    ) -> torch.Tensor:
-        query = query.contiguous()
-        key = key.contiguous()
-        value = value.contiguous()
-        x: torch.Tensor = xformers.ops.memory_efficient_attention(query, key, value, attn_bias=None)
-        return x
-
-    def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
-        attention_scores = torch.baddbmm(
-            torch.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype, device=query.device),
-            query,
-            key.transpose(-1, -2),
-            beta=0,
-            alpha=self.scale,
-        )
-        attention_probs = attention_scores.softmax(dim=-1)
-        x = torch.bmm(attention_probs, value)
-        return x
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor):
         residual = x
 
-        batch = channel = height = width = depth = -1
-        if self.spatial_dims == 2:
-            batch, channel, height, width = x.shape
-        if self.spatial_dims == 3:
-            batch, channel, height, width, depth = x.shape
-
-        # norm
-        x = self.norm(x)
-
-        if self.spatial_dims == 2:
-            x = x.view(batch, channel, height * width).transpose(1, 2)
-        if self.spatial_dims == 3:
-            x = x.view(batch, channel, height * width * depth).transpose(1, 2)
-
-        # proj to q, k, v
-        query = self.to_q(x)
-        key = self.to_k(x)
-        value = self.to_v(x)
-
-        # Multi-Head Attention
-        query = self.reshape_heads_to_batch_dim(query)
-        key = self.reshape_heads_to_batch_dim(key)
-        value = self.reshape_heads_to_batch_dim(value)
-
-        if self.use_flash_attention:
-            x = self._memory_efficient_attention_xformers(query, key, value)
-        else:
-            x = self._attention(query, key, value)
-
-        x = self.reshape_batch_dim_to_heads(x)
-        x = x.to(query.dtype)
-
-        if self.spatial_dims == 2:
-            x = x.transpose(-1, -2).reshape(batch, channel, height, width)
-        if self.spatial_dims == 3:
-            x = x.transpose(-1, -2).reshape(batch, channel, height, width, depth)
-
-        return x + residual
-
-
-class _AttentionBlockNew(nn.Module):
-    def __init__(self, spatial_dims, num_channels, num_head_channels):
-        super().__init__()
-        from monai.networks.blocks.selfattention import SABlock
-
-        self.spatial_dims = spatial_dims
-        self.norm = nn.GroupNorm(num_groups=32, num_channels=num_head_channels, eps=1e-6, affine=True)
-        self.attn = SABlock(hidden_size=num_channels, num_heads=1, qkv_bias=True)
-
-    def forward(self, x):
-        residual = x
-        # SAblck expects input in the form of B x C x (s_dim_1 * ... * s_dim_n)
-        from einops.layers.torch import Rearrange
-
+        if self.spatial_dims == 1:
+            h = x.shape[2]
+            rearrange_input = Rearrange("b c h -> b h c")
+            rearrange_output = Rearrange("b h c -> b c h", h=h)
         if self.spatial_dims == 2:
             h, w = x.shape[2], x.shape[3]
             rearrange_input = Rearrange("b c h w -> b (h w) c")
@@ -328,10 +229,10 @@ class _AttentionBlockNew(nn.Module):
             rearrange_output = Rearrange("b (h w d) c -> b c h w d", h=h, w=w, d=d)
 
         x = self.norm(x)
-        x = rearrange_input(x)  # B x (s_dim_1 * ... * s_dim_n) x C
+        x = rearrange_input(x)  # B x (x_dim * y_dim [ * z_dim]) x C
 
         x = self.attn(x)
-        x = rearrange_output(x)
+        x = rearrange_output(x)  # B x  x C x x_dim * y_dim * [z_dim]
         x = x + residual
         return x
 
@@ -350,7 +251,6 @@ class Encoder(nn.Module):
         norm_eps: epsilon for the normalization.
         attention_levels: indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: if True use non-local attention block.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
     """
 
     def __init__(
@@ -364,8 +264,6 @@ class Encoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         with_nonlocal_attn: bool = True,
-        use_flash_attention: bool = False,
-        new_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -411,16 +309,11 @@ class Encoder(nn.Module):
                 input_channel = output_channel
                 if attention_levels[i]:
                     blocks.append(
-                        _AttentionBlockNew(
-                            spatial_dims=spatial_dims, num_channels=input_channel, num_head_channels=input_channel
-                        )
-                        if new_attention
-                        else _AttentionBlock(
+                        AttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=input_channel,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
-                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -453,16 +346,11 @@ class Encoder(nn.Module):
             )
 
             blocks.append(
-                _AttentionBlockNew(
-                    spatial_dims=spatial_dims, num_channels=channels[-1], num_head_channels=input_channel
-                )
-                if new_attention
-                else _AttentionBlock(
+                AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -511,7 +399,6 @@ class Decoder(nn.Module):
         norm_eps: epsilon for the normalization.
         attention_levels: indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: if True use non-local attention block.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
     """
 
@@ -526,9 +413,7 @@ class Decoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         with_nonlocal_attn: bool = True,
-        use_flash_attention: bool = False,
         use_convtranspose: bool = False,
-        new_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -569,18 +454,11 @@ class Decoder(nn.Module):
                 )
             )
             blocks.append(
-                _AttentionBlockNew(
-                    spatial_dims=spatial_dims,
-                    num_channels=reversed_block_out_channels[0],
-                    num_head_channels=reversed_block_out_channels[0],
-                )
-                if new_attention
-                else _AttentionBlock(
+                AttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -615,16 +493,11 @@ class Decoder(nn.Module):
 
                 if reversed_attention_levels[i]:
                     blocks.append(
-                        _AttentionBlockNew(
-                            spatial_dims=spatial_dims, num_channels=block_in_ch, num_head_channels=block_in_ch
-                        )
-                        if new_attention
-                        else _AttentionBlock(
+                        AttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
-                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -672,7 +545,6 @@ class AutoencoderKL(nn.Module):
         norm_eps: epsilon for the normalization.
         with_encoder_nonlocal_attn: if True use non-local attention block in the encoder.
         with_decoder_nonlocal_attn: if True use non-local attention block in the decoder.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         use_checkpoint: if True, use activation checkpoint to save memory.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
     """
@@ -690,10 +562,8 @@ class AutoencoderKL(nn.Module):
         norm_eps: float = 1e-6,
         with_encoder_nonlocal_attn: bool = True,
         with_decoder_nonlocal_attn: bool = True,
-        use_flash_attention: bool = False,
         use_checkpoint: bool = False,
         use_convtranspose: bool = False,
-        new_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -713,11 +583,6 @@ class AutoencoderKL(nn.Module):
                 "`num_channels`."
             )
 
-        if use_flash_attention is True and not torch.cuda.is_available():
-            raise ValueError(
-                "torch.cuda.is_available() should be True but is False. Flash attention is only available for GPU."
-            )
-
         self.encoder = Encoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -728,8 +593,6 @@ class AutoencoderKL(nn.Module):
             norm_eps=norm_eps,
             attention_levels=attention_levels,
             with_nonlocal_attn=with_encoder_nonlocal_attn,
-            use_flash_attention=use_flash_attention,
-            new_attention=new_attention,
         )
         self.decoder = Decoder(
             spatial_dims=spatial_dims,
@@ -741,9 +604,7 @@ class AutoencoderKL(nn.Module):
             norm_eps=norm_eps,
             attention_levels=attention_levels,
             with_nonlocal_attn=with_decoder_nonlocal_attn,
-            use_flash_attention=use_flash_attention,
             use_convtranspose=use_convtranspose,
-            new_attention=new_attention,
         )
         self.quant_conv_mu = Convolution(
             spatial_dims=spatial_dims,
