@@ -42,7 +42,7 @@ class Mixer(RandomizableTransform):
         self.batch_size = batch_size
 
     @abstractmethod
-    def apply(cls, data: torch.Tensor):
+    def apply(self, data: torch.Tensor):
         raise NotImplementedError()
 
     def randomize(self, data=None) -> None:

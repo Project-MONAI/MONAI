@@ -28,7 +28,9 @@ class MixUpd(MapTransform):
     for consistency, i.e. images and labels must be applied the same augmenation.
     """
 
-    def __init__(self, keys: KeysCollection, batch_size: int, alpha: float = 1.0, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, batch_size: int, alpha: float = 1.0, allow_missing_keys: bool = False
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mixup = MixUp(batch_size, alpha)
 
