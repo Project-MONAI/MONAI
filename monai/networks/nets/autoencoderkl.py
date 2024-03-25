@@ -30,12 +30,29 @@ xformers, has_xformers = optional_import("xformers")
 __all__ = ["AutoencoderKL"]
 
 
-class _Upsample(nn.Module):
+class CastTempType(nn.Module):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
+    Cast the input tensor to a temporary type before applying the submodule, and then cast it back to the initial type.
+    """
 
+    def __init__(self, initial_type, temporary_type, submodule):
+        super().__init__()
+        self.initial_type = initial_type
+        self.temporary_type = temporary_type
+        self.submodule = submodule
+
+    def forward(self, x):
+        dtype = x.dtype
+        if dtype == self.initial_type:
+            x = x.to(self.temporary_type)
+        x = self.submodule(x)
+        if dtype == self.initial_type:
+            x = x.to(self.initial_type)
+        return x
+
+
+class AEKLUpsample(nn.Module):
+    """
     Convolution-based upsampling layer.
 
     Args:
@@ -75,16 +92,14 @@ class _Upsample(nn.Module):
             return conv
 
         # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
-        # https://github.com/pytorch/pytorch/issues/86679
-        dtype = x.dtype
-        if dtype == torch.bfloat16:
-            x = x.to(torch.float32)
+        # https://github.com/pytorch/pytorch/issues/86679. This issue is solved in PyTorch 2.1
+        interpolate_with_casting = CastTempType(
+            initial_type=torch.bfloat16,
+            temporary_type=torch.float32,
+            submodule=lambda x: F.interpolate(x, scale_factor=2.0, mode="nearest"),
+        )
 
-        x = F.interpolate(x, scale_factor=2.0, mode="nearest")
-
-        # If the input is bfloat16, we cast back to bfloat16
-        if dtype == torch.bfloat16:
-            x = x.to(dtype)
+        x = interpolate_with_casting(x)
 
         x = self.conv(x)
         return x
@@ -503,7 +518,9 @@ class Decoder(nn.Module):
 
             if not is_final_block:
                 blocks.append(
-                    _Upsample(spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=use_convtranspose)
+                    AEKLUpsample(
+                        spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=use_convtranspose
+                    )
                 )
 
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))

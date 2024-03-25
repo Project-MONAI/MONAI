@@ -19,7 +19,7 @@ import torch.nn.functional as F
 
 from monai.networks.blocks import Convolution
 from monai.networks.blocks.spade_norm import SPADE
-from monai.networks.nets.autoencoderkl import AttentionBlock, Encoder, _Upsample
+from monai.networks.nets.autoencoderkl import AEKLUpsample, AttentionBlock, Encoder
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["SPADEAutoencoderKL"]
@@ -247,7 +247,7 @@ class SPADEDecoder(nn.Module):
                     )
 
             if not is_final_block:
-                blocks.append(_Upsample(spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=False))
+                blocks.append(AEKLUpsample(spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=False))
 
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))
         blocks.append(
