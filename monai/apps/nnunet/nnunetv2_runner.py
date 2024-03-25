@@ -524,7 +524,7 @@ class nnUNetV2Runner:  # noqa: N801
             logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
         # from nnunetv2.run.run_training import run_training
-        cmd = self.train_single_model_command(config, fold,gpu_id, kwargs)
+        cmd = self.train_single_model_command(config, fold, gpu_id, kwargs)
         run_cmd(cmd, shell=True)
 
     def train_single_model_command(self, config, fold, gpu_id, kwargs):
@@ -674,9 +674,7 @@ class nnUNetV2Runner:  # noqa: N801
                     continue
                 cmd_str = "; ".join(stage[device_id])
                 logger.info(f"Current running command on GPU device {device_id}:\n{cmd_str}\n")
-                processes.append(subprocess.Popen(
-                    cmd_str, shell=True, stdout=subprocess.DEVNULL)
-                )
+                processes.append(subprocess.Popen(cmd_str, shell=True, stdout=subprocess.DEVNULL))
             # finish this stage first
             for p in processes:
                 p.wait()
