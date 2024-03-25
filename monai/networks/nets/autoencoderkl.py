@@ -118,12 +118,8 @@ class AsymmetricPad(nn.Module):
         return x
 
 
-class _ResBlock(nn.Module):
+class AEKLResBlock(nn.Module):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
     Residual block consisting of a cascade of 2 convolutions + activation + normalisation block, and a
     residual connection between input and output.
 
@@ -309,7 +305,7 @@ class Encoder(nn.Module):
 
             for _ in range(self.num_res_blocks[i]):
                 blocks.append(
-                    _ResBlock(
+                    AEKLResBlock(
                         spatial_dims=spatial_dims,
                         in_channels=input_channel,
                         norm_num_groups=norm_num_groups,
@@ -347,7 +343,7 @@ class Encoder(nn.Module):
         # Non-local attention block
         if with_nonlocal_attn is True:
             blocks.append(
-                _ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -365,7 +361,7 @@ class Encoder(nn.Module):
                 )
             )
             blocks.append(
-                _ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -456,7 +452,7 @@ class Decoder(nn.Module):
         # Non-local attention block
         if with_nonlocal_attn is True:
             blocks.append(
-                _ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -473,7 +469,7 @@ class Decoder(nn.Module):
                 )
             )
             blocks.append(
-                _ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -492,7 +488,7 @@ class Decoder(nn.Module):
 
             for _ in range(reversed_num_res_blocks[i]):
                 blocks.append(
-                    _ResBlock(
+                    AEKLResBlock(
                         spatial_dims=spatial_dims,
                         in_channels=block_in_ch,
                         norm_num_groups=norm_num_groups,
