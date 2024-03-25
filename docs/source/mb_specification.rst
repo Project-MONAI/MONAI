@@ -63,7 +63,7 @@ This file contains the metadata information relating to the model, including wha
 * **monai_version**: version of MONAI the bundle was generated on, later versions expected to work.
 * **pytorch_version**: version of Pytorch the bundle was generated on, later versions expected to work.
 * **numpy_version**: version of Numpy the bundle was generated on, later versions expected to work.
-* **required_packages_version**: dictionary relating required package names to their versions. These are packages in addition to the base requirements of MONAI which this bundle absolutely needs. For example, if the bundle must load Nifti files the Nibabel package will be required. 
+* **required_packages_version**: dictionary relating required package names to their versions. These are packages in addition to the base requirements of MONAI which this bundle absolutely needs. For example, if the bundle must load Nifti files the Nibabel package will be required.
 * **task**: plain-language description of what the model is meant to do.
 * **description**: longer form plain-language description of what the model is, what it does, etc.
 * **authors**: state author(s) of the model.
