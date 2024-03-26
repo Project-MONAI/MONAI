@@ -12,13 +12,16 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.transforms import TorchIO
-from monai.utils import set_determinism
+from monai.utils import set_determinism, optional_import
+
+_, has_torchio = optional_import("torchio")
 
 TEST_DIMS = [3, 128, 160, 160]
 TESTS = [
@@ -38,6 +41,7 @@ TESTS = [
 ]
 
 
+@skipUnless(has_torchio, "Requires torchio")
 class TestTorchIO(unittest.TestCase):
 
     @parameterized.expand(TESTS)
