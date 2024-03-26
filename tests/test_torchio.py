@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import TorchIO
-from monai.utils import set_determinism, optional_import
+from monai.utils import optional_import, set_determinism
 
 _, has_torchio = optional_import("torchio")
 
