@@ -21,11 +21,11 @@ from logging.config import fileConfig
 from pathlib import Path
 from typing import Any, Sequence
 
+from monai.config import PathLike
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
-from monai.config import PathLike
 from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, deprecated_arg_default, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
@@ -62,9 +62,7 @@ class BundleWorkflow(ABC):
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
     )
-    def __init__(
-        self, workflow_type: str | None = None, workflow: str | None = None, properties_path: PathLike | None = None
-    ):
+    def __init__(self, workflow_type: str | None = None, workflow: str | None = None, properties_path: PathLike | None = None):
         workflow_type = workflow if workflow is not None else workflow_type
         if workflow_type is None and properties_path is None:
             self.properties = copy(MetaProperties)
@@ -78,10 +76,10 @@ class BundleWorkflow(ABC):
                 self.properties = json.load(json_file)
             self.workflow_type = None
             return
-        if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
+        if workflow_type.lower() in self.supported_train_type:
             self.properties = {**TrainProperties, **MetaProperties}
             self.workflow_type = "train"
-        elif workflow_type.lower() in self.supported_infer_type:  # type: ignore[union-attr]
+        elif workflow_type.lower() in self.supported_infer_type:
             self.properties = {**InferProperties, **MetaProperties}
             self.workflow_type = "infer"
         else:
