@@ -336,6 +336,18 @@ from .post.dictionary import (
     VoteEnsembled,
     VoteEnsembleDict,
 )
+from .regularization.array import CutMix, CutOut, MixUp
+from .regularization.dictionary import (
+    CutMixd,
+    CutMixD,
+    CutMixDict,
+    CutOutd,
+    CutOutD,
+    CutOutDict,
+    MixUpd,
+    MixUpD,
+    MixUpDict,
+)
 from .signal.array import (
     SignalContinuousWavelet,
     SignalFillEmpty,
