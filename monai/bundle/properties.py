@@ -43,6 +43,11 @@ TrainProperties = {
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "dataset_dir",
     },
+    "trainer": {
+        BundleProperty.DESC: "training workflow engine.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}trainer",
+    },
     "network_def": {
         BundleProperty.DESC: "network module for the training.",
         BundleProperty.REQUIRED: False,
@@ -58,11 +63,22 @@ TrainProperties = {
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: f"train{ID_SEP_KEY}dataset",
     },
+    "train_inferer": {
+        BundleProperty.DESC: "MONAI Inferer object to execute the model computation in training.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}inferer",
+    },
     "train_dataset_data": {
         BundleProperty.DESC: "data source for the training dataset.",
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: f"train{ID_SEP_KEY}dataset{ID_SEP_KEY}data",
         BundlePropertyConfig.REF_ID: None,  # no reference to this ID
+    },
+    "train_handlers": {
+        BundleProperty.DESC: "event-handlers for the training logic.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"train{ID_SEP_KEY}handlers",
+        BundlePropertyConfig.REF_ID: f"train{ID_SEP_KEY}trainer{ID_SEP_KEY}train_handlers",
     },
     "train_preprocessing": {
         BundleProperty.DESC: "preprocessing for the training input data.",
@@ -81,6 +97,12 @@ TrainProperties = {
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: f"train{ID_SEP_KEY}key_metric",
         BundlePropertyConfig.REF_ID: f"train{ID_SEP_KEY}trainer{ID_SEP_KEY}key_train_metric",
+    },
+    "evaluator": {
+        BundleProperty.DESC: "validation workflow engine.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: f"validate{ID_SEP_KEY}evaluator",
+        BundlePropertyConfig.REF_ID: "validator",  # this REF_ID is the arg name of `ValidationHandler`
     },
     "val_interval": {
         BundleProperty.DESC: "validation interval during the training.",
@@ -153,16 +175,32 @@ InferProperties = {
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "dataset",
     },
+    "evaluator": {
+        BundleProperty.DESC: "inference / evaluation workflow engine.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "evaluator",
+    },
     "network_def": {
         BundleProperty.DESC: "network module for the inference.",
         BundleProperty.REQUIRED: True,
         BundlePropertyConfig.ID: "network_def",
+    },
+    "inferer": {
+        BundleProperty.DESC: "MONAI Inferer object to execute the model computation in inference.",
+        BundleProperty.REQUIRED: True,
+        BundlePropertyConfig.ID: "inferer",
     },
     "dataset_data": {
         BundleProperty.DESC: "data source for the inference / evaluation dataset.",
         BundleProperty.REQUIRED: False,
         BundlePropertyConfig.ID: f"dataset{ID_SEP_KEY}data",
         BundlePropertyConfig.REF_ID: None,  # no reference to this ID
+    },
+    "handlers": {
+        BundleProperty.DESC: "event-handlers for the inference / evaluation logic.",
+        BundleProperty.REQUIRED: False,
+        BundlePropertyConfig.ID: "handlers",
+        BundlePropertyConfig.REF_ID: f"evaluator{ID_SEP_KEY}val_handlers",
     },
     "preprocessing": {
         BundleProperty.DESC: "preprocessing for the input data.",
