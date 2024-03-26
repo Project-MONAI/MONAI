@@ -33,10 +33,7 @@ TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inferenc
 
 TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml")]
 
-TEST_CASE_3 = [
-    os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json"),
-    os.path.join(os.path.dirname(__file__), "testing_data", "fl_train_properties.json"),
-]
+TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
 
 
 class TestBundleWorkflow(unittest.TestCase):
@@ -104,11 +101,10 @@ class TestBundleWorkflow(unittest.TestCase):
             logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
             **override,
         )
-        inferer.add_property(name="inferer", required=True, config_id="inferer")
         self._test_inferer(inferer)
 
     @parameterized.expand([TEST_CASE_3])
-    def test_train_config(self, config_file, properties_path):
+    def test_train_config(self, config_file):
         # test standard MONAI model-zoo config workflow
         trainer = ConfigWorkflow(
             workflow_type="train",
@@ -117,7 +113,6 @@ class TestBundleWorkflow(unittest.TestCase):
             init_id="initialize",
             run_id="run",
             final_id="finalize",
-            properties_path=properties_path,
         )
         # should initialize before parsing any bundle content
         trainer.initialize()
@@ -149,7 +144,6 @@ class TestBundleWorkflow(unittest.TestCase):
     def test_non_config(self):
         # test user defined python style workflow
         inferer = NonConfigWorkflow(self.filename, self.data_dir)
-        inferer.add_property(name="inferer", required=True)
         self._test_inferer(inferer)
 
 
