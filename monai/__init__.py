@@ -83,6 +83,10 @@ try:
     from .utils.tf32 import detect_default_tf32
 
     detect_default_tf32()
+    import torch
+
+    if hasattr(torch.cuda.device_count, "cache_clear"):
+        torch.cuda.device_count.cache_clear()
 except BaseException:
     from .utils.misc import MONAIEnvVars
 
