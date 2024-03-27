@@ -90,6 +90,15 @@ class TestRandGibbsNoise(unittest.TestCase):
         self.assertGreaterEqual(t.sampled_alpha, 0.5)
         self.assertLessEqual(t.sampled_alpha, 0.51)
 
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_single_value(self, im_shape, input_type):
+        im = self.get_data(im_shape, input_type)
+        alpha = 0.01
+        t = RandGibbsNoise(1.0, alpha)
+        _ = t(deepcopy(im))
+        self.assertGreaterEqual(t.sampled_alpha, 0)
+        self.assertLessEqual(t.sampled_alpha, 0.01)
+
 
 if __name__ == "__main__":
     unittest.main()
