@@ -676,8 +676,8 @@ def combineMCtIandGLCCC(
         image_threshold: if enabled `image`, use ``image > image_threshold`` to
             determine the valid image content area and select class indices only in this area.
         max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
-            Default is None, no subsampling.    
-        
+            Default is None, no subsampling.
+
         Raises:
         ValueError: When the proposed roi is larger than the image.
         ValueError: When the foreground and background indices lengths are 0.
