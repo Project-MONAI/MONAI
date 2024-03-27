@@ -498,17 +498,17 @@ class nnUNetV2Runner:  # noqa: N801
                 training (e.g., (0,1)). Default: 0.
             kwargs: this optional parameter allows you to specify additional arguments in
                 ``nnunetv2.run.run_training.run_training``. Currently supported args are
-                    - p: custom plans identifier. Default: "nnUNetPlans".
-                    - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
-                        used when actually training. Beta. Use with caution. Default: False.
-                    - use_compressed: True to use compressed data for training. Reading compressed data is much
-                        more CPU and (potentially) RAM intensive and should only be used if you know what you are
-                        doing. Default: False.
-                    - c: continue training from latest checkpoint. Default: False.
-                    - val: True to run the validation only. Requires training to have finished.
-                        Default: False.
-                    - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
-                        don't want to flood your hard drive with checkpoints. Default: False.
+                - p: custom plans identifier. Default: "nnUNetPlans".
+                - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
+                    used when actually training. Beta. Use with caution. Default: False.
+                - use_compressed: True to use compressed data for training. Reading compressed data is much
+                    more CPU and (potentially) RAM intensive and should only be used if you know what you are
+                    doing. Default: False.
+                - c: continue training from latest checkpoint. Default: False.
+                - val: True to run the validation only. Requires training to have finished.
+                    Default: False.
+                - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
+                    don't want to flood your hard drive with checkpoints. Default: False.
         """
         if "num_gpus" in kwargs:
             kwargs.pop("num_gpus")
