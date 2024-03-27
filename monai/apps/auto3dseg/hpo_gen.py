@@ -197,7 +197,7 @@ class NNIGen(HPOGen):
                 output_folder,
                 task_prefix + task_id,
                 bundle_root=write_path,
-                fill_with_datastats=False
+                fill_with_datastats=False,
             )
         else:
             ConfigParser.export_config_file(self.params, write_path)
