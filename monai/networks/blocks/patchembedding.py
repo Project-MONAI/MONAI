@@ -123,6 +123,7 @@ class PatchEmbeddingBlock(nn.Module):
             with torch.no_grad():
                 pos_embeddings = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
                 self.position_embeddings.data.copy_(pos_embeddings.float())
+                self.position_embeddings.requires_grad = False
         else:
             raise ValueError(f"pos_embed_type {self.pos_embed_type} not supported.")
 
