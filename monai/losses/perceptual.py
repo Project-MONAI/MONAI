@@ -74,6 +74,7 @@ class PerceptualLoss(nn.Module):
         pretrained: bool = True,
         pretrained_path: str | None = None,
         pretrained_state_dict_key: str | None = None,
+        channelwise: bool = False,
     ):
         super().__init__()
 
@@ -85,6 +86,9 @@ class PerceptualLoss(nn.Module):
                 "MedicalNet networks are only compatible with ``spatial_dims=3``."
                 "Argument is_fake_3d must be set to False."
             )
+
+        if channelwise and "medicalnet_" not in network_type:
+            raise ValueError("Channelwise loss is only compatible with MedicalNet networks.")
 
         if network_type.lower() not in list(PercetualNetworkType):
             raise ValueError(
@@ -102,7 +106,9 @@ class PerceptualLoss(nn.Module):
         self.spatial_dims = spatial_dims
         self.perceptual_function: nn.Module
         if spatial_dims == 3 and is_fake_3d is False:
-            self.perceptual_function = MedicalNetPerceptualSimilarity(net=network_type, verbose=False)
+            self.perceptual_function = MedicalNetPerceptualSimilarity(
+                net=network_type, verbose=False, channelwise=channelwise
+            )
         elif "radimagenet_" in network_type:
             self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False)
         elif network_type == "resnet50":
@@ -170,9 +176,9 @@ class PerceptualLoss(nn.Module):
             loss = loss_sagittal + loss_axial + loss_coronal
         else:
             # 2D and real 3D cases
-            loss = self.perceptual_function(input, target)
+            loss = self.perceptual_function(input, target).squeeze()
 
-        return torch.mean(loss)
+        return torch.mean(loss, dim=0)
 
 
 class MedicalNetPerceptualSimilarity(nn.Module):
@@ -185,13 +191,19 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         net: {``"medicalnet_resnet10_23datasets"``, ``"medicalnet_resnet50_23datasets"``}
             Specifies the network architecture to use. Defaults to ``"medicalnet_resnet10_23datasets"``.
         verbose: if false, mute messages from torch Hub load function.
+        channelwise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
+                Defaults to ``False``.
     """
 
-    def __init__(self, net: str = "medicalnet_resnet10_23datasets", verbose: bool = False) -> None:
+    def __init__(
+        self, net: str = "medicalnet_resnet10_23datasets", verbose: bool = False, channelwise: bool = False
+    ) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
         self.model = torch.hub.load("warvito/MedicalNet-models", model=net, verbose=verbose)
         self.eval()
+
+        self.channelwise = channelwise
 
         for param in self.parameters():
             param.requires_grad = False
@@ -206,20 +218,42 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         Args:
             input: 3D input tensor with shape BCDHW.
             target: 3D target tensor with shape BCDHW.
+
         """
         input = medicalnet_intensity_normalisation(input)
         target = medicalnet_intensity_normalisation(target)
 
         # Get model outputs
-        outs_input = self.model.forward(input)
-        outs_target = self.model.forward(target)
+        feats_per_ch = 0
+        for ch_idx in range(input.shape[1]):
+            input_channel = input[:, ch_idx, ...].unsqueeze(1)
+            target_channel = target[:, ch_idx, ...].unsqueeze(1)
+
+            if ch_idx == 0:
+                outs_input = self.model.forward(input_channel)
+                outs_target = self.model.forward(target_channel)
+                feats_per_ch = outs_input.shape[1]
+            else:
+                outs_input = torch.cat([outs_input, self.model.forward(input_channel)], dim=1)
+                outs_target = torch.cat([outs_target, self.model.forward(target_channel)], dim=1)
 
         # Normalise through the channels
         feats_input = normalize_tensor(outs_input)
         feats_target = normalize_tensor(outs_target)
 
-        results: torch.Tensor = (feats_input - feats_target) ** 2
-        results = spatial_average_3d(results.sum(dim=1, keepdim=True), keepdim=True)
+        feats_diff: torch.Tensor = (feats_input - feats_target) ** 2
+        if self.channelwise:
+            results = torch.zeros(
+                feats_diff.shape[0], input.shape[1], feats_diff.shape[2], feats_diff.shape[3], feats_diff.shape[4]
+            )
+            for i in range(input.shape[1]):
+                l_idx = i * feats_per_ch
+                r_idx = (i + 1) * feats_per_ch
+                results[:, i, ...] = feats_diff[:, l_idx : i + r_idx, ...].sum(dim=1)
+        else:
+            results = feats_diff.sum(dim=1, keepdim=True)
+
+        results = spatial_average_3d(results, keepdim=True)
 
         return results
 
