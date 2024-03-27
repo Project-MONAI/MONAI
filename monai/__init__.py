@@ -84,7 +84,8 @@ try:
 
     detect_default_tf32()
     import torch
-# workaround related to https://github.com/Project-MONAI/MONAI/issues/7575
+
+    # workaround related to https://github.com/Project-MONAI/MONAI/issues/7575
     if hasattr(torch.cuda.device_count, "cache_clear"):
         torch.cuda.device_count.cache_clear()
 except BaseException:
