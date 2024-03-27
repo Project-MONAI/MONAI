@@ -496,17 +496,16 @@ class nnUNetV2Runner:  # noqa: N801
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
             gpu_id: an integer to select the device to use, or a tuple/list of GPU device indices used for multi-GPU
                 training (e.g., (0,1)). Default: 0.
-        from nnunetv2.run.run_training import run_training
             kwargs: this optional parameter allows you to specify additional arguments in
                 ``nnunetv2.run.run_training.run_training``. Currently supported args are
-                    - plans_identifier: custom plans identifier. Default: "nnUNetPlans".
+                    - p: custom plans identifier. Default: "nnUNetPlans".
                     - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
                         used when actually training. Beta. Use with caution. Default: False.
-                    - use_compressed_data: True to use compressed data for training. Reading compressed data is much
+                    - use_compressed: True to use compressed data for training. Reading compressed data is much
                         more CPU and (potentially) RAM intensive and should only be used if you know what you are
                         doing. Default: False.
-                    - continue_training: continue training from latest checkpoint. Default: False.
-                    - only_run_validation: True to run the validation only. Requires training to have finished.
+                    - c: continue training from latest checkpoint. Default: False.
+                    - val: True to run the validation only. Requires training to have finished.
                         Default: False.
                     - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
                         don't want to flood your hard drive with checkpoints. Default: False.
@@ -515,12 +514,12 @@ class nnUNetV2Runner:  # noqa: N801
             kwargs.pop("num_gpus")
             logger.warning("please use gpu_id to set the GPUs to use")
 
-        if "trainer_class_name" in kwargs:
-            kwargs.pop("trainer_class_name")
+        if "tr" in kwargs:
+            kwargs.pop("tr")
             logger.warning("please specify the `trainer_class_name` in the __init__ of `nnUNetV2Runner`.")
 
-        if "export_validation_probabilities" in kwargs:
-            kwargs.pop("export_validation_probabilities")
+        if "npz" in kwargs:
+            kwargs.pop("npz")
             logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
         cmd = self.train_single_model_command(config, fold, gpu_id, kwargs)
@@ -547,7 +546,10 @@ class nnUNetV2Runner:  # noqa: N801
         if self.export_validation_probabilities:
             cmd += " --npz"
         for _key, _value in kwargs.items():
-            cmd += f" --{_key} {_value}"
+            if _key == "p" or _key == "pretrained_weights":
+                cmd += f" -{_key} {_value}"
+            else:
+                cmd += f" --{_key} {_value}"
         return cmd
 
     def train(
