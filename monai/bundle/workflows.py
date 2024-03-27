@@ -69,20 +69,6 @@ class BundleWorkflow(ABC):
         meta_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
     ):
-        workflow_type = workflow if workflow is not None else workflow_type
-        if workflow_type is None:
-            self.properties = copy(MetaProperties)
-            self.workflow_type = None
-            return
-        if workflow_type.lower() in self.supported_train_type:
-            self.properties = {**TrainProperties, **MetaProperties}
-            self.workflow_type = "train"
-        elif workflow_type.lower() in self.supported_infer_type:
-            self.properties = {**InferProperties, **MetaProperties}
-            self.workflow_type = "infer"
-        else:
-            raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
-
         if logging_file is not None:
             if not os.path.isfile(logging_file):
                 raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
@@ -104,6 +90,21 @@ class BundleWorkflow(ABC):
                             "Please see: https://docs.monai.io/en/stable/mb_specification.html"
                         )
                         meta_file = None
+
+        workflow_type = workflow if workflow is not None else workflow_type
+        if workflow_type is None:
+            self.properties = copy(MetaProperties)
+            self.workflow_type = None
+            self.meta_file = meta_file
+            return
+        if workflow_type.lower() in self.supported_train_type:
+            self.properties = {**TrainProperties, **MetaProperties}
+            self.workflow_type = "train"
+        elif workflow_type.lower() in self.supported_infer_type:
+            self.properties = {**InferProperties, **MetaProperties}
+            self.workflow_type = "infer"
+        else:
+            raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
 
         self.meta_file = meta_file
 
@@ -174,6 +175,13 @@ class BundleWorkflow(ABC):
 
         """
         return self.workflow_type
+
+    def get_meta_file(self):
+        """
+        Get the meta file.
+
+        """
+        return self.meta_file
 
     def add_property(self, name: str, required: str, desc: str | None = None) -> None:
         """
