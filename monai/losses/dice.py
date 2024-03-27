@@ -776,8 +776,9 @@ class DiceCELoss(_Loss):
             input: the shape should be BNH[WD].
             target: the shape should be BNH[WD] or B1H[WD].
 
-        ValueError: When number of dimensions for input and target are different.
-        ValueError: When the target channel isn't either one-hot encoded or categorical with the same shape of the input.
+        Raises:
+            ValueError: When number of dimensions for input and target are different.
+            ValueError: When the target channel isn't either one-hot encoded or categorical with the same shape of the input.
 
         Returns:
             torch.Tensor: value of the loss.
