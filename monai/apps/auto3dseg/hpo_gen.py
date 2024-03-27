@@ -194,10 +194,7 @@ class NNIGen(HPOGen):
 
         if isinstance(self.algo, BundleAlgo):
             self.algo.export_to_disk(
-                output_folder,
-                task_prefix + task_id,
-                bundle_root=write_path,
-                fill_with_datastats=False,
+                output_folder, task_prefix + task_id, bundle_root=write_path, fill_with_datastats=False
             )
         else:
             ConfigParser.export_config_file(self.params, write_path)
