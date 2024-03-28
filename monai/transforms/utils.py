@@ -1692,9 +1692,9 @@ def get_transform_backends():
         unique_transforms.append(obj)
 
         if (
-            isclass(obj)
-            and issubclass(obj, Transform)
-            and n
+            isclass(obj) and
+            issubclass(obj, Transform) and
+            n
             not in [
                 "BatchInverseTransform",
                 "Compose",
