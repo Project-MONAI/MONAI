@@ -11,6 +11,9 @@
 
 from __future__ import annotations
 
+from typing import Tuple
+
+import torch
 import torch.nn as nn
 
 from monai.networks.blocks.mlp import MLPBlock
@@ -31,6 +34,8 @@ class TransformerBlock(nn.Module):
         dropout_rate: float = 0.0,
         qkv_bias: bool = False,
         save_attn: bool = False,
+        window_size: int = 0,
+        input_size: Tuple = (),
     ) -> None:
         """
         Args:
@@ -40,6 +45,10 @@ class TransformerBlock(nn.Module):
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+            window_size (int): Window size for local attention as used in Segment Anything https://arxiv.org/abs/2304.02643.
+                If 0, global attention used.
+                See https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py.
+            input_size (Tuple): spatial input dimensions (h, w, and d). Has to be set if local window attention is used.
 
         """
 
@@ -53,10 +62,16 @@ class TransformerBlock(nn.Module):
 
         self.mlp = MLPBlock(hidden_size, mlp_dim, dropout_rate)
         self.norm1 = nn.LayerNorm(hidden_size)
-        self.attn = SABlock(hidden_size, num_heads, dropout_rate, qkv_bias, save_attn)
+        self.attn = SABlock(
+            hidden_size, num_heads, dropout_rate, qkv_bias, save_attn, window_size=window_size, input_size=input_size
+        )
         self.norm2 = nn.LayerNorm(hidden_size)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
+        """
+        Args:
+            x (Tensor): [b x (s_dim_1 * … * s_dim_n) x dim]
+        """
         x = x + self.attn(self.norm1(x))
         x = x + self.mlp(self.norm2(x))
         return x

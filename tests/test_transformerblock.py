@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import numpy as np
 import torch
@@ -19,6 +20,9 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.transformerblock import TransformerBlock
+from monai.utils import optional_import
+
+einops, has_einops = optional_import("einops")
 
 TEST_CASE_TRANSFORMERBLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
@@ -37,6 +41,38 @@ for dropout_rate in np.linspace(0, 1, 4):
                 ]
                 TEST_CASE_TRANSFORMERBLOCK.append(test_case)
 
+TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN = []
+for window_size in [0, 2, 3, 4]:
+    test_case = [
+        {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "mlp_dim": 1024,
+            "dropout_rate": 0,
+            "window_size": window_size,
+            "input_size": (4, 4),
+        },
+        (2, 16, 360),
+        (2, 16, 360),
+    ]
+    TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN.append(test_case)
+
+TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN_3D = []
+for window_size in [0, 2, 3, 4]:
+    test_case = [
+        {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "mlp_dim": 1024,
+            "dropout_rate": 0,
+            "window_size": window_size,
+            "input_size": (3, 3, 3),
+        },
+        (2, 27, 360),
+        (2, 27, 360),
+    ]
+    TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN_3D.append(test_case)
+
 
 class TestTransformerBlock(unittest.TestCase):
 
@@ -53,6 +89,20 @@ class TestTransformerBlock(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             TransformerBlock(hidden_size=622, num_heads=8, mlp_dim=3072, dropout_rate=0.4)
+
+        with self.assertRaises(ValueError):
+            TransformerBlock(hidden_size=360, num_heads=4, mlp_dim=1024, dropout_rate=0, window_size=2)
+
+        with self.assertRaises(ValueError):
+            TransformerBlock(
+                hidden_size=360, num_heads=4, mlp_dim=1024, dropout_rate=0, window_size=2, input_size=(1, 1, 1, 1)
+            )
+
+        with self.assertRaises(ValueError):
+            t_block = TransformerBlock(
+                hidden_size=360, num_heads=4, mlp_dim=1024, dropout_rate=0, window_size=2, input_size=(3, 3)
+            )
+            t_block(torch.randn((2, 10, 360)))
 
     def test_access_attn_matrix(self):
         # input format
@@ -77,6 +127,22 @@ class TestTransformerBlock(unittest.TestCase):
         )
         matrix_acess_blk(torch.randn(input_shape))
         assert matrix_acess_blk.attn.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
+
+    @parameterized.expand(TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN)
+    @skipUnless(has_einops, "Requires einops")
+    def test_local_window(self, input_param, input_shape, expected_shape):
+        net = TransformerBlock(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+
+    @parameterized.expand(TEST_CASE_TRANSFORMERBLOCK_LOCAL_WIN_3D)
+    @skipUnless(has_einops, "Requires einops")
+    def test_local_window_3d(self, input_param, input_shape, expected_shape):
+        net = TransformerBlock(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
 
 
 if __name__ == "__main__":
