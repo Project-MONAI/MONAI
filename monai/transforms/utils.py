@@ -658,19 +658,19 @@ def combineMCtIandGLCCC(
     warn: bool = True,
 ) -> list[NdarrayOrTensor]:
     """
-    Combine "map_classes_to_indices" and "generate_pos_neg_label_crop_centers" functions, return crop center coordinates.
+    Combine "map_classes_to_indices" and "generate_label_classes_crop_centers" functions, return crop center coordinates.
     Args:
         spatial_size: spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
-        pos_ratio: ratio of total locations generated that have center being foreground.
         label_spatial_shape: spatial shape of the original label data to unravel selected centers.
-        fg_indices: pre-computed foreground indices in 1 dimension.
-        bg_indices: pre-computed background indices in 1 dimension.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
         rand_state: numpy randomState object to align with other modules.
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
-        label: use the label data to get the indices of every class.
+        warn: if `True` prints a warning if a class is not present in the label.
         num_classes: number of classes for argmax label, not necessary for One-Hot label.
         image: if image is not None, only return the indices of every class that are within the valid
             region of the image (``image > image_threshold``).
