@@ -59,6 +59,7 @@ from monai.transforms.utility.array import (
     ToDevice,
     ToNumpy,
     ToPIL,
+    TorchIO,
     TorchVision,
     ToTensor,
     Transpose,
@@ -171,6 +172,9 @@ __all__ = [
     "ToTensorD",
     "ToTensorDict",
     "ToTensord",
+    "TorchIOD",
+    "TorchIODict",
+    "TorchIOd",
     "TorchVisionD",
     "TorchVisionDict",
     "TorchVisiond",
@@ -1419,6 +1423,53 @@ class RandTorchVisiond(MapTransform, RandomizableTrait):
         return d
 
 
+class TorchIOd(MapTransform, RandomizableTrait):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.TorchIO` for transforms.
+    All transforms in TorchIO can be applied randomly with probability p by specifying the `p=` argument.
+    """
+
+    backend = TorchIO.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        name: str,
+        apply_same_transform: bool = False,
+        allow_missing_keys: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+                See also: :py:class:`monai.transforms.compose.MapTransform`
+            name: The transform name in TorchIO package.
+            apply_same_transform: whether to apply the same transform for all the items specified by `keys`.
+            allow_missing_keys: don't raise exception if key is missing.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.name = name
+        self.apply_same_transform = apply_same_transform
+
+        if self.apply_same_transform:
+            kwargs["include"] = self.keys
+
+        self.trans = TorchIO(name, *args, **kwargs)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        if self.apply_same_transform:
+            d = self.trans(d)
+        else:
+            for key in self.key_iterator(d):
+                d[key] = self.trans(d[key])
+        return d
+
+
 class MapLabelValued(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.MapLabelValue`.
@@ -1771,6 +1822,7 @@ ConvertToMultiChannelBasedOnBratsClassesD = ConvertToMultiChannelBasedOnBratsCla
 )
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
+TorchIOD = TorchIODict = TorchIOd
 RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond
 RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
