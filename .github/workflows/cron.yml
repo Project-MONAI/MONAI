@@ -19,18 +19,18 @@ jobs:
           - "PTLATEST+CUDA121"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-          - environment: PT191+CUDA113
-            pytorch: "torch==1.9.1 torchvision==0.10.1 --extra-index-url https://download.pytorch.org/whl/cu113"
-            base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
           - environment: PT110+CUDA113
             pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu113"
             base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
           - environment: PT113+CUDA113
             pytorch: "torch==1.13.1 torchvision==0.14.1 --extra-index-url https://download.pytorch.org/whl/cu113"
             base: "nvcr.io/nvidia/pytorch:21.06-py3"  # CUDA 11.3
-          - environment: PTLATEST+CUDA121
-            pytorch: "-U torch torchvision --extra-index-url https://download.pytorch.org/whl/cu118"
+          - environment: PTLATEST+CUDA122
+            pytorch: "torch==1.13.1 torchvision==0.14.1 --extra-index-url https://download.pytorch.org/whl/cu118"
             base: "nvcr.io/nvidia/pytorch:23.08-py3"  # CUDA 12.2
+          - environment: PTLATEST+CUDA124
+            pytorch: "-U torch torchvision --extra-index-url https://download.pytorch.org/whl/cu118"
+            base: "nvcr.io/nvidia/pytorch:24.03-py3"  # CUDA 12.4
     container:
       image: ${{ matrix.base }}
       options: "--gpus all"
