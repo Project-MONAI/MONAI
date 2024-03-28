@@ -644,14 +644,14 @@ def generate_label_classes_crop_centers(
 
 def combineMCtIandGLCCC(
     label: NdarrayOrTensor,
-    spatial_size: Sequence[int] | int,
-    num_samples: int,
-    label_spatial_shape: Sequence[int],
-    indices: Sequence[NdarrayOrTensor],
     num_classes: int | None = None,
     image: NdarrayOrTensor | None = None,
     image_threshold: float = 0.0,
     max_samples_per_class: int | None = None,
+    spatial_size: Sequence[int] | int,
+    num_samples: int,
+    label_spatial_shape: Sequence[int],
+    indices: Sequence[NdarrayOrTensor],
     ratios: list[float | int] | None = None,
     rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
@@ -661,10 +661,6 @@ def combineMCtIandGLCCC(
     Combine "map_classes_to_indices" and "generate_label_classes_crop_centers" functions, return crop center coordinates.
     Args:
         label: use the label data to get the indices of every class.
-        spatial_size: spatial size of the ROIs to be sampled.
-        num_samples: total sample centers to be generated.
-        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
-        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
         num_classes: number of classes for argmax label, not necessary for One-Hot label.
         image: if image is not None, only return the indices of every class that are within the valid
             region of the image (``image > image_threshold``).
@@ -672,6 +668,10 @@ def combineMCtIandGLCCC(
             determine the valid image content area and select class indices only in this area.
         max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
             Default is None, no subsampling.
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
         ratios: ratios of every class in the label to generate crop centers, including background class.
             if None, every class will have the same ratio to generate crop centers.
         rand_state: numpy randomState object to align with other modules.
