@@ -685,7 +685,9 @@ def combineMCtIandGLCCC(
     if indices_ is None:
         if label is None:
             raise ValueError("label must not be None.")
-        indices_ = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
+        indices_ = map_classes_to_indices(
+            label, num_classes, image, image_threshold, max_samples_per_class
+        )
     _shape = None
     if label is not None:
         _shape = label.peek_pending_shape() if isinstance(label, monai.data.MetaTensor) else label.shape[1:]
