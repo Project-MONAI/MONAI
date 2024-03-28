@@ -693,9 +693,9 @@ def combineMCtIandGLCCC(
         )
     _shape = None
     if label is not None:
-        _shape = label.peek_pending_shape() if isinstance(label, MetaTensor) else label.shape[1:]
+        _shape = label.peek_pending_shape() if isinstance(label, monai.data.MetaTensor) else label.shape[1:]
     elif image is not None:
-        _shape = image.peek_pending_shape() if isinstance(image, MetaTensor) else image.shape[1:]
+        _shape = image.peek_pending_shape() if isinstance(image, monai.data.MetaTensor) else image.shape[1:]
     if _shape is None:
         raise ValueError("label or image must be provided to infer the output spatial shape.")
     centers = generate_label_classes_crop_centers(
