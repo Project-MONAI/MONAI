@@ -59,6 +59,8 @@ from .resnet import (
     ResNet,
     ResNetBlock,
     ResNetBottleneck,
+    ResNetEncoder,
+    ResNetFeatures,
     get_medicalnet_pretrained_resnet_args,
     get_pretrained_resnet_medicalnet,
     resnet10,
