@@ -584,10 +584,10 @@ class SlidingWindowInfererAdapt(SlidingWindowInferer):
                 return super().__call__(
                     inputs,
                     network,
+                    *args,
                     device=inputs.device if gpu_stitching else torch.device("cpu"),
                     buffer_steps=buffer_steps if buffered_stitching else None,
                     buffer_dim=buffer_dim,
-                    *args,
                     **kwargs,
                 )
             except RuntimeError as e:

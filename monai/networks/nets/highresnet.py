@@ -36,6 +36,7 @@ DEFAULT_LAYER_PARAMS_3D = (
 
 
 class HighResBlock(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,

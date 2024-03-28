@@ -1157,7 +1157,7 @@ class Rotate90(InvertibleTransform, LazyTransform):
         """
         LazyTransform.__init__(self, lazy=lazy)
         self.k = (4 + (k % 4)) % 4  # 0, 1, 2, 3
-        spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)  # type: ignore
+        spatial_axes_: tuple[int, int] = ensure_tuple(spatial_axes)
         if len(spatial_axes_) != 2:
             raise ValueError(f"spatial_axes must be 2 numbers to define the plane to rotate, got {spatial_axes_}.")
         self.spatial_axes = spatial_axes_
@@ -3441,7 +3441,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
             idx = self.R.permutation(image_np.shape[0])
             idx = idx[: self.num_patches]
             idx_np = convert_data_type(idx, np.ndarray)[0]
-            image_np = image_np[idx]  # type: ignore
+            image_np = image_np[idx]
             locations = locations[idx_np]
             return image_np, locations
         elif self.sort_fn not in (None, GridPatchSort.MIN, GridPatchSort.MAX):

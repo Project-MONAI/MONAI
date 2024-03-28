@@ -35,7 +35,7 @@ jobs:
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -68,7 +68,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -83,7 +83,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: cache weekly timestamp
@@ -91,7 +91,7 @@ jobs:
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -100,7 +100,7 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
-        rm -rf /opt/hostedtoolcache
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
@@ -111,7 +111,7 @@ jobs:
         BUILD_MONAI=1 ./runtests.sh --build --quick --min
         coverage xml --ignore-errors
     - name: Upload coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.8'
     - name: cache weekly timestamp
@@ -128,7 +128,7 @@ jobs:
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -146,7 +146,7 @@ jobs:
     - name: Install the default branch with build (dev branch only)
       if: github.ref == 'refs/heads/dev'
       run: |
-        rm -rf /opt/hostedtoolcache
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
     - name: Get the test cases (dev branch only)

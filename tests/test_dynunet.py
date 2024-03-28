@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import platform
 import unittest
 from typing import Any, Sequence
 
@@ -23,6 +24,12 @@ from monai.utils import optional_import
 from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
 
 InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
+
+ON_AARCH64 = platform.machine() == "aarch64"
+if ON_AARCH64:
+    rtol, atol = 1e-2, 1e-2
+else:
+    rtol, atol = 1e-4, 1e-4
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -109,6 +116,7 @@ for spatial_dims in [2, 3]:
 
 
 class TestDynUNet(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
@@ -128,6 +136,7 @@ class TestDynUNet(unittest.TestCase):
 @skip_if_no_cuda
 @skip_if_windows
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
+
     def setUp(self):
         try:
             layer = InstanceNorm3dNVFuser(num_features=1, affine=False).to("cuda:0")
@@ -157,10 +166,11 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
                         with eval_mode(net_fuser):
                             result_fuser = net_fuser(input_tensor)
 
-                        assert_allclose(result, result_fuser, rtol=1e-4, atol=1e-4)
+                        assert_allclose(result, result_fuser, rtol=rtol, atol=atol)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)

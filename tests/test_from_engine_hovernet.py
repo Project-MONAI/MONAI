@@ -28,6 +28,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1]
 
 
 class TestFromEngineHovernet(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_results(self, input, expected):
         output = from_engine_hovernet(keys=["A", "B"], nested_key="C")(input)

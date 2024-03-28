@@ -333,6 +333,23 @@ class CastToType(Transform):
     """
     Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
     specified PyTorch data type.
+
+    Example:
+        >>> import numpy as np
+        >>> import torch
+        >>> transform = CastToType(dtype=np.float32)
+
+        >>> # Example with a numpy array
+        >>> img_np = np.array([0, 127, 255], dtype=np.uint8)
+        >>> img_np_casted = transform(img_np)
+        >>> img_np_casted
+        array([  0. , 127. , 255. ], dtype=float32)
+
+        >>> # Example with a PyTorch tensor
+        >>> img_tensor = torch.tensor([0, 127, 255], dtype=torch.uint8)
+        >>> img_tensor_casted = transform(img_tensor)
+        >>> img_tensor_casted
+        tensor([  0., 127., 255.])  # dtype is float32
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -355,7 +372,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]
 
 
 class ToTensor(Transform):
@@ -413,10 +430,26 @@ class EnsureType(Transform):
         dtype: target data content type to convert, for example: np.float32, torch.float, etc.
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
-            E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
         track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
             if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
+    Example with wrap_sequence=True:
+        >>> import numpy as np
+        >>> import torch
+        >>> transform = EnsureType(data_type="tensor", wrap_sequence=True)
+        >>> # Converting a list to a tensor
+        >>> data_list = [1, 2., 3]
+        >>> tensor_data = transform(data_list)
+        >>> tensor_data
+        tensor([1., 2., 3.])    # All elements have dtype float32
+
+    Example with wrap_sequence=False:
+        >>> transform = EnsureType(data_type="tensor", wrap_sequence=False)
+        >>> # Converting each element in a list to individual tensors
+        >>> data_list = [1, 2, 3]
+        >>> tensors_list = transform(data_list)
+        >>> tensors_list
+        [tensor(1), tensor(2.), tensor(3)]  # Only second element is float32 rest are int64
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -1529,17 +1562,22 @@ class ImageFilter(Transform):
         self.filter_size = filter_size
         self.additional_args_for_filter = kwargs
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: dict | None = None) -> NdarrayOrTensor:
+    def __call__(
+        self, img: NdarrayOrTensor, meta_dict: dict | None = None, applied_operations: list | None = None
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
             meta_dict: An optional dictionary with metadata
+            applied_operations: An optional list of operations that have been applied to the data
 
         Returns:
             A MetaTensor with the same shape as `img` and identical metadata
         """
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
+            applied_operations = img.applied_operations
+
         img_, prev_type, device = convert_data_type(img, torch.Tensor)
         ndim = img_.ndim - 1  # assumes channel first format
 
@@ -1549,8 +1587,8 @@ class ImageFilter(Transform):
             self.filter = ApplyFilter(self.filter)
 
         img_ = self._apply_filter(img_)
-        if meta_dict:
-            img_ = MetaTensor(img_, meta=meta_dict)
+        if meta_dict is not None or applied_operations is not None:
+            img_ = MetaTensor(img_, meta=meta_dict, applied_operations=applied_operations)
         else:
             img_, *_ = convert_data_type(img_, prev_type, device)
         return img_

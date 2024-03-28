@@ -46,6 +46,7 @@ TEST_CASES = [
 
 
 class TestRandCoarseShuffled(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shuffle(self, input_param, input_data, expected_val):
         g = RandCoarseShuffled(**input_param)

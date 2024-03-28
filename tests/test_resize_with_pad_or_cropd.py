@@ -46,6 +46,7 @@ TEST_CASES = [
 
 
 class TestResizeWithPadOrCropd(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_data, expected_val):
         for p in TEST_NDARRAYS_ALL:

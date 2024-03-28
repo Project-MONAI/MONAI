@@ -25,6 +25,7 @@ from monai.handlers import LrScheduleHandler
 
 
 class TestHandlerLrSchedule(unittest.TestCase):
+
     def test_content(self):
         data = [0] * 8
         test_lr = 0.1

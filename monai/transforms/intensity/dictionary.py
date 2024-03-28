@@ -172,7 +172,7 @@ DEFAULT_POST_FIX = PostFix.meta()
 class RandGaussianNoised(RandomizableTransform, MapTransform):
     """
     Dictionary-based version :py:class:`monai.transforms.RandGaussianNoise`.
-    Add Gaussian noise to image. This transform assumes all the expected fields have same shape, if want to add
+    Add Gaussian noise to image. This transform assumes all the expected fields have same shape, if you want to add
     different noise for every field, please use this transform separately.
 
     Args:
@@ -183,6 +183,7 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         std: Standard deviation (spread) of distribution.
         dtype: output data type, if None, same as input image. defaults to float32.
         allow_missing_keys: don't raise exception if key is missing.
+        sample_std: If True, sample the spread of the Gaussian distribution uniformly from 0 to std.
     """
 
     backend = RandGaussianNoise.backend
@@ -195,10 +196,11 @@ class RandGaussianNoised(RandomizableTransform, MapTransform):
         std: float = 0.1,
         dtype: DtypeLike = np.float32,
         allow_missing_keys: bool = False,
+        sample_std: bool = True,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
-        self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0, dtype=dtype)
+        self.rand_gaussian_noise = RandGaussianNoise(mean=mean, std=std, prob=1.0, dtype=dtype, sample_std=sample_std)
 
     def set_random_state(
         self, seed: int | None = None, state: np.random.RandomState | None = None
@@ -1421,10 +1423,11 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
         prob (float): probability of applying the transform.
-        alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        alpha (float, Sequence[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be sampled
             uniformly from the interval [a,b].
+            If a float is given, then the value of alpha will be sampled uniformly from the interval [0, alpha].
         allow_missing_keys: do not raise exception if key is missing.
     """
 
@@ -1434,7 +1437,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        alpha: Sequence[float] = (0.0, 1.0),
+        alpha: float | Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)

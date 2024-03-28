@@ -123,6 +123,7 @@ def _resample_to_affine(itk_obj, ref_obj):
 
 @unittest.skipUnless(has_itk, "Requires itk package.")
 class TestAffineConsistencyITK(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

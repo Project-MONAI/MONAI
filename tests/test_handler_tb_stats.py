@@ -26,6 +26,7 @@ SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="Summary
 
 
 def get_event_filter(e):
+
     def event_filter(_, event):
         if event in e:
             return True
@@ -36,6 +37,7 @@ def get_event_filter(e):
 
 @unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 class TestHandlerTBStats(unittest.TestCase):
+
     def test_metrics_print(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # set up engine

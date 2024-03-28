@@ -115,6 +115,7 @@ if torch.cuda.is_available():
 
 @skip_if_quick
 class TestDints(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_dints_inference(self, dints_grid_params, dints_params, input_shape, expected_shape):
         grid = TopologySearch(**dints_grid_params)
@@ -155,6 +156,7 @@ class TestDints(unittest.TestCase):
 
 @SkipIfBeforePyTorchVersion((1, 9))
 class TestDintsTS(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_3D + TEST_CASES_2D)
     def test_script(self, dints_grid_params, dints_params, input_shape, _):
         grid = TopologyInstance(**dints_grid_params)

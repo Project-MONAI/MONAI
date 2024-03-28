@@ -256,7 +256,7 @@ class ImageStats(Analyzer):
         )
 
         report[ImageStatsKeys.SIZEMM] = [
-            int(a * b) for a, b in zip(report[ImageStatsKeys.SHAPE][0], report[ImageStatsKeys.SPACING])
+            a * b for a, b in zip(report[ImageStatsKeys.SHAPE][0], report[ImageStatsKeys.SPACING])
         ]
 
         report[ImageStatsKeys.INTENSITY] = [
@@ -460,7 +460,7 @@ class LabelStats(Analyzer):
         torch.set_grad_enabled(False)
 
         ndas: list[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
-        ndas_label: MetaTensor = d[self.label_key]  # (H,W,D)
+        ndas_label: MetaTensor = d[self.label_key].astype(torch.int16)  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
@@ -472,7 +472,7 @@ class LabelStats(Analyzer):
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
             unique_label = unique_label.data.cpu().numpy()
 
-        unique_label = unique_label.astype(np.int8).tolist()
+        unique_label = unique_label.astype(np.int16).tolist()
 
         label_substats = []  # each element is one label
         pixel_sum = 0

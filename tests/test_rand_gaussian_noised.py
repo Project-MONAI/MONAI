@@ -22,23 +22,28 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D
 
 TESTS = []
 for p in TEST_NDARRAYS:
-    TESTS.append(["test_zero_mean", p, ["img1", "img2"], 0, 0.1])
-    TESTS.append(["test_non_zero_mean", p, ["img1", "img2"], 1, 0.5])
+    TESTS.append(["test_zero_mean", p, ["img1", "img2"], 0, 0.1, True])
+    TESTS.append(["test_non_zero_mean", p, ["img1", "img2"], 1, 0.5, True])
+    TESTS.append(["test_no_sample_std", p, ["img1", "img2"], 1, 0.5, False])
 
 seed = 0
 
 
 class TestRandGaussianNoised(NumpyImageTestCase2D):
+
     @parameterized.expand(TESTS)
-    def test_correct_results(self, _, im_type, keys, mean, std):
-        gaussian_fn = RandGaussianNoised(keys=keys, prob=1.0, mean=mean, std=std, dtype=np.float64)
+    def test_correct_results(self, _, im_type, keys, mean, std, sample_std):
+        gaussian_fn = RandGaussianNoised(
+            keys=keys, prob=1.0, mean=mean, std=std, dtype=np.float64, sample_std=sample_std
+        )
         gaussian_fn.set_random_state(seed)
         im = im_type(self.imt)
         noised = gaussian_fn({k: im for k in keys})
         np.random.seed(seed)
         # simulate the randomize() of transform
         np.random.random()
-        noise = np.random.normal(mean, np.random.uniform(0, std), size=self.imt.shape)
+        _std = np.random.uniform(0, std) if sample_std else std
+        noise = np.random.normal(mean, _std, size=self.imt.shape)
         for k in keys:
             expected = self.imt + noise
             if isinstance(noised[k], torch.Tensor):

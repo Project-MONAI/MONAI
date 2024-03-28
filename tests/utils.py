@@ -677,6 +677,7 @@ class NumpyImageTestCase2D(unittest.TestCase):
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
+
     def setUp(self):
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -707,6 +708,7 @@ class NumpyImageTestCase3D(unittest.TestCase):
 
 
 class TorchImageTestCase3D(NumpyImageTestCase3D):
+
     def setUp(self):
         NumpyImageTestCase3D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -832,9 +834,9 @@ DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS
 TEST_NDARRAYS: tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
-TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 

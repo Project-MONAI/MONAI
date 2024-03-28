@@ -48,6 +48,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 @unittest.skipUnless(sys.platform == "linux", "requires linux")
 @unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
+
     def setUp(self):
         self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:

@@ -407,7 +407,7 @@ def rot90_boxes(
     spatial_dims: int = get_spatial_dims(boxes=boxes)
     spatial_size_ = list(ensure_tuple_rep(spatial_size, spatial_dims))
 
-    axes = ensure_tuple(axes)  # type: ignore
+    axes = ensure_tuple(axes)
 
     if len(axes) != 2:
         raise ValueError("len(axes) must be 2.")

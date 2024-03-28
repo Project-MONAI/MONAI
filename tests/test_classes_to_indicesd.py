@@ -97,6 +97,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestClassesToIndicesd(unittest.TestCase):
+
     @parameterized.expand(TESTS_CASES)
     def test_value(self, input_args, input_data, expected_indices):
         result = ClassesToIndicesd(**input_args)(input_data)

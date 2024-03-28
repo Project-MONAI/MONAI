@@ -52,6 +52,7 @@ trange = partial(tqdm.trange, desc="training") if has_tqdm else range
 
 
 class TestTestTimeAugmentation(unittest.TestCase):
+
     @staticmethod
     def get_data(num_examples, input_size, data_type=np.asarray, include_label=True):
         custom_create_test_image_2d = partial(

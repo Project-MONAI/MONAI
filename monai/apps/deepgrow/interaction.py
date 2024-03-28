@@ -49,7 +49,7 @@ class Interaction:
         if not isinstance(transforms, Compose):
             transforms = Compose(transforms)
 
-        self.transforms = transforms
+        self.transforms: Compose = transforms
         self.max_interactions = max_interactions
         self.train = train
         self.key_probability = key_probability

@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.8'
     - name: cache weekly timestamp
@@ -36,7 +36,7 @@ jobs:
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ~/.cache/pip
@@ -62,14 +62,14 @@ jobs:
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
-      uses: al-cheb/configure-pagefile-action@v1.3
+      uses: al-cheb/configure-pagefile-action@v1.4
       with:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.8'
     - name: Prepare pip wheel
@@ -83,7 +83,7 @@ jobs:
         echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
       shell: bash
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: ${{ steps.pip-cache.outputs.dir }}
@@ -128,7 +128,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.8'
     - name: cache weekly timestamp
@@ -136,7 +136,7 @@ jobs:
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -209,7 +209,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.8'
     - name: cache weekly timestamp
@@ -217,7 +217,7 @@ jobs:
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |

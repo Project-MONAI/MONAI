@@ -52,6 +52,7 @@ TEST_CASES = [
 
 
 class TestMultiScale(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = MultiScaleLoss(**input_param).forward(**input_data)

@@ -48,6 +48,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestConvertToMultiChannel(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_type_shape(self, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClasses()(data)

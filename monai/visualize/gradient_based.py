@@ -26,6 +26,7 @@ __all__ = ["VanillaGrad", "SmoothGrad", "GuidedBackpropGrad", "GuidedBackpropSmo
 
 
 class _AutoGradReLU(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, x):
         pos_mask = (x > 0).type_as(x)

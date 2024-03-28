@@ -23,6 +23,7 @@ __all__ = ["build_sincos_position_embedding"]
 
 # From PyTorch internals
 def _ntuple(n):
+
     def parse(x):
         if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
             return tuple(x)
@@ -45,7 +46,7 @@ def build_sincos_position_embedding(
         temperature (float): The temperature for the sin-cos position embedding.
 
     Returns:
-        pos_embed (nn.Parameter): The sin-cos position embedding as a learnable parameter.
+        pos_embed (nn.Parameter): The sin-cos position embedding as a fixed parameter.
     """
 
     if spatial_dims == 2:

@@ -18,6 +18,7 @@ from tests.utils import skip_if_no_cuda
 
 
 class TestVisibleDevices(unittest.TestCase):
+
     @staticmethod
     def run_process_and_get_exit_code(code_to_execute):
         value = os.system(code_to_execute)
@@ -34,6 +35,13 @@ class TestVisibleDevices(unittest.TestCase):
             + "os.environ['CUDA_VISIBLE_DEVICES'] = ''; exit(torch.cuda.device_count())\""
         )
         self.assertEqual(num_gpus_before, num_gpus_after)
+
+        # test import monai won't affect setting CUDA_VISIBLE_DEVICES
+        num_gpus_after_monai = self.run_process_and_get_exit_code(
+            'python -c "import os; import torch; import monai; '
+            + "os.environ['CUDA_VISIBLE_DEVICES'] = '0'; exit(torch.cuda.device_count())\""
+        )
+        self.assertEqual(num_gpus_after_monai, 1)
 
 
 if __name__ == "__main__":

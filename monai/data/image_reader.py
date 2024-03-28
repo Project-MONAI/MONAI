@@ -168,8 +168,8 @@ class ITKReader(ImageReader):
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
         reverse_indexing: whether to use a reversed spatial indexing convention for the returned data array.
-            If ``False``, the spatial indexing follows the numpy convention;
-            otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
+            If ``False``, the spatial indexing convention is reversed to be compatible with ITK;
+            otherwise, the spatial indexing follows the numpy convention. Default is ``False``.
             This option does not affect the metadata.
         series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
             This flag is checked only when loading DICOM series. Default is ``False``.
@@ -1300,7 +1300,7 @@ class NrrdReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, *kwargs_))
+            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, **kwargs_))
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
@@ -1323,7 +1323,7 @@ class NrrdReader(ImageReader):
             header = dict(i.header)
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
-            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(header)
 
             if self.affine_lps_to_ras:
                 header = self._switch_lps_ras(header)
@@ -1344,7 +1344,7 @@ class NrrdReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_affine(self, img: NrrdImage) -> np.ndarray:
+    def _get_affine(self, header: dict) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -1353,8 +1353,8 @@ class NrrdReader(ImageReader):
             img: A `NrrdImage` loaded from image file
 
         """
-        direction = img.header["space directions"]
-        origin = img.header["space origin"]
+        direction = header["space directions"]
+        origin = header["space origin"]
 
         x, y = direction.shape
         affine_diam = min(x, y) + 1
