@@ -657,7 +657,7 @@ def combineMCtIandGLCCC(
     allow_smaller: bool = False,
     warn: bool = True,
 ) -> list[NdarrayOrTensor]:
-    
+
     """
     Combine "map_classes_to_indices" and "generate_pos_neg_label_crop_centers" functions, return crop center coordinates.
      Args:
