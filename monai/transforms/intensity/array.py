@@ -1840,15 +1840,19 @@ class RandGibbsNoise(RandomizableTransform):
 
     Args:
         prob (float): probability of applying the transform.
-        alpha (Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        alpha (float, Sequence(float)): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be
             sampled uniformly from the interval [a,b]. 0 <= a <= b <= 1.
+            If a float is given, then the value of alpha will be sampled uniformly from the interval [0, alpha].
     """
 
     backend = GibbsNoise.backend
 
-    def __init__(self, prob: float = 0.1, alpha: Sequence[float] = (0.0, 1.0)) -> None:
+    def __init__(self, prob: float = 0.1, alpha: float | Sequence[float] = (0.0, 1.0)) -> None:
+        if isinstance(alpha, float):
+            alpha = (0, alpha)
+        alpha = ensure_tuple(alpha)
         if len(alpha) != 2:
             raise ValueError("alpha length must be 2.")
         if alpha[1] > 1 or alpha[0] < 0:
