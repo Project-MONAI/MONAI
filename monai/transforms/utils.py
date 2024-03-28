@@ -94,6 +94,7 @@ __all__ = [
     "create_scale",
     "create_shear",
     "create_translate",
+    "combineMCtIandGLCCC"
     "extreme_points_to_image",
     "fill_holes",
     "Fourier",
