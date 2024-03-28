@@ -35,6 +35,8 @@ TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inferenc
 
 TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
 
+TEST_CASE_NON_CONFIG_WRONG_LOG = [None, "logging.conf", "Cannot find the logging config file: logging.conf."]
+
 
 class TestBundleWorkflow(unittest.TestCase):
 
@@ -144,7 +146,13 @@ class TestBundleWorkflow(unittest.TestCase):
     def test_non_config(self):
         # test user defined python style workflow
         inferer = NonConfigWorkflow(self.filename, self.data_dir)
+        self.assertEqual(inferer.meta_file, None)
         self._test_inferer(inferer)
+
+    @parameterized.expand([TEST_CASE_NON_CONFIG_WRONG_LOG])
+    def test_non_config_wrong_log_cases(self, meta_file, logging_file, expected_error):
+        with self.assertRaisesRegex(FileNotFoundError, expected_error):
+            NonConfigWorkflow(self.filename, self.data_dir, meta_file, logging_file)
 
 
 if __name__ == "__main__":
