@@ -149,6 +149,9 @@ tests/testing_data/nrrd_example.nrrd
 # clang format tool
 .clang-format-bin/
 
+# ctags
+tags
+
 # VSCode
 .vscode/
 *.zip

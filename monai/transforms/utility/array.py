@@ -1165,6 +1165,7 @@ class TorchVision(Transform):
 class TorchIO(Transform, RandomizableTrait):
     """
     This is a wrapper transform for TorchIO transforms based on the specified transform name and args.
+    See https://torchio.readthedocs.io/transforms/transforms.html for more details.
     """
 
     backend = [TransformBackends.TORCH]
@@ -1176,10 +1177,20 @@ class TorchIO(Transform, RandomizableTrait):
             args: parameters for the TorchIO transform.
             kwargs: parameters for the TorchIO transform.
 
+        Note:
+            The `p=` kwarg of TorchIO transforms control set the probability with which the transform is applied.
+            You can specify the probability of applying the transform by passing either `prob` ot `p` in kwargs but'
+            ' not both.
         """
         super().__init__()
         self.name = name
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+
+        if "prob" in kwargs:
+            if "p" in kwargs:
+                raise ValueError("Cannot specify both 'prob' and 'p' in kwargs.")
+            kwargs["p"] = kwargs.pop("prob")
+
         self.trans = transform(*args, **kwargs)
 
     def __call__(self, img: NdarrayOrTensor):
