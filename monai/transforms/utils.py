@@ -657,10 +657,9 @@ def combineMCtIandGLCCC(
     allow_smaller: bool = False,
     warn: bool = True,
 ) -> list[NdarrayOrTensor]:
-
     """
     Combine "map_classes_to_indices" and "generate_pos_neg_label_crop_centers" functions, return crop center coordinates.
-     Args:
+    Args:
         spatial_size: spatial size of the ROIs to be sampled.
         num_samples: total sample centers to be generated.
         pos_ratio: ratio of total locations generated that have center being foreground.
@@ -684,7 +683,6 @@ def combineMCtIandGLCCC(
         ValueError: When the proposed roi is larger than the image.
         ValueError: When the foreground and background indices lengths are 0.
     """
-
     indices_ = indices if indices is None else indices
     if indices_ is None:
         if label is None:
