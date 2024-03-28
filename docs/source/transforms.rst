@@ -1150,6 +1150,13 @@ Utility
     :members:
     :special-members: __call__
 
+`TorchIO`
+"""""""""""""
+.. autoclass:: TorchIO
+    :members:
+    :special-members: __call__
+
+
 `MapLabelValue`
 """""""""""""""
 .. autoclass:: MapLabelValue
@@ -2190,6 +2197,12 @@ Utility (Dict)
 `RandTorchVisiond`
 """"""""""""""""""
 .. autoclass:: RandTorchVisiond
+    :members:
+    :special-members: __call__
+
+`TorchIOd`
+""""""""""""""
+.. autoclass:: TorchIOd
     :members:
     :special-members: __call__
 
