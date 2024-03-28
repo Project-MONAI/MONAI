@@ -804,6 +804,7 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         self,
         keys: KeysCollection,
         spatial_size: Sequence[int] | int,
+        src_spatial_size: Sequence[int] | int | None = None,
         size_mode: str = "all",
         mode: SequenceStr = InterpolateMode.AREA,
         align_corners: Sequence[bool | None] | bool | None = None,
@@ -820,7 +821,9 @@ class Resized(MapTransform, InvertibleTransform, LazyTransform):
         self.dtype = ensure_tuple_rep(dtype, len(self.keys))
         self.anti_aliasing = ensure_tuple_rep(anti_aliasing, len(self.keys))
         self.anti_aliasing_sigma = ensure_tuple_rep(anti_aliasing_sigma, len(self.keys))
-        self.resizer = Resize(spatial_size=spatial_size, size_mode=size_mode, lazy=lazy)
+        self.resizer = Resize(
+            spatial_size=spatial_size, src_spatial_size=src_spatial_size, size_mode=size_mode, lazy=lazy
+        )
 
     @LazyTransform.lazy.setter  # type: ignore
     def lazy(self, val: bool) -> None:
@@ -1489,12 +1492,14 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
         self,
         keys: KeysCollection,
         spatial_axis: Sequence[int] | int | None = None,
+        spatial_size: Sequence[int] | int | None = None,
         allow_missing_keys: bool = False,
         lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         LazyTransform.__init__(self, lazy=lazy)
-        self.flipper = Flip(spatial_axis=spatial_axis)
+        self.spatial_size = spatial_size
+        self.flipper = Flip(spatial_axis=spatial_axis, spatial_size=spatial_size)
 
     @LazyTransform.lazy.setter  # type: ignore
     def lazy(self, val: bool):
@@ -1517,7 +1522,13 @@ class Flipd(MapTransform, InvertibleTransform, LazyTransform):
         d = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
         for key in self.key_iterator(d):
-            d[key] = self.flipper(d[key], lazy=lazy_)
+            refer_key = d[key].meta.get("refer_key", None)
+            if self.spatial_size is None and refer_key is not None:
+                refer = d[refer_key]
+                spatial_size = refer.peek_pending_shape[1:] if isinstance(refer, MetaTensor) else refer.shape[1:] # remove channel dim
+            else:
+                spatial_size = None
+            d[key] = self.flipper(d[key], lazy=lazy_, spatial_size=spatial_size)
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:

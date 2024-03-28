@@ -330,6 +330,7 @@ class TraceKeys(StrEnum):
     TRACING: str = "tracing"
     STATUSES: str = "statuses"
     LAZY: str = "lazy"
+    REF_SIZE: str = "ref_spatial_size"
 
 
 class TraceStatusKeys(StrEnum):
@@ -533,6 +534,13 @@ class SpaceKeys(StrEnum):
     LPS = "LPS"
 
 
+class KindKeys(StrEnum):
+    """ """
+
+    PIXEL = "pixel"
+    POINT = "point"
+
+
 class MetaKeys(StrEnum):
     """
     Typical keys for MetaObj.meta
@@ -543,6 +551,7 @@ class MetaKeys(StrEnum):
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
     ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or float("nan")
+    KIND = "kind"  # possible values of data kind type are defined in `KindKeys`
 
 
 class ColorOrder(StrEnum):
@@ -658,12 +667,14 @@ class LazyAttr(StrEnum):
     """
 
     SHAPE = "lazy_shape"  # spatial shape
+    REF_SIZE = "lazy_ref_size"  # reference spatial size
     AFFINE = "lazy_affine"
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
     ALIGN_CORNERS = "lazy_align_corners"
     RESAMPLE_MODE = "lazy_resample_mode"
+    EXTRA_INFO = "lazy_extra_info"
 
 
 class BundleProperty(StrEnum):

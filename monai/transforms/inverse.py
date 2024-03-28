@@ -217,7 +217,6 @@ class TraceableTransform(Transform):
 
         # add lazy status to the transform info
         info[TraceKeys.LAZY] = lazy
-
         # include extra_info
         if extra_info is not None:
             extra_info.pop(LazyAttr.SHAPE, None)
@@ -238,6 +237,10 @@ class TraceableTransform(Transform):
             else:
                 info[LazyAttr.AFFINE] = affine
             info[LazyAttr.AFFINE] = convert_to_tensor(info[LazyAttr.AFFINE], device=torch.device("cpu"))
+            ref_size = extra_info.pop(TraceKeys.REF_SIZE, None)
+            if ref_size is not None:
+                info[LazyAttr.REF_SIZE] = ref_size
+                info[LazyAttr.REF_SIZE] = tuple(convert_to_numpy(info[LazyAttr.REF_SIZE], wrap_sequence=True).tolist())
             out_obj.push_pending_operation(info)
         else:
             if out_obj.pending_operations:

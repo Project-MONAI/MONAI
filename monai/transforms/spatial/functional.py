@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import warnings
+from copy import deepcopy
 from enum import Enum
 
 import numpy as np
@@ -24,6 +25,7 @@ import torch
 import monai
 from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import get_spatial_dims
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
@@ -31,7 +33,7 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
-from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
+from monai.transforms.utils import create_rotate, create_scale, create_translate, resolves_modes, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
     LazyAttr,
@@ -44,6 +46,7 @@ from monai.utils import (
     fall_back_tuple,
     optional_import,
 )
+from monai.utils.type_conversion import convert_data_type
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -242,7 +245,7 @@ def flip(img, sp_axes, lazy, transform_info):
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
-        lazy: a flag that indicates whether the operation should be performed lazily or not
+        lazy: a flag that indicates whether the operation should be performed lazily or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
@@ -262,6 +265,55 @@ def flip(img, sp_axes, lazy, transform_info):
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip_point(points, sp_axes, spatial_size, lazy, transform_info):
+    """
+    Functional implementation of flip points.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        points: point coordinates, [x, y] or [x, y, z], Nx2 or Nx3 torch tensor or ndarray
+        sp_axes: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+        spatial_size: image spatial size, if None, will flip in the world coordinates.
+        lazy: a flag that indicates whether the operation should be performed lazily or not.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+    Returns:
+        flipped points, with same data type as ``points``, does not share memory with ``points``
+    """
+    spatial_dims: int = get_spatial_dims(points=points[0])
+    sp_size = ensure_tuple_rep(spatial_size, spatial_dims)
+    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
+    extra_info = {"axes": sp_axes, TraceKeys.REF_SIZE: sp_size}  # track the spatial axes
+    if sp_axes is None:
+        sp_axes = tuple(range(0, spatial_dims))
+    sp_axes = ensure_tuple(sp_axes)
+    sp_axes = monai.transforms.utils.map_spatial_axes(points.ndim, sp_axes)  # use the axes with channel dim
+    # axes include the channel dim
+    xform = torch.eye(int(spatial_dims) + 1, dtype=torch.double)
+    for axis in sp_axes:
+        sp = axis - 1
+        xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
+    meta_info = TraceableTransform.track_transform_meta(points, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info)
+
+    # flip box
+    out = deepcopy(_maybe_new_metatensor(points))
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    if spatial_size is None:
+        warnings.warn("''spatial_size'' is None, will flip in the world coordinates.")
+        for _axes in sp_axes:
+            out[..., _axes-1] = -points[..., _axes-1]
+    else:
+        for _axes in sp_axes:
+            out[..., _axes-1] = spatial_size[_axes-1] - points[..., _axes-1]
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
@@ -337,6 +389,55 @@ def resize(
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def _apply_affine_to_points(points: torch.Tensor, affine: torch.Tensor, include_shift: bool = True) -> torch.Tensor:
+    """
+    This internal function applies affine matrices to the point coordinate
+
+    Args:
+        points: point coordinates, Nx2 or Nx3 torch tensor or ndarray, representing [x, y] or [x, y, z]
+        affine: affine matrix to be applied to the point coordinates, sized (spatial_dims+1,spatial_dims+1)
+        include_shift: default True, whether the function apply translation (shift) in the affine transform
+
+    Returns:
+        transformed point coordinates, with same data type as ``points``, does not share memory with ``points``
+    """
+
+    spatial_dims = get_spatial_dims(points=points)
+
+    # compute new points
+    if include_shift:
+        # append 1 to form Nx(spatial_dims+1) vector, then transpose
+        points_affine = torch.cat(
+            [points, torch.ones(points.shape[0], 1, device=points.device, dtype=points.dtype)], dim=1
+        ).transpose(0, 1)
+        # apply affine
+        points_affine = torch.matmul(affine, points_affine)
+        # remove appended 1 and transpose back
+        points_affine = points_affine[:spatial_dims, :].transpose(0, 1)
+    else:
+        points_affine = points.transpose(0, 1)
+        points_affine = torch.matmul(affine[:spatial_dims, :spatial_dims], points_affine)
+        points_affine = points_affine.transpose(0, 1)
+
+    return points_affine
+
+
+def resize_point(img, src_spatial_size, dst_spatial_size, lazy, transform_info):
+    spatial_dims = get_spatial_dims(points=img[0])
+    zoom = [dst_spatial_size[axis] / float(src_spatial_size[axis]) for axis in range(spatial_dims)]
+    affine = create_scale(spatial_dims=spatial_dims, scaling_factor=zoom)
+    # convert numpy to tensor if needed
+    img_t, *_ = convert_data_type(img, torch.Tensor)
+    affine_t, *_ = convert_to_dst_type(src=affine, dst=img_t)
+
+    ret: torch.Tensor = _apply_affine_to_points(img_t[0], affine_t, include_shift=True)
+
+    # convert tensor back to numpy if needed
+    out: NdarrayOrTensor
+    out, *_ = convert_to_dst_type(src=ret, dst=img)
+    return out  # type: ignore[return-value]
 
 
 def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):

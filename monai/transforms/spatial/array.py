@@ -35,8 +35,10 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
     affine_func,
     flip,
+    flip_point,
     orientation,
     resize,
+    resize_point,
     rotate,
     rotate90,
     spatial_resample,
@@ -51,6 +53,7 @@ from monai.transforms.utils import (
     create_scale,
     create_shear,
     create_translate,
+    get_input_shape,
     map_spatial_axes,
     resolves_modes,
     scale_affine,
@@ -72,7 +75,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, KindKeys, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -674,6 +677,7 @@ class Flip(InvertibleTransform, LazyTransform):
             If axis is negative it counts from the last to the first axis.
             If axis is a tuple of ints, flipping is performed on all of the axes
             specified in the tuple.
+        spatial_size: image spatial size, if None, will flip in the world coordinates.
         lazy: a flag to indicate whether this transform should execute lazily or not.
             Defaults to False
 
@@ -681,27 +685,42 @@ class Flip(InvertibleTransform, LazyTransform):
 
     backend = [TransformBackends.TORCH]
 
-    def __init__(self, spatial_axis: Sequence[int] | int | None = None, lazy: bool = False) -> None:
+    def __init__(
+        self,
+        spatial_axis: Sequence[int] | int | None = None,
+        spatial_size: Sequence[int] | int | None = None,
+        lazy: bool = False,
+    ) -> None:
         LazyTransform.__init__(self, lazy=lazy)
         self.spatial_axis = spatial_axis
+        self.spatial_size = spatial_size
 
-    def __call__(self, img: torch.Tensor, lazy: bool | None = None) -> torch.Tensor:
+    def __call__(
+        self, img: torch.Tensor, spatial_size: Sequence[int] | int | None = None, lazy: bool | None = None
+    ) -> torch.Tensor:
         """
         Args:
             img: channel first array, must have shape: (num_channels, H[, W, ..., ])
+            spatial_size: image spatial size, if None, will flip in the world coordinates.
             lazy: a flag to indicate whether this transform should execute lazily or not
                 during this call. Setting this to False or True overrides the ``lazy`` flag set
                 during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
         lazy_ = self.lazy if lazy is None else lazy
-        return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+        spatial_size_ = self.spatial_size if spatial_size is None else spatial_size
+        kind_ = img.kind if isinstance(img, MetaTensor) else KindKeys.PIXEL
+        if kind_ == KindKeys.PIXEL:
+            return flip(img, self.spatial_axis, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
+        elif kind_ == KindKeys.POINT:
+            return flip_point(img, self.spatial_axis, spatial_size_, lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
-        self.pop_transform(data)
+        xform_info = self.pop_transform(data)
         flipper = Flip(spatial_axis=self.spatial_axis)
+        spatial_size = xform_info[TraceKeys.EXTRA_INFO].get(TraceKeys.REF_SIZE, None)
         with flipper.trace_transform(False):
-            return flipper(data)
+            return flipper(data, spatial_size)
 
 
 class Resize(InvertibleTransform, LazyTransform):
@@ -748,6 +767,7 @@ class Resize(InvertibleTransform, LazyTransform):
     def __init__(
         self,
         spatial_size: Sequence[int] | int,
+        src_spatial_size: Sequence[int] | int | None = None,
         size_mode: str = "all",
         mode: str = InterpolateMode.AREA,
         align_corners: bool | None = None,
@@ -759,6 +779,7 @@ class Resize(InvertibleTransform, LazyTransform):
         LazyTransform.__init__(self, lazy=lazy)
         self.size_mode = look_up_option(size_mode, ["all", "longest"])
         self.spatial_size = spatial_size
+        self.src_spatial_size = src_spatial_size
         self.mode = mode
         self.align_corners = align_corners
         self.anti_aliasing = anti_aliasing
@@ -806,21 +827,22 @@ class Resize(InvertibleTransform, LazyTransform):
         anti_aliasing = self.anti_aliasing if anti_aliasing is None else anti_aliasing
         anti_aliasing_sigma = self.anti_aliasing_sigma if anti_aliasing_sigma is None else anti_aliasing_sigma
 
-        input_ndim = img.ndim - 1  # spatial ndim
+        input_shape = get_input_shape(self.src_spatial_size, img)
+        input_ndim = len(input_shape)
+
         if self.size_mode == "all":
-            output_ndim = len(ensure_tuple(self.spatial_size))
+            sp_size = fall_back_tuple(self.spatial_size, input_shape)
+            output_ndim = len(ensure_tuple(sp_size))
             if output_ndim > input_ndim:
-                input_shape = ensure_tuple_size(img.shape, output_ndim + 1, 1)
+                input_shape = ensure_tuple_size(input_shape, output_ndim + 1, 1)
                 img = img.reshape(input_shape)
             elif output_ndim < input_ndim:
                 raise ValueError(
                     "len(spatial_size) must be greater or equal to img spatial dimensions, "
                     f"got spatial_size={output_ndim} img={input_ndim}."
                 )
-            _sp = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-            sp_size = fall_back_tuple(self.spatial_size, _sp)
         else:  # for the "longest" mode
-            img_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+            img_size = input_shape
             if not isinstance(self.spatial_size, int):
                 raise ValueError("spatial_size must be an int number if size_mode is 'longest'.")
             scale = self.spatial_size / max(img_size)
@@ -830,18 +852,22 @@ class Resize(InvertibleTransform, LazyTransform):
         _align_corners = self.align_corners if align_corners is None else align_corners
         _dtype = get_equivalent_dtype(dtype or self.dtype or img.dtype, torch.Tensor)
         lazy_ = self.lazy if lazy is None else lazy
-        return resize(  # type: ignore
-            img,
-            tuple(int(_s) for _s in sp_size),
-            _mode,
-            _align_corners,
-            _dtype,
-            input_ndim,
-            anti_aliasing,
-            anti_aliasing_sigma,
-            lazy_,
-            self.get_transform_info(),
-        )
+        kind_ = img.kind if isinstance(img, MetaTensor) else KindKeys.PIXEL
+        if kind_ == KindKeys.PIXEL:
+            return resize(  # type: ignore
+                img,
+                tuple(int(_s) for _s in sp_size),
+                _mode,
+                _align_corners,
+                _dtype,
+                input_ndim,
+                anti_aliasing,
+                anti_aliasing_sigma,
+                lazy_,
+                self.get_transform_info(),
+            )
+        elif kind_ == KindKeys.POINT:
+            return resize_point(img, self.src_spatial_size, tuple(int(_s) for _s in sp_size), lazy=lazy_, transform_info=self.get_transform_info())  # type: ignore
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
