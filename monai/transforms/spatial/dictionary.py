@@ -237,7 +237,7 @@ class SpatialResampled(MapTransform, InvertibleTransform, LazyTransform):
         lazy_ = self.lazy if lazy is None else lazy
         d: dict = dict(data)
         for key, mode, padding_mode, align_corners, dtype, dst_key in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
+            d, KindType.PIXEL, self.mode, self.padding_mode, self.align_corners, self.dtype, self.dst_keys
         ):
             d[key] = self.sp_transform(
                 img=d[key],
@@ -338,8 +338,16 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
         """
         lazy_ = self.lazy if lazy is None else lazy
         d = dict(data)
+
+        # get the first raster tensor (there must be at least one)
+        first_raster = self.first_key(data, kind=KindType.PIXEL)
+        if isinstance(first_raster, tuple) and len(first_raster) is None:
+            raise ValueError(f"At least of the specified keys must be of type {KindType.PIXEL}.")
+
+        # OPTION 1:
+        # update the raster tensors using the resampler
         for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
+            d, kind=KindType.PIXEL, self.mode, self.padding_mode, self.align_corners, self.dtype
         ):
             d[key] = self.resampler(
                 img=d[key],
@@ -349,6 +357,27 @@ class ResampleToMatchd(MapTransform, InvertibleTransform, LazyTransform):
                 align_corners=align_corners,
                 dtype=dtype,
                 lazy=lazy_,
+            )
+
+        # update the geometry tensors from the first raster tensor
+        transform = d[first_raster].get_latest_transform()
+        for key in self.key_iterator(d, kind=KindType.GEOM):
+            d[key].apply_transform(transform)
+
+        # OPTION 2:
+        geometries = [d[key] for k in self.key_iterator(d, kind=KindType.GEOM)]
+        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+            d, kind=KindType.PIXEL, self.mode, self.padding_mode, self.align_corners, self.dtype
+        ):
+            d[key] = self.resampler(
+                img=d[key],
+                img_dst=d[self.key_dst],
+                mode=mode,
+                padding_mode=padding_mode,
+                align_corners=align_corners,
+                dtype=dtype,
+                lazy=lazy_,
+                update_to_match=geometries if key == first_raster else None,
             )
         return d
 
@@ -1627,7 +1656,11 @@ class RandAxisFlipd(RandomizableTransform, MapTransform, InvertibleTransform, La
     backend = RandAxisFlip.backend
 
     def __init__(
-        self, keys: KeysCollection, prob: float = 0.1, allow_missing_keys: bool = False, lazy: bool = False
+        self,
+        keys: KeysCollection,
+        prob: float = 0.1,
+        allow_missing_keys: bool = False,
+        lazy: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
         RandomizableTransform.__init__(self, prob)
@@ -1762,12 +1795,34 @@ class Rotated(MapTransform, InvertibleTransform, LazyTransform):
         """
         d = dict(data)
         lazy_ = self.lazy if lazy is None else lazy
-        for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
-            d, self.mode, self.padding_mode, self.align_corners, self.dtype
-        ):
-            d[key] = self.rotator(
-                d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy_
-            )
+
+        # get the first raster tensor, if one is present
+        first = self.first_key(d, kind=KindType.PIXEL)
+        if isinstance(first, tuple) and len(first) == 0 and self.rotator.keep_size == False:
+
+            for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+                d, self.mode, self.padding_mode, self.align_corners, self.dtype
+            ):
+                d[key] = self.rotator(
+                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy_
+                )
+        else:
+            # pass 1: perform the rotation for the image data, to calculate
+            for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+                d, KindType.PIXEL, self.mode, self.padding_mode, self.align_corners, self.dtype
+            ):
+                d[key] = self.rotator(
+                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy_
+                )
+            # pass 2: perform the rotation for non-image data
+            for key, mode, padding_mode, align_corners, dtype in self.key_iterator(
+                d, KindType.GEOM, self.mode, self.padding_mode, self.align_corners, self.dtype
+            ):
+                d[key] = self.rotator(
+                    d[key], mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype, lazy=lazy_
+                )
+
+
         return d
 
     def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
