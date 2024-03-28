@@ -63,7 +63,7 @@ This file contains the metadata information relating to the model, including wha
 * **monai_version**: version of MONAI the bundle was generated on, later versions expected to work.
 * **pytorch_version**: version of Pytorch the bundle was generated on, later versions expected to work.
 * **numpy_version**: version of Numpy the bundle was generated on, later versions expected to work.
-* **optional_packages_version**: dictionary relating optional package names to their versions, these packages are not needed but are recommended to be installed with this stated minimum version.
+* **required_packages_version**: dictionary relating required package names to their versions, these packages are needed to be installed with this stated minimum version.
 * **task**: plain-language description of what the model is meant to do.
 * **description**: longer form plain-language description of what the model is, what it does, etc.
 * **authors**: state author(s) of the model.
@@ -124,7 +124,7 @@ An example JSON metadata file:
       "monai_version": "0.9.0",
       "pytorch_version": "1.10.0",
       "numpy_version": "1.21.2",
-      "optional_packages_version": {"nibabel": "3.2.1"},
+      "required_packages_version": {"nibabel": "3.2.1"},
       "task": "Decathlon spleen segmentation",
       "description": "A pre-trained model for volumetric (3D) segmentation of the spleen from CT image",
       "authors": "MONAI team",
