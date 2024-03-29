@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from .adversarial_loss import PatchAdversarialLoss
+from .barlow_twins import BarlowTwinsLoss
 from .cldice import SoftclDiceLoss, SoftDiceclDiceLoss
 from .contrastive import ContrastiveLoss
 from .deform import BendingEnergyLoss, DiffusionLoss
@@ -40,5 +41,6 @@ from .perceptual import PerceptualLoss
 from .spatial_mask import MaskedLoss
 from .spectral_loss import JukeboxLoss
 from .ssim_loss import SSIMLoss
+from .sure_loss import SURELoss
 from .tversky import TverskyLoss
 from .unified_focal_loss import AsymmetricUnifiedFocalLoss

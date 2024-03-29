@@ -667,6 +667,27 @@ Post-processing
     :members:
     :special-members: __call__
 
+Regularization
+^^^^^^^^^^^^^^
+
+`CutMix`
+""""""""
+.. autoclass:: CutMix
+    :members:
+    :special-members: __call__
+
+`CutOut`
+""""""""
+.. autoclass:: CutOut
+    :members:
+    :special-members: __call__
+
+`MixUp`
+"""""""
+.. autoclass:: MixUp
+    :members:
+    :special-members: __call__
+
 Signal
 ^^^^^^^
 
@@ -1718,6 +1739,27 @@ Post-processing (Dict)
 .. autoclass:: SobelGradientsd
   :members:
   :special-members: __call__
+
+Regularization (Dict)
+^^^^^^^^^^^^^^^^^^^^^
+
+`CutMixd`
+"""""""""
+.. autoclass:: CutMixd
+    :members:
+    :special-members: __call__
+
+`CutOutd`
+"""""""""
+.. autoclass:: CutOutd
+    :members:
+    :special-members: __call__
+
+`MixUpd`
+""""""""
+.. autoclass:: MixUpd
+    :members:
+    :special-members: __call__
 
 Signal (Dict)
 ^^^^^^^^^^^^^

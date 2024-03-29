@@ -105,6 +105,14 @@ class TestRandGibbsNoised(unittest.TestCase):
         _ = t(deepcopy(data))
         self.assertTrue(0.5 <= t.rand_gibbs_noise.sampled_alpha <= 0.51)
 
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_single_value(self, im_shape, input_type):
+        data = self.get_data(im_shape, input_type)
+        alpha = 0.01
+        t = RandGibbsNoised(KEYS, 1.0, alpha)
+        _ = t(deepcopy(data))
+        self.assertTrue(0 <= t.rand_gibbs_noise.sampled_alpha <= 0.01)
+
 
 if __name__ == "__main__":
     unittest.main()
