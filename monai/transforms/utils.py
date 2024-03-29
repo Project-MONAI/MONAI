@@ -700,7 +700,6 @@ def combineMCtIandGLCCC(
     )
     return ensure_tuple(centers)
 
-
 def create_grid(
     spatial_size: Sequence[int],
     spacing: Sequence[float] | None = None,
