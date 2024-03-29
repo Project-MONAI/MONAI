@@ -701,7 +701,10 @@ def combineMCtIandGLCCC(
         spatial_size, num_samples, _shape, indices_, ratios, rand_state, allow_smaller, warn
     )
     return (centers)
+<<<<<<< HEAD
 
+=======
+>>>>>>> ece38a6d (Update utils.py)
 
 def create_grid(
     spatial_size: Sequence[int],
