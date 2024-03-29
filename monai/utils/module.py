@@ -272,7 +272,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return pdb.runcall(component, **kwargs)
     except Exception as e:
         raise RuntimeError(
-            f"Failed to instantiate component '{__path}' with kwargs: {kwargs}"
+            f"Failed to instantiate component '{__path}' with keywords: {','.join(kwargs.keys())}"
             f"\n set '_mode_={CompInitMode.DEBUG}' to enter the debugging mode."
         ) from e
 

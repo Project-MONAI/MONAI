@@ -1457,10 +1457,11 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
         prob (float): probability of applying the transform.
-        alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        alpha (float, Sequence[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be sampled
             uniformly from the interval [a,b].
+            If a float is given, then the value of alpha will be sampled uniformly from the interval [0, alpha].
         allow_missing_keys: do not raise exception if key is missing.
     """
 
@@ -1470,7 +1471,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        alpha: Sequence[float] = (0.0, 1.0),
+        alpha: float | Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
