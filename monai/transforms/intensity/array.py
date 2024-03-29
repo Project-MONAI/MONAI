@@ -1063,17 +1063,25 @@ class ClipIntensityPercentiles(Transform):
         upper: float | None,
         sharpness_factor: float | None = None,
         channel_wise: bool = False,
+        return_percentiles: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
         """
         Args:
-            lower: lower intensity percentile.
-            upper: upper intensity percentile.
+            lower: lower intensity percentile. In the case of hard clipping, None will have the same effect as 0 by
+                not clipping the lowest input values. However, in the case of soft clipping, None and zero will have
+                two different effects: None will not apply clipping to low values, whereas zero will still transform
+                the lower values according to the soft clipping transformation. Please check for more details:
+                https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291.
+            upper: upper intensity percentile.  The same as for lower, but this time with the highest values. If we
+                are looking to perform soft clipping, if None then there will be no effect on this side whereas if set
+                to 100, the values will be passed via the corresponding clipping equation.
             sharpness_factor: if not None, the intensity values will be soft clipped according to
                 f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv)).
                 defaults to None.
             channel_wise: if True, compute intensity percentile and normalize every channel separately.
                 default to False.
+            return_percentiles: if True, return the intensity percentiles used for clipping.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
         if lower is None and upper is None:
@@ -1091,9 +1099,10 @@ class ClipIntensityPercentiles(Transform):
         self.upper = upper
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
+        self.return_percentiles = return_percentiles
         self.dtype = dtype
 
-    def _normalize(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+    def _clip(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         if self.sharpness_factor is not None:
             lower_percentile = percentile(img, self.lower) if self.lower is not None else None
             upper_percentile = percentile(img, self.upper) if self.upper is not None else None
@@ -1113,9 +1122,9 @@ class ClipIntensityPercentiles(Transform):
         img = convert_to_tensor(img, track_meta=get_track_meta())
         img_t = convert_to_tensor(img, track_meta=False)
         if self.channel_wise:
-            img_t = torch.stack([self._normalize(img=d) for d in img_t])  # type: ignore
+            img_t = torch.stack([self._clip(img=d) for d in img_t])  # type: ignore
         else:
-            img_t = self._normalize(img=img_t)
+            img_t = self._clip(img=img_t)
 
         return convert_to_dst_type(img_t, dst=img)[0]
 
