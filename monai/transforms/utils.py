@@ -698,7 +698,7 @@ def combineMCtIandGLCCC(
     centers = generate_label_classes_crop_centers(
         spatial_size, num_samples, _shape, indices_, ratios, rand_state, allow_smaller, warn
     )
-    return ensure_tuple(centers)
+    return (centers)
 
 def create_grid(
     spatial_size: Sequence[int],
