@@ -1063,7 +1063,6 @@ class ClipIntensityPercentiles(Transform):
         upper: float | None,
         sharpness_factor: float | None = None,
         channel_wise: bool = False,
-        return_percentiles: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
         """
@@ -1081,7 +1080,6 @@ class ClipIntensityPercentiles(Transform):
                 defaults to None.
             channel_wise: if True, compute intensity percentile and normalize every channel separately.
                 default to False.
-            return_percentiles: if True, return the intensity percentiles used for clipping.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
         if lower is None and upper is None:
@@ -1099,7 +1097,6 @@ class ClipIntensityPercentiles(Transform):
         self.upper = upper
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
-        self.return_percentiles = return_percentiles
         self.dtype = dtype
 
     def _clip(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
