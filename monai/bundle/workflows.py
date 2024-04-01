@@ -506,6 +506,9 @@ class ConfigWorkflow(BundleWorkflow):
                 parser[k] = v
         # save the executed config into file
         default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
+        # Users can set the `save_execute_config` to `False`, `/path/to/artifacts` or `True`.
+        # If set to False, nothing will be recorded. If set to True, the default path will be logged.
+        # If set to a file path, the given path will be logged.
         filepath = parser.get("save_execute_config", True)
         if filepath:
             if isinstance(filepath, str):
