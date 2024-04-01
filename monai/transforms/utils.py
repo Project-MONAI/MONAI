@@ -629,7 +629,7 @@ def generate_label_classes_crop_centers(
                 ratios_[i] = 0
                 if warn:
                     warnings.warn(
-                        f"no available indices of class {i} to crop, set the crop ratio of this class to zero."
+                        f"no available indices of class {i} to crop, setting the crop ratio of this class to zero."
                     )
 
     centers = []
