@@ -511,15 +511,14 @@ class ConfigWorkflow(BundleWorkflow):
         # If set to a file path, the given path will be logged.
         filepath = parser.get("save_execute_config", True)
         if filepath:
-            if isinstance(filepath, str):
-                Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-            else:
+            if isinstance(filepath, bool):
                 if "output_dir" not in parser:
                     # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
                     parser["output_dir"] = f"{EXPR_KEY}{ID_REF_KEY}bundle_root + '/eval'"
                 # experiment management tools can refer to this config item to track the config info
                 parser["save_execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
                 filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
+            Path(filepath).parent.mkdir(parents=True, exist_ok=True)
             parser.export_config_file(parser.get(), filepath)
         else:
             parser["save_execute_config"] = None
