@@ -108,6 +108,7 @@ class BundleWorkflow(ABC):
             with open(properties_path) as json_file:
                 self.properties = json.load(json_file)
             self.workflow_type = None
+            self.meta_file = meta_file
             return
         if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
             self.properties = {**TrainProperties, **MetaProperties}
