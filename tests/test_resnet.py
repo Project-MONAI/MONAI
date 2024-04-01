@@ -211,7 +211,7 @@ class TestResNet(unittest.TestCase):
             if input_param.get("feed_forward", True):
                 self.assertEqual(result.shape, expected_shape)
             else:
-                self.assertTrue(result.shape in expected_shape)
+                self.assertIn(result.shape, expected_shape)
 
     @parameterized.expand(PRETRAINED_TEST_CASES)
     @skip_if_quick

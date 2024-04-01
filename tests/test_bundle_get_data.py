@@ -51,16 +51,16 @@ class TestGetBundleData(unittest.TestCase):
     def test_get_all_bundles_list(self, params):
         with skip_if_downloading_fails():
             output = get_all_bundles_list(**params)
-            self.assertTrue(isinstance(output, list))
-            self.assertTrue(isinstance(output[0], tuple))
-            self.assertTrue(len(output[0]) == 2)
+            self.assertIsInstance(output, list)
+            self.assertIsInstance(output[0], tuple)
+            self.assertEqual(len(output[0]), 2)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_5])
     @skip_if_quick
     def test_get_bundle_versions(self, params):
         with skip_if_downloading_fails():
             output = get_bundle_versions(**params)
-            self.assertTrue(isinstance(output, dict))
+            self.assertIsInstance(output, dict)
             self.assertTrue("latest_version" in output and "all_versions" in output)
             self.assertTrue("0.1.0" in output["all_versions"])
 
@@ -69,7 +69,7 @@ class TestGetBundleData(unittest.TestCase):
     def test_get_bundle_info(self, params):
         with skip_if_downloading_fails():
             output = get_bundle_info(**params)
-            self.assertTrue(isinstance(output, dict))
+            self.assertIsInstance(output, dict)
             for key in ["id", "name", "size", "download_count", "browser_download_url"]:
                 self.assertTrue(key in output)
 
@@ -78,7 +78,7 @@ class TestGetBundleData(unittest.TestCase):
     def test_get_bundle_info_monaihosting(self, params):
         with skip_if_downloading_fails():
             output = get_bundle_info(**params)
-            self.assertTrue(isinstance(output, dict))
+            self.assertIsInstance(output, dict)
             for key in ["name", "browser_download_url"]:
                 self.assertTrue(key in output)
 

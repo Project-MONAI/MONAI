@@ -62,7 +62,7 @@ class TestThreadContainer(unittest.TestCase):
 
         self.assertTrue(con.is_alive)
         self.assertIsNotNone(con.status())
-        self.assertTrue(len(con.status_dict) > 0)
+        self.assertGreater(len(con.status_dict), 0)
 
         con.join()
 

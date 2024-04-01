@@ -41,7 +41,7 @@ class TestMedNISTDataset(unittest.TestCase):
             self.assertEqual(len(dataset), int(MEDNIST_FULL_DATASET_LENGTH * dataset.test_frac))
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue(isinstance(dataset[0]["image"], MetaTensor))
+            self.assertIsInstance(dataset[0]["image"], MetaTensor)
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
 
         with skip_if_downloading_fails():
