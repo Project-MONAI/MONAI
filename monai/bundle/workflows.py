@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
@@ -24,6 +25,7 @@ from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
+from monai.config import PathLike
 from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, deprecated_arg_default, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
@@ -46,6 +48,7 @@ class BundleWorkflow(ABC):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        properties_path: the path to the JSON file of properties.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
@@ -66,6 +69,7 @@ class BundleWorkflow(ABC):
         self,
         workflow_type: str | None = None,
         workflow: str | None = None,
+        properties_path: PathLike | None = None,
         meta_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
     ):
@@ -92,15 +96,24 @@ class BundleWorkflow(ABC):
                         meta_file = None
 
         workflow_type = workflow if workflow is not None else workflow_type
-        if workflow_type is None:
+        if workflow_type is None and properties_path is None:
             self.properties = copy(MetaProperties)
             self.workflow_type = None
             self.meta_file = meta_file
             return
-        if workflow_type.lower() in self.supported_train_type:
+        if properties_path is not None:
+            properties_path = Path(properties_path)
+            if not properties_path.is_file():
+                raise ValueError(f"Property file {properties_path} does not exist.")
+            with open(properties_path) as json_file:
+                self.properties = json.load(json_file)
+            self.workflow_type = None
+            self.meta_file = meta_file
+            return
+        if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
             self.properties = {**TrainProperties, **MetaProperties}
             self.workflow_type = "train"
-        elif workflow_type.lower() in self.supported_infer_type:
+        elif workflow_type.lower() in self.supported_infer_type:  # type: ignore[union-attr]
             self.properties = {**InferProperties, **MetaProperties}
             self.workflow_type = "infer"
         else:
@@ -247,6 +260,7 @@ class ConfigWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        properties_path: the path to the JSON file of properties.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
@@ -271,6 +285,7 @@ class ConfigWorkflow(BundleWorkflow):
         tracking: str | dict | None = None,
         workflow_type: str | None = None,
         workflow: str | None = None,
+        properties_path: PathLike | None = None,
         **override: Any,
     ) -> None:
         workflow_type = workflow if workflow is not None else workflow_type
@@ -289,7 +304,7 @@ class ConfigWorkflow(BundleWorkflow):
         else:
             config_root_path = Path("configs")
         meta_file = str(config_root_path / "metadata.json") if meta_file is None else meta_file
-        super().__init__(workflow_type=workflow_type, meta_file=meta_file)
+        super().__init__(workflow_type=workflow_type, meta_file=meta_file, properties_path=properties_path)
         self.config_root_path = config_root_path
         logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
         if logging_file is not None:

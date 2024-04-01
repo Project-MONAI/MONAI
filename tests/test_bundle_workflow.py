@@ -105,6 +105,16 @@ class TestBundleWorkflow(unittest.TestCase):
         )
         self._test_inferer(inferer)
 
+        # test property path
+        inferer = ConfigWorkflow(
+            config_file=config_file,
+            properties_path=os.path.join(os.path.dirname(__file__), "testing_data", "fl_infer_properties.json"),
+            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            **override,
+        )
+        self._test_inferer(inferer)
+        self.assertEqual(inferer.workflow_type, None)
+
     @parameterized.expand([TEST_CASE_3])
     def test_train_config(self, config_file):
         # test standard MONAI model-zoo config workflow
