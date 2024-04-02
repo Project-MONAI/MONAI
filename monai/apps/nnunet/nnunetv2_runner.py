@@ -22,6 +22,7 @@ from monai.apps.nnunet.utils import NNUNETMode as M  # noqa: N814
 from monai.apps.nnunet.utils import analyze_data, create_new_data_copy, create_new_dataset_json
 from monai.bundle import ConfigParser
 from monai.utils import ensure_tuple, optional_import
+from monai.utils.misc import run_cmd
 
 load_pickle, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_pickle")
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
@@ -495,65 +496,64 @@ class nnUNetV2Runner:  # noqa: N801
             fold: fold of the 5-fold cross-validation. Should be an int between 0 and 4.
             gpu_id: an integer to select the device to use, or a tuple/list of GPU device indices used for multi-GPU
                 training (e.g., (0,1)). Default: 0.
-        from nnunetv2.run.run_training import run_training
             kwargs: this optional parameter allows you to specify additional arguments in
-                ``nnunetv2.run.run_training.run_training``. Currently supported args are
-                    - plans_identifier: custom plans identifier. Default: "nnUNetPlans".
-                    - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
-                        used when actually training. Beta. Use with caution. Default: False.
-                    - use_compressed_data: True to use compressed data for training. Reading compressed data is much
-                        more CPU and (potentially) RAM intensive and should only be used if you know what you are
-                        doing. Default: False.
-                    - continue_training: continue training from latest checkpoint. Default: False.
-                    - only_run_validation: True to run the validation only. Requires training to have finished.
-                        Default: False.
-                    - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
-                        don't want to flood your hard drive with checkpoints. Default: False.
+                ``nnunetv2.run.run_training.run_training_entry``.
+
+                Currently supported args are:
+
+                - p: custom plans identifier. Default: "nnUNetPlans".
+                - pretrained_weights: path to nnU-Net checkpoint file to be used as pretrained model. Will only be
+                    used when actually training. Beta. Use with caution. Default: False.
+                - use_compressed: True to use compressed data for training. Reading compressed data is much
+                    more CPU and (potentially) RAM intensive and should only be used if you know what you are
+                    doing. Default: False.
+                - c: continue training from latest checkpoint. Default: False.
+                - val: True to run the validation only. Requires training to have finished.
+                    Default: False.
+                - disable_checkpointing: True to disable checkpointing. Ideal for testing things out and you
+                    don't want to flood your hard drive with checkpoints. Default: False.
         """
         if "num_gpus" in kwargs:
             kwargs.pop("num_gpus")
             logger.warning("please use gpu_id to set the GPUs to use")
 
-        if "trainer_class_name" in kwargs:
-            kwargs.pop("trainer_class_name")
+        if "tr" in kwargs:
+            kwargs.pop("tr")
             logger.warning("please specify the `trainer_class_name` in the __init__ of `nnUNetV2Runner`.")
 
-        if "export_validation_probabilities" in kwargs:
-            kwargs.pop("export_validation_probabilities")
+        if "npz" in kwargs:
+            kwargs.pop("npz")
             logger.warning("please specify the `export_validation_probabilities` in the __init__ of `nnUNetV2Runner`.")
 
+        cmd = self.train_single_model_command(config, fold, gpu_id, kwargs)
+        run_cmd(cmd, shell=True)
+
+    def train_single_model_command(self, config, fold, gpu_id, kwargs):
         if isinstance(gpu_id, (tuple, list)):
             if len(gpu_id) > 1:
                 gpu_ids_str = ""
                 for _i in range(len(gpu_id)):
                     gpu_ids_str += f"{gpu_id[_i]},"
-                os.environ["CUDA_VISIBLE_DEVICES"] = gpu_ids_str[:-1]
+                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_ids_str[:-1]}"
             else:
-                os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id[0]}"
+                device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id[0]}"
         else:
-            os.environ["CUDA_VISIBLE_DEVICES"] = f"{gpu_id}"
+            device_setting = f"CUDA_VISIBLE_DEVICES={gpu_id}"
+        num_gpus = 1 if isinstance(gpu_id, int) or len(gpu_id) == 1 else len(gpu_id)
 
-        from nnunetv2.run.run_training import run_training
-
-        if isinstance(gpu_id, int) or len(gpu_id) == 1:
-            run_training(
-                dataset_name_or_id=self.dataset_name_or_id,
-                configuration=config,
-                fold=fold,
-                trainer_class_name=self.trainer_class_name,
-                export_validation_probabilities=self.export_validation_probabilities,
-                **kwargs,
-            )
-        else:
-            run_training(
-                dataset_name_or_id=self.dataset_name_or_id,
-                configuration=config,
-                fold=fold,
-                num_gpus=len(gpu_id),
-                trainer_class_name=self.trainer_class_name,
-                export_validation_probabilities=self.export_validation_probabilities,
-                **kwargs,
-            )
+        cmd = (
+            f"{device_setting} nnUNetv2_train "
+            + f"{self.dataset_name_or_id} {config} {fold} "
+            + f"-tr {self.trainer_class_name} -num_gpus {num_gpus}"
+        )
+        if self.export_validation_probabilities:
+            cmd += " --npz"
+        for _key, _value in kwargs.items():
+            if _key == "p" or _key == "pretrained_weights":
+                cmd += f" -{_key} {_value}"
+            else:
+                cmd += f" --{_key} {_value}"
+        return cmd
 
     def train(
         self,
@@ -637,15 +637,7 @@ class nnUNetV2Runner:  # noqa: N801
                 if _config in ensure_tuple(configs):
                     for _i in range(self.num_folds):
                         the_device = gpu_id_for_all[_index % n_devices]  # type: ignore
-                        cmd = (
-                            "python -m monai.apps.nnunet nnUNetV2Runner train_single_model "
-                            + f"--input_config '{self.input_config_or_dict}' --work_dir '{self.work_dir}' "
-                            + f"--config '{_config}' --fold {_i} --gpu_id {the_device} "
-                            + f"--trainer_class_name {self.trainer_class_name} "
-                            + f"--export_validation_probabilities {self.export_validation_probabilities}"
-                        )
-                        for _key, _value in kwargs.items():
-                            cmd += f" --{_key} {_value}"
+                        cmd = self.train_single_model_command(_config, _i, the_device, kwargs)
                         all_cmds[-1][the_device].append(cmd)
                         _index += 1
         return all_cmds
