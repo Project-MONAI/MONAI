@@ -1083,6 +1083,8 @@ class ClipIntensityPercentiles(Transform):
                 default to False.
             return_percentiles: whether to return the calculated percentiles in tensor meta information,
                 if soft clipping and percentile is None, return None as the corresponding percentile in meta information.
+            return_percentiles: whether to return the calculated percentiles in tensor meta information,
+                if soft clipping and percentile is None, return None as the corresponding percentile in meta information.
                 defaults to False.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
