@@ -1063,6 +1063,7 @@ class ClipIntensityPercentiles(Transform):
         upper: float | None,
         sharpness_factor: float | None = None,
         channel_wise: bool = False,
+        return_percentiles: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
         """
@@ -1080,6 +1081,9 @@ class ClipIntensityPercentiles(Transform):
                 defaults to None.
             channel_wise: if True, compute intensity percentile and normalize every channel separately.
                 default to False.
+            return_percentiles: whether to return the calculated percentiles in tensor meta information, 
+                if soft clipping and percentile is None, return None as the corresponding percentile in meta information. 
+                defaults to False.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
         if lower is None and upper is None:
@@ -1097,6 +1101,9 @@ class ClipIntensityPercentiles(Transform):
         self.upper = upper
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
+        if return_percentiles:
+            self.percentiles = []
+        self.return_percentiles = return_percentiles
         self.dtype = dtype
 
     def _clip(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -1109,6 +1116,8 @@ class ClipIntensityPercentiles(Transform):
             upper_percentile = percentile(img, self.upper) if self.upper is not None else percentile(img, 100)
             img = clip(img, lower_percentile, upper_percentile)
 
+        if self.return_percentiles:
+            self.percentiles.append((lower_percentile, upper_percentile))
         img = convert_to_tensor(img, track_meta=False)
         return img
 
@@ -1123,7 +1132,11 @@ class ClipIntensityPercentiles(Transform):
         else:
             img_t = self._clip(img=img_t)
 
-        return convert_to_dst_type(img_t, dst=img)[0]
+        img = convert_to_dst_type(img_t, dst=img)[0]
+        if self.return_percentiles:
+            img.meta['percentiles'] = self.percentiles
+        
+        return img
 
 
 class AdjustContrast(Transform):
