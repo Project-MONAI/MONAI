@@ -1081,8 +1081,8 @@ class ClipIntensityPercentiles(Transform):
                 defaults to None.
             channel_wise: if True, compute intensity percentile and normalize every channel separately.
                 default to False.
-            return_percentiles: whether to return the calculated percentiles in tensor meta information, 
-                if soft clipping and percentile is None, return None as the corresponding percentile in meta information. 
+            return_percentiles: whether to return the calculated percentiles in tensor meta information,
+                if soft clipping and percentile is None, return None as the corresponding percentile in meta information.
                 defaults to False.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
@@ -1135,7 +1135,7 @@ class ClipIntensityPercentiles(Transform):
         img = convert_to_dst_type(img_t, dst=img)[0]
         if self.return_percentiles:
             img.meta['percentiles'] = self.percentiles
-        
+
         return img
 
 
