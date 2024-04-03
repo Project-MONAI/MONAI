@@ -17,11 +17,12 @@ from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from einops.layers.torch import Rearrange
 
 from monai.networks.blocks import Convolution
 from monai.networks.blocks.selfattention import SABlock
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, optional_import
+
+Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 __all__ = ["AutoencoderKL"]
 
