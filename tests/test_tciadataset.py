@@ -108,7 +108,7 @@ class TestTciaDataset(unittest.TestCase):
             )[0]
 
         shutil.rmtree(os.path.join(testing_dir, collection))
-        try:
+        with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
             TciaDataset(
                 root_dir=testing_dir,
                 collection=collection,
@@ -117,8 +117,7 @@ class TestTciaDataset(unittest.TestCase):
                 download=False,
                 val_frac=val_frac,
             )
-        except RuntimeError as e:
-            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
+
 
 
 if __name__ == "__main__":
