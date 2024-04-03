@@ -45,6 +45,7 @@ class PerceptualLoss(nn.Module):
 
     The fake 3D implementation is based on a 2.5D approach where we calculate the 2D perceptual loss on slices from all
     three axes and average. The full 3D approach uses a 3D network to calculate the perceptual loss.
+    MedicalNet networks are only compatible with 3D inputs and support channelwise loss.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -62,6 +63,8 @@ class PerceptualLoss(nn.Module):
         pretrained_state_dict_key: if `pretrained_path` is not `None`, this argument is used to
             extract the expected state dict. This argument only works when ``"network_type"`` is "resnet50".
             Defaults to `None`.
+        channel_wise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
+                Defaults to ``False``.
     """
 
     def __init__(
@@ -74,7 +77,7 @@ class PerceptualLoss(nn.Module):
         pretrained: bool = True,
         pretrained_path: str | None = None,
         pretrained_state_dict_key: str | None = None,
-        channelwise: bool = False,
+        channel_wise: bool = False,
     ):
         super().__init__()
 
@@ -87,7 +90,7 @@ class PerceptualLoss(nn.Module):
                 "Argument is_fake_3d must be set to False."
             )
 
-        if channelwise and "medicalnet_" not in network_type:
+        if channel_wise and "medicalnet_" not in network_type:
             raise ValueError("Channelwise loss is only compatible with MedicalNet networks.")
 
         if network_type.lower() not in list(PercetualNetworkType):
@@ -107,7 +110,7 @@ class PerceptualLoss(nn.Module):
         self.perceptual_function: nn.Module
         if spatial_dims == 3 and is_fake_3d is False:
             self.perceptual_function = MedicalNetPerceptualSimilarity(
-                net=network_type, verbose=False, channelwise=channelwise
+                net=network_type, verbose=False, channel_wise=channel_wise
             )
         elif "radimagenet_" in network_type:
             self.perceptual_function = RadImageNetPerceptualSimilarity(net=network_type, verbose=False)
@@ -191,19 +194,19 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         net: {``"medicalnet_resnet10_23datasets"``, ``"medicalnet_resnet50_23datasets"``}
             Specifies the network architecture to use. Defaults to ``"medicalnet_resnet10_23datasets"``.
         verbose: if false, mute messages from torch Hub load function.
-        channelwise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
+        channel_wise: if True, the loss is returned per channel. Otherwise the loss is averaged over the channels.
                 Defaults to ``False``.
     """
 
     def __init__(
-        self, net: str = "medicalnet_resnet10_23datasets", verbose: bool = False, channelwise: bool = False
+        self, net: str = "medicalnet_resnet10_23datasets", verbose: bool = False, channel_wise: bool = False
     ) -> None:
         super().__init__()
         torch.hub._validate_not_a_forked_repo = lambda a, b, c: True
         self.model = torch.hub.load("warvito/MedicalNet-models", model=net, verbose=verbose)
         self.eval()
 
-        self.channelwise = channelwise
+        self.channel_wise = channel_wise
 
         for param in self.parameters():
             param.requires_grad = False
@@ -242,7 +245,7 @@ class MedicalNetPerceptualSimilarity(nn.Module):
         feats_target = normalize_tensor(outs_target)
 
         feats_diff: torch.Tensor = (feats_input - feats_target) ** 2
-        if self.channelwise:
+        if self.channel_wise:
             results = torch.zeros(
                 feats_diff.shape[0], input.shape[1], feats_diff.shape[2], feats_diff.shape[3], feats_diff.shape[4]
             )
