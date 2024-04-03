@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -185,6 +186,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[0].shape, expected_shape)
             self.assertEqual(result[1].shape, expected_latent_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_model_channels_not_multiple_of_norm_num_group(self):
         with self.assertRaises(ValueError):
             SPADEAutoencoderKL(
@@ -199,6 +201,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
                 norm_num_groups=16,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_model_channels_not_same_size_of_attention_levels(self):
         with self.assertRaises(ValueError):
             SPADEAutoencoderKL(
@@ -213,6 +216,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
                 norm_num_groups=16,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_model_channels_not_same_size_of_num_res_blocks(self):
         with self.assertRaises(ValueError):
             SPADEAutoencoderKL(
@@ -251,6 +255,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
             result = net.decode(torch.randn(latent_shape).to(device), torch.randn(input_seg_shape).to(device))
             self.assertEqual(result.shape, expected_input_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_wrong_shape_decode(self):
         net = SPADEAutoencoderKL(
             spatial_dims=2,
