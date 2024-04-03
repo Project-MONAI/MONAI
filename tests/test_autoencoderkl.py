@@ -23,7 +23,7 @@ from tests.utils import SkipIfBeforePyTorchVersion
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpus")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 CASES = [
     [
