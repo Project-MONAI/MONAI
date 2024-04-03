@@ -18,8 +18,33 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SPADEAutoencoderKL
+from monai.utils import optional_import
 
-CASES = [
+einops, has_einops = optional_import("einops")
+
+CASES_NO_ATTENTION = [
+    [
+        {
+            "spatial_dims": 2,
+            "label_nc": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+        },
+        (1, 1, 16, 16),
+        (1, 3, 16, 16),
+        (1, 1, 16, 16),
+        (1, 4, 4, 4),
+    ]
+]
+
+CASES_ATTENTION = [
     [
         {
             "spatial_dims": 2,
@@ -108,25 +133,6 @@ CASES = [
     ],
     [
         {
-            "spatial_dims": 2,
-            "label_nc": 3,
-            "in_channels": 1,
-            "out_channels": 1,
-            "channels": (4, 4, 4),
-            "latent_channels": 4,
-            "attention_levels": (False, False, False),
-            "num_res_blocks": 1,
-            "norm_num_groups": 4,
-            "with_encoder_nonlocal_attn": False,
-            "with_decoder_nonlocal_attn": False,
-        },
-        (1, 1, 16, 16),
-        (1, 3, 16, 16),
-        (1, 1, 16, 16),
-        (1, 4, 4, 4),
-    ],
-    [
-        {
             "spatial_dims": 3,
             "label_nc": 3,
             "in_channels": 1,
@@ -163,6 +169,11 @@ CASES = [
 ]
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+if has_einops:
+    CASES = CASES_ATTENTION + CASES_NO_ATTENTION
+else:
+    CASES = CASES_NO_ATTENTION
 
 
 class TestSPADEAutoEncoderKL(unittest.TestCase):
