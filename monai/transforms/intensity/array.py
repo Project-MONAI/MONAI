@@ -1104,7 +1104,7 @@ class ClipIntensityPercentiles(Transform):
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
         if return_percentiles:
-            self.percentiles = []
+            self.clipping_values: Any = []
         self.return_percentiles = return_percentiles
         self.dtype = dtype
 
@@ -1119,7 +1119,7 @@ class ClipIntensityPercentiles(Transform):
             img = clip(img, lower_percentile, upper_percentile)
 
         if self.return_percentiles:
-            self.percentiles.append((lower_percentile, upper_percentile))
+            self.clipping_values.append((lower_percentile, upper_percentile))
         img = convert_to_tensor(img, track_meta=False)
         return img
 
@@ -1136,7 +1136,7 @@ class ClipIntensityPercentiles(Transform):
 
         img = convert_to_dst_type(img_t, dst=img)[0]
         if self.return_percentiles:
-            img.meta["percentiles"] = self.percentiles
+            img.meta["clipping_values"] = self.clipping_values # type: ignore
 
         return img
 
