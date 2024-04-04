@@ -1136,7 +1136,7 @@ class ClipIntensityPercentiles(Transform):
 
         img = convert_to_dst_type(img_t, dst=img)[0]
         if self.return_percentiles:
-            img.meta["clipping_values"] = self.clipping_values # type: ignore
+            img.meta["clipping_values"] = self.clipping_values  # type: ignore
 
         return img
 
