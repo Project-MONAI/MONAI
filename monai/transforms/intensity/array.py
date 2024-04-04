@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any, List, Optional, Tuple
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -1103,7 +1103,7 @@ class ClipIntensityPercentiles(Transform):
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
         if return_clipping_values:
-            self.clipping_values: List[Tuple[Optional[float], Optional[float]]] = []
+            self.clipping_values: list[tuple[float | None, float | None]] = []
         self.return_clipping_values = return_clipping_values
         self.dtype = dtype
 
