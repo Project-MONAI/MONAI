@@ -17,7 +17,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from functools import partial
-from typing import Any
+from typing import Any, List, Optional, Tuple
 from warnings import warn
 
 import numpy as np
@@ -1063,7 +1063,7 @@ class ClipIntensityPercentiles(Transform):
         upper: float | None,
         sharpness_factor: float | None = None,
         channel_wise: bool = False,
-        return_percentiles: bool = False,
+        return_clipping_values: bool = False,
         dtype: DtypeLike = np.float32,
     ) -> None:
         """
@@ -1081,11 +1081,10 @@ class ClipIntensityPercentiles(Transform):
                 defaults to None.
             channel_wise: if True, compute intensity percentile and normalize every channel separately.
                 default to False.
-            return_percentiles: whether to return the calculated percentiles in tensor meta information,
-                if soft clipping and percentile is None, return None as the corresponding percentile in meta information.
-            return_percentiles: whether to return the calculated percentiles in tensor meta information,
-                if soft clipping and percentile is None, return None as the corresponding percentile in meta information.
-                defaults to False.
+            return_clipping_values: whether to return the calculated percentiles in tensor meta information.
+                If soft clipping and requested percentile is None, return None as the corresponding clipping
+                values in meta information. Clipping values are stored in a list with each element corresponding
+                to a channel if channel_wise is set to True. defaults to False.
             dtype: output data type, if None, same as input image. defaults to float32.
         """
         if lower is None and upper is None:
@@ -1103,9 +1102,9 @@ class ClipIntensityPercentiles(Transform):
         self.upper = upper
         self.sharpness_factor = sharpness_factor
         self.channel_wise = channel_wise
-        if return_percentiles:
-            self.clipping_values: Any = []
-        self.return_percentiles = return_percentiles
+        if return_clipping_values:
+            self.clipping_values: List[Tuple[Optional[float], Optional[float]]] = []
+        self.return_clipping_values = return_clipping_values
         self.dtype = dtype
 
     def _clip(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -1118,8 +1117,13 @@ class ClipIntensityPercentiles(Transform):
             upper_percentile = percentile(img, self.upper) if self.upper is not None else percentile(img, 100)
             img = clip(img, lower_percentile, upper_percentile)
 
-        if self.return_percentiles:
-            self.clipping_values.append((lower_percentile, upper_percentile))
+        if self.return_clipping_values:
+            self.clipping_values.append(
+                (
+                    lower_percentile.item() if lower_percentile else None,
+                    upper_percentile.item() if upper_percentile else None,
+                )
+            )
         img = convert_to_tensor(img, track_meta=False)
         return img
 
@@ -1135,7 +1139,7 @@ class ClipIntensityPercentiles(Transform):
             img_t = self._clip(img=img_t)
 
         img = convert_to_dst_type(img_t, dst=img)[0]
-        if self.return_percentiles:
+        if self.return_clipping_values:
             img.meta["clipping_values"] = self.clipping_values  # type: ignore
 
         return img
