@@ -1067,10 +1067,3 @@ generalized_dice = GeneralizedDiceLoss
 generalized_dice_focal = GeneralizedDiceFocalLoss
 generalized_wasserstein_dice = GeneralizedWassersteinDiceLoss
 
-if __name__ == "__main__":
-    loss = DiceFocalLoss(to_onehot_y=False, softmax=True)
-    input = torch.randn(1, 3, 128, 128, 128)
-    target = torch.randn(1, 4, 128, 128, 128)
-    print(input.dim())
-    print(target.dim())
-    loss(input, target)
