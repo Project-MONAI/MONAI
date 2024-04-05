@@ -1120,8 +1120,16 @@ class ClipIntensityPercentiles(Transform):
         if self.return_clipping_values:
             self.clipping_values.append(
                 (
-                    lower_percentile.item() if lower_percentile else None,
-                    upper_percentile.item() if upper_percentile else None,
+                    (
+                        lower_percentile
+                        if lower_percentile is None
+                        else lower_percentile.item() if hasattr(lower_percentile, "item") else lower_percentile
+                    ),
+                    (
+                        upper_percentile
+                        if upper_percentile is None
+                        else upper_percentile.item() if hasattr(upper_percentile, "item") else upper_percentile
+                    ),
                 )
             )
         img = convert_to_tensor(img, track_meta=False)
