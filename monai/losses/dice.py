@@ -778,7 +778,7 @@ class DiceCELoss(_Loss):
 
         Raises:
             ValueError: When number of dimensions for input and target are different.
-            ValueError: When the target channel isn't either one-hot encoded or categorical with the same shape of the input.
+            ValueError: When number of channels for target is neither 1 (without one-hot encoding) nor the same as input.
 
         Returns:
             torch.Tensor: value of the loss.
@@ -793,7 +793,7 @@ class DiceCELoss(_Loss):
 
         if target.shape[1] != 1 and target.shape[1] != input.shape[1]:
             raise ValueError(
-                "number of channels for target is neither 1 (with no one-hot encoding) nor the same as input, "
+                "number of channels for target is neither 1 (without one-hot encoding) nor the same as input, "
                 f"got shape {input.shape} and {target.shape}."
             )
 
@@ -909,7 +909,7 @@ class DiceFocalLoss(_Loss):
 
         Raises:
             ValueError: When number of dimensions for input and target are different.
-            ValueError: When the target channel isn't either one-hot encoded or categorical with the same shape of the input.
+            ValueError: When number of channels for target is neither 1 (without one-hot encoding) nor the same as input.
 
         Returns:
             torch.Tensor: value of the loss.
@@ -923,7 +923,7 @@ class DiceFocalLoss(_Loss):
 
         if target.shape[1] != 1 and target.shape[1] != input.shape[1]:
             raise ValueError(
-                "number of channels for target is neither 1 (with no one-hot encoding) nor the same as input, "
+                "number of channels for target is neither 1 (without one-hot encoding) nor the same as input, "
                 f"got shape {input.shape} and {target.shape}."
             )
 
@@ -1036,7 +1036,7 @@ class GeneralizedDiceFocalLoss(_Loss):
 
         Raises:
             ValueError: When number of dimensions for input and target are different.
-            ValueError: When the target channel isn't either one-hot encoded or categorical with the same shape of the input.
+            ValueError: When number of channels for target is neither 1 (without one-hot encoding) nor the same as input.
 
         Returns:
             torch.Tensor: value of the loss.
@@ -1050,7 +1050,7 @@ class GeneralizedDiceFocalLoss(_Loss):
 
         if target.shape[1] != 1 and target.shape[1] != input.shape[1]:
             raise ValueError(
-                "number of channels for target is neither 1 (with no one-hot encoding) nor the same as input, "
+                "number of channels for target is neither 1 (without one-hot encoding) nor the same as input, "
                 f"got shape {input.shape} and {target.shape}."
             )
 
