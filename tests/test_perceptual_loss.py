@@ -46,7 +46,7 @@ TEST_CASES = [
         (2, 6, 64, 64, 64),
     ],
     [
-        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False, "channelwise": True},
+        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False, "channel_wise": True},
         (2, 6, 64, 64, 64),
         (2, 6, 64, 64, 64),
     ],
@@ -79,7 +79,7 @@ class TestPerceptualLoss(unittest.TestCase):
             loss = PerceptualLoss(**input_param)
         result = loss(torch.randn(input_shape), torch.randn(target_shape))
 
-        if "channelwise" in input_param.keys() and input_param["channelwise"]:
+        if "channel_wise" in input_param.keys() and input_param["channel_wise"]:
             self.assertEqual(result.shape, torch.Size([input_shape[1]]))
         else:
             self.assertEqual(result.shape, torch.Size([]))
@@ -91,7 +91,7 @@ class TestPerceptualLoss(unittest.TestCase):
         tensor = torch.randn(input_shape)
         result = loss(tensor, tensor)
 
-        if "channelwise" in input_param.keys() and input_param["channelwise"]:
+        if "channel_wise" in input_param.keys() and input_param["channel_wise"]:
             assert_allclose(result, torch.Tensor([0.0] * input_shape[1]))
         else:
             self.assertEqual(result, torch.Tensor([0.0]))

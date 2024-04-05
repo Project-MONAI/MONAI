@@ -45,7 +45,7 @@ class PerceptualLoss(nn.Module):
 
     The fake 3D implementation is based on a 2.5D approach where we calculate the 2D perceptual loss on slices from all
     three axes and average. The full 3D approach uses a 3D network to calculate the perceptual loss.
-    MedicalNet networks are only compatible with 3D inputs and support channelwise loss.
+    MedicalNet networks are only compatible with 3D inputs and support channel-wise loss.
 
     Args:
         spatial_dims: number of spatial dimensions.
@@ -91,7 +91,7 @@ class PerceptualLoss(nn.Module):
             )
 
         if channel_wise and "medicalnet_" not in network_type:
-            raise ValueError("Channelwise loss is only compatible with MedicalNet networks.")
+            raise ValueError("Channel-wise loss is only compatible with MedicalNet networks.")
 
         if network_type.lower() not in list(PercetualNetworkType):
             raise ValueError(
