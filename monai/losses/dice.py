@@ -1066,4 +1066,3 @@ dice_focal = DiceFocalLoss
 generalized_dice = GeneralizedDiceLoss
 generalized_dice_focal = GeneralizedDiceFocalLoss
 generalized_wasserstein_dice = GeneralizedWassersteinDiceLoss
-
