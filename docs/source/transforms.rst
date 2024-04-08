@@ -309,6 +309,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`ClipIntensityPercentiles`
+""""""""""""""""""""""""""
+.. autoclass:: ClipIntensityPercentiles
+    :members:
+    :special-members: __call__
+
 `RandScaleIntensity`
 """"""""""""""""""""
 .. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandScaleIntensity.png
@@ -1402,6 +1408,12 @@ Intensity (Dict)
 .. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/ScaleIntensityd.png
     :alt: example of ScaleIntensityd
 .. autoclass:: ScaleIntensityd
+    :members:
+    :special-members: __call__
+
+`ClipIntensityPercentilesd`
+"""""""""""""""""""""""""""
+.. autoclass:: ClipIntensityPercentilesd
     :members:
     :special-members: __call__
 
