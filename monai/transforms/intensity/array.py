@@ -30,7 +30,7 @@ from monai.data.ultrasound_confidence_map import UltrasoundConfidenceMap
 from monai.data.utils import get_random_patch, get_valid_patch_size
 from monai.networks.layers import GaussianFilter, HilbertTransform, MedianFilter, SavitzkyGolayFilter
 from monai.transforms.transform import RandomizableTransform, Transform
-from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array
+from monai.transforms.utils import Fourier, equalize_hist, is_positive, rescale_array, soft_clip
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile, where
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import ensure_tuple, ensure_tuple_rep, ensure_tuple_size, fall_back_tuple
@@ -54,6 +54,7 @@ __all__ = [
     "NormalizeIntensity",
     "ThresholdIntensity",
     "ScaleIntensityRange",
+    "ClipIntensityPercentiles",
     "AdjustContrast",
     "RandAdjustContrast",
     "ScaleIntensityRangePercentiles",
@@ -1005,6 +1006,151 @@ class ScaleIntensityRange(Transform):
         ret: NdarrayOrTensor = convert_data_type(img, dtype=dtype)[0]
 
         return ret
+
+
+class ClipIntensityPercentiles(Transform):
+    """
+    Apply clip based on the intensity distribution of input image.
+    If `sharpness_factor` is provided, the intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    From https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291
+
+    Soft clipping preserves the order of the values and maintains the gradient everywhere.
+    For example:
+
+    .. code-block:: python
+        :emphasize-lines: 11, 22
+
+        image = torch.Tensor(
+            [[[1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5],
+              [1, 2, 3, 4, 5]]])
+
+        # Hard clipping from lower and upper image intensity percentiles
+        hard_clipper = ClipIntensityPercentiles(30, 70)
+        print(hard_clipper(image))
+        metatensor([[[2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.],
+                [2., 2., 3., 4., 4.]]])
+
+
+        # Soft clipping from lower and upper image intensity percentiles
+        soft_clipper = ClipIntensityPercentiles(30, 70, 10.)
+        print(soft_clipper(image))
+        metatensor([[[2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000],
+         [2.0000, 2.0693, 3.0000, 3.9307, 4.0000]]])
+
+    See Also:
+
+        - :py:class:`monai.transforms.ScaleIntensityRangePercentiles`
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self,
+        lower: float | None,
+        upper: float | None,
+        sharpness_factor: float | None = None,
+        channel_wise: bool = False,
+        return_clipping_values: bool = False,
+        dtype: DtypeLike = np.float32,
+    ) -> None:
+        """
+        Args:
+            lower: lower intensity percentile. In the case of hard clipping, None will have the same effect as 0 by
+                not clipping the lowest input values. However, in the case of soft clipping, None and zero will have
+                two different effects: None will not apply clipping to low values, whereas zero will still transform
+                the lower values according to the soft clipping transformation. Please check for more details:
+                https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291.
+            upper: upper intensity percentile.  The same as for lower, but this time with the highest values. If we
+                are looking to perform soft clipping, if None then there will be no effect on this side whereas if set
+                to 100, the values will be passed via the corresponding clipping equation.
+            sharpness_factor: if not None, the intensity values will be soft clipped according to
+                f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv)).
+                defaults to None.
+            channel_wise: if True, compute intensity percentile and normalize every channel separately.
+                default to False.
+            return_clipping_values: whether to return the calculated percentiles in tensor meta information.
+                If soft clipping and requested percentile is None, return None as the corresponding clipping
+                values in meta information. Clipping values are stored in a list with each element corresponding
+                to a channel if channel_wise is set to True. defaults to False.
+            dtype: output data type, if None, same as input image. defaults to float32.
+        """
+        if lower is None and upper is None:
+            raise ValueError("lower or upper percentiles must be provided")
+        if lower is not None and (lower < 0.0 or lower > 100.0):
+            raise ValueError("Percentiles must be in the range [0, 100]")
+        if upper is not None and (upper < 0.0 or upper > 100.0):
+            raise ValueError("Percentiles must be in the range [0, 100]")
+        if upper is not None and lower is not None and upper < lower:
+            raise ValueError("upper must be greater than or equal to lower")
+        if sharpness_factor is not None and sharpness_factor <= 0:
+            raise ValueError("sharpness_factor must be greater than 0")
+
+        self.lower = lower
+        self.upper = upper
+        self.sharpness_factor = sharpness_factor
+        self.channel_wise = channel_wise
+        if return_clipping_values:
+            self.clipping_values: list[tuple[float | None, float | None]] = []
+        self.return_clipping_values = return_clipping_values
+        self.dtype = dtype
+
+    def _clip(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        if self.sharpness_factor is not None:
+            lower_percentile = percentile(img, self.lower) if self.lower is not None else None
+            upper_percentile = percentile(img, self.upper) if self.upper is not None else None
+            img = soft_clip(img, self.sharpness_factor, lower_percentile, upper_percentile, self.dtype)
+        else:
+            lower_percentile = percentile(img, self.lower) if self.lower is not None else percentile(img, 0)
+            upper_percentile = percentile(img, self.upper) if self.upper is not None else percentile(img, 100)
+            img = clip(img, lower_percentile, upper_percentile)
+
+        if self.return_clipping_values:
+            self.clipping_values.append(
+                (
+                    (
+                        lower_percentile
+                        if lower_percentile is None
+                        else lower_percentile.item() if hasattr(lower_percentile, "item") else lower_percentile
+                    ),
+                    (
+                        upper_percentile
+                        if upper_percentile is None
+                        else upper_percentile.item() if hasattr(upper_percentile, "item") else upper_percentile
+                    ),
+                )
+            )
+        img = convert_to_tensor(img, track_meta=False)
+        return img
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Apply the transform to `img`.
+        """
+        img = convert_to_tensor(img, track_meta=get_track_meta())
+        img_t = convert_to_tensor(img, track_meta=False)
+        if self.channel_wise:
+            img_t = torch.stack([self._clip(img=d) for d in img_t])  # type: ignore
+        else:
+            img_t = self._clip(img=img_t)
+
+        img = convert_to_dst_type(img_t, dst=img)[0]
+        if self.return_clipping_values:
+            img.meta["clipping_values"] = self.clipping_values  # type: ignore
+
+        return img
 
 
 class AdjustContrast(Transform):
