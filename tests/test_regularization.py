@@ -16,9 +16,16 @@ import unittest
 import torch
 
 from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd
+from monai.utils import set_determinism
 
 
 class TestMixup(unittest.TestCase):
+    def setUp(self) -> None:
+        set_determinism(seed=0)
+
+    def tearDown(self) -> None:
+        set_determinism(None)
+
     def test_mixup(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
@@ -52,6 +59,13 @@ class TestMixup(unittest.TestCase):
 
 
 class TestCutMix(unittest.TestCase):
+
+    def setUp(self) -> None:
+        set_determinism(seed=0)
+
+    def tearDown(self) -> None:
+        set_determinism(None)
+
     def test_cutmix(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
@@ -76,6 +90,12 @@ class TestCutMix(unittest.TestCase):
 
 
 class TestCutOut(unittest.TestCase):
+    def setUp(self) -> None:
+        set_determinism(seed=0)
+
+    def tearDown(self) -> None:
+        set_determinism(None)
+
     def test_cutout(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
