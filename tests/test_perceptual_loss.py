@@ -46,7 +46,12 @@ TEST_CASES = [
         (2, 6, 64, 64, 64),
     ],
     [
-        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False, "channel_wise": True},
+        {
+            "spatial_dims": 3,
+            "network_type": "medicalnet_resnet10_23datasets",
+            "is_fake_3d": False,
+            "channel_wise": True,
+        },
         (2, 6, 64, 64, 64),
         (2, 6, 64, 64, 64),
     ],
