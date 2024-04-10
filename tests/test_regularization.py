@@ -20,6 +20,7 @@ from monai.utils import set_determinism
 
 
 class TestMixup(unittest.TestCase):
+
     def setUp(self) -> None:
         set_determinism(seed=0)
 
@@ -59,6 +60,7 @@ class TestMixup(unittest.TestCase):
 
 
 class TestCutMix(unittest.TestCase):
+
     def setUp(self) -> None:
         set_determinism(seed=0)
 
@@ -89,6 +91,7 @@ class TestCutMix(unittest.TestCase):
 
 
 class TestCutOut(unittest.TestCase):
+
     def setUp(self) -> None:
         set_determinism(seed=0)
 
