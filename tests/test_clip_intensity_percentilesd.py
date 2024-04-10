@@ -23,6 +23,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3
 
 
 class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_two_sided(self, p):
         key = "img"
@@ -124,6 +125,7 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
 
 
 class TestClipIntensityPercentilesd3D(NumpyImageTestCase3D):
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_two_sided(self, p):
         key = "img"
