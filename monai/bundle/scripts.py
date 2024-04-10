@@ -786,7 +786,7 @@ def run(
             - ``"experiment_name"``: experiment name for this run, default to "monai_experiment".
             - ``"run_name"``: the name of current run.
             - ``"save_execute_config"``: whether to save the executed config files. It can be `False`, `/path/to/artifacts`
-              or `True`, default to `True`.
+              or `True`. If set to `True`, will save to the default path "<bundle_root>/eval". Default to `True`.
 
             If other string, treat it as file path to load the tracking settings.
             If `dict`, treat it as tracking settings.
