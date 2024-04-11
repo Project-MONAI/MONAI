@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import unittest
 
+import torch
 from parameterized import parameterized
 
 from monai.transforms import ClipIntensityPercentiles
@@ -55,7 +56,7 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
         im = p(self.imt)
         result = soft_clipper(im)
         lower, upper = percentile(im, (5, 95))
-        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=upper, dtype=im.dtype)
+        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=upper, dtype=torch.float32)
         # the rtol is set to 1e-6 because the logaddexp function used in softplus is not stable accross torch and numpy
         assert_allclose(result, p(expected), type_test="tensor", rtol=1e-6, atol=0)
 
@@ -65,7 +66,7 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
         im = p(self.imt)
         result = soft_clipper(im)
         upper = percentile(im, 95)
-        expected = soft_clip(im, sharpness_factor=1.0, minv=None, maxv=upper, dtype=im.dtype)
+        expected = soft_clip(im, sharpness_factor=1.0, minv=None, maxv=upper, dtype=torch.float32)
         # the rtol is set to 5e-5 because the logaddexp function used in softplus is not stable accross torch and numpy
         assert_allclose(result, p(expected), type_test="tensor", rtol=5e-5, atol=0)
 
@@ -75,7 +76,7 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
         im = p(self.imt)
         result = soft_clipper(im)
         lower = percentile(im, 5)
-        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=None, dtype=im.dtype)
+        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=None, dtype=torch.float32)
         # the rtol is set to 1e-6 because the logaddexp function used in softplus is not stable accross torch and numpy
         assert_allclose(result, p(expected), type_test="tensor", rtol=1e-6, atol=0)
 
@@ -145,7 +146,7 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
         im = p(self.imt)
         result = soft_clipper(im)
         lower, upper = percentile(im, (5, 95))
-        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=upper, dtype=im.dtype)
+        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=upper, dtype=torch.float32)
         # the rtol is set to 1e-6 because the logaddexp function used in softplus is not stable accross torch and numpy
         assert_allclose(result, p(expected), type_test="tensor", rtol=1e-6, atol=0)
 
@@ -155,7 +156,7 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
         im = p(self.imt)
         result = soft_clipper(im)
         upper = percentile(im, 95)
-        expected = soft_clip(im, sharpness_factor=1.0, minv=None, maxv=upper, dtype=im.dtype)
+        expected = soft_clip(im, sharpness_factor=1.0, minv=None, maxv=upper, dtype=torch.float32)
         # the rtol is set to 5e-5 because the logaddexp function used in softplus is not stable accross torch and numpy
         assert_allclose(result, p(expected), type_test="tensor", rtol=5e-5, atol=0)
 
@@ -165,7 +166,7 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
         im = p(self.imt)
         result = soft_clipper(im)
         lower = percentile(im, 5)
-        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=None, dtype=im.dtype)
+        expected = soft_clip(im, sharpness_factor=1.0, minv=lower, maxv=None, dtype=torch.float32)
         # the rtol is set to 1e-6 because the logaddexp function used in softplus is not stable accross torch and numpy
         assert_allclose(result, p(expected), type_test="tensor", rtol=1e-6, atol=0)
 
