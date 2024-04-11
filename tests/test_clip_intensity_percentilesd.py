@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import unittest
 
-import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import ClipIntensityPercentilesd
