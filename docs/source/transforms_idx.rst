@@ -74,6 +74,16 @@ Post-processing
    post.array
    post.dictionary
 
+Regularization
+^^^^^^^^^^^^^^
+
+.. autosummary::
+   :toctree: _gen
+   :nosignatures:
+
+   regularization.array
+   regularization.dictionary
+
 Signal
 ^^^^^^
 

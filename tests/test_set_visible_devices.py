@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import unittest
 
-from tests.utils import skip_if_no_cuda
+from tests.utils import SkipIfAtLeastPyTorchVersion, skip_if_no_cuda
 
 
 class TestVisibleDevices(unittest.TestCase):
@@ -25,6 +25,7 @@ class TestVisibleDevices(unittest.TestCase):
         return int(bin(value).replace("0b", "").rjust(16, "0")[:8], 2)
 
     @skip_if_no_cuda
+    @SkipIfAtLeastPyTorchVersion((2, 2, 1))
     def test_visible_devices(self):
         num_gpus_before = self.run_process_and_get_exit_code(
             'python -c "import os; import torch; '

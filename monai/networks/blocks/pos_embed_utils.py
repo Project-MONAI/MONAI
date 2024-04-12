@@ -46,7 +46,7 @@ def build_sincos_position_embedding(
         temperature (float): The temperature for the sin-cos position embedding.
 
     Returns:
-        pos_embed (nn.Parameter): The sin-cos position embedding as a learnable parameter.
+        pos_embed (nn.Parameter): The sin-cos position embedding as a fixed parameter.
     """
 
     if spatial_dims == 2:
