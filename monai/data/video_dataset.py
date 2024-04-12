@@ -177,7 +177,7 @@ class VideoFileDataset(Dataset, VideoDataset):
             with tempfile.TemporaryDirectory() as tmp_dir:
                 for codec, ext in all_codecs.items():
                     fname = os.path.join(tmp_dir, f"test{ext}")
-                    fourcc = cv2.VideoWriter_fourcc(*codec)
+                    fourcc = cv2.VideoWriter_fourcc(*codec)  # type: ignore[attr-defined]
                     noviderr = writer.open(fname, fourcc, 1, (10, 10))
                     if noviderr:
                         codecs[codec] = ext
