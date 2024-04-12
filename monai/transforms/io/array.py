@@ -46,6 +46,7 @@ from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
 from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
+from monai.utils.enums import KindKeys, MetaKeys
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -280,6 +281,7 @@ class LoadImage(Transform):
 
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
+        meta_data[MetaKeys.KIND] = KindKeys.PIXEL
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
