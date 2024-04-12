@@ -301,8 +301,10 @@ class AutoRunner:
         self.max_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
         if "num_fold" in self.data_src_cfg:
             num_fold = int(self.data_src_cfg["num_fold"])  # override from config
+            logger.info(f"Setting num_fold {num_fold} based on the input config.")
         else:
             num_fold = self.max_fold
+            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
 
         self.data_src_cfg["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
         ConfigParser.export_config_file(
@@ -400,7 +402,7 @@ class AutoRunner:
 
         if len(fold_list) > 0:
             num_fold = max(fold_list) + 1
-            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            logger.info(f"Found num_fold {num_fold} based on the input datalist {datalist_filename}.")
             # check if every fold is present
             if len(set(fold_list)) != num_fold:
                 raise ValueError(f"Fold numbers are not continuous from 0 to {num_fold - 1}")
