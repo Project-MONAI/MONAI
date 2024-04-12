@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from parameterized import parameterized
 
 import numpy as np
 import torch
@@ -20,22 +21,17 @@ from monai.networks.layers import MedianFilter
 
 
 class MedianFilterTestCase(unittest.TestCase):
+    @parameterized.expand([
+        ("3d_big", torch.ones(1, 1, 2, 3, 5), MedianFilter([1, 2, 4])),
+        ("3d", torch.ones(1, 1, 4, 3, 4), MedianFilter(1)),
+    ])
+    def test_3d(self, name, input_tensor, filter):
+        filter = filter.to(torch.device("cpu:0"))
 
-    def test_3d_big(self):
-        a = torch.ones(1, 1, 2, 3, 5)
-        g = MedianFilter([1, 2, 4]).to(torch.device("cpu:0"))
+        expected = input_tensor.numpy()
+        output = filter(input_tensor).cpu().numpy()
 
-        expected = a.numpy()
-        out = g(a).cpu().numpy()
-        np.testing.assert_allclose(out, expected, rtol=1e-5)
-
-    def test_3d(self):
-        a = torch.ones(1, 1, 4, 3, 4)
-        g = MedianFilter(1).to(torch.device("cpu:0"))
-
-        expected = a.numpy()
-        out = g(a).cpu().numpy()
-        np.testing.assert_allclose(out, expected, rtol=1e-5)
+        np.testing.assert_allclose(output, expected, rtol=1e-5)
 
     def test_3d_radii(self):
         a = torch.ones(1, 1, 4, 3, 2)

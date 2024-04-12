@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from parameterized import parameterized
 
 import numpy as np
 import torch
@@ -116,24 +117,27 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
 class TestGlobalMutualInformationLossIll(unittest.TestCase):
 
-    def test_ill_shape(self):
+    @parameterized.expand([
+        ("mismatched_simple_dims", torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),
+        ("mismatched_advanced_dims", torch.ones((1, 3, 3), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),
+        # You can add more test cases as needed
+    ])
+    def test_ill_shape(self, name, input1, input2):
         loss = GlobalMutualInformationLoss()
-        with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float, device=device))
-        with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 3), dtype=torch.float), torch.ones((1, 3), dtype=torch.float, device=device))
+        with self.assertRaises(ValueError):
+            loss.forward(input1, input2)
 
-    def test_ill_opts(self):
+    @parameterized.expand([
+        ("num_bins_zero", 0, "mean", ValueError, ""),
+        ("num_bins_negative", -1, "mean", ValueError, ""),
+        ("reduction_unknown", 64, "unknown", ValueError, ""),
+        ("reduction_none", 64, None, ValueError, ""),
+    ])
+    def test_ill_opts(self, name, num_bins, reduction, expected_exception, expected_message):
         pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(num_bins=0)(pred, target)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(num_bins=-1)(pred, target)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(reduction="unknown")(pred, target)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(reduction=None)(pred, target)
+        with self.assertRaisesRegex(expected_exception, expected_message):
+            GlobalMutualInformationLoss(num_bins=num_bins, reduction=reduction)(pred, target)
 
 
 if __name__ == "__main__":

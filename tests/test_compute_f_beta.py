@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from parameterized import parameterized
 
 import numpy as np
 import torch
@@ -33,26 +34,15 @@ class TestFBetaScore(unittest.TestCase):
         assert_allclose(result, torch.Tensor([0.714286]), atol=1e-6, rtol=1e-6)
         np.testing.assert_equal(result.device, y_pred.device)
 
-    def test_expecting_success2(self):
-        metric = FBetaScore(beta=0.5)
-        metric(
-            y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), y=torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]])
-        )
-        assert_allclose(metric.aggregate()[0], torch.Tensor([0.609756]), atol=1e-6, rtol=1e-6)
+    @parameterized.expand([
+        ("success_beta_0_5", FBetaScore(beta=0.5), torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]]), torch.Tensor([0.609756])),
+        ("success_beta_2", FBetaScore(beta=2), torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]]), torch.Tensor([0.862069])),
+        ("denominator_zero", FBetaScore(beta=2), torch.Tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]]), torch.Tensor([0.0])),
+    ])
+    def test_success_and_zero(self, name, metric, y, expected_score):
+        metric(y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), y=y)
+        assert_allclose(metric.aggregate()[0], expected_score, atol=1e-6, rtol=1e-6)
 
-    def test_expecting_success3(self):
-        metric = FBetaScore(beta=2)
-        metric(
-            y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), y=torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]])
-        )
-        assert_allclose(metric.aggregate()[0], torch.Tensor([0.862069]), atol=1e-6, rtol=1e-6)
-
-    def test_denominator_is_zero(self):
-        metric = FBetaScore(beta=2)
-        metric(
-            y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), y=torch.Tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
-        )
-        assert_allclose(metric.aggregate()[0], torch.Tensor([0.0]), atol=1e-6, rtol=1e-6)
 
     def test_number_of_dimensions_less_than_2_should_raise_error(self):
         metric = FBetaScore()
