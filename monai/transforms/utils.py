@@ -111,7 +111,7 @@ __all__ = [
     "map_binary_to_indices",
     "map_classes_to_indices",
     "map_spatial_axes",
-    "map_and_generate_sampling_centers"
+    "map_and_generate_sampling_centers",
     "rand_choice",
     "rescale_array",
     "rescale_array_int_max",
