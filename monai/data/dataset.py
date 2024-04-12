@@ -427,7 +427,7 @@ class PersistentDataset(Dataset):
 
 class CacheNTransDataset(PersistentDataset):
     """
-    Extension of `PersistentDataset`, tt can also cache the result of first N transforms, no matter it's random or not.
+    Extension of `PersistentDataset`, it can also cache the result of first N transforms, no matter it's random or not.
 
     """
 

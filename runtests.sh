@@ -738,12 +738,14 @@ fi
 # network training/inference/eval integration tests
 if [ $doNetTests = true ]
 then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}integration${noColor}"
     for i in tests/*integration_*.py
     do
         echo "$i"
         ${cmdPrefix}${cmd} "$i"
     done
+    set -e # enable exit on failure
 fi
 
 # run model zoo tests

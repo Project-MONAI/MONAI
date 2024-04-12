@@ -52,7 +52,22 @@ __all__ = [
     "median",
     "mean",
     "std",
+    "softplus",
 ]
+
+
+def softplus(x: NdarrayOrTensor) -> NdarrayOrTensor:
+    """stable softplus through `np.logaddexp` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor.
+
+    Returns:
+        Softplus of the input.
+    """
+    if isinstance(x, np.ndarray):
+        return np.logaddexp(np.zeros_like(x), x)
+    return torch.logaddexp(torch.zeros_like(x), x)
 
 
 def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:

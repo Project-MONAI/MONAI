@@ -36,8 +36,8 @@ class NonConfigWorkflow(BundleWorkflow):
 
     """
 
-    def __init__(self, filename, output_dir):
-        super().__init__(workflow_type="inference")
+    def __init__(self, filename, output_dir, meta_file=None, logging_file=None):
+        super().__init__(workflow_type="inference", meta_file=meta_file, logging_file=logging_file)
         self.filename = filename
         self.output_dir = output_dir
         self._bundle_root = "will override"

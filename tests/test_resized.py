@@ -66,6 +66,7 @@ TEST_CORRECT_CASES = [
 
 @SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class TestResized(NumpyImageTestCase2D):
+
     def test_invalid_inputs(self):
         with self.assertRaises(ValueError):
             resize = Resized(keys="img", spatial_size=(128, 128, 3), mode="order")
