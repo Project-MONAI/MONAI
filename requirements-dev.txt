@@ -57,3 +57,6 @@ zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
+opencv-python-headless
+
+
