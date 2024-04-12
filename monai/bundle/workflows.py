@@ -506,13 +506,19 @@ class ConfigWorkflow(BundleWorkflow):
                 parser[k] = v
         # save the executed config into file
         default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
-        filepath = parser.get("execute_config", None)
-        if filepath is None:
-            if "output_dir" not in parser:
-                # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
-                parser["output_dir"] = f"{EXPR_KEY}{ID_REF_KEY}bundle_root + '/eval'"
-            # experiment management tools can refer to this config item to track the config info
-            parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
-            filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
-        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-        parser.export_config_file(parser.get(), filepath)
+        # Users can set the `save_execute_config` to `False`, `/path/to/artifacts` or `True`.
+        # If set to False, nothing will be recorded. If set to True, the default path will be logged.
+        # If set to a file path, the given path will be logged.
+        filepath = parser.get("save_execute_config", True)
+        if filepath:
+            if isinstance(filepath, bool):
+                if "output_dir" not in parser:
+                    # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+                    parser["output_dir"] = f"{EXPR_KEY}{ID_REF_KEY}bundle_root + '/eval'"
+                # experiment management tools can refer to this config item to track the config info
+                parser["save_execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
+                filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
+            Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+            parser.export_config_file(parser.get(), filepath)
+        else:
+            parser["save_execute_config"] = None
