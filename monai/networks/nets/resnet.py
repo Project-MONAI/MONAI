@@ -359,7 +359,7 @@ class ResNetFeatures(ResNet):
 
         Args:
             model_name: name of model to initialize, can be from [resnet10, ..., resnet200].
-            pretrained: whether to initialize pretrained Med3D weights,
+            pretrained: whether to initialize pretrained MedicalNet weights,
                 only available for spatial_dims=3 and in_channels=1.
             spatial_dims: number of spatial dimensions of the input image.
             in_channels: number of input channels for first convolutional layer.
@@ -605,7 +605,7 @@ def resnet200(pretrained: bool = False, progress: bool = True, **kwargs: Any) ->
 
 def get_pretrained_resnet_medicalnet(resnet_depth: int, device: str = "cpu", datasets23: bool = True):
     """
-    Donwlad resnet pretrained weights from https://huggingface.co/TencentMedicalNet
+    Download resnet pretrained weights from https://huggingface.co/TencentMedicalNet
 
     Args:
         resnet_depth: depth of the pretrained model. Supported values are 10, 18, 34, 50, 101, 152 and 200
@@ -661,7 +661,7 @@ def get_pretrained_resnet_medicalnet(resnet_depth: int, device: str = "cpu", dat
 def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
     """
     Return correct shortcut_type and bias_downsample
-    for pretrained MedicalNet weights according to resnet depth
+    for pretrained MedicalNet weights according to resnet depth.
     """
     # After testing
     # False: 10, 50, 101, 152, 200

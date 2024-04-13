@@ -252,8 +252,9 @@ class FlexibleUNet(nn.Module):
             out_channels: number of output channels.
             backbone: name of backbones to initialize, only support efficientnet and resnet right now,
                 can be from [efficientnet-b0, ..., efficientnet-b8, efficientnet-l2, resnet10, ..., resnet200].
-            pretrained: whether to initialize pretrained ImageNet weights, only available
-                for spatial_dims=2 and batch norm is used, default to False.
+            pretrained: whether to initialize pretrained weights. ImageNet weights are available for efficient networks
+                if spatial_dims=2 and batch norm is used. MedicalNet weights are available for residual networks
+                if spatial_dims=3 and in_channels=1. Default to False.
             decoder_channels: number of output channels for all feature maps in decoder.
                 `len(decoder_channels)` should equal to `len(encoder_channels) - 1`,default
                 to (256, 128, 64, 32, 16).
