@@ -305,12 +305,12 @@ class TestFLEXIBLEUNET(unittest.TestCase):
             net = FlexibleUNet(**flexunet_input_param).to(device)
 
         with skip_if_downloading_fails():
-            eff_net = feature_extractor_class(**feature_extractor_input_param).to(device)
+            feature_extractor_net = feature_extractor_class(**feature_extractor_input_param).to(device)
 
         for weight_name in weight_list:
-            if weight_name in net.encoder.state_dict() and weight_name in eff_net.state_dict():
+            if weight_name in net.encoder.state_dict() and weight_name in feature_extractor_net.state_dict():
                 net_weight = net.encoder.state_dict()[weight_name]
-                download_weight = eff_net.state_dict()[weight_name]
+                download_weight = feature_extractor_net.state_dict()[weight_name]
                 weight_diff = torch.abs(net_weight - download_weight)
                 diff_sum = torch.sum(weight_diff)
                 # check if a weight in weight_list equals to the downloaded weight.
