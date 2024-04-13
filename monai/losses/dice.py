@@ -778,12 +778,22 @@ class DiceCELoss(_Loss):
 
         Raises:
             ValueError: When number of dimensions for input and target are different.
-            ValueError: When number of channels for target is neither 1 nor the same as input.
+            ValueError: When number of channels for target is neither 1 (without one-hot encoding) nor the same as input.
+
+        Returns:
+            torch.Tensor: value of the loss.
 
         """
-        if len(input.shape) != len(target.shape):
+        if input.dim() != target.dim():
             raise ValueError(
                 "the number of dimensions for input and target should be the same, "
+                f"got shape {input.shape} (nb dims: {len(input.shape)}) and {target.shape} (nb dims: {len(target.shape)}). "
+                "if target is not one-hot encoded, please provide a tensor with shape B1H[WD]."
+            )
+
+        if target.shape[1] != 1 and target.shape[1] != input.shape[1]:
+            raise ValueError(
+                "number of channels for target is neither 1 (without one-hot encoding) nor the same as input, "
                 f"got shape {input.shape} and {target.shape}."
             )
 
@@ -899,14 +909,24 @@ class DiceFocalLoss(_Loss):
 
         Raises:
             ValueError: When number of dimensions for input and target are different.
-            ValueError: When number of channels for target is neither 1 nor the same as input.
+            ValueError: When number of channels for target is neither 1 (without one-hot encoding) nor the same as input.
 
+        Returns:
+            torch.Tensor: value of the loss.
         """
-        if len(input.shape) != len(target.shape):
+        if input.dim() != target.dim():
             raise ValueError(
                 "the number of dimensions for input and target should be the same, "
+                f"got shape {input.shape} (nb dims: {len(input.shape)}) and {target.shape} (nb dims: {len(target.shape)}). "
+                "if target is not one-hot encoded, please provide a tensor with shape B1H[WD]."
+            )
+
+        if target.shape[1] != 1 and target.shape[1] != input.shape[1]:
+            raise ValueError(
+                "number of channels for target is neither 1 (without one-hot encoding) nor the same as input, "
                 f"got shape {input.shape} and {target.shape}."
             )
+
         if self.to_onehot_y:
             n_pred_ch = input.shape[1]
             if n_pred_ch == 1:
@@ -1015,15 +1035,23 @@ class GeneralizedDiceFocalLoss(_Loss):
             target (torch.Tensor): the shape should be BNH[WD] or B1H[WD].
 
         Raises:
-            ValueError: When the input and target tensors have different numbers of dimensions, or the target
-                channel isn't either one-hot encoded or categorical with the same shape of the input.
+            ValueError: When number of dimensions for input and target are different.
+            ValueError: When number of channels for target is neither 1 (without one-hot encoding) nor the same as input.
 
         Returns:
             torch.Tensor: value of the loss.
         """
         if input.dim() != target.dim():
             raise ValueError(
-                f"Input - {input.shape} - and target - {target.shape} - must have the same number of dimensions."
+                "the number of dimensions for input and target should be the same, "
+                f"got shape {input.shape} (nb dims: {len(input.shape)}) and {target.shape} (nb dims: {len(target.shape)}). "
+                "if target is not one-hot encoded, please provide a tensor with shape B1H[WD]."
+            )
+
+        if target.shape[1] != 1 and target.shape[1] != input.shape[1]:
+            raise ValueError(
+                "number of channels for target is neither 1 (without one-hot encoding) nor the same as input, "
+                f"got shape {input.shape} and {target.shape}."
             )
 
         gdl_loss = self.generalized_dice(input, target)
