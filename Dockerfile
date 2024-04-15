@@ -17,8 +17,13 @@ FROM ${PYTORCH_IMAGE}
 LABEL maintainer="monai.contact@gmail.com"
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
-WORKDIR /opt
-RUN git clone --recursive https://github.com/zarr-developers/numcodecs.git && pip wheel numcodecs
+RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
+        cd /opt && \
+        git clone --branch v0.12.1 --recursive https://github.com/zarr-developers/numcodecs && \
+        pip wheel numcodecs && \
+        rm -r /opt/*.whl && \
+        rm -rf /opt/numcodecs; \
+    fi
 
 WORKDIR /opt/monai
 
