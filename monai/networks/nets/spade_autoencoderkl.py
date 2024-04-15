@@ -17,9 +17,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks import Convolution
+from monai.networks.blocks import Convolution, Upsample
 from monai.networks.blocks.spade_norm import SPADE
-from monai.networks.nets.autoencoderkl import AEKLUpsample, AttentionBlock, Encoder
+from monai.networks.nets.autoencoderkl import AttentionBlock, Encoder
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["SPADEAutoencoderKL"]
@@ -247,7 +247,29 @@ class SPADEDecoder(nn.Module):
                     )
 
             if not is_final_block:
-                blocks.append(AEKLUpsample(spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=False))
+                post_conv = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=block_in_ch,
+                    out_channels=block_in_ch,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    conv_only=True,
+                )
+                blocks.append(
+                    Upsample(
+                        spatial_dims=spatial_dims,
+                        mode="nontrainable",
+                        in_channels=block_in_ch,
+                        out_channels=block_in_ch,
+                        interp_mode="nearest",
+                        scale_factor=2.0,
+                        post_conv=post_conv,
+                        align_corners=None,
+                    )
+                )
+                # rename postconv for compatibility with monai-generative
+                blocks[-1].__dict__["_modules"]["conv"] = blocks[-1].__dict__["_modules"].pop("postconv")
 
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))
         blocks.append(

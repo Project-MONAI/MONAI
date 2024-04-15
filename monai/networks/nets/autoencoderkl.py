@@ -18,88 +18,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks import Convolution
+from monai.networks.blocks import Convolution, Upsample
 from monai.networks.blocks.selfattention import SABlock
 from monai.utils import ensure_tuple_rep, optional_import
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 __all__ = ["AutoencoderKL"]
-
-
-class CastTempType(nn.Module):
-    """
-    Cast the input tensor to a temporary type before applying the submodule, and then cast it back to the initial type.
-    """
-
-    def __init__(self, initial_type, temporary_type, submodule):
-        super().__init__()
-        self.initial_type = initial_type
-        self.temporary_type = temporary_type
-        self.submodule = submodule
-
-    def forward(self, x):
-        dtype = x.dtype
-        if dtype == self.initial_type:
-            x = x.to(self.temporary_type)
-        x = self.submodule(x)
-        if dtype == self.initial_type:
-            x = x.to(self.initial_type)
-        return x
-
-
-class AEKLUpsample(nn.Module):
-    """
-    Convolution-based upsampling layer.
-
-    Args:
-        spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
-        in_channels: number of input channels to the layer.
-        use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
-    """
-
-    def __init__(self, spatial_dims: int, in_channels: int, use_convtranspose: bool) -> None:
-        super().__init__()
-        if use_convtranspose:
-            self.conv = Convolution(
-                spatial_dims=spatial_dims,
-                in_channels=in_channels,
-                out_channels=in_channels,
-                strides=2,
-                kernel_size=3,
-                padding=1,
-                conv_only=True,
-                is_transposed=True,
-            )
-        else:
-            self.conv = Convolution(
-                spatial_dims=spatial_dims,
-                in_channels=in_channels,
-                out_channels=in_channels,
-                strides=1,
-                kernel_size=3,
-                padding=1,
-                conv_only=True,
-            )
-        self.use_convtranspose = use_convtranspose
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.use_convtranspose:
-            conv: torch.Tensor = self.conv(x)
-            return conv
-
-        # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
-        # https://github.com/pytorch/pytorch/issues/86679. This issue is solved in PyTorch 2.1
-        interpolate_with_casting = CastTempType(
-            initial_type=torch.bfloat16,
-            temporary_type=torch.float32,
-            submodule=lambda x: F.interpolate(x, scale_factor=2.0, mode="nearest"),
-        )
-
-        x = interpolate_with_casting(x)
-
-        x = self.conv(x)
-        return x
 
 
 class AsymmetricPad(nn.Module):
@@ -510,11 +435,36 @@ class Decoder(nn.Module):
                     )
 
             if not is_final_block:
-                blocks.append(
-                    AEKLUpsample(
-                        spatial_dims=spatial_dims, in_channels=block_in_ch, use_convtranspose=use_convtranspose
+                if use_convtranspose:
+                    blocks.append(
+                        Upsample(
+                            spatial_dims=spatial_dims, mode="deconv", in_channels=block_in_ch, out_channels=block_in_ch
+                        )
                     )
-                )
+                else:
+                    post_conv = Convolution(
+                        spatial_dims=spatial_dims,
+                        in_channels=block_in_ch,
+                        out_channels=block_in_ch,
+                        strides=1,
+                        kernel_size=3,
+                        padding=1,
+                        conv_only=True,
+                    )
+                    blocks.append(
+                        Upsample(
+                            spatial_dims=spatial_dims,
+                            mode="nontrainable",
+                            in_channels=block_in_ch,
+                            out_channels=block_in_ch,
+                            interp_mode="nearest",
+                            scale_factor=2.0,
+                            post_conv=post_conv,
+                            align_corners=None,
+                        )
+                    )
+                    # rename postconv for compatibility with monai-generative
+                    blocks[-1].__dict__["_modules"]["conv"] = blocks[-1].__dict__["_modules"].pop("postconv")
 
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))
         blocks.append(
