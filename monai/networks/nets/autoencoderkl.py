@@ -44,6 +44,35 @@ class AsymmetricPad(nn.Module):
         return x
 
 
+class AEKLDownsample(nn.Module):
+    """
+    Convolution-based downsampling layer.
+
+    Args:
+        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
+        in_channels: number of input channels.
+    """
+
+    def __init__(self, spatial_dims: int, in_channels: int) -> None:
+        super().__init__()
+        self.pad = AsymmetricPad(spatial_dims=spatial_dims)
+
+        self.conv = Convolution(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=in_channels,
+            strides=2,
+            kernel_size=3,
+            padding=0,
+            conv_only=True,
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.pad(x)
+        x = self.conv(x)
+        return x
+
+
 class AEKLResBlock(nn.Module):
     """
     Residual block consisting of a cascade of 2 convolutions + activation + normalisation block, and a
@@ -251,21 +280,7 @@ class Encoder(nn.Module):
                     )
 
             if not is_final_block:
-                # assymetric padding and conv for downsampling so that each output_dim = input_dim // 2
-                blocks.append(
-                    nn.Sequential(
-                        AsymmetricPad(spatial_dims=spatial_dims),
-                        Convolution(
-                            spatial_dims=spatial_dims,
-                            in_channels=input_channel,
-                            out_channels=input_channel,
-                            strides=2,
-                            kernel_size=3,
-                            padding=0,
-                            conv_only=True,
-                        ),
-                    )
-                )
+                blocks.append(AEKLDownsample(spatial_dims=spatial_dims, in_channels=input_channel))
         # Non-local attention block
         if with_nonlocal_attn is True:
             blocks.append(
@@ -738,14 +753,4 @@ class AutoencoderKL(nn.Module):
                 new_state_dict[f"{block}.attn.out_proj.bias"].shape
             )
 
-        # fix the downsample blocks
-        encoder_blocks = {int(k.split(".")[2]) for k in new_state_dict if "encoder.blocks." in k}
-        for block_num in encoder_blocks:
-            if f"encoder.blocks.{block_num}.conv.conv.weight" in old_state_dict:
-                new_state_dict[f"encoder.blocks.{block_num}.1.conv.weight"] = old_state_dict[
-                    f"encoder.blocks.{block_num}.conv.conv.weight"
-                ]
-                new_state_dict[f"encoder.blocks.{block_num}.1.conv.bias"] = old_state_dict[
-                    f"encoder.blocks.{block_num}.conv.conv.bias"
-                ]
         self.load_state_dict(new_state_dict)
