@@ -173,15 +173,15 @@ class VideoFileDataset(Dataset, VideoDataset):
         all_codecs = {"mp4v": ".mp4", "X264": ".avi", "H264": ".mp4", "MP42": ".mp4", "MJPG": ".mjpeg", "DIVX": ".avi"}
         codecs = {}
         with SuppressStderr():
-            writer = cv2.VideoWriter()
             with tempfile.TemporaryDirectory() as tmp_dir:
                 for codec, ext in all_codecs.items():
+                    writer = cv2.VideoWriter()
                     fname = os.path.join(tmp_dir, f"test{ext}")
-                    fourcc = cv2.VideoWriter_fourcc(*codec)
+                    fourcc = cv2.VideoWriter_fourcc(*codec)  # type: ignore[attr-defined]
                     noviderr = writer.open(fname, fourcc, 1, (10, 10))
                     if noviderr:
                         codecs[codec] = ext
-            writer.release()
+                    writer.release()
         return codecs
 
     def get_num_frames(self) -> int:

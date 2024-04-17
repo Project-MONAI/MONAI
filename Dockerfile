@@ -17,10 +17,18 @@ FROM ${PYTORCH_IMAGE}
 LABEL maintainer="monai.contact@gmail.com"
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
-WORKDIR /opt
-RUN git clone --recursive https://github.com/zarr-developers/numcodecs.git && pip wheel numcodecs
+RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
+        cd /opt && \
+        git clone --branch v0.12.1 --recursive https://github.com/zarr-developers/numcodecs && \
+        pip wheel numcodecs && \
+        rm -r /opt/*.whl && \
+        rm -rf /opt/numcodecs; \
+    fi
 
 WORKDIR /opt/monai
+
+# remove opencv-python before opencv-python-headless installation
+RUN pip uninstall -y opencv && rm /usr/local/lib/python3.10/dist-packages/cv2 -r
 
 # install full deps
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
