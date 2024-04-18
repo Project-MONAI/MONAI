@@ -179,9 +179,15 @@ class PerceptualLoss(nn.Module):
             loss = loss_sagittal + loss_axial + loss_coronal
         else:
             # 2D and real 3D cases
-            loss = self.perceptual_function(input, target).squeeze()
+            loss = self.perceptual_function(input, target)
 
-        return torch.mean(loss, dim=0)
+        if self.channel_wise:
+            loss = loss.squeeze()
+            loss = torch.mean(loss, dim=0)
+        else:
+            loss = torch.mean(loss)
+
+        return loss
 
 
 class MedicalNetPerceptualSimilarity(nn.Module):
