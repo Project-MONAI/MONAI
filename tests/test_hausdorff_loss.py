@@ -219,13 +219,7 @@ class TestHausdorffDTLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             HausdorffDTLoss(reduction=None)(chn_input, chn_target)
 
-    @parameterized.expand(
-        [
-            (False, False, False),
-            (False, True, False),
-            (False, False, True),
-        ]
-    )
+    @parameterized.expand([(False, False, False), (False, True, False), (False, False, True)])
     def test_input_warnings(self, include_background, softmax, to_onehot_y):
         chn_input = torch.ones((1, 1, 1, 3))
         chn_target = torch.ones((1, 1, 1, 3))
@@ -257,13 +251,7 @@ class TesLogtHausdorffDTLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             LogHausdorffDTLoss(reduction=None)(chn_input, chn_target)
 
-    @parameterized.expand(
-        [
-            (False, False, False),
-            (False, True, False),
-            (False, False, True),
-        ]
-    )
+    @parameterized.expand([(False, False, False), (False, True, False), (False, False, True)])
     def test_input_warnings(self, include_background, softmax, to_onehot_y):
         chn_input = torch.ones((1, 1, 1, 3))
         chn_target = torch.ones((1, 1, 1, 3))

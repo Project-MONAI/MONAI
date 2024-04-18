@@ -537,12 +537,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
             UltrasoundConfidenceMapTransform(sink_mode="unknown")
 
     @parameterized.expand(
-        [
-            ("all", SINK_ALL_OUTPUT),
-            ("mid", SINK_MID_OUTPUT),
-            ("min", SINK_MIN_OUTPUT),
-            ("mask", SINK_MASK_OUTPUT, True),
-        ]
+        [("all", SINK_ALL_OUTPUT), ("mid", SINK_MID_OUTPUT), ("min", SINK_MIN_OUTPUT), ("mask", SINK_MASK_OUTPUT, True)]
     )
     def test_ultrasound_confidence_map_transform(self, sink_mode, expected_output, use_mask=False):
         # RGB image
@@ -589,14 +584,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         self.assertIsInstance(result_np, np.ndarray)
         assert_allclose(result_np, expected_output, rtol=1e-4, atol=1e-4)
 
-    @parameterized.expand(
-        [
-            ("all",),
-            ("mid",),
-            ("min",),
-            ("mask",),
-        ]
-    )
+    @parameterized.expand([("all",), ("mid",), ("min",), ("mask",)])
     def test_non_one_first_dim(self, sink_mode):
         transform = UltrasoundConfidenceMapTransform(sink_mode=sink_mode)
         input_img_rgb = np.repeat(self.input_img_np, 3, axis=0)
@@ -631,13 +619,7 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
             with self.assertRaises(ValueError):
                 transform(input_img_rgb, self.input_mask_np)
 
-    @parameterized.expand(
-        [
-            ("all",),
-            ("mid",),
-            ("min",),
-        ]
-    )
+    @parameterized.expand([("all",), ("mid",), ("min",)])
     def test_sink_mode(self, mode):
         transform = UltrasoundConfidenceMapTransform(sink_mode=mode)
 
