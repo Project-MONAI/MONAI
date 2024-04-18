@@ -50,6 +50,7 @@ __all__ = [
     "GridPatchSort",
     "FastMRIKeys",
     "SpaceKeys",
+    "KindKeys",
     "MetaKeys",
     "ColorOrder",
     "EngineStatsKeys",
