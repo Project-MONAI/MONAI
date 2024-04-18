@@ -18,9 +18,11 @@ import torch
 
 import monai
 from monai.config import NdarrayOrTensor
+from monai.data.meta_obj import get_track_meta, MetaObj
+from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL
 from monai.transforms.utils_pytorch_numpy_unification import allclose
-from monai.utils import LazyAttr, convert_to_numpy, convert_to_tensor, look_up_option
+from monai.utils import LazyAttr, MetaKeys, convert_to_numpy, convert_to_tensor, look_up_option
 
 __all__ = ["resample", "combine_transforms"]
 
@@ -227,3 +229,42 @@ def resample(data: torch.Tensor, matrix: NdarrayOrTensor, kwargs: dict | None = 
     resampler.lazy = False  # resampler is a lazytransform
     with resampler.trace_transform(False):  # don't track this transform in `img`
         return resampler(img=img, **call_kwargs)
+
+
+def apply_to_geometry(
+        data: torch.Tensor,
+        meta_info: dict | MetaObj,
+):
+    """
+    Apply an affine geometric transform or deformation field to geometry.
+    At present this is limited to the transformation of points.
+
+    The points must be provided as a tensor and must be  compatible with a homogeneous
+    transform. This means that:
+     - 2D points are of the form (x, y, 1)
+     - 3D points are of the form (x, y, z, 1)
+
+    The affine transform or deformation field is applied to the the points and a tensor of
+    the same shape as the input tensor is returned.
+
+    Args:
+        data: the tensor of points to be transformed.
+        meta_info: the metadata containing the affine transformation
+    """
+
+    if not isinstance(data, (torch.Tensor, MetaTensor)):
+        raise TypeError(f"data {type(data)} must be a torch.Tensor or MetaTensor")
+
+    data = convert_to_tensor(data, track_meta=get_track_meta())
+
+    transform = meta_info.meta[MetaKeys.AFFINE]
+
+    if transform.dtype != data.dtype:
+        transform = transform.to(data.dtype)
+
+    if data.shape[1] != transform.shape[0]:
+        raise ValueError(f"second element of data.shape {data.shape} must match transform shape {transform.shape}")
+
+    result = torch.matmul(data, transform.T)
+
+    return result
