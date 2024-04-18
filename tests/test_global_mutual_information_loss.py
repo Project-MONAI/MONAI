@@ -117,22 +117,30 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
 class TestGlobalMutualInformationLossIll(unittest.TestCase):
 
-    @parameterized.expand([
-        ("mismatched_simple_dims", torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),
-        ("mismatched_advanced_dims", torch.ones((1, 3, 3), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),
-        # You can add more test cases as needed
-    ])
+    @parameterized.expand(
+        [
+            ("mismatched_simple_dims", torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),
+            (
+                "mismatched_advanced_dims",
+                torch.ones((1, 3, 3), dtype=torch.float),
+                torch.ones((1, 3), dtype=torch.float),
+            ),
+            # You can add more test cases as needed
+        ]
+    )
     def test_ill_shape(self, name, input1, input2):
         loss = GlobalMutualInformationLoss()
         with self.assertRaises(ValueError):
             loss.forward(input1, input2)
 
-    @parameterized.expand([
-        ("num_bins_zero", 0, "mean", ValueError, ""),
-        ("num_bins_negative", -1, "mean", ValueError, ""),
-        ("reduction_unknown", 64, "unknown", ValueError, ""),
-        ("reduction_none", 64, None, ValueError, ""),
-    ])
+    @parameterized.expand(
+        [
+            ("num_bins_zero", 0, "mean", ValueError, ""),
+            ("num_bins_negative", -1, "mean", ValueError, ""),
+            ("reduction_unknown", 64, "unknown", ValueError, ""),
+            ("reduction_none", 64, None, ValueError, ""),
+        ]
+    )
     def test_ill_opts(self, name, num_bins, reduction, expected_exception, expected_message):
         pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)

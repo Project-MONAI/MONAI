@@ -28,20 +28,27 @@ class TestNet(torch.nn.Module):
 
 class TestPrepareBatchDefault(unittest.TestCase):
 
-    @parameterized.expand([
-        ("dict_content", [
-            {
-                "image": torch.tensor([1, 2]),
-                "label": torch.tensor([3, 4]),
-                "extra1": torch.tensor([5, 6]),
-                "extra2": 16,
-                "extra3": "test",
-            }
-        ], TestNet(), True),
-        ("tensor_content", [torch.tensor([1, 2])], torch.nn.Identity(), True),
-        ("pair_content", [(torch.tensor([1, 2]), torch.tensor([3, 4]))], torch.nn.Identity(), True),
-        ("empty_data", [], TestNet(), False),
-    ])
+    @parameterized.expand(
+        [
+            (
+                "dict_content",
+                [
+                    {
+                        "image": torch.tensor([1, 2]),
+                        "label": torch.tensor([3, 4]),
+                        "extra1": torch.tensor([5, 6]),
+                        "extra2": 16,
+                        "extra3": "test",
+                    }
+                ],
+                TestNet(),
+                True,
+            ),
+            ("tensor_content", [torch.tensor([1, 2])], torch.nn.Identity(), True),
+            ("pair_content", [(torch.tensor([1, 2]), torch.tensor([3, 4]))], torch.nn.Identity(), True),
+            ("empty_data", [], TestNet(), False),
+        ]
+    )
     def test_prepare_batch(self, name, dataloader, network, should_run):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         evaluator = SupervisedEvaluator(

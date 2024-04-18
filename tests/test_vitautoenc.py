@@ -82,16 +82,29 @@ class TestVitAutoenc(unittest.TestCase):
             result, _ = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand([
-        ("img_size_too_large_for_patch_size", 1, (32, 32, 32), (64, 64, 64), 512, 3072, 12, 8, "perceptron", 0.3),
-        ("num_heads_out_of_bound", 1, (96, 96, 96), (8, 8, 8), 512, 3072, 12, 14, "conv", 0.3),
-        ("img_size_not_divisible_by_patch_size", 1, (97, 97, 97), (4, 4, 4), 768, 3072, 12, 8, "perceptron", 0.3),
-        ("invalid_pos_embed", 4, (96, 96, 96), (16, 16, 16), 768, 3072, 12, 12, "perc", 0.3),
-        ("patch_size_not_divisible", 4, (96, 96, 96), (9, 9, 9), 768, 3072, 12, 12, "perc", 0.3),
-        # Add more test cases as needed
-    ])
-    def test_ill_arg(self, name, in_channels, img_size, patch_size, hidden_size, mlp_dim, num_layers, num_heads,
-                     pos_embed, dropout_rate):
+    @parameterized.expand(
+        [
+            ("img_size_too_large_for_patch_size", 1, (32, 32, 32), (64, 64, 64), 512, 3072, 12, 8, "perceptron", 0.3),
+            ("num_heads_out_of_bound", 1, (96, 96, 96), (8, 8, 8), 512, 3072, 12, 14, "conv", 0.3),
+            ("img_size_not_divisible_by_patch_size", 1, (97, 97, 97), (4, 4, 4), 768, 3072, 12, 8, "perceptron", 0.3),
+            ("invalid_pos_embed", 4, (96, 96, 96), (16, 16, 16), 768, 3072, 12, 12, "perc", 0.3),
+            ("patch_size_not_divisible", 4, (96, 96, 96), (9, 9, 9), 768, 3072, 12, 12, "perc", 0.3),
+            # Add more test cases as needed
+        ]
+    )
+    def test_ill_arg(
+        self,
+        name,
+        in_channels,
+        img_size,
+        patch_size,
+        hidden_size,
+        mlp_dim,
+        num_layers,
+        num_heads,
+        pos_embed,
+        dropout_rate,
+    ):
         with self.assertRaises(ValueError):
             ViTAutoEnc(
                 in_channels=in_channels,
