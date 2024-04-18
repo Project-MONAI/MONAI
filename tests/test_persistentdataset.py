@@ -165,7 +165,7 @@ class TestDataset(unittest.TestCase):
             im1 = PersistentDataset([im], Identity(), cache_dir=path, hash_transform=json_hashing)[0]
             im2 = PersistentDataset([im], Flip(1), cache_dir=path, hash_transform=json_hashing)[0]
             l2 = ((im1 - im2) ** 2).sum() ** 0.5
-            self.assertTrue(l2 > 1)
+            self.assertGreater(l2, 1)
 
 
 if __name__ == "__main__":
