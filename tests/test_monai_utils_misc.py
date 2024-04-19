@@ -92,12 +92,11 @@ class TestCommandRunner(unittest.TestCase):
         cmd2 = "-c"
         cmd3 = 'import sys; print("\\tThis is on stderr\\n", file=sys.stderr); sys.exit(1)'
         os.environ["MONAI_DEBUG"] = str(True)
-        try:
+        with self.assertRaises(RuntimeError) as cm:
             run_cmd([cmd1, cmd2, cmd3], check=True)
-        except RuntimeError as err:
-            self.assertIn("This is on stderr", str(err))
-            self.assertNotIn("\\n", str(err))
-            self.assertNotIn("\\t", str(err))
+        self.assertIn("This is on stderr", str(cm.exception))
+        self.assertNotIn("\\n", str(cm.exception))
+        self.assertNotIn("\\t", str(cm.exception))
 
 
 if __name__ == "__main__":
