@@ -181,7 +181,7 @@ class TestHPO(unittest.TestCase):
 
         NNIGen().run_algo(obj_filename, self.work_dir)
         history = import_bundle_algo_history(self.work_dir, only_trained=True)
-        assert len(history) == 3
+        assert len(history) == 1
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

@@ -26,7 +26,7 @@ mypy>=1.5.0
 ninja
 torchvision
 psutil
-cucim>=23.2.0; platform_system == "Linux"
+cucim-cu12; platform_system == "Linux" and python_version >= "3.9" and python_version <= "3.10"
 openslide-python
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"
@@ -34,7 +34,7 @@ pandas
 requests
 einops
 transformers>=4.36.0
-mlflow>=1.28.0
+mlflow>=1.28.0, <=2.11.3
 clearml>=1.10.0rc0
 matplotlib!=3.5.0
 tensorboardX
@@ -46,7 +46,7 @@ pynrrd
 pre-commit
 pydicom
 h5py
-nni; platform_system == "Linux"
+nni; platform_system == "Linux" and "arm" not in platform_machine and "aarch" not in platform_machine
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
 onnx>=1.13.0
@@ -57,3 +57,4 @@ zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
+opencv-python-headless

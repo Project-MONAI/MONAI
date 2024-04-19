@@ -29,7 +29,7 @@ class PercetualNetworkType(StrEnum):
     squeeze = "squeeze"
     radimagenet_resnet50 = "radimagenet_resnet50"
     medicalnet_resnet10_23datasets = "medicalnet_resnet10_23datasets"
-    medical_resnet50_23datasets = "medical_resnet50_23datasets"
+    medicalnet_resnet50_23datasets = "medicalnet_resnet50_23datasets"
     resnet50 = "resnet50"
 
 

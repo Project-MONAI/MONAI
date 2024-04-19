@@ -117,7 +117,7 @@ class TestPadCollation(unittest.TestCase):
             batch_inverse = BatchInverseTransform(dataset.transform, loader)
             for data in loader:
                 output = batch_inverse(data)
-                self.assertTrue(output[0]["image"].shape, (1, 10, 9))
+                self.assertEqual(output[0]["image"].shape, (1, 10, 9))
 
 
 if __name__ == "__main__":
