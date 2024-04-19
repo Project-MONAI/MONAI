@@ -367,7 +367,6 @@ class TestDataAnalyzer(unittest.TestCase):
         for batch_data in self.dataset:
             d = transform(batch_data[0])
             assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
-            assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
 
     def test_filename_case_analyzer_image_only(self):
         analyzer_image = FilenameStats("image", DataStatsKeys.BY_CASE_IMAGE_PATH)

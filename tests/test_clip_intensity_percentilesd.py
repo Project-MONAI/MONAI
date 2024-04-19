@@ -19,6 +19,7 @@ from parameterized import parameterized
 from monai.transforms import ClipIntensityPercentilesd
 from monai.transforms.utils import soft_clip
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile
+from monai.utils.type_conversion import convert_to_tensor
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
@@ -31,7 +32,7 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
         im = p(self.imt)
         result = hard_clipper({key: im})
         lower, upper = percentile(im, (5, 95))
-        expected = clip(im, lower, upper)
+        expected = clip(convert_to_tensor(im), lower, upper)
         assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-7, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
