@@ -36,27 +36,17 @@ class TestFBetaScore(unittest.TestCase):
 
     @parameterized.expand(
         [
+            (0.5, torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]]), torch.Tensor([0.609756])),  # success_beta_0_5
+            (2, torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]]), torch.Tensor([0.862069])),  # success_beta_2
             (
-                "success_beta_0_5",
-                FBetaScore(beta=0.5),
-                torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]]),
-                torch.Tensor([0.609756]),
-            ),
-            (
-                "success_beta_2",
-                FBetaScore(beta=2),
-                torch.Tensor([[1, 0, 1], [0, 1, 0], [1, 0, 1]]),
-                torch.Tensor([0.862069]),
-            ),
-            (
-                "denominator_zero",
-                FBetaScore(beta=2),
+                2,  # success_beta_2, denominator_zero
                 torch.Tensor([[0, 0, 0], [0, 0, 0], [0, 0, 0]]),
                 torch.Tensor([0.0]),
             ),
         ]
     )
-    def test_success_and_zero(self, name, metric, y, expected_score):
+    def test_success_and_zero(self, beta, y, expected_score):
+        metric = FBetaScore(beta=beta)
         metric(y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]), y=y)
         assert_allclose(metric.aggregate()[0], expected_score, atol=1e-6, rtol=1e-6)
 

@@ -31,7 +31,6 @@ class TestPrepareBatchDefault(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                "dict_content",
                 [
                     {
                         "image": torch.tensor([1, 2]),
@@ -43,10 +42,10 @@ class TestPrepareBatchDefault(unittest.TestCase):
                 ],
                 TestNet(),
                 True,
-            ),
-            ("tensor_content", [torch.tensor([1, 2])], torch.nn.Identity(), True),
-            ("pair_content", [(torch.tensor([1, 2]), torch.tensor([3, 4]))], torch.nn.Identity(), True),
-            ("empty_data", [], TestNet(), False),
+            ),  # dict_content
+            ([torch.tensor([1, 2])], torch.nn.Identity(), True),  # tensor_content
+            ([(torch.tensor([1, 2]), torch.tensor([3, 4]))], torch.nn.Identity(), True),  # pair_content
+            ([], TestNet(), False),  # empty_data
         ]
     )
     def test_prepare_batch(self, name, dataloader, network, should_run):

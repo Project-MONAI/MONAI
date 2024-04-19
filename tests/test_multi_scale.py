@@ -60,17 +60,16 @@ class TestMultiScale(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ("kernel_none", {"loss": dice_loss, "kernel": "none"}, None, None),
-            ("scales_negative", {"loss": dice_loss, "scales": [-1]}, torch.ones((1, 1, 3)), torch.ones((1, 1, 3))),
+            ({"loss": dice_loss, "kernel": "none"}, None, None),  # kernel_none
+            ({"loss": dice_loss, "scales": [-1]}, torch.ones((1, 1, 3)), torch.ones((1, 1, 3))),  # scales_negative
             (
-                "scales_negative_reduction_none",
                 {"loss": dice_loss, "scales": [-1], "reduction": "none"},
                 torch.ones((1, 1, 3)),
                 torch.ones((1, 1, 3)),
-            ),
+            ),  # scales_negative_reduction_none
         ]
     )
-    def test_ill_opts(self, name, kwargs, input, target):
+    def test_ill_opts(self, kwargs, input, target):
         if input is None and target is None:
             with self.assertRaisesRegex(ValueError, ""):
                 MultiScaleLoss(**kwargs)
