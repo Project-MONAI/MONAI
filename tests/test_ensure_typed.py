@@ -104,7 +104,7 @@ class TestEnsureTyped(unittest.TestCase):
                 self.assertEqual(trans["label"]["img"].dtype, np.int8)
             else:
                 self.assertEqual(trans["data"]["img"].dtype, torch.float32)
-                self.asseassertEqualrtTrue(trans["label"]["img"].dtype, torch.int8)
+                self.assertEqual(trans["label"]["img"].dtype, torch.int8)
 
 
 if __name__ == "__main__":
