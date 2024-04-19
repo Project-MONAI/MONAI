@@ -48,7 +48,7 @@ class TestPrepareBatchDefault(unittest.TestCase):
             ([], TestNet(), False),  # empty_data
         ]
     )
-    def test_prepare_batch(self, name, dataloader, network, should_run):
+    def test_prepare_batch(self, dataloader, network, should_run):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         evaluator = SupervisedEvaluator(
             device=device,
@@ -64,10 +64,10 @@ class TestPrepareBatchDefault(unittest.TestCase):
 
         if should_run:
             output = evaluator.state.output
-            if name == "dict_content" or name == "pair_content":
+            if isinstance(dataloader[0], dict) or isinstance(dataloader[0], tuple):
                 assert_allclose(output["image"], torch.tensor([1, 2], device=device))
                 assert_allclose(output["label"], torch.tensor([3, 4], device=device))
-            elif name == "tensor_content":
+            else:
                 assert_allclose(output["image"], torch.tensor([1, 2], device=device))
                 self.assertTrue(output["label"] is None)
 
