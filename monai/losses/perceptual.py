@@ -182,8 +182,7 @@ class PerceptualLoss(nn.Module):
             loss = self.perceptual_function(input, target)
 
         if self.channel_wise:
-            loss = loss.squeeze()
-            loss = torch.mean(loss, dim=0)
+            loss = torch.mean(loss.squeeze(), dim=0)
         else:
             loss = torch.mean(loss)
 
