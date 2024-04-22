@@ -478,7 +478,6 @@ class Decoder(nn.Module):
                         )
                     )
 
-
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))
         blocks.append(
             Convolution(
