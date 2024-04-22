@@ -477,8 +477,7 @@ class Decoder(nn.Module):
                             align_corners=None,
                         )
                     )
-                    # rename postconv for compatibility with monai-generative
-                    blocks[-1].__dict__["_modules"]["conv"] = blocks[-1].__dict__["_modules"].pop("postconv")
+
 
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))
         blocks.append(
@@ -752,4 +751,9 @@ class AutoencoderKL(nn.Module):
                 new_state_dict[f"{block}.attn.out_proj.bias"].shape
             )
 
+        # fix the upsample conv blocks which were renamed postconv
+        for k in new_state_dict:
+            if "postconv" in k:
+                old_name = k.replace("postconv", "conv")
+                new_state_dict[k] = old_state_dict[old_name]
         self.load_state_dict(new_state_dict)

@@ -268,8 +268,6 @@ class SPADEDecoder(nn.Module):
                         align_corners=None,
                     )
                 )
-                # rename postconv for compatibility with monai-generative
-                blocks[-1].__dict__["_modules"]["conv"] = blocks[-1].__dict__["_modules"].pop("postconv")
 
         blocks.append(nn.GroupNorm(num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True))
         blocks.append(
