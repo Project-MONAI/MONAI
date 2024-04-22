@@ -328,7 +328,6 @@ class Encoder(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.blocks:
-            # print(f'{block}: {x[0, 0, 0, 0]}')
             x = block(x)
         return x
 
