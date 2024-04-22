@@ -171,6 +171,8 @@ class UpSample(nn.Sequential):
                     "upsample_non_trainable",
                     CastTempType(initial_type=torch.bfloat16, temporary_type=torch.float32, submodule=upsample),
                 )
+            else:
+                self.add_module("upsample_non_trainable", upsample)
             if post_conv:
                 self.add_module("postconv", post_conv)
         elif up_mode == UpsampleMode.PIXELSHUFFLE:
