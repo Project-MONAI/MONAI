@@ -163,7 +163,7 @@ class UpSample(nn.Sequential):
                 mode=interp_mode.value,
                 align_corners=align_corners,
             )
-            # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
+            # Cast to float32 as 'upsample_nearest2d_out_frame' op does not support bfloat16
             # https://github.com/pytorch/pytorch/issues/86679. This issue is solved in PyTorch 2.1
             self.add_module(
                 "upsample_non_trainable",
