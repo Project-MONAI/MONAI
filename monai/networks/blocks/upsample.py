@@ -166,13 +166,13 @@ class UpSample(nn.Sequential):
 
             # Cast to float32 as 'upsample_nearest2d_out_frame' op does not support bfloat16
             # https://github.com/pytorch/pytorch/issues/86679. This issue is solved in PyTorch 2.1
-            if not pytorch_after(major=2, minor=1):
+            if pytorch_after(major=2, minor=1):
+                self.add_module("upsample_non_trainable", upsample)
+            else:
                 self.add_module(
                     "upsample_non_trainable",
                     CastTempType(initial_type=torch.bfloat16, temporary_type=torch.float32, submodule=upsample),
                 )
-            else:
-                self.add_module("upsample_non_trainable", upsample)
             if post_conv:
                 self.add_module("postconv", post_conv)
         elif up_mode == UpsampleMode.PIXELSHUFFLE:
