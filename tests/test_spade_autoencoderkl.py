@@ -42,6 +42,25 @@ CASES_NO_ATTENTION = [
         (1, 3, 16, 16),
         (1, 1, 16, 16),
         (1, 4, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 3,
+            "label_nc": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+        },
+        (1, 1, 16, 16, 16),
+        (1, 3, 16, 16, 16),
+        (1, 1, 16, 16, 16),
+        (1, 4, 4, 4, 4),
     ]
 ]
 
