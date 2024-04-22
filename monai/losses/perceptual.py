@@ -125,6 +125,7 @@ class PerceptualLoss(nn.Module):
             self.perceptual_function = LPIPS(pretrained=pretrained, net=network_type, verbose=False)
         self.is_fake_3d = is_fake_3d
         self.fake_3d_ratio = fake_3d_ratio
+        self.channel_wise=channel_wise
 
     def _calculate_axis_loss(self, input: torch.Tensor, target: torch.Tensor, spatial_axis: int) -> torch.Tensor:
         """
