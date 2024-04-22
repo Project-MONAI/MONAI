@@ -696,7 +696,7 @@ class AutoencoderKL(nn.Module):
 
     def load_old_state_dict(self, old_state_dict: dict, verbose=False) -> None:
         """
-        Load a state dict from an AutoencoderKL trained with MONAI Generative.
+        Load a state dict from an AutoencoderKL trained with [MONAI Generative](https://github.com/Project-MONAI/GenerativeModels).
 
         Args:
             old_state_dict: state dict from the old AutoencoderKL model.
