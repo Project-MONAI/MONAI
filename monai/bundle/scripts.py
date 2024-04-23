@@ -778,10 +778,19 @@ def run(
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             Default to None.
         tracking: if not None, enable the experiment tracking at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings,
-            if other string, treat it as file path to load the tracking settings.
-            if `dict`, treat it as tracking settings.
-            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
+            If "mlflow", will add `MLFlowHandler` to the parsed bundle with default tracking settings where a set of
+            common parameters shown below will be added and can be passed through the `override` parameter of this method.
+
+            - ``"output_dir"``: the path to save mlflow tracking outputs locally, default to "<bundle root>/eval".
+            - ``"tracking_uri"``: uri to save mlflow tracking outputs, default to "/output_dir/mlruns".
+            - ``"experiment_name"``: experiment name for this run, default to "monai_experiment".
+            - ``"run_name"``: the name of current run.
+            - ``"save_execute_config"``: whether to save the executed config files. It can be `False`, `/path/to/artifacts`
+              or `True`. If set to `True`, will save to the default path "<bundle_root>/eval". Default to `True`.
+
+            If other string, treat it as file path to load the tracking settings.
+            If `dict`, treat it as tracking settings.
+            Will patch the target config content with `tracking handlers` and the top-level items of `configs`.
             for detailed usage examples, please check the tutorial:
             https://github.com/Project-MONAI/tutorials/blob/main/experiment_management/bundle_integrate_mlflow.ipynb.
         args_file: a JSON or YAML file to provide default values for `run_id`, `meta_file`,

@@ -40,6 +40,7 @@ TEST_CASE_2 = [
 
 
 class TestHandlerPostProcessing(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_compute(self, input_params, decollate, expected):
         data = [

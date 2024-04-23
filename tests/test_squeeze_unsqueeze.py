@@ -61,6 +61,7 @@ ALL_CASES = [
 
 
 class TestUnsqueeze(unittest.TestCase):
+
     @parameterized.expand(RIGHT_CASES + ALL_CASES)
     def test_unsqueeze_right(self, arr, ndim, shape):
         self.assertEqual(unsqueeze_right(arr, ndim).shape, shape)

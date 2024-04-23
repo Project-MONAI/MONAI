@@ -62,6 +62,7 @@ TEST_CASE_LOCALNET_3D = [
 
 
 class TestLocalNet(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_LOCALNET_2D + TEST_CASE_LOCALNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = LocalNet(**input_param).to(device)

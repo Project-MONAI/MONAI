@@ -45,6 +45,7 @@ TASK = "integration_classification_2d"
 
 
 class MedNISTDataset(torch.utils.data.Dataset):
+
     def __init__(self, image_files, labels, transforms):
         self.image_files = image_files
         self.labels = labels
@@ -182,6 +183,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
 
 @skip_if_quick
 class IntegrationClassification2D(DistTestCase):
+
     def setUp(self):
         set_determinism(seed=0)
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")

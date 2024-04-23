@@ -25,6 +25,7 @@ cp, _ = optional_import("cupy")
 
 
 class TestToNumpy(unittest.TestCase):
+
     @skipUnless(HAS_CUPY, "CuPy is required.")
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
@@ -70,7 +71,7 @@ class TestToNumpy(unittest.TestCase):
         assert_allclose(result, np.asarray(test_data), type_test=False)
         test_data = ((1, 2), (3, 4))
         result = ToNumpy(wrap_sequence=False)(test_data)
-        self.assertTrue(type(result), tuple)
+        self.assertIsInstance(result, tuple)
         assert_allclose(result, ((np.asarray(1), np.asarray(2)), (np.asarray(3), np.asarray(4))))
 
     def test_single_value(self):

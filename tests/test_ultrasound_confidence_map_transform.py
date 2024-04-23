@@ -15,6 +15,7 @@ import unittest
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai.transforms import UltrasoundConfidenceMapTransform
 from tests.utils import assert_allclose
@@ -518,6 +519,7 @@ SINK_MASK_OUTPUT = np.array(
 
 
 class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
+
     def setUp(self):
         self.input_img_np = np.expand_dims(TEST_INPUT, axis=0)  # mock image (numpy array)
         self.input_mask_np = np.expand_dims(TEST_MASK, axis=0)  # mock mask (numpy array)
@@ -534,162 +536,92 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         with self.assertRaises(ValueError):
             UltrasoundConfidenceMapTransform(sink_mode="unknown")
 
-    def test_rgb(self):
+    @parameterized.expand(
+        [("all", SINK_ALL_OUTPUT), ("mid", SINK_MID_OUTPUT), ("min", SINK_MIN_OUTPUT), ("mask", SINK_MASK_OUTPUT, True)]
+    )
+    def test_ultrasound_confidence_map_transform(self, sink_mode, expected_output, use_mask=False):
         # RGB image
         input_img_rgb = np.expand_dims(np.repeat(self.input_img_np, 3, axis=0), axis=0)
         input_img_rgb_torch = torch.from_numpy(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="all")
-        result_torch = transform(input_img_rgb_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_ALL_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb)
-        self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_ALL_OUTPUT, rtol=1e-4, atol=1e-4)
+        transform = UltrasoundConfidenceMapTransform(sink_mode=sink_mode)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mid")
-        result_torch = transform(input_img_rgb_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_MID_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb)
-        self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_MID_OUTPUT, rtol=1e-4, atol=1e-4)
+        if use_mask:
+            result_torch = transform(input_img_rgb_torch, self.input_mask_torch)
+            result_np = transform(input_img_rgb, self.input_mask_np)
+        else:
+            result_torch = transform(input_img_rgb_torch)
+            result_np = transform(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="min")
-        result_torch = transform(input_img_rgb_torch)
         self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_MIN_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb)
+        assert_allclose(result_torch, torch.tensor(expected_output), rtol=1e-4, atol=1e-4)
         self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_MIN_OUTPUT, rtol=1e-4, atol=1e-4)
+        assert_allclose(result_np, expected_output, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mask")
-        result_torch = transform(input_img_rgb_torch, self.input_mask_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_MASK_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb, self.input_mask_np)
-        self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_MASK_OUTPUT, rtol=1e-4, atol=1e-4)
-
-    def test_multi_channel_2d(self):
-        # 2D multi-channel image
+    @parameterized.expand(
+        [
+            ("all", SINK_ALL_OUTPUT),
+            ("mid", SINK_MID_OUTPUT),
+            ("min", SINK_MIN_OUTPUT),
+            ("mask", SINK_MASK_OUTPUT, True),  # Adding a flag for mask cases
+        ]
+    )
+    def test_multi_channel_2d(self, sink_mode, expected_output, use_mask=False):
         input_img_rgb = np.expand_dims(np.repeat(self.input_img_np, 17, axis=0), axis=0)
         input_img_rgb_torch = torch.from_numpy(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="all")
-        result_torch = transform(input_img_rgb_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_ALL_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb)
-        self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_ALL_OUTPUT, rtol=1e-4, atol=1e-4)
+        transform = UltrasoundConfidenceMapTransform(sink_mode=sink_mode)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mid")
-        result_torch = transform(input_img_rgb_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_MID_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb)
-        self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_MID_OUTPUT, rtol=1e-4, atol=1e-4)
+        if use_mask:
+            result_torch = transform(input_img_rgb_torch, self.input_mask_torch)
+            result_np = transform(input_img_rgb, self.input_mask_np)
+        else:
+            result_torch = transform(input_img_rgb_torch)
+            result_np = transform(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="min")
-        result_torch = transform(input_img_rgb_torch)
         self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_MIN_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb)
+        assert_allclose(result_torch, torch.tensor(expected_output), rtol=1e-4, atol=1e-4)
         self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_MIN_OUTPUT, rtol=1e-4, atol=1e-4)
+        assert_allclose(result_np, expected_output, rtol=1e-4, atol=1e-4)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mask")
-        result_torch = transform(input_img_rgb_torch, self.input_mask_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-        assert_allclose(result_torch, torch.tensor(SINK_MASK_OUTPUT), rtol=1e-4, atol=1e-4)
-        result_np = transform(input_img_rgb, self.input_mask_np)
-        self.assertIsInstance(result_np, np.ndarray)
-        assert_allclose(result_np, SINK_MASK_OUTPUT, rtol=1e-4, atol=1e-4)
-
-    def test_non_one_first_dim(self):
-        # Image without first dimension as 1
+    @parameterized.expand([("all",), ("mid",), ("min",), ("mask",)])
+    def test_non_one_first_dim(self, sink_mode):
+        transform = UltrasoundConfidenceMapTransform(sink_mode=sink_mode)
         input_img_rgb = np.repeat(self.input_img_np, 3, axis=0)
         input_img_rgb_torch = torch.from_numpy(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="all")
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb_torch)
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb)
+        if sink_mode == "mask":
+            with self.assertRaises(ValueError):
+                transform(input_img_rgb_torch, self.input_mask_torch)
+            with self.assertRaises(ValueError):
+                transform(input_img_rgb, self.input_mask_np)
+        else:
+            with self.assertRaises(ValueError):
+                transform(input_img_rgb_torch)
+            with self.assertRaises(ValueError):
+                transform(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mid")
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb_torch)
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb)
-
-        transform = UltrasoundConfidenceMapTransform(sink_mode="min")
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb_torch)
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb)
-
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mask")
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb_torch, self.input_mask_torch)
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb, self.input_mask_np)
-
-    def test_no_first_dim(self):
-        # Image without first dimension
+    @parameterized.expand([("all",), ("mid",), ("min",), ("mask",)])
+    def test_no_first_dim(self, sink_mode):
         input_img_rgb = self.input_img_np[0]
         input_img_rgb_torch = torch.from_numpy(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="all")
+        transform = UltrasoundConfidenceMapTransform(sink_mode=sink_mode)
+
         with self.assertRaises(ValueError):
             transform(input_img_rgb_torch)
         with self.assertRaises(ValueError):
             transform(input_img_rgb)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mid")
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb_torch)
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb)
+        if sink_mode == "mask":
+            with self.assertRaises(ValueError):
+                transform(input_img_rgb_torch, self.input_mask_torch)
+            with self.assertRaises(ValueError):
+                transform(input_img_rgb, self.input_mask_np)
 
-        transform = UltrasoundConfidenceMapTransform(sink_mode="min")
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb_torch)
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb)
-
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mask")
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb_torch, self.input_mask_torch)
-        with self.assertRaises(ValueError):
-            transform(input_img_rgb, self.input_mask_np)
-
-    def test_sink_all(self):
-        transform = UltrasoundConfidenceMapTransform(sink_mode="all")
-
-        # This should not raise an exception for torch tensor
-        result_torch = transform(self.input_img_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-
-        # This should not raise an exception for numpy array
-        result_np = transform(self.input_img_np)
-        self.assertIsInstance(result_np, np.ndarray)
-
-    def test_sink_mid(self):
-        transform = UltrasoundConfidenceMapTransform(sink_mode="mid")
-
-        # This should not raise an exception for torch tensor
-        result_torch = transform(self.input_img_torch)
-        self.assertIsInstance(result_torch, torch.Tensor)
-
-        # This should not raise an exception for numpy array
-        result_np = transform(self.input_img_np)
-        self.assertIsInstance(result_np, np.ndarray)
-
-    def test_sink_min(self):
-        transform = UltrasoundConfidenceMapTransform(sink_mode="min")
+    @parameterized.expand([("all",), ("mid",), ("min",)])
+    def test_sink_mode(self, mode):
+        transform = UltrasoundConfidenceMapTransform(sink_mode=mode)
 
         # This should not raise an exception for torch tensor
         result_torch = transform(self.input_img_torch)

@@ -38,6 +38,7 @@ from monai.transforms.utils_pytorch_numpy_unification import (
     nonzero,
     ravel,
     searchsorted,
+    softplus,
     unique,
     unravel_index,
     where,
@@ -131,7 +132,43 @@ __all__ = [
     "resolves_modes",
     "has_status_keys",
     "distance_transform_edt",
+    "soft_clip",
 ]
+
+
+def soft_clip(
+    arr: NdarrayOrTensor,
+    sharpness_factor: float = 1.0,
+    minv: NdarrayOrTensor | float | int | None = None,
+    maxv: NdarrayOrTensor | float | int | None = None,
+    dtype: DtypeLike | torch.dtype = np.float32,
+) -> NdarrayOrTensor:
+    """
+    Apply soft clip to the input array or tensor.
+    The intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    From https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291
+
+    To perform one-sided clipping, set either minv or maxv to None.
+    Args:
+        arr: input array to clip.
+        sharpness_factor: the sharpness of the soft clip function, default to 1.
+        minv: minimum value of target clipped array.
+        maxv: maximum value of target clipped array.
+        dtype: if not None, convert input array to dtype before computation.
+
+    """
+
+    if dtype is not None:
+        arr, *_ = convert_data_type(arr, dtype=dtype)
+
+    v = arr
+    if minv is not None:
+        v = v + softplus(-sharpness_factor * (arr - minv)) / sharpness_factor
+    if maxv is not None:
+        v = v - softplus(sharpness_factor * (arr - maxv)) / sharpness_factor
+
+    return v
 
 
 def rand_choice(prob: float = 0.5) -> bool:
@@ -625,9 +662,12 @@ def generate_label_classes_crop_centers(
 
     for i, array in enumerate(indices):
         if len(array) == 0:
-            ratios_[i] = 0
-            if warn:
-                warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
+            if ratios_[i] != 0:
+                ratios_[i] = 0
+                if warn:
+                    warnings.warn(
+                        f"no available indices of class {i} to crop, setting the crop ratio of this class to zero."
+                    )
 
     centers = []
     classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
@@ -2150,7 +2190,7 @@ def distance_transform_edt(
         if return_distances:
             dtype = torch.float64 if float64_distances else torch.float32
             if distances is None:
-                distances = torch.zeros_like(img, dtype=dtype)  # type: ignore
+                distances = torch.zeros_like(img, memory_format=torch.contiguous_format, dtype=dtype)  # type: ignore
             else:
                 if not isinstance(distances, torch.Tensor) and distances.device != img.device:
                     raise TypeError("distances must be a torch.Tensor on the same device as img")

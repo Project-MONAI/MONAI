@@ -93,6 +93,7 @@ TEST_CASE_10 = [
 
 
 class TestDownload(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @skip_if_quick
     def test_github_download_bundle(self, bundle_name, version):
@@ -192,6 +193,7 @@ class TestDownload(unittest.TestCase):
 
 @skip_if_no_cuda
 class TestLoad(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_7])
     @skip_if_quick
     def test_load_weights(self, bundle_files, bundle_name, repo, device, model_file):
@@ -336,6 +338,7 @@ class TestLoad(unittest.TestCase):
 
 
 class TestDownloadLargefiles(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_10])
     @skip_if_quick
     def test_url_download_large_files(self, bundle_files, bundle_name, url, hash_val):

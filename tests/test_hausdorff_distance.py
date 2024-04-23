@@ -168,6 +168,7 @@ def _describe_test_case(test_func, test_number, params):
 
 
 class TestHausdorffDistance(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_EXPANDED, doc_func=_describe_test_case)
     def test_value(self, device, metric, directed, input_data, expected_value):
         percentile = None

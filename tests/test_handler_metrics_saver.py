@@ -24,6 +24,7 @@ from monai.utils.enums import PostFix
 
 
 class TestHandlerMetricsSaver(unittest.TestCase):
+
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             metrics_saver = MetricsSaver(

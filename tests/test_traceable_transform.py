@@ -17,6 +17,7 @@ from monai.transforms.inverse import TraceableTransform
 
 
 class _TraceTest(TraceableTransform):
+
     def __call__(self, data):
         self.push_transform(data)
         return data
@@ -27,6 +28,7 @@ class _TraceTest(TraceableTransform):
 
 
 class TestTraceable(unittest.TestCase):
+
     def test_default(self):
         expected_key = "_transforms"
         a = _TraceTest()

@@ -25,6 +25,7 @@ TEST_CASES_3D = [
 
 
 class TestFactRed(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_3D)
     def test_factorized_reduce_3d(self, input_param, input_shape, expected_shape):
         net = FactorizedReduceBlock(**input_param)

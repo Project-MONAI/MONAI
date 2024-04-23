@@ -72,6 +72,7 @@ def get_deconv_block(spatial_dims: int, in_channels: int, out_channels: int) -> 
 
 
 class ResidualBlock(nn.Module):
+
     def __init__(
         self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int
     ) -> None:
@@ -95,6 +96,7 @@ class ResidualBlock(nn.Module):
 
 
 class LocalNetResidualBlock(nn.Module):
+
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
         super().__init__()
         if in_channels != out_channels:

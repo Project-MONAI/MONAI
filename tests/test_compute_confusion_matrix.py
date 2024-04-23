@@ -220,6 +220,7 @@ TEST_CASE_PRECISION = [
 
 
 class TestConfusionMatrix(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_CONFUSION_MATRIX])
     def test_value(self, input_data, expected_value):
         # include or ignore background

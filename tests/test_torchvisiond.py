@@ -52,6 +52,7 @@ TEST_CASE_3 = [
 
 
 class TestTorchVisiond(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value(self, input_param, input_data, expected_value):
         set_determinism(seed=0)

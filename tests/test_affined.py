@@ -168,6 +168,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestAffined(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_affine(self, input_param, input_data, expected_val):
         input_copy = deepcopy(input_data)

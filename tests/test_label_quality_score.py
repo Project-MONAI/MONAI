@@ -99,6 +99,7 @@ TEST_CASE_7 = [  # y_pred (1, 1, 2, 2)
 
 
 class TestLabelQualityScore(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_data, expected_value):
         result = label_quality_score(**input_data)

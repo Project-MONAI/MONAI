@@ -252,6 +252,7 @@ TEST_CASE_15 = [
 
 
 class TestComputeMeanDice(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_11, TEST_CASE_12])
     def test_value(self, input_data, expected_value):
         result = compute_dice(**input_data)

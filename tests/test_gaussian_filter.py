@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import GaussianFilter
-from tests.utils import skip_if_quick
+from tests.utils import SkipIfAtLeastPyTorchVersion, skip_if_quick
 
 TEST_CASES = [[{"type": "erf", "gt": 2.0}], [{"type": "scalespace", "gt": 3.0}], [{"type": "sampled", "gt": 5.0}]]
 TEST_CASES_GPU = [[{"type": "erf", "gt": 0.8, "device": "cuda"}], [{"type": "sampled", "gt": 5.0, "device": "cuda"}]]
@@ -34,7 +34,9 @@ TEST_CASES_SLOW = [
 ]
 
 
+@SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class TestGaussianFilterBackprop(unittest.TestCase):
+
     def code_to_run(self, input_args):
         input_dims = input_args.get("dims", (2, 3, 8))
         device = (
@@ -93,7 +95,9 @@ class TestGaussianFilterBackprop(unittest.TestCase):
         self.code_to_run(input_args)
 
 
+@SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class GaussianFilterTestCase(unittest.TestCase):
+
     def test_1d(self):
         a = torch.ones(1, 8, 10)
         g = GaussianFilter(1, 3, 3).to(torch.device("cpu:0"))

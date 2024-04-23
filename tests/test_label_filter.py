@@ -58,6 +58,7 @@ INVALID_CASES = [ITEST_CASE_1]
 
 
 class TestLabelFilter(unittest.TestCase):
+
     @parameterized.expand(VALID_TESTS)
     def test_correct_results(self, _, args, input_image, expected):
         converter = LabelFilter(**args)

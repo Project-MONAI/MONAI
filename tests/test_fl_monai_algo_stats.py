@@ -64,6 +64,7 @@ TEST_GET_DATA_STATS_3 = [
 
 @SkipIfNoModule("ignite")
 class TestFLMonaiAlgo(unittest.TestCase):
+
     @parameterized.expand([TEST_GET_DATA_STATS_1, TEST_GET_DATA_STATS_2, TEST_GET_DATA_STATS_3])
     def test_get_data_stats(self, input_params):
         # initialize algo

@@ -24,6 +24,7 @@ from tests.utils import assert_allclose, skip_if_quick
 
 
 class DenseNetAdjoint(DenseNet121):
+
     def __call__(self, x, adjoint_info):
         if adjoint_info != 42:
             raise ValueError
@@ -149,6 +150,7 @@ for cam in (GradCAM, GradCAMpp):
 
 @skip_if_quick
 class TestGradientClassActivationMap(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, cam_class, input_data, expected_shape):
         if input_data["model"] == "densenet2d":

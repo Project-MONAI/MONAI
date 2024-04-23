@@ -86,16 +86,27 @@ TEST_CASES = [
 
 
 class TestDiceCELoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_param, input_data, expected_val):
         diceceloss = DiceCELoss(**input_param)
         result = diceceloss(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
-    # def test_ill_shape(self):
-    #     loss = DiceCELoss()
-    #     with self.assertRaisesRegex(ValueError, ""):
-    #         loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+    def test_ill_shape(self):
+        loss = DiceCELoss()
+        with self.assertRaises(AssertionError):
+            loss.forward(torch.ones((1, 2, 3)), torch.ones((1, 2, 5)))
+
+    def test_ill_shape2(self):
+        loss = DiceCELoss()
+        with self.assertRaises(ValueError):
+            loss.forward(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+
+    def test_ill_shape3(self):
+        loss = DiceCELoss()
+        with self.assertRaises(ValueError):
+            loss.forward(torch.ones((1, 3, 4, 4)), torch.ones((1, 2, 4, 4)))
 
     # def test_ill_reduction(self):
     #     with self.assertRaisesRegex(ValueError, ""):

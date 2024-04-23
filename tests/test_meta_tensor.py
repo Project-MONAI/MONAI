@@ -50,6 +50,7 @@ def rand_string(min_len=5, max_len=10):
 
 
 class TestMetaTensor(unittest.TestCase):
+
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:

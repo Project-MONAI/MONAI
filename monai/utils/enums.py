@@ -411,7 +411,7 @@ class CompInitMode(StrEnum):
     """
 
     DEFAULT = "default"
-    PARTIAL = "partial"
+    CALLABLE = "callable"
     DEBUG = "debug"
 
 
