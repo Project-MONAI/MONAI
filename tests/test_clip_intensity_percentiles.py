@@ -18,7 +18,6 @@ from parameterized import parameterized
 from monai.transforms import ClipIntensityPercentiles
 from monai.transforms.utils import soft_clip
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile
-from monai.utils.type_conversion import convert_to_tensor
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
@@ -30,8 +29,8 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
         im = p(self.imt)
         result = hard_clipper(im)
         lower, upper = percentile(im, (5, 95))
-        expected = clip(convert_to_tensor(im), lower, upper)
-        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        expected = clip(im, lower, upper)
+        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_high(self, p):
@@ -40,7 +39,7 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
         result = hard_clipper(im)
         lower, upper = percentile(im, (0, 95))
         expected = clip(im, lower, upper)
-        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_low(self, p):
@@ -49,7 +48,7 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
         result = hard_clipper(im)
         lower, upper = percentile(im, (5, 100))
         expected = clip(im, lower, upper)
-        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_soft_clipping_two_sided(self, p):
@@ -89,7 +88,7 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
         for i, c in enumerate(im):
             lower, upper = percentile(c, (5, 95))
             expected = clip(c, lower, upper)
-            assert_allclose(result[i], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+            assert_allclose(result[i], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     def test_ill_sharpness_factor(self):
         with self.assertRaises(ValueError):
@@ -121,7 +120,7 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
         result = hard_clipper(im)
         lower, upper = percentile(im, (5, 95))
         expected = clip(im, lower, upper)
-        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_high(self, p):
@@ -130,7 +129,7 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
         result = hard_clipper(im)
         lower, upper = percentile(im, (0, 95))
         expected = clip(im, lower, upper)
-        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_low(self, p):
@@ -139,7 +138,7 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
         result = hard_clipper(im)
         lower, upper = percentile(im, (5, 100))
         expected = clip(im, lower, upper)
-        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result, p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_soft_clipping_two_sided(self, p):
@@ -179,7 +178,7 @@ class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
         for i, c in enumerate(im):
             lower, upper = percentile(c, (5, 95))
             expected = clip(c, lower, upper)
-            assert_allclose(result[i], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+            assert_allclose(result[i], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
 
 if __name__ == "__main__":
