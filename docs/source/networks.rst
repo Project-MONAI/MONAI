@@ -491,6 +491,11 @@ Nets
 .. autoclass:: ResNet
   :members:
 
+`ResNetFeatures`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ResNetFeatures
+  :members:
+
 `SENet`
 ~~~~~~~
 .. autoclass:: SENet
