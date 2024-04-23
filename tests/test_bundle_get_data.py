@@ -55,6 +55,7 @@ class TestGetBundleData(unittest.TestCase):
             self.assertIsInstance(output[0], tuple)
             self.assertTrue(len(output[0]) == 2)
 
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_5])
     @skip_if_quick
     def test_get_bundle_versions(self, params):
