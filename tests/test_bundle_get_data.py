@@ -53,7 +53,7 @@ class TestGetBundleData(unittest.TestCase):
             output = get_all_bundles_list(**params)
             self.assertTrue(isinstance(output, list))
             self.assertTrue(isinstance(output[0], tuple))
-            self.assertTrue(len(output[0]) == 2)
+            self.assertEqual(len(output[0]), 2)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_5])
     @skip_if_quick
