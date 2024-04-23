@@ -527,7 +527,7 @@ class MONAIEnvVars:
 
     @staticmethod
     def algo_hash() -> str | None:
-        return os.environ.get("MONAI_ALGO_HASH", "f65128f")
+        return os.environ.get("MONAI_ALGO_HASH", "4403f94")
 
     @staticmethod
     def trace_transform() -> str | None:

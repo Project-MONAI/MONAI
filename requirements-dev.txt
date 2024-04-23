@@ -11,7 +11,7 @@ scikit-image>=0.19.0
 tqdm>=4.47.0
 lmdb
 flake8>=3.8.1
-flake8-bugbear
+flake8-bugbear<=24.2.6  # https://github.com/Project-MONAI/MONAI/issues/7690
 flake8-comprehensions
 mccabe
 pep8-naming
@@ -34,7 +34,7 @@ pandas
 requests
 einops
 transformers>=4.36.0
-mlflow>=1.28.0
+mlflow>=1.28.0, <=2.11.3
 clearml>=1.10.0rc0
 matplotlib!=3.5.0
 tensorboardX

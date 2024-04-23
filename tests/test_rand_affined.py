@@ -272,13 +272,10 @@ class TestRandAffined(unittest.TestCase):
             self.assertEqual(len(v.applied_operations), 0)
             self.assertTupleEqual(v.shape, input_data[k].shape)
 
-    def test_ill_cache(self):
+    @parameterized.expand([(None,), ((2, -1),)])  # spatial size is None  # spatial size is dynamic
+    def test_ill_cache(self, spatial_size):
         with self.assertWarns(UserWarning):
-            # spatial size is None
-            RandAffined(device=device, spatial_size=None, prob=1.0, cache_grid=True, keys=("img", "seg"))
-        with self.assertWarns(UserWarning):
-            # spatial size is dynamic
-            RandAffined(device=device, spatial_size=(2, -1), prob=1.0, cache_grid=True, keys=("img", "seg"))
+            RandAffined(device=device, spatial_size=spatial_size, prob=1.0, cache_grid=True, keys=("img", "seg"))
 
 
 if __name__ == "__main__":

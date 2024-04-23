@@ -23,12 +23,11 @@ from monai.networks.nets import (
     EfficientNetBNFeatures,
     FlexibleUNet,
     FlexUNetEncoderRegister,
-    ResNet,
-    ResNetBlock,
-    ResNetBottleneck,
+    ResNetEncoder,
+    ResNetFeatures,
 )
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails, skip_if_quick
+from tests.utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")
@@ -59,101 +58,6 @@ class DummyEncoder(BaseEncoder):
         return ["encoder_wrong_channels", "encoder_no_param1", "encoder_no_param2", "encoder_no_param3"]
 
 
-class ResNetEncoder(ResNet, BaseEncoder):
-    backbone_names = ["resnet10", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152", "resnet200"]
-    output_feature_channels = [(64, 128, 256, 512)] * 3 + [(256, 512, 1024, 2048)] * 4
-    parameter_layers = [
-        [1, 1, 1, 1],
-        [2, 2, 2, 2],
-        [3, 4, 6, 3],
-        [3, 4, 6, 3],
-        [3, 4, 23, 3],
-        [3, 8, 36, 3],
-        [3, 24, 36, 3],
-    ]
-
-    def __init__(self, in_channels, pretrained, **kargs):
-        super().__init__(**kargs, n_input_channels=in_channels)
-        if pretrained:
-            # Author of paper zipped the state_dict on googledrive,
-            # so would need to download, unzip and read (2.8gb file for a ~150mb state dict).
-            # Would like to load dict from url but need somewhere to save the state dicts.
-            raise NotImplementedError(
-                "Currently not implemented. You need to manually download weights provided by the paper's author"
-                " and load then to the model with `state_dict`. See https://github.com/Tencent/MedicalNet"
-            )
-
-    @staticmethod
-    def get_inplanes():
-        return [64, 128, 256, 512]
-
-    @classmethod
-    def get_encoder_parameters(cls) -> list[dict]:
-        """
-        Get parameter list to initialize encoder networks.
-        Each parameter dict must have `spatial_dims`, `in_channels`
-        and `pretrained` parameters.
-        """
-        parameter_list = []
-        res_type: type[ResNetBlock] | type[ResNetBottleneck]
-        for backbone in range(len(cls.backbone_names)):
-            if backbone < 3:
-                res_type = ResNetBlock
-            else:
-                res_type = ResNetBottleneck
-            parameter_list.append(
-                {
-                    "block": res_type,
-                    "layers": cls.parameter_layers[backbone],
-                    "block_inplanes": ResNetEncoder.get_inplanes(),
-                    "spatial_dims": 2,
-                    "in_channels": 3,
-                    "pretrained": False,
-                }
-            )
-        return parameter_list
-
-    @classmethod
-    def num_channels_per_output(cls):
-        """
-        Get number of output features' channel.
-        """
-        return cls.output_feature_channels
-
-    @classmethod
-    def num_outputs(cls):
-        """
-        Get number of output feature.
-        """
-        return [4] * 7
-
-    @classmethod
-    def get_encoder_names(cls):
-        """
-        Get the name string of backbones which will be used to initialize flexible unet.
-        """
-        return cls.backbone_names
-
-    def forward(self, x: torch.Tensor):
-        feature_list = []
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        if not self.no_max_pool:
-            x = self.maxpool(x)
-        x = self.layer1(x)
-        feature_list.append(x)
-        x = self.layer2(x)
-        feature_list.append(x)
-        x = self.layer3(x)
-        feature_list.append(x)
-        x = self.layer4(x)
-        feature_list.append(x)
-
-        return feature_list
-
-
-FLEXUNET_BACKBONE.register_class(ResNetEncoder)
 FLEXUNET_BACKBONE.register_class(DummyEncoder)
 
 
@@ -204,9 +108,7 @@ def make_shape_cases(
 
 
 def make_error_case():
-    error_dummy_backbones = DummyEncoder.get_encoder_names()
-    error_resnet_backbones = ResNetEncoder.get_encoder_names()
-    error_backbones = error_dummy_backbones + error_resnet_backbones
+    error_backbones = DummyEncoder.get_encoder_names()
     error_param_list = []
     for backbone in error_backbones:
         error_param_list.append(
@@ -232,7 +134,7 @@ CASES_2D = make_shape_cases(
     norm="instance",
 )
 CASES_3D = make_shape_cases(
-    models=[SEL_MODELS[0]],
+    models=[SEL_MODELS[0], SEL_MODELS[2]],
     spatial_dims=[3],
     batches=[1],
     pretrained=[False],
@@ -345,6 +247,7 @@ CASES_PRETRAIN = [
             "spatial_dims": 2,
             "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
         },
+        EfficientNetBNFeatures,
         {
             "in_channels": 3,
             "num_classes": 10,
@@ -354,7 +257,20 @@ CASES_PRETRAIN = [
             "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
         },
         ["_conv_stem.weight"],
-    )
+    ),
+    (
+        {
+            "in_channels": 1,
+            "out_channels": 10,
+            "backbone": SEL_MODELS[2],
+            "pretrained": True,
+            "spatial_dims": 3,
+            "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
+        },
+        ResNetFeatures,
+        {"model_name": SEL_MODELS[2], "pretrained": True, "spatial_dims": 3, "in_channels": 1},
+        ["conv1.weight"],
+    ),
 ]
 
 CASE_ERRORS = make_error_case()
@@ -363,6 +279,7 @@ CASE_ERRORS = make_error_case()
 CASE_REGISTER_ENCODER = ["EfficientNetEncoder", "monai.networks.nets.EfficientNetEncoder"]
 
 
+@SkipIfNoModule("hf_hub_download")
 @skip_if_quick
 class TestFLEXIBLEUNET(unittest.TestCase):
 
@@ -381,19 +298,19 @@ class TestFLEXIBLEUNET(unittest.TestCase):
         self.assertEqual(result.shape, expected_shape)
 
     @parameterized.expand(CASES_PRETRAIN)
-    def test_pretrain(self, input_param, efficient_input_param, weight_list):
+    def test_pretrain(self, flexunet_input_param, feature_extractor_class, feature_extractor_input_param, weight_list):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         with skip_if_downloading_fails():
-            net = FlexibleUNet(**input_param).to(device)
+            net = FlexibleUNet(**flexunet_input_param).to(device)
 
         with skip_if_downloading_fails():
-            eff_net = EfficientNetBNFeatures(**efficient_input_param).to(device)
+            feature_extractor_net = feature_extractor_class(**feature_extractor_input_param).to(device)
 
         for weight_name in weight_list:
-            if weight_name in net.encoder.state_dict() and weight_name in eff_net.state_dict():
+            if weight_name in net.encoder.state_dict() and weight_name in feature_extractor_net.state_dict():
                 net_weight = net.encoder.state_dict()[weight_name]
-                download_weight = eff_net.state_dict()[weight_name]
+                download_weight = feature_extractor_net.state_dict()[weight_name]
                 weight_diff = torch.abs(net_weight - download_weight)
                 diff_sum = torch.sum(weight_diff)
                 # check if a weight in weight_list equals to the downloaded weight.

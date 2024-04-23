@@ -24,6 +24,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import (
     ResNet,
+    ResNetFeatures,
     get_medicalnet_pretrained_resnet_args,
     get_pretrained_resnet_medicalnet,
     resnet10,
@@ -36,7 +37,14 @@ from monai.networks.nets import (
 )
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
-from tests.utils import equal_state_dict, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick, test_script_save
+from tests.utils import (
+    SkipIfNoModule,
+    equal_state_dict,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+    test_script_save,
+)
 
 if TYPE_CHECKING:
     import torchvision
@@ -191,6 +199,15 @@ TEST_SCRIPT_CASES = [
 ]
 
 
+CASE_EXTRACT_FEATURES = [
+    (
+        {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
+        [1, 1, 64, 64, 64],
+        ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
+    )
+]
+
+
 class TestResNet(unittest.TestCase):
 
     def setUp(self):
@@ -268,6 +285,26 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+
+@SkipIfNoModule("hf_hub_download")
+class TestExtractFeatures(unittest.TestCase):
+
+    @parameterized.expand(CASE_EXTRACT_FEATURES)
+    def test_shape(self, input_param, input_shape, expected_shapes):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        with skip_if_downloading_fails():
+            net = ResNetFeatures(**input_param).to(device)
+
+        # run inference with random tensor
+        with eval_mode(net):
+            features = net(torch.randn(input_shape).to(device))
+
+        # check output shape
+        self.assertEqual(len(features), len(expected_shapes))
+        for feature, expected_shape in zip(features, expected_shapes):
+            self.assertEqual(feature.shape, torch.Size(expected_shape))
 
 
 if __name__ == "__main__":
