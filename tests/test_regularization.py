@@ -20,7 +20,6 @@ from monai.utils import set_determinism
 
 
 class TestMixup(unittest.TestCase):
-
     def setUp(self) -> None:
         set_determinism(seed=0)
 
@@ -60,7 +59,6 @@ class TestMixup(unittest.TestCase):
 
 
 class TestCutMix(unittest.TestCase):
-
     def setUp(self) -> None:
         set_determinism(seed=0)
 
@@ -75,23 +73,32 @@ class TestCutMix(unittest.TestCase):
             output = cutmix(sample)
             self.assertEqual(output.shape, sample.shape)
             self.assertTrue(any(not torch.allclose(sample, cutmix(sample)) for _ in range(10)))
+            # croppings are different on each application... most of the times!
+            checks = [torch.allclose(sample, cutmix(sample)) for _ in range(1000)]
+            # 1000/(32*32*32)
+            self.assertTrue(sum(checks) < 5)
 
     def test_cutmixd(self):
+        batch_size = 6
         for dims in [2, 3]:
-            shape = (6, 3) + (32,) * dims
+            shape = (batch_size, 3) + (32,) * dims
             t = torch.rand(*shape, dtype=torch.float32)
             label = torch.randint(0, 1, shape)
             sample = {"a": t, "b": t, "lbl1": label, "lbl2": label}
-            cutmix = CutMixd(["a", "b"], 6, label_keys=("lbl1", "lbl2"))
-            output = cutmix(sample)
-            # croppings are different on each application
-            self.assertTrue(not torch.allclose(output["a"], output["b"]))
+            cutmix = CutMixd(["a", "b"], batch_size, label_keys=("lbl1", "lbl2"))
+            # croppings are different on each application... most of the times!
+            checks = []
+            for _ in range(1000):
+                output = cutmix(sample)
+                checks.append(torch.allclose(output["a"], output["b"]))
+            # 1000/(32*32*32)
+            self.assertTrue(sum(checks) < 5)
+
             # but mixing of labels is not affected by it
             self.assertTrue(torch.allclose(output["lbl1"], output["lbl2"]))
 
 
 class TestCutOut(unittest.TestCase):
-
     def setUp(self) -> None:
         set_determinism(seed=0)
 
