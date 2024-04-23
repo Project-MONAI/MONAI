@@ -12,14 +12,59 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SPADEAutoencoderKL
+from monai.utils import optional_import
 
-CASES = [
+einops, has_einops = optional_import("einops")
+
+CASES_NO_ATTENTION = [
+    [
+        {
+            "spatial_dims": 2,
+            "label_nc": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+        },
+        (1, 1, 16, 16),
+        (1, 3, 16, 16),
+        (1, 1, 16, 16),
+        (1, 4, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 3,
+            "label_nc": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+        },
+        (1, 1, 16, 16, 16),
+        (1, 3, 16, 16, 16),
+        (1, 1, 16, 16, 16),
+        (1, 4, 4, 4, 4),
+    ],
+]
+
+CASES_ATTENTION = [
     [
         {
             "spatial_dims": 2,
@@ -108,25 +153,6 @@ CASES = [
     ],
     [
         {
-            "spatial_dims": 2,
-            "label_nc": 3,
-            "in_channels": 1,
-            "out_channels": 1,
-            "channels": (4, 4, 4),
-            "latent_channels": 4,
-            "attention_levels": (False, False, False),
-            "num_res_blocks": 1,
-            "norm_num_groups": 4,
-            "with_encoder_nonlocal_attn": False,
-            "with_decoder_nonlocal_attn": False,
-        },
-        (1, 1, 16, 16),
-        (1, 3, 16, 16),
-        (1, 1, 16, 16),
-        (1, 4, 4, 4),
-    ],
-    [
-        {
             "spatial_dims": 3,
             "label_nc": 3,
             "in_channels": 1,
@@ -164,6 +190,11 @@ CASES = [
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+if has_einops:
+    CASES = CASES_ATTENTION + CASES_NO_ATTENTION
+else:
+    CASES = CASES_NO_ATTENTION
+
 
 class TestSPADEAutoEncoderKL(unittest.TestCase):
     @parameterized.expand(CASES)
@@ -174,6 +205,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
             self.assertEqual(result[0].shape, expected_shape)
             self.assertEqual(result[1].shape, expected_latent_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_model_channels_not_multiple_of_norm_num_group(self):
         with self.assertRaises(ValueError):
             SPADEAutoencoderKL(
@@ -188,6 +220,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
                 norm_num_groups=16,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_model_channels_not_same_size_of_attention_levels(self):
         with self.assertRaises(ValueError):
             SPADEAutoencoderKL(
@@ -202,6 +235,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
                 norm_num_groups=16,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_model_channels_not_same_size_of_num_res_blocks(self):
         with self.assertRaises(ValueError):
             SPADEAutoencoderKL(
@@ -240,6 +274,7 @@ class TestSPADEAutoEncoderKL(unittest.TestCase):
             result = net.decode(torch.randn(latent_shape).to(device), torch.randn(input_seg_shape).to(device))
             self.assertEqual(result.shape, expected_input_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_wrong_shape_decode(self):
         net = SPADEAutoencoderKL(
             spatial_dims=2,

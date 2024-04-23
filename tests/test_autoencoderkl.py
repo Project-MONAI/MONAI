@@ -18,11 +18,51 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import AutoencoderKL
+from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion
 
+tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
+einops, has_einops = optional_import("einops")
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-CASES = [
+CASES_NO_ATTENTION = [
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+        },
+        (1, 1, 16, 16),
+        (1, 1, 16, 16),
+        (1, 4, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 3,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+            "with_decoder_nonlocal_attn": False,
+        },
+        (1, 1, 16, 16, 16),
+        (1, 1, 16, 16, 16),
+        (1, 4, 4, 4, 4),
+    ],
+]
+
+CASES_ATTENTION = [
     [
         {
             "spatial_dims": 2,
@@ -75,42 +115,25 @@ CASES = [
             "out_channels": 1,
             "channels": (4, 4, 4),
             "latent_channels": 4,
+            "attention_levels": (False, False, False),
+            "num_res_blocks": 1,
+            "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": False,
+        },
+        (1, 1, 16, 16),
+        (1, 1, 16, 16),
+        (1, 4, 4, 4),
+    ],
+    [
+        {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 1,
+            "channels": (4, 4, 4),
+            "latent_channels": 4,
             "attention_levels": (False, False, True),
             "num_res_blocks": 1,
             "norm_num_groups": 4,
-        },
-        (1, 1, 16, 16),
-        (1, 1, 16, 16),
-        (1, 4, 4, 4),
-    ],
-    [
-        {
-            "spatial_dims": 2,
-            "in_channels": 1,
-            "out_channels": 1,
-            "channels": (4, 4, 4),
-            "latent_channels": 4,
-            "attention_levels": (False, False, False),
-            "num_res_blocks": 1,
-            "norm_num_groups": 4,
-            "with_encoder_nonlocal_attn": False,
-        },
-        (1, 1, 16, 16),
-        (1, 1, 16, 16),
-        (1, 4, 4, 4),
-    ],
-    [
-        {
-            "spatial_dims": 2,
-            "in_channels": 1,
-            "out_channels": 1,
-            "channels": (4, 4, 4),
-            "latent_channels": 4,
-            "attention_levels": (False, False, False),
-            "num_res_blocks": 1,
-            "norm_num_groups": 4,
-            "with_encoder_nonlocal_attn": False,
-            "with_decoder_nonlocal_attn": False,
         },
         (1, 1, 16, 16),
         (1, 1, 16, 16),
@@ -132,6 +155,11 @@ CASES = [
         (1, 4, 4, 4, 4),
     ],
 ]
+
+if has_einops:
+    CASES = CASES_NO_ATTENTION + CASES_ATTENTION
+else:
+    CASES = CASES_NO_ATTENTION
 
 
 class TestAutoEncoderKL(unittest.TestCase):

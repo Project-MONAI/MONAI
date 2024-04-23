@@ -46,6 +46,7 @@ TEST_CASE_6 = [
 
 
 class TestEnsureChannelFirst(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     @unittest.skipUnless(has_itk, "itk not installed")
     def test_load_nifti(self, input_param, filenames, original_channel_dim):

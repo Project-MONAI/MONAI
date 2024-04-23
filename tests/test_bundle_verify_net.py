@@ -28,6 +28,7 @@ TEST_CASE_1 = [
 
 @skip_if_windows
 class TestVerifyNetwork(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, meta_file, config_file):
         with tempfile.TemporaryDirectory() as tempdir:

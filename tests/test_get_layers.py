@@ -37,6 +37,7 @@ TEST_CASE_DROPOUT = [
 
 
 class TestGetLayers(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_NORM)
     def test_norm_layer(self, input_param, expected):
         layer = get_norm_layer(**input_param)
@@ -54,6 +55,7 @@ class TestGetLayers(unittest.TestCase):
 
 
 class TestSuggestion(unittest.TestCase):
+
     def test_suggested(self):
         with self.assertRaisesRegex(ValueError, "did you mean 'GROUP'?"):
             get_norm_layer(name="grop", spatial_dims=2)

@@ -26,6 +26,7 @@ TEST_CASE = [
 
 
 class TestConvertToMultiChanneld(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE])
     def test_type_shape(self, keys, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClassesd(**keys)(data)

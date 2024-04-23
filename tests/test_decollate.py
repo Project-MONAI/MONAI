@@ -81,6 +81,7 @@ TEST_BASIC = [
 
 
 class TestDeCollate(unittest.TestCase):
+
     def setUp(self) -> None:
         set_determinism(seed=0)
 
@@ -159,6 +160,7 @@ class TestDeCollate(unittest.TestCase):
 
 
 class TestBasicDeCollate(unittest.TestCase):
+
     @parameterized.expand(TEST_BASIC)
     def test_decollation_examples(self, input_val, expected_out):
         out = decollate_batch(input_val)

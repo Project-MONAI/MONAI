@@ -54,6 +54,7 @@ TEST_CASE_3 = [
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestSaveImaged(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_saved_content(self, test_data, output_ext, resample):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -73,7 +74,9 @@ class TestSaveImaged(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_custom_folderlayout(self, test_data, output_ext, resample):
+
         class TestFolderLayout(FolderLayoutBase):
+
             def __init__(self, basepath: Path, extension: str, makedirs: bool):
                 self.basepath = basepath
                 self.ext = extension

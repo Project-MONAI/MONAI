@@ -427,7 +427,7 @@ class PersistentDataset(Dataset):
 
 class CacheNTransDataset(PersistentDataset):
     """
-    Extension of `PersistentDataset`, tt can also cache the result of first N transforms, no matter it's random or not.
+    Extension of `PersistentDataset`, it can also cache the result of first N transforms, no matter it's random or not.
 
     """
 
@@ -1275,6 +1275,7 @@ class ZipDataset(Dataset):
         return min(len(dataset) for dataset in self.data)
 
     def _transform(self, index: int):
+
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 

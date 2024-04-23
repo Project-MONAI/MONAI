@@ -67,6 +67,7 @@ NORMALIZE_STAINS_TEST_CASE_4 = [
 
 
 class TestExtractHEStainsD(unittest.TestCase):
+
     @parameterized.expand([EXTRACT_STAINS_TEST_CASE_0, EXTRACT_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """
@@ -140,6 +141,7 @@ class TestExtractHEStainsD(unittest.TestCase):
 
 
 class TestNormalizeHEStainsD(unittest.TestCase):
+
     @parameterized.expand([NORMALIZE_STAINS_TEST_CASE_0, NORMALIZE_STAINS_TEST_CASE_1])
     def test_transparent_image(self, image):
         """

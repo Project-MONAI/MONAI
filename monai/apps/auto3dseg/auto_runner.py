@@ -85,6 +85,7 @@ class AutoRunner:
             can be skipped based on the analysis on the dataset from Auto3DSeg DataAnalyzer.
         mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of the remote
             tracking Server; MLflow runs will be recorded locally in algorithms' model folder if the value is None.
+        mlflow_experiment_name: the name of the experiment in MLflow server.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -212,6 +213,7 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         allow_skip: bool = True,
         mlflow_tracking_uri: str | None = None,
+        mlflow_experiment_name: str | None = None,
         **kwargs: Any,
     ):
         if input is None and os.path.isfile(os.path.join(os.path.abspath(work_dir), "input.yaml")):
@@ -253,6 +255,7 @@ class AutoRunner:
         self.hpo = hpo and has_nni
         self.hpo_backend = hpo_backend
         self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_experiment_name = mlflow_experiment_name
         self.kwargs = deepcopy(kwargs)
 
         # parse input config for AutoRunner param overrides
@@ -268,7 +271,13 @@ class AutoRunner:
             if param in self.data_src_cfg and isinstance(self.data_src_cfg[param], bool):
                 setattr(self, param, self.data_src_cfg[param])  # e.g. self.analyze = self.data_src_cfg["analyze"]
 
-        for param in ["algos", "hpo_backend", "templates_path_or_url", "mlflow_tracking_uri"]:  # override from config
+        for param in [
+            "algos",
+            "hpo_backend",
+            "templates_path_or_url",
+            "mlflow_tracking_uri",
+            "mlflow_experiment_name",
+        ]:  # override from config
             if param in self.data_src_cfg:
                 setattr(self, param, self.data_src_cfg[param])  # e.g. self.algos = self.data_src_cfg["algos"]
 
@@ -289,9 +298,13 @@ class AutoRunner:
                 pass
 
         # inspect and update folds
-        num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
+        self.max_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
         if "num_fold" in self.data_src_cfg:
             num_fold = int(self.data_src_cfg["num_fold"])  # override from config
+            logger.info(f"Setting num_fold {num_fold} based on the input config.")
+        else:
+            num_fold = self.max_fold
+            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
 
         self.data_src_cfg["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
         ConfigParser.export_config_file(
@@ -389,7 +402,10 @@ class AutoRunner:
 
         if len(fold_list) > 0:
             num_fold = max(fold_list) + 1
-            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            logger.info(f"Found num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            # check if every fold is present
+            if len(set(fold_list)) != num_fold:
+                raise ValueError(f"Fold numbers are not continuous from 0 to {num_fold - 1}")
         elif "validation" in datalist and len(datalist["validation"]) > 0:
             logger.info("No fold numbers provided, attempting to use a single fold based on the validation key")
             # update the datalist file
@@ -483,6 +499,11 @@ class AutoRunner:
 
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
+        if num_fold > self.max_fold + 1:
+            # Auto3DSeg allows no validation set, so the maximum fold number is max_fold + 1
+            raise ValueError(
+                f"num_fold is greater than the maximum fold number {self.max_fold} in {self.datalist_filename}."
+            )
         self.num_fold = num_fold
 
         return self
@@ -813,6 +834,7 @@ class AutoRunner:
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
                 mlflow_tracking_uri=self.mlflow_tracking_uri,
+                mlflow_experiment_name=self.mlflow_experiment_name,
             )
 
             if self.gpu_customization:

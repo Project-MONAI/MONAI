@@ -132,6 +132,7 @@ __all__ = ["adaptor", "apply_alias", "to_kwargs", "FunctionSignature"]
 
 @_monai_export("monai.transforms")
 def adaptor(function, outputs, inputs=None):
+
     def must_be_types_or_none(variable_name, variable, types):
         if variable is not None:
             if not isinstance(variable, types):
@@ -216,6 +217,7 @@ def adaptor(function, outputs, inputs=None):
 
 @_monai_export("monai.transforms")
 def apply_alias(fn, name_map):
+
     def _inner(data):
         # map names
         pre_call = dict(data)
@@ -236,6 +238,7 @@ def apply_alias(fn, name_map):
 
 @_monai_export("monai.transforms")
 def to_kwargs(fn):
+
     def _inner(data):
         return fn(**data)
 
@@ -243,6 +246,7 @@ def to_kwargs(fn):
 
 
 class FunctionSignature:
+
     def __init__(self, function: Callable) -> None:
         import inspect
 

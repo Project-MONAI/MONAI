@@ -165,6 +165,7 @@ class TestImageAnalyzer(Analyzer):
 
 
 class TestDataAnalyzer(unittest.TestCase):
+
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()
         work_dir = self.test_dir.name
@@ -365,7 +366,6 @@ class TestDataAnalyzer(unittest.TestCase):
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
-            assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
             assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
 
     def test_filename_case_analyzer_image_only(self):

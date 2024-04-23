@@ -34,6 +34,7 @@ TEST_CASE_2 = [[0, 1, 2], Events.EPOCH_COMPLETED]
 
 
 class TestHandlerGarbageCollector(unittest.TestCase):
+
     @skipUnless(has_ignite, "Requires ignite")
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_content(self, data, trigger_event):

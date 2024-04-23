@@ -42,6 +42,7 @@ VFC_CASES = [VFC_TEST_CASE_0]
 
 
 class TestFullyConnectedNet(unittest.TestCase):
+
     def setUp(self):
         self.batch_size = 10
         self.inSize = 10

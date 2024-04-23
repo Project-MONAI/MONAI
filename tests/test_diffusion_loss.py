@@ -79,6 +79,7 @@ TEST_CASES = [
 
 
 class TestDiffusionLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = DiffusionLoss(**input_param).forward(**input_data)

@@ -33,6 +33,7 @@ for use_compose in (False, True):
 
 @unittest.skipUnless(has_nib, "Requires nibabel")
 class TestInverseArray(unittest.TestCase):
+
     @staticmethod
     def get_image(dtype, device) -> MetaTensor:
         affine = torch.tensor([[0, 0, 1, 0], [-1, 0, 0, 0], [0, 10, 0, 0], [0, 0, 0, 1]]).to(dtype).to(device)

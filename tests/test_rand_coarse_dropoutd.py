@@ -63,6 +63,7 @@ TEST_CASE_6 = [
 
 
 class TestRandCoarseDropoutd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
     def test_value(self, input_param, input_data):
         dropout = RandCoarseDropoutd(**input_param)

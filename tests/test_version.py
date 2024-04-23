@@ -75,6 +75,7 @@ TEST_CASES = (
 
 
 class TestVersionCompare(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_compare_leq(self, a, b, expected=True):
         """Test version_leq with `a` and `b`"""

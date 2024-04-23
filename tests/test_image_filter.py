@@ -38,6 +38,7 @@ ADDITIONAL_ARGUMENTS = {"order": 1, "sigma": 1, "padding_mode": "zeros"}
 
 
 class TestModule(torch.nn.Module):
+
     def __init__(self):
         super().__init__()
 
@@ -50,6 +51,7 @@ class TestNotAModuleOrTransform:
 
 
 class TestImageFilter(unittest.TestCase):
+
     @parameterized.expand(SUPPORTED_FILTERS)
     def test_init_from_string(self, filter_name):
         "Test init from string"
@@ -133,6 +135,7 @@ class TestImageFilter(unittest.TestCase):
 
 
 class TestImageFilterDict(unittest.TestCase):
+
     @parameterized.expand(SUPPORTED_FILTERS)
     def test_init_from_string_dict(self, filter_name):
         "Test init from string and assert an error is thrown if no size is passed"
@@ -162,6 +165,7 @@ class TestImageFilterDict(unittest.TestCase):
 
 
 class TestRandImageFilter(unittest.TestCase):
+
     @parameterized.expand(SUPPORTED_FILTERS)
     def test_init_from_string(self, filter_name):
         "Test init from string and assert an error is thrown if no size is passed"
@@ -205,6 +209,7 @@ class TestRandImageFilter(unittest.TestCase):
 
 
 class TestRandImageFilterDict(unittest.TestCase):
+
     @parameterized.expand(SUPPORTED_FILTERS)
     def test_init_from_string_dict(self, filter_name):
         "Test init from string and assert an error is thrown if no size is passed"

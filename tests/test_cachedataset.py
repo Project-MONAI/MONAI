@@ -39,6 +39,7 @@ for c in (0, 1, 2):
 
 
 class TestCacheDataset(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, transform, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))

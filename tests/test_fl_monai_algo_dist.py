@@ -32,6 +32,7 @@ _logging_file = pathjoin(_data_dir, "logging.conf")
 @SkipIfNoModule("ignite")
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestFLMonaiAlgo(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     @skip_if_no_cuda
     def test_train(self):

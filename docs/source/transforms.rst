@@ -309,6 +309,12 @@ Intensity
     :members:
     :special-members: __call__
 
+`ClipIntensityPercentiles`
+""""""""""""""""""""""""""
+.. autoclass:: ClipIntensityPercentiles
+    :members:
+    :special-members: __call__
+
 `RandScaleIntensity`
 """"""""""""""""""""
 .. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandScaleIntensity.png
@@ -658,6 +664,27 @@ Post-processing
 `VoteEnsemble`
 """"""""""""""
 .. autoclass:: VoteEnsemble
+    :members:
+    :special-members: __call__
+
+Regularization
+^^^^^^^^^^^^^^
+
+`CutMix`
+""""""""
+.. autoclass:: CutMix
+    :members:
+    :special-members: __call__
+
+`CutOut`
+""""""""
+.. autoclass:: CutOut
+    :members:
+    :special-members: __call__
+
+`MixUp`
+"""""""
+.. autoclass:: MixUp
     :members:
     :special-members: __call__
 
@@ -1384,6 +1411,12 @@ Intensity (Dict)
     :members:
     :special-members: __call__
 
+`ClipIntensityPercentilesd`
+"""""""""""""""""""""""""""
+.. autoclass:: ClipIntensityPercentilesd
+    :members:
+    :special-members: __call__
+
 `RandScaleIntensityd`
 """""""""""""""""""""
 .. image:: https://raw.githubusercontent.com/Project-MONAI/DocImages/main/transforms/RandScaleIntensityd.png
@@ -1706,6 +1739,27 @@ Post-processing (Dict)
 .. autoclass:: SobelGradientsd
   :members:
   :special-members: __call__
+
+Regularization (Dict)
+^^^^^^^^^^^^^^^^^^^^^
+
+`CutMixd`
+"""""""""
+.. autoclass:: CutMixd
+    :members:
+    :special-members: __call__
+
+`CutOutd`
+"""""""""
+.. autoclass:: CutOutd
+    :members:
+    :special-members: __call__
+
+`MixUpd`
+""""""""
+.. autoclass:: MixUpd
+    :members:
+    :special-members: __call__
 
 Signal (Dict)
 ^^^^^^^^^^^^^

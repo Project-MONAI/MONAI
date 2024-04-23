@@ -42,6 +42,7 @@ TEST_CASE_4 = [
 
 
 class TestNetAdapter(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_shape, expected_shape):
         spatial_dims = input_param["dim"]

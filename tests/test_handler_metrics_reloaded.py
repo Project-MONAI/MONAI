@@ -73,6 +73,7 @@ TEST_CASE_CAT_2 = [
 
 @unittest.skipIf(not has_metrics, "MetricsReloaded not available.")
 class TestHandlerMetricsReloadedBinary(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_BIN_1, TEST_CASE_BIN_2, TEST_CASE_BIN_3])
     def test_compute(self, input_params, y_pred, y, expected_value):
         input_params["output_transform"] = from_engine(["pred", "label"])
@@ -113,6 +114,7 @@ class TestHandlerMetricsReloadedBinary(unittest.TestCase):
 
 @unittest.skipIf(not has_metrics, "MetricsReloaded not available.")
 class TestMetricsReloadedCategorical(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_CAT_1, TEST_CASE_CAT_2])
     def test_compute(self, input_params, y_pred, y, expected_value):
         input_params["output_transform"] = from_engine(["pred", "label"])

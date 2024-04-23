@@ -38,6 +38,7 @@ TEST_CASES = (
 
 
 class TestPytorchVersionCompare(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_compare(self, a, b, p, current, expected=True):
         """Test pytorch_after with a and b"""

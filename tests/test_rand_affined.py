@@ -216,6 +216,7 @@ for device in [None, "cpu", "cuda"] if torch.cuda.is_available() else [None, "cp
 
 
 class TestRandAffined(unittest.TestCase):
+
     @parameterized.expand(x + [y] for x, y in itertools.product(TESTS, (False, True)))
     def test_rand_affined(self, input_param, input_data, expected_val, track_meta):
         set_track_meta(track_meta)
@@ -233,7 +234,9 @@ class TestRandAffined(unittest.TestCase):
                 lazy_init_param["keys"], lazy_init_param["mode"] = key, mode
                 resampler = RandAffined(**lazy_init_param).set_random_state(123)
                 expected_output = resampler(**call_param)
-                test_resampler_lazy(resampler, expected_output, lazy_init_param, call_param, seed=123, output_key=key)
+                test_resampler_lazy(
+                    resampler, expected_output, lazy_init_param, call_param, seed=123, output_key=key, rtol=_rtol
+                )
             resampler.lazy = False
 
         if input_param.get("cache_grid", False):
@@ -269,13 +272,10 @@ class TestRandAffined(unittest.TestCase):
             self.assertEqual(len(v.applied_operations), 0)
             self.assertTupleEqual(v.shape, input_data[k].shape)
 
-    def test_ill_cache(self):
+    @parameterized.expand([(None,), ((2, -1),)])  # spatial size is None  # spatial size is dynamic
+    def test_ill_cache(self, spatial_size):
         with self.assertWarns(UserWarning):
-            # spatial size is None
-            RandAffined(device=device, spatial_size=None, prob=1.0, cache_grid=True, keys=("img", "seg"))
-        with self.assertWarns(UserWarning):
-            # spatial size is dynamic
-            RandAffined(device=device, spatial_size=(2, -1), prob=1.0, cache_grid=True, keys=("img", "seg"))
+            RandAffined(device=device, spatial_size=spatial_size, prob=1.0, cache_grid=True, keys=("img", "seg"))
 
 
 if __name__ == "__main__":
