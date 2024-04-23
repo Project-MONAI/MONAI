@@ -23,7 +23,7 @@ class TestGetVersion(unittest.TestCase):
         self.assertIn("UNKNOWN", output)
 
         output = get_package_version("numpy")
-        self.assertIn("UNKNOWN", output)
+        self.assertNotIn("UNKNOWN", output)
 
     def test_msg(self):
         output = get_package_version("42foobarnoexist", "test")
