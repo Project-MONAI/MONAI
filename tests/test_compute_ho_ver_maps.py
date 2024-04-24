@@ -67,8 +67,8 @@ class ComputeHoVerMapsTests(unittest.TestCase):
     def test_horizontal_certical_maps(self, in_type, arguments, mask, hv_mask):
         input_image = in_type(mask)
         result = ComputeHoVerMaps(**arguments)(input_image)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(str(result.dtype).split(".")[1] == arguments.get("dtype", "float32"))
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertEqual(str(result.dtype).split(".")[1], arguments.get("dtype", "float32"))
         assert_allclose(result, hv_mask, type_test="tensor")
 
 
