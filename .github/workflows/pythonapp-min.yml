@@ -9,7 +9,7 @@ on:
       - main
       - releasing/*
   pull_request:
-    branches-ignore:
+    head_ref-ignore:
       - dev
 
 concurrency:
