@@ -9,8 +9,6 @@ on:
       - main
       - releasing/*
   pull_request:
-    branches-ignore:
-      - dev
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version

@@ -19,7 +19,6 @@ from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd
 from monai.utils import set_determinism
 
 
-
 class TestMixup(unittest.TestCase):
 
     def setUp(self) -> None:
