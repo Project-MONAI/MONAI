@@ -32,7 +32,7 @@ class SABlock(nn.Module):
         dropout_rate: float = 0.0,
         qkv_bias: bool = False,
         save_attn: bool = False,
-        dim_head: int = 64
+        dim_head: int | None = None,
     ) -> None:
         """
         Args:
@@ -41,7 +41,7 @@ class SABlock(nn.Module):
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
-            dim_head (int, optional): dimension of each head. Defaults to 64.
+            dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
 
         """
 
@@ -54,8 +54,8 @@ class SABlock(nn.Module):
             raise ValueError("hidden size should be divisible by num_heads.")
 
         self.num_heads = num_heads
-        self.dim_head = dim_head
-        self.inner_dim = dim_head * num_heads
+        self.dim_head = hidden_size // num_heads if dim_head is None else dim_head
+        self.inner_dim = self.dim_head * num_heads
 
         self.out_proj = nn.Linear(self.inner_dim, hidden_size)
         self.qkv = nn.Linear(hidden_size, self.inner_dim * 3, bias=qkv_bias)
