@@ -63,8 +63,7 @@ class SABlock(nn.Module):
         self.out_rearrange = Rearrange("b h l d -> b l (h d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
-        self.head_dim = hidden_size // num_heads
-        self.scale = self.head_dim**-0.5
+        self.scale = self.dim_head**-0.5
         self.save_attn = save_attn
         self.att_mat = torch.Tensor()
 
