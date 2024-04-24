@@ -24,6 +24,7 @@ from monai.networks.layers.factories import Conv
 from monai.networks.layers.utils import get_act_layer
 from monai.networks.nets import EfficientNetEncoder
 from monai.networks.nets.basic_unet import UpCat
+from monai.networks.nets.resnet import ResNetEncoder
 from monai.utils import InterpolateMode, optional_import
 
 __all__ = ["FlexibleUNet", "FlexUNet", "FLEXUNET_BACKBONE", "FlexUNetEncoderRegister"]
@@ -78,6 +79,7 @@ class FlexUNetEncoderRegister:
 
 FLEXUNET_BACKBONE = FlexUNetEncoderRegister()
 FLEXUNET_BACKBONE.register_class(EfficientNetEncoder)
+FLEXUNET_BACKBONE.register_class(ResNetEncoder)
 
 
 class UNetDecoder(nn.Module):
@@ -238,7 +240,7 @@ class FlexibleUNet(nn.Module):
     ) -> None:
         """
         A flexible implement of UNet, in which the backbone/encoder can be replaced with
-        any efficient network. Currently the input must have a 2 or 3 spatial dimension
+        any efficient or residual network. Currently the input must have a 2 or 3 spatial dimension
         and the spatial size of each dimension must be a multiple of 32 if is_pad parameter
         is False.
         Please notice each output of backbone must be 2x downsample in spatial dimension
@@ -248,10 +250,11 @@ class FlexibleUNet(nn.Module):
         Args:
             in_channels: number of input channels.
             out_channels: number of output channels.
-            backbone: name of backbones to initialize, only support efficientnet right now,
-                can be from [efficientnet-b0,..., efficientnet-b8, efficientnet-l2].
-            pretrained: whether to initialize pretrained ImageNet weights, only available
-                for spatial_dims=2 and batch norm is used, default to False.
+            backbone: name of backbones to initialize, only support efficientnet and resnet right now,
+                can be from [efficientnet-b0, ..., efficientnet-b8, efficientnet-l2, resnet10, ..., resnet200].
+            pretrained: whether to initialize pretrained weights. ImageNet weights are available for efficient networks
+                if spatial_dims=2 and batch norm is used. MedicalNet weights are available for residual networks
+                if spatial_dims=3 and in_channels=1. Default to False.
             decoder_channels: number of output channels for all feature maps in decoder.
                 `len(decoder_channels)` should equal to `len(encoder_channels) - 1`,default
                 to (256, 128, 64, 32, 16).

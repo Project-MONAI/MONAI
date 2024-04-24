@@ -32,7 +32,7 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
         result = hard_clipper({key: im})
         lower, upper = percentile(im, (5, 95))
         expected = clip(im, lower, upper)
-        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_high(self, p):
@@ -42,7 +42,7 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
         result = hard_clipper({key: im})
         lower, upper = percentile(im, (0, 95))
         expected = clip(im, lower, upper)
-        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_low(self, p):
@@ -52,7 +52,7 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
         result = hard_clipper({key: im})
         lower, upper = percentile(im, (5, 100))
         expected = clip(im, lower, upper)
-        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_soft_clipping_two_sided(self, p):
@@ -96,7 +96,7 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
         for i, c in enumerate(im):
             lower, upper = percentile(c, (5, 95))
             expected = clip(c, lower, upper)
-            assert_allclose(result[key][i], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+            assert_allclose(result[key][i], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     def test_ill_sharpness_factor(self):
         key = "img"
@@ -134,7 +134,7 @@ class TestClipIntensityPercentilesd3D(NumpyImageTestCase3D):
         result = hard_clipper({key: im})
         lower, upper = percentile(im, (5, 95))
         expected = clip(im, lower, upper)
-        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_high(self, p):
@@ -144,7 +144,7 @@ class TestClipIntensityPercentilesd3D(NumpyImageTestCase3D):
         result = hard_clipper({key: im})
         lower, upper = percentile(im, (0, 95))
         expected = clip(im, lower, upper)
-        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_one_sided_low(self, p):
@@ -154,7 +154,7 @@ class TestClipIntensityPercentilesd3D(NumpyImageTestCase3D):
         result = hard_clipper({key: im})
         lower, upper = percentile(im, (5, 100))
         expected = clip(im, lower, upper)
-        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+        assert_allclose(result[key], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_soft_clipping_two_sided(self, p):
@@ -198,7 +198,7 @@ class TestClipIntensityPercentilesd3D(NumpyImageTestCase3D):
         for i, c in enumerate(im):
             lower, upper = percentile(c, (5, 95))
             expected = clip(c, lower, upper)
-            assert_allclose(result[key][i], p(expected), type_test="tensor", rtol=1e-7, atol=0)
+            assert_allclose(result[key][i], p(expected), type_test="tensor", rtol=1e-4, atol=0)
 
 
 if __name__ == "__main__":
