@@ -32,7 +32,7 @@ class TestToNumpy(unittest.TestCase):
         test_data = cp.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
         result = ToNumpy()(test_data)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         assert_allclose(result, test_data.get(), type_test=False)
 
@@ -41,8 +41,8 @@ class TestToNumpy(unittest.TestCase):
         test_data = np.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
         result = ToNumpy(dtype="float32")(test_data)
-        self.assertTrue(isinstance(result, np.ndarray))
-        self.assertTrue(result.dtype == np.float32)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertEqual(result.dtype, np.float32)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         assert_allclose(result, test_data, type_test=False)
 
@@ -51,7 +51,7 @@ class TestToNumpy(unittest.TestCase):
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
         result = ToNumpy(dtype=torch.uint8)(test_data)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         assert_allclose(result, test_data, type_test=False)
 
@@ -61,7 +61,7 @@ class TestToNumpy(unittest.TestCase):
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
         result = ToNumpy()(test_data)
-        self.assertTrue(isinstance(result, np.ndarray))
+        self.assertIsInstance(result, np.ndarray)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         assert_allclose(result, test_data, type_test=False)
 
@@ -77,7 +77,7 @@ class TestToNumpy(unittest.TestCase):
     def test_single_value(self):
         for test_data in [5, np.array(5), torch.tensor(5)]:
             result = ToNumpy(dtype=np.uint8)(test_data)
-            self.assertTrue(isinstance(result, np.ndarray))
+            self.assertIsInstance(result, np.ndarray)
             assert_allclose(result, np.asarray(test_data), type_test=False)
             self.assertEqual(result.ndim, 0)
 
