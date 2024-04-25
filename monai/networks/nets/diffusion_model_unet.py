@@ -38,7 +38,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from monai.networks.blocks import Convolution, MLPBlock
+from monai.networks.blocks import Convolution, MLPBlock, SABlock
 from monai.networks.layers.factories import Pool
 from monai.utils import ensure_tuple_rep, optional_import
 
@@ -197,14 +197,13 @@ class _BasicTransformerBlock(nn.Module):
         use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
-        self.attn1 = _CrossAttention(
-            query_dim=num_channels,
-            num_attention_heads=num_attention_heads,
+        self.attn1 = SABlock(
+            hidden_size=num_attention_heads * num_head_channels,
+            hidden_input_size=num_channels,
+            num_heads=num_attention_heads,
             num_head_channels=num_head_channels,
-            dropout=dropout,
-            upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
-        )  # is a self-attention
+            dropout_rate=dropout,
+        )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
         self.attn2 = _CrossAttention(
             query_dim=num_channels,
@@ -215,6 +214,14 @@ class _BasicTransformerBlock(nn.Module):
             upcast_attention=upcast_attention,
             use_flash_attention=use_flash_attention,
         )  # is a self-attention if context is None
+        # self.attn2 = CrossAttentionBlock(
+        #     hidden_size=num_attention_heads * num_head_channels,
+        #     num_heads = num_attention_heads,
+        #     hidden_input_size=num_channels,
+        #     context_input_size=cross_attention_dim,
+        #     num_head_channels=num_head_channels,
+        #     dropout_rate=dropout,
+        # )
         self.norm1 = nn.LayerNorm(num_channels)
         self.norm2 = nn.LayerNorm(num_channels)
         self.norm3 = nn.LayerNorm(num_channels)
@@ -1960,6 +1967,57 @@ class DiffusionModelUNet(nn.Module):
         output: torch.Tensor = self.out(h.contiguous())
 
         return output
+
+    def load_old_state_dict(self, old_state_dict: dict, verbose=False) -> None:
+        """
+        Load a state dict from a DiffusionModelUNet trained with
+        [MONAI Generative](https://github.com/Project-MONAI/GenerativeModels).
+
+        Args:
+            old_state_dict: state dict from the old DecoderOnlyTransformer  model.
+        """
+
+        new_state_dict = self.state_dict()
+        # if all keys match, just load the state dict
+        if all(k in new_state_dict for k in old_state_dict):
+            print("All keys match, loading state dict.")
+            self.load_state_dict(old_state_dict)
+            return
+
+        if verbose:
+            # print all new_state_dict keys that are not in old_state_dict
+            for k in new_state_dict:
+                if k not in old_state_dict:
+                    print(f"key {k} not found in old state dict")
+            # and vice versa
+            print("----------------------------------------------")
+            for k in old_state_dict:
+                if k not in new_state_dict:
+                    print(f"key {k} not found in new state dict")
+
+        # copy over all matching keys
+        for k in new_state_dict:
+            if k in old_state_dict:
+                new_state_dict[k] = old_state_dict[k]
+
+        # fix the attention blocks
+        attention_blocks = [k.replace(".attn1.qkv.weight", "") for k in new_state_dict if "attn1.qkv.weight" in k]
+        for block in attention_blocks:
+            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.concat(
+                [
+                    old_state_dict[f"{block}.attn1.to_q.weight"],
+                    old_state_dict[f"{block}.attn1.to_k.weight"],
+                    old_state_dict[f"{block}.attn1.to_v.weight"],
+                ],
+                dim=0,
+            )
+
+            # projection
+            new_state_dict[f"{block}.attn1.out_proj.weight"] = old_state_dict[f"{block}.attn1.to_out.0.weight"]
+
+            new_state_dict[f"{block}.attn1.out_proj.bias"] = old_state_dict[f"{block}.attn1.to_out.0.bias"]
+
+        self.load_state_dict(new_state_dict)
 
 
 class DiffusionModelEncoder(nn.Module):

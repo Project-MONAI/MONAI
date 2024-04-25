@@ -34,6 +34,8 @@ class SABlock(nn.Module):
         hidden_size: int,
         num_heads: int,
         dropout_rate: float = 0.0,
+        hidden_input_size: int | None = None,
+        num_head_channels: int | None = None,
         qkv_bias: bool = False,
         save_attn: bool = False,
         causal: bool = False,
@@ -62,20 +64,26 @@ class SABlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
 
-        if hidden_size % num_heads != 0:
-            raise ValueError("hidden size should be divisible by num_heads.")
+        if num_head_channels:
+            inner_size = num_heads * num_head_channels
+            self.head_dim = num_head_channels
+        else:
+            if hidden_size % num_heads != 0:
+                raise ValueError("hidden size should be divisible by num_heads.")
+            inner_size = hidden_size
+            self.head_dim = hidden_size // num_heads
 
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
         self.num_heads = num_heads
-        self.out_proj = nn.Linear(hidden_size, hidden_size)
-        self.qkv = nn.Linear(hidden_size, hidden_size * 3, bias=qkv_bias)
+        self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
+        self.out_proj = nn.Linear(inner_size, self.hidden_input_size)
+        self.qkv = nn.Linear(self.hidden_input_size, inner_size * 3, bias=qkv_bias)
         self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
         self.out_rearrange = Rearrange("b h l d -> b l (h d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
-        self.head_dim = hidden_size // num_heads
         self.scale = self.head_dim**-0.5
         self.save_attn = save_attn
         self.causal = causal
@@ -141,6 +149,9 @@ class CrossAttentionBlock(nn.Module):
         self,
         hidden_size: int,
         num_heads: int,
+        hidden_input_size: int | None = None,
+        context_input_size: int | None = None,
+        num_head_channels: int | None = None,
         dropout_rate: float = 0.0,
         qkv_bias: bool = False,
         save_attn: bool = False,
@@ -170,24 +181,32 @@ class CrossAttentionBlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
 
-        if hidden_size % num_heads != 0:
-            raise ValueError("hidden size should be divisible by num_heads.")
+        if num_head_channels:
+            inner_size = num_heads * num_head_channels
+            self.head_dim = num_head_channels
+        else:
+            if hidden_size % num_heads != 0:
+                raise ValueError("hidden size should be divisible by num_heads.")
+            inner_size = hidden_size
+            self.head_dim = hidden_size // num_heads
 
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
         self.num_heads = num_heads
-        self.out_proj = nn.Linear(hidden_size, hidden_size)
+        self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
+        self.context_input_size = context_input_size if context_input_size else hidden_size
+        self.out_proj = nn.Linear(inner_size, self.hidden_input_size)
         # key, query, value projections
-        self.to_q = nn.Linear(hidden_size, hidden_size, bias=qkv_bias)
-        self.to_k = nn.Linear(hidden_size, hidden_size, bias=qkv_bias)
-        self.to_v = nn.Linear(hidden_size, hidden_size, bias=qkv_bias)
+        self.to_q = nn.Linear(self.hidden_input_size, inner_size, bias=qkv_bias)
+        self.to_k = nn.Linear(self.context_input_size, inner_size, bias=qkv_bias)
+        self.to_v = nn.Linear(self.context_input_size, inner_size, bias=qkv_bias)
         self.input_rearrange = Rearrange("b h (l d) -> b l h d", l=num_heads)
 
         self.out_rearrange = Rearrange("b h l d -> b l (h d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
-        self.head_dim = hidden_size // num_heads
+
         self.scale = self.head_dim**-0.5
         self.save_attn = save_attn
         self.causal = causal
