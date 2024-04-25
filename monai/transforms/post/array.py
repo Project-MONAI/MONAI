@@ -631,7 +631,6 @@ class LabelToContour(Transform):
 
 
 class Ensemble:
-
     @staticmethod
     def get_stacked_torch(img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> torch.Tensor:
         """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""

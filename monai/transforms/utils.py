@@ -108,10 +108,10 @@ __all__ = [
     "in_bounds",
     "is_empty",
     "is_positive",
+    "map_and_generate_sampling_centers",
     "map_binary_to_indices",
     "map_classes_to_indices",
     "map_spatial_axes",
-    "map_and_generate_sampling_centers_",
     "rand_choice",
     "rescale_array",
     "rescale_array_int_max",
@@ -727,9 +727,7 @@ def map_and_generate_sampling_centers(
     if indices_ is None:
         if label is None:
             raise ValueError("label must not be None.")
-        indices_ = map_classes_to_indices(
-            label, num_classes, image, image_threshold, max_samples_per_class
-        )
+        indices_ = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
     _shape = None
     if label is not None:
         _shape = label.peek_pending_shape() if isinstance(label, monai.data.MetaTensor) else label.shape[1:]

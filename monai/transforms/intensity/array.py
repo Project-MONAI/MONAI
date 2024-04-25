@@ -1123,12 +1123,16 @@ class ClipIntensityPercentiles(Transform):
                     (
                         lower_percentile
                         if lower_percentile is None
-                        else lower_percentile.item() if hasattr(lower_percentile, "item") else lower_percentile
+                        else lower_percentile.item()
+                        if hasattr(lower_percentile, "item")
+                        else lower_percentile
                     ),
                     (
                         upper_percentile
                         if upper_percentile is None
-                        else upper_percentile.item() if hasattr(upper_percentile, "item") else upper_percentile
+                        else upper_percentile.item()
+                        if hasattr(upper_percentile, "item")
+                        else upper_percentile
                     ),
                 )
             )
