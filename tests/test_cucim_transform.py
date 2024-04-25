@@ -79,8 +79,8 @@ class TestCuCIM(unittest.TestCase):
     )
     def test_tramsforms_numpy_single(self, params, input, expected):
         output = CuCIM(**params)(input)
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, np.ndarray)
         cp.testing.assert_allclose(output, expected)
 
     @parameterized.expand(
@@ -97,8 +97,8 @@ class TestCuCIM(unittest.TestCase):
         input = input[cp.newaxis, ...]
         expected = expected[cp.newaxis, ...]
         output = CuCIM(**params)(input)
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, np.ndarray)
         cp.testing.assert_allclose(output, expected)
 
     @parameterized.expand(
@@ -115,8 +115,8 @@ class TestCuCIM(unittest.TestCase):
         input = cp.asarray(input)
         expected = cp.asarray(expected)
         output = CuCIM(**params)(input)
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, cp.ndarray)
         cp.testing.assert_allclose(output, expected)
 
     @parameterized.expand(
@@ -133,8 +133,8 @@ class TestCuCIM(unittest.TestCase):
         input = cp.asarray(input)[cp.newaxis, ...]
         expected = cp.asarray(expected)[cp.newaxis, ...]
         output = CuCIM(**params)(input)
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, cp.ndarray)
         cp.testing.assert_allclose(output, expected)
 
 

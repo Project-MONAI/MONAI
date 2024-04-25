@@ -240,7 +240,7 @@ class TestRandAffined(unittest.TestCase):
             resampler.lazy = False
 
         if input_param.get("cache_grid", False):
-            self.assertTrue(g.rand_affine._cached_grid is not None)
+            self.assertIsNotNone(g.rand_affine._cached_grid)
         for key in res:
             if isinstance(key, str) and key.endswith("_transforms"):
                 continue
