@@ -986,6 +986,7 @@ def convert_to_trt(
                     inputs=input_placeholder,
                     enabled_precisions=convert_precision,
                     device=target_device,
+                    ir="torchscript",
                     **kwargs,
                 )
 
