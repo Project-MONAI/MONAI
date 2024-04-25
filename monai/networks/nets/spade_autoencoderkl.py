@@ -17,9 +17,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks import Convolution, Upsample
+from monai.networks.blocks import Convolution, SpatialAttentionBlock, Upsample
 from monai.networks.blocks.spade_norm import SPADE
-from monai.networks.nets.autoencoderkl import AttentionBlock, Encoder
+from monai.networks.nets.autoencoderkl import Encoder
 from monai.utils import ensure_tuple_rep
 
 __all__ = ["SPADEAutoencoderKL"]
@@ -195,7 +195,7 @@ class SPADEDecoder(nn.Module):
                 )
             )
             blocks.append(
-                AttentionBlock(
+                SpatialAttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -238,7 +238,7 @@ class SPADEDecoder(nn.Module):
 
                 if reversed_attention_levels[i]:
                     blocks.append(
-                        AttentionBlock(
+                        SpatialAttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,

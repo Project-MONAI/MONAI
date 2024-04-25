@@ -14,6 +14,7 @@ from __future__ import annotations
 from .acti_norm import ADN
 from .activation import GEGLU, MemoryEfficientSwish, Mish, Swish
 from .aspp import SimpleASPP
+from .attention import CrossAttentionBlock, SABlock, SpatialAttentionBlock
 from .backbone_fpn_utils import BackboneWithFPN
 from .convolutions import Convolution, ResidualUnit
 from .crf import CRF
@@ -29,7 +30,6 @@ from .mlp import MLPBlock
 from .patchembedding import PatchEmbed, PatchEmbeddingBlock
 from .regunet_block import RegistrationDownSampleBlock, RegistrationExtractionBlock, RegistrationResidualConvBlock
 from .segresnet_block import ResBlock
-from .selfattention import CrossAttentionBlock, SABlock
 from .spade_norm import SPADE
 from .squeeze_and_excitation import (
     ChannelSELayer,

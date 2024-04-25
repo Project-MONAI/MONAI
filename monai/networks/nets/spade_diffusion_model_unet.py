@@ -36,10 +36,9 @@ from collections.abc import Sequence
 import torch
 from torch import nn
 
-from monai.networks.blocks import Convolution
+from monai.networks.blocks import Convolution, SpatialAttentionBlock
 from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.nets.diffusion_model_unet import (
-    _AttentionBlock,
     _Downsample,
     _ResnetBlock,
     _SpatialTransformer,
@@ -351,7 +350,7 @@ class SPADEAttnUpBlock(nn.Module):
                 )
             )
             attentions.append(
-                _AttentionBlock(
+                SpatialAttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     num_head_channels=num_head_channels,

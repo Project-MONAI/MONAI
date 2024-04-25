@@ -38,11 +38,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from monai.networks.blocks import Convolution, CrossAttentionBlock, MLPBlock, SABlock
+from monai.networks.blocks import Convolution, CrossAttentionBlock, MLPBlock, SABlock, SpatialAttentionBlock
 from monai.networks.layers.factories import Pool
 from monai.utils import ensure_tuple_rep, optional_import
 
 # To install xformers, use pip install xformers==0.0.16rc401
+Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 xops, has_xformers = optional_import("xformers.ops")
 
@@ -96,15 +97,6 @@ class _BasicTransformerBlock(nn.Module):
             dropout_rate=dropout,
         )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
-        # self.attn2 = _CrossAttention(
-        #     query_dim=num_channels,
-        #     cross_attention_dim=cross_attention_dim,
-        #     num_attention_heads=num_attention_heads,
-        #     num_head_channels=num_head_channels,
-        #     dropout=dropout,
-        #     upcast_attention=upcast_attention,
-        #     use_flash_attention=use_flash_attention,
-        # )  # is a self-attention if context is None
         self.attn2 = CrossAttentionBlock(
             hidden_size=num_attention_heads * num_head_channels,
             num_heads=num_attention_heads,
@@ -238,126 +230,6 @@ class _SpatialTransformer(nn.Module):
             x = x.reshape(batch, height, width, depth, inner_dim).permute(0, 4, 1, 2, 3).contiguous()
 
         x = self.proj_out(x)
-        return x + residual
-
-
-class _AttentionBlock(nn.Module):
-    """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
-    An attention block that allows spatial positions to attend to each other. Uses three q, k, v linear layers to
-    compute attention.
-
-    Args:
-        spatial_dims: number of spatial dimensions.
-        num_channels: number of input channels.
-        num_head_channels: number of channels in each attention head.
-        norm_num_groups: number of groups involved for the group normalisation layer. Ensure that your number of
-            channels is divisible by this number.
-        norm_eps: epsilon value to use for the normalisation.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
-    """
-
-    def __init__(
-        self,
-        spatial_dims: int,
-        num_channels: int,
-        num_head_channels: int | None = None,
-        norm_num_groups: int = 32,
-        norm_eps: float = 1e-6,
-        use_flash_attention: bool = False,
-    ) -> None:
-        super().__init__()
-        self.use_flash_attention = use_flash_attention
-        self.spatial_dims = spatial_dims
-        self.num_channels = num_channels
-
-        self.num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
-        self.scale = 1 / math.sqrt(num_channels / self.num_heads)
-
-        self.norm = nn.GroupNorm(num_groups=norm_num_groups, num_channels=num_channels, eps=norm_eps, affine=True)
-
-        self.to_q = nn.Linear(num_channels, num_channels)
-        self.to_k = nn.Linear(num_channels, num_channels)
-        self.to_v = nn.Linear(num_channels, num_channels)
-
-        self.proj_attn = nn.Linear(num_channels, num_channels)
-
-    def reshape_heads_to_batch_dim(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size, seq_len, dim = x.shape
-        x = x.reshape(batch_size, seq_len, self.num_heads, dim // self.num_heads)
-        x = x.permute(0, 2, 1, 3).reshape(batch_size * self.num_heads, seq_len, dim // self.num_heads)
-        return x
-
-    def reshape_batch_dim_to_heads(self, x: torch.Tensor) -> torch.Tensor:
-        batch_size, seq_len, dim = x.shape
-        x = x.reshape(batch_size // self.num_heads, self.num_heads, seq_len, dim)
-        x = x.permute(0, 2, 1, 3).reshape(batch_size // self.num_heads, seq_len, dim * self.num_heads)
-        return x
-
-    def _memory_efficient_attention_xformers(
-        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
-    ) -> torch.Tensor:
-        query = query.contiguous()
-        key = key.contiguous()
-        value = value.contiguous()
-        x: torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
-        return x
-
-    def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
-        attention_scores = torch.baddbmm(
-            torch.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype, device=query.device),
-            query,
-            key.transpose(-1, -2),
-            beta=0,
-            alpha=self.scale,
-        )
-        attention_probs = attention_scores.softmax(dim=-1)
-        x = torch.bmm(attention_probs, value)
-        return x
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        residual = x
-
-        batch = channel = height = width = depth = -1
-        if self.spatial_dims == 2:
-            batch, channel, height, width = x.shape
-        if self.spatial_dims == 3:
-            batch, channel, height, width, depth = x.shape
-
-        # norm
-        x = self.norm(x.contiguous())
-
-        if self.spatial_dims == 2:
-            x = x.view(batch, channel, height * width).transpose(1, 2)
-        if self.spatial_dims == 3:
-            x = x.view(batch, channel, height * width * depth).transpose(1, 2)
-
-        # proj to q, k, v
-        query = self.to_q(x)
-        key = self.to_k(x)
-        value = self.to_v(x)
-
-        # Multi-Head Attention
-        query = self.reshape_heads_to_batch_dim(query)
-        key = self.reshape_heads_to_batch_dim(key)
-        value = self.reshape_heads_to_batch_dim(value)
-
-        if self.use_flash_attention:
-            x = self._memory_efficient_attention_xformers(query, key, value)
-        else:
-            x = self._attention(query, key, value)
-
-        x = self.reshape_batch_dim_to_heads(x)
-        x = x.to(query.dtype)
-
-        if self.spatial_dims == 2:
-            x = x.transpose(-1, -2).reshape(batch, channel, height, width)
-        if self.spatial_dims == 3:
-            x = x.transpose(-1, -2).reshape(batch, channel, height, width, depth)
-
         return x + residual
 
 
@@ -752,13 +624,12 @@ class AttnDownBlock(nn.Module):
                 )
             )
             attentions.append(
-                _AttentionBlock(
+                SpatialAttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -960,13 +831,12 @@ class AttnMidBlock(nn.Module):
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
         )
-        self.attention = _AttentionBlock(
+        self.attention = SpatialAttentionBlock(
             spatial_dims=spatial_dims,
             num_channels=in_channels,
             num_head_channels=num_head_channels,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
-            use_flash_attention=use_flash_attention,
         )
 
         self.resnet_2 = _ResnetBlock(
@@ -1209,13 +1079,12 @@ class AttnUpBlock(nn.Module):
                 )
             )
             attentions.append(
-                _AttentionBlock(
+                SpatialAttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    use_flash_attention=use_flash_attention,
                 )
             )
 
