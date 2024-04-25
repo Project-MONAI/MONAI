@@ -38,7 +38,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from monai.networks.blocks import Convolution, MLPBlock, SABlock
+from monai.networks.blocks import Convolution, CrossAttentionBlock, MLPBlock, SABlock
 from monai.networks.layers.factories import Pool
 from monai.utils import ensure_tuple_rep, optional_import
 
@@ -57,115 +57,6 @@ def zero_module(module: nn.Module) -> nn.Module:
     for p in module.parameters():
         p.detach().zero_()
     return module
-
-
-class _CrossAttention(nn.Module):
-    """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
-    A cross attention layer.
-
-    Args:
-        query_dim: number of channels in the query.
-        cross_attention_dim: number of channels in the context.
-        num_attention_heads: number of heads to use for multi-head attention.
-        num_head_channels: number of channels in each head.
-        dropout: dropout probability to use.
-        upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
-    """
-
-    def __init__(
-        self,
-        query_dim: int,
-        cross_attention_dim: int | None = None,
-        num_attention_heads: int = 8,
-        num_head_channels: int = 64,
-        dropout: float = 0.0,
-        upcast_attention: bool = False,
-        use_flash_attention: bool = False,
-    ) -> None:
-        super().__init__()
-        self.use_flash_attention = use_flash_attention
-        inner_dim = num_head_channels * num_attention_heads
-        cross_attention_dim = cross_attention_dim if cross_attention_dim is not None else query_dim
-
-        self.scale = 1 / math.sqrt(num_head_channels)
-        self.num_heads = num_attention_heads
-
-        self.upcast_attention = upcast_attention
-
-        self.to_q = nn.Linear(query_dim, inner_dim, bias=False)
-        self.to_k = nn.Linear(cross_attention_dim, inner_dim, bias=False)
-        self.to_v = nn.Linear(cross_attention_dim, inner_dim, bias=False)
-
-        self.to_out = nn.Sequential(nn.Linear(inner_dim, query_dim), nn.Dropout(dropout))
-
-    def reshape_heads_to_batch_dim(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Divide hidden state dimension to the multiple attention heads and reshape their input as instances in the batch.
-        """
-        batch_size, seq_len, dim = x.shape
-        x = x.reshape(batch_size, seq_len, self.num_heads, dim // self.num_heads)
-        x = x.permute(0, 2, 1, 3).reshape(batch_size * self.num_heads, seq_len, dim // self.num_heads)
-        return x
-
-    def reshape_batch_dim_to_heads(self, x: torch.Tensor) -> torch.Tensor:
-        """Combine the output of the attention heads back into the hidden state dimension."""
-        batch_size, seq_len, dim = x.shape
-        x = x.reshape(batch_size // self.num_heads, self.num_heads, seq_len, dim)
-        x = x.permute(0, 2, 1, 3).reshape(batch_size // self.num_heads, seq_len, dim * self.num_heads)
-        return x
-
-    def _memory_efficient_attention_xformers(
-        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
-    ) -> torch.Tensor:
-        query = query.contiguous()
-        key = key.contiguous()
-        value = value.contiguous()
-        x: torch.Tensor = xops.memory_efficient_attention(query, key, value, attn_bias=None)
-        return x
-
-    def _attention(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
-        dtype = query.dtype
-        if self.upcast_attention:
-            query = query.float()
-            key = key.float()
-
-        attention_scores = torch.baddbmm(
-            torch.empty(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype, device=query.device),
-            query,
-            key.transpose(-1, -2),
-            beta=0,
-            alpha=self.scale,
-        )
-        attention_probs = attention_scores.softmax(dim=-1)
-        attention_probs = attention_probs.to(dtype=dtype)
-
-        x = torch.bmm(attention_probs, value)
-        return x
-
-    def forward(self, x: torch.Tensor, context: torch.Tensor | None = None) -> torch.Tensor:
-        query = self.to_q(x)
-        context = context if context is not None else x
-        key = self.to_k(context)
-        value = self.to_v(context)
-
-        # Multi-Head Attention
-        query = self.reshape_heads_to_batch_dim(query)
-        key = self.reshape_heads_to_batch_dim(key)
-        value = self.reshape_heads_to_batch_dim(value)
-        if self.use_flash_attention:
-            x = self._memory_efficient_attention_xformers(query, key, value)
-        else:
-            x = self._attention(query, key, value)
-
-        x = self.reshape_batch_dim_to_heads(x)
-        x = x.to(query.dtype)
-        output: torch.Tensor = self.to_out(x)
-        return output
 
 
 class _BasicTransformerBlock(nn.Module):
@@ -205,23 +96,23 @@ class _BasicTransformerBlock(nn.Module):
             dropout_rate=dropout,
         )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
-        self.attn2 = _CrossAttention(
-            query_dim=num_channels,
-            cross_attention_dim=cross_attention_dim,
-            num_attention_heads=num_attention_heads,
-            num_head_channels=num_head_channels,
-            dropout=dropout,
-            upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
-        )  # is a self-attention if context is None
-        # self.attn2 = CrossAttentionBlock(
-        #     hidden_size=num_attention_heads * num_head_channels,
-        #     num_heads = num_attention_heads,
-        #     hidden_input_size=num_channels,
-        #     context_input_size=cross_attention_dim,
+        # self.attn2 = _CrossAttention(
+        #     query_dim=num_channels,
+        #     cross_attention_dim=cross_attention_dim,
+        #     num_attention_heads=num_attention_heads,
         #     num_head_channels=num_head_channels,
-        #     dropout_rate=dropout,
-        # )
+        #     dropout=dropout,
+        #     upcast_attention=upcast_attention,
+        #     use_flash_attention=use_flash_attention,
+        # )  # is a self-attention if context is None
+        self.attn2 = CrossAttentionBlock(
+            hidden_size=num_attention_heads * num_head_channels,
+            num_heads=num_attention_heads,
+            hidden_input_size=num_channels,
+            context_input_size=cross_attention_dim,
+            num_head_channels=num_head_channels,
+            dropout_rate=dropout,
+        )
         self.norm1 = nn.LayerNorm(num_channels)
         self.norm2 = nn.LayerNorm(num_channels)
         self.norm3 = nn.LayerNorm(num_channels)
@@ -2014,8 +1905,10 @@ class DiffusionModelUNet(nn.Module):
 
             # projection
             new_state_dict[f"{block}.attn1.out_proj.weight"] = old_state_dict[f"{block}.attn1.to_out.0.weight"]
-
             new_state_dict[f"{block}.attn1.out_proj.bias"] = old_state_dict[f"{block}.attn1.to_out.0.bias"]
+
+            new_state_dict[f"{block}.attn2.out_proj.weight"] = old_state_dict[f"{block}.attn2.to_out.0.weight"]
+            new_state_dict[f"{block}.attn2.out_proj.bias"] = old_state_dict[f"{block}.attn2.to_out.0.bias"]
 
         self.load_state_dict(new_state_dict)
 
