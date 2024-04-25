@@ -152,11 +152,10 @@ class TestRandAffine(unittest.TestCase):
             self.assertTrue(g._cached_grid is not None)
         assert_allclose(result, expected_val, rtol=_rtol, atol=1e-4, type_test="tensor")
 
-    def test_ill_cache(self):
+    @parameterized.expand([(None,), ((1, 1, -1),)])
+    def test_ill_cache(self, spatial_size):
         with self.assertWarns(UserWarning):
-            RandAffine(cache_grid=True)
-        with self.assertWarns(UserWarning):
-            RandAffine(cache_grid=True, spatial_size=(1, 1, -1))
+            RandAffine(cache_grid=True, spatial_size=spatial_size)
 
     @parameterized.expand(TEST_CASES_SKIPPED_CONSISTENCY)
     def test_skipped_transform_consistency(self, im, in_dtype):

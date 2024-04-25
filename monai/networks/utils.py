@@ -840,7 +840,6 @@ def _onnx_trt_compile(
 
     # set up the conversion configuration
     config = builder.create_builder_config()
-    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 31)
     config.add_optimization_profile(profile)
     if precision == "fp16":
         config.set_flag(trt.BuilderFlag.FP16)

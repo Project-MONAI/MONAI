@@ -2251,7 +2251,7 @@ def distance_transform_edt(
         if return_distances:
             dtype = torch.float64 if float64_distances else torch.float32
             if distances is None:
-                distances = torch.zeros_like(img, dtype=dtype)  # type: ignore
+                distances = torch.zeros_like(img, memory_format=torch.contiguous_format, dtype=dtype)  # type: ignore
             else:
                 if not isinstance(distances, torch.Tensor) and distances.device != img.device:
                     raise TypeError("distances must be a torch.Tensor on the same device as img")
