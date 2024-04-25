@@ -29,7 +29,7 @@ from .mlp import MLPBlock
 from .patchembedding import PatchEmbed, PatchEmbeddingBlock
 from .regunet_block import RegistrationDownSampleBlock, RegistrationExtractionBlock, RegistrationResidualConvBlock
 from .segresnet_block import ResBlock
-from .selfattention import SABlock
+from .selfattention import CrossAttentionBlock, SABlock
 from .spade_norm import SPADE
 from .squeeze_and_excitation import (
     ChannelSELayer,
