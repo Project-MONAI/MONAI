@@ -12,12 +12,16 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import DiffusionModelUNet
+from monai.utils import optional_import
+
+einops, has_einops = optional_import("einops")
 
 UNCOND_CASES_2D = [
     [
@@ -104,6 +108,7 @@ UNCOND_CASES_2D = [
         }
     ],
 ]
+
 
 UNCOND_CASES_3D = [
     [
@@ -286,6 +291,7 @@ DROPOUT_WRONG = [
 
 class TestDiffusionModelUNet2D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_2D)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param):
         net = DiffusionModelUNet(**input_param)
         with eval_mode(net):
