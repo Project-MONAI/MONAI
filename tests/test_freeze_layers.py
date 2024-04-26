@@ -40,9 +40,9 @@ class TestModuleState(unittest.TestCase):
 
         for name, param in model.named_parameters():
             if "class_layer" in name:
-                self.assertEqual(param.requires_grad, False)
+                self.assertFalse(param.requires_grad)
             else:
-                self.assertEqual(param.requires_grad, True)
+                self.assertTrue(param.requires_grad)
 
     @parameterized.expand(TEST_CASES)
     def test_exclude_vars(self, device):
@@ -53,9 +53,9 @@ class TestModuleState(unittest.TestCase):
 
         for name, param in model.named_parameters():
             if "class_layer" in name:
-                self.assertEqual(param.requires_grad, True)
+                self.assertTrue(param.requires_grad)
             else:
-                self.assertEqual(param.requires_grad, False)
+                self.assertFalse(param.requires_grad)
 
 
 if __name__ == "__main__":

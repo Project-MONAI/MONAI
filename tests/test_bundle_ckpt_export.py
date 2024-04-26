@@ -72,9 +72,9 @@ class TestCKPTExport(unittest.TestCase):
             _, metadata, extra_files = load_net_with_metadata(
                 ts_file, more_extra_files=["inference.json", "def_args.json"]
             )
-            self.assertTrue("schema" in metadata)
-            self.assertTrue("meta_file" in json.loads(extra_files["def_args.json"]))
-            self.assertTrue("network_def" in json.loads(extra_files["inference.json"]))
+            self.assertIn("schema", metadata)
+            self.assertIn("meta_file", json.loads(extra_files["def_args.json"]))
+            self.assertIn("network_def", json.loads(extra_files["inference.json"]))
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_default_value(self, key_in_ckpt, use_trace):
