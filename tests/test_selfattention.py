@@ -76,36 +76,36 @@ class TestResBlock(unittest.TestCase):
 
     def test_number_of_parameters(self):
 
-        def count_params(model):
-            return sum([x.numel() for x in model.parameters() if x.requires_grad])
+        def count_sablock_params(*args, **kwargs):
+            """Count the number of parameters in a SABlock."""
+            sablock = SABlock(*args, **kwargs)
+            return sum([x.numel() for x in sablock.parameters() if x.requires_grad])
 
         hidden_size = 128
         num_heads = 8
         default_dim_head = hidden_size // num_heads
 
-        nparams_default = count_params(SABlock(hidden_size=hidden_size, num_heads=num_heads))
-        nparams_like_default = count_params(
-            SABlock(hidden_size=hidden_size, num_heads=num_heads, dim_head=default_dim_head)
+        # Default dim_head is hidden_size // num_heads
+        nparams_default = count_sablock_params(hidden_size=hidden_size, num_heads=num_heads)
+        nparams_like_default = count_sablock_params(
+            hidden_size=hidden_size, num_heads=num_heads, dim_head=default_dim_head
         )
-        nparams_custom_large = count_params(
-            SABlock(hidden_size=hidden_size, num_heads=num_heads, dim_head=default_dim_head * 2)
-        )
-        nparams_custom_small = count_params(
-            SABlock(hidden_size=hidden_size, num_heads=num_heads, dim_head=default_dim_head // 2)
-        )
-
-        nparams_default_more_heads = count_params(SABlock(hidden_size=hidden_size, num_heads=num_heads * 2))
-
-        # Default is the same as hidden_size // num_heads
         self.assertEqual(nparams_default, nparams_like_default)
 
         # Increasing dim_head should increase the number of parameters
+        nparams_custom_large = count_sablock_params(
+            hidden_size=hidden_size, num_heads=num_heads, dim_head=default_dim_head * 2
+        )
         self.assertGreater(nparams_custom_large, nparams_default)
 
         # Decreasing dim_head should decrease the number of parameters
+        nparams_custom_small = count_sablock_params(
+            hidden_size=hidden_size, num_heads=num_heads, dim_head=default_dim_head // 2
+        )
         self.assertGreater(nparams_default, nparams_custom_small)
 
         # Increasing the number of heads with the default behaviour should not change the number of params.
+        nparams_default_more_heads = count_sablock_params(hidden_size=hidden_size, num_heads=num_heads * 2)
         self.assertEqual(nparams_default, nparams_default_more_heads)
 
 
