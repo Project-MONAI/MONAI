@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import torch.nn as nn
 
-from monai.networks.blocks.attention import SABlock
-from monai.networks.blocks.mlp import MLPBlock
+from monai.networks.blocks import MLPBlock, SABlock
 
 
 class TransformerBlock(nn.Module):

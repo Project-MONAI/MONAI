@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.blocks.attention import SABlock
+from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
 

@@ -18,8 +18,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks import Convolution, Upsample
-from monai.networks.blocks.attention import SpatialAttentionBlock
+from monai.networks.blocks import Convolution, SpatialAttentionBlock, Upsample
 from monai.utils import ensure_tuple_rep, optional_import
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
