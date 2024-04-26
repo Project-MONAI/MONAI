@@ -53,7 +53,7 @@ class TransformerBlock(nn.Module):
 
         self.mlp = MLPBlock(hidden_size, mlp_dim, dropout_rate)
         self.norm1 = nn.LayerNorm(hidden_size)
-        self.attn = SABlock(hidden_size, num_heads, dropout_rate, qkv_bias, save_attn)
+        self.attn = SABlock(hidden_size, num_heads, dropout_rate, qkv_bias=qkv_bias, save_attn=save_attn)
         self.norm2 = nn.LayerNorm(hidden_size)
 
     def forward(self, x):
