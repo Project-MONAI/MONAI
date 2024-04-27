@@ -407,7 +407,8 @@ def map_and_generate_sampling_centers(
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
         warn: if `True` prints a warning if a class is not present in the label.
-
+    Returns:
+        Tuple of crop centres
     """
     indices_ = indices if indices is None else indices
     if indices_ is None:
