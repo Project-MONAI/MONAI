@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from typing import Optional, Tuple
+import warnings
 
 import torch
 import torch.nn as nn
@@ -19,6 +20,7 @@ import torch.nn as nn
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
 from monai.utils import optional_import
 
+xops, has_xformers = optional_import("xformers.ops")
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 
@@ -40,6 +42,7 @@ class SABlock(nn.Module):
         input_size: Optional[Tuple] = None,
         causal: bool = False,
         sequence_length: int | None = None,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -68,11 +71,23 @@ class SABlock(nn.Module):
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
+        if use_flash_attention and rel_pos_embedding is not None:
+            self.use_flash_attention = False
+            warnings.warn(
+                "flash attention set to `False`: flash attention can't be used with relative position embedding. Set `rel_pos_embedding` to `None` to use flash attention"
+            )
+        else:
+            self.use_flash_attention = use_flash_attention
+
+        if use_flash_attention and not has_xformers:
+            raise ValueError("use_flash_attention is True but xformers is not installed.")
+
         self.num_heads = num_heads
         self.out_proj = nn.Linear(hidden_size, hidden_size)
         self.qkv = nn.Linear(hidden_size, hidden_size * 3, bias=qkv_bias)
         self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
         self.out_rearrange = Rearrange("b h l d -> b l (h d)")
+        self.dropout_rate = dropout_rate
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
         self.head_dim = hidden_size // num_heads
@@ -105,24 +120,39 @@ class SABlock(nn.Module):
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
         """
         _, t, _ = x.size()
-        output = self.input_rearrange(self.qkv(x))
+        output = self.input_rearrange(self.qkv(x))  # 3 x B x (s_dim_1 * ... * s_dim_n) x h x C/h
         q, k, v = output[0], output[1], output[2]
-        att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
-        # apply relative positional embedding if defined
-        att_mat = self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
-        # apply causal mask if set
-        att_mat = att_mat.masked_fill(self.causal_mask[:, :, :t, :t] == 0, float("-inf")) if self.causal else att_mat
+        if self.use_flash_attention:
+            x = xops.memory_efficient_attention(
+                query=q.contiguous(),
+                key=k.contiguous(),
+                value=v.contiguous(),
+                scale=self.scale,
+                p=self.dropout_rate,
+                attn_bias=xops.LowerTriangularMask() if self.causal else None,
+            )
+        else:
+            att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
-        att_mat = att_mat.softmax(dim=-1)
+            # apply relative positional embedding if defined
+            att_mat = (
+                self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
+            )
+            # apply causal mask if set
+            att_mat = (
+                att_mat.masked_fill(self.causal_mask[:, :, :t, :t] == 0, float("-inf")) if self.causal else att_mat
+            )
 
-        if self.save_attn:
-            # no gradients and new tensor;
-            # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
-            self.att_mat = att_mat.detach()
+            att_mat = att_mat.softmax(dim=-1)
 
-        att_mat = self.drop_weights(att_mat)
-        x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
+            if self.save_attn:
+                # no gradients and new tensor;
+                # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
+                self.att_mat = att_mat.detach()
+
+            att_mat = self.drop_weights(att_mat)
+            x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
         x = self.out_rearrange(x)
         x = self.out_proj(x)
         x = self.drop_output(x)

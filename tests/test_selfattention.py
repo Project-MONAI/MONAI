@@ -24,6 +24,7 @@ from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
 
 einops, has_einops = optional_import("einops")
+xops, has_xformers = optional_import("xformers.ops")
 
 TEST_CASE_SABLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
@@ -55,6 +56,34 @@ class TestResBlock(unittest.TestCase):
         net = SABlock(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+
+    @skipUnless(has_xformers, "Requires xformers")
+    def test_flash_attention(self):
+        hidden_size = 360
+        num_heads = 4
+        dropout_rate = 0
+        input_shape = (2, 512, hidden_size)
+        expected_shape = (2, 512, hidden_size)
+        flash_attention_block = SABlock(hidden_size, num_heads, dropout_rate, use_flash_attention=True)
+        # flash attention set to false because of conflict using relative position embedding at the same time
+        no_flash_attention_block = SABlock(
+            hidden_size,
+            num_heads,
+            dropout_rate,
+            use_flash_attention=True,
+            rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
+            sequence_length=512,
+            input_size=([16, 32]),
+        )
+
+        self.assertFalse(no_flash_attention_block.use_flash_attention)
+
+        with eval_mode(flash_attention_block):
+            result = flash_attention_block(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+        with eval_mode(no_flash_attention_block):
+            result = no_flash_attention_block(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
