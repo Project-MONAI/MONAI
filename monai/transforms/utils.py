@@ -386,6 +386,7 @@ def map_and_generate_sampling_centers(
 ) -> tuple[tuple]:
     """
     Combine "map_classes_to_indices" and "generate_label_classes_crop_centers" functions, return crop center coordinates.
+    Call "map_classes_to_indices" if indices is None, pull the shape from the label or image (if label is None), and then call "generate_label_classes_crop_centers".
 
     Args:
         label: use the label data to get the indices of every class.
@@ -410,21 +411,24 @@ def map_and_generate_sampling_centers(
     Returns:
         Tuple of crop centres
     """
-    indices_ = indices if indices is None else indices
-    if indices_ is None:
+    if indices is None:
         if label is None:
             raise ValueError("label must not be None.")
-        indices_ = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
+        indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
+        
     _shape = None
     if label is not None:
         _shape = label.peek_pending_shape() if isinstance(label, monai.data.MetaTensor) else label.shape[1:]
     elif image is not None:
         _shape = image.peek_pending_shape() if isinstance(image, monai.data.MetaTensor) else image.shape[1:]
+        
     if _shape is None:
         raise ValueError("label or image must be provided to infer the output spatial shape.")
+        
     centers = generate_label_classes_crop_centers(
-        spatial_size, num_samples, _shape, indices_, ratios, rand_state, allow_smaller, warn
+        spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn
     )
+    
     return ensure_tuple(centers)
 
 
