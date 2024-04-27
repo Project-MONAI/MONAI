@@ -415,20 +415,20 @@ def map_and_generate_sampling_centers(
         if label is None:
             raise ValueError("label must not be None.")
         indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
-        
+
     _shape = None
     if label is not None:
         _shape = label.peek_pending_shape() if isinstance(label, monai.data.MetaTensor) else label.shape[1:]
     elif image is not None:
         _shape = image.peek_pending_shape() if isinstance(image, monai.data.MetaTensor) else image.shape[1:]
-        
+
     if _shape is None:
         raise ValueError("label or image must be provided to infer the output spatial shape.")
-        
+
     centers = generate_label_classes_crop_centers(
         spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn
     )
-    
+
     return ensure_tuple(centers)
 
 

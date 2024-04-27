@@ -12,14 +12,11 @@
 from __future__ import annotations
 
 import unittest
-from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import map_classes_to_indices, generate_label_classes_crop_centers, map_and_generate_sampling_centers
-from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from monai.transforms import map_classes_to_indices, map_and_generate_sampling_centers
 
 class TestMapAndGenerateSamplingCenters(unittest.TestCase):
 
