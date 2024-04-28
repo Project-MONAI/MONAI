@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from monai.config import KeysCollection
 from monai.utils.misc import ensure_tuple
+from numpy.random import RandomState
 
 from ..transform import MapTransform
 from .array import CutMix, CutOut, MixUp
@@ -28,11 +29,13 @@ class MixUpd(MapTransform):
     for consistency, i.e. images and labels must be applied the same augmenation.
     """
 
-    def __init__(
-        self, keys: KeysCollection, batch_size: int, alpha: float = 1.0, allow_missing_keys: bool = False
-    ) -> None:
+    def __init__(self, keys: KeysCollection, batch_size: int, alpha: float = 1.0, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mixup = MixUp(batch_size, alpha)
+
+    def set_random_state(self, seed: int | None = None, state: RandomState | None = None):
+        self.mixup.set_random_state(seed, state)
+        return self
 
     def __call__(self, data):
         self.mixup.randomize()
@@ -63,6 +66,10 @@ class CutMixd(MapTransform):
         self.mixer = CutMix(batch_size, alpha)
         self.label_keys = ensure_tuple(label_keys) if label_keys is not None else []
 
+    def set_random_state(self, seed: int | None = None, state: RandomState | None = None):
+        self.mixer.set_random_state(seed, state)
+        return self
+
     def __call__(self, data):
         self.mixer.randomize()
         result = dict(data)
@@ -83,6 +90,10 @@ class CutOutd(MapTransform):
     def __init__(self, keys: KeysCollection, batch_size: int, allow_missing_keys: bool = False) -> None:
         super().__init__(keys, allow_missing_keys)
         self.cutout = CutOut(batch_size)
+
+    def set_random_state(self, seed: int | None = None, state: RandomState | None = None):
+        self.cutout.set_random_state(seed, state)
+        return self
 
     def __call__(self, data):
         result = dict(data)
