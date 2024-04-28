@@ -11,9 +11,10 @@
 
 from __future__ import annotations
 
+from numpy.random import RandomState
+
 from monai.config import KeysCollection
 from monai.utils.misc import ensure_tuple
-from numpy.random import RandomState
 
 from ..transform import MapTransform
 from .array import CutMix, CutOut, MixUp
@@ -29,7 +30,9 @@ class MixUpd(MapTransform):
     for consistency, i.e. images and labels must be applied the same augmenation.
     """
 
-    def __init__(self, keys: KeysCollection, batch_size: int, alpha: float = 1.0, allow_missing_keys: bool = False) -> None:
+    def __init__(
+        self, keys: KeysCollection, batch_size: int, alpha: float = 1.0, allow_missing_keys: bool = False
+    ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.mixup = MixUp(batch_size, alpha)
 
