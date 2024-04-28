@@ -11,9 +11,12 @@
 
 from __future__ import annotations
 
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 
+from monai.networks.blocks.attention_utils import window_partition, window_unpartition
 from monai.utils import optional_import
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
@@ -23,6 +26,8 @@ class SABlock(nn.Module):
     """
     A self-attention block, based on: "Dosovitskiy et al.,
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
+    and some additional features:
+    - local window attention
     """
 
     def __init__(
@@ -32,6 +37,8 @@ class SABlock(nn.Module):
         dropout_rate: float = 0.0,
         qkv_bias: bool = False,
         save_attn: bool = False,
+        window_size: int = 0,
+        input_size: Tuple = (),
     ) -> None:
         """
         Args:
@@ -40,6 +47,10 @@ class SABlock(nn.Module):
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+            window_size (int): Window size for local attention as used in Segment Anything https://arxiv.org/abs/2304.02643.
+                If 0, global attention used.
+                See https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/image_encoder.py.
+            input_size (Tuple): spatial input dimensions (h, w, and d). Has to be set if local window attention is used.
 
         """
 
@@ -50,6 +61,11 @@ class SABlock(nn.Module):
 
         if hidden_size % num_heads != 0:
             raise ValueError("hidden size should be divisible by num_heads.")
+
+        if window_size > 0 and len(input_size) not in [2, 3]:
+            raise ValueError(
+                "If local window attention is used (window_size > 0), input_size should be specified: (h, w) or (h, w, d)"
+            )
 
         self.num_heads = num_heads
         self.out_proj = nn.Linear(hidden_size, hidden_size)
@@ -62,8 +78,18 @@ class SABlock(nn.Module):
         self.scale = self.head_dim**-0.5
         self.save_attn = save_attn
         self.att_mat = torch.Tensor()
+        self.window_size = window_size
+        self.input_size = input_size
 
     def forward(self, x):
+        """
+        Args:
+            x (Tensor): [b x (s_dim_1 * … * s_dim_n) x dim]
+        """
+        # Window partition
+        if self.window_size > 0:
+            x, pad = window_partition(x, self.window_size, self.input_size)
+
         output = self.input_rearrange(self.qkv(x))
         q, k, v = output[0], output[1], output[2]
         att_mat = (torch.einsum("blxd,blyd->blxy", q, k) * self.scale).softmax(dim=-1)
@@ -77,4 +103,9 @@ class SABlock(nn.Module):
         x = self.out_rearrange(x)
         x = self.out_proj(x)
         x = self.drop_output(x)
+
+        # Reverse window partition
+        if self.window_size > 0:
+            x = window_unpartition(x, self.window_size, pad, self.input_size)
+
         return x
