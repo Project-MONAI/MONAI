@@ -83,7 +83,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
             hidden_size=num_attention_heads * num_head_channels,
             hidden_input_size=num_channels,
             num_heads=num_attention_heads,
-            num_head_channels=num_head_channels,
+            dim_head=num_head_channels,
             dropout_rate=dropout,
             upcast_attention=upcast_attention,
         )
@@ -93,7 +93,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
             num_heads=num_attention_heads,
             hidden_input_size=num_channels,
             context_input_size=cross_attention_dim,
-            num_head_channels=num_head_channels,
+            dim_head=num_head_channels,
             dropout_rate=dropout,
             upcast_attention=upcast_attention,
         )

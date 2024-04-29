@@ -33,10 +33,10 @@ class CrossAttentionBlock(nn.Module):
         self,
         hidden_size: int,
         num_heads: int,
+        dropout_rate: float = 0.0,
         hidden_input_size: int | None = None,
         context_input_size: int | None = None,
-        num_head_channels: int | None = None,
-        dropout_rate: float = 0.0,
+        dim_head: int | None = None,
         qkv_bias: bool = False,
         save_attn: bool = False,
         causal: bool = False,
@@ -50,16 +50,18 @@ class CrossAttentionBlock(nn.Module):
             hidden_size (int): dimension of hidden layer.
             num_heads (int): number of attention heads.
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
+            hidden_input_size (int, optional): dimension of the input tensor. Defaults to hidden_size.
+            context_input_size (int, optional): dimension of the context tensor. Defaults to hidden_size.
+            dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
+            save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
             causal: whether to use causal attention.
             sequence_length: if causal is True, it is necessary to specify the sequence length.
             rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map.
                 For now only "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
                 positional parameter size.
-            save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
             upcast_attention: if True, upcast attention operations to full precision.
-
         """
 
         super().__init__()
@@ -67,9 +69,9 @@ class CrossAttentionBlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
 
-        if num_head_channels:
-            inner_size = num_heads * num_head_channels
-            self.head_dim = num_head_channels
+        if dim_head:
+            inner_size = num_heads * dim_head
+            self.head_dim = dim_head
         else:
             if hidden_size % num_heads != 0:
                 raise ValueError("hidden size should be divisible by num_heads.")
