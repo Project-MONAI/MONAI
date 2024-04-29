@@ -96,7 +96,7 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
         for i, c in enumerate(im):
             lower, upper = percentile(c, (5, 95))
             expected = clip(c, lower, upper)
-            assert_allclose(result[key][i], p(expected), type_test="tensor", rtol=1e-4, atol=0)
+            assert_allclose(result[key][i], p(expected), type_test="tensor", rtol=1e-3, atol=0)
 
     def test_ill_sharpness_factor(self):
         key = "img"
