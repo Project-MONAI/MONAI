@@ -35,10 +35,9 @@ import math
 from collections.abc import Sequence
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
-from monai.networks.blocks import Convolution, CrossAttentionBlock, MLPBlock, SABlock, SpatialAttentionBlock
+from monai.networks.blocks import Convolution, CrossAttentionBlock, MLPBlock, SABlock, SpatialAttentionBlock, Upsample
 from monai.networks.layers.factories import Pool
 from monai.utils import ensure_tuple_rep, optional_import
 
@@ -305,68 +304,18 @@ class _Downsample(nn.Module):
         return output
 
 
-class _Upsample(nn.Module):
+class WrappedUpsample(Upsample):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
-    Upsampling layer with an optional convolution.
-
-    Args:
-        spatial_dims: number of spatial dimensions.
-        num_channels: number of input channels.
-        use_conv: if True uses Convolution instead of Pool average to perform downsampling.
-        out_channels: number of output channels.
-        padding: controls the amount of implicit zero-paddings on both sides for padding number of points for each
-            dimension.
+    Wraps
     """
-
-    def __init__(
-        self, spatial_dims: int, num_channels: int, use_conv: bool, out_channels: int | None = None, padding: int = 1
-    ) -> None:
-        super().__init__()
-        self.num_channels = num_channels
-        self.out_channels = out_channels or num_channels
-        self.use_conv = use_conv
-        if use_conv:
-            self.conv = Convolution(
-                spatial_dims=spatial_dims,
-                in_channels=self.num_channels,
-                out_channels=self.out_channels,
-                strides=1,
-                kernel_size=3,
-                padding=padding,
-                conv_only=True,
-            )
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
         del emb
-        if x.shape[1] != self.num_channels:
-            raise ValueError("Input channels should be equal to num_channels")
-
-        # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
-        # https://github.com/pytorch/pytorch/issues/86679
-        dtype = x.dtype
-        if dtype == torch.bfloat16:
-            x = x.to(torch.float32)
-
-        x = F.interpolate(x, scale_factor=2.0, mode="nearest")
-
-        # If the input is bfloat16, we cast back to bfloat16
-        if dtype == torch.bfloat16:
-            x = x.to(dtype)
-
-        if self.use_conv:
-            x = self.conv(x)
-        return x
+        return super().forward(x)
 
 
-class _ResnetBlock(nn.Module):
+class DiffusionUNetResnetBlock(nn.Module):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
     Residual block with timestep conditioning.
 
     Args:
@@ -413,7 +362,16 @@ class _ResnetBlock(nn.Module):
 
         self.upsample = self.downsample = None
         if self.up:
-            self.upsample = _Upsample(spatial_dims, in_channels, use_conv=False)
+            self.upsample = WrappedUpsample(
+                spatial_dims=spatial_dims,
+                mode="nontrainable",
+                in_channels=in_channels,
+                out_channels=in_channels,
+                interp_mode="nearest",
+                scale_factor=2.0,
+                post_conv=False,
+                align_corners=None,
+            )
         elif down:
             self.downsample = _Downsample(spatial_dims, in_channels, use_conv=False)
 
@@ -513,7 +471,7 @@ class DownBlock(nn.Module):
         for i in range(num_res_blocks):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
-                _ResnetBlock(
+                DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -528,7 +486,7 @@ class DownBlock(nn.Module):
         if add_downsample:
             self.downsampler: nn.Module | None
             if resblock_updown:
-                self.downsampler = _ResnetBlock(
+                self.downsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -606,7 +564,7 @@ class AttnDownBlock(nn.Module):
         for i in range(num_res_blocks):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
-                _ResnetBlock(
+                DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -631,7 +589,7 @@ class AttnDownBlock(nn.Module):
         self.downsampler: nn.Module | None
         if add_downsample:
             if resblock_updown:
-                self.downsampler = _ResnetBlock(
+                self.downsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -718,7 +676,7 @@ class CrossAttnDownBlock(nn.Module):
         for i in range(num_res_blocks):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
-                _ResnetBlock(
+                DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=in_channels,
                     out_channels=out_channels,
@@ -749,7 +707,7 @@ class CrossAttnDownBlock(nn.Module):
         self.downsampler: nn.Module | None
         if add_downsample:
             if resblock_updown:
-                self.downsampler = _ResnetBlock(
+                self.downsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -810,7 +768,7 @@ class AttnMidBlock(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.resnet_1 = _ResnetBlock(
+        self.resnet_1 = DiffusionUNetResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -826,7 +784,7 @@ class AttnMidBlock(nn.Module):
             norm_eps=norm_eps,
         )
 
-        self.resnet_2 = _ResnetBlock(
+        self.resnet_2 = DiffusionUNetResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -877,7 +835,7 @@ class CrossAttnMidBlock(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.resnet_1 = _ResnetBlock(
+        self.resnet_1 = DiffusionUNetResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -897,7 +855,7 @@ class CrossAttnMidBlock(nn.Module):
             upcast_attention=upcast_attention,
             dropout=dropout_cattn,
         )
-        self.resnet_2 = _ResnetBlock(
+        self.resnet_2 = DiffusionUNetResnetBlock(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -955,7 +913,7 @@ class UpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                _ResnetBlock(
+                DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -970,7 +928,7 @@ class UpBlock(nn.Module):
         self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
-                self.upsampler = _ResnetBlock(
+                self.upsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -980,9 +938,26 @@ class UpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = _Upsample(
-                    spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
+                post_conv = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    conv_only=True,
                 )
+                self.upsampler = WrappedUpsample(
+                    spatial_dims=spatial_dims,
+                    mode="nontrainable",
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    interp_mode="nearest",
+                    scale_factor=2.0,
+                    post_conv=post_conv,
+                    align_corners=None,
+                )
+
         else:
             self.upsampler = None
 
@@ -1051,7 +1026,7 @@ class AttnUpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                _ResnetBlock(
+                DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -1076,7 +1051,7 @@ class AttnUpBlock(nn.Module):
         self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
-                self.upsampler = _ResnetBlock(
+                self.upsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -1086,8 +1061,25 @@ class AttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = _Upsample(
-                    spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
+
+                post_conv = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    conv_only=True,
+                )
+                self.upsampler = WrappedUpsample(
+                    spatial_dims=spatial_dims,
+                    mode="nontrainable",
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    interp_mode="nearest",
+                    scale_factor=2.0,
+                    post_conv=post_conv,
+                    align_corners=None,
                 )
         else:
             self.upsampler = None
@@ -1166,7 +1158,7 @@ class CrossAttnUpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                _ResnetBlock(
+                DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -1196,7 +1188,7 @@ class CrossAttnUpBlock(nn.Module):
         self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
-                self.upsampler = _ResnetBlock(
+                self.upsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -1206,8 +1198,25 @@ class CrossAttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = _Upsample(
-                    spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
+
+                post_conv = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    conv_only=True,
+                )
+                self.upsampler = WrappedUpsample(
+                    spatial_dims=spatial_dims,
+                    mode="nontrainable",
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    interp_mode="nearest",
+                    scale_factor=2.0,
+                    post_conv=post_conv,
+                    align_corners=None,
                 )
         else:
             self.upsampler = None
@@ -1735,7 +1744,11 @@ class DiffusionModelUNet(nn.Module):
 
             new_state_dict[f"{block}.attn2.out_proj.weight"] = old_state_dict[f"{block}.attn2.to_out.0.weight"]
             new_state_dict[f"{block}.attn2.out_proj.bias"] = old_state_dict[f"{block}.attn2.to_out.0.bias"]
-
+        # fix the upsample conv blocks which were renamed postconv
+        for k in new_state_dict:
+            if "postconv" in k:
+                old_name = k.replace("postconv", "conv")
+                new_state_dict[k] = old_state_dict[old_name]
         self.load_state_dict(new_state_dict)
 
 

@@ -39,10 +39,10 @@ from torch import nn
 from monai.networks.blocks import Convolution, SpatialAttentionBlock
 from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.nets.diffusion_model_unet import (
+    DiffusionUNetResnetBlock,
     SpatialTransformer,
+    WrappedUpsample,
     _Downsample,
-    _ResnetBlock,
-    _Upsample,
     get_down_block,
     get_mid_block,
     get_timestep_embedding,
@@ -119,7 +119,7 @@ class SPADEResnetBlock(nn.Module):
 
         self.upsample = self.downsample = None
         if self.up:
-            self.upsample = _Upsample(spatial_dims, in_channels, use_conv=False)
+            self.upsample = WrappedUpsample(spatial_dims, in_channels, use_conv=False)
         elif down:
             self.downsample = _Downsample(spatial_dims, in_channels, use_conv=False)
 
@@ -251,7 +251,7 @@ class SPADEUpBlock(nn.Module):
         self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
-                self.upsampler = _ResnetBlock(
+                self.upsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -261,7 +261,7 @@ class SPADEUpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = _Upsample(
+                self.upsampler = WrappedUpsample(
                     spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
                 )
         else:
@@ -366,7 +366,7 @@ class SPADEAttnUpBlock(nn.Module):
         self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
-                self.upsampler = _ResnetBlock(
+                self.upsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -376,7 +376,7 @@ class SPADEAttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = _Upsample(
+                self.upsampler = WrappedUpsample(
                     spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
                 )
         else:
@@ -492,7 +492,7 @@ class SPADECrossAttnUpBlock(nn.Module):
         self.upsampler: nn.Module | None
         if add_upsample:
             if resblock_updown:
-                self.upsampler = _ResnetBlock(
+                self.upsampler = DiffusionUNetResnetBlock(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     out_channels=out_channels,
@@ -502,7 +502,7 @@ class SPADECrossAttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
-                self.upsampler = _Upsample(
+                self.upsampler = WrappedUpsample(
                     spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
                 )
         else:
