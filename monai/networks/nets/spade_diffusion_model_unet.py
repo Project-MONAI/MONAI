@@ -48,11 +48,7 @@ from monai.networks.nets.diffusion_model_unet import (
     get_timestep_embedding,
     zero_module,
 )
-from monai.utils import ensure_tuple_rep, optional_import
-
-# To install xformers, use pip install xformers==0.0.16rc401
-xops, has_xformers = optional_import("xformers.ops")
-
+from monai.utils import ensure_tuple_rep
 
 __all__ = ["SPADEDiffusionModelUNet"]
 

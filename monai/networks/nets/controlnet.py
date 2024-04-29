@@ -141,7 +141,6 @@ class ControlNet(nn.Module):
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
             classes.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         conditioning_embedding_in_channels: number of input channels for the conditioning embedding.
         conditioning_embedding_num_channels: number of channels for the blocks in the conditioning embedding.
     """
@@ -162,7 +161,6 @@ class ControlNet(nn.Module):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
         conditioning_embedding_in_channels: int = 1,
         conditioning_embedding_num_channels: Sequence[int] = (16, 32, 96, 256),
     ) -> None:
@@ -207,11 +205,6 @@ class ControlNet(nn.Module):
             raise ValueError(
                 f"`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
                 f"`num_channels`, but got num_res_blocks={num_res_blocks} and channels={channels}."
-            )
-
-        if use_flash_attention is True and not torch.cuda.is_available():
-            raise ValueError(
-                "torch.cuda.is_available() should be True but is False. Flash attention is only available for GPU."
             )
 
         self.in_channels = in_channels
@@ -289,7 +282,6 @@ class ControlNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
-                use_flash_attention=use_flash_attention,
             )
 
             self.down_blocks.append(down_block)
@@ -334,7 +326,6 @@ class ControlNet(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
         )
 
         controlnet_block = Convolution(

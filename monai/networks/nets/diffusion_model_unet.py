@@ -41,11 +41,7 @@ from monai.networks.blocks import Convolution, CrossAttentionBlock, MLPBlock, SA
 from monai.networks.layers.factories import Pool
 from monai.utils import ensure_tuple_rep, optional_import
 
-# To install xformers, use pip install xformers==0.0.16rc401
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
-
-xops, has_xformers = optional_import("xformers.ops")
-
 
 __all__ = ["DiffusionModelUNet"]
 

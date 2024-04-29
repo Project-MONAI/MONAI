@@ -15,9 +15,7 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks import TransformerBlock
-from monai.utils import optional_import
 
-xops, has_xformers = optional_import("xformers.ops")
 __all__ = ["DecoderOnlyTransformer"]
 
 
@@ -53,7 +51,6 @@ class DecoderOnlyTransformer(nn.Module):
         attn_layers_heads: Number of attention heads.
         with_cross_attention: Whether to use cross attention for conditioning.
         embedding_dropout_rate: Dropout rate for the embedding.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
     """
 
     def __init__(
@@ -65,7 +62,6 @@ class DecoderOnlyTransformer(nn.Module):
         attn_layers_heads: int,
         with_cross_attention: bool = False,
         embedding_dropout_rate: float = 0.0,
-        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.num_tokens = num_tokens
@@ -81,17 +77,6 @@ class DecoderOnlyTransformer(nn.Module):
 
         self.blocks = nn.ModuleList(
             [
-                # _TransformerBlock(
-                #     hidden_size=attn_layers_dim,
-                #     mlp_dim=attn_layers_dim * 4,
-                #     num_heads=attn_layers_heads,
-                #     dropout_rate=0.0,
-                #     qkv_bias=False,
-                #     causal=True,
-                #     sequence_length=max_seq_len,
-                #     with_cross_attention=with_cross_attention,
-                #     use_flash_attention=use_flash_attention,
-                # )
                 TransformerBlock(
                     hidden_size=attn_layers_dim,
                     mlp_dim=attn_layers_dim * 4,
