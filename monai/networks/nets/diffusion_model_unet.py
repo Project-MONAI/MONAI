@@ -253,12 +253,8 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int, max_peri
     return embedding
 
 
-class _Downsample(nn.Module):
+class DiffusionUnetDownsample(nn.Module):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
     Downsampling layer.
 
     Args:
@@ -306,7 +302,7 @@ class _Downsample(nn.Module):
 
 class WrappedUpsample(Upsample):
     """
-    Wraps
+    Wraps MONAI upsample block to allow for calling with timestep embeddings.
     """
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
@@ -373,7 +369,7 @@ class DiffusionUNetResnetBlock(nn.Module):
                 align_corners=None,
             )
         elif down:
-            self.downsample = _Downsample(spatial_dims, in_channels, use_conv=False)
+            self.downsample = DiffusionUnetDownsample(spatial_dims, in_channels, use_conv=False)
 
         self.time_emb_proj = nn.Linear(temb_channels, self.out_channels)
 
@@ -496,7 +492,7 @@ class DownBlock(nn.Module):
                     down=True,
                 )
             else:
-                self.downsampler = _Downsample(
+                self.downsampler = DiffusionUnetDownsample(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     use_conv=True,
@@ -599,7 +595,7 @@ class AttnDownBlock(nn.Module):
                     down=True,
                 )
             else:
-                self.downsampler = _Downsample(
+                self.downsampler = DiffusionUnetDownsample(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     use_conv=True,
@@ -717,7 +713,7 @@ class CrossAttnDownBlock(nn.Module):
                     down=True,
                 )
             else:
-                self.downsampler = _Downsample(
+                self.downsampler = DiffusionUnetDownsample(
                     spatial_dims=spatial_dims,
                     num_channels=out_channels,
                     use_conv=True,

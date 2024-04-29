@@ -39,10 +39,10 @@ from torch import nn
 from monai.networks.blocks import Convolution, SpatialAttentionBlock
 from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.nets.diffusion_model_unet import (
+    DiffusionUnetDownsample,
     DiffusionUNetResnetBlock,
     SpatialTransformer,
     WrappedUpsample,
-    _Downsample,
     get_down_block,
     get_mid_block,
     get_timestep_embedding,
@@ -119,9 +119,18 @@ class SPADEResnetBlock(nn.Module):
 
         self.upsample = self.downsample = None
         if self.up:
-            self.upsample = WrappedUpsample(spatial_dims, in_channels, use_conv=False)
+            self.upsample = WrappedUpsample(
+                spatial_dims=spatial_dims,
+                mode="nontrainable",
+                in_channels=in_channels,
+                out_channels=in_channels,
+                interp_mode="nearest",
+                scale_factor=2.0,
+                post_conv=False,
+                align_corners=None,
+            )
         elif down:
-            self.downsample = _Downsample(spatial_dims, in_channels, use_conv=False)
+            self.downsample = DiffusionUnetDownsample(spatial_dims, in_channels, use_conv=False)
 
         self.time_emb_proj = nn.Linear(temb_channels, self.out_channels)
 
@@ -261,8 +270,24 @@ class SPADEUpBlock(nn.Module):
                     up=True,
                 )
             else:
+                post_conv = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    conv_only=True,
+                )
                 self.upsampler = WrappedUpsample(
-                    spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
+                    spatial_dims=spatial_dims,
+                    mode="nontrainable",
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    interp_mode="nearest",
+                    scale_factor=2.0,
+                    post_conv=post_conv,
+                    align_corners=None,
                 )
         else:
             self.upsampler = None
@@ -307,7 +332,6 @@ class SPADEAttnUpBlock(nn.Module):
         add_upsample: if True add downsample block.
         resblock_updown: if True use residual blocks for upsampling.
         num_head_channels: number of channels in each attention head.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer
     """
 
@@ -325,7 +349,6 @@ class SPADEAttnUpBlock(nn.Module):
         add_upsample: bool = True,
         resblock_updown: bool = False,
         num_head_channels: int = 1,
-        use_flash_attention: bool = False,
         spade_intermediate_channels: int = 128,
     ) -> None:
         super().__init__()
@@ -356,7 +379,6 @@ class SPADEAttnUpBlock(nn.Module):
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
-                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -376,8 +398,24 @@ class SPADEAttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
+                post_conv = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    conv_only=True,
+                )
                 self.upsampler = WrappedUpsample(
-                    spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
+                    spatial_dims=spatial_dims,
+                    mode="nontrainable",
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    interp_mode="nearest",
+                    scale_factor=2.0,
+                    post_conv=post_conv,
+                    align_corners=None,
                 )
         else:
             self.upsampler = None
@@ -426,7 +464,6 @@ class SPADECrossAttnUpBlock(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer.
     """
 
@@ -447,7 +484,6 @@ class SPADECrossAttnUpBlock(nn.Module):
         transformer_num_layers: int = 1,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
         spade_intermediate_channels: int = 128,
     ) -> None:
         super().__init__()
@@ -482,7 +518,6 @@ class SPADECrossAttnUpBlock(nn.Module):
                     num_layers=transformer_num_layers,
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
-                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -502,8 +537,24 @@ class SPADECrossAttnUpBlock(nn.Module):
                     up=True,
                 )
             else:
+                post_conv = Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    conv_only=True,
+                )
                 self.upsampler = WrappedUpsample(
-                    spatial_dims=spatial_dims, num_channels=out_channels, use_conv=True, out_channels=out_channels
+                    spatial_dims=spatial_dims,
+                    mode="nontrainable",
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    interp_mode="nearest",
+                    scale_factor=2.0,
+                    post_conv=post_conv,
+                    align_corners=None,
                 )
         else:
             self.upsampler = None
@@ -548,7 +599,6 @@ def get_spade_up_block(
     label_nc: int,
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
-    use_flash_attention: bool = False,
     spade_intermediate_channels: int = 128,
 ) -> nn.Module:
     if with_attn:
@@ -565,7 +615,6 @@ def get_spade_up_block(
             add_upsample=add_upsample,
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
-            use_flash_attention=use_flash_attention,
             spade_intermediate_channels=spade_intermediate_channels,
         )
     elif with_cross_attn:
@@ -585,7 +634,6 @@ def get_spade_up_block(
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
             spade_intermediate_channels=spade_intermediate_channels,
         )
     else:
@@ -629,7 +677,6 @@ class SPADEDiffusionModelUNet(nn.Module):
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
         classes.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer
     """
 
@@ -651,7 +698,6 @@ class SPADEDiffusionModelUNet(nn.Module):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
         spade_intermediate_channels: int = 128,
     ) -> None:
         super().__init__()
@@ -688,14 +734,6 @@ class SPADEDiffusionModelUNet(nn.Module):
             raise ValueError(
                 "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
                 "`num_channels`."
-            )
-
-        if use_flash_attention and not has_xformers:
-            raise ValueError("use_flash_attention is True but xformers is not installed.")
-
-        if use_flash_attention is True and not torch.cuda.is_available():
-            raise ValueError(
-                "torch.cuda.is_available() should be True but is False. Flash attention is only available for GPU."
             )
 
         self.in_channels = in_channels
@@ -753,7 +791,6 @@ class SPADEDiffusionModelUNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
-                use_flash_attention=use_flash_attention,
             )
 
             self.down_blocks.append(down_block)
@@ -770,7 +807,6 @@ class SPADEDiffusionModelUNet(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
         )
 
         # up
@@ -804,7 +840,6 @@ class SPADEDiffusionModelUNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
-                use_flash_attention=use_flash_attention,
                 label_nc=label_nc,
                 spade_intermediate_channels=spade_intermediate_channels,
             )
