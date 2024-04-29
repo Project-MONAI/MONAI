@@ -60,13 +60,9 @@ def zero_module(module: nn.Module) -> nn.Module:
     return module
 
 
-class _BasicTransformerBlock(nn.Module):
+class DiffusionUNetTransformerBlock(nn.Module):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
-    A basic Transformer block.
+    A Transformer block that allows for the input dimension to differ from the hidden dimension.
 
     Args:
         num_channels: number of channels in the input and output.
@@ -75,7 +71,7 @@ class _BasicTransformerBlock(nn.Module):
         dropout: dropout probability to use.
         cross_attention_dim: size of the context vector for cross attention.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+
     """
 
     def __init__(
@@ -86,7 +82,6 @@ class _BasicTransformerBlock(nn.Module):
         dropout: float = 0.0,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.attn1 = SABlock(
@@ -95,6 +90,7 @@ class _BasicTransformerBlock(nn.Module):
             num_heads=num_attention_heads,
             num_head_channels=num_head_channels,
             dropout_rate=dropout,
+            upcast_attention=upcast_attention,
         )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
         self.attn2 = CrossAttentionBlock(
@@ -104,6 +100,7 @@ class _BasicTransformerBlock(nn.Module):
             context_input_size=cross_attention_dim,
             num_head_channels=num_head_channels,
             dropout_rate=dropout,
+            upcast_attention=upcast_attention,
         )
         self.norm1 = nn.LayerNorm(num_channels)
         self.norm2 = nn.LayerNorm(num_channels)
@@ -121,7 +118,7 @@ class _BasicTransformerBlock(nn.Module):
         return x
 
 
-class _SpatialTransformer(nn.Module):
+class SpatialTransformer(nn.Module):
     """
     NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
     use of this block as support is not guaranteed. For more information see:
@@ -141,7 +138,6 @@ class _SpatialTransformer(nn.Module):
         norm_eps: epsilon for the normalization.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
     """
 
     def __init__(
@@ -156,7 +152,6 @@ class _SpatialTransformer(nn.Module):
         norm_eps: float = 1e-6,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -177,14 +172,13 @@ class _SpatialTransformer(nn.Module):
 
         self.transformer_blocks = nn.ModuleList(
             [
-                _BasicTransformerBlock(
+                DiffusionUNetTransformerBlock(
                     num_channels=inner_dim,
                     num_attention_heads=num_attention_heads,
                     num_head_channels=num_head_channels,
                     dropout=dropout,
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
-                    use_flash_attention=use_flash_attention,
                 )
                 for _ in range(num_layers)
             ]
@@ -587,7 +581,6 @@ class AttnDownBlock(nn.Module):
         resblock_updown: if True use residual blocks for downsampling.
         downsample_padding: padding used in the downsampling block.
         num_head_channels: number of channels in each attention head.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
     """
 
     def __init__(
@@ -603,7 +596,6 @@ class AttnDownBlock(nn.Module):
         resblock_updown: bool = False,
         downsample_padding: int = 1,
         num_head_channels: int = 1,
-        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -696,7 +688,6 @@ class CrossAttnDownBlock(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers
     """
 
@@ -716,7 +707,6 @@ class CrossAttnDownBlock(nn.Module):
         transformer_num_layers: int = 1,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
     ) -> None:
         super().__init__()
@@ -739,7 +729,7 @@ class CrossAttnDownBlock(nn.Module):
             )
 
             attentions.append(
-                _SpatialTransformer(
+                SpatialTransformer(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     num_attention_heads=out_channels // num_head_channels,
@@ -749,7 +739,6 @@ class CrossAttnDownBlock(nn.Module):
                     norm_eps=norm_eps,
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
-                    use_flash_attention=use_flash_attention,
                     dropout=dropout_cattn,
                 )
             )
@@ -808,7 +797,6 @@ class AttnMidBlock(nn.Module):
         norm_num_groups: number of groups for the group normalization.
         norm_eps: epsilon for the group normalization.
         num_head_channels: number of channels in each attention head.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
     """
 
     def __init__(
@@ -819,7 +807,6 @@ class AttnMidBlock(nn.Module):
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
         num_head_channels: int = 1,
-        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -873,7 +860,6 @@ class CrossAttnMidBlock(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
     """
 
     def __init__(
@@ -887,7 +873,6 @@ class CrossAttnMidBlock(nn.Module):
         transformer_num_layers: int = 1,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
     ) -> None:
         super().__init__()
@@ -900,7 +885,7 @@ class CrossAttnMidBlock(nn.Module):
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
         )
-        self.attention = _SpatialTransformer(
+        self.attention = SpatialTransformer(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_attention_heads=in_channels // num_head_channels,
@@ -910,7 +895,6 @@ class CrossAttnMidBlock(nn.Module):
             norm_eps=norm_eps,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
             dropout=dropout_cattn,
         )
         self.resnet_2 = _ResnetBlock(
@@ -1040,7 +1024,6 @@ class AttnUpBlock(nn.Module):
         add_upsample: if True add downsample block.
         resblock_updown: if True use residual blocks for upsampling.
         num_head_channels: number of channels in each attention head.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
     """
 
     def __init__(
@@ -1056,7 +1039,6 @@ class AttnUpBlock(nn.Module):
         add_upsample: bool = True,
         resblock_updown: bool = False,
         num_head_channels: int = 1,
-        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -1152,7 +1134,6 @@ class CrossAttnUpBlock(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers
     """
 
@@ -1172,7 +1153,6 @@ class CrossAttnUpBlock(nn.Module):
         transformer_num_layers: int = 1,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
     ) -> None:
         super().__init__()
@@ -1196,7 +1176,7 @@ class CrossAttnUpBlock(nn.Module):
                 )
             )
             attentions.append(
-                _SpatialTransformer(
+                SpatialTransformer(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     num_attention_heads=out_channels // num_head_channels,
@@ -1206,7 +1186,6 @@ class CrossAttnUpBlock(nn.Module):
                     num_layers=transformer_num_layers,
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
-                    use_flash_attention=use_flash_attention,
                     dropout=dropout_cattn,
                 )
             )
@@ -1271,7 +1250,6 @@ def get_down_block(
     transformer_num_layers: int,
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
-    use_flash_attention: bool = False,
     dropout_cattn: float = 0.0,
 ) -> nn.Module:
     if with_attn:
@@ -1286,7 +1264,6 @@ def get_down_block(
             add_downsample=add_downsample,
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
-            use_flash_attention=use_flash_attention,
         )
     elif with_cross_attn:
         return CrossAttnDownBlock(
@@ -1303,7 +1280,6 @@ def get_down_block(
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
             dropout_cattn=dropout_cattn,
         )
     else:
@@ -1331,7 +1307,6 @@ def get_mid_block(
     transformer_num_layers: int,
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
-    use_flash_attention: bool = False,
     dropout_cattn: float = 0.0,
 ) -> nn.Module:
     if with_conditioning:
@@ -1345,7 +1320,6 @@ def get_mid_block(
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
             dropout_cattn=dropout_cattn,
         )
     else:
@@ -1356,7 +1330,6 @@ def get_mid_block(
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
             num_head_channels=num_head_channels,
-            use_flash_attention=use_flash_attention,
         )
 
 
@@ -1377,7 +1350,6 @@ def get_up_block(
     transformer_num_layers: int,
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
-    use_flash_attention: bool = False,
     dropout_cattn: float = 0.0,
 ) -> nn.Module:
     if with_attn:
@@ -1393,7 +1365,6 @@ def get_up_block(
             add_upsample=add_upsample,
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
-            use_flash_attention=use_flash_attention,
         )
     elif with_cross_attn:
         return CrossAttnUpBlock(
@@ -1411,7 +1382,6 @@ def get_up_block(
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
             dropout_cattn=dropout_cattn,
         )
     else:
@@ -1452,7 +1422,6 @@ class DiffusionModelUNet(nn.Module):
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
         classes.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers
     """
 
@@ -1473,7 +1442,6 @@ class DiffusionModelUNet(nn.Module):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
-        use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
     ) -> None:
         super().__init__()
@@ -1512,14 +1480,6 @@ class DiffusionModelUNet(nn.Module):
             raise ValueError(
                 "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
                 "`num_channels`."
-            )
-
-        if use_flash_attention and not has_xformers:
-            raise ValueError("use_flash_attention is True but xformers is not installed.")
-
-        if use_flash_attention is True and not torch.cuda.is_available():
-            raise ValueError(
-                "torch.cuda.is_available() should be True but is False. Flash attention is only available for GPU."
             )
 
         self.in_channels = in_channels
@@ -1576,7 +1536,6 @@ class DiffusionModelUNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
-                use_flash_attention=use_flash_attention,
                 dropout_cattn=dropout_cattn,
             )
 
@@ -1594,7 +1553,6 @@ class DiffusionModelUNet(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
             dropout_cattn=dropout_cattn,
         )
 
@@ -1629,7 +1587,6 @@ class DiffusionModelUNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
-                use_flash_attention=use_flash_attention,
                 dropout_cattn=dropout_cattn,
             )
 

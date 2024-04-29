@@ -39,9 +39,9 @@ from torch import nn
 from monai.networks.blocks import Convolution, SpatialAttentionBlock
 from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.nets.diffusion_model_unet import (
+    SpatialTransformer,
     _Downsample,
     _ResnetBlock,
-    _SpatialTransformer,
     _Upsample,
     get_down_block,
     get_mid_block,
@@ -472,7 +472,7 @@ class SPADECrossAttnUpBlock(nn.Module):
                 )
             )
             attentions.append(
-                _SpatialTransformer(
+                SpatialTransformer(
                     spatial_dims=spatial_dims,
                     in_channels=out_channels,
                     num_attention_heads=out_channels // num_head_channels,

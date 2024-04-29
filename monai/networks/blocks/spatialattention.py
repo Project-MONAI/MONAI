@@ -30,6 +30,8 @@ class SpatialAttentionBlock(nn.Module):
         spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         num_channels: number of input channels. Must be divisible by num_head_channels.
         num_head_channels: number of channels per head.
+        upcast_attention: if True, upcast attention operations to full precision.
+
     """
 
     def __init__(
@@ -39,6 +41,7 @@ class SpatialAttentionBlock(nn.Module):
         num_head_channels: int | None = None,
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
+        upcast_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -48,8 +51,9 @@ class SpatialAttentionBlock(nn.Module):
         if num_head_channels is not None and num_channels % num_head_channels != 0:
             raise ValueError("num_channels must be divisible by num_head_channels")
         num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
-
-        self.attn = SABlock(hidden_size=num_channels, num_heads=num_heads, qkv_bias=True)
+        self.attn = SABlock(
+            hidden_size=num_channels, num_heads=num_heads, qkv_bias=True, upcast_attention=upcast_attention
+        )
 
     def forward(self, x: torch.Tensor):
         residual = x

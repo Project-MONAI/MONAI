@@ -42,6 +42,7 @@ class SABlock(nn.Module):
         sequence_length: int | None = None,
         rel_pos_embedding: Optional[str] = None,
         input_size: Optional[Tuple] = None,
+        upcast_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -56,6 +57,7 @@ class SABlock(nn.Module):
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
                 positional parameter size.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+            upcast_attention: if True, upcast attention operations to full precision.
 
         """
 
@@ -86,6 +88,7 @@ class SABlock(nn.Module):
         self.drop_weights = nn.Dropout(dropout_rate)
         self.scale = self.head_dim**-0.5
         self.save_attn = save_attn
+        self.upcast_attention = upcast_attention
         self.causal = causal
         self.sequence_length = sequence_length
 
@@ -115,6 +118,9 @@ class SABlock(nn.Module):
         """
         output = self.input_rearrange(self.qkv(x))
         q, k, v = output[0], output[1], output[2]
+        if self.upcast_attention:
+            q = q.float()
+            k = k.float()
         att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
         # apply relative positional embedding if defined
