@@ -30,7 +30,7 @@ TEST_CASES = [
         (1, 128, 32, 32),
     ],
     [
-        {"spatial_dims": 3, "num_channels": 128, "num_head_channels": 32, "norm_num_groups": 32, "norm_eps": 1e-6},
+        {"spatial_dims": 3, "num_channels": 16, "num_head_channels": 8, "norm_num_groups": 8, "norm_eps": 1e-6},
         (1, 16, 32, 32, 32),
         (1, 16, 32, 32, 32),
     ],
