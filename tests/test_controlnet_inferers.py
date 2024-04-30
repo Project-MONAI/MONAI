@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -29,6 +30,8 @@ from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
 from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
+_, has_einops = optional_import("einops")
+
 
 CNDM_TEST_CASES = [
     [
@@ -443,6 +446,7 @@ LATENT_CNDM_TEST_CASES_DIFF_SHAPES = [
 
 class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
     @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_call(self, model_params, controlnet_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         controlnet = ControlNet(**controlnet_params)
@@ -464,6 +468,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_intermediates(self, model_params, controlnet_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         controlnet = ControlNet(**controlnet_params)
@@ -489,6 +494,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_ddpm_sampler(self, model_params, controlnet_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         controlnet = ControlNet(**controlnet_params)
@@ -514,6 +520,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_ddim_sampler(self, model_params, controlnet_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         controlnet = ControlNet(**controlnet_params)
@@ -539,6 +546,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sampler_conditioned(self, model_params, controlnet_params, input_shape):
         model_params["with_conditioning"] = True
         model_params["cross_attention_dim"] = 3
@@ -568,6 +576,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_get_likelihood(self, model_params, controlnet_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -604,6 +613,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         torch.testing.assert_allclose(cdf_approx, cdf_true, atol=1e-3, rtol=1e-5)
 
     @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sampler_conditioned_concat(self, model_params, controlnet_params, input_shape):
         # copy the model_params dict to prevent from modifying test cases
         model_params = model_params.copy()
@@ -642,6 +652,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
 
 class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_prediction_shape(
         self,
         ae_model_type,
@@ -708,6 +719,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(prediction.shape, latent_shape)
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_shape(
         self,
         ae_model_type,
@@ -770,6 +782,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_intermediates(
         self,
         ae_model_type,
@@ -837,6 +850,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape, input_shape)
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_get_likelihoods(
         self,
         ae_model_type,
@@ -904,6 +918,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape, latent_shape)
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_resample_likelihoods(
         self,
         ae_model_type,
@@ -973,6 +988,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape[2:], input_shape[2:])
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_prediction_shape_conditioned_concat(
         self,
         ae_model_type,
@@ -1053,6 +1069,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(prediction.shape, latent_shape)
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_shape_conditioned_concat(
         self,
         ae_model_type,
@@ -1128,6 +1145,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES_DIFF_SHAPES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_shape_different_latents(
         self,
         ae_model_type,
@@ -1203,6 +1221,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
             )
         self.assertEqual(prediction.shape, latent_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_incompatible_spade_setup(self):
         stage_1 = SPADEAutoencoderKL(
             spatial_dims=2,
