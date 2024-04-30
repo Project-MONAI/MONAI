@@ -12,16 +12,24 @@
 from __future__ import annotations
 
 import unittest
+from contextlib import nullcontext
 
 import torch
 from parameterized import parameterized
 
 import monai
-from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.config_item import (
+    ComponentLocator,
+    ConfigComponent,
+    ConfigExpression,
+    ConfigItem,
+    _wrapper_feature_flag,
+)
 from monai.bundle.reference_resolver import ReferenceResolver
 from monai.data import CacheDataset, DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
+from monai.utils.feature_flag import with_feature_flag
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
@@ -68,7 +76,7 @@ TEST_CASE_3 = [
     RandTorchVisiond,
 ]
 
-TEST_CASE_4 = [
+TEST_CASE_WRAPPER = [
     {
         "dataset": {
             "_target_": "Dataset",
@@ -85,38 +93,40 @@ TEST_CASE_4 = [
     },
     "dataset",
     CacheDataset,
+    True,
 ]
 
 
 class TestReferenceResolver(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_4] + ([TEST_CASE_3] if has_tv else []))
-    def test_resolve(self, configs, expected_id, output_type):
-        locator = ComponentLocator()
-        resolver = ReferenceResolver()
-        # add items to resolver
-        for k, v in configs.items():
-            k = k.replace("#", "::")
-            if ConfigComponent.is_instantiable(v):
-                resolver.add_item(ConfigComponent(config=v, id=k, locator=locator))
-            elif ConfigExpression.is_expression(v):
-                resolver.add_item(ConfigExpression(config=v, id=k, globals={"monai": monai, "torch": torch}))
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
+    def test_resolve(self, configs, expected_id, output_type, enable_wrapper=None):
+        with with_feature_flag(_wrapper_feature_flag, enable_wrapper) if enable_wrapper is not None else nullcontext():
+            locator = ComponentLocator()
+            resolver = ReferenceResolver()
+            # add items to resolver
+            for k, v in configs.items():
+                k = k.replace("#", "::")
+                if ConfigComponent.is_instantiable(v):
+                    resolver.add_item(ConfigComponent(config=v, id=k, locator=locator))
+                elif ConfigExpression.is_expression(v):
+                    resolver.add_item(ConfigExpression(config=v, id=k, globals={"monai": monai, "torch": torch}))
+                else:
+                    resolver.add_item(ConfigItem(config=v, id=k))
+
+            result = resolver.get_resolved_content(expected_id)  # the root id is `expected_id` here
+            self.assertTrue(isinstance(result, output_type))
+
+            # test lazy instantiation
+            item = resolver.get_item(expected_id, resolve=True)
+            config = item.get_config()
+            config["_disabled_"] = False
+            item.update_config(config=config)
+            if isinstance(item, ConfigComponent):
+                result = item.instantiate()
             else:
-                resolver.add_item(ConfigItem(config=v, id=k))
-
-        result = resolver.get_resolved_content(expected_id)  # the root id is `expected_id` here
-        self.assertTrue(isinstance(result, output_type))
-
-        # test lazy instantiation
-        item = resolver.get_item(expected_id, resolve=True)
-        config = item.get_config()
-        config["_disabled_"] = False
-        item.update_config(config=config)
-        if isinstance(item, ConfigComponent):
-            result = item.instantiate()
-        else:
-            result = item.get_config()
-        self.assertTrue(isinstance(result, output_type))
+                result = item.get_config()
+            self.assertTrue(isinstance(result, output_type))
 
     def test_circular_references(self):
         locator = ComponentLocator()
