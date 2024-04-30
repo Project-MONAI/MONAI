@@ -46,7 +46,6 @@ __all__ = [
     "resnet200",
 ]
 
-
 resnet_params = {
     # model_name: (block, layers, shortcut_type, bias_downsample, datasets23)
     "resnet10": ("basic", [1, 1, 1, 1], "B", False, True),
@@ -57,7 +56,6 @@ resnet_params = {
     "resnet152": ("bottleneck", [3, 8, 36, 3], "B", False, False),
     "resnet200": ("bottleneck", [3, 24, 36, 3], "B", False, False),
 }
-
 
 logger = logging.getLogger(__name__)
 
