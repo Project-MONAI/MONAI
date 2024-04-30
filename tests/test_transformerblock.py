@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import numpy as np
 import torch
@@ -19,7 +20,9 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.transformerblock import TransformerBlock
+from monai.utils import optional_import
 
+einops, has_einops = optional_import("einops")
 TEST_CASE_TRANSFORMERBLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
     for hidden_size in [360, 480, 600, 768]:
@@ -43,6 +46,7 @@ for dropout_rate in np.linspace(0, 1, 4):
 class TestTransformerBlock(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_TRANSFORMERBLOCK)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
         net = TransformerBlock(**input_param)
         with eval_mode(net):
@@ -56,6 +60,7 @@ class TestTransformerBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             TransformerBlock(hidden_size=622, num_heads=8, mlp_dim=3072, dropout_rate=0.4)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_access_attn_matrix(self):
         # input format
         hidden_size = 128

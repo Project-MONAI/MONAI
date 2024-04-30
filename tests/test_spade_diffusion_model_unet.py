@@ -275,8 +275,8 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
                 torch.rand((1, input_param["label_nc"], 16, 16)),
             )
             self.assertEqual(result.shape, (1, 1, 16, 16))
-    @skipUnless(has_einops, "Requires einops")
 
+    @skipUnless(has_einops, "Requires einops")
     def test_timestep_with_wrong_shape(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -293,8 +293,8 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
                 net.forward(
                     torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1, 1)).long(), torch.rand((1, 3, 16, 16))
                 )
-    @skipUnless(has_einops, "Requires einops")
 
+    @skipUnless(has_einops, "Requires einops")
     def test_label_with_wrong_shape(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -309,8 +309,8 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             with eval_mode(net):
                 net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long(), torch.rand((1, 6, 16, 16)))
-    @skipUnless(has_einops, "Requires einops")
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_with_different_in_channel_out_channel(self):
         in_channels = 6
         out_channels = 3
