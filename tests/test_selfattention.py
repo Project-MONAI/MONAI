@@ -66,6 +66,7 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=128, num_heads=3, dropout_rate=0.1)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_inner_dim_different(self):
         SABlock(hidden_size=128, num_heads=4, dropout_rate=0.1, dim_head=30)
 
@@ -73,6 +74,7 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_causal(self):
         block = SABlock(hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, save_attn=True)
         input_shape = (1, 16, 128)

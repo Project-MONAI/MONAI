@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -19,7 +20,9 @@ from parameterized import parameterized
 from monai.inferers import LatentDiffusionInferer
 from monai.networks.nets import VQVAE, AutoencoderKL, DiffusionModelUNet, SPADEAutoencoderKL, SPADEDiffusionModelUNet
 from monai.networks.schedulers import DDPMScheduler
+from monai.utils import optional_import
 
+_, has_einops = optional_import("einops")
 TEST_CASES = [
     [
         "AutoencoderKL",
@@ -313,6 +316,7 @@ TEST_CASES_DIFF_SHAPES = [
 
 class TestDiffusionSamplingInferer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_prediction_shape(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -360,6 +364,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(prediction.shape, latent_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_shape(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -404,6 +409,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_intermediates(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -458,6 +464,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape, input_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_get_likelihoods(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -510,6 +517,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape, latent_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_resample_likelihoods(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -564,6 +572,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(intermediates[0].shape[2:], input_shape[2:])
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_prediction_shape_conditioned_concat(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -629,6 +638,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(prediction.shape, latent_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_shape_conditioned_concat(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -689,6 +699,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(TEST_CASES_DIFF_SHAPES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_shape_different_latents(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
@@ -745,6 +756,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             )
         self.assertEqual(prediction.shape, latent_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_incompatible_spade_setup(self):
         stage_1 = SPADEAutoencoderKL(
             spatial_dims=2,

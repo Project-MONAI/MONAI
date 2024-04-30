@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -22,6 +23,7 @@ from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
 from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
+_, has_einops = optional_import("einops")
 
 TEST_CASES = [
     [
@@ -55,6 +57,7 @@ TEST_CASES = [
 
 class TestDiffusionSamplingInferer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_call(self, model_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -70,6 +73,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_intermediates(self, model_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -85,6 +89,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_ddpm_sampler(self, model_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -100,6 +105,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_ddim_sampler(self, model_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -115,6 +121,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sampler_conditioned(self, model_params, input_shape):
         model_params["with_conditioning"] = True
         model_params["cross_attention_dim"] = 3
@@ -138,6 +145,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_get_likelihood(self, model_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -166,6 +174,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         torch.testing.assert_allclose(cdf_approx, cdf_true, atol=1e-3, rtol=1e-5)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_sampler_conditioned_concat(self, model_params, input_shape):
         # copy the model_params dict to prevent from modifying test cases
         model_params = model_params.copy()
@@ -196,6 +205,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_call_conditioned_concat(self, model_params, input_shape):
         # copy the model_params dict to prevent from modifying test cases
         model_params = model_params.copy()

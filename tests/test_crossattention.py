@@ -67,6 +67,7 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=128, num_heads=3, dropout_rate=0.1)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_inner_dim_different(self):
         CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, dim_head=30)
 
@@ -74,6 +75,7 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_causal(self):
         block = CrossAttentionBlock(
             hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, save_attn=True
@@ -83,6 +85,7 @@ class TestResBlock(unittest.TestCase):
         # check upper triangular part of the attention matrix is zero
         assert torch.triu(block.att_mat, diagonal=1).sum() == 0
 
+    @skipUnless(has_einops, "Requires einops")
     def test_context_input(self):
         block = CrossAttentionBlock(
             hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, context_input_size=12
@@ -90,6 +93,7 @@ class TestResBlock(unittest.TestCase):
         input_shape = (1, 16, 128)
         block(torch.randn(input_shape), context=torch.randn(1, 3, 12))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_context_wrong_input_size(self):
         block = CrossAttentionBlock(
             hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, context_input_size=12
@@ -98,6 +102,7 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             block(torch.randn(input_shape), context=torch.randn(1, 3, 24))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_access_attn_matrix(self):
         # input format
         hidden_size = 128
