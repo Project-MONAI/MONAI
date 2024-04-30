@@ -303,7 +303,8 @@ class WrappedUpsample(Upsample):
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
         del emb
-        return super().forward(x)
+        upsampled: torch.Tensor = super().forward(x)
+        return upsampled
 
 
 class DiffusionUNetResnetBlock(nn.Module):
@@ -361,7 +362,6 @@ class DiffusionUNetResnetBlock(nn.Module):
                 out_channels=in_channels,
                 interp_mode="nearest",
                 scale_factor=2.0,
-                post_conv=False,
                 align_corners=None,
             )
         elif down:

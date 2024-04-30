@@ -122,7 +122,6 @@ class SPADEResnetBlock(nn.Module):
                 out_channels=in_channels,
                 interp_mode="nearest",
                 scale_factor=2.0,
-                post_conv=False,
                 align_corners=None,
             )
         elif down:
