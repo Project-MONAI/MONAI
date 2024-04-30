@@ -175,6 +175,62 @@ _Description:_ `_requires_`, `_disabled_`, `_desc_`, and `_mode_` are optional k
   - `"debug"` -- execute with debug prompt and return the return value of ``pdb.runcall(_target_, **kwargs)``,
     see also [`pdb.runcall`](https://docs.python.org/3/library/pdb.html#pdb.runcall).
 
+### Wrapping config components
+**EXPERIMENTAL FEATURE**
+
+Sometimes it can be necessary to wrap (i.e. decorate) a component in the config without
+shifting the configuration tree one level down.
+Take the following configuration as an example:
+
+```json
+{
+  "model": {
+      "_target_": "monai.networks.nets.BasicUNet",
+      "spatial_dims": 3,
+      "in_channels": 1,
+      "out_channels": 2,
+      "features": [16, 16, 32, 32, 64, 64]
+  }
+}
+```
+If we wanted to use `torch.compile` to speed up the model, we would have to write a configuration like this:
+
+```json
+{
+  "model": {
+    "_target_": "torch::jit::compile",
+    "model": {
+        "_target_": "monai.networks.nets.BasicUNet",
+        "spatial_dims": 3,
+        "in_channels": 1,
+        "out_channels": 2,
+        "features": [16, 16, 32, 32, 64, 64]
+    }
+  }
+}
+```
+This means we now need to adjust all references to parameters like `model.spatial_dims` to `model.model.spatial_dims`
+throughout our code and configuration.
+To avoid this, we can use the `_wrapper_` key to wrap the model in the configuration:
+
+```json
+{
+  "model": {
+      "_target_": "monai.networks.nets.BasicUNet",
+      "spatial_dims": 3,
+      "in_channels": 1,
+      "out_channels": 2,
+      "features": [16, 16, 32, 32, 64, 64],
+      "_wrapper_": {
+          "_target_": "torch::jit::compile",
+          "_mode_": "callable"
+      }
+  }
+}
+```
+
+Note that when accessing `@model` in the configuration, the model object will be the compiled model now.
+
 ## The command line interface
 
 In addition to the Pythonic APIs, a few command line interfaces (CLI) are provided to interact with the bundle.
