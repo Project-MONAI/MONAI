@@ -23,7 +23,7 @@ from parameterized import parameterized
 
 from monai.bundle import ConfigParser, ReferenceResolver
 from monai.bundle.config_item import ConfigItem
-from monai.data import DataLoader, Dataset
+from monai.data import CacheDataset, DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
 from tests.utils import TimedCall
@@ -123,6 +123,17 @@ TEST_CASE_DUPLICATED_KEY_YAML = [
     "yaml",
     1,
     [0, 4],
+]
+TEST_CASE_WRAPPER = [
+    {
+        "dataset": {
+            "_target_": "Dataset",
+            "data": [1, 2],
+            "_wrapper_": {"_target_": "CacheDataset", "_mode_": "callable"},
+        }
+    },
+    ["dataset"],
+    [CacheDataset],
 ]
 
 
@@ -356,6 +367,17 @@ class TestConfigParser(unittest.TestCase):
 
             self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
             self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
+
+    @parameterized.expand([TEST_CASE_WRAPPER])
+    def test_parse_wrapper(self, config, expected_ids, output_types):
+        parser = ConfigParser(config=config, globals={"monai": "monai", "torch": "torch"})
+
+        for id, cls in zip(expected_ids, output_types):
+            self.assertTrue(isinstance(parser.get_parsed_content(id), cls))
+        # test root content
+        root = parser.get_parsed_content(id="")
+        for v, cls in zip(root.values(), output_types):
+            self.assertTrue(isinstance(v, cls))
 
 
 if __name__ == "__main__":

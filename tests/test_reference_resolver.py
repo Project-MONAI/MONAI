@@ -19,7 +19,7 @@ from parameterized import parameterized
 import monai
 from monai.bundle.config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.reference_resolver import ReferenceResolver
-from monai.data import DataLoader
+from monai.data import CacheDataset, DataLoader
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
 
@@ -68,10 +68,29 @@ TEST_CASE_3 = [
     RandTorchVisiond,
 ]
 
+TEST_CASE_4 = [
+    {
+        "dataset": {
+            "_target_": "Dataset",
+            "data": [1, 2],
+            "_wrapper_": {"_target_": "CacheDataset", "_mode_": "callable"},
+        },
+        "dataset#_target_": "Dataset",
+        "dataset#data": [1, 2],
+        "dataset#data#0": 1,
+        "dataset#data#1": 2,
+        "dataset#_wrapper_": {"_target_": "CacheDataset", "_mode_": "callable"},
+        "dataset#_wrapper_#_target_": "CacheDataset",
+        "dataset#_wrapper_#_mode_": "partial",
+    },
+    "dataset",
+    CacheDataset,
+]
+
 
 class TestReferenceResolver(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_4] + ([TEST_CASE_3] if has_tv else []))
     def test_resolve(self, configs, expected_id, output_type):
         locator = ComponentLocator()
         resolver = ReferenceResolver()

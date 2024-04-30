@@ -19,12 +19,18 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from importlib import import_module
 from pprint import pformat
-from typing import Any
+from typing import Any, Callable
 
 from monai.bundle.utils import EXPR_KEY
 from monai.utils import CompInitMode, ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
+CONFIG_COMPONENT_KEY_WRAPPER = "_wrapper_"
+CONFIG_COMPONENT_KEY_MODE = "_mode_"
+CONFIG_COMPONENT_KEY_DESC = "_desc_"
+CONFIG_COMPONENT_KEY_REQUIRES = "_requires_"
+CONFIG_COMPONENT_KEY_DISABLED = "_disabled_"
+CONFIG_COMPONENT_KEY_TARGET = "_target_"
 
 
 class Instantiable(ABC):
@@ -210,7 +216,14 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_", "_mode_"}
+    non_arg_keys = {
+        CONFIG_COMPONENT_KEY_TARGET,
+        CONFIG_COMPONENT_KEY_DISABLED,
+        CONFIG_COMPONENT_KEY_REQUIRES,
+        CONFIG_COMPONENT_KEY_DESC,
+        CONFIG_COMPONENT_KEY_MODE,
+        CONFIG_COMPONENT_KEY_WRAPPER,
+    }
 
     def __init__(
         self,
@@ -231,7 +244,7 @@ class ConfigComponent(ConfigItem, Instantiable):
             config: input config content to check.
 
         """
-        return isinstance(config, Mapping) and "_target_" in config
+        return isinstance(config, Mapping) and CONFIG_COMPONENT_KEY_TARGET in config
 
     def resolve_module_name(self):
         """
@@ -240,7 +253,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
         """
         config = dict(self.get_config())
-        target = config.get("_target_")
+        target = config.get(CONFIG_COMPONENT_KEY_TARGET)
         if not isinstance(target, str):
             return target  # for feature discussed in project-monai/monai#5852
 
@@ -269,8 +282,15 @@ class ConfigComponent(ConfigItem, Instantiable):
         Utility function used in `instantiate()` to check whether to skip the instantiation.
 
         """
-        _is_disabled = self.get_config().get("_disabled_", False)
+        _is_disabled = self.get_config().get(CONFIG_COMPONENT_KEY_DISABLED, False)
         return _is_disabled.lower().strip() == "true" if isinstance(_is_disabled, str) else bool(_is_disabled)
+
+    def get_wrapper(self) -> None | Callable[[object], object]:
+        """
+        Utility function used in `instantiate()` to check whether to skip the instantiation.
+
+        """
+        return self.get_config().get(CONFIG_COMPONENT_KEY_WRAPPER, None)
 
     def instantiate(self, **kwargs: Any) -> object:
         """
@@ -286,9 +306,27 @@ class ConfigComponent(ConfigItem, Instantiable):
             return None
 
         modname = self.resolve_module_name()
-        mode = self.get_config().get("_mode_", CompInitMode.DEFAULT)
+        mode = self.get_config().get(CONFIG_COMPONENT_KEY_MODE, CompInitMode.DEFAULT)
         args = self.resolve_args()
         args.update(kwargs)
+        wrapper = self.get_wrapper()
+        if wrapper is not None:
+            if callable(wrapper):
+                return wrapper(instantiate(modname, mode, **args))
+            else:
+                raise ValueError(
+                    f"wrapper must be a callable, but got: {wrapper}, type {type(wrapper)}."
+                    f"make sure all references are resolved before calling instantiate"
+                )
+        if self.get_id().endswith(CONFIG_COMPONENT_KEY_WRAPPER):
+            try:
+                return instantiate(modname, mode, **args)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Failed to instantiate {self}. Make sure you are returning a partial "
+                    f"(you might need to add {CONFIG_COMPONENT_KEY_MODE}:callable, "
+                    f"especially when using specifying a class)."
+                ) from e
         return instantiate(modname, mode, **args)
 
 

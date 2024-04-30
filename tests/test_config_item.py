@@ -133,6 +133,12 @@ class TestConfigItem(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, r"1\+\[\]"):
             ConfigExpression(id="", config="$1+[]").evaluate()
 
+    def test_wrapper(self):
+        config = {"_target_": "fractions.Fraction", "numerator": 5, "denominator": 10, "_wrapper_": float}
+        configer = ConfigComponent(config=config, locator=None)
+        ret = configer.instantiate()
+        self.assertTrue(isinstance(ret, float))
+
 
 if __name__ == "__main__":
     unittest.main()
