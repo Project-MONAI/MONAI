@@ -12,14 +12,17 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.inferers import VQVAETransformerInferer
 from monai.networks.nets import VQVAE, DecoderOnlyTransformer
+from monai.utils import optional_import
 from monai.utils.ordering import Ordering, OrderingType
 
+einops, has_einops = optional_import("einops")
 TEST_CASES = [
     [
         {
@@ -78,6 +81,7 @@ TEST_CASES = [
 
 class TestVQVAETransformerInferer(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_prediction_shape(
         self, stage_1_params, stage_2_params, ordering_params, input_shape, logits_shape, latent_shape
     ):
@@ -98,6 +102,7 @@ class TestVQVAETransformerInferer(unittest.TestCase):
         self.assertEqual(prediction.shape, logits_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_prediction_shape_shorter_sequence(
         self, stage_1_params, stage_2_params, ordering_params, input_shape, logits_shape, latent_shape
     ):
@@ -121,7 +126,9 @@ class TestVQVAETransformerInferer(unittest.TestCase):
         cropped_logits_shape = (logits_shape[0], max_seq_len, logits_shape[2])
         self.assertEqual(prediction.shape, cropped_logits_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_sample(self):
+
         stage_1 = VQVAE(
             spatial_dims=2,
             in_channels=1,
@@ -163,6 +170,7 @@ class TestVQVAETransformerInferer(unittest.TestCase):
         )
         self.assertEqual(sample.shape, (2, 1, 8, 8))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_sample_shorter_sequence(self):
         stage_1 = VQVAE(
             spatial_dims=2,
@@ -206,6 +214,7 @@ class TestVQVAETransformerInferer(unittest.TestCase):
         self.assertEqual(sample.shape, (2, 1, 8, 8))
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_get_likelihood(
         self, stage_1_params, stage_2_params, ordering_params, input_shape, logits_shape, latent_shape
     ):
@@ -228,6 +237,7 @@ class TestVQVAETransformerInferer(unittest.TestCase):
         self.assertEqual(likelihood.shape, latent_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_get_likelihood_shorter_sequence(
         self, stage_1_params, stage_2_params, ordering_params, input_shape, logits_shape, latent_shape
     ):
@@ -253,6 +263,7 @@ class TestVQVAETransformerInferer(unittest.TestCase):
         self.assertEqual(likelihood.shape, latent_shape)
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_get_likelihood_resampling(
         self, stage_1_params, stage_2_params, ordering_params, input_shape, logits_shape, latent_shape
     ):
