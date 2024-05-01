@@ -29,7 +29,7 @@ class ConvBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: int = 3,
+        kernel_size: Sequence[int] | int = 3,
         strides: int = 1,
         dropout=0.0,
     ):
