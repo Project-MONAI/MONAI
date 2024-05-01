@@ -219,7 +219,13 @@ class AttentionUnet(nn.Module):
         self.kernel_size = kernel_size
         self.dropout = dropout
 
-        head = ConvBlock(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=channels[0], dropout=dropout)
+        head = ConvBlock(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=channels[0],
+            dropout=dropout,
+            kernel_size=self.kernel_size,
+        )
         reduce_channels = Convolution(
             spatial_dims=spatial_dims,
             in_channels=channels[0],
@@ -245,6 +251,7 @@ class AttentionUnet(nn.Module):
                             out_channels=channels[1],
                             strides=strides[0],
                             dropout=self.dropout,
+                            kernel_size=self.kernel_size,
                         ),
                         subblock,
                     ),
@@ -271,6 +278,7 @@ class AttentionUnet(nn.Module):
                 out_channels=out_channels,
                 strides=strides,
                 dropout=self.dropout,
+                kernel_size=self.kernel_size,
             ),
             up_kernel_size=self.up_kernel_size,
             strides=strides,
