@@ -14,9 +14,15 @@ from __future__ import annotations
 import unittest
 
 import torch
+import torch.nn as nn
 
 import monai.networks.nets.attentionunet as att
 from tests.utils import skip_if_no_cuda, skip_if_quick
+
+
+def get_net_parameters(net: nn.Module) -> int:
+    """Returns the total number of parameters in a Module."""
+    return sum(param.numel() for param in net.parameters())
 
 
 class TestAttentionUnet(unittest.TestCase):
@@ -49,6 +55,27 @@ class TestAttentionUnet(unittest.TestCase):
             self.assertEqual(output.shape[2:], input.shape[2:])
             self.assertEqual(output.shape[0], input.shape[0])
             self.assertEqual(output.shape[1], 2)
+
+    def test_attentionunet_kernel_size(self):
+        model_a = att.AttentionUnet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=2,
+            channels=(3, 4, 5),
+            up_kernel_size=5,
+            strides=(1, 2),
+            kernel_size=5,
+        )
+        model_b = att.AttentionUnet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=2,
+            channels=(3, 4, 5),
+            up_kernel_size=5,
+            strides=(1, 2),
+            kernel_size=7,
+        )
+        self.assertNotEqual(get_net_parameters(model_a), get_net_parameters(model_b))
 
     @skip_if_no_cuda
     def test_attentionunet_gpu(self):
