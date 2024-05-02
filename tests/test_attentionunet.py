@@ -57,24 +57,16 @@ class TestAttentionUnet(unittest.TestCase):
             self.assertEqual(output.shape[1], 2)
 
     def test_attentionunet_kernel_size(self):
-        model_a = att.AttentionUnet(
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=2,
-            channels=(3, 4, 5),
-            up_kernel_size=5,
-            strides=(1, 2),
-            kernel_size=5,
-        )
-        model_b = att.AttentionUnet(
-            spatial_dims=2,
-            in_channels=1,
-            out_channels=2,
-            channels=(3, 4, 5),
-            up_kernel_size=5,
-            strides=(1, 2),
-            kernel_size=7,
-        )
+        args_dict = {
+            "spatial_dims": 2,
+            "in_channels": 1,
+            "out_channels": 2,
+            "channels": (3, 4, 5),
+            "up_kernel_size": 5,
+            "strides": (1, 2),
+        }
+        model_a = att.AttentionUnet(**args_dict, kernel_size=5)
+        model_b = att.AttentionUnet(**args_dict, kernel_size=7)
         self.assertNotEqual(get_net_parameters(model_a), get_net_parameters(model_b))
 
     @skip_if_no_cuda
