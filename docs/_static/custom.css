@@ -2,3 +2,19 @@
 body{font-family:'Roboto',sans-serif;}.wy-menu-vertical p.caption{color:#7cccc7;}
 *{font-variant-ligatures: none;}.autoclasstoc td {padding:0.2rem;line-height:normal;}
 dl.field-list>dt{word-break: normal}
+
+
+/* Instead of showing the [source] link for the github link, show a github icon */
+/* Give the empty span some content to make the background image show up */
+a.external > span.viewcode-link:after {
+    content: "\00a0\00a0\00a0";
+}
+a.external > span.viewcode-link {
+    background: url(https://github.com/favicon.ico);
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+/* Hide the [source] text */
+a.external > span.viewcode-link > span.pre {
+    display:none;
+}
