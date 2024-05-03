@@ -177,11 +177,14 @@ repository = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPOSITORY)
 base_code_url = f"https://github.com/{repository}/blob/{git_ref}"
 MODULE_ROOT_FOLDER = "monai"
 
+
 # Adjusted from https://github.com/python-websockets/websockets/blob/main/docs/conf.py
 def linkcode_resolve(domain, info):
     if domain != "py":
-        raise ValueError(f"expected domain to be 'py', got {domain}."
-                         "Please adjust linkcode_resolve to either handle this domain or ignore it.")
+        raise ValueError(
+            f"expected domain to be 'py', got {domain}."
+            "Please adjust linkcode_resolve to either handle this domain or ignore it."
+        )
 
     mod = importlib.import_module(info["module"])
     if "." in info["fullname"]:
