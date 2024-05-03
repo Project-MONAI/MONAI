@@ -67,7 +67,8 @@ class TestAttentionUnet(unittest.TestCase):
         }
         model_a = att.AttentionUnet(**args_dict, kernel_size=5)
         model_b = att.AttentionUnet(**args_dict, kernel_size=7)
-        self.assertNotEqual(get_net_parameters(model_a), get_net_parameters(model_b))
+        self.assertEqual(get_net_parameters(model_a), 3534)
+        self.assertEqual(get_net_parameters(model_b), 5574)
 
     @skip_if_no_cuda
     def test_attentionunet_gpu(self):
