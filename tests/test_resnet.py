@@ -198,7 +198,6 @@ TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 ]
 
-
 CASE_EXTRACT_FEATURES = [
     (
         {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
