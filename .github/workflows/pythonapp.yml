@@ -203,8 +203,6 @@ jobs:
         ls -al
         python -m pip install -r requirements-dev.txt
         python -m unittest -v
-      env:
-        PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
 
   build-docs:
     runs-on: ubuntu-latest
