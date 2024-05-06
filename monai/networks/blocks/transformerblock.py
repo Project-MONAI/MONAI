@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Tuple, Optional
 
 import torch
 import torch.nn as nn
@@ -36,6 +36,8 @@ class TransformerBlock(nn.Module):
         save_attn: bool = False,
         window_size: int = 0,
         input_size: Tuple = (),
+        causal: bool = False,
+        rel_pos_embedding: Optional[str] = None,
     ) -> None:
         """
         Args:
@@ -63,7 +65,15 @@ class TransformerBlock(nn.Module):
         self.mlp = MLPBlock(hidden_size, mlp_dim, dropout_rate)
         self.norm1 = nn.LayerNorm(hidden_size)
         self.attn = SABlock(
-            hidden_size, num_heads, dropout_rate, qkv_bias, save_attn, window_size=window_size, input_size=input_size
+            hidden_size,
+            num_heads,
+            dropout_rate,
+            qkv_bias,
+            save_attn,
+            window_size=window_size,
+            input_size=input_size,
+            causal=causal,
+            rel_pos_embedding=rel_pos_embedding,
         )
         self.norm2 = nn.LayerNorm(hidden_size)
 

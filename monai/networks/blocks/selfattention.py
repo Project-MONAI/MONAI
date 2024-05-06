@@ -27,14 +27,8 @@ Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
 class SABlock(nn.Module):
     """
-        A self-attention block, based on: "Dosovitskiy et al.,
-        An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
-    <<<<<<< HEAD
-        One can setup relative positional embedding as described in <https://arxiv.org/abs/2112.01526>
-    =======
-        and some additional features:
-        - local window attention
-    >>>>>>> f7aca872 (refacto)
+    A self-attention block, based on: "Dosovitskiy et al.,
+    An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
     """
 
     def __init__(
@@ -110,7 +104,12 @@ class SABlock(nn.Module):
         self.save_attn = save_attn
         self.att_mat = torch.Tensor()
         self.rel_positional_embedding = (
-            get_rel_pos_embedding_layer(rel_pos_embedding, input_size, self.head_dim, self.num_heads)
+            get_rel_pos_embedding_layer(
+                rel_pos_embedding,
+                [window_size] * len(input_size) if window_size > 0 else input_size,
+                self.head_dim,
+                self.num_heads,
+            )
             if rel_pos_embedding is not None
             else None
         )
