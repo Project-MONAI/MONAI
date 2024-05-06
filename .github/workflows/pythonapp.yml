@@ -105,6 +105,7 @@ jobs:
         python -m pip install -r requirements-dev.txt
         python -m pip list
         python setup.py develop  # test no compile installation
+        python -m pip show mlflow
       shell: bash
     - name: Run compiled (${{ runner.os }})
       run: |
@@ -113,6 +114,7 @@ jobs:
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
       run: |
+        python -m pip show mlflow
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
         python -m unittest -v
