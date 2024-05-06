@@ -117,7 +117,7 @@ jobs:
         python -m pip show mlflow
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
-        python -m unittest tests/test_mlflow_hander.py
+        python -m unittest tests/test_hander_mlflow.py
       env:
         QUICKTEST: True
         PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python  # https://github.com/Project-MONAI/MONAI/issues/4354
