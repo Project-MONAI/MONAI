@@ -85,7 +85,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
             num_heads=num_attention_heads,
             dim_head=num_head_channels,
             dropout_rate=dropout,
-            upcast_attention=upcast_attention,
+            attention_dtype=torch.float if upcast_attention else None,
         )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
         self.attn2 = CrossAttentionBlock(
@@ -95,7 +95,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
             context_input_size=cross_attention_dim,
             dim_head=num_head_channels,
             dropout_rate=dropout,
-            upcast_attention=upcast_attention,
+            attention_dtype=torch.float if upcast_attention else None,
         )
         self.norm1 = nn.LayerNorm(num_channels)
         self.norm2 = nn.LayerNorm(num_channels)
