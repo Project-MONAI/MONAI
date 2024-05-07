@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -304,6 +305,7 @@ class TestAutoEncoderKL(unittest.TestCase):
             result = net.decode(torch.randn(latent_shape).to(device))
             self.assertEqual(result.shape, expected_input_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_compatibility_with_monai_generative(self):
         with skip_if_downloading_fails():
             net = AutoencoderKL(
