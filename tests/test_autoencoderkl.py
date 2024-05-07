@@ -11,15 +11,18 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
 
 import torch
 from parameterized import parameterized
 
+from monai.apps import download_url
 from monai.networks import eval_mode
 from monai.networks.nets import AutoencoderKL
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, testing_data_config
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 _, has_einops = optional_import("einops")
@@ -300,6 +303,54 @@ class TestAutoEncoderKL(unittest.TestCase):
         with eval_mode(net):
             result = net.decode(torch.randn(latent_shape).to(device))
             self.assertEqual(result.shape, expected_input_shape)
+
+    def test_compatibility_with_monai_generative(self):
+        with skip_if_downloading_fails():
+            net = AutoencoderKL(
+                spatial_dims=2,
+                in_channels=1,
+                out_channels=1,
+                channels=(4, 4, 4),
+                latent_channels=4,
+                attention_levels=(False, False, True),
+                num_res_blocks=1,
+                norm_num_groups=4,
+            ).to(device)
+
+            tmpdir = tempfile.mkdtemp()
+            key = "autoencoderkl_monai_generative_weights"
+            url = testing_data_config("models", key, "url")
+            hash_type = testing_data_config("models", key, "hash_type")
+            hash_val = testing_data_config("models", key, "hash_val")
+            filename = "autoencoderkl_monai_generative_weights.pt"
+
+            weight_path = os.path.join(tmpdir, filename)
+            download_url(url=url, filepath=weight_path, hash_val=hash_val, hash_type=hash_type)
+
+            net.load_old_state_dict(torch.load(weight_path), verbose=False)
+
+            expected = torch.Tensor(
+                [
+                    [
+                        [
+                            [-0.1196, 0.1790, 0.3983, 0.0833, -0.5382, -0.1774, 0.5868, -0.1472],
+                            [-0.1426, -0.0725, -0.1253, -0.2386, -0.1912, -0.6041, -0.0240, -0.4589],
+                            [-0.3699, 0.1424, 0.1764, 0.1204, -0.4929, -0.9932, -0.1486, -0.4411],
+                            [-0.6254, 0.0475, 0.1803, 0.4053, 0.3762, -1.0841, 0.5859, -0.0620],
+                            [-0.5583, -0.0289, -0.2902, -0.3155, 0.6079, -1.0878, 0.8552, 0.3166],
+                            [-0.3613, 0.0557, -0.1652, -0.3117, 0.7810, -0.3432, 1.0887, 0.5672],
+                            [0.4715, 0.0455, 0.1007, -0.8551, 0.1393, -0.1390, 1.3083, 0.6711],
+                            [0.2841, -0.0138, -0.1377, -0.1850, 0.2664, 0.0295, 0.9022, 0.7321],
+                        ]
+                    ]
+                ]
+            ).to(device)
+            with eval_mode(net):
+                # fix random state
+                torch.manual_seed(0)
+                result, _, _ = net.forward(torch.randn((1, 1, 8, 8)).to(device))
+
+                torch.testing.assert_close(result, expected, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
