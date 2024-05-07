@@ -279,7 +279,7 @@ class ConfigWorkflow(BundleWorkflow):
         self,
         config_file: str | Sequence[str],
         meta_file: str | Sequence[str] | None = None,
-        logging_file: str | None | False = None,
+        logging_file: str | bool | None = None,
         init_id: str = "initialize",
         run_id: str = "run",
         final_id: str = "finalize",
