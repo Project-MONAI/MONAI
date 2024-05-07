@@ -142,17 +142,17 @@
         "decoder_only_transformer_monai_generative_weights": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/decoder_only_transformer.pth",
             "hash_type": "sha256",
-            "hash_val": "75998c52184c0f596a7723c15ca504023cacfad4e840f0e0a72e6070044eb7e9"
+            "hash_val": "f93de37d64d77cf91f3bde95cdf93d161aee800074c89a92aff9d5699120ec0d"
         },
         "diffusion_model_unet_monai_generative_weights": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/diffusion_model_unet.pth",
             "hash_type": "sha256",
-            "hash_val": "1d7f07e02f23fb5d672cdc189afde6508424c7db72e23709a325b02730c08b27"
+            "hash_val": "0d2171b386902f5b4fd3e967b4024f63e353694ca45091b114970019d045beee"
         },
         "autoencoderkl_monai_generative_weights": {
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/autoencoderkl.pth",
             "hash_type": "sha256",
-            "hash_val": "78a214a3afcaed9186040e1f560e046889823f1f943cd677c71b834dfbbdd11e"
+            "hash_val": "6e02c9540c51b16b9ba98b5c0c75d6b84b430afe9a3237df1d67a520f8d34184"
         }
     },
     "configs": {

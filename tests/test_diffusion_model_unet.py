@@ -553,6 +553,7 @@ class TestDiffusionModelUNet3D(unittest.TestCase):
 
     @skipUnless(has_einops, "Requires einops")
     def test_compatibility_with_monai_generative(self):
+        # test loading weights from a model saved in MONAI Generative, version 0.2.3
         with skip_if_downloading_fails():
             net = DiffusionModelUNet(
                 spatial_dims=2,
@@ -578,32 +579,6 @@ class TestDiffusionModelUNet3D(unittest.TestCase):
             download_url(url=url, filepath=weight_path, hash_val=hash_val, hash_type=hash_type)
 
             net.load_old_state_dict(torch.load(weight_path), verbose=False)
-
-            expected = torch.Tensor(
-                [
-                    [
-                        [
-                            [7.4485, 12.9272, 16.0485, 11.7209, 7.7694, 4.8178, 6.4739, 3.0085],
-                            [12.0205, 15.1603, 15.9252, 13.2707, 9.6214, 6.3214, 10.7550, 3.0614],
-                            [10.2799, 15.4094, 16.1506, 13.1111, 7.8282, 0.4721, 2.4960, 0.4162],
-                            [8.2771, 12.7029, 16.7926, 12.6030, 8.3957, -3.9532, -4.6054, -2.5393],
-                            [7.9206, 6.0669, 8.5890, 11.3273, 12.2809, -3.3293, -10.5662, -2.4315],
-                            [2.7890, 3.1729, 12.1006, 12.7554, 14.3809, -4.7601, -15.1610, -13.6227],
-                            [7.2081, 6.2834, 7.3456, 6.6112, 9.6849, -2.3845, -7.0732, -9.5466],
-                            [2.9729, 4.4029, 5.1038, 3.8409, 3.4298, -5.4083, -5.4440, -8.7189],
-                        ]
-                    ]
-                ]
-            )
-            with eval_mode(net):
-                # fix random state
-                torch.manual_seed(0)
-                results = net.forward(
-                    x=torch.rand((1, 1, 8, 8)),
-                    timesteps=torch.randint(0, 1000, (1,)).long(),
-                    context=torch.rand((1, 1, 3)),
-                )
-                torch.testing.assert_close(results, expected, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

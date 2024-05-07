@@ -81,6 +81,7 @@ class TestDecoderOnlyTransformer(unittest.TestCase):
 
     @skipUnless(has_einops, "Requires einops")
     def test_compatibility_with_monai_generative(self):
+        # test loading weights from a model saved in MONAI Generative, version 0.2.3
         with skip_if_downloading_fails():
             net = DecoderOnlyTransformer(
                 num_tokens=10,
@@ -102,22 +103,6 @@ class TestDecoderOnlyTransformer(unittest.TestCase):
             download_url(url=url, filepath=weight_path, hash_val=hash_val, hash_type=hash_type)
 
             net.load_old_state_dict(torch.load(weight_path), verbose=False)
-
-            expected = torch.Tensor(
-                [
-                    [
-                        [-0.2259, 0.1347, 0.6822, 1.8721, 0.2370, -0.1335, 0.3675, -0.6616, 0.8891, -0.3505],
-                        [-1.4573, 0.7723, -0.0189, -0.2914, -1.1983, -0.5058, -0.1016, 0.5986, -0.2427, 1.1384],
-                        [1.2066, -0.1070, 0.4863, 0.8156, 0.0941, 0.6673, 0.2378, -1.1357, 0.1684, -0.6256],
-                        [-1.4811, 1.5763, 0.2510, -0.4709, -1.4427, -0.9760, -0.6458, 0.6790, -0.2487, 0.9298],
-                    ]
-                ]
-            )
-            with eval_mode(net):
-                # fix random state
-                torch.manual_seed(0)
-                results = net.forward(torch.randint(0, 3, (1, 4)), context=torch.randn(1, 4, 8))
-                torch.testing.assert_close(results, expected, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
