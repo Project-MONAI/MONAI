@@ -308,9 +308,9 @@ class ConfigWorkflow(BundleWorkflow):
         super().__init__(workflow_type=workflow_type, meta_file=meta_file, properties_path=properties_path)
         self.config_root_path = config_root_path
         logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
-        if not logging_file:
+        if logging_file is False:
             logger.warn(f"Logging file is set to {logging_file}, skipping logging.")
-        elif logging_file is not None:
+        else:
             if not os.path.isfile(logging_file):
                 if logging_file == str(self.config_root_path / "logging.conf"):
                     logger.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
