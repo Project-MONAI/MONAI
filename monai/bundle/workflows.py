@@ -318,7 +318,7 @@ class ConfigWorkflow(BundleWorkflow):
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
                 logger.info(f"Setting logging properties based on config: {logging_file}.")
-                fileConfig(logging_file, disable_existing_loggers=False)
+                fileConfig(logging_file, disable_existing_loggers=False)  # type: ignore[arg-type]
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
