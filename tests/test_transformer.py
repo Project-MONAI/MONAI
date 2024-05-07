@@ -79,6 +79,7 @@ class TestDecoderOnlyTransformer(unittest.TestCase):
                 embedding_dropout_rate=-1,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_compatibility_with_monai_generative(self):
         with skip_if_downloading_fails():
             net = DecoderOnlyTransformer(
