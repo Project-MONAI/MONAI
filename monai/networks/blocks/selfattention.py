@@ -53,7 +53,7 @@ class SABlock(nn.Module):
             dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
-            causal: whether to use causal attention.
+            causal: whether to use causal attention (see https://arxiv.org/abs/1706.03762).
             sequence_length: if causal is True, it is necessary to specify the sequence length.
             rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map.
                 For now only "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
