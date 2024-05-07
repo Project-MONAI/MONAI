@@ -239,7 +239,7 @@ class ConfigWorkflow(BundleWorkflow):
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             If None, default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
-            If False, the logging logic in the MONAI model zoo will be disabled.
+            If False, the logging logic for the bundle will not be modified.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
             allow a config to have no `initialize` logic and the ID.
         run_id: ID name of the expected config expression to run, default to "run".
@@ -318,7 +318,7 @@ class ConfigWorkflow(BundleWorkflow):
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
                 logger.info(f"Setting logging properties based on config: {logging_file}.")
-                fileConfig(logging_file, disable_existing_loggers=False)  # type: ignore[arg-type]
+                fileConfig(str(logging_file), disable_existing_loggers=False)
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
