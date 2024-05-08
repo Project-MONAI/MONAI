@@ -239,6 +239,7 @@ class ConfigWorkflow(BundleWorkflow):
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             If None, default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+            If False, the logging logic for the bundle will not be modified.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
             allow a config to have no `initialize` logic and the ID.
         run_id: ID name of the expected config expression to run, default to "run".
@@ -278,7 +279,7 @@ class ConfigWorkflow(BundleWorkflow):
         self,
         config_file: str | Sequence[str],
         meta_file: str | Sequence[str] | None = None,
-        logging_file: str | None = None,
+        logging_file: str | bool | None = None,
         init_id: str = "initialize",
         run_id: str = "run",
         final_id: str = "finalize",
@@ -307,7 +308,9 @@ class ConfigWorkflow(BundleWorkflow):
         super().__init__(workflow_type=workflow_type, meta_file=meta_file, properties_path=properties_path)
         self.config_root_path = config_root_path
         logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
-        if logging_file is not None:
+        if logging_file is False:
+            logger.warn(f"Logging file is set to {logging_file}, skipping logging.")
+        else:
             if not os.path.isfile(logging_file):
                 if logging_file == str(self.config_root_path / "logging.conf"):
                     logger.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
@@ -315,7 +318,7 @@ class ConfigWorkflow(BundleWorkflow):
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
                 logger.info(f"Setting logging properties based on config: {logging_file}.")
-                fileConfig(logging_file, disable_existing_loggers=False)
+                fileConfig(str(logging_file), disable_existing_loggers=False)
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)

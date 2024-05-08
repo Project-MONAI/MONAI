@@ -21,6 +21,7 @@ from monai.networks.layers import MedianFilter
 
 
 class MedianFilterTestCase(unittest.TestCase):
+
     @parameterized.expand([(torch.ones(1, 1, 2, 3, 5), [1, 2, 4]), (torch.ones(1, 1, 4, 3, 4), 1)])  # 3d_big  # 3d
     def test_3d(self, input_tensor, radius):
         filter = MedianFilter(radius).to(torch.device("cpu:0"))
