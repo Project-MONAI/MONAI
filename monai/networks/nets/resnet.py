@@ -140,7 +140,7 @@ class ResNetBottleneck(nn.Module):
             spatial_dims: number of spatial dimensions of the input image.
             stride: stride to use for second conv layer.
             downsample: which downsample layer to use.
-            act: activation type and arguments. Defaults to m.
+            act: activation type and arguments. Defaults to relu.
         """
 
         super().__init__()
