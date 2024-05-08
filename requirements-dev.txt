@@ -46,15 +46,14 @@ pynrrd
 pre-commit
 pydicom
 h5py
-nni; platform_system == "Linux" and "arm" not in platform_machine and "aarch" not in platform_machine
+nni==2.10.1; platform_system == "Linux" and "arm" not in platform_machine and "aarch" not in platform_machine
 optuna
 git+https://github.com/Project-MONAI/MetricsReloaded@monai-support#egg=MetricsReloaded
 onnx>=1.13.0
 onnxruntime; python_version <= '3.10'
 typeguard<3  # https://github.com/microsoft/nni/issues/5457
-filelock!=3.12.0  # https://github.com/microsoft/nni/issues/5523
+filelock<3.12.0  # https://github.com/microsoft/nni/issues/5523
 zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
-opencv-python-headless
