@@ -146,6 +146,7 @@ RAISES_TEST_CASES = (
 
 
 class TestDistanceTransformEDT(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_scipy_transform(self, input, expected_output):
         transform = DistanceTransformEDT()

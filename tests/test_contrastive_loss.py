@@ -55,6 +55,7 @@ TEST_CASES = [
 
 
 class TestContrastiveLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_param, input_data, expected_val):
         contrastiveloss = ContrastiveLoss(**input_param)

@@ -181,6 +181,7 @@ TEST_GET_WEIGHTS_3 = [
 @SkipIfNoModule("ignite")
 @SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
+
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3, TEST_TRAIN_4])
     def test_train(self, input_params):
         # initialize algo

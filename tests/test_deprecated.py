@@ -18,6 +18,7 @@ from monai.utils import DeprecatedError, deprecated, deprecated_arg, deprecated_
 
 
 class TestDeprecatedRC(unittest.TestCase):
+
     def setUp(self):
         self.test_version_rc = "0.6.0rc1"
         self.test_version = "0.6.0"
@@ -61,6 +62,7 @@ class TestDeprecatedRC(unittest.TestCase):
 
 
 class TestDeprecated(unittest.TestCase):
+
     def setUp(self):
         self.test_version = "0.5.3+96.g1fa03c2.dirty"
         self.prev_version = "0.4.3+96.g1fa03c2.dirty"
@@ -142,6 +144,7 @@ class TestDeprecated(unittest.TestCase):
         """Test deprecated decorator with just `since` set."""
 
         class Foo5:
+
             @deprecated(since=self.prev_version, version_val=self.test_version)
             def meth1(self):
                 pass
@@ -152,6 +155,7 @@ class TestDeprecated(unittest.TestCase):
         """Test deprecated decorator with just `since` set."""
 
         class Foo6:
+
             @deprecated(version_val=self.test_version)
             def meth1(self):
                 pass
@@ -389,6 +393,7 @@ class TestDeprecated(unittest.TestCase):
 
         # since > replaced
         def since_grater_than_replaced():
+
             @deprecated_arg_default(
                 "b",
                 old_default="a",
@@ -404,6 +409,7 @@ class TestDeprecated(unittest.TestCase):
 
         # argname doesnt exist
         def argname_doesnt_exist():
+
             @deprecated_arg_default(
                 "other", old_default="a", new_default="b", since=self.test_version, version_val=self.test_version
             )
@@ -414,6 +420,7 @@ class TestDeprecated(unittest.TestCase):
 
         # argname has no default
         def argname_has_no_default():
+
             @deprecated_arg_default(
                 "a",
                 old_default="a",
@@ -429,6 +436,7 @@ class TestDeprecated(unittest.TestCase):
 
         # new default is used but version < replaced
         def argname_was_replaced_before_specified_version():
+
             @deprecated_arg_default(
                 "a",
                 old_default="a",

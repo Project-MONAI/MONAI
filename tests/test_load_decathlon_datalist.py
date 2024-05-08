@@ -21,6 +21,7 @@ from monai.data import load_decathlon_datalist
 
 
 class TestLoadDecathlonDatalist(unittest.TestCase):
+
     def test_seg_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data = {

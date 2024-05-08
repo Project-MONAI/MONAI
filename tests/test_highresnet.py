@@ -48,6 +48,7 @@ TEST_CASE_4 = [  # 4-channel 1D, batch 16
 
 
 class TestHighResNet(DistTestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_param, input_shape, expected_shape):
         net = HighResNet(**input_param).to(device)

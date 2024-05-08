@@ -46,6 +46,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestTargetBasedSpatialCropd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, args, data, expected_shape):
         cropper = ReferenceBasedSpatialCropd(keys=args["keys"], ref_key=args["ref_key"])

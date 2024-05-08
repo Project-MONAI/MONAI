@@ -26,6 +26,7 @@ cp, _ = optional_import("cupy")
 
 @skipUnless(HAS_CUPY, "CuPy is required.")
 class TestToCupy(unittest.TestCase):
+
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]], dtype=cp.float32)
         test_data = cp.rot90(test_data)

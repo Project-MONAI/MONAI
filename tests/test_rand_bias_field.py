@@ -30,6 +30,7 @@ TEST_CASES_2D_ONES = [
 
 
 class TestRandBiasField(unittest.TestCase):
+
     @parameterized.expand([TEST_CASES_2D, TEST_CASES_3D])
     def test_output_shape(self, class_args, img_shape):
         for p in TEST_NDARRAYS:

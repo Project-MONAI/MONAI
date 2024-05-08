@@ -23,6 +23,7 @@ from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestDecathlonDataset(unittest.TestCase):
+
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")

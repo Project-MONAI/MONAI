@@ -48,6 +48,7 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 @skip_if_no_cuda
 @skip_if_quick
 class TestTRTExport(unittest.TestCase):
+
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:

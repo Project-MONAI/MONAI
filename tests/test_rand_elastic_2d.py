@@ -110,6 +110,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRand2DElastic(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_rand_2d_elastic(self, input_param, input_data, expected_val):
         g = Rand2DElastic(**input_param)

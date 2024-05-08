@@ -42,6 +42,7 @@ TEST_CASE_5 = [torch.randint(0, 255, (3, 2, 4, 5), dtype=torch.uint8), ".dcm", F
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestSaveImage(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_saved_content(self, test_data, meta_data, output_ext, resample):
         if meta_data is not None:

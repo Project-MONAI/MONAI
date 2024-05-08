@@ -36,6 +36,7 @@ TEST_CASES = [
 
 
 class DevCollateTest(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_dev_collate(self, inputs, msg):
         with self.assertLogs(level=logging.CRITICAL) as log:

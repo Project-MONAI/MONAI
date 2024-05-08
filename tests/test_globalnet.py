@@ -65,6 +65,7 @@ TEST_CASES_GLOBAL_NET = [
 
 
 class TestAffineHead(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_AFFINE_TRANSFORM)
     def test_shape(self, input_param, theta, expected_val):
         layer = AffineHead(**input_param)
@@ -78,6 +79,7 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class TestGlobalNet(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_GLOBAL_NET)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = GlobalNet(**input_param).to(device)

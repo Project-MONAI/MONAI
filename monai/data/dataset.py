@@ -1275,6 +1275,7 @@ class ZipDataset(Dataset):
         return min(len(dataset) for dataset in self.data)
 
     def _transform(self, index: int):
+
         def to_list(x):
             return list(x) if isinstance(x, (tuple, list)) else [x]
 

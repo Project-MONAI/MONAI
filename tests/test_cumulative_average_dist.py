@@ -23,6 +23,7 @@ from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
 
 @SkipIfBeforePyTorchVersion((1, 8))
 class DistributedCumulativeAverage(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_value(self):
         rank = dist.get_rank()

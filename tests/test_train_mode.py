@@ -19,6 +19,7 @@ from monai.networks.utils import train_mode
 
 
 class TestEvalMode(unittest.TestCase):
+
     def test_eval_mode(self):
         t = torch.rand(1, 1, 4, 4)
         p = torch.nn.Conv2d(1, 1, 3)

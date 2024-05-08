@@ -38,6 +38,7 @@ if extra_test_data_dir is not None:
 
 
 class TestNetworkConsistency(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
 

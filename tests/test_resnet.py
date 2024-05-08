@@ -192,6 +192,7 @@ TEST_SCRIPT_CASES = [
 
 
 class TestResNet(unittest.TestCase):
+
     def setUp(self):
         self.tmp_ckpt_filename = os.path.join("tests", "monai_unittest_tmp_ckpt.pth")
 

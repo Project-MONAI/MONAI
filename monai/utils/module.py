@@ -209,7 +209,7 @@ def load_submodules(
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
                 mod = import_module(name)
-                importer.find_module(name).load_module(name)  # type: ignore
+                importer.find_spec(name).loader.load_module(name)  # type: ignore
                 submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
@@ -231,11 +231,14 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
 
     Args:
         __path: if a string is provided, it's interpreted as the full path of the target class or function component.
-            If a callable is provided, ``__path(**kwargs)`` or ``functools.partial(__path, **kwargs)`` will be returned.
+            If a callable is provided, ``__path(**kwargs)`` will be invoked and returned for ``__mode="default"``.
+            For ``__mode="callable"``, the callable will be returned as ``__path`` or, if ``kwargs`` are provided,
+            as ``functools.partial(__path, **kwargs)`` for future invoking.
+
         __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
         kwargs: keyword arguments to the callable represented by ``__path``.
@@ -259,8 +262,8 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return component
         if m == CompInitMode.DEFAULT:
             return component(**kwargs)
-        if m == CompInitMode.PARTIAL:
-            return partial(component, **kwargs)
+        if m == CompInitMode.CALLABLE:
+            return partial(component, **kwargs) if kwargs else component
         if m == CompInitMode.DEBUG:
             warnings.warn(
                 f"\n\npdb: instantiating component={component}, mode={m}\n"
@@ -418,6 +421,7 @@ def optional_import(
         msg += f" ({exception_str})"
 
     class _LazyRaise:
+
         def __init__(self, *_args, **_kwargs):
             _default_msg = (
                 f"{msg}."
@@ -453,6 +457,7 @@ def optional_import(
         return _LazyRaise(), False
 
     class _LazyCls(_LazyRaise):
+
         def __init__(self, *_args, **kwargs):
             super().__init__()
             if not as_type.startswith("decorator"):

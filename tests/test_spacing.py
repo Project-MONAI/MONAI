@@ -74,9 +74,11 @@ for device in TEST_DEVICES:
             torch.ones((1, 2, 1, 2)),  # data
             torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
             {},
-            torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
-            if USE_COMPILED
-            else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]]),
+            (
+                torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
+                if USE_COMPILED
+                else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]])
+            ),
             *device,
         ]
     )
@@ -269,6 +271,7 @@ for d in TEST_DEVICES:
 
 @skip_if_quick
 class TestSpacingCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_spacing(
         self,

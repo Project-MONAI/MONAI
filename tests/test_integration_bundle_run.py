@@ -37,6 +37,7 @@ TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inferenc
 
 
 class _Runnable42:
+
     def __init__(self, val=1):
         self.val = val
 
@@ -46,6 +47,7 @@ class _Runnable42:
 
 
 class _Runnable43:
+
     def __init__(self, func):
         self.func = func
 
@@ -54,6 +56,7 @@ class _Runnable43:
 
 
 class TestBundleRun(unittest.TestCase):
+
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
 

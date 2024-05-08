@@ -20,6 +20,7 @@ from monai.optimizers.lr_scheduler import WarmupCosineSchedule
 
 
 class SchedulerTestNet(torch.nn.Module):
+
     def __init__(self):
         super().__init__()
         self.conv1 = torch.nn.Conv2d(1, 1, 1)
@@ -43,6 +44,7 @@ TEST_CASE_LRSCHEDULER = [
 
 
 class TestLRSCHEDULER(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_LRSCHEDULER)
     def test_shape(self, input_param, expected_lr):
         net = SchedulerTestNet()

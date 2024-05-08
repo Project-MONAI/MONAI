@@ -23,6 +23,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedROCAUC(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2, node_rank=0)
     def test_compute(self):
         auc_metric = ROCAUC()

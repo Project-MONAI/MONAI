@@ -23,11 +23,13 @@ from monai.utils import JITMetadataKeys
 
 
 class TestModule(torch.nn.Module):
+
     def forward(self, x):
         return x + 10
 
 
 class TestTorchscript(unittest.TestCase):
+
     def test_save_net_with_metadata(self):
         """Save a network without metadata to a file."""
         m = torch.jit.script(TestModule())

@@ -36,6 +36,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGenerateDistanceMap(unittest.TestCase):
+
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, arguments, mask, probmap, exception_type):
         with self.assertRaises(exception_type):

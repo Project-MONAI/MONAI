@@ -72,6 +72,7 @@ TEST_CASE_RECURSIVE_LIST = [
 
 @unittest.skipUnless(has_nvtx, "Required torch._C._nvtx for NVTX Range!")
 class TestNVTXRangeDecorator(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1])
     def test_tranform_array(self, input):
         transforms = Compose([Range("random flip")(Flip()), Range()(ToTensor())])

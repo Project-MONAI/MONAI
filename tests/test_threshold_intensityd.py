@@ -45,6 +45,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestThresholdIntensityd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, in_type, input_param, expected_value):
         test_data = {"image": in_type(np.arange(10)), "label": in_type(np.arange(10)), "extra": in_type(np.arange(10))}

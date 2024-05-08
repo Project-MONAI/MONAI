@@ -85,6 +85,7 @@ class AutoRunner:
             can be skipped based on the analysis on the dataset from Auto3DSeg DataAnalyzer.
         mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of the remote
             tracking Server; MLflow runs will be recorded locally in algorithms' model folder if the value is None.
+        mlflow_experiment_name: the name of the experiment in MLflow server.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -212,6 +213,7 @@ class AutoRunner:
         templates_path_or_url: str | None = None,
         allow_skip: bool = True,
         mlflow_tracking_uri: str | None = None,
+        mlflow_experiment_name: str | None = None,
         **kwargs: Any,
     ):
         if input is None and os.path.isfile(os.path.join(os.path.abspath(work_dir), "input.yaml")):
@@ -253,6 +255,7 @@ class AutoRunner:
         self.hpo = hpo and has_nni
         self.hpo_backend = hpo_backend
         self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_experiment_name = mlflow_experiment_name
         self.kwargs = deepcopy(kwargs)
 
         # parse input config for AutoRunner param overrides
@@ -268,7 +271,13 @@ class AutoRunner:
             if param in self.data_src_cfg and isinstance(self.data_src_cfg[param], bool):
                 setattr(self, param, self.data_src_cfg[param])  # e.g. self.analyze = self.data_src_cfg["analyze"]
 
-        for param in ["algos", "hpo_backend", "templates_path_or_url", "mlflow_tracking_uri"]:  # override from config
+        for param in [
+            "algos",
+            "hpo_backend",
+            "templates_path_or_url",
+            "mlflow_tracking_uri",
+            "mlflow_experiment_name",
+        ]:  # override from config
             if param in self.data_src_cfg:
                 setattr(self, param, self.data_src_cfg[param])  # e.g. self.algos = self.data_src_cfg["algos"]
 
@@ -813,6 +822,7 @@ class AutoRunner:
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
                 mlflow_tracking_uri=self.mlflow_tracking_uri,
+                mlflow_experiment_name=self.mlflow_experiment_name,
             )
 
             if self.gpu_customization:

@@ -20,6 +20,7 @@ from monai.data import ZipDataset
 
 
 class Dataset_(torch.utils.data.Dataset):
+
     def __init__(self, length, index_only=True):
         self.len = length
         self.index_only = index_only
@@ -48,6 +49,7 @@ TEST_CASE_4 = [
 
 
 class TestZipDataset(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, datasets, transform, expected_output, expected_length):
         test_dataset = ZipDataset(datasets=datasets, transform=transform)

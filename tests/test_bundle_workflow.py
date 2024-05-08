@@ -37,6 +37,7 @@ TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_f
 
 
 class TestBundleWorkflow(unittest.TestCase):
+
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
         self.expected_shape = (128, 128, 128)
