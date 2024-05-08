@@ -33,7 +33,7 @@ class DeepSupervisionLoss(_Loss):
             weight_mode: {``"same"``, ``"exp"``, ``"two"``}
                 Specifies the weights calculation for each image level. Defaults to ``"exp"``.
                 - ``"same"``: all weights are equal to 1.
-                - ``"exp"``: exponentially decreasing weights by a power of 2: 0, 0.5, 0.25, 0.125, etc .
+                - ``"exp"``: exponentially decreasing weights by a power of 2: 1, 0.5, 0.25, 0.125, etc .
                 - ``"two"``: equal smaller weights for lower levels: 1, 0.5, 0.5, 0.5, 0.5, etc
             weights: a list of weights to apply to each deeply supervised sub-loss, if provided, this will be used
                 regardless of the weight_mode
