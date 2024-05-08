@@ -107,7 +107,7 @@ TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
         "num_classes": 3,
         "conv1_t_size": [3],
         "conv1_t_stride": 1,
-        "act": ("relu", {"inplace": False})
+        "act": ("relu", {"inplace": False}),
     },
     (1, 2, 32),
     (1, 3),
@@ -196,7 +196,8 @@ TEST_CASE_8 = [
         "num_classes": 3,
         "conv1_t_size": [3],
         "conv1_t_stride": 1,
-        "act": ("relu", {"inplace": False})},
+        "act": ("relu", {"inplace": False}),
+    },
     (1, 2, 32),
     (1, 3),
 ]
