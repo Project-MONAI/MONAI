@@ -221,7 +221,7 @@ TEST_CASE_9 = [
 
 TEST_CASES = []
 PRETRAINED_TEST_CASES = []
-for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A, TEST_CASE_3]:
+for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
         PRETRAINED_TEST_CASES.append([model, *case])

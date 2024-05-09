@@ -89,6 +89,7 @@ class ResNetBlock(nn.Module):
             stride: stride to use for first conv layer.
             downsample: which downsample layer to use.
             act: activation type and arguments. Defaults to relu.
+            norm: feature normalization type and arguments. Defaults to batch norm.
         """
         super().__init__()
 
@@ -143,6 +144,7 @@ class ResNetBottleneck(nn.Module):
             stride: stride to use for second conv layer.
             downsample: which downsample layer to use.
             act: activation type and arguments. Defaults to relu.
+            norm: feature normalization type and arguments. Defaults to batch norm.
         """
 
         super().__init__()
@@ -209,6 +211,7 @@ class ResNet(nn.Module):
         feed_forward: whether to add the FC layer for the output, default to `True`.
         bias_downsample: whether to use bias term in the downsampling block when `shortcut_type` is 'B', default to `True`.
         act: activation type and arguments. Defaults to relu.
+        norm: feature normalization type and arguments. Defaults to batch norm.
 
     """
 
