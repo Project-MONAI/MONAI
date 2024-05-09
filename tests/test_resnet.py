@@ -204,7 +204,7 @@ TEST_CASE_8 = [
 
 TEST_CASE_9 = [
     {
-        "block": "bottleneck",
+        "block": ResNetBlock,
         "layers": [3, 4, 6, 3],
         "block_inplanes": [64, 128, 256, 512],
         "spatial_dims": 1,
