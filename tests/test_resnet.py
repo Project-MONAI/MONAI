@@ -202,7 +202,7 @@ TEST_CASE_8 = [
     (1, 3),
 ]
 
-TEST_CASE_9 = [
+TEST_CASE_9 = [  # Layer norm
     {
         "block": ResNetBlock,
         "layers": [3, 4, 6, 3],
