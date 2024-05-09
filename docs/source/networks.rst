@@ -426,6 +426,7 @@ Layers
 .. autoclass:: monai.networks.layers.vector_quantizer.VectorQuantizer
    :members:
 
+=======
 `ConjugateGradient`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ConjugateGradient

@@ -133,7 +133,7 @@ class TestInverseCollation(unittest.TestCase):
             d = decollate_batch(item)
             self.assertTrue(len(d) <= self.batch_size)
             for b in d:
-                self.assertTrue(isinstance(b["image"], MetaTensor))
+                self.assertIsInstance(b["image"], MetaTensor)
                 np.testing.assert_array_equal(
                     b["image"].applied_operations[-1]["orig_size"], b["label"].applied_operations[-1]["orig_size"]
                 )

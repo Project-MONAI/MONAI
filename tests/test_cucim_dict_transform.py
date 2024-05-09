@@ -80,8 +80,8 @@ class TestCuCIMDict(unittest.TestCase):
     def test_tramsforms_numpy_single(self, params, input, expected):
         input = {"image": input}
         output = CuCIMd(keys="image", **params)(input)["image"]
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, np.ndarray)
         cp.testing.assert_allclose(output, expected)
 
     @parameterized.expand(
@@ -98,8 +98,8 @@ class TestCuCIMDict(unittest.TestCase):
         input = {"image": input[cp.newaxis, ...]}
         expected = expected[cp.newaxis, ...]
         output = CuCIMd(keys="image", **params)(input)["image"]
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, np.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, np.ndarray)
         cp.testing.assert_allclose(output, expected)
 
     @parameterized.expand(
@@ -116,8 +116,8 @@ class TestCuCIMDict(unittest.TestCase):
         input = {"image": cp.asarray(input)}
         expected = cp.asarray(expected)
         output = CuCIMd(keys="image", **params)(input)["image"]
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, cp.ndarray)
         cp.testing.assert_allclose(output, expected)
 
     @parameterized.expand(
@@ -134,8 +134,8 @@ class TestCuCIMDict(unittest.TestCase):
         input = {"image": cp.asarray(input)[cp.newaxis, ...]}
         expected = cp.asarray(expected)[cp.newaxis, ...]
         output = CuCIMd(keys="image", **params)(input)["image"]
-        self.assertTrue(output.dtype == expected.dtype)
-        self.assertTrue(isinstance(output, cp.ndarray))
+        self.assertEqual(output.dtype, expected.dtype)
+        self.assertIsInstance(output, cp.ndarray)
         cp.testing.assert_allclose(output, expected)
 
 

@@ -60,6 +60,7 @@ class SABlock(nn.Module):
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
                 positional parameter size.
             attention_dtype: cast attention operations to this dtype.
+
         """
 
         super().__init__()

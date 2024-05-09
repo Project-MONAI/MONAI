@@ -198,6 +198,14 @@ TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 ]
 
+CASE_EXTRACT_FEATURES = [
+    (
+        {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
+        [1, 1, 64, 64, 64],
+        ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
+    )
+]
+
 
 CASE_EXTRACT_FEATURES = [
     (
@@ -228,7 +236,7 @@ class TestResNet(unittest.TestCase):
             if input_param.get("feed_forward", True):
                 self.assertEqual(result.shape, expected_shape)
             else:
-                self.assertTrue(result.shape in expected_shape)
+                self.assertIn(result.shape, expected_shape)
 
     @parameterized.expand(PRETRAINED_TEST_CASES)
     @skip_if_quick

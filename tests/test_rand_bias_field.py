@@ -39,7 +39,7 @@ class TestRandBiasField(unittest.TestCase):
                 img = p(np.random.rand(*img_shape))
                 output = bias_field(img)
                 np.testing.assert_equal(output.shape, img_shape)
-                self.assertTrue(output.dtype in (np.float32, torch.float32))
+                self.assertIn(output.dtype, (np.float32, torch.float32))
 
                 img_zero = np.zeros([*img_shape])
                 output_zero = bias_field(img_zero)
