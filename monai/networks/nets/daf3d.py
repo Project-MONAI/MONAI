@@ -177,7 +177,9 @@ class Daf3dResNetBottleneck(ResNetBottleneck):
 
     expansion = 2
 
-    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})):
+    def __init__(
+        self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})
+    ):
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
 
         norm_layer = partial(get_norm_layer, name=norm, spatial_dims=spatial_dims)
@@ -216,7 +218,9 @@ class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
         downsample: which downsample layer to use.
     """
 
-    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})):
+    def __init__(
+        self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})
+    ):
         super().__init__(in_planes, planes, spatial_dims, stride, downsample, norm)
 
         # add dilation in second convolution
