@@ -34,7 +34,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 from monai.networks.blocks import Convolution
@@ -42,30 +41,28 @@ from monai.networks.nets.diffusion_model_unet import get_down_block, get_mid_blo
 from monai.utils import ensure_tuple_rep
 
 
-class ControlNetConditioningEmbedding(nn.Module):
+class ControlNetConditioningEmbedding(nn.Sequential):
     """
     Network to encode the conditioning into a latent space.
     """
 
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, channels: Sequence[int]):
-        super().__init__()
-
-        self.conv_in = Convolution(
-            spatial_dims=spatial_dims,
-            in_channels=in_channels,
-            out_channels=channels[0],
-            strides=1,
-            kernel_size=3,
-            padding=1,
-            conv_only=True,
-        )
-
-        self.blocks = nn.ModuleList([])
-
+        convs = [
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=in_channels,
+                out_channels=channels[0],
+                strides=1,
+                kernel_size=3,
+                padding=1,
+                adn_ordering="A",
+                act="SWISH",
+            )
+        ]
         for i in range(len(channels) - 1):
             channel_in = channels[i]
             channel_out = channels[i + 1]
-            self.blocks.append(
+            convs += [
                 Convolution(
                     spatial_dims=spatial_dims,
                     in_channels=channel_in,
@@ -73,11 +70,9 @@ class ControlNetConditioningEmbedding(nn.Module):
                     strides=1,
                     kernel_size=3,
                     padding=1,
-                    conv_only=True,
-                )
-            )
-
-            self.blocks.append(
+                    adn_ordering="A",
+                    act="SWISH",
+                ),
                 Convolution(
                     spatial_dims=spatial_dims,
                     in_channels=channel_in,
@@ -85,33 +80,25 @@ class ControlNetConditioningEmbedding(nn.Module):
                     strides=2,
                     kernel_size=3,
                     padding=1,
-                    conv_only=True,
+                    adn_ordering="A",
+                    act="SWISH",
+                ),
+            ]
+        convs.append(
+            zero_module(
+                Convolution(
+                    spatial_dims=spatial_dims,
+                    in_channels=channels[-1],
+                    out_channels=out_channels,
+                    strides=1,
+                    kernel_size=3,
+                    padding=1,
+                    adn_ordering="A",
+                    act="SWISH",
                 )
             )
-
-        self.conv_out = zero_module(
-            Convolution(
-                spatial_dims=spatial_dims,
-                in_channels=channels[-1],
-                out_channels=out_channels,
-                strides=1,
-                kernel_size=3,
-                padding=1,
-                conv_only=True,
-            )
         )
-
-    def forward(self, conditioning):
-        embedding = self.conv_in(conditioning)
-        embedding = F.silu(embedding)
-
-        for block in self.blocks:
-            embedding = block(embedding)
-            embedding = F.silu(embedding)
-
-        embedding = self.conv_out(embedding)
-
-        return embedding
+        super().__init__(*convs)
 
 
 def zero_module(module):
