@@ -85,7 +85,7 @@ class SPADE(nn.Module):
         """
 
         # Part 1. generate parameter-free normalized activations
-        normalized = self.param_free_norm(x)
+        normalized = self.param_free_norm(x.contiguous())
 
         # Part 2. produce scaling and bias conditioned on semantic map
         segmap = F.interpolate(segmap, size=x.size()[2:], mode="nearest")
