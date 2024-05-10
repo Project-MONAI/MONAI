@@ -12,13 +12,16 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SPADEDiffusionModelUNet
+from monai.utils import optional_import
 
+einops, has_einops = optional_import("einops")
 UNCOND_CASES_2D = [
     [
         {
@@ -262,6 +265,7 @@ COND_CASES_2D = [
 
 class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_2D)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param):
         net = SPADEDiffusionModelUNet(**input_param)
         with eval_mode(net):
@@ -272,6 +276,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
             )
             self.assertEqual(result.shape, (1, 1, 16, 16))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_timestep_with_wrong_shape(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -289,6 +294,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
                     torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1, 1)).long(), torch.rand((1, 3, 16, 16))
                 )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_label_with_wrong_shape(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -304,6 +310,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
             with eval_mode(net):
                 net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long(), torch.rand((1, 6, 16, 16)))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_with_different_in_channel_out_channel(self):
         in_channels = 6
         out_channels = 3
@@ -363,6 +370,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
                 norm_num_groups=8,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -387,6 +395,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
             )
             self.assertEqual(result.shape, (1, 1, 16, 32))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_with_conditioning_cross_attention_dim_none(self):
         with self.assertRaises(ValueError):
             SPADEDiffusionModelUNet(
@@ -403,6 +412,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
                 norm_num_groups=8,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_context_with_conditioning_none(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -426,6 +436,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
                     context=torch.rand((1, 1, 3)),
                 )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models_class_conditioning(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -448,6 +459,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
             )
             self.assertEqual(result.shape, (1, 1, 16, 32))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_conditioned_models_no_class_labels(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=2,
@@ -485,6 +497,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
             )
 
     @parameterized.expand(COND_CASES_2D)
+    @skipUnless(has_einops, "Requires einops")
     def test_conditioned_2d_models_shape(self, input_param):
         net = SPADEDiffusionModelUNet(**input_param)
         with eval_mode(net):
@@ -499,6 +512,7 @@ class TestSPADEDiffusionModelUNet2D(unittest.TestCase):
 
 class TestDiffusionModelUNet3D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_3D)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param):
         net = SPADEDiffusionModelUNet(**input_param)
         with eval_mode(net):
@@ -509,6 +523,7 @@ class TestDiffusionModelUNet3D(unittest.TestCase):
             )
             self.assertEqual(result.shape, (1, 1, 16, 16, 16))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_with_different_in_channel_out_channel(self):
         in_channels = 6
         out_channels = 3
@@ -530,6 +545,7 @@ class TestDiffusionModelUNet3D(unittest.TestCase):
             )
             self.assertEqual(result.shape, (1, out_channels, 16, 16, 16))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self):
         net = SPADEDiffusionModelUNet(
             spatial_dims=3,

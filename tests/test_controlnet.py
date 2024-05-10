@@ -12,13 +12,16 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.controlnet import ControlNet
+from monai.utils import optional_import
 
+_, has_einops = optional_import("einops")
 UNCOND_CASES_2D = [
     [
         {
@@ -147,6 +150,7 @@ COND_CASES_2D = [
 
 class TestControlNet(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_2D + UNCOND_CASES_3D)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param, expected_output_shape):
         input_param["conditioning_embedding_in_channels"] = input_param["in_channels"]
         input_param["conditioning_embedding_num_channels"] = (input_param["channels"][0],)
@@ -160,6 +164,7 @@ class TestControlNet(unittest.TestCase):
             self.assertEqual(result[1].shape, expected_output_shape)
 
     @parameterized.expand(COND_CASES_2D)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self, input_param, expected_output_shape):
         input_param["conditioning_embedding_in_channels"] = input_param["in_channels"]
         input_param["conditioning_embedding_num_channels"] = (input_param["channels"][0],)

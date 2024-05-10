@@ -11,10 +11,10 @@
 
 from __future__ import annotations
 
+import torch
 import torch.nn as nn
 
-from monai.networks.blocks.mlp import MLPBlock
-from monai.networks.blocks.selfattention import SABlock
+from monai.networks.blocks import CrossAttentionBlock, MLPBlock, SABlock
 
 
 class TransformerBlock(nn.Module):
@@ -31,6 +31,9 @@ class TransformerBlock(nn.Module):
         dropout_rate: float = 0.0,
         qkv_bias: bool = False,
         save_attn: bool = False,
+        causal: bool = False,
+        sequence_length: int | None = None,
+        with_cross_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -53,10 +56,27 @@ class TransformerBlock(nn.Module):
 
         self.mlp = MLPBlock(hidden_size, mlp_dim, dropout_rate)
         self.norm1 = nn.LayerNorm(hidden_size)
-        self.attn = SABlock(hidden_size, num_heads, dropout_rate, qkv_bias, save_attn)
+        self.attn = SABlock(
+            hidden_size,
+            num_heads,
+            dropout_rate,
+            qkv_bias=qkv_bias,
+            save_attn=save_attn,
+            causal=causal,
+            sequence_length=sequence_length,
+        )
         self.norm2 = nn.LayerNorm(hidden_size)
+        self.with_cross_attention = with_cross_attention
 
-    def forward(self, x):
+        if self.with_cross_attention:
+            self.norm_cross_attn = nn.LayerNorm(hidden_size)
+            self.cross_attn = CrossAttentionBlock(
+                hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, qkv_bias=qkv_bias, causal=False
+            )
+
+    def forward(self, x: torch.Tensor, context: torch.Tensor | None = None) -> torch.Tensor:
         x = x + self.attn(self.norm1(x))
+        if self.with_cross_attention:
+            x = x + self.cross_attn(self.norm_cross_attn(x), context=context)
         x = x + self.mlp(self.norm2(x))
         return x

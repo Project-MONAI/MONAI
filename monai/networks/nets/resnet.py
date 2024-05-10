@@ -46,7 +46,6 @@ __all__ = [
     "resnet200",
 ]
 
-
 resnet_params = {
     # model_name: (block, layers, shortcut_type, bias_downsample, datasets23)
     "resnet10": ("basic", [1, 1, 1, 1], "B", False, True),

@@ -18,11 +18,10 @@ LABEL maintainer="monai.contact@gmail.com"
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
 RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
-        cd /opt && \
-        git clone --branch v0.12.1 --recursive https://github.com/zarr-developers/numcodecs && \
-        pip wheel numcodecs && \
-        rm -r /opt/*.whl && \
-        rm -rf /opt/numcodecs; \
+      export CFLAGS="-O3" && \
+      export DISABLE_NUMCODECS_SSE2=true && \
+      export DISABLE_NUMCODECS_AVX2=true && \
+      pip install numcodecs; \
     fi
 
 WORKDIR /opt/monai

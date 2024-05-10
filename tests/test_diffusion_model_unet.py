@@ -11,13 +11,21 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
+from monai.apps import download_url
 from monai.networks import eval_mode
 from monai.networks.nets import DiffusionModelUNet
+from monai.utils import optional_import
+from tests.utils import skip_if_downloading_fails, testing_data_config
+
+_, has_einops = optional_import("einops")
 
 UNCOND_CASES_2D = [
     [
@@ -286,12 +294,14 @@ DROPOUT_WRONG = [
 
 class TestDiffusionModelUNet2D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_2D)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param):
         net = DiffusionModelUNet(**input_param)
         with eval_mode(net):
             result = net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1,)).long())
             self.assertEqual(result.shape, (1, 1, 16, 16))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_timestep_with_wrong_shape(self):
         net = DiffusionModelUNet(
             spatial_dims=2,
@@ -306,6 +316,7 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
             with eval_mode(net):
                 net.forward(torch.rand((1, 1, 16, 16)), torch.randint(0, 1000, (1, 1)).long())
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_with_different_in_channel_out_channel(self):
         in_channels = 6
         out_channels = 3
@@ -359,6 +370,7 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
                 norm_num_groups=8,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self):
         net = DiffusionModelUNet(
             spatial_dims=2,
@@ -396,6 +408,7 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
                 norm_num_groups=8,
             )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_context_with_conditioning_none(self):
         net = DiffusionModelUNet(
             spatial_dims=2,
@@ -417,6 +430,7 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
                     context=torch.rand((1, 1, 3)),
                 )
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models_class_conditioning(self):
         net = DiffusionModelUNet(
             spatial_dims=2,
@@ -437,6 +451,7 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
             )
             self.assertEqual(result.shape, (1, 1, 16, 32))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_conditioned_models_no_class_labels(self):
         net = DiffusionModelUNet(
             spatial_dims=2,
@@ -453,6 +468,7 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         with self.assertRaises(ValueError):
             net.forward(x=torch.rand((1, 1, 16, 32)), timesteps=torch.randint(0, 1000, (1,)).long())
 
+    @skipUnless(has_einops, "Requires einops")
     def test_model_channels_not_same_size_of_attention_levels(self):
         with self.assertRaises(ValueError):
             DiffusionModelUNet(
@@ -468,6 +484,7 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
             )
 
     @parameterized.expand(COND_CASES_2D)
+    @skipUnless(has_einops, "Requires einops")
     def test_conditioned_2d_models_shape(self, input_param):
         net = DiffusionModelUNet(**input_param)
         with eval_mode(net):
@@ -477,12 +494,14 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
 
 class TestDiffusionModelUNet3D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_3D)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param):
         net = DiffusionModelUNet(**input_param)
         with eval_mode(net):
             result = net.forward(torch.rand((1, 1, 16, 16, 16)), torch.randint(0, 1000, (1,)).long())
             self.assertEqual(result.shape, (1, 1, 16, 16, 16))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_with_different_in_channel_out_channel(self):
         in_channels = 6
         out_channels = 3
@@ -499,6 +518,7 @@ class TestDiffusionModelUNet3D(unittest.TestCase):
             result = net.forward(torch.rand((1, in_channels, 16, 16, 16)), torch.randint(0, 1000, (1,)).long())
             self.assertEqual(result.shape, (1, out_channels, 16, 16, 16))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self):
         net = DiffusionModelUNet(
             spatial_dims=3,
@@ -527,8 +547,38 @@ class TestDiffusionModelUNet3D(unittest.TestCase):
             _ = DiffusionModelUNet(**input_param)
 
     @parameterized.expand(DROPOUT_OK)
+    @skipUnless(has_einops, "Requires einops")
     def test_right_dropout(self, input_param):
         _ = DiffusionModelUNet(**input_param)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_compatibility_with_monai_generative(self):
+        # test loading weights from a model saved in MONAI Generative, version 0.2.3
+        with skip_if_downloading_fails():
+            net = DiffusionModelUNet(
+                spatial_dims=2,
+                in_channels=1,
+                out_channels=1,
+                num_res_blocks=1,
+                channels=(8, 8, 8),
+                attention_levels=(False, False, True),
+                with_conditioning=True,
+                cross_attention_dim=3,
+                transformer_num_layers=1,
+                norm_num_groups=8,
+            )
+
+            tmpdir = tempfile.mkdtemp()
+            key = "diffusion_model_unet_monai_generative_weights"
+            url = testing_data_config("models", key, "url")
+            hash_type = testing_data_config("models", key, "hash_type")
+            hash_val = testing_data_config("models", key, "hash_val")
+            filename = "diffusion_model_unet_monai_generative_weights.pt"
+
+            weight_path = os.path.join(tmpdir, filename)
+            download_url(url=url, filepath=weight_path, hash_val=hash_val, hash_type=hash_type)
+
+            net.load_old_state_dict(torch.load(weight_path), verbose=False)
 
 
 if __name__ == "__main__":
