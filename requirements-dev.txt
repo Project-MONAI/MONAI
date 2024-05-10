@@ -34,7 +34,7 @@ pandas
 requests
 einops
 transformers>=4.36.0
-mlflow>=1.28.0
+mlflow>=2.12.2
 clearml>=1.10.0rc0
 matplotlib!=3.5.0
 tensorboardX
