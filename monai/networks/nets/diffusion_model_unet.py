@@ -1669,7 +1669,7 @@ class DiffusionModelUNet(nn.Module):
             down_block_res_samples = new_down_block_res_samples
 
         # 5. mid
-        h = self.middle_block(hidden_states=h, temb=emb, context=context)
+        h = self.middle_block(hidden_states=h.contiguous(), temb=emb, context=context)
 
         # Additional residual conections for Controlnets
         if mid_block_additional_residual is not None:
