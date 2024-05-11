@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch.nn as nn
 
 from monai.networks.layers import get_act_layer
@@ -26,15 +28,24 @@ class MLPBlock(nn.Module):
     """
 
     def __init__(
-        self, hidden_size: int, mlp_dim: int, dropout_rate: float = 0.0, act: tuple | str = "GELU", dropout_mode="vit"
+        self,
+        hidden_size: int,
+        mlp_dim: int,
+        dropout_rate: float = 0.0,
+        act: tuple | str = "GELU",
+        dropout_mode="vit",
+        output_dim: Optional[int] = None,
+        num_layers: int = 2,
     ) -> None:
         """
         Args:
-            hidden_size: dimension of hidden layer.
-            mlp_dim: dimension of feedforward layer. If 0, `hidden_size` will be used.
+            hidden_size: dimension of hidden layer. Input size.
+            mlp_dim: dimension of feedforward layer. If 0, `hidden_size` will be used. Output dim.
             dropout_rate: fraction of the input units to drop.
             act: activation type and arguments. Defaults to GELU. Also supports "GEGLU" and others.
-            dropout_mode: dropout mode, can be "vit" or "swin".
+            dropout_mode: dropout mode, can be "vit" or "swin". `self.dropout2` is only applied for the last layer.
+            output_dim: output tensor dimension, if `None` `hidden_size` is used as output dimension.
+            num_layers: number of mlp layers
                 "vit" mode uses two dropout instances as implemented in
                 https://github.com/google-research/vision_transformer/blob/main/vit_jax/models.py#L87
                 "swin" corresponds to one instance as implemented in
@@ -48,8 +59,9 @@ class MLPBlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
         mlp_dim = mlp_dim or hidden_size
-        self.linear1 = nn.Linear(hidden_size, mlp_dim) if act != "GEGLU" else nn.Linear(hidden_size, mlp_dim * 2)
-        self.linear2 = nn.Linear(mlp_dim, hidden_size)
+        self.num_layers = num_layers
+        h = [mlp_dim] * (num_layers - 1)
+        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([hidden_size] + h, h + [output_dim or hidden_size]))
         self.fn = get_act_layer(act)
         self.drop1 = nn.Dropout(dropout_rate)
         dropout_opt = look_up_option(dropout_mode, SUPPORTED_DROPOUT_MODE)
@@ -61,8 +73,8 @@ class MLPBlock(nn.Module):
             raise ValueError(f"dropout_mode should be one of {SUPPORTED_DROPOUT_MODE}")
 
     def forward(self, x):
-        x = self.fn(self.linear1(x))
-        x = self.drop1(x)
-        x = self.linear2(x)
-        x = self.drop2(x)
+        for i, layer in enumerate(self.layers):
+            x = self.fn(layer(x)) if i < self.num_layers - 1 else layer(x)
+            drop = self.drop1 if i < self.num_layers - 1 else self.drop2
+            x = drop(x)
         return x
