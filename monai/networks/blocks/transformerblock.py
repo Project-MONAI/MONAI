@@ -96,7 +96,7 @@ class TwoWayTransformer(nn.Module):
         embedding_dim: int,
         num_heads: int,
         mlp_dim: int,
-        activation: Type[nn.Module] = nn.ReLU,
+        activation: Type[nn.Module] = "RELU",
         attention_downsample_rate: int = 2,
     ) -> None:
         """
@@ -188,7 +188,7 @@ class TwoWayAttentionBlock(nn.Module):
         embedding_dim: int,
         num_heads: int,
         mlp_dim: int = 2048,
-        activation: Type[nn.Module] = nn.ReLU,
+        activation: Type[nn.Module] = "RELU",
         attention_downsample_rate: int = 2,
         skip_first_layer_pe: bool = False,
     ) -> None:
@@ -208,13 +208,13 @@ class TwoWayAttentionBlock(nn.Module):
           skip_first_layer_pe (bool): skip the PE on the first layer
         """
         super().__init__()
-        self.self_attn = Attention(hidden_size=embedding_dim, num_heads=num_heads)
+        self.self_attn = Attention(embedding_dim=embedding_dim, num_heads=num_heads)
         self.norm1 = nn.LayerNorm(embedding_dim)
 
         self.cross_attn_token_to_image = Attention(embedding_dim, num_heads, downsample_rate=attention_downsample_rate)
         self.norm2 = nn.LayerNorm(embedding_dim)
 
-        self.mlp = MLPBlock(embedding_dim, mlp_dim, activation)
+        self.mlp = MLPBlock(hidden_size=embedding_dim, mlp_dim=mlp_dim, act=activation)
         self.norm3 = nn.LayerNorm(embedding_dim)
 
         self.norm4 = nn.LayerNorm(embedding_dim)
@@ -225,7 +225,7 @@ class TwoWayAttentionBlock(nn.Module):
     def forward(self, queries: Tensor, keys: Tensor, query_pe: Tensor, key_pe: Tensor) -> Tuple[Tensor, Tensor]:
         # Self attention block
         if self.skip_first_layer_pe:
-            queries = self.self_attn(queries)
+            queries = self.self_attn(q=queries, k=queries, v=queries)
         else:
             q = queries + query_pe
             attn_out = self.self_attn(q=q, k=q, v=queries)
