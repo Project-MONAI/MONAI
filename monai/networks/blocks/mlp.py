@@ -34,17 +34,17 @@ class MLPBlock(nn.Module):
         dropout_rate: float = 0.0,
         act: tuple | str = "GELU",
         dropout_mode="vit",
-        input_dim: Optional[int] = None,
+        output_dim: Optional[int] = None,
         num_layers: int = 2,
     ) -> None:
         """
         Args:
-            hidden_size: dimension of hidden layer.
-            mlp_dim: dimension of feedforward layer. If 0, `hidden_size` will be used.
+            hidden_size: dimension of hidden layer. Input size.
+            mlp_dim: dimension of feedforward layer. If 0, `hidden_size` will be used. Output dim.
             dropout_rate: fraction of the input units to drop.
             act: activation type and arguments. Defaults to GELU. Also supports "GEGLU" and others.
             dropout_mode: dropout mode, can be "vit" or "swin". `self.dropout2` is only applied for the last layer.
-            input_dim: input tensor dimension, if `None` `hidden_size` is used as input dimension.
+            output_dim: output tensor dimension, if `None` `hidden_size` is used as output dimension.
             num_layers: number of mlp layers
                 "vit" mode uses two dropout instances as implemented in
                 https://github.com/google-research/vision_transformer/blob/main/vit_jax/models.py#L87
@@ -60,8 +60,8 @@ class MLPBlock(nn.Module):
             raise ValueError("dropout_rate should be between 0 and 1.")
         mlp_dim = mlp_dim or hidden_size
         self.num_layers = num_layers
-        h = [hidden_size] * (num_layers - 1)
-        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([input_dim or hidden_size] + h, h + [mlp_dim]))
+        h = [mlp_dim] * (num_layers - 1)
+        self.layers = nn.ModuleList(nn.Linear(n, k) for n, k in zip([hidden_size] + h, h + [output_dim or hidden_size]))
         self.fn = get_act_layer(act)
         self.drop1 = nn.Dropout(dropout_rate)
         dropout_opt = look_up_option(dropout_mode, SUPPORTED_DROPOUT_MODE)
