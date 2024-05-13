@@ -99,7 +99,7 @@ TEST_CASE_WRAPPER = [
 
 class TestReferenceResolver(unittest.TestCase):
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2] + ([TEST_CASE_3] if has_tv else []))
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_WRAPPER] + ([TEST_CASE_3] if has_tv else []))
     def test_resolve(self, configs, expected_id, output_type, enable_wrapper=None):
         with with_feature_flag(_wrapper_feature_flag, enable_wrapper) if enable_wrapper is not None else nullcontext():
             locator = ComponentLocator()

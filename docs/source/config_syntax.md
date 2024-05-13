@@ -176,7 +176,8 @@ _Description:_ `_requires_`, `_disabled_`, `_desc_`, and `_mode_` are optional k
     see also [`pdb.runcall`](https://docs.python.org/3/library/pdb.html#pdb.runcall).
 
 ### Wrapping config components
-**EXPERIMENTAL FEATURE**
+
+> **EXPERIMENTAL FEATURE** This feature is experimental and may be subject to change or removal in future releases.
 
 Sometimes it can be necessary to wrap (i.e. decorate) a component in the config without
 shifting the configuration tree one level down.

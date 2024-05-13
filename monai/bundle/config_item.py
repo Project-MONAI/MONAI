@@ -302,10 +302,27 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     def _get_wrapper(self) -> None | Callable[[object], object]:
         """
-        Utility function used in `instantiate()` to check whether to skip the instantiation.
+        Utility function used in `instantiate()` to check if a wrapper is specified in the config.
 
         """
-        return self.get_config().get(CONFIG_COMPONENT_KEY_WRAPPER, None)
+        wrapper = self.get_config().get(CONFIG_COMPONENT_KEY_WRAPPER, None)
+        if _wrapper_feature_flag.enabled:
+            if wrapper is not None:
+                if callable(wrapper):
+                    return wrapper
+                else:
+                    raise ValueError(
+                        f"wrapper must be a callable, but got type {type(wrapper)}: {wrapper}."
+                        "make sure all references are resolved before calling instantiate "
+                        "and the wrapper is a callable."
+                    )
+        elif wrapper is not None:
+            warnings.warn(
+                f"ConfigComponent: {self.get_id()} has a key {CONFIG_COMPONENT_KEY_WRAPPER}. "
+                "Since the feature flag CONFIG_WRAPPER is not enabled, the key will be treated as a normal config key. "
+                "In future versions of MONAI, this key might be reserved for the wrapper functionality."
+            )
+        return None
 
     def instantiate(self, **kwargs: Any) -> object:
         """
@@ -325,33 +342,21 @@ class ConfigComponent(ConfigItem, Instantiable):
         instantiate_kwargs = self.resolve_args()
         instantiate_kwargs.update(kwargs)
         wrapper = self._get_wrapper()
-        if _wrapper_feature_flag.enabled:
-            if wrapper is not None:
-                if callable(wrapper):
-                    return wrapper(instantiate(modname, mode, **instantiate_kwargs))
-                else:
-                    raise ValueError(
-                        f"wrapper must be a callable, but got type {type(wrapper)}: {wrapper}."
-                        "make sure all references are resolved before calling instantiate "
-                        "and the wrapper is a callable."
-                    )
-            if self.get_id().endswith(CONFIG_COMPONENT_KEY_WRAPPER):
-                try:
-                    return instantiate(modname, mode, **instantiate_kwargs)
-                except Exception as e:
-                    raise RuntimeError(
-                        f"Failed to instantiate {self}. Make sure you are returning a partial "
-                        f"(you might need to add {CONFIG_COMPONENT_KEY_MODE}:callable, "
-                        "especially when using specifying a class)."
-                    ) from e
-        elif wrapper is not None:
-            warnings.warn(
-                f"ConfigComponent: {self.get_id()} has a key {CONFIG_COMPONENT_KEY_WRAPPER}. "
-                "Since the feature flag CONFIG_WRAPPER is not enabled, the key will be treated as a normal config key. "
-                "In future versions of MONAI, this key might be reserved for the wrapper functionality."
-            )
-        return instantiate(modname, mode, **instantiate_kwargs)
+        if wrapper is not None:
+            return wrapper(instantiate(modname, mode, **instantiate_kwargs))
 
+        try:
+            return instantiate(modname, mode, **instantiate_kwargs)
+        except Exception as e:
+            if _wrapper_feature_flag.enabled and self.get_id().endswith(CONFIG_COMPONENT_KEY_WRAPPER):
+                raise RuntimeError(
+                    f"Failed to instantiate {self}. Make sure you are returning a partial "
+                    f"(you might need to add {CONFIG_COMPONENT_KEY_MODE}:callable, "
+                    "especially when using specifying a class)."
+                ) from e
+            else:
+                # re-raise the exception if not using the wrapper
+                raise
 
 class ConfigExpression(ConfigItem):
     """
