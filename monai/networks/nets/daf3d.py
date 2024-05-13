@@ -196,7 +196,7 @@ class Daf3dResNetBottleneck(ResNetBottleneck):
         self.conv2 = conv_type(planes, planes, kernel_size=3, padding=1, stride=stride, groups=32, bias=False)
 
         # adapt activation function
-        self.relu = nn.PReLU()  # type: ignore
+        self.relu = nn.PReLU()
 
 
 class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
@@ -287,7 +287,7 @@ class Daf3dResNet(ResNet):
             n_input_channels, self.in_planes, kernel_size=7, stride=(1, 2, 2), padding=(3, 3, 3), bias=False
         )
         self.bn1 = norm_type(32, 64)
-        self.relu = nn.PReLU()  # type: ignore
+        self.relu = nn.PReLU()
 
         # adapt layers to our needs
         self.layer1 = self._make_layer(Daf3dResNetBottleneck, block_inplanes[0], layers[0], spatial_dims, shortcut_type)
