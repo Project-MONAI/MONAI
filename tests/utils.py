@@ -156,6 +156,7 @@ def skip_if_downloading_fails():
                 "limit",  # HTTP Error 503: Egress is over the account limit
                 "authenticate",
                 "timed out",  # urlopen error [Errno 110] Connection timed out
+                "HTTPError",  # HTTPError: 429 Client Error: Too Many Requests for huggingface hub
             )
         ):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
