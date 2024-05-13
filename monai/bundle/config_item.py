@@ -309,7 +309,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         if _wrapper_feature_flag.enabled:
             if wrapper is not None:
                 if callable(wrapper):
-                    return wrapper
+                    return wrapper  # type: ignore
                 else:
                     raise ValueError(
                         f"wrapper must be a callable, but got type {type(wrapper)}: {wrapper}."
@@ -357,6 +357,7 @@ class ConfigComponent(ConfigItem, Instantiable):
             else:
                 # re-raise the exception if not using the wrapper
                 raise
+
 
 class ConfigExpression(ConfigItem):
     """

@@ -21,14 +21,14 @@ FEATURE_FLAG_PREFIX = "MONAI_FEATURE_ENABLED_"
 class FeatureFlag:
     def __init__(self, name: str, *, default: bool = False):
         self.name = name
-        self._enabled = None
+        self._enabled: bool | None = None
         self.default = default
 
     def _get_from_env(self):
         return os.getenv(FEATURE_FLAG_PREFIX + self.name, None)
 
     @property
-    def enabled(self):
+    def enabled(self) -> bool:
         if self._enabled is None:
             env = self._get_from_env()
             if env is None:
@@ -38,7 +38,7 @@ class FeatureFlag:
         return self._enabled
 
     @enabled.setter
-    def enabled(self, value: bool):
+    def enabled(self, value: bool) -> None:
         self._enabled = value
 
     def enable(self):
@@ -52,7 +52,7 @@ class FeatureFlag:
 
 
 @contextmanager
-def with_feature_flag(feature_flag: FeatureFlag, enabled: bool):
+def with_feature_flag(feature_flag: FeatureFlag, enabled: bool):  # type: ignore
     original = feature_flag.enabled
     feature_flag.enabled = enabled
     try:
