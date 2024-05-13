@@ -115,10 +115,6 @@ class DiffusionUNetTransformerBlock(nn.Module):
 
 class SpatialTransformer(nn.Module):
     """
-    NOTE This is a private block that we plan to merge with existing MONAI blocks in the future. Please do not make
-    use of this block as support is not guaranteed. For more information see:
-    https://github.com/Project-MONAI/MONAI/issues/7227
-
     Transformer block for image-like data. First, project the input (aka embedding) and reshape to b, t, d. Then apply
     standard transformer action. Finally, reshape to image.
 
@@ -396,14 +392,11 @@ class DiffusionUNetResnetBlock(nn.Module):
             )
 
     def forward(self, x: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
-        h = x.contiguous()
+        h = x
         h = self.norm1(h)
         h = self.nonlinearity(h)
 
         if self.upsample is not None:
-            if h.shape[0] >= 64:
-                x = x.contiguous()
-                h = h.contiguous()
             x = self.upsample(x)
             h = self.upsample(h)
         elif self.downsample is not None:
@@ -609,7 +602,7 @@ class AttnDownBlock(nn.Module):
 
         for resnet, attn in zip(self.resnets, self.attentions):
             hidden_states = resnet(hidden_states, temb)
-            hidden_states = attn(hidden_states)
+            hidden_states = attn(hidden_states).contiguous()
             output_states.append(hidden_states)
 
         if self.downsampler is not None:
@@ -726,7 +719,7 @@ class CrossAttnDownBlock(nn.Module):
 
         for resnet, attn in zip(self.resnets, self.attentions):
             hidden_states = resnet(hidden_states, temb)
-            hidden_states = attn(hidden_states, context=context)
+            hidden_states = attn(hidden_states, context=context).contiguous()
             output_states.append(hidden_states)
 
         if self.downsampler is not None:
@@ -790,7 +783,7 @@ class AttnMidBlock(nn.Module):
     ) -> torch.Tensor:
         del context
         hidden_states = self.resnet_1(hidden_states, temb)
-        hidden_states = self.attention(hidden_states)
+        hidden_states = self.attention(hidden_states).contiguous()
         hidden_states = self.resnet_2(hidden_states, temb)
 
         return hidden_states
@@ -1091,7 +1084,7 @@ class AttnUpBlock(nn.Module):
             hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
-            hidden_states = attn(hidden_states)
+            hidden_states = attn(hidden_states).contiguous()
 
         if self.upsampler is not None:
             hidden_states = self.upsampler(hidden_states, temb)
@@ -1669,7 +1662,7 @@ class DiffusionModelUNet(nn.Module):
             down_block_res_samples = new_down_block_res_samples
 
         # 5. mid
-        h = self.middle_block(hidden_states=h.contiguous(), temb=emb, context=context)
+        h = self.middle_block(hidden_states=h, temb=emb, context=context)
 
         # Additional residual conections for Controlnets
         if mid_block_additional_residual is not None:
@@ -1682,7 +1675,7 @@ class DiffusionModelUNet(nn.Module):
             h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
 
         # 7. output block
-        output: torch.Tensor = self.out(h.contiguous())
+        output: torch.Tensor = self.out(h)
 
         return output
 
