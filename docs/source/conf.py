@@ -97,7 +97,6 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
-    "sphinx.ext.viewcode",
     "sphinx.ext.linkcode",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.autosummary",
@@ -168,8 +167,12 @@ def setup(app):
 
 
 # -- Linkcode configuration --------------------------------------------------
-DEFAULT_REF = "main"
-git_ref = os.environ.get("GITHUB_SHA", DEFAULT_REF)
+DEFAULT_REF = "dev"
+if os.environ.get("GITHUB_REF_TYPE", "branch") == "tag":
+    # When building a tag, link to the tag itself
+    git_ref = os.environ.get("GITHUB_REF", DEFAULT_REF)
+else:
+    git_ref = os.environ.get("GITHUB_SHA", DEFAULT_REF)
 
 DEFAULT_REPOSITORY = "Project-MONAI/MONAI"
 repository = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPOSITORY)
@@ -201,7 +204,7 @@ def linkcode_resolve(domain, info):
 
     try:
         file = inspect.getsourcefile(obj)
-        lines = inspect.getsourcelines(obj)
+        source, lineno = inspect.getsourcelines(obj)
     except TypeError:
         # e.g. object is a typing.Union
         return None
@@ -209,6 +212,6 @@ def linkcode_resolve(domain, info):
     if not file.startswith(MODULE_ROOT_FOLDER):
         # e.g. object is a typing.NewType
         return None
-    start, end = lines[1], lines[1] + len(lines[0]) - 1
+    start, end = lineno, lineno + len(source) - 1
     url = f"{base_code_url}/{file}#L{start}-L{end}"
     return url
