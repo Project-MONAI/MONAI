@@ -41,28 +41,31 @@ from monai.networks.nets.diffusion_model_unet import get_down_block, get_mid_blo
 from monai.utils import ensure_tuple_rep
 
 
-class ControlNetConditioningEmbedding(nn.Sequential):
+class ControlNetConditioningEmbedding(nn.Module):
     """
     Network to encode the conditioning into a latent space.
     """
 
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, channels: Sequence[int]):
-        convs = [
-            Convolution(
-                spatial_dims=spatial_dims,
-                in_channels=in_channels,
-                out_channels=channels[0],
-                strides=1,
-                kernel_size=3,
-                padding=1,
-                adn_ordering="A",
-                act="SWISH",
-            )
-        ]
+        super().__init__()
+
+        self.conv_in = Convolution(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=channels[0],
+            strides=1,
+            kernel_size=3,
+            padding=1,
+            adn_ordering="A",
+            act="SWISH",
+        )
+
+        self.blocks = nn.ModuleList([])
+
         for i in range(len(channels) - 1):
             channel_in = channels[i]
             channel_out = channels[i + 1]
-            convs += [
+            self.blocks.append(
                 Convolution(
                     spatial_dims=spatial_dims,
                     in_channels=channel_in,
@@ -72,7 +75,10 @@ class ControlNetConditioningEmbedding(nn.Sequential):
                     padding=1,
                     adn_ordering="A",
                     act="SWISH",
-                ),
+                )
+            )
+
+            self.blocks.append(
                 Convolution(
                     spatial_dims=spatial_dims,
                     in_channels=channel_in,
@@ -82,23 +88,30 @@ class ControlNetConditioningEmbedding(nn.Sequential):
                     padding=1,
                     adn_ordering="A",
                     act="SWISH",
-                ),
-            ]
-        convs.append(
-            zero_module(
-                Convolution(
-                    spatial_dims=spatial_dims,
-                    in_channels=channels[-1],
-                    out_channels=out_channels,
-                    strides=1,
-                    kernel_size=3,
-                    padding=1,
-                    adn_ordering="A",
-                    act="SWISH",
                 )
             )
+
+        self.conv_out = zero_module(
+            Convolution(
+                spatial_dims=spatial_dims,
+                in_channels=channels[-1],
+                out_channels=out_channels,
+                strides=1,
+                kernel_size=3,
+                padding=1,
+                conv_only=True,
+            )
         )
-        super().__init__(*convs)
+
+    def forward(self, conditioning):
+        embedding = self.conv_in(conditioning)
+
+        for block in self.blocks:
+            embedding = block(embedding)
+
+        embedding = self.conv_out(embedding)
+
+        return embedding
 
 
 def zero_module(module):
@@ -397,3 +410,56 @@ class ControlNet(nn.Module):
         mid_block_res_sample *= conditioning_scale
 
         return down_block_res_samples, mid_block_res_sample
+
+    def load_old_state_dict(self, old_state_dict: dict, verbose=False) -> None:
+        """
+        Load a state dict from a ControlNet trained with
+        [MONAI Generative](https://github.com/Project-MONAI/GenerativeModels).
+
+        Args:
+            old_state_dict: state dict from the old ControlNet model.
+        """
+
+        new_state_dict = self.state_dict()
+        # if all keys match, just load the state dict
+        if all(k in new_state_dict for k in old_state_dict):
+            print("All keys match, loading state dict.")
+            self.load_state_dict(old_state_dict)
+            return
+
+        if verbose:
+            # print all new_state_dict keys that are not in old_state_dict
+            for k in new_state_dict:
+                if k not in old_state_dict:
+                    print(f"key {k} not found in old state dict")
+            # and vice versa
+            print("----------------------------------------------")
+            for k in old_state_dict:
+                if k not in new_state_dict:
+                    print(f"key {k} not found in new state dict")
+
+        # copy over all matching keys
+        for k in new_state_dict:
+            if k in old_state_dict:
+                new_state_dict[k] = old_state_dict[k]
+
+        # fix the attention blocks
+        attention_blocks = [k.replace(".attn1.qkv.weight", "") for k in new_state_dict if "attn1.qkv.weight" in k]
+        for block in attention_blocks:
+            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.concat(
+                [
+                    old_state_dict[f"{block}.attn1.to_q.weight"],
+                    old_state_dict[f"{block}.attn1.to_k.weight"],
+                    old_state_dict[f"{block}.attn1.to_v.weight"],
+                ],
+                dim=0,
+            )
+
+            # projection
+            new_state_dict[f"{block}.attn1.out_proj.weight"] = old_state_dict[f"{block}.attn1.to_out.0.weight"]
+            new_state_dict[f"{block}.attn1.out_proj.bias"] = old_state_dict[f"{block}.attn1.to_out.0.bias"]
+
+            new_state_dict[f"{block}.attn2.out_proj.weight"] = old_state_dict[f"{block}.attn2.to_out.0.weight"]
+            new_state_dict[f"{block}.attn2.out_proj.bias"] = old_state_dict[f"{block}.attn2.to_out.0.bias"]
+
+        self.load_state_dict(new_state_dict)
