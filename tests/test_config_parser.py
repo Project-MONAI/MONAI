@@ -136,7 +136,7 @@ TEST_CASE_WRAPPER_ENABLED = [
         "dataset": {
             "_target_": "Dataset",
             "data": [1, 2],
-            ConfigComponentReservedKeys.WRAPPER: {"_target_": "test_config_parser.CacheDatasetFactory"},
+            ConfigComponentReservedKeys.WRAPPER: {"_target_": "tests.test_config_parser.CacheDatasetFactory"},
         }
     },
     ["dataset", f"dataset#{ConfigComponentReservedKeys.WRAPPER}"],
@@ -148,7 +148,7 @@ TEST_CASE_WRAPPER_DISABLED = [
         "dataset": {
             "_target_": "collections.OrderedDict",
             "data": [1, 2],
-            ConfigComponentReservedKeys.WRAPPER: {"_target_": "test_config_parser.CacheDatasetFactory"},
+            ConfigComponentReservedKeys.WRAPPER: {"_target_": "tests.test_config_parser.CacheDatasetFactory"},
         }
     },
     ["dataset", f"dataset#{ConfigComponentReservedKeys.WRAPPER}"],
