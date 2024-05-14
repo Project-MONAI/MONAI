@@ -411,7 +411,7 @@ def map_and_generate_sampling_centers(
         Tuple of crop centres
     """
     if label is None:
-      raise ValueError("label must not be None.")
+        raise ValueError("label must not be None.")
     indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
 
     _shape = None
