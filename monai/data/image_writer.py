@@ -297,7 +297,7 @@ class ImageWriter:
         # convert back at the end
         if isinstance(output_array, MetaTensor):
             output_array.applied_operations = []
-        data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
+        data_array, *_ = convert_data_type(output_array, output_type=orig_type)
         affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
         return data_array[0], affine
 
@@ -483,7 +483,6 @@ class ITKWriter(ImageWriter):
 
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L809
         """
-        logger.info(f"ITKWriter is processing the file: {filename}")
         super().write(filename, verbose=verbose)
         super().update_json(output_file=filename)
         self.data_obj = self.create_backend_obj(
@@ -648,7 +647,6 @@ class NibabelWriter(ImageWriter):
 
             - https://nipy.org/nibabel/reference/nibabel.nifti1.html#nibabel.nifti1.save
         """
-        logger.info(f"NibabelWriter is processing the file: {filename}")
         super().write(filename, verbose=verbose)
         super().update_json(output_file=filename)
         self.data_obj = self.create_backend_obj(
