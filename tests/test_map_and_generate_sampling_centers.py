@@ -16,10 +16,10 @@ from copy import deepcopy
 
 import numpy as np
 from parameterized import parameterized
+from utils import TEST_NDARRAYS, assert_allclose
 
 from monai.transforms import map_and_generate_sampling_centers
 from monai.utils.misc import set_determinism
-from utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     # test Argmax data
@@ -39,27 +39,29 @@ TEST_CASE_1 = [
 ]
 
 TEST_CASE_2 = [
-    {"label": (
-        np.array(
-            [
-                [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-                [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
-                [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-            ]
-        )
-    ),
+    {
+        "label": (
+            np.array(
+                [
+                    [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+                    [[0, 1, 0], [0, 0, 1], [1, 0, 0]],
+                    [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
+                ]
+            )
+        ),
         "spatial_size": [2, 2, 2],
         "num_samples": 1,
         "ratios": None,
         "label_spatial_shape": [3, 3, 3],
         "image": None,
         "image_threshold": 0.0,
-
     },
     tuple,
     1,
     3,
 ]
+
+
 class TestMapAndGenerateSamplingCenters(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
@@ -81,5 +83,5 @@ class TestMapAndGenerateSamplingCenters(unittest.TestCase):
                     assert_allclose(x, y, type_test=False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
