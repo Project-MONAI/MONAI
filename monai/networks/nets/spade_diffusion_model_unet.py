@@ -170,9 +170,6 @@ class SPADEResnetBlock(nn.Module):
         h = self.nonlinearity(h)
 
         if self.upsample is not None:
-            if h.shape[0] >= 64:
-                x = x.contiguous()
-                h = h.contiguous()
             x = self.upsample(x)
             h = self.upsample(h)
         elif self.downsample is not None:
@@ -430,7 +427,7 @@ class SPADEAttnUpBlock(nn.Module):
             res_hidden_states_list = res_hidden_states_list[:-1]
             hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
             hidden_states = resnet(hidden_states, temb, seg)
-            hidden_states = attn(hidden_states)
+            hidden_states = attn(hidden_states).contiguous()
 
         if self.upsampler is not None:
             hidden_states = self.upsampler(hidden_states, temb)
@@ -568,7 +565,7 @@ class SPADECrossAttnUpBlock(nn.Module):
             res_hidden_states_list = res_hidden_states_list[:-1]
             hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
             hidden_states = resnet(hidden_states, temb, seg)
-            hidden_states = attn(hidden_states, context=context)
+            hidden_states = attn(hidden_states, context=context).contiguous()
 
         if self.upsampler is not None:
             hidden_states = self.upsampler(hidden_states, temb)
@@ -919,7 +916,7 @@ class SPADEDiffusionModelUNet(nn.Module):
             down_block_res_samples = new_down_block_res_samples
 
         # 5. mid
-        h = self.middle_block(hidden_states=h.contiguous(), temb=emb, context=context)
+        h = self.middle_block(hidden_states=h, temb=emb, context=context)
 
         # Additional residual conections for Controlnets
         if mid_block_additional_residual is not None:
