@@ -147,8 +147,8 @@ def _stack_images(image_list: list, meta_dict: dict):
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
     return np.stack(image_list, axis=0)
-    
-    
+
+
 def update_json(input_file=None, output_file=None):
         record_path = "img-label.json"
 
@@ -1433,28 +1433,13 @@ class NrrdReader(ImageReader):
 
 from __future__ import annotations
 
-import glob
-import os
-import re
-import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
-from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
-from monai.config import KeysCollection, PathLike
-from monai.data.utils import (
-    affine_to_spacing,
-    correct_nifti_header_if_necessary,
-    is_no_channel,
-    is_supported_format,
-    orientation_ras_lps,
-)
-from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
+from monai.utils import optional_import, require_pkg
 
 if TYPE_CHECKING:
     import itk
