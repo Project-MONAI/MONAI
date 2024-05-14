@@ -70,10 +70,10 @@ jobs:
         maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v4
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     - name: Prepare pip wheel
       run: |
         which python
@@ -100,6 +100,7 @@ jobs:
         python -m pip install --pre -U itk
     - name: Install the dependencies
       run: |
+        python -m pip install --user --upgrade pip wheel
         python -m pip install torch==1.13.1 torchvision==0.14.1
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
