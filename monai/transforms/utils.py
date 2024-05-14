@@ -411,10 +411,9 @@ def map_and_generate_sampling_centers(
     Returns:
         Tuple of crop centres
     """
-    if indices is None:
-        if label is None:
-            raise ValueError("label must not be None.")
-        indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
+    if label is None:
+      raise ValueError("label must not be None.")
+    indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
 
     _shape = None
     if label is not None:
@@ -424,7 +423,10 @@ def map_and_generate_sampling_centers(
 
     if _shape is None:
         raise ValueError("label or image must be provided to infer the output spatial shape.")
-
+    if label_spatial_shape is None:
+        _shape = _shape
+    else:
+        _shape = label_spatial_shape
     centers = generate_label_classes_crop_centers(
         spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn
     )
