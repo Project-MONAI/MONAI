@@ -385,7 +385,8 @@ def map_and_generate_sampling_centers(
 ) -> tuple[tuple]:
     """
     Combine "map_classes_to_indices" and "generate_label_classes_crop_centers" functions, return crop center coordinates.
-    Call "map_classes_to_indices" if indices is None, pull the shape from the label or image (if label is None), and then call "generate_label_classes_crop_centers".
+    Call "map_classes_to_indices" if indices is None, pull the shape from the label or image (if label is None),
+    and then call "generate_label_classes_crop_centers".
 
     Args:
         label: use the label data to get the indices of every class.
