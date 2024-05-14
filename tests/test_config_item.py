@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 import monai
 from monai.bundle import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
-from monai.bundle.config_item import _wrapper_feature_flag
+from monai.bundle.config_item import ConfigComponentReservedKeys, _wrapper_feature_flag
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
@@ -137,7 +137,12 @@ class TestConfigItem(unittest.TestCase):
 
     def test_wrapper(self):
         with with_feature_flag(_wrapper_feature_flag, True):
-            config = {"_target_": "fractions.Fraction", "numerator": 5, "denominator": 10, "_wrapper_": float}
+            config = {
+                "_target_": "fractions.Fraction",
+                "numerator": 5,
+                "denominator": 10,
+                ConfigComponentReservedKeys.WRAPPER: float,
+            }
             configer = ConfigComponent(config=config, locator=None)
             ret = configer.instantiate()
             self.assertTrue(isinstance(ret, float))
