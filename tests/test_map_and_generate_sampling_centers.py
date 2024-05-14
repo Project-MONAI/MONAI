@@ -78,7 +78,7 @@ class TestMapAndGenerateSamplingCenters(unittest.TestCase):
             if len(results) > 1:
                 for x, y in zip(result[0], result[-1]):
                     assert_allclose(x, y, type_test=False)
- 
+
 
 if __name__ == '__main__':
     unittest.main()
