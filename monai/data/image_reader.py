@@ -11,9 +11,11 @@
 
 from __future__ import annotations
 
+import json
+import logging
+import sys
 import glob
 import os
-import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -21,6 +23,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from monai.apps.utils import get_logger
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
@@ -50,6 +53,16 @@ else:
     PILImage, has_pil = optional_import("PIL.Image")
     pydicom, has_pydicom = optional_import("pydicom")
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
+
+DEFAULT_FMT = "%(asctime)s %(levelname)s %(filename)s:%(lineno)d - %(message)s"
+
+logger = get_logger(module_name=__name__, fmt=DEFAULT_FMT)
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
+
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
@@ -98,7 +111,9 @@ class ImageReader(ABC):
             kwargs: additional args for actual `read` API of 3rd party libs.
 
         """
+        #self.update_json(input_file=data)
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
+
 
     @abstractmethod
     def get_data(self, img) -> tuple[np.ndarray, dict]:
@@ -147,6 +162,24 @@ def _stack_images(image_list: list, meta_dict: dict):
     meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
     return np.stack(image_list, axis=0)
 
+def update_json(input_file=None, output_file=None):
+        record_path = "img-label.json"
+
+        if not os.path.exists(record_path) or os.stat(record_path).st_size == 0:
+            with open(record_path, 'w') as f:
+                json.dump([], f)
+
+        with open(record_path, 'r+') as f:
+            records = json.load(f)
+            if input_file:
+                new_record = {"image": input_file, "label": []}
+                records.append(new_record)
+            elif output_file and records:
+                records[-1]["label"].append(output_file)
+
+            f.seek(0)
+            json.dump(records, f, indent=4)
+
 
 @require_pkg(pkg_name="itk")
 class ITKReader(ImageReader):
@@ -168,8 +201,8 @@ class ITKReader(ImageReader):
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
         reverse_indexing: whether to use a reversed spatial indexing convention for the returned data array.
-            If ``False``, the spatial indexing convention is reversed to be compatible with ITK;
-            otherwise, the spatial indexing follows the numpy convention. Default is ``False``.
+            If ``False``, the spatial indexing follows the numpy convention;
+            otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
             This option does not affect the metadata.
         series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
             This flag is checked only when loading DICOM series. Default is ``False``.
@@ -225,6 +258,7 @@ class ITKReader(ImageReader):
         img_ = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -332,6 +366,25 @@ class ITKReader(ImageReader):
         affine[:sr, -1] = origin[:sr]
         if lps_to_ras:
             affine = orientation_ras_lps(affine)
+            logger.debug("lps is changed to ras")
+
+         # 使用 Logger 輸出信息
+
+        logger.info("\nOrigin[:sr]:")
+        logger.info(", ".join(f"{x:.10f}" for x in origin[:sr]))
+
+        logger.info("\nDirection[:sr, :sr]:")
+        for row in direction[:sr, :sr]:
+            logger.info(", ".join(f"{x:.15f}" for x in row))
+
+        logger.info("\nSpacing[:sr]:")
+        logger.info(", ".join(f"{x:.15f}" for x in spacing[:sr]))
+
+
+        # affine = numpy.round(affine, decimals=5)
+    
+        logger.debug(f"Affine matrix:\n{affine}")
+    
         return affine
 
     def _get_spatial_shape(self, img):
@@ -404,12 +457,8 @@ class PydicomReader(ImageReader):
         label_dict: label of the dicom data. If provided, it will be used when loading segmentation data.
             Keys of the dict are the classes, and values are the corresponding class number. For example:
             for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
-        fname_regex: a regular expression to match the file names when the input is a folder.
-            If provided, only the matched files will be included. For example, to include the file name
-            "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`. Default to `""`.
-            Set it to `None` to use `pydicom.misc.is_dicom` to match valid files.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
-            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html
+            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
             If the `get_data` function will be called
             (for example, when using this reader with `monai.transforms.LoadImage`), please ensure that the argument
             `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
@@ -423,7 +472,6 @@ class PydicomReader(ImageReader):
         swap_ij: bool = True,
         prune_metadata: bool = True,
         label_dict: dict | None = None,
-        fname_regex: str = "",
         **kwargs,
     ):
         super().__init__()
@@ -433,7 +481,6 @@ class PydicomReader(ImageReader):
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
         self.label_dict = label_dict
-        self.fname_regex = fname_regex
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -465,6 +512,7 @@ class PydicomReader(ImageReader):
         img_ = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
 
@@ -474,16 +522,9 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                if self.fname_regex is not None:
-                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
-                else:
-                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
-                slices = []
-                for slc in series_slcs:
-                    try:
-                        slices.append(pydicom.dcmread(fp=slc, **kwargs_))
-                    except pydicom.errors.InvalidDicomError as e:
-                        warnings.warn(f"Failed to read {slc} with exception: \n{e}.", stacklevel=2)
+                series_slcs = glob.glob(os.path.join(name, "*"))
+                series_slcs = [slc for slc in series_slcs if "LICENSE" not in slc]
+                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
                 img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
                     self.has_series = True
@@ -913,9 +954,11 @@ class NibabelReader(ImageReader):
                 https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
         """
+        logger.info(f"Reading NIfTI data from: {data}")
         img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -1076,13 +1119,14 @@ class NumpyReader(ImageReader):
         img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
             img = np.load(name, allow_pickle=True, **kwargs_)
             if Path(name).name.endswith(".npz"):
                 # load expected items from NPZ file
-                npz_keys = list(img.keys()) if self.npz_keys is None else self.npz_keys
+                npz_keys = [f"arr_{i}" for i in range(len(img))] if self.npz_keys is None else self.npz_keys
                 for k in npz_keys:
                     img_.append(img[k])
             else:
@@ -1173,6 +1217,7 @@ class PILReader(ImageReader):
         img_: list[PILImage.Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -1297,10 +1342,11 @@ class NrrdReader(ImageReader):
         """
         img_: list = []
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, **kwargs_))
+            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, *kwargs_))
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
@@ -1323,7 +1369,7 @@ class NrrdReader(ImageReader):
             header = dict(i.header)
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
-            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(header)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
 
             if self.affine_lps_to_ras:
                 header = self._switch_lps_ras(header)
@@ -1344,7 +1390,7 @@ class NrrdReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_affine(self, header: dict) -> np.ndarray:
+    def _get_affine(self, img: NrrdImage) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -1353,8 +1399,8 @@ class NrrdReader(ImageReader):
             img: A `NrrdImage` loaded from image file
 
         """
-        direction = header["space directions"]
-        origin = header["space origin"]
+        direction = img.header["space directions"]
+        origin = img.header["space origin"]
 
         x, y = direction.shape
         affine_diam = min(x, y) + 1

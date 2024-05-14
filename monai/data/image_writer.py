@@ -15,6 +15,8 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+import os
+import json
 
 from monai.apps.utils import get_logger
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
@@ -196,6 +198,25 @@ class ImageWriter:
         if verbose:
             logger.info(f"writing: {filename}")
 
+    def update_json(self, input_file=None, output_file=None):
+        record_path = "img-label.json"
+
+        if not os.path.exists(record_path) or os.stat(record_path).st_size == 0:
+            with open(record_path, 'w') as f:
+                json.dump([], f)
+
+        with open(record_path, 'r+') as f:
+            records = json.load(f)
+            if input_file:
+                new_record = {"image": input_file, "label": []}
+                records.append(new_record)
+            elif output_file and records:
+                records[-1]["label"].append(output_file)
+
+            f.seek(0)
+            json.dump(records, f, indent=4)
+
+
     @classmethod
     def create_backend_obj(cls, data_array: NdarrayOrTensor, **kwargs) -> np.ndarray:
         """
@@ -276,7 +297,7 @@ class ImageWriter:
         # convert back at the end
         if isinstance(output_array, MetaTensor):
             output_array.applied_operations = []
-        data_array, *_ = convert_data_type(output_array, output_type=orig_type)
+        data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
         affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
         return data_array[0], affine
 
@@ -462,7 +483,9 @@ class ITKWriter(ImageWriter):
 
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L809
         """
+        logger.info(f"ITKWriter is processing the file: {filename}")
         super().write(filename, verbose=verbose)
+        super().update_json(output_file=filename)
         self.data_obj = self.create_backend_obj(
             cast(NdarrayOrTensor, self.data_obj),
             channel_dim=self.channel_dim,
@@ -625,7 +648,9 @@ class NibabelWriter(ImageWriter):
 
             - https://nipy.org/nibabel/reference/nibabel.nifti1.html#nibabel.nifti1.save
         """
+        logger.info(f"NibabelWriter is processing the file: {filename}")
         super().write(filename, verbose=verbose)
+        super().update_json(output_file=filename)
         self.data_obj = self.create_backend_obj(
             cast(NdarrayOrTensor, self.data_obj), affine=self.affine, dtype=self.output_dtype, **obj_kwargs
         )
@@ -771,6 +796,7 @@ class PILWriter(ImageWriter):
             - https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.save
         """
         super().write(filename, verbose=verbose)
+        super().update_json(output_file=filename)
         self.data_obj = self.create_backend_obj(
             data_array=self.data_obj,
             dtype=self.output_dtype,
