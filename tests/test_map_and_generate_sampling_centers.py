@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import unittest
-
+import copy
 import numpy as np
 from parameterized import parameterized
 
