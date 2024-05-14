@@ -374,7 +374,6 @@ def map_and_generate_sampling_centers(
     spatial_size: Sequence[int] | int,
     num_samples: int,
     label_spatial_shape: Sequence[int],
-    indices: Sequence[NdarrayOrTensor],
     num_classes: int | None = None,
     image: NdarrayOrTensor | None = None,
     image_threshold: float = 0.0,
