@@ -418,7 +418,7 @@ def map_and_generate_sampling_centers(
     if label_spatial_shape is not None:
         _shape = label_spatial_shape
     elif isinstance(label, monai.data.MetaTensor):
-        _shape = label.peek_pending_shape() 
+        _shape = label.peek_pending_shape()
     else:
         _shape = label.shape[1:]
 
