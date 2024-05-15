@@ -19,8 +19,9 @@ from contextlib import contextmanager
 class FeatureFlag:
     """
     A feature flag used to use for enabling/disabling experimental features and other optional behaviors.
-    The flag called {name} can be set by environment variable `MONAI_FEATURE_ENABLED_{name}` or
-    by calling `enable()`/`disable()`.
+    A flag called {name} can be set by environment variable `MONAI_FEATURE_ENABLED_{name}`
+    (values considered as `True` are "true", "1", "yes", case-insensitive) or
+    by explicitly calling `enable()`/`disable()`.
     When first accessing its property `enabled` and no value has been explicitly set using `enable()`/`disable()`,
     it will set the value of the flag based on the environment variable and
     if that is not set uses the default value passed in the constructor.
