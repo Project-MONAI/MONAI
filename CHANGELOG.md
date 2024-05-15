@@ -5,6 +5,96 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2024-05-10
+### Added
+* Support `by_measure` in `RemoveSmallObjects` (#7137)
+* Support `pretrained` flag in `ResNet` (#7095)
+* Support uploading and downloading bundles to and from the Hugging Face Hub (#6454)
+* `weight` parameters in `DiceLoss` help apply to the voxels of each class (#7158)
+* Support return dice for each class in `DiceMetric` (#7163)
+* Documentaton enhancement for bundle (#7116)
+* `ComponentStore` help represents a storage object (#7159)
+* Utils used in MONAI Generative (#7134)
+* Enable Python 3.11 for `convert_to_torchscript` and `convert_to_onnx` (#7182)
+* Support MLflow in `AutoRunner` (#7176)
+* `fname_regex` option in `PydicomReader` (#7181)
+* Allow setting `AutoRunner` parameters from config (#7175)
+* `VoxelMorphUNet` and `VoxelMorph` (#7178)
+* Enable `cache` option in `GridPatchDataset` (#7180)
+* `class_labels` option in `write_metrics_reports` to improve readability (#7249)
+* `DiffusionLoss` for image registration task (#7272)
+* Support specified `filename` in `Saveimage` (#7318)
+* Compile support in `SupervisedTrainer` and `SupervisedEvaluator` (#7375)
+* `mlflow_experiment_name` support in `Auto3DSeg` (#7442)
+* Arm support (#7500)
+* `BarlowTwinsLoss` for representation learning (#7530)
+* `SURELoss` and `ConjugateGradient` for diffusion models (#7308)
+* `CutMix`, `CutOut` and `MixUp` (#7198)
+* `meta_file` and `logging_file` to `BundleWorkflow` (#7549)
+* `properties_path` to `BundleWorkflow` for adding customized properties (#7542)
+* `ClipIntensityPercentiles` support both soft and hard clipping (#7535)
+* Support not save artifacts in `MLFlowHandler` (#7604)
+* Multi-channel support in `PerceptualLoss` (#7568)
+* Add ResNet backbone for `FlexibleUNet` (#7571)
+* `dim_head` to `SABlock` enable setting dimension for each head (#7664)
+#### misc.
+* Refactor `list_data_collate` and `collate_meta_tensor` to use latest PyTorch API (#7165)
+* `__str__` method added in Metric base class (#7487)
+* Enhancement for testing files (#7662, #7670, #7663, #7671, #7672)
+### Fixed
+#### transforms
+* Lazy ignored in `SpatialPadd` (#7316)
+* Track applied_operations in `ImageFilter` (#7395)
+* Give warning only if missing class is not set to 0 in `generate_label_classes_crop_centers` (#7602)
+* Always convert input to C-order in `distance_transform_edt` (#7675)
+#### data
+* Using keys in .npz files for `NumpyReader` (#7148)
+* Handle corrupted cached file in `PersistentDataset` (#7244)
+* Incorrectly updated affine in `NrrdReader` (#7415)
+#### metrics and losses
+* Precision issue in `get_confusion_matrix` (#7187)
+* Harmonization and clarification of dice losses variants docs and associated tests (#7587)
+#### networks
+* Hard-coded `spatial_dims` in `SwinTransformer` (#7302)
+* Fix learnable `position_embeddings` in `PatchEmbeddingBlock` (#7564, #7605)
+* Remove `memory_pool_limit` in trt config (#7647)
+* Propagate `kernel_size` to `ConvBlocks` within `AttentionUnet` (#7734)
+* Hard-coded activtation layer in `ResNet` (#7749)
+#### bundle
+* Bundle download issue (#7280)
+* `bundle_root` dir update issue for NNIGen (#7586)
+* Check for `num_fold` and fail early if wrong (#7634)
+* Enhance logging logic in `ConfigWorkflow` (#7745)
+#### misc.
+* Enable chaining in `Auto3DSeg` CLI (#7168)
+* Useless error message in `nnUNetV2Runner` (#7217)
+* Typing and deprecation issues in Mypy (#7231)
+* Quote $PY_EXE variable to deal with Python path that contain spaces in Bash (#7268)
+* Improved documentation, code examples, and warning messages in various modules (#7234, #7213, #7271, #7326, #7569, #7584)
+* Typo fix in various modules (#7321, #7322, #7458, #7595, #7612)
+* Docstring enhancement in vaious modules (#7245, #7381, #7746)
+* Handle error when data is on CPU in `DataAnalyzer` (#7310)
+* 3rd party packages version requirement update (#7343, #7344, #7384, #7448, #7659, #7704, #7744, #7742)
+* Incorrectly sice compute in `ImageStats` (#7374)
+* Avoid editing a loop's mutable iterable, address B308 (#7397)
+* Address `CUDA_VISIBLE_DEVICES` setting ignored (#7408, #7581)
+* Avoid changing python version in CICD (#7424)
+* Rename `partial` to `callable` in `instantiate` mode (#7413)
+* Import AttributeError for Python 3.12 (#7482)
+* Update `nnUNetV2Runner` to support nnunetv2 2.2 (#7483)
+* Use uint8 instead of int8 in `LabelStats` (#7489)
+* Utilizing subprocess for nnUNet training (#7576)
+* Deprecated warning fixed in ruff (#7625)
+* Downloading failure on FIPS machine (#7698)
+* Update torch_tensorrt compile parameters to avoid warning (#7714)
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:24.03-py3` from `nvcr.io/nvidia/pytorch:23.08-py3`
+### Removed
+* Unrecommanded star-arg unpacking after a keyword argument, addressed B026 (#7262)
+* Skip old PyTorch version test for `SwinUNETR` (#7266)
+* Drop docker build workflow and move to Nvidia Blossom system (#7450)
+* Drop Python 3.8 test on quick-py3 workflow (#7719)
+
 ## [1.3.0] - 2023-10-12
 ### Added
 * Intensity transforms `ScaleIntensityFixedMean` and `RandScaleIntensityFixedMean` (#6542)
@@ -943,7 +1033,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/Project-MONAI/MONAI/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/Project-MONAI/MONAI/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...1.1.0
