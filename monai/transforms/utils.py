@@ -423,7 +423,9 @@ def map_and_generate_sampling_centers(
         _shape = label.shape[1:]
 
     if _shape is None:
-        raise ValueError("label_spatial_shape or label with a known shape must be provided to infer the output spatial shape.")
+        raise ValueError(
+            "label_spatial_shape or label with a known shape must be provided to infer the output spatial shape."
+        )
     centers = generate_label_classes_crop_centers(
         spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn
     )
