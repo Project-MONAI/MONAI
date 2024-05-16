@@ -13,6 +13,8 @@
 import os
 import subprocess
 import sys
+import importlib
+import inspect
 
 sys.path.insert(0, os.path.abspath(".."))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -95,7 +97,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
-    "sphinx.ext.viewcode",
+    "sphinx.ext.linkcode",
     "sphinx.ext.autosectionlabel",
     "sphinx.ext.autosummary",
     "sphinx_autodoc_typehints",
@@ -162,3 +164,54 @@ def setup(app):
     # Hook to allow for automatic generation of API docs
     # before doc deployment begins.
     app.connect("builder-inited", generate_apidocs)
+
+
+# -- Linkcode configuration --------------------------------------------------
+DEFAULT_REF = "dev"
+if os.environ.get("GITHUB_REF_TYPE", "branch") == "tag":
+    # When building a tag, link to the tag itself
+    git_ref = os.environ.get("GITHUB_REF", DEFAULT_REF)
+else:
+    git_ref = os.environ.get("GITHUB_SHA", DEFAULT_REF)
+
+DEFAULT_REPOSITORY = "Project-MONAI/MONAI"
+repository = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPOSITORY)
+
+base_code_url = f"https://github.com/{repository}/blob/{git_ref}"
+MODULE_ROOT_FOLDER = "monai"
+
+
+# Adjusted from https://github.com/python-websockets/websockets/blob/main/docs/conf.py
+def linkcode_resolve(domain, info):
+    if domain != "py":
+        raise ValueError(
+            f"expected domain to be 'py', got {domain}."
+            "Please adjust linkcode_resolve to either handle this domain or ignore it."
+        )
+
+    mod = importlib.import_module(info["module"])
+    if "." in info["fullname"]:
+        objname, attrname = info["fullname"].split(".")
+        obj = getattr(mod, objname)
+        try:
+            # object is a method of a class
+            obj = getattr(obj, attrname)
+        except AttributeError:
+            # object is an attribute of a class
+            return None
+    else:
+        obj = getattr(mod, info["fullname"])
+
+    try:
+        file = inspect.getsourcefile(obj)
+        source, lineno = inspect.getsourcelines(obj)
+    except TypeError:
+        # e.g. object is a typing.Union
+        return None
+    file = os.path.relpath(file, os.path.abspath(".."))
+    if not file.startswith(MODULE_ROOT_FOLDER):
+        # e.g. object is a typing.NewType
+        return None
+    start, end = lineno, lineno + len(source) - 1
+    url = f"{base_code_url}/{file}#L{start}-L{end}"
+    return url
