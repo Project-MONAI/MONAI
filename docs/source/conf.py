@@ -168,7 +168,11 @@ def setup(app):
 
 # -- Linkcode configuration --------------------------------------------------
 DEFAULT_REF = "dev"
-if os.environ.get("GITHUB_REF_TYPE", "branch") == "tag":
+if git_ref := os.environ.get("READTHEDOCS_GIT_IDENTIFIER", None):
+    # When building on ReadTheDocs, link to the specific commit
+    # https://docs.readthedocs.io/en/stable/reference/environment-variables.html#envvar-READTHEDOCS_GIT_IDENTIFIER
+    git_ref = git_ref
+elif os.environ.get("GITHUB_REF_TYPE", "branch") == "tag":
     # When building a tag, link to the tag itself
     git_ref = os.environ.get("GITHUB_REF", DEFAULT_REF)
 else:
@@ -179,7 +183,7 @@ repository = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPOSITORY)
 
 base_code_url = f"https://github.com/{repository}/blob/{git_ref}"
 MODULE_ROOT_FOLDER = "monai"
-
+repo_root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # Adjusted from https://github.com/python-websockets/websockets/blob/main/docs/conf.py
 def linkcode_resolve(domain, info):
@@ -208,7 +212,7 @@ def linkcode_resolve(domain, info):
     except TypeError:
         # e.g. object is a typing.Union
         return None
-    file = os.path.relpath(file, os.path.abspath(".."))
+    file = os.path.relpath(file, repo_root_path)
     if not file.startswith(MODULE_ROOT_FOLDER):
         # e.g. object is a typing.NewType
         return None
