@@ -15,7 +15,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from monai.networks.blocks import ADN, Convolution
+from monai.networks.blocks import Convolution
+from monai.networks.layers.utils import get_norm_layer
 
 
 class SPADE(nn.Module):
@@ -50,9 +51,7 @@ class SPADE(nn.Module):
             norm_params = {}
         if len(norm_params) != 0:
             norm = (norm, norm_params)
-        self.param_free_norm = ADN(
-            act=None, dropout=0.0, norm=norm, norm_dim=spatial_dims, ordering="N", in_channels=norm_nc
-        )
+        self.param_free_norm = get_norm_layer(norm, spatial_dims=spatial_dims, channels=norm_nc)
         self.mlp_shared = Convolution(
             spatial_dims=spatial_dims,
             in_channels=label_nc,
