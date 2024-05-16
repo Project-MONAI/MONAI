@@ -185,6 +185,7 @@ base_code_url = f"https://github.com/{repository}/blob/{git_ref}"
 MODULE_ROOT_FOLDER = "monai"
 repo_root_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
+
 # Adjusted from https://github.com/python-websockets/websockets/blob/main/docs/conf.py
 def linkcode_resolve(domain, info):
     if domain != "py":
