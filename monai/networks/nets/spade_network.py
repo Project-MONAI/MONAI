@@ -22,6 +22,7 @@ from monai.networks.blocks import Convolution
 from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.layers import Act
 from monai.utils.enums import StrEnum
+from monai.networks.layers.utils import get_act_layer
 
 
 class UpsamplingModes(StrEnum):
@@ -52,6 +53,7 @@ class SPADENetResBlock(nn.Module):
         label_nc: int,
         spade_intermediate_channels: int = 128,
         norm: str | tuple = "INSTANCE",
+        act: str | tuple = (Act.LEAKYRELU, {"negative_slope": 0.2}),
         kernel_size: int = 3,
     ):
         super().__init__()
@@ -69,7 +71,7 @@ class SPADENetResBlock(nn.Module):
             act=None,
             norm=None,
         )
-        self.activation = nn.LeakyReLU(0.2, False)
+        self.activation = get_act_layer(act)
         self.norm_0 = SPADE(
             label_nc=label_nc,
             norm_nc=self.in_channels,
@@ -240,6 +242,7 @@ class SPADEDecoder(nn.Module):
         is_gan: bool = False,
         spade_intermediate_channels: int = 128,
         norm: str | tuple = "INSTANCE",
+        act: str | tuple = (Act.LEAKYRELU, {"negative_slope": 0.2}),
         last_act: str | tuple | None = (Act.LEAKYRELU, {"negative_slope": 0.2}),
         kernel_size: int = 3,
         upsampling_mode: str = UpsamplingModes.nearest.value,
@@ -277,6 +280,7 @@ class SPADEDecoder(nn.Module):
                     spade_intermediate_channels=spade_intermediate_channels,
                     norm=norm,
                     kernel_size=kernel_size,
+                    act = act
                 )
             )
 
@@ -344,7 +348,7 @@ class SPADENet(nn.Module):
         is_vae: bool = True,
         spade_intermediate_channels: int = 128,
         norm: str | tuple = "INSTANCE",
-        act: str | tuple | None = (Act.LEAKYRELU, {"negative_slope": 0.2}),
+        act: str | tuple = (Act.LEAKYRELU, {"negative_slope": 0.2}),
         last_act: str | tuple | None = (Act.LEAKYRELU, {"negative_slope": 0.2}),
         kernel_size: int = 3,
         upsampling_mode: str = UpsamplingModes.nearest.value,
@@ -396,8 +400,7 @@ class SPADENet(nn.Module):
         if self.is_vae:
             z_mu, z_logvar = self.encoder(x)
             z = self.encoder.reparameterize(z_mu, z_logvar)
-            kld_loss = self.kld_loss(z_mu, z_logvar)
-            return self.decoder(seg, z), kld_loss
+            return self.decoder(seg, z), z_mu, z_logvar
         else:
             return (self.decoder(seg, z),)
 

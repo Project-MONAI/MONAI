@@ -78,13 +78,15 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         net = SPADENet(*input_param)
         in_label, in_image = create_semantic_data(input_param[4], input_param[3])
         with eval_mode(net):
-            out, kld = net(in_label, in_image)
+            out, z_mu, z_logvar = net(in_label, in_image)
             self.assertEqual(
                 False,
                 True in torch.isnan(out)
                 or True in torch.isinf(out)
-                or True in torch.isinf(kld)
-                or True in torch.isinf(kld),
+                or True in torch.isinf(z_mu)
+                or True in torch.isnan(z_mu)
+                or True in torch.isinf(z_logvar)
+                or True in torch.isnan(z_logvar),
             )
             self.assertEqual(list(out.shape), [1, 1, 64, 64])
 
@@ -109,13 +111,15 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         net = SPADENet(*input_param)
         in_label, in_image = create_semantic_data(input_param[4], input_param[3])
         with eval_mode(net):
-            out, kld = net(in_label, in_image)
+            out, z_mu, z_logvar = net(in_label, in_image)
             self.assertEqual(
                 False,
                 True in torch.isnan(out)
                 or True in torch.isinf(out)
-                or True in torch.isinf(kld)
-                or True in torch.isinf(kld),
+                or True in torch.isinf(z_mu)
+                or True in torch.isnan(z_mu)
+                or True in torch.isinf(z_logvar)
+                or True in torch.isnan(z_logvar),
             )
             self.assertEqual(list(out.shape), [1, 1, 64, 64, 64])
 
