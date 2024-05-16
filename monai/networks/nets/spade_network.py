@@ -17,11 +17,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from monai.networks.blocks import Convolution
+from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.layers import Act
 from monai.utils.enums import StrEnum
-
-from monai.networks.blocks.spade_norm import SPADE
 
 
 class UpsamplingModes(StrEnum):
@@ -310,7 +310,6 @@ class SPADEDecoder(nn.Module):
 
 
 class SPADENet(nn.Module):
-
     """
     SPADE Network, implemented based on the code by Park, T et al. in
     "Semantic Image Synthesis with Spatially-Adaptive Normalization"
