@@ -21,8 +21,8 @@ import torch.nn.functional as F
 from monai.networks.blocks import Convolution
 from monai.networks.blocks.spade_norm import SPADE
 from monai.networks.layers import Act
-from monai.utils.enums import StrEnum
 from monai.networks.layers.utils import get_act_layer
+from monai.utils.enums import StrEnum
 
 
 class UpsamplingModes(StrEnum):
@@ -280,7 +280,7 @@ class SPADEDecoder(nn.Module):
                     spade_intermediate_channels=spade_intermediate_channels,
                     norm=norm,
                     kernel_size=kernel_size,
-                    act = act
+                    act=act,
                 )
             )
 
