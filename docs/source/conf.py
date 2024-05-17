@@ -168,10 +168,11 @@ def setup(app):
 
 # -- Linkcode configuration --------------------------------------------------
 DEFAULT_REF = "dev"
-if git_ref := os.environ.get("READTHEDOCS_GIT_IDENTIFIER", None):
+read_the_docs_ref = os.environ.get("READTHEDOCS_GIT_IDENTIFIER", None)
+if read_the_docs_ref:
     # When building on ReadTheDocs, link to the specific commit
     # https://docs.readthedocs.io/en/stable/reference/environment-variables.html#envvar-READTHEDOCS_GIT_IDENTIFIER
-    git_ref = git_ref
+    git_ref = read_the_docs_ref
 elif os.environ.get("GITHUB_REF_TYPE", "branch") == "tag":
     # When building a tag, link to the tag itself
     git_ref = os.environ.get("GITHUB_REF", DEFAULT_REF)
