@@ -237,8 +237,8 @@ class SPADEDecoder(nn.Module):
         out_channels: int,
         label_nc: int,
         input_shape: Sequence[int],
-        channels: Sequence[int],
-        z_dim: int | None = None,
+        channels: list[int],
+        z_dim: int  | None = None,
         is_gan: bool = False,
         spade_intermediate_channels: int = 128,
         norm: str | tuple = "INSTANCE",
@@ -265,6 +265,7 @@ class SPADEDecoder(nn.Module):
         if self.is_gan:
             self.fc = nn.Linear(label_nc, np.prod(self.latent_spatial_shape) * channels[0])
         else:
+            assert z_dim is not None
             self.fc = nn.Linear(z_dim, np.prod(self.latent_spatial_shape) * channels[0])
 
         blocks = []
@@ -295,7 +296,7 @@ class SPADEDecoder(nn.Module):
             act=last_act,
         )
 
-    def forward(self, seg, z: torch.Tensor = None):
+    def forward(self, seg, z: torch.Tensor | None = None):
         if self.is_gan:
             x = F.interpolate(seg, size=tuple(self.latent_spatial_shape))
             x = self.fc(x)
@@ -343,7 +344,7 @@ class SPADENet(nn.Module):
         out_channels: int,
         label_nc: int,
         input_shape: Sequence[int],
-        channels: Sequence[int],
+        channels: list[int],
         z_dim: int | None = None,
         is_vae: bool = True,
         spade_intermediate_channels: int = 128,
@@ -355,9 +356,6 @@ class SPADENet(nn.Module):
     ):
         super().__init__()
         self.is_vae = is_vae
-        if self.is_vae and z_dim is None:
-            ValueError("The latent space dimension mapped by parameter z_dim cannot be None is is_vae is True.")
-
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.channels = channels
@@ -365,16 +363,19 @@ class SPADENet(nn.Module):
         self.input_shape = input_shape
 
         if self.is_vae:
-            self.encoder = SPADEEncoder(
-                spatial_dims=spatial_dims,
-                in_channels=in_channels,
-                z_dim=z_dim,
-                channels=channels,
-                input_shape=input_shape,
-                kernel_size=kernel_size,
-                norm=norm,
-                act=act,
-            )
+            if z_dim is None:
+                ValueError("The latent space dimension mapped by parameter z_dim cannot be None is is_vae is True.")
+            else:
+                self.encoder = SPADEEncoder(
+                    spatial_dims=spatial_dims,
+                    in_channels=in_channels,
+                    z_dim=z_dim,
+                    channels=channels,
+                    input_shape=input_shape,
+                    kernel_size=kernel_size,
+                    norm=norm,
+                    act=act,
+                )
 
         decoder_channels = channels
         decoder_channels.reverse()
