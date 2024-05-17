@@ -36,6 +36,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Support for multi-channel images in `PerceptualLoss` (#7568)
 * Added ResNet backbone for `FlexibleUNet` (#7571)
 * Introduced `dim_head` option in `SABlock` to set dimensions for each head (#7664)
+* Direct links to github source code to docs (#7738, #7779)
 #### misc.
 * Refactored `list_data_collate` and `collate_meta_tensor` to utilize the latest PyTorch API (#7165)
 * Added __str__ method in `Metric` base class (#7487)
@@ -74,7 +75,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Fixed typos in various modules (#7321, #7322, #7458, #7595, #7612)
 * Enhanced docstrings in various modules (#7245, #7381, #7746)
 * Handled error when data is on CPU in `DataAnalyzer` (#7310)
-* Updated version requirements for third-party packages (#7343, #7344, #7384, #7448, #7659, #7704, #7744, #7742)
+* Updated version requirements for third-party packages (#7343, #7344, #7384, #7448, #7659, #7704, #7744, #7742, #7780)
 * Addressed incorrect slice compute in `ImageStats` (#7374)
 * Avoided editing a loop's mutable iterable to address B308 (#7397)
 * Fixed issue with `CUDA_VISIBLE_DEVICES` setting being ignored (#7408, #7581)
@@ -87,6 +88,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Addressed deprecated warning in ruff (#7625)
 * Fixed downloading failure on FIPS machine (#7698)
 * Updated `torch_tensorrt` compile parameters to avoid warning (#7714)
+* Restrict `Auto3DSeg` fold input based on datalist (#7778)
 ### Changed
 * Base Docker image upgraded to `nvcr.io/nvidia/pytorch:24.03-py3` from `nvcr.io/nvidia/pytorch:23.08-py3`
 ### Removed
