@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.3.1] - 2024-05-10
+## [1.3.1] - 2024-05-17
 ### Added
 * Support for `by_measure` argument in `RemoveSmallObjects` (#7137)
 * Support for `pretrained` flag in `ResNet` (#7095)
