@@ -24,11 +24,9 @@ from monai.utils.module import optional_import
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 if TYPE_CHECKING:
-    from matplotlib import cm
     from matplotlib import pyplot as plt
 else:
     plt, _ = optional_import("matplotlib", name="pyplot")
-    cm, _ = optional_import("matplotlib", name="cm")
 
 __all__ = ["matshow3d", "blend_images"]
 
@@ -210,7 +208,7 @@ def blend_images(
         image = repeat(image, 3, axis=0)
 
     def get_label_rgb(cmap: str, label: NdarrayOrTensor) -> NdarrayOrTensor:
-        _cmap = cm.get_cmap(cmap)
+        _cmap = plt.colormaps.get_cmap(cmap)
         label_np, *_ = convert_data_type(label, np.ndarray)
         label_rgb_np = _cmap(label_np[0])
         label_rgb_np = np.moveaxis(label_rgb_np, -1, 0)[:3]

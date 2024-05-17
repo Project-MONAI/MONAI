@@ -139,7 +139,7 @@ html_context = {
     "github_user": "Project-MONAI",
     "github_repo": "MONAI",
     "github_version": "dev",
-    "doc_path": "docs/",
+    "doc_path": "docs/source",
     "conf_py_path": "/docs/",
     "VERSION": version,
 }
@@ -167,17 +167,10 @@ def setup(app):
 
 
 # -- Linkcode configuration --------------------------------------------------
-DEFAULT_REF = "dev"
-if os.environ.get("GITHUB_REF_TYPE", "branch") == "tag":
-    # When building a tag, link to the tag itself
-    git_ref = os.environ.get("GITHUB_REF", DEFAULT_REF)
-else:
-    git_ref = os.environ.get("GITHUB_SHA", DEFAULT_REF)
-
 DEFAULT_REPOSITORY = "Project-MONAI/MONAI"
 repository = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPOSITORY)
 
-base_code_url = f"https://github.com/{repository}/blob/{git_ref}"
+base_code_url = f"https://github.com/{repository}/blob/{version}"
 MODULE_ROOT_FOLDER = "monai"
 
 
@@ -208,7 +201,7 @@ def linkcode_resolve(domain, info):
     except TypeError:
         # e.g. object is a typing.Union
         return None
-    file = os.path.relpath(file, os.path.abspath(".."))
+    file = os.path.relpath(file, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
     if not file.startswith(MODULE_ROOT_FOLDER):
         # e.g. object is a typing.NewType
         return None
