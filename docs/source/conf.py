@@ -201,7 +201,7 @@ def linkcode_resolve(domain, info):
     except TypeError:
         # e.g. object is a typing.Union
         return None
-    file = os.path.relpath(file, os.path.abspath(".."))
+    file = os.path.relpath(file, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
     if not file.startswith(MODULE_ROOT_FOLDER):
         # e.g. object is a typing.NewType
         return None
