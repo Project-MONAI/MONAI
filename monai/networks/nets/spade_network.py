@@ -238,7 +238,7 @@ class SPADEDecoder(nn.Module):
         label_nc: int,
         input_shape: Sequence[int],
         channels: list[int],
-        z_dim: int  | None = None,
+        z_dim: int | None = None,
         is_gan: bool = False,
         spade_intermediate_channels: int = 128,
         norm: str | tuple = "INSTANCE",
