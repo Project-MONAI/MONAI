@@ -167,17 +167,10 @@ def setup(app):
 
 
 # -- Linkcode configuration --------------------------------------------------
-DEFAULT_REF = "dev"
-if os.environ.get("GITHUB_REF_TYPE", "branch") == "tag":
-    # When building a tag, link to the tag itself
-    git_ref = os.environ.get("GITHUB_REF", DEFAULT_REF)
-else:
-    git_ref = os.environ.get("GITHUB_SHA", DEFAULT_REF)
-
 DEFAULT_REPOSITORY = "Project-MONAI/MONAI"
 repository = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPOSITORY)
 
-base_code_url = f"https://github.com/{repository}/blob/{git_ref}"
+base_code_url = f"https://github.com/{repository}/blob/{version}"
 MODULE_ROOT_FOLDER = "monai"
 
 
