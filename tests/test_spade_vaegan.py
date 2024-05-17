@@ -30,7 +30,7 @@ def create_semantic_data(shape: list, semantic_regions: int):
     To create semantic and image mock inputs for the network.
     Args:
         shape: input shape
-        semantic_regions: number of semantic regions
+        semantic_regions: number of semantic region
     Returns:
     """
     out_label = torch.zeros(shape)
