@@ -139,7 +139,7 @@ html_context = {
     "github_user": "Project-MONAI",
     "github_repo": "MONAI",
     "github_version": "dev",
-    "doc_path": "docs/",
+    "doc_path": "docs/source",
     "conf_py_path": "/docs/",
     "VERSION": version,
 }
