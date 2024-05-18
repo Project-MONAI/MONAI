@@ -33,7 +33,7 @@ tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pandas
 requests
 einops
-transformers>=4.36.0
+transformers>=4.36.0, <4.41.0; python_version <= '3.10'
 mlflow>=2.12.2
 clearml>=1.10.0rc0
 matplotlib>=3.6.3
