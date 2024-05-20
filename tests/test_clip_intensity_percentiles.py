@@ -18,7 +18,6 @@ from parameterized import parameterized
 from monai.transforms import ClipIntensityPercentiles
 from monai.transforms.utils import soft_clip
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile
-from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
