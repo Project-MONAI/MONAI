@@ -77,15 +77,17 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Callable | None = None) -> None:
+    def __init__(self, data: Sequence, transform: Callable | None = None, **kwargs) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
+            kwargs: other arguments for the `apply_transform` function called to apply provided transforms. For ex. `map_items=False`
 
         """
         self.data = data
         self.transform: Any = transform
+        self.apply_transform_kwargs = kwargs
 
     def __len__(self) -> int:
         return len(self.data)
@@ -95,7 +97,11 @@ class Dataset(_TorchDataset):
         Fetch single data item from `self.data`.
         """
         data_i = self.data[index]
-        return apply_transform(self.transform, data_i) if self.transform is not None else data_i
+        return (
+            apply_transform(self.transform, data_i, **self.apply_transform_kwargs)
+            if self.transform is not None
+            else data_i
+        )
 
     def __getitem__(self, index: int | slice | Sequence[int]):
         """

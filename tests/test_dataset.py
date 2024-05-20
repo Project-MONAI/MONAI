@@ -23,7 +23,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import Dataset
-from monai.transforms import Compose, LoadImaged, SimulateDelayd
+from monai.transforms import Compose, Lambda, LoadImaged, SimulateDelayd, ToTensor
 from tests.test_compose import TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES, data_from_keys
 
 TEST_CASE_1 = [(128, 128, 128)]
@@ -97,6 +97,20 @@ class TestDataset(unittest.TestCase):
     def test_dataset_lazy_on_call(self):
         data = np.zeros((1, 5, 5))
         data[0, 0:2, 0:2] = 1
+
+    def test_dataset_transform_kwargs(self):
+        test_array = np.random.randint(0, 2, size=[128, 128, 128]).astype(float)
+        test_data_tuple = (test_array, 4)  # Simulate input, target tuple common in torchvision datasets
+
+        # Convert both elements in test_data_tuple to tensors
+        test_transform = ToTensor()
+        dataset = Dataset(data=[test_data_tuple], transform=test_transform)
+        self.assertTrue(isinstance(dataset[0], (tuple, list)))
+
+        # Transpose the first element in test_data_tuple and keep the second element as is
+        test_transform = Lambda(func=lambda x: (x[0].transpose(2, 1, 0), x[1]))
+        dataset = Dataset(data=[test_data_tuple], transform=test_transform, map_items=False)
+        self.assertTrue(isinstance(dataset[0], (tuple, list)))
 
 
 class TestDatsesetWithLazy(unittest.TestCase):
