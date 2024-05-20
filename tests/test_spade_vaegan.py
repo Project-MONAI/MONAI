@@ -79,15 +79,9 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         in_label, in_image = create_semantic_data(input_param[4], input_param[3])
         with eval_mode(net):
             out, z_mu, z_logvar = net(in_label, in_image)
-            self.assertEqual(
-                False,
-                True in torch.isnan(out)
-                or True in torch.isinf(out)
-                or True in torch.isinf(z_mu)
-                or True in torch.isnan(z_mu)
-                or True in torch.isinf(z_logvar)
-                or True in torch.isnan(z_logvar),
-            )
+            self.assertTrue(torch.all(torch.isfinite(out)))
+            self.assertTrue(torch.all(torch.isfinite(z_mu)))
+            self.assertTrue(torch.all(torch.isfinite(z_logvar)))
             self.assertEqual(list(out.shape), [1, 1, 64, 64])
 
     @parameterized.expand(CASE_2D_BIS)
@@ -112,15 +106,9 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         in_label, in_image = create_semantic_data(input_param[4], input_param[3])
         with eval_mode(net):
             out, z_mu, z_logvar = net(in_label, in_image)
-            self.assertEqual(
-                False,
-                True in torch.isnan(out)
-                or True in torch.isinf(out)
-                or True in torch.isinf(z_mu)
-                or True in torch.isnan(z_mu)
-                or True in torch.isinf(z_logvar)
-                or True in torch.isnan(z_logvar),
-            )
+            self.assertTrue(torch.all(torch.isfinite(out)))
+            self.assertTrue(torch.all(torch.isfinite(z_mu)))
+            self.assertTrue(torch.all(torch.isfinite(z_logvar)))
             self.assertEqual(list(out.shape), [1, 1, 64, 64, 64])
 
     def test_shape_wrong(self):
