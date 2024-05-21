@@ -89,6 +89,7 @@ class TestHPO(unittest.TestCase):
 
         da_output_yaml = os.path.join(work_dir, "datastats.yaml")
         data_src_cfg = os.path.join(work_dir, "data_src_cfg.yaml")
+        print("hello!")
 
         if not os.path.isdir(dataroot):
             os.makedirs(dataroot)
