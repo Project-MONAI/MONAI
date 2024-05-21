@@ -82,7 +82,8 @@ class Dataset(_TorchDataset):
         Args:
             data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
-            kwargs: other arguments for the `apply_transform` function called to apply provided transforms. For ex. `map_items=False`
+            kwargs: other arguments for `apply_transform` fn called to apply provided transforms.
+            For ex. `map_items=False`
 
         """
         self.data = data
