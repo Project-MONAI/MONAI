@@ -217,6 +217,7 @@ def itk_warp(img, ddf):
     # warp
     warp_filter.SetDisplacementField(displacement_field)
     warp_filter.SetInput(itk_img)
+    warp_filter.Update()
     warped_img = warp_filter.GetOutput()
     warped_img = np.asarray(warped_img)
 
