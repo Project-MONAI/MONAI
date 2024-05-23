@@ -76,13 +76,10 @@ class Dataset(_TorchDataset):
             transform: a callable data transform on input data.
         """
         self.data = data
-        if transform is None:
-            self.transform = None
-        else:
-            try:
-                self.transform = Compose(transform) if not isinstance(transform, Compose) else transform
-            except Exception as e:
-                raise ValueError("`transform` must be a callable or a list of callables that is Composable") from e
+        try:
+            self.transform = Compose(transform) if not isinstance(transform, Compose) else transform
+        except Exception as e:
+            raise ValueError("`transform` must be a callable or a list of callables that is Composable") from e
 
     def __len__(self) -> int:
         return len(self.data)
@@ -92,7 +89,7 @@ class Dataset(_TorchDataset):
         Fetch single data item from `self.data`.
         """
         data_i = self.data[index]
-        return self.transform(data_i) if self.transform is not None else data_i
+        return self.transform(data_i)
 
     def __getitem__(self, index: int | slice | Sequence[int]):
         """
@@ -262,8 +259,6 @@ class PersistentDataset(Dataset):
 
         """
         super().__init__(data=data, transform=transform)
-        if self.transform is None:
-            raise ValueError("transform must not be None when provided to a PersistentDataset")
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
         self.pickle_module = pickle_module
