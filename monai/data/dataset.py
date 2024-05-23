@@ -77,7 +77,7 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Callable | None = None, **kwargs) -> None:
+    def __init__(self, data: Sequence, transform: Callable | None = None) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
@@ -87,8 +87,7 @@ class Dataset(_TorchDataset):
 
         """
         self.data = data
-        self.transform: Any = transform
-        self.apply_transform_kwargs = kwargs
+        self.transform = Compose(transform) if not isinstance(transform, Compose) else transform
 
     def __len__(self) -> int:
         return len(self.data)
@@ -98,11 +97,7 @@ class Dataset(_TorchDataset):
         Fetch single data item from `self.data`.
         """
         data_i = self.data[index]
-        return (
-            apply_transform(self.transform, data_i, **self.apply_transform_kwargs)
-            if self.transform is not None
-            else data_i
-        )
+        return self.transform(data_i) if self.transform is not None else data_i
 
     def __getitem__(self, index: int | slice | Sequence[int]):
         """
@@ -271,8 +266,6 @@ class PersistentDataset(Dataset):
                 using the cached content and with re-created transform instances.
 
         """
-        if not isinstance(transform, Compose):
-            transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
@@ -816,8 +809,6 @@ class CacheDataset(Dataset):
                 Not following these recommendations may lead to runtime errors or duplicated cache across processes.
 
         """
-        if not isinstance(transform, Compose):
-            transform = Compose(transform)
         super().__init__(data=data, transform=transform)
         self.set_num = cache_num  # tracking the user-provided `cache_num` option
         self.set_rate = cache_rate  # tracking the user-provided `cache_rate` option
