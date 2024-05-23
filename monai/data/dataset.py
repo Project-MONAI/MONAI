@@ -36,15 +36,7 @@ from torch.utils.data import Subset
 
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import SUPPORTED_PICKLE_MOD, convert_tables_to_dicts, pickle_hashing
-from monai.transforms import (
-    Compose,
-    Randomizable,
-    RandomizableTrait,
-    Transform,
-    apply_transform,
-    convert_to_contiguous,
-    reset_ops_id,
-)
+from monai.transforms import Compose, Randomizable, RandomizableTrait, Transform, convert_to_contiguous, reset_ops_id
 from monai.utils import MAX_SEED, convert_to_tensor, get_seed, look_up_option, min_version, optional_import
 from monai.utils.misc import first
 
@@ -77,17 +69,20 @@ class Dataset(_TorchDataset):
          },                           },                           }]
     """
 
-    def __init__(self, data: Sequence, transform: Callable | None = None) -> None:
+    def __init__(self, data: Sequence, transform: Sequence[Callable] | Callable | None = None) -> None:
         """
         Args:
             data: input data to load and transform to generate dataset for model.
             transform: a callable data transform on input data.
-            kwargs: other arguments for `apply_transform` fn called to apply provided transforms.
-            For ex. `map_items=False`
-
         """
         self.data = data
-        self.transform = Compose(transform) if not isinstance(transform, Compose) else transform
+        if transform is None:
+            self.transform = None
+        else:
+            try:
+                self.transform = Compose(transform) if not isinstance(transform, Compose) else transform
+            except Exception as e:
+                raise ValueError("`transform` must be a callable or a list of callables that is Composable") from e
 
     def __len__(self) -> int:
         return len(self.data)
@@ -267,6 +262,8 @@ class PersistentDataset(Dataset):
 
         """
         super().__init__(data=data, transform=transform)
+        if self.transform is None:
+            raise ValueError("transform must not be None when provided to a PersistentDataset")
         self.cache_dir = Path(cache_dir) if cache_dir is not None else None
         self.hash_func = hash_func
         self.pickle_module = pickle_module
@@ -323,9 +320,6 @@ class PersistentDataset(Dataset):
             random transform object
 
         """
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
@@ -346,9 +340,6 @@ class PersistentDataset(Dataset):
             the transformed element through the random transforms
 
         """
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-
         first_random = self.transform.get_index_of_first(
             lambda t: isinstance(t, RandomizableTrait) or not isinstance(t, Transform)
         )
@@ -501,9 +492,6 @@ class CacheNTransDataset(PersistentDataset):
         Returns:
             the transformed element up to the N transform object
         """
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-
         item_transformed = self.transform(item_transformed, end=self.cache_n_trans, threading=True)
 
         reset_ops_id(item_transformed)
@@ -519,9 +507,6 @@ class CacheNTransDataset(PersistentDataset):
         Returns:
             the final transformed result
         """
-        if not isinstance(self.transform, Compose):
-            raise ValueError("transform must be an instance of monai.transforms.Compose.")
-
         return self.transform(item_transformed, start=self.cache_n_trans)
 
 
@@ -1280,8 +1265,10 @@ class ZipDataset(Dataset):
         data = []
         for dataset in self.data:
             data.extend(to_list(dataset[index]))
+
         if self.transform is not None:
-            data = apply_transform(self.transform, data, map_items=False)  # transform the list data
+            self.transform.map_items = False  # Compose object map_items to false so transform is applied to list
+            data = self.transform(data)
         # use tuple instead of list as the default collate_fn callback of MONAI DataLoader flattens nested lists
         return tuple(data)
 
@@ -1430,15 +1417,11 @@ class NPZDictItemDataset(Dataset):
 
     def _transform(self, index: int):
         data = {k: v[index] for k, v in self.arrays.items()}
-
-        if not self.transform:
-            return data
-
-        result = apply_transform(self.transform, data)
+        result = self.transform(data) if self.transform is not None else data
 
         if isinstance(result, dict) or (isinstance(result, list) and isinstance(result[0], dict)):
             return result
-        raise AssertionError("With a dict supplied to apply_transform, should return a dict or a list of dicts.")
+        raise AssertionError("With a dict supplied to Compose, should return a dict or a list of dicts.")
 
 
 class CSVDataset(Dataset):

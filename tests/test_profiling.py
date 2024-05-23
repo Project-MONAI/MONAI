@@ -35,6 +35,7 @@ class TestWorkflowProfiler(unittest.TestCase):
 
         self.scale = mt.ScaleIntensity()
         self.scale_call_name = "ScaleIntensity.__call__"
+        self.compose_call_name = "Compose.__call__"
         self.test_comp = mt.Compose([mt.ScaleIntensity(), mt.RandAxisFlip(0.5)])
         self.test_image = torch.rand(1, 16, 16, 16)
         self.pid = os.getpid()
@@ -82,7 +83,7 @@ class TestWorkflowProfiler(unittest.TestCase):
         self.assertSequenceEqual(batch.shape, (4, 1, 16, 16, 16))
 
         results = wp.get_results()
-        self.assertSequenceEqual(list(results), [self.scale_call_name])
+        self.assertSequenceEqual(list(results), [self.scale_call_name, self.compose_call_name])
 
         prs = results[self.scale_call_name]
 
@@ -98,6 +99,7 @@ class TestWorkflowProfiler(unittest.TestCase):
                 self.scale(self.test_image)
 
         results = wp.get_results()
+
         self.assertSequenceEqual(set(results), {"ScaleIntensity.__call__", "context"})
 
         prs = results["context"]
