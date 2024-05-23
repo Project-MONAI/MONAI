@@ -23,7 +23,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import Dataset
-from monai.transforms import Compose, Lambda, LoadImage, LoadImaged, SimulateDelay, SimulateDelayd, ToTensor
+from monai.transforms import Compose, Lambda, LoadImage, LoadImaged, SimulateDelay, SimulateDelayd
 from tests.test_compose import TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES, data_from_keys
 
 TEST_CASE_1 = [(128, 128, 128)]
