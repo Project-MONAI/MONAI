@@ -118,11 +118,11 @@ def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
 
 def _log_input_summary(tag: str, args: dict) -> None:
 <<<<<<< HEAD
-    log_buffer = StringIO() 
-    log_buffer.write(f"--- input summary of monai.bundle.scripts.{tag} ---\n")  
+    log_buffer = StringIO()
+    log_buffer.write(f"--- input summary of monai.bundle.scripts.{tag} ---\n")
     for name, val in args.items():
         log_buffer.write(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}\n")
-    log_buffer.write("---\n\n")  
+    log_buffer.write("---\n\n")
 =======
     log_buffer = StringIO()
     log_buffer.write(f"--- input summary of monai.bundle.scripts.{tag} ---\n")
