@@ -24,6 +24,8 @@ from monai.networks.layers import Act
 from monai.networks.layers.utils import get_act_layer
 from monai.utils.enums import StrEnum
 
+__all__ = ["SPADENet"]
+
 
 class UpsamplingModes(StrEnum):
     bicubic = "bicubic"
@@ -222,7 +224,7 @@ class SPADEDecoder(nn.Module):
         input_shape: spatial input shape of the tensor, necessary to do the reshaping after the linear layers
         channels: number of output after each downsampling block
         z_dim: latent space dimension of the VAE containing the image sytle information (None if encoder is not used)
-        is_gan: whether the decoder is going to be coupled to an autoencoder or not (true: not, false: yes)
+        is_vae: whether the decoder is going to be coupled to an autoencoder or not (true: yes, false: no)
         spade_intermediate_channels: number of channels in the intermediate layers of the SPADE normalisation blocks
         norm: base normalisation type
         act:  activation layer type
@@ -239,7 +241,7 @@ class SPADEDecoder(nn.Module):
         input_shape: Sequence[int],
         channels: list[int],
         z_dim: int | None = None,
-        is_gan: bool = False,
+        is_vae: bool = True,
         spade_intermediate_channels: int = 128,
         norm: str | tuple = "INSTANCE",
         act: str | tuple = (Act.LEAKYRELU, {"negative_slope": 0.2}),
@@ -248,7 +250,7 @@ class SPADEDecoder(nn.Module):
         upsampling_mode: str = UpsamplingModes.nearest.value,
     ):
         super().__init__()
-        self.is_gan = is_gan
+        self.is_vae = is_vae
         self.out_channels = out_channels
         self.label_nc = label_nc
         self.num_channels = channels
@@ -262,12 +264,19 @@ class SPADEDecoder(nn.Module):
                 )
         self.latent_spatial_shape = [s_ // (2 ** len(self.num_channels)) for s_ in input_shape]
 
-        if self.is_gan:
-            self.fc = nn.Linear(label_nc, np.prod(self.latent_spatial_shape) * channels[0])
+        if not self.is_vae:
+            self.conv_init = Convolution(
+                spatial_dims=spatial_dims, in_channels=label_nc, out_channels=channels[0], kernel_size=kernel_size
+            )
+        elif self.is_vae and z_dim is None:
+            raise ValueError(
+                "If the network is used in VAE-GAN mode, parameter z_dim "
+                "(number of latent channels in the VAE) must be populated."
+            )
         else:
-            assert z_dim is not None
             self.fc = nn.Linear(z_dim, np.prod(self.latent_spatial_shape) * channels[0])
 
+        self.z_dim = z_dim
         blocks = []
         channels.append(self.out_channels)
         self.upsampling = torch.nn.Upsample(scale_factor=2, mode=upsampling_mode)
@@ -297,12 +306,23 @@ class SPADEDecoder(nn.Module):
         )
 
     def forward(self, seg, z: torch.Tensor | None = None):
-        if self.is_gan:
+        """
+        Args:
+            seg: input BxCxHxW[xD] semantic map on which the output is conditioned on
+            z: latent vector output by the encoder if self.is_vae is True. When is_vae is
+            False, z is a random noise vector.
+
+        Returns:
+
+        """
+        if not self.is_vae:
             x = F.interpolate(seg, size=tuple(self.latent_spatial_shape))
-            x = self.fc(x)
+            x = self.conv_init(x)
         else:
-            if z is None:
-                z = torch.randn(seg.size(0), self.opt.z_dim, dtype=torch.float32, device=seg.get_device())
+            if (
+                z is None and self.z_dim is not None
+            ):  # is_vae is Truee, but we can use the VAE-GAN as GAN in this function.
+                z = torch.randn(seg.size(0), self.z_dim, dtype=torch.float32, device=seg.get_device())
             x = self.fc(z)
             x = x.view(*[-1, self.num_channels[0]] + self.latent_spatial_shape)
 
@@ -387,7 +407,7 @@ class SPADENet(nn.Module):
             input_shape=input_shape,
             channels=decoder_channels,
             z_dim=z_dim,
-            is_gan=not is_vae,
+            is_vae=is_vae,
             spade_intermediate_channels=spade_intermediate_channels,
             norm=norm,
             act=act,
@@ -406,7 +426,10 @@ class SPADENet(nn.Module):
             return (self.decoder(seg, z),)
 
     def encode(self, x: torch.Tensor):
-        return self.encoder.encode(x)
+        if self.is_vae:
+            return self.encoder.encode(x)
+        else:
+            return None
 
     def decode(self, seg: torch.Tensor, z: torch.Tensor | None = None):
         return self.decoder(seg, z)

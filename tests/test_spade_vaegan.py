@@ -20,9 +20,14 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import SPADENet
 
-CASE_2D = [[[2, 1, 1, 3, [64, 64], [16, 32, 64, 128], 16, True]]]
-CASE_2D_BIS = [[[2, 1, 1, 3, [64, 64], [16, 32, 64, 128], 16, True]]]
-CASE_3D = [[[3, 1, 1, 3, [64, 64, 64], [16, 32, 64, 128], 16, True]]]
+CASE_2D = [
+    [[2, 1, 1, 3, [64, 64], [16, 32, 64, 128], 16, True]],
+    [[2, 1, 1, 3, [64, 64], [16, 32, 64, 128], None, False]],
+]
+CASE_3D = [
+    [[3, 1, 1, 3, [64, 64, 64], [16, 32, 64, 128], 16, True]],
+    [[3, 1, 1, 3, [64, 64, 64], [16, 32, 64, 128], None, False]],
+]
 
 
 def create_semantic_data(shape: list, semantic_regions: int):
@@ -69,7 +74,7 @@ def create_semantic_data(shape: list, semantic_regions: int):
     return out_label_.unsqueeze(0), out_image.unsqueeze(0).unsqueeze(0)
 
 
-class TestDiffusionModelUNet2D(unittest.TestCase):
+class TestSpadeNet(unittest.TestCase):
     @parameterized.expand(CASE_2D)
     def test_forward_2d(self, input_param):
         """
@@ -78,13 +83,18 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         net = SPADENet(*input_param)
         in_label, in_image = create_semantic_data(input_param[4], input_param[3])
         with eval_mode(net):
-            out, z_mu, z_logvar = net(in_label, in_image)
+            if not net.is_vae:
+                out = net(in_label, in_image)
+                out = out[0]
+            else:
+                out, z_mu, z_logvar = net(in_label, in_image)
+                self.assertTrue(torch.all(torch.isfinite(z_mu)))
+                self.assertTrue(torch.all(torch.isfinite(z_logvar)))
+
             self.assertTrue(torch.all(torch.isfinite(out)))
-            self.assertTrue(torch.all(torch.isfinite(z_mu)))
-            self.assertTrue(torch.all(torch.isfinite(z_logvar)))
             self.assertEqual(list(out.shape), [1, 1, 64, 64])
 
-    @parameterized.expand(CASE_2D_BIS)
+    @parameterized.expand(CASE_2D)
     def test_encoder_decoder(self, input_param):
         """
         Check that forward method is called correctly and output shape matches.
@@ -93,7 +103,10 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         in_label, in_image = create_semantic_data(input_param[4], input_param[3])
         with eval_mode(net):
             out_z = net.encode(in_image)
-            self.assertEqual(list(out_z.shape), [1, 16])
+            if net.is_vae:
+                self.assertEqual(list(out_z.shape), [1, 16])
+            else:
+                self.assertEqual(out_z, None)
             out_i = net.decode(in_label, out_z)
             self.assertEqual(list(out_i.shape), [1, 1, 64, 64])
 
@@ -105,10 +118,14 @@ class TestDiffusionModelUNet2D(unittest.TestCase):
         net = SPADENet(*input_param)
         in_label, in_image = create_semantic_data(input_param[4], input_param[3])
         with eval_mode(net):
-            out, z_mu, z_logvar = net(in_label, in_image)
+            if net.is_vae:
+                out, z_mu, z_logvar = net(in_label, in_image)
+                self.assertTrue(torch.all(torch.isfinite(z_mu)))
+                self.assertTrue(torch.all(torch.isfinite(z_logvar)))
+            else:
+                out = net(in_label, in_image)
+                out = out[0]
             self.assertTrue(torch.all(torch.isfinite(out)))
-            self.assertTrue(torch.all(torch.isfinite(z_mu)))
-            self.assertTrue(torch.all(torch.isfinite(z_logvar)))
             self.assertEqual(list(out.shape), [1, 1, 64, 64, 64])
 
     def test_shape_wrong(self):
