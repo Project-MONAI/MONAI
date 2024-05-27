@@ -22,6 +22,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3
 
 
 class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_two_sided(self, p):
         hard_clipper = ClipIntensityPercentiles(upper=95, lower=5)
