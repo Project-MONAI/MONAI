@@ -32,6 +32,7 @@ def test_hard_clip_func(im, lower, upper):
         lower, upper = percentile(im_t, (lower, upper))
     return clip(im_t, lower, upper)
 
+
 def test_soft_clip_func(im, lower, upper):
     im_t = convert_to_tensor(im)
     if lower is None:
