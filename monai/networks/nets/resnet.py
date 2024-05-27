@@ -94,13 +94,12 @@ class ResNetBlock(nn.Module):
         super().__init__()
 
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
-        norm_layer = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=planes)
 
         self.conv1 = conv_type(in_planes, planes, kernel_size=3, padding=1, stride=stride, bias=False)
-        self.bn1 = norm_layer
+        self.bn1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=planes)
         self.act = get_act_layer(name=act)
         self.conv2 = conv_type(planes, planes, kernel_size=3, padding=1, bias=False)
-        self.bn2 = norm_layer
+        self.bn2 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=planes)
         self.downsample = downsample
         self.stride = stride
 
