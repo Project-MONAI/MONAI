@@ -117,20 +117,14 @@ def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
 
 
 def _log_input_summary(tag: str, args: dict) -> None:
-<<<<<<< HEAD
-    log_buffer = StringIO() 
+    log_buffer = StringIO()
+
     log_buffer.write(f"--- input summary of monai.bundle.scripts.{tag} ---\n")  
     for name, val in args.items():
         log_buffer.write(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}\n")
     log_buffer.write("---\n\n")  
-=======
-    log_buffer = StringIO()
-    log_buffer.write(f"--- input summary of monai.bundle.scripts.{tag} ---\n")
-    for name, val in args.items():
-        log_buffer.write(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}\n")
-    log_buffer.write("---\n\n")
->>>>>>> 28f5ebe7e3a0487b9d78123a80d565f1fa26615a
-    logger.info(log_buffer.getvalue())  # output all content in buffer
+
+    logger.info(log_buffer.getvalue())
 
 
 def _get_var_names(expr: str) -> list[str]:
