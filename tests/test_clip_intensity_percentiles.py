@@ -15,10 +15,10 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.utils.type_conversion import convert_to_tensor
 from monai.transforms import ClipIntensityPercentiles
 from monai.transforms.utils import soft_clip
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile
-from monai.utils.type_conversion import convert_to_tensor
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
