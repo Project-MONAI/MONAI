@@ -73,7 +73,9 @@ class Dataset(_TorchDataset):
         """
         Args:
             data: input data to load and transform to generate dataset for model.
-            transform: a callable data transform on input data.
+            transform: a callable, sequence of callables or None. The transform will be passed
+            into a `Compose` wrapper by default. Sequence of callables are applied in order and
+            if `None` is passed, the data is returned as is.
         """
         self.data = data
         try:
