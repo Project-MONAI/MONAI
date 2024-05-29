@@ -86,11 +86,9 @@ class MixUp(Mixer):
         return mixweight * data + (1 - mixweight) * data[perm, ...]
 
     def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
-        data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_t = convert_to_tensor(data, track_meta=False)
+        data_t = convert_to_tensor(data, track_meta=get_track_meta())
         if labels is not None:
             labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
-            labels_t = convert_to_tensor(labels, track_meta=False)
         if randomize:
             self.randomize()
         if labels is None:
