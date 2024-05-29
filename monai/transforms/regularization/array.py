@@ -60,7 +60,7 @@ class Mixer(RandomizableTransform):
         self._params = (
             torch.from_numpy(self.R.beta(self.alpha, self.alpha, self.batch_size)).type(torch.float32),
             self.R.permutation(self.batch_size),
-            [torch.from_numpy(self.R.randint(0, d, size=(1,))) for d in data.shape[2:]] if data is not None else None,
+            [torch.from_numpy(self.R.randint(0, d, size=(1,))) for d in data.shape[2:]] if data is not None else [],
         )
 
 
