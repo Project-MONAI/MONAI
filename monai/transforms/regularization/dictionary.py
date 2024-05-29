@@ -10,14 +10,16 @@
 # limitations under the License.
 
 from __future__ import annotations
-import numpy as np
+
 from collections.abc import Hashable
 
+import numpy as np
+
 from monai.config import KeysCollection
-from monai.utils.misc import ensure_tuple
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.utils import convert_to_tensor
+from monai.utils.misc import ensure_tuple
 
 from ..transform import MapTransform, RandomizableTransform
 from .array import CutMix, CutOut, MixUp
@@ -39,9 +41,7 @@ class MixUpd(MapTransform, RandomizableTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.mixup = MixUp(batch_size, alpha)
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
-    ) -> MixUpd:
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> MixUpd:
         super().set_random_state(seed, state)
         self.mixup.set_random_state(seed, state)
         return self
@@ -76,9 +76,7 @@ class CutMixd(MapTransform, RandomizableTransform):
         self.mixer = CutMix(batch_size, alpha)
         self.label_keys = ensure_tuple(label_keys) if label_keys is not None else []
 
-    def set_random_state(
-        self, seed: int | None = None, state: np.random.RandomState | None = None
-    ) -> MixUpd:
+    def set_random_state(self, seed: int | None = None, state: np.random.RandomState | None = None) -> MixUpd:
         super().set_random_state(seed, state)
         self.mixer.set_random_state(seed, state)
         return self

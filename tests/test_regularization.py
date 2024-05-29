@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 
 from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd
 from tests.utils import assert_allclose

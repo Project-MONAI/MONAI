@@ -17,8 +17,9 @@ from math import ceil, sqrt
 import torch
 
 from monai.data.meta_obj import get_track_meta
+from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
+
 from ..transform import RandomizableTransform
-from monai.utils.type_conversion import convert_to_tensor, convert_to_dst_type
 
 __all__ = ["MixUp", "CutMix", "CutOut", "Mixer"]
 
@@ -94,7 +95,10 @@ class MixUp(Mixer):
             self.randomize()
         if labels is None:
             return convert_to_dst_type(self.apply(data_t), dst=data)[0]
-        return convert_to_dst_type(self.apply(data_t), dst=data)[0], convert_to_dst_type(self.apply(labels_t), dst=labels)[0]
+        return (
+            convert_to_dst_type(self.apply(data_t), dst=data)[0],
+            convert_to_dst_type(self.apply(labels_t), dst=labels)[0],
+        )
 
 
 class CutMix(Mixer):
