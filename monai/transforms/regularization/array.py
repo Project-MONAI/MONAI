@@ -16,7 +16,9 @@ from math import ceil, sqrt
 
 import torch
 
+from monai.data.meta_obj import get_track_meta
 from ..transform import RandomizableTransform
+from monai.utils.type_conversion import convert_to_tensor, convert_to_dst_type
 
 __all__ = ["MixUp", "CutMix", "CutOut", "Mixer"]
 
@@ -53,9 +55,11 @@ class Mixer(RandomizableTransform):
         as needed. You need to call this method everytime you apply the transform to a new
         batch.
         """
+        super().randomize(None)
         self._params = (
             torch.from_numpy(self.R.beta(self.alpha, self.alpha, self.batch_size)).type(torch.float32),
             self.R.permutation(self.batch_size),
+            [torch.from_numpy(self.R.randint(0, d, size=(1,))) for d in data.shape[2:]] if data is not None else None,
         )
 
 
@@ -69,7 +73,7 @@ class MixUp(Mixer):
     """
 
     def apply(self, data: torch.Tensor):
-        weight, perm = self._params
+        weight, perm, _ = self._params
         nsamples, *dims = data.shape
         if len(weight) != nsamples:
             raise ValueError(f"Expected batch of size: {len(weight)}, but got {nsamples}")
@@ -80,11 +84,17 @@ class MixUp(Mixer):
         mixweight = weight[(Ellipsis,) + (None,) * len(dims)]
         return mixweight * data + (1 - mixweight) * data[perm, ...]
 
-    def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None):
-        self.randomize()
+    def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        data_t = convert_to_tensor(data, track_meta=False)
+        if labels is not None:
+            labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
+            labels_t = convert_to_tensor(labels, track_meta=False)
+        if randomize:
+            self.randomize()
         if labels is None:
-            return self.apply(data)
-        return self.apply(data), self.apply(labels)
+            return convert_to_dst_type(self.apply(data_t), dst=data)[0]
+        return convert_to_dst_type(self.apply(data_t), dst=data)[0], convert_to_dst_type(self.apply(labels_t), dst=labels)[0]
 
 
 class CutMix(Mixer):
@@ -113,14 +123,13 @@ class CutMix(Mixer):
     """
 
     def apply(self, data: torch.Tensor):
-        weights, perm = self._params
+        weights, perm, coords = self._params
         nsamples, _, *dims = data.shape
         if len(weights) != nsamples:
             raise ValueError(f"Expected batch of size: {len(weights)}, but got {nsamples}")
 
         mask = torch.ones_like(data)
         for s, weight in enumerate(weights):
-            coords = [torch.randint(0, d, size=(1,)) for d in dims]
             lengths = [d * sqrt(1 - weight) for d in dims]
             idx = [slice(None)] + [slice(c, min(ceil(c + ln), d)) for c, ln, d in zip(coords, lengths, dims)]
             mask[s][idx] = 0
@@ -128,7 +137,7 @@ class CutMix(Mixer):
         return mask * data + (1 - mask) * data[perm, ...]
 
     def apply_on_labels(self, labels: torch.Tensor):
-        weights, perm = self._params
+        weights, perm, _ = self._params
         nsamples, *dims = labels.shape
         if len(weights) != nsamples:
             raise ValueError(f"Expected batch of size: {len(weights)}, but got {nsamples}")
@@ -136,10 +145,18 @@ class CutMix(Mixer):
         mixweight = weights[(Ellipsis,) + (None,) * len(dims)]
         return mixweight * labels + (1 - mixweight) * labels[perm, ...]
 
-    def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None):
-        self.randomize()
-        augmented = self.apply(data)
-        return (augmented, self.apply_on_labels(labels)) if labels is not None else augmented
+    def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        data_t = convert_to_tensor(data, track_meta=False)
+        if labels is not None:
+            labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
+            labels_t = convert_to_tensor(labels, track_meta=False)
+        if randomize:
+            self.randomize(data)
+        augmented = convert_to_dst_type(self.apply(data_t), dst=data)[0]
+        if labels is not None:
+            augmented_label = convert_to_dst_type(self.apply(labels_t), dst=labels)[0]
+        return (augmented, augmented_label) if labels is not None else augmented
 
 
 class CutOut(Mixer):
@@ -155,20 +172,22 @@ class CutOut(Mixer):
     """
 
     def apply(self, data: torch.Tensor):
-        weights, _ = self._params
+        weights, _, coords = self._params
         nsamples, _, *dims = data.shape
         if len(weights) != nsamples:
             raise ValueError(f"Expected batch of size: {len(weights)}, but got {nsamples}")
 
         mask = torch.ones_like(data)
         for s, weight in enumerate(weights):
-            coords = [torch.randint(0, d, size=(1,)) for d in dims]
             lengths = [d * sqrt(1 - weight) for d in dims]
             idx = [slice(None)] + [slice(c, min(ceil(c + ln), d)) for c, ln, d in zip(coords, lengths, dims)]
             mask[s][idx] = 0
 
         return mask * data
 
-    def __call__(self, data: torch.Tensor):
-        self.randomize()
-        return self.apply(data)
+    def __call__(self, data: torch.Tensor, randomize=True):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        data_t = convert_to_tensor(data, track_meta=False)
+        if randomize:
+            self.randomize(data)
+        return convert_to_dst_type(self.apply(data_t), dst=data)[0]
