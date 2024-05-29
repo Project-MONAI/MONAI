@@ -150,11 +150,9 @@ class CutMix(Mixer):
         return mixweight * labels + (1 - mixweight) * labels[perm, ...]
 
     def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
-        data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_t = convert_to_tensor(data, track_meta=False)
+        data_t = convert_to_tensor(data, track_meta=get_track_meta())
         if labels is not None:
             labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
-            labels_t = convert_to_tensor(labels, track_meta=False)
         if randomize:
             self.randomize(data)
         augmented = convert_to_dst_type(self.apply(data_t), dst=data)[0]
