@@ -16,7 +16,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd
+from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd, CutOutd
 from tests.utils import assert_allclose
 
 
@@ -117,6 +117,25 @@ class TestCutOut(unittest.TestCase):
             assert_allclose(perm, cutout._params[1])
             self.assertSequenceEqual(coords, cutout._params[2])
             self.assertEqual(output.shape, sample.shape)
+
+    def test_cutoutd(self):
+        for dims in [2, 3]:
+            shape = (6, 3) + (32,) * dims
+            t = torch.rand(*shape, dtype=torch.float32)
+            sample = {"a": t, "b": t}
+            cutout = CutOutd(["a", "b"], 6, 1.0)
+            cutout.set_random_state(seed=123)
+            output = cutout(sample)
+            np.random.seed(123)
+            # simulate the randomize() of transform
+            np.random.random()
+            weight = torch.from_numpy(np.random.beta(1.0, 1.0, 6)).type(torch.float32)
+            perm = np.random.permutation(6)
+            coords = [torch.from_numpy(np.random.randint(0, d, size=(1,))) for d in t.shape[2:]]
+            assert_allclose(weight, cutout.cutout._params[0])
+            assert_allclose(perm, cutout.cutout._params[1])
+            self.assertSequenceEqual(coords, cutout.cutout._params[2])
+            self.assertEqual(output["a"].shape, sample["a"].shape)
 
 
 if __name__ == "__main__":
