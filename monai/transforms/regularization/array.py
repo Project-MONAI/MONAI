@@ -190,8 +190,7 @@ class CutOut(Mixer):
         return mask * data
 
     def __call__(self, data: torch.Tensor, randomize=True):
-        data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_t = convert_to_tensor(data, track_meta=False)
+        data_t = convert_to_tensor(data, track_meta=get_track_meta())
         if randomize:
             self.randomize(data)
         return convert_to_dst_type(self.apply(data_t), dst=data)[0]
