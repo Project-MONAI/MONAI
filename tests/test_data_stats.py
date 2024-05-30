@@ -200,7 +200,7 @@ class TestDataStats(unittest.TestCase):
                 logger.removeHandler(h)
             with open(filename) as f:
                 content = f.read()
-            if sys.platform != "win32": 
+            if sys.platform != "win32":
                 self.assertEqual(content, expected_print)
 
     def test_multiple_data_stats(self):
