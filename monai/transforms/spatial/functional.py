@@ -312,27 +312,10 @@ def resize_image(img, out_size, dtype, input_ndim, lazy, transform_info, **kwarg
     kind = img.meta.get("kind", "pixel") if isinstance(img, MetaTensor) else "pixel"
     if kind != "pixel":
         return None
-    mode = kwargs.pop("mode")
-    align_corners = kwargs.pop("align_corners")
     anti_aliasing = kwargs.pop("anti_aliasing")
     anti_aliasing_sigma = kwargs.pop("anti_aliasing_sigma")
-    img = convert_to_tensor(img, track_meta=get_track_meta())
     orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    extra_info = {
-        "mode": mode,
-        "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
-        "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-        "new_dim": len(orig_size) - input_ndim,
-    }
-    meta_info = TraceableTransform.track_transform_meta(
-        img,
-        sp_size=out_size,
-        affine=scale_affine(orig_size, out_size),
-        extra_info=extra_info,
-        orig_size=orig_size,
-        transform_info=transform_info,
-        lazy=lazy,
-    )
+    mode, align_corners, meta_info = resize_helper(img, orig_size, out_size, dtype, input_ndim, lazy, transform_info, **kwargs)
     if lazy:
         if anti_aliasing and lazy:
             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
@@ -409,19 +392,7 @@ def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kw
         src_spatial_size = points.meta["refer_meta"].get("spatial_shape", None)
     else:
         raise ValueError("Resize cannot be applied to a point without a reference meta.")
-    points = convert_to_tensor(points, track_meta=get_track_meta())
-    meta_info = TraceableTransform.track_transform_meta(
-        points,
-        sp_size=out_size,
-        affine=scale_affine(src_spatial_size, out_size),
-        extra_info={
-            "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-            "new_dim": len(src_spatial_size) - input_ndim,
-        },
-        orig_size=src_spatial_size,
-        transform_info=transform_info,
-        lazy=lazy,
-    )
+    *_, meta_info = resize_helper(points, src_spatial_size, out_size, dtype, input_ndim, lazy, transform_info, **kwargs)
     out = _maybe_new_metatensor(points)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -436,6 +407,30 @@ def resize_point(points, out_size, dtype, input_ndim, lazy, transform_info, **kw
     out, *_ = convert_to_dst_type(src=ret.unsqueeze(0), dst=points, dtype=dtype)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
+
+def resize_helper(data, src_spatial_size, out_size, dtype, input_ndim, lazy, transform_info, **kwargs):
+    data = convert_to_tensor(data, track_meta=get_track_meta())
+    extra_info={
+        "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+        "new_dim": len(src_spatial_size) - input_ndim,
+        }
+    mode = kwargs.pop("mode", None)
+    align_corners = kwargs.pop("align_corners", None)
+    if mode is not None:
+        extra_info["mode"] = mode
+    if align_corners is not None:
+        extra_info["align_corners"] = align_corners
+
+    meta_info = TraceableTransform.track_transform_meta(
+        data,
+        sp_size=out_size,
+        affine=scale_affine(src_spatial_size, out_size),
+        extra_info=extra_info,
+        orig_size=src_spatial_size,
+        transform_info=transform_info,
+        lazy=lazy,
+    )
+    return mode, align_corners, meta_info
 
 def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
