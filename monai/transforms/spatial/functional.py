@@ -240,6 +240,24 @@ def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> tor
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
+def flip_helper(data, sp_size, sp_axes, lazy, transform_info):
+    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist() if sp_size is not None else None
+    extra_info = {"axes": sp_axes}  # track the spatial axes
+    axes = monai.transforms.utils.map_spatial_axes(data.ndim, sp_axes)  # use the axes with channel dim
+    rank = data.peek_pending_rank() if isinstance(data, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+    # axes include the channel dim
+    xform = torch.eye(int(rank) + 1, dtype=torch.double)
+    for axis in axes:
+        sp = axis - 1
+        if sp_size is not None:
+            xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
+        else:
+            xform[sp, sp] *= -1
+    meta_info = TraceableTransform.track_transform_meta(
+        data, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info
+    )
+    return axes, meta_info
+
 def flip_image(img, sp_axes, lazy, transform_info):
     """
     Functional implementation of flip.
@@ -261,18 +279,7 @@ def flip_image(img, sp_axes, lazy, transform_info):
     if kind != "pixel":
         return None
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
-    extra_info = {"axes": sp_axes}  # track the spatial axes
-    axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
-    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
-    # axes include the channel dim
-    xform = torch.eye(int(rank) + 1, dtype=torch.double)
-    for axis in axes:
-        sp = axis - 1
-        xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
-    meta_info = TraceableTransform.track_transform_meta(
-        img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
-    )
+    axes, meta_info = flip_helper(img, sp_size, sp_axes, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -305,21 +312,7 @@ def flip_point(points, sp_axes, lazy, transform_info):
         sp_size = points.meta["refer_meta"]["spatial_shape"]
     else:
         sp_size = None
-    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist() if sp_size is not None else None
-    extra_info = {"axes": sp_axes}  # track the spatial axes
-    axes = monai.transforms.utils.map_spatial_axes(points.ndim, sp_axes)  # use the axes with channel dim
-    rank = points.peek_pending_rank() if isinstance(points, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
-    # axes include the channel dim
-    xform = torch.eye(int(rank) + 1, dtype=torch.double)
-    for axis in axes:
-        sp = axis - 1
-        if sp_size is not None:
-            xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
-        else:
-            xform[sp, sp] *= -1
-    meta_info = TraceableTransform.track_transform_meta(
-        points, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info
-    )
+    axes, meta_info = flip_helper(points, sp_size, sp_axes, lazy, transform_info)
     # flip box
     out = deepcopy(_maybe_new_metatensor(points))
     if lazy:
