@@ -16,7 +16,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd, CutOutd
+from monai.transforms import CutMix, CutMixd, CutOut, CutOutd, MixUp, MixUpd
 from tests.utils import assert_allclose
 
 
