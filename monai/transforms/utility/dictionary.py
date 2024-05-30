@@ -789,6 +789,7 @@ class DataStatsd(MapTransform):
         data_shape: Sequence[bool] | bool = True,
         value_range: Sequence[bool] | bool = True,
         data_value: Sequence[bool] | bool = False,
+        meta_tensor: Sequence[bool] | bool = False,
         additional_info: Sequence[Callable] | Callable | None = None,
         name: str = "DataStats",
         allow_missing_keys: bool = False,
@@ -808,6 +809,8 @@ class DataStatsd(MapTransform):
             data_value: whether to show the raw value of input data.
                 it also can be a sequence of bool, each element corresponds to a key in ``keys``.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            meta_tensor: whether to show the data of MetaTensor.
+                it also can be a sequence of bool, each element corresponds to a key in ``keys``.
             additional_info: user can define callable function to extract
                 additional info from input data. it also can be a sequence of string, each element
                 corresponds to a key in ``keys``.
@@ -821,15 +824,16 @@ class DataStatsd(MapTransform):
         self.data_shape = ensure_tuple_rep(data_shape, len(self.keys))
         self.value_range = ensure_tuple_rep(value_range, len(self.keys))
         self.data_value = ensure_tuple_rep(data_value, len(self.keys))
+        self.meta_tensor = ensure_tuple_rep(meta_tensor, len(self.keys))
         self.additional_info = ensure_tuple_rep(additional_info, len(self.keys))
         self.printer = DataStats(name=name)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         d = dict(data)
-        for key, prefix, data_type, data_shape, value_range, data_value, additional_info in self.key_iterator(
-            d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.additional_info
+        for key, prefix, data_type, data_shape, value_range, data_value, meta_tensor, additional_info in self.key_iterator(
+            d, self.prefix, self.data_type, self.data_shape, self.value_range, self.data_value, self.meta_tensor, self.additional_info
         ):
-            d[key] = self.printer(d[key], prefix, data_type, data_shape, value_range, data_value, additional_info)
+            d[key] = self.printer(d[key], prefix, data_type, data_shape, value_range, data_value, meta_tensor, additional_info)
         return d
 
 
