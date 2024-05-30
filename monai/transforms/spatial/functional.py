@@ -45,6 +45,7 @@ from monai.utils import (
     fall_back_tuple,
     optional_import,
 )
+from monai.utils.enums import MetaKeys, KindKeys
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
@@ -275,9 +276,8 @@ def flip_image(img, sp_axes, lazy, transform_info):
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
-    # TODO
-    kind = img.meta.get("kind", "pixel") if isinstance(img, MetaTensor) else "pixel"
-    if kind != "pixel":
+    kind = img.meta.get(MetaKeys.KIND, KindKeys.PIXEL) if isinstance(img, MetaTensor) else KindKeys.PIXEL
+    if kind != KindKeys.PIXEL:
         return None
     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     axes, meta_info = flip_helper(img, sp_size, sp_axes, lazy, transform_info)
@@ -305,9 +305,8 @@ def flip_point(points, sp_axes, lazy, transform_info):
         lazy: a flag that indicates whether the operation should be performed lazily or not.
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
-    # TODO: update to use enum
-    kind = points.meta.get("kind", "pixel") if isinstance(points, MetaTensor) else "pixel"
-    if kind != "point":
+    kind = points.meta.get(MetaKeys.KIND, KindKeys.PIXEL) if isinstance(points, MetaTensor) else KindKeys.PIXEL
+    if kind != KindKeys.POINT:
         return None
     if points.meta.get("refer_meta", None) is not None:
         sp_size = points.meta["refer_meta"]["spatial_shape"]
