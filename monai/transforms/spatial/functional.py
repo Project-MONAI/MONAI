@@ -258,6 +258,7 @@ def flip_helper(data, sp_size, sp_axes, lazy, transform_info):
     )
     return axes, meta_info
 
+
 def flip_image(img, sp_axes, lazy, transform_info):
     """
     Functional implementation of flip.
