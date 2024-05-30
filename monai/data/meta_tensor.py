@@ -24,7 +24,7 @@ from monai.config.type_definitions import NdarrayTensor
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.utils import affine_to_spacing, decollate_batch, list_data_collate, remove_extra_metadata
 from monai.utils import look_up_option
-from monai.utils.enums import LazyAttr, MetaKeys, PostFix, SpaceKeys
+from monai.utils.enums import KindKeys, LazyAttr, MetaKeys, PostFix, SpaceKeys
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, convert_to_numpy, convert_to_tensor
 
 __all__ = ["MetaTensor"]
@@ -345,6 +345,10 @@ class MetaTensor(MetaObj, torch.Tensor):
     def get_default_affine(dtype=torch.float64) -> torch.Tensor:
         return torch.eye(4, device=torch.device("cpu"), dtype=dtype)
 
+    @staticmethod
+    def get_default_kind() -> str:
+        return KindKeys.PIXEL
+
     def as_tensor(self) -> torch.Tensor:
         """
         Return the `MetaTensor` as a `torch.Tensor`.
@@ -468,6 +472,16 @@ class MetaTensor(MetaObj, torch.Tensor):
     def affine(self, d: NdarrayTensor) -> None:
         """Set the affine."""
         self.meta[MetaKeys.AFFINE] = torch.as_tensor(d, device=torch.device("cpu"), dtype=torch.float64)
+
+    @property
+    def kind(self) -> str:
+        """Get the data kind. Defaults to ``KindKeys.PIXEL``"""
+        return self.meta.get(MetaKeys.KIND, self.get_default_kind())  # type: ignore
+
+    @kind.setter
+    def kind(self, d: str) -> None:
+        """Set the data kind."""
+        self.meta[MetaKeys.KIND] = d
 
     @property
     def pixdim(self):
