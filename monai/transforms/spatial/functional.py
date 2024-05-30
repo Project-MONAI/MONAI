@@ -308,6 +308,7 @@ def flip_point(points, sp_axes, lazy, transform_info):
     kind = points.meta.get(MetaKeys.KIND, KindKeys.PIXEL) if isinstance(points, MetaTensor) else KindKeys.PIXEL
     if kind != KindKeys.POINT:
         return None
+    # TODO: use enum
     if points.meta.get("refer_meta", None) is not None:
         sp_size = points.meta["refer_meta"]["spatial_shape"]
     else:
@@ -316,6 +317,7 @@ def flip_point(points, sp_axes, lazy, transform_info):
     # flip box
     out = deepcopy(_maybe_new_metatensor(points))
     if lazy:
+        # TODO: add lazy support
         raise NotImplementedError
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     if sp_size is None:
