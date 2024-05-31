@@ -36,7 +36,7 @@ einops
 transformers>=4.36.0
 mlflow>=1.28.0, <=2.11.3
 clearml>=1.10.0rc0
-matplotlib!=3.5.0
+matplotlib>=3.6.3
 tensorboardX
 types-PyYAML
 pyyaml

@@ -34,7 +34,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import torch
-import torch.nn.functional as F
 from torch import nn
 
 from monai.networks.blocks import Convolution
@@ -57,7 +56,8 @@ class ControlNetConditioningEmbedding(nn.Module):
             strides=1,
             kernel_size=3,
             padding=1,
-            conv_only=True,
+            adn_ordering="A",
+            act="SWISH",
         )
 
         self.blocks = nn.ModuleList([])
@@ -73,7 +73,8 @@ class ControlNetConditioningEmbedding(nn.Module):
                     strides=1,
                     kernel_size=3,
                     padding=1,
-                    conv_only=True,
+                    adn_ordering="A",
+                    act="SWISH",
                 )
             )
 
@@ -85,7 +86,8 @@ class ControlNetConditioningEmbedding(nn.Module):
                     strides=2,
                     kernel_size=3,
                     padding=1,
-                    conv_only=True,
+                    adn_ordering="A",
+                    act="SWISH",
                 )
             )
 
@@ -103,11 +105,9 @@ class ControlNetConditioningEmbedding(nn.Module):
 
     def forward(self, conditioning):
         embedding = self.conv_in(conditioning)
-        embedding = F.silu(embedding)
 
         for block in self.blocks:
             embedding = block(embedding)
-            embedding = F.silu(embedding)
 
         embedding = self.conv_out(embedding)
 
@@ -410,3 +410,56 @@ class ControlNet(nn.Module):
         mid_block_res_sample *= conditioning_scale
 
         return down_block_res_samples, mid_block_res_sample
+
+    def load_old_state_dict(self, old_state_dict: dict, verbose=False) -> None:
+        """
+        Load a state dict from a ControlNet trained with
+        [MONAI Generative](https://github.com/Project-MONAI/GenerativeModels).
+
+        Args:
+            old_state_dict: state dict from the old ControlNet model.
+        """
+
+        new_state_dict = self.state_dict()
+        # if all keys match, just load the state dict
+        if all(k in new_state_dict for k in old_state_dict):
+            print("All keys match, loading state dict.")
+            self.load_state_dict(old_state_dict)
+            return
+
+        if verbose:
+            # print all new_state_dict keys that are not in old_state_dict
+            for k in new_state_dict:
+                if k not in old_state_dict:
+                    print(f"key {k} not found in old state dict")
+            # and vice versa
+            print("----------------------------------------------")
+            for k in old_state_dict:
+                if k not in new_state_dict:
+                    print(f"key {k} not found in new state dict")
+
+        # copy over all matching keys
+        for k in new_state_dict:
+            if k in old_state_dict:
+                new_state_dict[k] = old_state_dict[k]
+
+        # fix the attention blocks
+        attention_blocks = [k.replace(".attn1.qkv.weight", "") for k in new_state_dict if "attn1.qkv.weight" in k]
+        for block in attention_blocks:
+            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.concat(
+                [
+                    old_state_dict[f"{block}.attn1.to_q.weight"],
+                    old_state_dict[f"{block}.attn1.to_k.weight"],
+                    old_state_dict[f"{block}.attn1.to_v.weight"],
+                ],
+                dim=0,
+            )
+
+            # projection
+            new_state_dict[f"{block}.attn1.out_proj.weight"] = old_state_dict[f"{block}.attn1.to_out.0.weight"]
+            new_state_dict[f"{block}.attn1.out_proj.bias"] = old_state_dict[f"{block}.attn1.to_out.0.bias"]
+
+            new_state_dict[f"{block}.attn2.out_proj.weight"] = old_state_dict[f"{block}.attn2.to_out.0.weight"]
+            new_state_dict[f"{block}.attn2.out_proj.bias"] = old_state_dict[f"{block}.attn2.to_out.0.bias"]
+
+        self.load_state_dict(new_state_dict)

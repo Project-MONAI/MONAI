@@ -11,15 +11,19 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import unittest
 from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
+from monai.apps import download_url
 from monai.networks import eval_mode
 from monai.networks.nets.controlnet import ControlNet
 from monai.utils import optional_import
+from tests.utils import skip_if_downloading_fails, testing_data_config
 
 _, has_einops = optional_import("einops")
 UNCOND_CASES_2D = [
@@ -176,6 +180,35 @@ class TestControlNet(unittest.TestCase):
             result = net.forward(x, timesteps=timesteps, controlnet_cond=controlnet_cond, context=torch.rand((1, 1, 3)))
             self.assertEqual(len(result[0]), 2 * len(input_param["channels"]))
             self.assertEqual(result[1].shape, expected_output_shape)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_compatibility_with_monai_generative(self):
+        # test loading weights from a model saved in MONAI Generative, version 0.2.3
+        with skip_if_downloading_fails():
+            net = ControlNet(
+                spatial_dims=2,
+                in_channels=1,
+                num_res_blocks=1,
+                channels=(8, 8, 8),
+                attention_levels=(False, False, True),
+                norm_num_groups=8,
+                with_conditioning=True,
+                transformer_num_layers=1,
+                cross_attention_dim=3,
+                resblock_updown=True,
+            )
+
+            tmpdir = tempfile.mkdtemp()
+            key = "controlnet_monai_generative_weights"
+            url = testing_data_config("models", key, "url")
+            hash_type = testing_data_config("models", key, "hash_type")
+            hash_val = testing_data_config("models", key, "hash_val")
+            filename = "controlnet_monai_generative_weights.pt"
+
+            weight_path = os.path.join(tmpdir, filename)
+            download_url(url=url, filepath=weight_path, hash_val=hash_val, hash_type=hash_type)
+
+            net.load_old_state_dict(torch.load(weight_path), verbose=False)
 
 
 if __name__ == "__main__":
