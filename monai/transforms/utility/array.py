@@ -654,7 +654,7 @@ class DataStats(Transform):
         data_shape: bool = True,
         value_range: bool = True,
         data_value: bool = False,
-        meta_tensor: bool = False,
+        meta_info: bool = False,
         additional_info: Callable | None = None,
         name: str = "DataStats",
     ) -> None:
@@ -666,7 +666,7 @@ class DataStats(Transform):
             value_range: whether to show the value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
-            meta_tensor: whether to show the data of MetaTensor.
+            meta_info: whether to show the data of MetaTensor.
             additional_info: user can define callable function to extract additional info from input data.
             name: identifier of `logging.logger` to use, defaulting to "DataStats".
 
@@ -681,7 +681,7 @@ class DataStats(Transform):
         self.data_shape = data_shape
         self.value_range = value_range
         self.data_value = data_value
-        self.meta_tensor = meta_tensor
+        self.meta_info = meta_info
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
@@ -708,7 +708,7 @@ class DataStats(Transform):
         data_shape: bool | None = None,
         value_range: bool | None = None,
         data_value: bool | None = None,
-        meta_tensor: bool | None = None,
+        meta_info: bool | None = None,
         additional_info: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
@@ -729,8 +729,8 @@ class DataStats(Transform):
                 lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
-        if self.meta_tensor if meta_tensor is None else meta_tensor:
-            lines.append(f"MetaTensor: {MetaTensor(img).meta.__repr__()}")
+        if self.meta_info if meta_info is None else meta_info:
+            lines.append(f"Meta_Info: {MetaTensor(img).meta.__repr__()}")
         additional_info = self.additional_info if additional_info is None else additional_info
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
