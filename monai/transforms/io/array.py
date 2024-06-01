@@ -14,6 +14,7 @@ A collection of "vanilla" transforms for IO functions.
 
 from __future__ import annotations
 
+import json
 import inspect
 import logging
 import sys
