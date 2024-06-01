@@ -393,6 +393,7 @@ class SaveImage(Transform):
         output_name_formatter: Callable[[dict, Transform], dict] | None = None,
         folder_layout: FolderLayoutBase | None = None,
         savepath_in_metadict: bool = False,
+        mapping_log_path: Union[Path, str, None] = None
     ) -> None:
         self.folder_layout: FolderLayoutBase
         if folder_layout is None:
@@ -438,6 +439,11 @@ class SaveImage(Transform):
         self.write_kwargs = {"verbose": print_log}
         self._data_index = 0
         self.savepath_in_metadict = savepath_in_metadict
+        if mapping_log_path:
+            self.mapping_log_path = Path(mapping_log_path)
+            self.savepath_in_metadict = True
+        else: 
+            self.mapping_log_path = None
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         """
@@ -506,6 +512,22 @@ class SaveImage(Transform):
                 self._data_index += 1
                 if self.savepath_in_metadict and meta_data is not None:
                     meta_data["saved_to"] = filename
+                if self.mapping_log_path and meta_data is not None:
+                    log_data = []
+                    log_data.append({
+                        "input": meta_data.get("filename_or_obj", ()),
+                        "output": meta_data.get("saved_to", ())
+                    })
+                    
+                    try:
+                        with open(self.mapping_log_path, 'r') as f:
+                            existing_log_data = json.load(f)
+                    except FileNotFoundError:
+                        existing_log_data = []
+
+                    with open(self.mapping_log_path, 'w') as f:
+                        existing_log_data.extend(log_data)
+                        json.dump(existing_log_data, f, indent=4)
                 return img
         msg = "\n".join([f"{e}" for e in err])
         raise RuntimeError(

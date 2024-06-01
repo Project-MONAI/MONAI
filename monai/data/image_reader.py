@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import glob
-import json
 import os
 import re
 import warnings
@@ -149,25 +148,6 @@ def _stack_images(image_list: list, meta_dict: dict):
     return np.stack(image_list, axis=0)
 
 
-def update_json(input_file=None, output_file=None):
-        record_path = "img-label.json"
-
-        if not os.path.exists(record_path) or os.stat(record_path).st_size == 0:
-            with open(record_path, 'w') as f:
-                json.dump([], f)
-
-        with open(record_path, 'r+') as f:
-            records = json.load(f)
-            if input_file:
-                new_record = {"image": input_file, "label": []}
-                records.append(new_record)
-            elif output_file and records:
-                records[-1]["label"].append(output_file)
-
-            f.seek(0)
-            json.dump(records, f, indent=4)
-
-
 @require_pkg(pkg_name="itk")
 class ITKReader(ImageReader):
     """
@@ -245,7 +225,6 @@ class ITKReader(ImageReader):
         img_ = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
-        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -486,7 +465,6 @@ class PydicomReader(ImageReader):
         img_ = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
-        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
 
@@ -938,7 +916,6 @@ class NibabelReader(ImageReader):
         img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
-        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -1099,7 +1076,6 @@ class NumpyReader(ImageReader):
         img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
-        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -1197,7 +1173,6 @@ class PILReader(ImageReader):
         img_: list[PILImage.Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
-        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -1322,7 +1297,6 @@ class NrrdReader(ImageReader):
         """
         img_: list = []
         filenames: Sequence[PathLike] = ensure_tuple(data)
-        update_json(input_file=filenames)
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
