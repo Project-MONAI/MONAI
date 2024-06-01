@@ -443,7 +443,7 @@ class SaveImage(Transform):
         if mapping_json_path:
             self.mapping_json_path = Path(mapping_json_path)
             self.savepath_in_metadict = True
-        else: 
+        else:
             self.mapping_json_path = None
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
@@ -519,9 +519,9 @@ class SaveImage(Transform):
                         "input": meta_data.get("filename_or_obj", ()),
                         "output": meta_data.get("saved_to", ())
                     })
-                    
+
                     try:
-                        with open(self.mapping_json_path, 'r') as f:
+                        with open(self.mapping_json_path) as f:
                             existing_log_data = json.load(f)
                     except FileNotFoundError:
                         existing_log_data = []
