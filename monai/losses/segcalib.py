@@ -21,7 +21,7 @@ def get_gaussian_kernel_2d(ksize=3, sigma=1):
     xy_grid = torch.stack([x_grid, y_grid], dim=-1).float()
     mean = (ksize - 1)/2.
     variance = sigma**2.
-    gaussian_kernel = (1./(2.*math.pi*variance + 1e-16)) * torch.exp( 
+    gaussian_kernel = (1./(2.*math.pi*variance + 1e-16)) * torch.exp(
         -torch.sum((xy_grid - mean)**2., dim=-1) / (2*variance + 1e-16)
         )
     return gaussian_kernel / torch.sum(gaussian_kernel)
@@ -58,15 +58,15 @@ class NACLLoss(_Loss):
                  ignore_index=-100,
                  sigma=1,
                  schedule=""):
-        
+
         super().__init__()
         assert schedule in ("", "add", "multiply", "step")
-        
+
         self.distance_type = distance_type
-        
+
         self.alpha = alpha
         self.ignore_index = ignore_index
-        
+
         self.is_softmax = is_softmax
 
         self.nc = classes
@@ -77,20 +77,20 @@ class NACLLoss(_Loss):
             self.svls_layer = get_svls_filter_2d(ksize=kernel_size, sigma=sigma, channels=classes)
 
     def get_constr_target(self, mask):
-        
-        mask = mask.unsqueeze(1) ## unfold works for 4d. 
-        
+
+        mask = mask.unsqueeze(1) ## unfold works for 4d.
+
         bs, _, h, w = mask.shape
-        unfold = torch.nn.Unfold(kernel_size=(self.ks, self.ks),padding=self.ks // 2)    
-        
+        unfold = torch.nn.Unfold(kernel_size=(self.ks, self.ks),padding=self.ks // 2)
+
         rmask = []
-        
-        if self.kernel_ops == 'mean':        
+
+        if self.kernel_ops == 'mean':
             umask = unfold(mask.float())
-                
+
             for ii in range(self.nc):
                 rmask.append(torch.sum(umask == ii,1)/self.ks**2)
-                
+
         if self.kernel_ops == 'gaussian':
 
             oh_labels = F.one_hot(mask[:,0].to(torch.int64), num_classes = self.nc).contiguous().permute(0,3,1,2).float()
@@ -100,24 +100,24 @@ class NACLLoss(_Loss):
 
         rmask = torch.stack(rmask,dim=1)
         rmask = rmask.reshape(bs, self.nc, h, w)
-            
+
         return rmask
-        
+
 
     def forward(self, inputs, targets, imgs):
-        
+
         loss_ce = self.cross_entropy(inputs, targets)
-        
+
         utargets = self.get_constr_target(targets, imgs)
-        
+
         if self.is_softmax:
             inputs = F.softmax(inputs, dim=1)
-        
+
         if self.distance_type == 'l1':
-            loss_conf = torch.abs(utargets - inputs).mean()  
-            
-        if self.distance_type == 'l2':    
-            loss_conf = (torch.abs(utargets - inputs)**2).mean()  
+            loss_conf = torch.abs(utargets - inputs).mean()
+
+        if self.distance_type == 'l2':
+            loss_conf = (torch.abs(utargets - inputs)**2).mean()
 
         loss = loss_ce + self.alpha * loss_conf
 
