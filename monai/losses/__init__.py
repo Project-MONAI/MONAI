@@ -38,10 +38,10 @@ from .hausdorff_loss import HausdorffDTLoss, LogHausdorffDTLoss
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
 from .perceptual import PerceptualLoss
+from .segcalib import NACLLoss
 from .spatial_mask import MaskedLoss
 from .spectral_loss import JukeboxLoss
 from .ssim_loss import SSIMLoss
 from .sure_loss import SURELoss
 from .tversky import TverskyLoss
 from .unified_focal_loss import AsymmetricUnifiedFocalLoss
-from .segcalib import NACLLoss
