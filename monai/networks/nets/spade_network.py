@@ -321,7 +321,7 @@ class SPADEDecoder(nn.Module):
         else:
             if (
                 z is None and self.z_dim is not None
-            ):  # is_vae is Truee, but we can use the VAE-GAN as GAN in this function.
+            ):  # Even though this network is a VAE (self.is_vae), you should be able to sample from noise as well.
                 z = torch.randn(seg.size(0), self.z_dim, dtype=torch.float32, device=seg.get_device())
             x = self.fc(z)
             x = x.view(*[-1, self.num_channels[0]] + self.latent_spatial_shape)
