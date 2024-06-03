@@ -124,7 +124,7 @@ class NACLLoss(_Loss):
 
     def get_constr_target(self, mask):
 
-        mask = mask.unsqueeze(1)  ## unfold works for 4d.
+        mask = mask.unsqueeze(1)  # unfold works for 4d.
 
         bs, _, h, w = mask.shape
         unfold = torch.nn.Unfold(kernel_size=(self.ks, self.ks), padding=self.ks // 2)
