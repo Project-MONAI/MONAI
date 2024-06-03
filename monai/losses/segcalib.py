@@ -34,9 +34,9 @@ def get_gaussian_kernel_2d(ksize=3, sigma=1):
     return gaussian_kernel / torch.sum(gaussian_kernel)
 
 
-class get_svls_filter_2d(torch.nn.Module):
+class GaussianFilter(torch.nn.Module):
     def __init__(self, ksize=3, sigma=1, channels=0):
-        super(get_svls_filter_2d, self).__init__()
+        super(GaussianFilter, self).__init__()
         gkernel = get_gaussian_kernel_2d(ksize=ksize, sigma=sigma)
         neighbors_sum = (1 - gkernel[1, 1]) + 1e-16
         gkernel[int(ksize / 2), int(ksize / 2)] = neighbors_sum
@@ -96,7 +96,7 @@ class NACLLoss(_Loss):
         self.cross_entropy = nn.CrossEntropyLoss()
 
         if kernel_ops == "gaussian":
-            self.svls_layer = get_svls_filter_2d(ksize=kernel_size, sigma=sigma, channels=classes)
+            self.svls_layer = GaussianFilter(ksize=kernel_size, sigma=sigma, channels=classes)
 
         self.old_pt_ver = not pytorch_after(1, 10)
 
