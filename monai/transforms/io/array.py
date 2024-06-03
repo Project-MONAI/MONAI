@@ -440,11 +440,9 @@ class SaveImage(Transform):
         self.write_kwargs = {"verbose": print_log}
         self._data_index = 0
         self.savepath_in_metadict = savepath_in_metadict
+        self.mapping_json_path = Path(mapping_json_path) if mapping_json_path is not None else None
         if mapping_json_path is not None:
-            self.mapping_json_path = Path(mapping_json_path)
             self.savepath_in_metadict = True
-        else:
-            self.mapping_json_path = None
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
         """
