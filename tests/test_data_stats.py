@@ -162,7 +162,8 @@ TEST_CASE_10 = [
         affine=torch.as_tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]], dtype=torch.float64),
         meta={"some": "info"},
     ),
-    "test data statistics:\nType: <class 'monai.data.meta_tensor.MetaTensor'> torch.int64\nShape: torch.Size([2, 2])\nValue range: (0, 2)\n"
+    "test data statistics:\nType: <class 'monai.data.meta_tensor.MetaTensor'> torch.int64\n"
+    "Shape: torch.Size([2, 2])\nValue range: (0, 2)\n"
     "Value: tensor([[0, 1],\n        [1, 2]])\n"
     "Meta_Info: {'some': 'info', affine: tensor([[2., 0., 0., 0.],\n"
     "        [0., 2., 0., 0.],\n"
