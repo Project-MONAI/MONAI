@@ -513,7 +513,7 @@ class SaveImage(Transform):
                 self._data_index += 1
                 if self.savepath_in_metadict and meta_data is not None:
                     meta_data["saved_to"] = filename
-                if self.mapping_json_path and meta_data is not None:
+                if self.mapping_json_path is not None and meta_data is not None:
                     log_data = []
                     log_data.append(
                         {"input": meta_data.get("filename_or_obj", ()), "output": meta_data.get("saved_to", ())}
