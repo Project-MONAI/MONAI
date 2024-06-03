@@ -53,7 +53,7 @@ from monai.utils import ensure_tuple_rep
 __all__ = ["SPADEDiffusionModelUNet"]
 
 
-class SPADEResnetBlock(nn.Module):
+class SPADEDiffResBlock(nn.Module):
     """
     Residual block with timestep conditioning and SPADE norm.
     Enables SPADE normalisation for semantic conditioning (Park et. al (2019): https://github.com/NVlabs/SPADE)
@@ -235,7 +235,7 @@ class SPADEUpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                SPADEResnetBlock(
+                SPADEDiffResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -353,7 +353,7 @@ class SPADEAttnUpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                SPADEResnetBlock(
+                SPADEDiffResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,
@@ -488,7 +488,7 @@ class SPADECrossAttnUpBlock(nn.Module):
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
 
             resnets.append(
-                SPADEResnetBlock(
+                SPADEDiffResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=resnet_in_channels + res_skip_channels,
                     out_channels=out_channels,

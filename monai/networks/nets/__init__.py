@@ -110,6 +110,7 @@ from .senet import (
 )
 from .spade_autoencoderkl import SPADEAutoencoderKL
 from .spade_diffusion_model_unet import SPADEDiffusionModelUNet
+from .spade_network import SPADENet
 from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
