@@ -22,7 +22,7 @@ from torch.nn.modules.loss import _Loss
 from monai.utils import pytorch_after
 
 
-def get_gaussian_kernel_2d(ksize=3, sigma=1):
+def get_gaussian_kernel_2d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
     x_grid = torch.arange(ksize).repeat(ksize).view(ksize, ksize)
     y_grid = x_grid.t()
     xy_grid = torch.stack([x_grid, y_grid], dim=-1).float()
@@ -35,7 +35,7 @@ def get_gaussian_kernel_2d(ksize=3, sigma=1):
 
 
 class GaussianFilter(torch.nn.Module):
-    def __init__(self, ksize=3, sigma=1, channels=0):
+    def __init__(self, ksize: int = 3, sigma: float = 1.0, channels: int = 0) -> torch.Tensor:
         super(GaussianFilter, self).__init__()
         gkernel = get_gaussian_kernel_2d(ksize=ksize, sigma=sigma)
         neighbors_sum = (1 - gkernel[1, 1]) + 1e-16
@@ -68,7 +68,15 @@ class NACLLoss(_Loss):
     https://arxiv.org/abs/2303.06268
     """
 
-    def __init__(self, classes, kernel_size=3, kernel_ops="mean", distance_type="l1", alpha=0.1, sigma=1):
+    def __init__(
+        self,
+        classes,
+        kernel_size: int = 3,
+        kernel_ops: str = "mean",
+        distance_type: str = "l1",
+        alpha: float = 0.1,
+        sigma: float = 1.0,
+    ) -> torch.Tensor:
         """
         Args:
             classes: number of classes
@@ -122,8 +130,7 @@ class NACLLoss(_Loss):
 
         return self.cross_entropy(input, target)  # type: ignore[no-any-return]
 
-    def get_constr_target(self, mask):
-
+    def get_constr_target(self, mask: torch.Tensor) -> torch.Tensor:
         mask = mask.unsqueeze(1)  # unfold works for 4d.
 
         bs, _, h, w = mask.shape
@@ -138,7 +145,6 @@ class NACLLoss(_Loss):
                 rmask.append(torch.sum(umask == ii, 1) / self.ks**2)
 
         if self.kernel_ops == "gaussian":
-
             oh_labels = (
                 F.one_hot(mask[:, 0].to(torch.int64), num_classes=self.nc).contiguous().permute(0, 3, 1, 2).float()
             )
@@ -151,8 +157,7 @@ class NACLLoss(_Loss):
 
         return rmask
 
-    def forward(self, inputs, targets):
-
+    def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         loss_ce = self.ce(inputs, targets)
 
         utargets = self.get_constr_target(targets)
