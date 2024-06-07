@@ -77,6 +77,7 @@ class DDPMScheduler(Scheduler):
         variance_type: member of DDPMVarianceType
         clip_sample: option to clip predicted sample between -1 and 1 for numerical stability.
         prediction_type: member of DDPMPredictionType
+        clip_sample_min: minimum clipping value when clip_sample equals True
         schedule_args: arguments to pass to the schedule function
     """
 
