@@ -1063,12 +1063,9 @@ def verify_net_in_out(
 
 def _export(
     converter: Callable,
-    parser: ConfigParser,
-    net_id: str,
+    saver: Callable,
+    net: str,
     filepath: str,
-    ckpt_file: str,
-    config_file: str,
-    key_in_ckpt: str,
     **kwargs: Any,
 ) -> None:
     """
@@ -1077,52 +1074,19 @@ def _export(
     Args:
         converter: a callable object that takes a torch.nn.module and kwargs as input and
             converts the module to another type.
-        parser: a ConfigParser of the bundle to be converted.
-        net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
+        saver: a callable object that takes the converted model and a filepath as input and
+            saves the model.
+        net: the network model to be converted.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
-        ckpt_file: filepath of the model checkpoint to load.
-        config_file: filepath of the config file to save in the converted model,the saved key in the converted
-            model is the config filename without extension, and the saved config value is always serialized in
-            JSON format no matter the original file format is JSON or YAML. it can be a single file or a list
-            of files.
-        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
-            weights. if not nested checkpoint, no need to set.
         kwargs: key arguments for the converter.
 
     """
-    net = parser.get_parsed_content(net_id)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
-    else:
-        ckpt = torch.load(ckpt_file)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
-
     # Use the given converter to convert a model and save with metadata, config content
     net = converter(model=net, **kwargs)
 
-    extra_files: dict = {}
-    for i in ensure_tuple(config_file):
-        # split the filename and directory
-        filename = os.path.basename(i)
-        # remove extension
-        filename, _ = os.path.splitext(filename)
-        # because all files are stored as JSON their name parts without extension must be unique
-        if filename in extra_files:
-            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
-        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
-        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
-
-    # add .json extension to all extra files which are always encoded as JSON
-    extra_files = {k + ".json": v for k, v in extra_files.items()}
-
-    save_net_with_metadata(
-        jit_obj=net,
-        filename_prefix_or_stream=filepath,
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
+    saver(
+        model_obj=net,
+        filepath=filepath,
     )
     logger.info(f"exported to file: {filepath}.")
 
