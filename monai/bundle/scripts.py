@@ -1060,13 +1060,7 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
-def _export(
-    converter: Callable,
-    saver: Callable,
-    net: str,
-    filepath: str,
-    **kwargs: Any,
-) -> None:
+def _export(converter: Callable, saver: Callable, net: str, filepath: str, **kwargs: Any) -> None:
     """
     Export a model defined in the parser to a new one specified by the converter.
 
@@ -1083,10 +1077,7 @@ def _export(
     # Use the given converter to convert a model and save with metadata, config content
     net = converter(model=net, **kwargs)
 
-    saver(
-        model_obj=net,
-        filepath=filepath,
-    )
+    saver(model_obj=net, filepath=filepath)
     logger.info(f"exported to file: {filepath}.")
 
 
@@ -1197,13 +1188,7 @@ def onnx_export(
 
     onnx_saver = OnnxSaver()
 
-    _export(
-        convert_to_onnx,
-        onnx_saver.save,
-        net=net,
-        filepath=filepath_,
-        **converter_kwargs_,
-    )
+    _export(convert_to_onnx, onnx_saver.save, net=net, filepath=filepath_, **converter_kwargs_)
 
 
 def ckpt_export(
@@ -1352,13 +1337,7 @@ def ckpt_export(
         more_extra_files=extra_files,
     )
 
-    _export(
-        convert_to_torchscript,
-        ckpt_saver.save,
-        net=net,
-        filepath=filepath_,
-        **converter_kwargs_,
-    )
+    _export(convert_to_torchscript, ckpt_saver.save, net=net, filepath=filepath_, **converter_kwargs_)
 
 
 def trt_export(
@@ -1550,13 +1529,7 @@ def trt_export(
         more_extra_files=extra_files,
     )
 
-    _export(
-        convert_to_trt,
-        trt_saver.save,
-        net=net,
-        filepath=filepath_,
-        **converter_kwargs_,
-    )
+    _export(convert_to_trt, trt_saver.save, net=net, filepath=filepath_, **converter_kwargs_)
 
 
 def init_bundle(
