@@ -33,9 +33,8 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
-from monai.data import load_net_with_metadata, save_net_with_metadata
-from monai.data.torchscript_utils import save_onnx 
-from monai.data.saver_type import CkptSaver, OnnxSaver, TrtSaver 
+from monai.data import load_net_with_metadata
+from monai.data.saver_type import CkptSaver, OnnxSaver, TrtSaver
 from monai.networks import (
     convert_to_onnx,
     convert_to_torchscript,
@@ -1195,15 +1194,15 @@ def onnx_export(
         copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-    
-    onnx_saver = OnnxSaver()  
+
+    onnx_saver = OnnxSaver()
 
     _export(
-        convert_to_onnx,   
-        onnx_saver.save,   
-        net=net,   
-        filepath=filepath_,     
-        **converter_kwargs_,       
+        convert_to_onnx,
+        onnx_saver.save,
+        net=net,
+        filepath=filepath_,
+        **converter_kwargs_,
     )
 
 
@@ -1346,19 +1345,19 @@ def ckpt_export(
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
 
-    ckpt_saver = CkptSaver(             
+    ckpt_saver = CkptSaver(
         include_config_vals=False,
         append_timestamp=False,
         meta_values=parser.get().pop("_meta_", None),
         more_extra_files=extra_files,
-    )  
+    )
 
     _export(
-        convert_to_torchscript,   
-        ckpt_saver.save,   
-        net=net,    
-        filepath=filepath_,     
-        **converter_kwargs_,       
+        convert_to_torchscript,
+        ckpt_saver.save,
+        net=net,
+        filepath=filepath_,
+        **converter_kwargs_,
     )
 
 
@@ -1543,20 +1542,20 @@ def trt_export(
 
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
-    
-    trt_saver = TrtSaver(             
+
+    trt_saver = TrtSaver(
         include_config_vals=False,
         append_timestamp=False,
         meta_values=parser.get().pop("_meta_", None),
         more_extra_files=extra_files,
-    )  
-    
+    )
+
     _export(
-        convert_to_trt,   
-        trt_saver.save,   
-        net=net, 
-        filepath=filepath_,     
-        **converter_kwargs_,       
+        convert_to_trt,
+        trt_saver.save,
+        net=net,
+        filepath=filepath_,
+        **converter_kwargs_,
     )
 
 
