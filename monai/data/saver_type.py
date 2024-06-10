@@ -14,7 +14,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.data import save_net_with_metadata
 from monai.data.torchscript_utils import save_onnx
 
