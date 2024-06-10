@@ -2201,7 +2201,7 @@ Utility (Dict)
     :special-members: __call__
 
 `TorchIOd`
-""""""""""""""
+""""""""""
 .. autoclass:: TorchIOd
     :members:
     :special-members: __call__
