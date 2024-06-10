@@ -1323,17 +1323,42 @@ def ckpt_export(
 
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
-    converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-    # Use the given converter to convert a model and save with metadata, config content
+    net = parser.get_parsed_content(net_id_)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
+    else:
+        ckpt = torch.load(ckpt_file_)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
+
+    extra_files: dict = {}
+    for i in ensure_tuple(config_file_):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
+        if filename in extra_files:
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
+
+    ckpt_saver = CkptSaver(             
+        include_config_vals=False,
+        append_timestamp=False,
+        meta_values=parser.get().pop("_meta_", None),
+        more_extra_files=extra_files,
+    )  
+
     _export(
-        convert_to_torchscript,
-        parser,
-        net_id=net_id_,
-        filepath=filepath_,
-        ckpt_file=ckpt_file_,
-        config_file=config_file_,
-        key_in_ckpt=key_in_ckpt_,
-        **converter_kwargs_,
+        convert_to_torchscript,   
+        ckpt_saver.save,   
+        net=net,    
+        filepath=filepath_,     
+        **converter_kwargs_,       
     )
 
 
