@@ -1195,8 +1195,16 @@ def onnx_export(
         copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-    onnx_model = convert_to_onnx(model=net, **converter_kwargs_)
-    onnx.save(onnx_model, filepath_)
+    
+    onnx_saver = OnnxSaver()  
+
+    _export(
+        convert_to_onnx,   
+        onnx_saver.save,   
+        net=net,   
+        filepath=filepath_,     
+        **converter_kwargs_,       
+    )
 
 
 def ckpt_export(
