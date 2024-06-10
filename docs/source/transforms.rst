@@ -1151,7 +1151,7 @@ Utility
     :special-members: __call__
 
 `TorchIO`
-"""""""""""""
+"""""""""
 .. autoclass:: TorchIO
     :members:
     :special-members: __call__
