@@ -20,7 +20,7 @@ from monai.utils.module import optional_import
 onnx, _ = optional_import("onnx")
 
 
-def save_onnx(model_obj: onnx.ModelProto, filepath: str | IO[Any]) -> None:
+def save_onnx(model_obj: Any, filepath: str | IO[Any]) -> None:
     """
     Save the ONNX model to the given file or stream.
 
