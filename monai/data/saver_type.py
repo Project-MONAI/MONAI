@@ -15,8 +15,19 @@ from collections.abc import Mapping
 from typing import Any
 
 from monai.data import save_net_with_metadata
-from monai.bundle.scripts import save_onnx
 
+from monai.utils.module import optional_import
+onnx, _ = optional_import("onnx")
+
+def save_onnx(model_obj: onnx.ModelProto, filepath: str | IO[Any]) -> None:
+    """
+    Save the ONNX model to the given file or stream.
+
+    Args:
+        model_obj: ONNX model to save.
+        filepath: Filename or file-like stream object to save the ONNX model.
+    """
+    onnx.save(model_obj, filepath)
 
 class OnnxSaver:
     def save(self, model_obj, filepath):
