@@ -12,12 +12,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import IO, Any
 
 from monai.data import save_net_with_metadata
-from typing import IO, Any
 from monai.utils.module import optional_import
+
 onnx, _ = optional_import("onnx")
+
 
 def save_onnx(model_obj: onnx.ModelProto, filepath: str | IO[Any]) -> None:
     """
@@ -28,6 +29,7 @@ def save_onnx(model_obj: onnx.ModelProto, filepath: str | IO[Any]) -> None:
         filepath: Filename or file-like stream object to save the ONNX model.
     """
     onnx.save(model_obj, filepath)
+
 
 class OnnxSaver:
     def save(self, model_obj, filepath):
