@@ -1308,7 +1308,7 @@ def ckpt_export(
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-    
+
     net = parser.get_parsed_content(net_id_)
     if has_ignite:
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
