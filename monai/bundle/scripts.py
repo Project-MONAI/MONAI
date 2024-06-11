@@ -67,6 +67,16 @@ logger = get_logger(module_name=__name__)
 DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
 
+def save_onnx(model_obj: onnx.ModelProto, filepath: str | IO[Any]) -> None:
+    """
+    Save the ONNX model to the given file or stream.
+
+    Args:
+        onnx_model: ONNX model to save.
+        filepath: Filename or file-like stream object to save the ONNX model.
+    """
+    onnx.save(model_obj, filepath)
+
 
 def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
     """

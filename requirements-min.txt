@@ -3,4 +3,3 @@
 setuptools>=50.3.0,<66.0.0,!=60.6.0
 coverage>=5.5
 parameterized
-onnx
