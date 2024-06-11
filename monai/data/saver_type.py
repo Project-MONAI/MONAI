@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from monai.data import save_net_with_metadata
-
+from typing import IO, Any
 from monai.utils.module import optional_import
 onnx, _ = optional_import("onnx")
 
