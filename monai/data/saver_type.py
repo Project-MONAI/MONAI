@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from monai.data import save_net_with_metadata
-from monai.data.torchscript_utils import save_onnx
+from monai.bundle.scripts import save_onnx
 
 
 class OnnxSaver:
