@@ -17,7 +17,6 @@ import os
 from collections.abc import Mapping, Sequence
 from typing import IO, Any
 
-import onnx
 import torch
 
 from monai.config import get_config_values
@@ -99,17 +98,6 @@ def save_net_with_metadata(
             filepath = filename_no_ext + ext
 
     torch.jit.save(model_obj, filepath, extra_files)
-
-
-def save_onnx(model_obj: onnx.ModelProto, filepath: str | IO[Any]) -> None:
-    """
-    Save the ONNX model to the given file or stream.
-
-    Args:
-        onnx_model: ONNX model to save.
-        filepath: Filename or file-like stream object to save the ONNX model.
-    """
-    onnx.save(model_obj, filepath)
 
 
 def load_net_with_metadata(
