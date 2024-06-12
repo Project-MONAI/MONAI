@@ -862,6 +862,7 @@ def convert_to_trt(
     precision: str,
     input_shape: Sequence[int],
     dynamic_batchsize: Sequence[int] | None = None,
+    use_torchscript: bool = True,
     use_trace: bool = False,
     filename_or_obj: Any | None = None,
     verify: bool = False,
@@ -876,15 +877,17 @@ def convert_to_trt(
     """
     Utility to export a model into a TensorRT engine-based TorchScript model with optional input / output data verification.
 
-    There are two ways to export a model:
+    There are three ways to export a model:
     1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
     2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
     TensorRT engine-based TorchScript.
+    3, Torch-TensorRT Dynamo way: PyTorch module ---> TensorRT engine-based TorchScript.
 
     When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
     may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
     the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
-    not supported by the ONNX if exported through `torch.jit.script`.
+    not supported by the ONNX if exported through `torch.jit.script`. When exporting through the Dynamo way,
+    the converter_kwargs parameter must contains {'ir': 'dynamo_compile'}.
 
     Args:
         model: a source PyTorch model to convert.
@@ -896,6 +899,8 @@ def convert_to_trt(
             input should between `MIN_BATCH` and `MAX_BATCH` and the `OPT_BATCH` is the best performance batchsize that the
             TensorRT tries to fit. The `OPT_BATCH` should be the most frequently used input batchsize in the application,
             default to None.
+        use_torchscript: whether converting the PyTorch model to a TorchScript model before compiling it by torch_tensorrt,
+            default to True.
         use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
             a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True), default to False.
         filename_or_obj: if not None, specify a file-like object (has to implement write and flush) or a string containing a
@@ -931,7 +936,7 @@ def convert_to_trt(
 
     device = device if device else 0
     target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
-    convert_precision = torch.float32 if precision == "fp32" else torch.half
+    convert_precision = {torch.float32} if precision == "fp32" else {torch.half}
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
@@ -949,7 +954,11 @@ def convert_to_trt(
 
     # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
-    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+    ir_model = (
+        convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+        if use_torchscript
+        else model
+    )
     ir_model.eval()
 
     if use_onnx:

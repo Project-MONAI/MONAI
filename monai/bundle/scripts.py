@@ -1372,6 +1372,7 @@ def trt_export(
     key_in_ckpt: str | None = None,
     precision: str | None = None,
     input_shape: Sequence[int] | None = None,
+    use_torchscript: bool | None = None,
     use_trace: bool | None = None,
     dynamic_batchsize: Sequence[int] | None = None,
     device: int | None = None,
@@ -1386,15 +1387,17 @@ def trt_export(
     Export the model checkpoint to the given filepath as a TensorRT engine-based TorchScript.
     Currently, this API only supports converting models whose inputs are all tensors.
 
-    There are two ways to export a model:
+    There are three ways to export a model:
     1, Torch-TensorRT way: PyTorch module ---> TorchScript module ---> TensorRT engine-based TorchScript.
     2, ONNX-TensorRT way: PyTorch module ---> TorchScript module ---> ONNX model ---> TensorRT engine --->
     TensorRT engine-based TorchScript.
+    3, Torch-TensorRT dynamo way: PyTorch module ---> TensorRT engine-based TorchScript.
 
     When exporting through the first way, some models suffer from the slowdown problem, since Torch-TensorRT
     may only convert a little part of the PyTorch model to the TensorRT engine. However when exporting through
     the second way, some Python data structures like `dict` are not supported. And some TorchScript models are
-    not supported by the ONNX if exported through `torch.jit.script`.
+    not supported by the ONNX if exported through `torch.jit.script`. When exporting through the dynamo way,
+    the converter_kwargs parameter must contains {'ir': 'dynamo_compile'}.
 
     Typical usage examples:
 
@@ -1417,6 +1420,8 @@ def trt_export(
         precision: the weight precision of the converted TensorRT engine based TorchScript models. Should be 'fp32' or 'fp16'.
         input_shape: the input shape that is used to convert the model. Should be a list like [N, C, H, W] or
             [N, C, H, W, D]. If not given, will try to parse from the `metadata` config.
+        use_torchscript: whether converting the PyTorch model to a TorchScript model before compiling it by torch_tensorrt,
+            default to True.
         use_trace: whether using `torch.jit.trace` to convert the PyTorch model to a TorchScript model and then convert to
             a TensorRT engine based TorchScript model or an ONNX model (if `use_onnx` is True).
         dynamic_batchsize: a sequence with three elements to define the batch size range of the input for the model to be
@@ -1450,6 +1455,7 @@ def trt_export(
         key_in_ckpt=key_in_ckpt,
         precision=precision,
         input_shape=input_shape,
+        use_torchscript=use_torchscript,
         use_trace=use_trace,
         dynamic_batchsize=dynamic_batchsize,
         device=device,
@@ -1469,6 +1475,7 @@ def trt_export(
         key_in_ckpt_,
         precision_,
         input_shape_,
+        use_torchscript_,
         use_trace_,
         dynamic_batchsize_,
         device_,
@@ -1486,6 +1493,7 @@ def trt_export(
         key_in_ckpt="",
         precision="fp32",
         input_shape=[],
+        use_torchscript=True,
         use_trace=False,
         dynamic_batchsize=None,
         device=None,
@@ -1514,6 +1522,7 @@ def trt_export(
         "precision": precision_,
         "input_shape": input_shape_,
         "dynamic_batchsize": dynamic_batchsize_,
+        "use_torchscript": use_torchscript_,
         "use_trace": use_trace_,
         "device": device_,
         "use_onnx": use_onnx_,
