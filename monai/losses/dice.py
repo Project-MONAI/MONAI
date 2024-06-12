@@ -811,7 +811,7 @@ class DiceFocalLoss(_Loss):
     The details of Focal Loss is shown in ``monai.losses.FocalLoss``.
 
     ``gamma`` and ``lambda_focal`` are only used for the focal loss.
-    ``include_background``, ``weight`` and ``reduction`` are used for both losses
+    ``include_background``, ``weight``, ``reduction``, and ``alpha`` are used for both losses,
     and other parameters are only used for dice loss.
 
     """
@@ -835,6 +835,7 @@ class DiceFocalLoss(_Loss):
         gamma: float = 2.0,
         focal_weight: Sequence[float] | float | int | torch.Tensor | None = None,
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
+        alpha: float | None = None,
         lambda_dice: float = 1.0,
         lambda_focal: float = 1.0,
     ) -> None:
@@ -867,6 +868,7 @@ class DiceFocalLoss(_Loss):
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 The input can be a single value (same weight for all classes), a sequence of values (the length
                 of the sequence should be the same as the number of classes).
+            alpha: value of the alpha in the definition of the alpha-balanced Focal loss. The value should be in [0, 1]. Defaults to None.
             lambda_dice: the trade-off weight value for dice loss. The value should be no less than 0.0.
                 Defaults to 1.0.
             lambda_focal: the trade-off weight value for focal loss. The value should be no less than 0.0.
@@ -890,7 +892,12 @@ class DiceFocalLoss(_Loss):
             weight=weight,
         )
         self.focal = FocalLoss(
-            include_background=include_background, to_onehot_y=False, gamma=gamma, weight=weight, reduction=reduction
+            include_background=include_background,
+            to_onehot_y=False,
+            gamma=gamma,
+            weight=weight,
+            alpha=alpha,
+            reduction=reduction
         )
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
