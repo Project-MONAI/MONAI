@@ -21,7 +21,6 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, LoadImage, SaveImage
 from monai.transforms.io.array import MappingJson
 
@@ -62,7 +61,7 @@ class TestMappingJson(unittest.TestCase):
                 self.assertEqual(img.shape, expected_shape)
 
                 self.assertTrue(Path(self.mapping_json_path).exists())
-                with open(self.mapping_json_path, "r") as f:
+                with open(self.mapping_json_path) as f:
                     mapping_data = json.load(f)
 
                 expected_mapping = [{"input": meta["filename_or_obj"], "output": meta["saved_to"]}]
