@@ -784,9 +784,9 @@ def convert_to_torchscript(
 
 def _onnx_trt_compile(
     onnx_model,
-    min_shape: Sequence[int],
-    opt_shape: Sequence[int],
-    max_shape: Sequence[int],
+    min_shape: Sequence[Any],
+    opt_shape: Sequence[Any],
+    max_shape: Sequence[Any],
     device: int,
     precision: str,
     input_names: Sequence[str] | None,
@@ -815,7 +815,7 @@ def _onnx_trt_compile(
     trt, _ = optional_import("tensorrt", "8.5.3")
     torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
-    input_shapes = (min_shape, opt_shape, max_shape)
+    input_shapes = list(zip(min_shape, opt_shape, max_shape))
     # default to an empty list to fit the `torch_tensorrt.ts.embed_engine_in_new_module` function.
     input_names = [] if not input_names else input_names
     output_names = [] if not output_names else output_names
@@ -826,8 +826,8 @@ def _onnx_trt_compile(
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
     profile = builder.create_optimization_profile()
-    if input_names:
-        profile.set_shape(input_names[0], *input_shapes)
+    for index, input_name in enumerate(input_names):
+        profile.set_shape(input_name, *(input_shapes[index]))
 
     # parse the ONNX model
     parser = trt.OnnxParser(network, logger)
@@ -860,8 +860,8 @@ def _onnx_trt_compile(
 def convert_to_trt(
     model: nn.Module,
     precision: str,
-    input_shape: Sequence[int],
-    dynamic_batchsize: Sequence[int] | None = None,
+    input_shape: Sequence[Any],
+    dynamic_batchsize: Sequence[Any] | None = None,
     use_trace: bool = False,
     filename_or_obj: Any | None = None,
     verify: bool = False,
@@ -926,26 +926,48 @@ def convert_to_trt(
     if not dynamic_batchsize:
         warnings.warn(f"There is no dynamic batch range. The converted model only takes {input_shape} shape input.")
 
-    if (dynamic_batchsize is not None) and (len(dynamic_batchsize) != 3):
-        warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
+    # if (dynamic_batchsize is not None) and (len(dynamic_batchsize) != 3):
+    #    warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
 
     device = device if device else 0
     target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
     convert_precision = torch.float32 if precision == "fp32" else torch.half
-    inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
     def scale_batch_size(input_shape: Sequence[int], scale_num: int):
         scale_shape = [*input_shape]
         scale_shape[0] *= scale_num
         return scale_shape
 
-    # Use the dynamic batchsize range to generate the min, opt and max model input shape
-    if dynamic_batchsize:
-        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
-        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
-        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
+    min_input_shape = []
+    opt_input_shape = []
+    max_input_shape = []
+    if isinstance(input_shape[0], list):
+        inputs = [torch.rand(ensure_tuple(shape)).to(target_device) for shape in input_shape]
+        # Use the dynamic batchsize range to generate the min, opt and max model input shape
+        if dynamic_batchsize:
+            min_input_shape.extend(
+                [scale_batch_size(input_shape[i], dynamic_batchsize[i][0]) for i in range(len(input_shape))]
+            )
+            opt_input_shape.extend(
+                [scale_batch_size(input_shape[i], dynamic_batchsize[i][1]) for i in range(len(input_shape))]
+            )
+            max_input_shape.append(
+                [scale_batch_size(input_shape[i], dynamic_batchsize[i][2]) for i in range(len(input_shape))]
+            )
+        else:
+            max_input_shape.extend(input_shape)
+            min_input_shape = opt_input_shape = max_input_shape
+
     else:
-        min_input_shape = opt_input_shape = max_input_shape = input_shape
+        inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
+        # Use the dynamic batchsize range to generate the min, opt and max model input shape
+        if dynamic_batchsize:
+            min_input_shape.append(scale_batch_size(input_shape, dynamic_batchsize[0]))
+            opt_input_shape.append(scale_batch_size(input_shape, dynamic_batchsize[1]))
+            max_input_shape.append(scale_batch_size(input_shape, dynamic_batchsize[2]))
+        else:
+            max_input_shape.append(input_shape)
+            min_input_shape = opt_input_shape = max_input_shape
 
     # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
@@ -978,8 +1000,9 @@ def convert_to_trt(
             with torch.cuda.device(device=device):
                 input_placeholder = [
                     torch_tensorrt.Input(
-                        min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape
+                        min_shape=min_input_shape[i], opt_shape=opt_input_shape[i], max_shape=max_input_shape[i]
                     )
+                    for i in range(len(min_input_shape))
                 ]
                 trt_model = torch_tensorrt.compile(
                     ir_model,

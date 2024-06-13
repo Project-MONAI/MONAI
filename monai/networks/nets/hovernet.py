@@ -34,6 +34,7 @@ import re
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable, Sequence
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -452,6 +453,10 @@ class HoVerNet(nn.Module):
         pretrained_state_dict_key: this arg is used when `pretrained_url` is provided and `adapt_standard_resnet` is True.
             It is used to extract the expected state dict.
         freeze_encoder: whether to freeze the encoder of the network.
+        use_list_output: whether to use a list as the forward method output. If set to False, the output of the
+            forward method would be a dictionary mapping output names to output tensors. Otherwise, the output of the
+            forward method would be a list of tensors in `[HoVerNetBranch.NP, HoVerNetBranch.HV, HoVerNetBranch.NC]`
+            order.
     """
 
     Mode = HoVerNetMode
@@ -471,6 +476,7 @@ class HoVerNet(nn.Module):
         adapt_standard_resnet: bool = False,
         pretrained_state_dict_key: str | None = None,
         freeze_encoder: bool = False,
+        use_list_output: bool = False,
     ) -> None:
         super().__init__()
 
@@ -505,6 +511,7 @@ class HoVerNet(nn.Module):
 
         conv_type: type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
+        self.use_list_output = use_list_output
         self.conv0 = nn.Sequential(
             OrderedDict(
                 [
@@ -580,7 +587,7 @@ class HoVerNet(nn.Module):
                 weights = _remap_preact_resnet_model(pretrained_url)
             _load_pretrained_encoder(self, weights)
 
-    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> Union[dict[str, torch.Tensor], list[torch.Tensor]]:
         if self.mode == HoVerNetMode.ORIGINAL.value:
             if x.shape[-1] != 270 or x.shape[-2] != 270:
                 raise ValueError("Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL")
@@ -600,14 +607,19 @@ class HoVerNet(nn.Module):
         x = self.bottleneck(x)
         x = self.upsample(x)
 
-        output = {
-            HoVerNetBranch.NP.value: self.nucleus_prediction(x, short_cuts),
-            HoVerNetBranch.HV.value: self.horizontal_vertical(x, short_cuts),
-        }
-        if self.type_prediction is not None:
-            output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
-
-        return output
+        if self.use_list_output:
+            list_output = [self.nucleus_prediction(x, short_cuts), self.horizontal_vertical(x, short_cuts)]
+            if self.type_prediction is not None:
+                list_output.append(self.type_prediction(x, short_cuts))
+            return list_output
+        else:
+            output = {
+                HoVerNetBranch.NP.value: self.nucleus_prediction(x, short_cuts),
+                HoVerNetBranch.HV.value: self.horizontal_vertical(x, short_cuts),
+            }
+            if self.type_prediction is not None:
+                output[HoVerNetBranch.NC.value] = self.type_prediction(x, short_cuts)
+            return output
 
 
 def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):

@@ -106,6 +106,9 @@ __all__ = [
     "EnsureTypeD",
     "EnsureTypeDict",
     "EnsureTyped",
+    "ExtendSubKeysD",
+    "ExtendSubKeysDict",
+    "ExtendSubKeysd",
     "FgBgToIndicesD",
     "FgBgToIndicesDict",
     "FgBgToIndicesd",
@@ -743,6 +746,44 @@ class FlattenSubKeysd(MapTransform):
             # delete top level key that is flattened
             if self.delete_keys:
                 del d[key]
+        return d
+
+
+class ExtendSubKeysd(MapTransform):
+    """
+    If an item is dictionary and the value is a list of Tensor, it maps the elements in the Tensor list with a key.
+    {"pred": [tensor1, tensor2]} --> {"pred": {"mapname1": tensor1, "mapname2": tensor2} }
+
+    Args:
+        keys: keys of the corresponding items to be extend
+        map_names: the map-names of items to be map. Should be longer than the item list.
+        prefix: optional prefix to be added to the map names. By default no prefix will be added.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(
+        self, keys: KeysCollection, map_names: list[Hashable] | None = None, prefix: str | None = None
+    ) -> None:
+        super().__init__(keys)
+        self.map_names = map_names
+        self.prefix = prefix
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            tensor_list = d[key]
+            map_names_size = len(self.map_names)
+            tensor_list_size = len(tensor_list)
+            if map_names_size < tensor_list_size:
+                raise AttributeError(
+                    f"The map names' size {map_names_size} must be longer than the output list's {tensor_list_size}."
+                )
+            self.map_names = self.map_names[:tensor_list_size]
+            self.map_names = [f"{self.prefix}_{x}" for x in self.map_names] if self.prefix else self.map_names
+            extend_dict = dict(zip(self.map_names, tensor_list))
+
+            d[key] = extend_dict
         return d
 
 
@@ -1780,3 +1821,4 @@ CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
+ExtendSubKeysD = ExtendSubKeysDict = ExtendSubKeysd
