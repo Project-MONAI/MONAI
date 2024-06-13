@@ -897,7 +897,7 @@ class DiceFocalLoss(_Loss):
             gamma=gamma,
             weight=weight,
             alpha=alpha,
-            reduction=reduction
+            reduction=reduction,
         )
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
