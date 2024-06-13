@@ -515,7 +515,7 @@ class SaveImage(Transform):
             "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
             f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
-        
+
 class MappingJson(Transform):
     """
     Writes a JSON file that logs the mapping between input image paths and their corresponding output paths.
@@ -523,7 +523,7 @@ class MappingJson(Transform):
     Args:
         mapping_json_path (Path or str): Path to the JSON file where the mappings will be saved.
     """
-    
+
     def __init__(self, mapping_json_path: Path | str = "mapping.json"):
         self.mapping_json_path = Path(mapping_json_path)
 
