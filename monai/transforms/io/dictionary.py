@@ -281,7 +281,6 @@ class SaveImaged(MapTransform):
         output_name_formatter: Callable[[dict, Transform], dict] | None = None,
         folder_layout: monai.data.FolderLayoutBase | None = None,
         savepath_in_metadict: bool = False,
-        mapping_json_path: Path | str | None = None,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.meta_keys = ensure_tuple_rep(meta_keys, len(self.keys))
@@ -305,7 +304,6 @@ class SaveImaged(MapTransform):
             output_name_formatter=output_name_formatter,
             folder_layout=folder_layout,
             savepath_in_metadict=savepath_in_metadict,
-            mapping_json_path=mapping_json_path,
         )
 
     def set_options(self, init_kwargs=None, data_kwargs=None, meta_kwargs=None, write_kwargs=None):
