@@ -15,8 +15,8 @@ A collection of "vanilla" transforms for IO functions.
 from __future__ import annotations
 
 import inspect
-import logging
 import json
+import logging
 import sys
 import traceback
 import warnings
@@ -516,6 +516,7 @@ class SaveImage(Transform):
             f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
 
+
 class MappingJson(Transform):
     """
     Writes a JSON file that logs the mapping between input image paths and their corresponding output paths.
@@ -551,8 +552,9 @@ class MappingJson(Transform):
             img (MetaTensor): The input image with metadata.
         """
         if "saved_to" not in img.meta:
-            raise KeyError("The 'saved_to' key is missing from the image metadata. Ensure SaveImage is configured with savepath_in_metadict=True.")
-
+            raise KeyError(
+                "The 'saved_to' key is missing from the image metadata. Ensure SaveImage is configured with savepath_in_metadict=True."
+            )
 
         input_path = img.meta["filename_or_obj"]
         output_path = img.meta["saved_to"]

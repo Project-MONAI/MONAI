@@ -1,14 +1,30 @@
-import unittest
-import json
-import numpy as np
-import tempfile
-import nibabel as nib
-import os
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+from __future__ import annotations
+
+import json
+import os
+import tempfile
+import unittest
 from pathlib import Path
-from monai.transforms import Compose, LoadImage, SaveImage
+
+import nibabel as nib
+import numpy as np
 from parameterized import parameterized
+
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms import Compose, LoadImage, SaveImage
 from monai.transforms.io.array import MappingJson
+
 
 class TestMappingJson(unittest.TestCase):
     def setUp(self):
@@ -29,11 +45,13 @@ class TestMappingJson(unittest.TestCase):
                 nib.save(nib.Nifti1Image(test_image, np.eye(4)), file_path)
                 filenames[i] = file_path
 
-            transforms = Compose([
-                LoadImage(image_only=True, **load_params),
-                SaveImage(output_dir=tempdir, output_ext=".nii.gz", savepath_in_metadict=savepath_in_metadict),
-                MappingJson(mapping_json_path=self.mapping_json_path)
-            ])
+            transforms = Compose(
+                [
+                    LoadImage(image_only=True, **load_params),
+                    SaveImage(output_dir=tempdir, output_ext=".nii.gz", savepath_in_metadict=savepath_in_metadict),
+                    MappingJson(mapping_json_path=self.mapping_json_path),
+                ]
+            )
 
             if savepath_in_metadict:
                 result = transforms(filenames[0])
@@ -44,7 +62,7 @@ class TestMappingJson(unittest.TestCase):
                 self.assertEqual(img.shape, expected_shape)
 
                 self.assertTrue(Path(self.mapping_json_path).exists())
-                with open(self.mapping_json_path) as f:
+                with open(self.mapping_json_path, "r") as f:
                     mapping_data = json.load(f)
 
                 expected_mapping = [{"input": meta["filename_or_obj"], "output": meta["saved_to"]}]
@@ -56,8 +74,9 @@ class TestMappingJson(unittest.TestCase):
                 self.assertIsInstance(the_exception.__cause__, KeyError)
                 self.assertIn(
                     "The 'saved_to' key is missing from the image metadata. Ensure SaveImage is configured with savepath_in_metadict=True.",
-                    str(the_exception.__cause__)
+                    str(the_exception.__cause__),
                 )
+
 
 if __name__ == "__main__":
     unittest.main()
