@@ -72,7 +72,7 @@ class TestMappingJson(unittest.TestCase):
                 the_exception = cm.exception
                 self.assertIsInstance(the_exception.__cause__, KeyError)
                 self.assertIn(
-                    "The 'saved_to' key is missing from the image metadata. Ensure SaveImage is configured with savepath_in_metadict=True.",
+                    "Missing 'saved_to' key in metadata. Check SaveImage savepath_in_metadict.",
                     str(the_exception.__cause__),
                 )
 

@@ -552,9 +552,7 @@ class MappingJson(Transform):
             img (MetaTensor): The input image with metadata.
         """
         if "saved_to" not in img.meta:
-            raise KeyError(
-                "The 'saved_to' key is missing from the image metadata. Ensure SaveImage is configured with savepath_in_metadict=True."
-            )
+            raise KeyError("Missing 'saved_to' key in metadata. Check SaveImage savepath_in_metadict.")
 
         input_path = img.meta["filename_or_obj"]
         output_path = img.meta["saved_to"]
