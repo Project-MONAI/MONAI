@@ -24,6 +24,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import (
     ResNet,
+    ResNetFeatures,
     get_medicalnet_pretrained_resnet_args,
     get_pretrained_resnet_medicalnet,
     resnet10,
@@ -36,7 +37,14 @@ from monai.networks.nets import (
 )
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
-from tests.utils import equal_state_dict, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick, test_script_save
+from tests.utils import (
+    SkipIfNoModule,
+    equal_state_dict,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+    test_script_save,
+)
 
 if TYPE_CHECKING:
     import torchvision
@@ -99,6 +107,7 @@ TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
         "num_classes": 3,
         "conv1_t_size": [3],
         "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
     },
     (1, 2, 32),
     (1, 3),
@@ -177,17 +186,58 @@ TEST_CASE_7 = [  # 1D, batch 1, 2 input channels, bias_downsample
     (1, 3),
 ]
 
+TEST_CASE_8 = [
+    {
+        "block": "bottleneck",
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
+TEST_CASE_9 = [  # Layer norm
+    {
+        "block": ResNetBlock,
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+        "norm": ("layer", {"normalized_shape": (64, 32)}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
 TEST_CASES = []
 PRETRAINED_TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
         PRETRAINED_TEST_CASES.append([model, *case])
-for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7]:
+for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9]:
     TEST_CASES.append([ResNet, *case])
 
 TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
+]
+
+CASE_EXTRACT_FEATURES = [
+    (
+        {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
+        [1, 1, 64, 64, 64],
+        ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
+    )
 ]
 
 
@@ -211,7 +261,7 @@ class TestResNet(unittest.TestCase):
             if input_param.get("feed_forward", True):
                 self.assertEqual(result.shape, expected_shape)
             else:
-                self.assertTrue(result.shape in expected_shape)
+                self.assertIn(result.shape, expected_shape)
 
     @parameterized.expand(PRETRAINED_TEST_CASES)
     @skip_if_quick
@@ -268,6 +318,26 @@ class TestResNet(unittest.TestCase):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+
+@SkipIfNoModule("hf_hub_download")
+class TestExtractFeatures(unittest.TestCase):
+
+    @parameterized.expand(CASE_EXTRACT_FEATURES)
+    def test_shape(self, input_param, input_shape, expected_shapes):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        with skip_if_downloading_fails():
+            net = ResNetFeatures(**input_param).to(device)
+
+        # run inference with random tensor
+        with eval_mode(net):
+            features = net(torch.randn(input_shape).to(device))
+
+        # check output shape
+        self.assertEqual(len(features), len(expected_shapes))
+        for feature, expected_shape in zip(features, expected_shapes):
+            self.assertEqual(feature.shape, torch.Size(expected_shape))
 
 
 if __name__ == "__main__":

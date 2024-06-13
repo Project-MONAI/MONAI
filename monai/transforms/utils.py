@@ -38,6 +38,7 @@ from monai.transforms.utils_pytorch_numpy_unification import (
     nonzero,
     ravel,
     searchsorted,
+    softplus,
     unique,
     unravel_index,
     where,
@@ -107,6 +108,7 @@ __all__ = [
     "in_bounds",
     "is_empty",
     "is_positive",
+    "map_and_generate_sampling_centers",
     "map_binary_to_indices",
     "map_classes_to_indices",
     "map_spatial_axes",
@@ -131,7 +133,43 @@ __all__ = [
     "resolves_modes",
     "has_status_keys",
     "distance_transform_edt",
+    "soft_clip",
 ]
+
+
+def soft_clip(
+    arr: NdarrayOrTensor,
+    sharpness_factor: float = 1.0,
+    minv: NdarrayOrTensor | float | int | None = None,
+    maxv: NdarrayOrTensor | float | int | None = None,
+    dtype: DtypeLike | torch.dtype = np.float32,
+) -> NdarrayOrTensor:
+    """
+    Apply soft clip to the input array or tensor.
+    The intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    From https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291
+
+    To perform one-sided clipping, set either minv or maxv to None.
+    Args:
+        arr: input array to clip.
+        sharpness_factor: the sharpness of the soft clip function, default to 1.
+        minv: minimum value of target clipped array.
+        maxv: maximum value of target clipped array.
+        dtype: if not None, convert input array to dtype before computation.
+
+    """
+
+    if dtype is not None:
+        arr, *_ = convert_data_type(arr, dtype=dtype)
+
+    v = arr
+    if minv is not None:
+        v = v + softplus(-sharpness_factor * (arr - minv)) / sharpness_factor
+    if maxv is not None:
+        v = v - softplus(sharpness_factor * (arr - maxv)) / sharpness_factor
+
+    return v
 
 
 def rand_choice(prob: float = 0.5) -> bool:
@@ -329,6 +367,70 @@ def check_non_lazy_pending_ops(
         if raise_error:
             raise ValueError(msg)
         warnings.warn(msg)
+
+
+def map_and_generate_sampling_centers(
+    label: NdarrayOrTensor,
+    spatial_size: Sequence[int] | int,
+    num_samples: int,
+    label_spatial_shape: Sequence[int] | None = None,
+    num_classes: int | None = None,
+    image: NdarrayOrTensor | None = None,
+    image_threshold: float = 0.0,
+    max_samples_per_class: int | None = None,
+    ratios: list[float | int] | None = None,
+    rand_state: np.random.RandomState | None = None,
+    allow_smaller: bool = False,
+    warn: bool = True,
+) -> tuple[tuple]:
+    """
+    Combine "map_classes_to_indices" and "generate_label_classes_crop_centers" functions, return crop center coordinates.
+    This calls `map_classes_to_indices` to get indices from `label`, gets the shape from `label_spatial_shape`
+    is given otherwise from the labels, calls `generate_label_classes_crop_centers`, and returns its results.
+
+    Args:
+        label: use the label data to get the indices of every class.
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+        max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
+            Default is None, no subsampling.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
+        rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
+        warn: if `True` prints a warning if a class is not present in the label.
+    Returns:
+        Tuple of crop centres
+    """
+    if label is None:
+        raise ValueError("label must not be None.")
+    indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
+
+    if label_spatial_shape is not None:
+        _shape = label_spatial_shape
+    elif isinstance(label, monai.data.MetaTensor):
+        _shape = label.peek_pending_shape()
+    else:
+        _shape = label.shape[1:]
+
+    if _shape is None:
+        raise ValueError(
+            "label_spatial_shape or label with a known shape must be provided to infer the output spatial shape."
+        )
+    centers = generate_label_classes_crop_centers(
+        spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn
+    )
+
+    return ensure_tuple(centers)
 
 
 def map_binary_to_indices(
@@ -625,9 +727,12 @@ def generate_label_classes_crop_centers(
 
     for i, array in enumerate(indices):
         if len(array) == 0:
-            ratios_[i] = 0
-            if warn:
-                warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
+            if ratios_[i] != 0:
+                ratios_[i] = 0
+                if warn:
+                    warnings.warn(
+                        f"no available indices of class {i} to crop, setting the crop ratio of this class to zero."
+                    )
 
     centers = []
     classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
@@ -2150,7 +2255,7 @@ def distance_transform_edt(
         if return_distances:
             dtype = torch.float64 if float64_distances else torch.float32
             if distances is None:
-                distances = torch.zeros_like(img, dtype=dtype)  # type: ignore
+                distances = torch.zeros_like(img, memory_format=torch.contiguous_format, dtype=dtype)  # type: ignore
             else:
                 if not isinstance(distances, torch.Tensor) and distances.device != img.device:
                     raise TypeError("distances must be a torch.Tensor on the same device as img")

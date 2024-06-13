@@ -840,7 +840,6 @@ def _onnx_trt_compile(
 
     # set up the conversion configuration
     config = builder.create_builder_config()
-    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 31)
     config.add_optimization_profile(profile)
     if precision == "fp16":
         config.set_flag(trt.BuilderFlag.FP16)
@@ -850,7 +849,10 @@ def _onnx_trt_compile(
 
     # wrap the serialized TensorRT engine back to a TorchScript module.
     trt_model = torch_tensorrt.ts.embed_engine_in_new_module(
-        f.getvalue(), torch.device(f"cuda:{device}"), input_names, output_names
+        f.getvalue(),
+        device=torch.device(f"cuda:{device}"),
+        input_binding_names=input_names,
+        output_binding_names=output_names,
     )
     return trt_model
 
@@ -984,6 +986,7 @@ def convert_to_trt(
                     inputs=input_placeholder,
                     enabled_precisions=convert_precision,
                     device=target_device,
+                    ir="torchscript",
                     **kwargs,
                 )
 

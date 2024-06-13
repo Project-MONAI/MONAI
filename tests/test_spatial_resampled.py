@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import platform
 import unittest
 
 import numpy as np
@@ -22,6 +23,12 @@ from monai.data.utils import to_affine_nd
 from monai.transforms.spatial.dictionary import SpatialResampled
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, assert_allclose
+
+ON_AARCH64 = platform.machine() == "aarch64"
+if ON_AARCH64:
+    rtol, atol = 1e-1, 1e-2
+else:
+    rtol, atol = 1e-3, 1e-4
 
 TESTS = []
 
@@ -104,7 +111,7 @@ class TestSpatialResample(unittest.TestCase):
 
         # check lazy
         lazy_xform = SpatialResampled(**init_param)
-        test_resampler_lazy(lazy_xform, output_data, init_param, call_param, output_key="img")
+        test_resampler_lazy(lazy_xform, output_data, init_param, call_param, output_key="img", rtol=rtol, atol=atol)
 
         # check inverse
         inverted = xform.inverse(output_data)["img"]

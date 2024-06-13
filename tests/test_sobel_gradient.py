@@ -164,8 +164,8 @@ class SobelGradientTests(unittest.TestCase):
     )
     def test_sobel_kernels(self, arguments, expected_kernels):
         sobel = SobelGradients(**arguments)
-        self.assertTrue(sobel.kernel_diff.dtype == expected_kernels[0].dtype)
-        self.assertTrue(sobel.kernel_smooth.dtype == expected_kernels[0].dtype)
+        self.assertEqual(sobel.kernel_diff.dtype, expected_kernels[0].dtype)
+        self.assertEqual(sobel.kernel_smooth.dtype, expected_kernels[0].dtype)
         assert_allclose(sobel.kernel_diff, expected_kernels[0])
         assert_allclose(sobel.kernel_smooth, expected_kernels[1])
 
