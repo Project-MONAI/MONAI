@@ -26,6 +26,7 @@ measure, _ = optional_import("skimage.measure")
 morphology, _ = optional_import("skimage.morphology")
 distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
 
+
 class NuclickKeys(StrEnum):
     """
     Keys for nuclick transforms.
