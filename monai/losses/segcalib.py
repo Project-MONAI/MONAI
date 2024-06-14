@@ -170,4 +170,4 @@ class NACLLoss(_Loss):
 
         loss = loss_ce + self.alpha * loss_conf
 
-        return loss  # , loss_ce, loss_conf
+        return loss 
