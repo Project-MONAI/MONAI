@@ -163,10 +163,9 @@ class NACLLoss(_Loss):
         utargets = self.get_constr_target(targets)
 
         if self.distance_type == "l1":
-            loss_conf = torch.abs(utargets - inputs).mean()
-
-        if self.distance_type == "l2":
-            loss_conf = (torch.abs(utargets - inputs) ** 2).mean()
+            loss_conf = utargets.sub(inputs).abs_().mean()
+        elif self.distance_type == "l2":
+            loss_conf = utargets.sub(inputs).pow_(2).abs_().mean()
 
         loss = loss_ce + self.alpha * loss_conf
 
