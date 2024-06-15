@@ -64,7 +64,7 @@ class NACLLoss(_Loss):
     """
     Neighbor-Aware Calibration Loss (NACL) is primarily developed for developing calibrated models in image segmentation.
     NACL computes standard cross-entropy loss with a linear penalty that enforces the logit distributions
-    to match a soft class proportion of surrounding pixel. 
+    to match a soft class proportion of surrounding pixel.
 
     Murugesan, Balamurali, et al.
     "Trust your neighbours: Penalty-based constraints for model calibration."
