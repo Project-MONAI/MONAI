@@ -1607,7 +1607,7 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
         self.autoencoder_latent_shape = autoencoder_latent_shape
         if self.ldm_latent_shape is not None and self.autoencoder_latent_shape is not None:
             self.ldm_resizer = SpatialPad(spatial_size=self.ldm_latent_shape)
-            self.autoencoder_resizer = CenterSpatialCrop(roi_size=[-1] + self.autoencoder_latent_shape)
+            self.autoencoder_resizer = CenterSpatialCrop(roi_size=self.autoencoder_latent_shape)
 
     def __call__(  # type: ignore[override]
         self,
