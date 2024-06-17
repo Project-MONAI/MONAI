@@ -204,7 +204,7 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
         """
         if seed is not None:
             _seed = id(seed) if not isinstance(seed, (int, np.integer)) else seed
-            _seed = _seed % MAX_SEED
+            _seed = np.int64(_seed) % MAX_SEED  # need to account for Numpy2.0 which doesn't silently convert to int64
             self.R = np.random.RandomState(_seed)
             return self
 
