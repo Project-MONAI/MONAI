@@ -678,7 +678,7 @@ class RandSpatialCropSamplesd(Randomizable, MapTransform, LazyTransform, MultiSa
         self.cropper.lazy = value
 
     def randomize(self, data: Any | None = None) -> None:
-        self.sub_seed = self.R.randint(MAX_SEED, dtype="uint32")
+        self.sub_seed = self.R.randint(MAX_SEED + 1, dtype="uint32")
 
     def __call__(
         self, data: Mapping[Hashable, torch.Tensor], lazy: bool | None = None

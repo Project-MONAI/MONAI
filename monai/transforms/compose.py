@@ -260,7 +260,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
         for _transform in self.transforms:
             if not isinstance(_transform, Randomizable):
                 continue
-            _transform.set_random_state(seed=self.R.randint(MAX_SEED, dtype="uint32"))
+            _transform.set_random_state(seed=self.R.randint(MAX_SEED + 1, dtype="uint32"))
         return self
 
     def randomize(self, data: Any | None = None) -> None:

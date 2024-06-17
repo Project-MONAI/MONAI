@@ -81,8 +81,7 @@ __all__ = [
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
 _flag_cudnn_benchmark = torch.backends.cudnn.benchmark
-NP_MAX = np.iinfo(np.uint32).max
-MAX_SEED = NP_MAX + 1  # 2**32, the actual seed should be in [0, MAX_SEED - 1] for uint32
+MAX_SEED = np.iinfo(np.uint32).max
 
 
 def zip_with(op, *vals, mapfunc=map):
@@ -314,7 +313,7 @@ def get_seed() -> int | None:
 
 
 def set_determinism(
-    seed: int | None = NP_MAX,
+    seed: int | None = MAX_SEED,
     use_deterministic_algorithms: bool | None = None,
     additional_settings: Sequence[Callable[[int], Any]] | Callable[[int], Any] | None = None,
 ) -> None:

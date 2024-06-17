@@ -97,7 +97,7 @@ class ImageDataset(Dataset, Randomizable):
         return len(self.image_files)
 
     def randomize(self, data: Any | None = None) -> None:
-        self._seed = self.R.randint(MAX_SEED, dtype="uint32")
+        self._seed = self.R.randint(MAX_SEED + 1, dtype="uint32")
 
     def __getitem__(self, index: int):
         self.randomize()
