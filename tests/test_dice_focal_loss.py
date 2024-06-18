@@ -117,10 +117,10 @@ class TestDiceFocalLoss(unittest.TestCase):
         dice_focal = DiceFocalLoss(gamma=1.0, lambda_focal=lambda_focal, alpha=alpha, **common_params)
         dice = DiceLoss(**common_params)
         focal = FocalLoss(gamma=1.0, alpha=alpha, **common_params)
-        
+
         result = dice_focal(pred, label)
         expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
-        
+
         np.testing.assert_allclose(result, expected_val, err_msg=f"Failed on case: {name}")
 
 if __name__ == "__main__":
