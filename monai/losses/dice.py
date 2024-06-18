@@ -837,7 +837,7 @@ class DiceFocalLoss(_Loss):
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_focal: float = 1.0,
-        alpha: float | None = None,        
+        alpha: float | None = None,
     ) -> None:
         """
         Args:
