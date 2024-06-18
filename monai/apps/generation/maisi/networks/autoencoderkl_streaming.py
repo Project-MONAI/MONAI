@@ -11,19 +11,15 @@
 
 import gc
 import monai
-import numpy as np
-import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from typing import Sequence
-from monai.networks.blocks import Convolution
 from generative.networks.nets.autoencoderkl import (
     AttentionBlock,
     ResBlock,
     AutoencoderKL,
-    Encoder,
 )
 
 
@@ -31,7 +27,7 @@ NUM_SPLITS = 16
 
 class InplaceGroupNorm3D(torch.nn.GroupNorm):
     def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
-        super(InplaceGroupNorm3D, self).__init__(num_groups, num_channels, eps, affine)
+        super().__init__(num_groups, num_channels, eps, affine)
 
     def forward(self, input):
         print("InplaceGroupNorm3D in", input.size())
@@ -115,7 +111,7 @@ class StreamingConvolution(nn.Module):
         padding: Sequence[int] | int | None = None,
         output_padding: Sequence[int] | int | None = None,
     ) -> None:
-        super(StreamingConvolution, self).__init__()
+        super().__init__()
         self.conv = monai.networks.blocks.convolutions.Convolution(
             spatial_dims,
             in_channels,
