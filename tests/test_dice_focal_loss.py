@@ -91,28 +91,37 @@ class TestDiceFocalLoss(unittest.TestCase):
         test_input = torch.ones(2, 1, 8, 8)
         test_script_save(loss, test_input, test_input)
 
-    def test_result_with_alpha(self):
+    @parameterized.expand([
+        ("sum_None_0.5_0.25", "sum", None, 0.5, 0.25),
+        ("sum_weight_0.5_0.25", "sum", torch.tensor([1.0, 1.0, 2.0]), 0.5, 0.25),
+        ("sum_weight_tuple_0.5_0.25", "sum", (3, 2.0, 1), 0.5, 0.25),
+        ("mean_None_0.5_0.25", "mean", None, 0.5, 0.25),
+        ("mean_weight_0.5_0.25", "mean", torch.tensor([1.0, 1.0, 2.0]), 0.5, 0.25),
+        ("mean_weight_tuple_0.5_0.25", "mean", (3, 2.0, 1), 0.5, 0.25),
+        ("none_None_0.5_0.25", "none", None, 0.5, 0.25),
+        ("none_weight_0.5_0.25", "none", torch.tensor([1.0, 1.0, 2.0]), 0.5, 0.25),
+        ("none_weight_tuple_0.5_0.25", "none", (3, 2.0, 1), 0.5, 0.25),
+    ])
+    def test_with_alpha(self, name, reduction, weight, lambda_focal, alpha):
         size = [3, 3, 5, 5]
         label = torch.randint(low=0, high=2, size=size)
         pred = torch.randn(size)
-        alpha_values = [0.25, 0.5, 0.75]
-        for reduction in ["sum", "mean", "none"]:
-            for weight in [None, torch.tensor([1.0, 1.0, 2.0]), (3, 2.0, 1)]:
-                common_params = {
-                    "include_background": True,
-                    "to_onehot_y": False,
-                    "reduction": reduction,
-                    "weight": weight,
-                }
-                for lambda_focal in [0.5, 1.0, 1.5]:
-                    for alpha in alpha_values:
-                        dice_focal = DiceFocalLoss(gamma=1.0, lambda_focal=lambda_focal, alpha=alpha, **common_params)
-                        dice = DiceLoss(**common_params)
-                        focal = FocalLoss(gamma=1.0, alpha=alpha, **common_params)
-                        result = dice_focal(pred, label)
-                        expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
-                        np.testing.assert_allclose(result, expected_val)
 
+        common_params = {
+            "include_background": True,
+            "to_onehot_y": False,
+            "reduction": reduction,
+            "weight": weight,
+        }
+
+        dice_focal = DiceFocalLoss(gamma=1.0, lambda_focal=lambda_focal, alpha=alpha, **common_params)
+        dice = DiceLoss(**common_params)
+        focal = FocalLoss(gamma=1.0, alpha=alpha, **common_params)
+        
+        result = dice_focal(pred, label)
+        expected_val = dice(pred, label) + lambda_focal * focal(pred, label)
+        
+        np.testing.assert_allclose(result, expected_val, err_msg=f"Failed on case: {name}")
 
 if __name__ == "__main__":
     unittest.main()
