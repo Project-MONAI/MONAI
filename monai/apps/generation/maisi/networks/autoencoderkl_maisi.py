@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import gc
-from typing import Sequence, Union
+from typing import Sequence
 
 import torch
 import torch.nn as nn
@@ -125,20 +125,20 @@ class MaisiConvolution(nn.Module):
         out_channels: int,
         num_splits: int,
         debug: bool,
-        strides: Union[Sequence[int], int] = 1,
-        kernel_size: Union[Sequence[int], int] = 3,
+        strides: Sequence[int] | int = 1,
+        kernel_size: Sequence[int] | int = 3,
         adn_ordering: str = "NDA",
-        act: Union[tuple, str, None] = "PRELU",
-        norm: Union[tuple, str, None] = "INSTANCE",
-        dropout: Union[tuple, str, float, None] = None,
+        act: tuple | str | None = "PRELU",
+        norm: tuple | str | None = "INSTANCE",
+        dropout: tuple | str | float | None = None,
         dropout_dim: int = 1,
-        dilation: Union[Sequence[int], int] = 1,
+        dilation: Sequence[int] | int = 1,
         groups: int = 1,
         bias: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
-        padding: Union[Sequence[int], int, None] = None,
-        output_padding: Union[Sequence[int], int, None] = None,
+        padding: Sequence[int] | int | None = None,
+        output_padding: Sequence[int] | int | None = None,
     ) -> None:
         super().__init__()
         self.conv = monai.networks.blocks.Convolution(
