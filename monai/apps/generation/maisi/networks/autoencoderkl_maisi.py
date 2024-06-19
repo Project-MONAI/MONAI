@@ -23,14 +23,14 @@ from generative.networks.nets.autoencoderkl import (
 )
 
 
-# NUM_SPLITS = 16
-
-class InplaceGroupNorm3D(torch.nn.GroupNorm):
-    def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
+class MaisiGroupNorm3D(torch.nn.GroupNorm):
+    def __init__(self, num_groups, num_channels, eps=1e-5, affine=True, debug=True):
         super().__init__(num_groups, num_channels, eps, affine)
+        self.debug = debug
 
     def forward(self, input):
-        print("InplaceGroupNorm3D in", input.size())
+        if self.debug:
+            print("MaisiGroupNorm3D in", input.size())
 
         # Ensure the tensor is 5D: (N, C, D, H, W)
         if len(input.shape) != 5:
@@ -73,7 +73,9 @@ class InplaceGroupNorm3D(torch.nn.GroupNorm):
                 inputs[_k + 1] = 0
                 torch.cuda.empty_cache()
                 gc.collect()
-                print(f"InplaceGroupNorm3D cat: {_k + 1}/{len(inputs) - 1}.")
+
+                if self.debug:
+                    print(f"MaisiGroupNorm3D cat: {_k + 1}/{len(inputs) - 1}.")
 
             if _type == "cuda":
                 input = input.to("cuda", non_blocking=True)
@@ -85,18 +87,20 @@ class InplaceGroupNorm3D(torch.nn.GroupNorm):
         if self.affine:
             input.mul_(self.weight.view(1, C, 1, 1, 1)).add_(self.bias.view(1, C, 1, 1, 1))
 
-        print("InplaceGroupNorm3D out", input.size())
+        if self.debug:
+            print("MaisiGroupNorm3D out", input.size())
 
         return input
 
 
-class StreamingConvolution(nn.Module):
+class MaisiConvolution(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
         num_splits: int,
+        debug: bool,
         strides: Sequence[int] | int = 1,
         kernel_size: Sequence[int] | int = 3,
         adn_ordering: str = "NDA",
@@ -136,18 +140,21 @@ class StreamingConvolution(nn.Module):
         self.tp_dim = 1
         self.stride = strides[self.tp_dim] if isinstance(strides, list) else strides
         self.num_splits = num_splits
+        self.debug = debug
 
     def forward(self, x):
-        # num_splits = NUM_SPLITS
         num_splits = self.num_splits
-        print("num_splits:", num_splits)
+        if self.debug:
+            print("num_splits:", num_splits)
+
         l = x.size(self.tp_dim + 2)
         split_size = l // num_splits
 
         padding = 3
         if padding % self.stride > 0:
             padding = (padding // self.stride + 1) * self.stride
-        print("padding:", padding)
+        if self.debug:
+            print("padding:", padding)
 
         overlaps = [0] + [padding] * (num_splits - 1)
         last_padding = x.size(self.tp_dim + 2) % split_size
@@ -192,14 +199,16 @@ class StreamingConvolution(nn.Module):
                 for i in range(num_splits)
             ]
 
-        for _j in range(len(splits)):
-            print(f"splits {_j + 1}/{len(splits)}:", splits[_j].size())
+        if self.debug:
+            for _j in range(len(splits)):
+                print(f"splits {_j + 1}/{len(splits)}:", splits[_j].size())
 
         del x
         torch.cuda.empty_cache()
 
         splits_0_size = list(splits[0].size())
-        print("splits_0_size:", splits_0_size)
+        if self.debug:
+            print("splits_0_size:", splits_0_size)
 
         outputs = []
         _type = splits[0].device.type
@@ -209,8 +218,9 @@ class StreamingConvolution(nn.Module):
             splits[_i] = 0
             torch.cuda.empty_cache()
 
-        for _j in range(len(outputs)):
-            print(f"outputs before {_j + 1}/{len(outputs)}:", outputs[_j].size())
+        if self.debug:
+            for _j in range(len(outputs)):
+                print(f"outputs before {_j + 1}/{len(outputs)}:", outputs[_j].size())
 
         del splits
         torch.cuda.empty_cache()
@@ -230,25 +240,29 @@ class StreamingConvolution(nn.Module):
             for i in range(1, num_splits):
                 outputs[i] = outputs[i][:, :, padding_s : padding_s + split_size_out, :, :]
         elif self.tp_dim == 1:
-            print("outputs", outputs[0].size(3), f"padding_s: 0, {split_size_out}")
+            if self.debug:
+                print("outputs", outputs[0].size(3), f"padding_s: 0, {split_size_out}")
             outputs[0] = outputs[0][:, :, :, :split_size_out, :]
             for i in range(1, num_splits):
-                print(
-                    "outputs",
-                    outputs[i].size(3),
-                    f"padding_s: {padding_s}, {padding_s + split_size_out}",
-                )
+                if self.debug:
+                    print(
+                        "outputs",
+                        outputs[i].size(3),
+                        f"padding_s: {padding_s}, {padding_s + split_size_out}",
+                    )
                 outputs[i] = outputs[i][:, :, :, padding_s : padding_s + split_size_out, :]
         elif self.tp_dim == 2:
             outputs[0] = outputs[0][:, :, :, :, :split_size_out]
             for i in range(1, num_splits):
                 outputs[i] = outputs[i][:, :, :, :, padding_s : padding_s + split_size_out]
 
-        for i in range(num_splits):
-            print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
+        if self.debug:
+            for i in range(num_splits):
+                print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
 
         if max(outputs[0].size()) < 500:
-            print(f"outputs[0].device.type: {outputs[0].device.type}.")
+            if self.debug:
+                print(f"outputs[0].device.type: {outputs[0].device.type}.")
             x = torch.cat([out for out in outputs], dim=self.tp_dim + 2)
         else:
             _type = outputs[0].device.type
@@ -261,7 +275,8 @@ class StreamingConvolution(nn.Module):
                 outputs[_k + 1] = 0
                 torch.cuda.empty_cache()
                 gc.collect()
-                print(f"StreamingConvolution cat: {_k + 1}/{len(outputs) - 1}.")
+                if self.debug:
+                    print(f"MaisiConvolution cat: {_k + 1}/{len(outputs) - 1}.")
             if _type == "cuda":
                 x = x.to("cuda", non_blocking=True)
 
@@ -271,7 +286,7 @@ class StreamingConvolution(nn.Module):
         return x
 
 
-class StreamingUpsample(nn.Module):
+class MaisiUpsample(nn.Module):
     """
     Convolution-based upsampling layer.
 
@@ -281,10 +296,12 @@ class StreamingUpsample(nn.Module):
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, use_convtranspose: bool, num_splits: int) -> None:
+    def __init__(
+        self, spatial_dims: int, in_channels: int, use_convtranspose: bool, num_splits: int, debug: bool
+    ) -> None:
         super().__init__()
         if use_convtranspose:
-            self.conv = StreamingConvolution(
+            self.conv = MaisiConvolution(
                 spatial_dims=spatial_dims,
                 in_channels=in_channels,
                 out_channels=in_channels,
@@ -294,9 +311,10 @@ class StreamingUpsample(nn.Module):
                 conv_only=True,
                 is_transposed=True,
                 num_splits=num_splits,
+                debug=debug,
             )
         else:
-            self.conv = StreamingConvolution(
+            self.conv = MaisiConvolution(
                 spatial_dims=spatial_dims,
                 in_channels=in_channels,
                 out_channels=in_channels,
@@ -305,6 +323,7 @@ class StreamingUpsample(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                debug=debug,
             )
         self.use_convtranspose = use_convtranspose
 
@@ -323,7 +342,7 @@ class StreamingUpsample(nn.Module):
         return x
 
 
-class StreamingDownsample(nn.Module):
+class MaisiDownsample(nn.Module):
     """
     Convolution-based downsampling layer.
 
@@ -332,11 +351,11 @@ class StreamingDownsample(nn.Module):
         in_channels: number of input channels.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, num_splits: int) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, num_splits: int, debug: bool) -> None:
         super().__init__()
         self.pad = (0, 1) * spatial_dims
 
-        self.conv = StreamingConvolution(
+        self.conv = MaisiConvolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=in_channels,
@@ -345,6 +364,7 @@ class StreamingDownsample(nn.Module):
             padding=0,
             conv_only=True,
             num_splits=num_splits,
+            debug=debug,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -353,7 +373,7 @@ class StreamingDownsample(nn.Module):
         return x
 
 
-class StreamingResBlock(nn.Module):
+class MaisiResBlock(nn.Module):
     """
     Residual block consisting of a cascade of 2 convolutions + activation + normalisation block, and a
     residual connection between input and output.
@@ -375,18 +395,20 @@ class StreamingResBlock(nn.Module):
         norm_eps: float,
         out_channels: int,
         num_splits: int,
+        debug: bool,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = in_channels if out_channels is None else out_channels
 
-        self.norm1 = InplaceGroupNorm3D(
+        self.norm1 = MaisiGroupNorm3D(
             num_groups=norm_num_groups,
             num_channels=in_channels,
             eps=norm_eps,
             affine=True,
+            debug=debug,
         )
-        self.conv1 = StreamingConvolution(
+        self.conv1 = MaisiConvolution(
             spatial_dims=spatial_dims,
             in_channels=self.in_channels,
             out_channels=self.out_channels,
@@ -395,14 +417,16 @@ class StreamingResBlock(nn.Module):
             padding=1,
             conv_only=True,
             num_splits=num_splits,
+            debug=debug,
         )
-        self.norm2 = InplaceGroupNorm3D(
+        self.norm2 = MaisiGroupNorm3D(
             num_groups=norm_num_groups,
             num_channels=out_channels,
             eps=norm_eps,
             affine=True,
+            debug=debug,
         )
-        self.conv2 = StreamingConvolution(
+        self.conv2 = MaisiConvolution(
             spatial_dims=spatial_dims,
             in_channels=self.out_channels,
             out_channels=self.out_channels,
@@ -411,10 +435,11 @@ class StreamingResBlock(nn.Module):
             padding=1,
             conv_only=True,
             num_splits=num_splits,
+            debug=debug,
         )
 
         if self.in_channels != self.out_channels:
-            self.nin_shortcut = StreamingConvolution(
+            self.nin_shortcut = MaisiConvolution(
                 spatial_dims=spatial_dims,
                 in_channels=self.in_channels,
                 out_channels=self.out_channels,
@@ -423,6 +448,7 @@ class StreamingResBlock(nn.Module):
                 padding=0,
                 conv_only=True,
                 num_splits=num_splits,
+                debug=debug,
             )
         else:
             self.nin_shortcut = nn.Identity()
@@ -452,7 +478,7 @@ class StreamingResBlock(nn.Module):
         return x + h
 
 
-class StreamingEncoder(nn.Module):
+class MaisiEncoder(nn.Module):
     """
     Convolutional cascade that downsamples the image into a spatial latent space.
 
@@ -480,6 +506,7 @@ class StreamingEncoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         num_splits: int,
+        debug: bool,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
     ) -> None:
@@ -498,7 +525,7 @@ class StreamingEncoder(nn.Module):
 
         # Initial convolution
         blocks.append(
-            StreamingConvolution(
+            MaisiConvolution(
                 spatial_dims=spatial_dims,
                 in_channels=in_channels,
                 out_channels=num_channels[0],
@@ -507,6 +534,7 @@ class StreamingEncoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                debug=debug,
             )
         )
 
@@ -519,13 +547,14 @@ class StreamingEncoder(nn.Module):
 
             for _ in range(self.num_res_blocks[i]):
                 blocks.append(
-                    StreamingResBlock(
+                    MaisiResBlock(
                         spatial_dims=spatial_dims,
                         in_channels=input_channel,
                         norm_num_groups=norm_num_groups,
                         norm_eps=norm_eps,
                         out_channels=output_channel,
                         num_splits=num_splits,
+                        debug=debug,
                     )
                 )
                 input_channel = output_channel
@@ -541,7 +570,11 @@ class StreamingEncoder(nn.Module):
                     )
 
             if not is_final_block:
-                blocks.append(StreamingDownsample(spatial_dims=spatial_dims, in_channels=input_channel, num_splits=num_splits))
+                blocks.append(
+                    MaisiDownsample(
+                        spatial_dims=spatial_dims, in_channels=input_channel, num_splits=num_splits, debug=debug
+                    )
+                )
 
         # Non-local attention block
         if with_nonlocal_attn is True:
@@ -575,15 +608,16 @@ class StreamingEncoder(nn.Module):
             )
         # Normalise and convert to latent size
         blocks.append(
-            InplaceGroupNorm3D(
+            MaisiGroupNorm3D(
                 num_groups=norm_num_groups,
                 num_channels=num_channels[-1],
                 eps=norm_eps,
                 affine=True,
+                debug=debug,
             )
         )
         blocks.append(
-            StreamingConvolution(
+            MaisiConvolution(
                 spatial_dims=self.spatial_dims,
                 in_channels=num_channels[-1],
                 out_channels=out_channels,
@@ -592,6 +626,7 @@ class StreamingEncoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                debug=debug,
             )
         )
 
@@ -604,7 +639,7 @@ class StreamingEncoder(nn.Module):
         return x
 
 
-class StreamingDecoder(nn.Module):
+class MaisiDecoder(nn.Module):
     """
     Convolutional cascade upsampling from a spatial latent space into an image space.
 
@@ -633,6 +668,7 @@ class StreamingDecoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         num_splits: int,
+        debug: bool,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
         use_convtranspose: bool = False,
@@ -648,6 +684,7 @@ class StreamingDecoder(nn.Module):
         self.norm_eps = norm_eps
         self.attention_levels = attention_levels
         self.num_splits = num_splits
+        self.debug = debug
         self.tp_dim = tp_dim
 
         reversed_block_out_channels = list(reversed(num_channels))
@@ -656,7 +693,7 @@ class StreamingDecoder(nn.Module):
 
         # Initial convolution
         blocks.append(
-            StreamingConvolution(
+            MaisiConvolution(
                 spatial_dims=spatial_dims,
                 in_channels=in_channels,
                 out_channels=reversed_block_out_channels[0],
@@ -665,6 +702,7 @@ class StreamingDecoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                debug=debug,
             )
         )
 
@@ -708,13 +746,14 @@ class StreamingDecoder(nn.Module):
 
             for _ in range(reversed_num_res_blocks[i]):
                 blocks.append(
-                    StreamingResBlock(
+                    MaisiResBlock(
                         spatial_dims=spatial_dims,
                         in_channels=block_in_ch,
                         norm_num_groups=norm_num_groups,
                         norm_eps=norm_eps,
                         out_channels=block_out_ch,
                         num_splits=num_splits,
+                        debug=debug,
                     )
                 )
                 block_in_ch = block_out_ch
@@ -732,24 +771,26 @@ class StreamingDecoder(nn.Module):
 
             if not is_final_block:
                 blocks.append(
-                    StreamingUpsample(
+                    MaisiUpsample(
                         spatial_dims=spatial_dims,
                         in_channels=block_in_ch,
                         use_convtranspose=use_convtranspose,
                         num_splits=num_splits,
+                        debug=debug,
                     )
                 )
 
         blocks.append(
-            InplaceGroupNorm3D(
+            MaisiGroupNorm3D(
                 num_groups=norm_num_groups,
                 num_channels=block_in_ch,
                 eps=norm_eps,
                 affine=True,
+                debug=debug,
             )
         )
         blocks.append(
-            StreamingConvolution(
+            MaisiConvolution(
                 spatial_dims=spatial_dims,
                 in_channels=block_in_ch,
                 out_channels=out_channels,
@@ -758,6 +799,7 @@ class StreamingDecoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                debug=debug,
             )
         )
 
@@ -766,21 +808,25 @@ class StreamingDecoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for _i in range(len(self.blocks)):
             block = self.blocks[_i]
-            print(block, type(block), type(type(block)))
+
+            if self.debug:
+                print(block, type(block), type(type(block)))
 
             if _i < len(self.blocks) - 0:
                 x = block(x)
                 torch.cuda.empty_cache()
             else:
-                # num_splits = NUM_SPLITS
                 num_splits = self.num_splits
-                print("num_splits:", num_splits)
+
+                if self.debug:
+                    print("num_splits:", num_splits)
 
                 l = x.size(self.tp_dim + 2)
                 split_size = l // num_splits
 
                 padding = 3
-                print("padding:", padding)
+                if self.debug:
+                    print("padding:", padding)
 
                 overlaps = [0] + [padding] * (num_splits - 1)
                 if self.tp_dim == 0:
@@ -823,8 +869,9 @@ class StreamingDecoder(nn.Module):
                         for i in range(num_splits)
                     ]
 
-                for _j in range(len(splits)):
-                    print(f"splits {_j + 1}/{len(splits)}:", splits[_j].size())
+                if debug:
+                    for _j in range(len(splits)):
+                        print(f"splits {_j + 1}/{len(splits)}:", splits[_j].size())
 
                 del x
                 torch.cuda.empty_cache()
@@ -840,30 +887,36 @@ class StreamingDecoder(nn.Module):
                 if outputs[0].size(non_tp_dim + 2) // splits[0].size(non_tp_dim + 2) == 2:
                     split_size_out *= 2
                     padding_s *= 2
-                print("split_size_out:", split_size_out)
-                print("padding_s:", padding_s)
+
+                if self.debug:
+                    print("split_size_out:", split_size_out)
+                    print("padding_s:", padding_s)
 
                 if self.tp_dim == 0:
                     outputs[0] = outputs[0][:, :, :split_size_out, :, :]
                     for i in range(1, num_splits):
                         outputs[i] = outputs[i][:, :, padding_s : padding_s + split_size_out, :, :]
                 elif self.tp_dim == 1:
-                    print("outputs", outputs[0].size(3), f"padding_s: 0, {split_size_out}")
+                    if self.debug:
+                        print("outputs", outputs[0].size(3), f"padding_s: 0, {split_size_out}")
+
                     outputs[0] = outputs[0][:, :, :, :split_size_out, :]
                     for i in range(1, num_splits):
-                        print(
-                            "outputs",
-                            outputs[i].size(3),
-                            f"padding_s: {padding_s}, {padding_s + split_size_out}",
-                        )
+                        if self.debug:
+                            print(
+                                "outputs",
+                                outputs[i].size(3),
+                                f"padding_s: {padding_s}, {padding_s + split_size_out}",
+                            )
                         outputs[i] = outputs[i][:, :, :, padding_s : padding_s + split_size_out, :]
                 elif self.tp_dim == 2:
                     outputs[0] = outputs[0][:, :, :, :, :split_size_out]
                     for i in range(1, num_splits):
                         outputs[i] = outputs[i][:, :, :, :, padding_s : padding_s + split_size_out]
 
-                for i in range(num_splits):
-                    print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
+                if self.debug:
+                    for i in range(num_splits):
+                        print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
 
                 if max(outputs[0].size()) < 500:
                     x = torch.cat([out for out in outputs], dim=self.tp_dim + 2)
@@ -876,7 +929,8 @@ class StreamingDecoder(nn.Module):
                         outputs[_k + 1] = 0
                         torch.cuda.empty_cache()
                         gc.collect()
-                        print(f"cat: {_k + 1}/{len(outputs) - 1}.")
+                        if self.debug:
+                            print(f"cat: {_k + 1}/{len(outputs) - 1}.")
                     x = x.to("cuda", non_blocking=True)
 
                 del outputs
@@ -907,6 +961,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_checkpointing: bool = False,
         use_convtranspose: bool = False,
         num_splits: int = 16,
+        debug: bool = True,
     ) -> None:
         super().__init__(
             spatial_dims,
@@ -925,7 +980,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             use_convtranspose,
         )
 
-        self.encoder = StreamingEncoder(
+        self.encoder = MaisiEncoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_channels=num_channels,
@@ -937,10 +992,11 @@ class AutoencoderKlMaisi(AutoencoderKL):
             with_nonlocal_attn=with_encoder_nonlocal_attn,
             use_flash_attention=use_flash_attention,
             num_splits=num_splits,
+            debug=debug,
         )
 
         # Override decoder using transposed conv
-        self.decoder = StreamingDecoder(
+        self.decoder = MaisiDecoder(
             spatial_dims=spatial_dims,
             num_channels=num_channels,
             in_channels=latent_channels,
@@ -953,4 +1009,5 @@ class AutoencoderKlMaisi(AutoencoderKL):
             use_flash_attention=use_flash_attention,
             use_convtranspose=use_convtranspose,
             num_splits=num_splits,
+            debug=debug,
         )
