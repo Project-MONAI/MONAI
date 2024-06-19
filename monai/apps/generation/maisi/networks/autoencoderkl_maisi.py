@@ -27,7 +27,7 @@ from generative.networks.nets.autoencoderkl import (
 )
 
 
-NUM_SPLITS = 16
+# NUM_SPLITS = 16
 
 class InplaceGroupNorm3D(torch.nn.GroupNorm):
     def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
@@ -100,6 +100,7 @@ class StreamingConvolution(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
+        num_splits: int,
         strides: Sequence[int] | int = 1,
         kernel_size: Sequence[int] | int = 3,
         adn_ordering: str = "NDA",
@@ -138,9 +139,11 @@ class StreamingConvolution(nn.Module):
 
         self.tp_dim = 1
         self.stride = strides[self.tp_dim] if isinstance(strides, list) else strides
+        self.num_splits = num_splits
 
     def forward(self, x):
-        num_splits = NUM_SPLITS
+        # num_splits = NUM_SPLITS
+        num_splits = self.num_splits
         print("num_splits:", num_splits)
         l = x.size(self.tp_dim + 2)
         split_size = l // num_splits
@@ -282,7 +285,7 @@ class StreamingUpsample(nn.Module):
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, use_convtranspose: bool) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, use_convtranspose: bool, num_splits: int) -> None:
         super().__init__()
         if use_convtranspose:
             self.conv = StreamingConvolution(
@@ -294,6 +297,7 @@ class StreamingUpsample(nn.Module):
                 padding=1,
                 conv_only=True,
                 is_transposed=True,
+                num_splits=num_splits,
             )
         else:
             self.conv = StreamingConvolution(
@@ -304,6 +308,7 @@ class StreamingUpsample(nn.Module):
                 kernel_size=3,
                 padding=1,
                 conv_only=True,
+                num_splits=num_splits,
             )
         self.use_convtranspose = use_convtranspose
 
@@ -331,7 +336,7 @@ class StreamingDownsample(nn.Module):
         in_channels: number of input channels.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, num_splits: int) -> None:
         super().__init__()
         self.pad = (0, 1) * spatial_dims
 
@@ -343,6 +348,7 @@ class StreamingDownsample(nn.Module):
             kernel_size=3,
             padding=0,
             conv_only=True,
+            num_splits=num_splits,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -372,6 +378,7 @@ class StreamingResBlock(nn.Module):
         norm_num_groups: int,
         norm_eps: float,
         out_channels: int,
+        num_splits: int,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
@@ -391,6 +398,7 @@ class StreamingResBlock(nn.Module):
             kernel_size=3,
             padding=1,
             conv_only=True,
+            num_splits=num_splits,
         )
         self.norm2 = InplaceGroupNorm3D(
             num_groups=norm_num_groups,
@@ -406,6 +414,7 @@ class StreamingResBlock(nn.Module):
             kernel_size=3,
             padding=1,
             conv_only=True,
+            num_splits=num_splits,
         )
 
         if self.in_channels != self.out_channels:
@@ -417,6 +426,7 @@ class StreamingResBlock(nn.Module):
                 kernel_size=1,
                 padding=0,
                 conv_only=True,
+                num_splits=num_splits,
             )
         else:
             self.nin_shortcut = nn.Identity()
@@ -473,6 +483,7 @@ class StreamingEncoder(nn.Module):
         norm_num_groups: int,
         norm_eps: float,
         attention_levels: Sequence[bool],
+        num_splits: int,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
     ) -> None:
@@ -485,6 +496,7 @@ class StreamingEncoder(nn.Module):
         self.norm_num_groups = norm_num_groups
         self.norm_eps = norm_eps
         self.attention_levels = attention_levels
+        self.num_splits = num_splits
 
         blocks = []
 
@@ -498,6 +510,7 @@ class StreamingEncoder(nn.Module):
                 kernel_size=3,
                 padding=1,
                 conv_only=True,
+                num_splits=num_splits,
             )
         )
 
@@ -516,6 +529,7 @@ class StreamingEncoder(nn.Module):
                         norm_num_groups=norm_num_groups,
                         norm_eps=norm_eps,
                         out_channels=output_channel,
+                        num_splits=num_splits,
                     )
                 )
                 input_channel = output_channel
@@ -531,7 +545,7 @@ class StreamingEncoder(nn.Module):
                     )
 
             if not is_final_block:
-                blocks.append(StreamingDownsample(spatial_dims=spatial_dims, in_channels=input_channel))
+                blocks.append(StreamingDownsample(spatial_dims=spatial_dims, in_channels=input_channel, num_splits=num_splits))
 
         # Non-local attention block
         if with_nonlocal_attn is True:
@@ -581,6 +595,7 @@ class StreamingEncoder(nn.Module):
                 kernel_size=3,
                 padding=1,
                 conv_only=True,
+                num_splits=num_splits,
             )
         )
 
@@ -621,6 +636,7 @@ class StreamingDecoder(nn.Module):
         norm_num_groups: int,
         norm_eps: float,
         attention_levels: Sequence[bool],
+        num_splits: int,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
         use_convtranspose: bool = False,
@@ -635,6 +651,7 @@ class StreamingDecoder(nn.Module):
         self.norm_num_groups = norm_num_groups
         self.norm_eps = norm_eps
         self.attention_levels = attention_levels
+        self.num_splits = num_splits
         self.tp_dim = tp_dim
 
         reversed_block_out_channels = list(reversed(num_channels))
@@ -651,6 +668,7 @@ class StreamingDecoder(nn.Module):
                 kernel_size=3,
                 padding=1,
                 conv_only=True,
+                num_splits=num_splits,
             )
         )
 
@@ -700,6 +718,7 @@ class StreamingDecoder(nn.Module):
                         norm_num_groups=norm_num_groups,
                         norm_eps=norm_eps,
                         out_channels=block_out_ch,
+                        num_splits=num_splits,
                     )
                 )
                 block_in_ch = block_out_ch
@@ -721,6 +740,7 @@ class StreamingDecoder(nn.Module):
                         spatial_dims=spatial_dims,
                         in_channels=block_in_ch,
                         use_convtranspose=use_convtranspose,
+                        num_splits=num_splits,
                     )
                 )
 
@@ -741,6 +761,7 @@ class StreamingDecoder(nn.Module):
                 kernel_size=3,
                 padding=1,
                 conv_only=True,
+                num_splits=num_splits,
             )
         )
 
@@ -755,7 +776,8 @@ class StreamingDecoder(nn.Module):
                 x = block(x)
                 torch.cuda.empty_cache()
             else:
-                num_splits = NUM_SPLITS
+                # num_splits = NUM_SPLITS
+                num_splits = self.num_splits
                 print("num_splits:", num_splits)
 
                 l = x.size(self.tp_dim + 2)
@@ -867,7 +889,7 @@ class StreamingDecoder(nn.Module):
         return x
 
 
-class StreamingAutoencoderKL(AutoencoderKL):
+class AutoencoderKlMaisi(AutoencoderKL):
     """
     Override encoder to make it align with original ldm codebase and support activation checkpointing.
     """
@@ -888,6 +910,7 @@ class StreamingAutoencoderKL(AutoencoderKL):
         use_flash_attention: bool = False,
         use_checkpointing: bool = False,
         use_convtranspose: bool = False,
+        num_splits: int = 16,
     ) -> None:
         super().__init__(
             spatial_dims,
@@ -917,6 +940,7 @@ class StreamingAutoencoderKL(AutoencoderKL):
             attention_levels=attention_levels,
             with_nonlocal_attn=with_encoder_nonlocal_attn,
             use_flash_attention=use_flash_attention,
+            num_splits=num_splits,
         )
 
         # Override decoder using transposed conv
@@ -932,4 +956,5 @@ class StreamingAutoencoderKL(AutoencoderKL):
             with_nonlocal_attn=with_decoder_nonlocal_attn,
             use_flash_attention=use_flash_attention,
             use_convtranspose=use_convtranspose,
+            num_splits=num_splits,
         )
