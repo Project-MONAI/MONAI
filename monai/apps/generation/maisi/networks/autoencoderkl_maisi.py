@@ -96,6 +96,7 @@ class MaisiConvolution(nn.Module):
         num_splits: Number of splits for the input tensor.
         debug: Whether to print debug information.
         Additional arguments for the convolution operation.
+        https://docs.monai.io/en/stable/networks.html#convolution
     """
 
     def __init__(
