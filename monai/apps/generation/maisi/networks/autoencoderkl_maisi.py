@@ -10,80 +10,55 @@
 # limitations under the License.
 
 import gc
-import monai
+from typing import Sequence, Union
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from typing import Sequence
-from generative.networks.nets.autoencoderkl import (
-    AttentionBlock,
-    ResBlock,
-    AutoencoderKL,
-)
+import monai
+from generative.networks.nets.autoencoderkl import AttentionBlock, ResBlock, AutoencoderKL
 
 
-class MaisiGroupNorm3D(torch.nn.GroupNorm):
-    def __init__(self, num_groups, num_channels, eps=1e-5, affine=True, debug=True):
+class MaisiGroupNorm3D(nn.GroupNorm):
+    """
+    Custom 3D Group Normalization with optional debug output.
+
+    Args:
+        num_groups: Number of groups for the group norm.
+        num_channels: Number of channels for the group norm.
+        eps: Epsilon value for numerical stability.
+        affine: Whether to use learnable affine parameters.
+        debug: Whether to print debug information.
+    """
+
+    def __init__(self, num_groups: int, num_channels: int, eps: float = 1e-5, affine: bool = True, debug: bool = True):
         super().__init__(num_groups, num_channels, eps, affine)
         self.debug = debug
 
-    def forward(self, input):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         if self.debug:
             print("MaisiGroupNorm3D in", input.size())
 
-        # Ensure the tensor is 5D: (N, C, D, H, W)
         if len(input.shape) != 5:
             raise ValueError("Expected a 5D tensor")
 
         N, C, D, H, W = input.shape
-
-        # Reshape to (N, num_groups, C // num_groups, D, H, W)
         input = input.view(N, self.num_groups, C // self.num_groups, D, H, W)
 
-        means, stds = [], []
         inputs = []
-        for _i in range(input.size(1)):
-            array = input[:, _i : _i + 1, ...]
-            array = array.to(dtype=torch.float32)
-            _mean = array.mean([2, 3, 4, 5], keepdim=True)
-            _std = array.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
-
-            _mean = _mean.to(dtype=torch.float32)
-            _std = _std.to(dtype=torch.float32)
-
-            inputs.append(array.sub_(_mean).div_(_std).to(dtype=torch.float16))
+        for i in range(input.size(1)):
+            array = input[:, i:i + 1, ...].to(dtype=torch.float32)
+            mean = array.mean([2, 3, 4, 5], keepdim=True)
+            std = array.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
+            inputs.append(array.sub_(mean).div_(std).to(dtype=torch.float16))
 
         del input
         torch.cuda.empty_cache()
 
-        if max(inputs[0].size()) < 500:
-            input = torch.cat([inputs[_k] for _k in range(len(inputs))], dim=1)
-        else:
-            _type = inputs[0].device.type
-            if _type == "cuda":
-                input = inputs[0].clone().to("cpu", non_blocking=True)
-            else:
-                input = inputs[0].clone()
-            inputs[0] = 0
-            torch.cuda.empty_cache()
+        input = torch.cat([inputs[k] for k in range(len(inputs))], dim=1) if max(inputs[0].size()) < 500 else self._cat_inputs(inputs)
 
-            for _k in range(len(inputs) - 1):
-                input = torch.cat((input, inputs[_k + 1].cpu()), dim=1)
-                inputs[_k + 1] = 0
-                torch.cuda.empty_cache()
-                gc.collect()
-
-                if self.debug:
-                    print(f"MaisiGroupNorm3D cat: {_k + 1}/{len(inputs) - 1}.")
-
-            if _type == "cuda":
-                input = input.to("cuda", non_blocking=True)
-
-        # Reshape back to original size
         input = input.view(N, C, D, H, W)
-
-        # Apply affine transformation if enabled
         if self.affine:
             input.mul_(self.weight.view(1, C, 1, 1, 1)).add_(self.bias.view(1, C, 1, 1, 1))
 
@@ -92,8 +67,37 @@ class MaisiGroupNorm3D(torch.nn.GroupNorm):
 
         return input
 
+    def _cat_inputs(self, inputs):
+        input_type = inputs[0].device.type
+        input = inputs[0].clone().to("cpu", non_blocking=True) if input_type == "cuda" else inputs[0].clone()
+        inputs[0] = 0
+        torch.cuda.empty_cache()
+
+        for k in range(len(inputs) - 1):
+            input = torch.cat((input, inputs[k + 1].cpu()), dim=1)
+            inputs[k + 1] = 0
+            torch.cuda.empty_cache()
+            gc.collect()
+
+            if self.debug:
+                print(f"MaisiGroupNorm3D cat: {k + 1}/{len(inputs) - 1}.")
+
+        return input.to("cuda", non_blocking=True) if input_type == "cuda" else input
+
 
 class MaisiConvolution(nn.Module):
+    """
+    Convolutional layer with optional debug output and custom splitting mechanism.
+
+    Args:
+        spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        num_splits: Number of splits for the input tensor.
+        debug: Whether to print debug information.
+        Additional arguments for the convolution operation.
+    """
+
     def __init__(
         self,
         spatial_dims: int,
@@ -101,40 +105,40 @@ class MaisiConvolution(nn.Module):
         out_channels: int,
         num_splits: int,
         debug: bool,
-        strides: Sequence[int] | int = 1,
-        kernel_size: Sequence[int] | int = 3,
+        strides: Union[Sequence[int], int] = 1,
+        kernel_size: Union[Sequence[int], int] = 3,
         adn_ordering: str = "NDA",
-        act: tuple | str | None = "PRELU",
-        norm: tuple | str | None = "INSTANCE",
-        dropout: tuple | str | float | None = None,
-        dropout_dim: int | None = 1,
-        dilation: Sequence[int] | int = 1,
+        act: Union[tuple, str, None] = "PRELU",
+        norm: Union[tuple, str, None] = "INSTANCE",
+        dropout: Union[tuple, str, float, None] = None,
+        dropout_dim: int = 1,
+        dilation: Union[Sequence[int], int] = 1,
         groups: int = 1,
         bias: bool = True,
         conv_only: bool = False,
         is_transposed: bool = False,
-        padding: Sequence[int] | int | None = None,
-        output_padding: Sequence[int] | int | None = None,
+        padding: Union[Sequence[int], int, None] = None,
+        output_padding: Union[Sequence[int], int, None] = None,
     ) -> None:
         super().__init__()
-        self.conv = monai.networks.blocks.convolutions.Convolution(
-            spatial_dims,
-            in_channels,
-            out_channels,
-            strides,
-            kernel_size,
-            adn_ordering,
-            act,
-            norm,
-            dropout,
-            dropout_dim,
-            dilation,
-            groups,
-            bias,
-            conv_only,
-            is_transposed,
-            padding,
-            output_padding,
+        self.conv = monai.networks.blocks.Convolution(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            strides=strides,
+            kernel_size=kernel_size,
+            adn_ordering=adn_ordering,
+            act=act,
+            norm=norm,
+            dropout=dropout,
+            dropout_dim=dropout_dim,
+            dilation=dilation,
+            groups=groups,
+            bias=bias,
+            conv_only=conv_only,
+            is_transposed=is_transposed,
+            padding=padding,
+            output_padding=output_padding,
         )
 
         self.tp_dim = 1
@@ -142,7 +146,7 @@ class MaisiConvolution(nn.Module):
         self.num_splits = num_splits
         self.debug = debug
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         num_splits = self.num_splits
         if self.debug:
             print("num_splits:", num_splits)
@@ -200,56 +204,32 @@ class MaisiConvolution(nn.Module):
             ]
 
         if self.debug:
-            for _j in range(len(splits)):
-                print(f"splits {_j + 1}/{len(splits)}:", splits[_j].size())
+            for j in range(len(splits)):
+                print(f"splits {j + 1}/{len(splits)}:", splits[j].size())
 
         del x
         torch.cuda.empty_cache()
 
-        splits_0_size = list(splits[0].size())
-        if self.debug:
-            print("splits_0_size:", splits_0_size)
-
-        outputs = []
-        _type = splits[0].device.type
-        for _i in range(num_splits):
-            outputs.append(self.conv(splits[_i]))
-
-            splits[_i] = 0
-            torch.cuda.empty_cache()
+        outputs = [self.conv(split) for split in splits]
 
         if self.debug:
-            for _j in range(len(outputs)):
-                print(f"outputs before {_j + 1}/{len(outputs)}:", outputs[_j].size())
-
-        del splits
-        torch.cuda.empty_cache()
+            for j in range(len(outputs)):
+                print(f"outputs before {j + 1}/{len(outputs)}:", outputs[j].size())
 
         split_size_out = split_size
         padding_s = padding
         non_tp_dim = self.tp_dim + 1 if self.tp_dim < 2 else 0
-        if outputs[0].size(non_tp_dim + 2) // splits_0_size[non_tp_dim + 2] == 2:
+        if outputs[0].size(non_tp_dim + 2) // splits[0].size(non_tp_dim + 2) == 2:
             split_size_out *= 2
             padding_s *= 2
-        elif splits_0_size[non_tp_dim + 2] // outputs[0].size(non_tp_dim + 2) == 2:
-            split_size_out = split_size_out // 2
-            padding_s = padding_s // 2
 
         if self.tp_dim == 0:
             outputs[0] = outputs[0][:, :, :split_size_out, :, :]
             for i in range(1, num_splits):
                 outputs[i] = outputs[i][:, :, padding_s : padding_s + split_size_out, :, :]
         elif self.tp_dim == 1:
-            if self.debug:
-                print("outputs", outputs[0].size(3), f"padding_s: 0, {split_size_out}")
             outputs[0] = outputs[0][:, :, :, :split_size_out, :]
             for i in range(1, num_splits):
-                if self.debug:
-                    print(
-                        "outputs",
-                        outputs[i].size(3),
-                        f"padding_s: {padding_s}, {padding_s + split_size_out}",
-                    )
                 outputs[i] = outputs[i][:, :, :, padding_s : padding_s + split_size_out, :]
         elif self.tp_dim == 2:
             outputs[0] = outputs[0][:, :, :, :, :split_size_out]
@@ -261,24 +241,19 @@ class MaisiConvolution(nn.Module):
                 print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
 
         if max(outputs[0].size()) < 500:
-            if self.debug:
-                print(f"outputs[0].device.type: {outputs[0].device.type}.")
             x = torch.cat([out for out in outputs], dim=self.tp_dim + 2)
         else:
-            _type = outputs[0].device.type
-            if _type == "cuda":
-                x = outputs[0].clone().to("cpu", non_blocking=True)
+            x = outputs[0].clone().to("cpu", non_blocking=True)
             outputs[0] = 0
             torch.cuda.empty_cache()
-            for _k in range(len(outputs) - 1):
-                x = torch.cat((x, outputs[_k + 1].cpu()), dim=self.tp_dim + 2)
-                outputs[_k + 1] = 0
+            for k in range(len(outputs) - 1):
+                x = torch.cat((x, outputs[k + 1].cpu()), dim=self.tp_dim + 2)
+                outputs[k + 1] = 0
                 torch.cuda.empty_cache()
                 gc.collect()
                 if self.debug:
-                    print(f"MaisiConvolution cat: {_k + 1}/{len(outputs) - 1}.")
-            if _type == "cuda":
-                x = x.to("cuda", non_blocking=True)
+                    print(f"MaisiConvolution cat: {k + 1}/{len(outputs) - 1}.")
+            x = x.to("cuda", non_blocking=True)
 
         del outputs
         torch.cuda.empty_cache()
@@ -291,54 +266,37 @@ class MaisiUpsample(nn.Module):
     Convolution-based upsampling layer.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
-        in_channels: number of input channels to the layer.
-        use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
+        spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
+        in_channels: Number of input channels to the layer.
+        use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
     """
 
     def __init__(
         self, spatial_dims: int, in_channels: int, use_convtranspose: bool, num_splits: int, debug: bool
     ) -> None:
         super().__init__()
-        if use_convtranspose:
-            self.conv = MaisiConvolution(
-                spatial_dims=spatial_dims,
-                in_channels=in_channels,
-                out_channels=in_channels,
-                strides=2,
-                kernel_size=3,
-                padding=1,
-                conv_only=True,
-                is_transposed=True,
-                num_splits=num_splits,
-                debug=debug,
-            )
-        else:
-            self.conv = MaisiConvolution(
-                spatial_dims=spatial_dims,
-                in_channels=in_channels,
-                out_channels=in_channels,
-                strides=1,
-                kernel_size=3,
-                padding=1,
-                conv_only=True,
-                num_splits=num_splits,
-                debug=debug,
-            )
+        self.conv = MaisiConvolution(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=in_channels,
+            strides=2 if use_convtranspose else 1,
+            kernel_size=3,
+            padding=1,
+            conv_only=True,
+            is_transposed=use_convtranspose,
+            num_splits=num_splits,
+            debug=debug,
+        )
         self.use_convtranspose = use_convtranspose
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.use_convtranspose:
             return self.conv(x)
 
-        dtype = x.dtype
-
         x = F.interpolate(x, scale_factor=2.0, mode="trilinear")
         torch.cuda.empty_cache()
-
         x = self.conv(x)
         torch.cuda.empty_cache()
-
         return x
 
 
@@ -347,14 +305,15 @@ class MaisiDownsample(nn.Module):
     Convolution-based downsampling layer.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
-        in_channels: number of input channels.
+        spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
+        in_channels: Number of input channels.
+        num_splits: Number of splits for the input tensor.
+        debug: Whether to print debug information.
     """
 
     def __init__(self, spatial_dims: int, in_channels: int, num_splits: int, debug: bool) -> None:
         super().__init__()
         self.pad = (0, 1) * spatial_dims
-
         self.conv = MaisiConvolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
@@ -368,7 +327,7 @@ class MaisiDownsample(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = nn.functional.pad(x, self.pad, mode="constant", value=0.0)
+        x = F.pad(x, self.pad, mode="constant", value=0.0)
         x = self.conv(x)
         return x
 
@@ -379,12 +338,13 @@ class MaisiResBlock(nn.Module):
     residual connection between input and output.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
-        in_channels: input channels to the layer.
-        norm_num_groups: number of groups involved for the group normalisation layer. Ensure that your number of
-            channels is divisible by this number.
-        norm_eps: epsilon for the normalisation.
-        out_channels: number of output channels.
+        spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
+        in_channels: Input channels to the layer.
+        norm_num_groups: Number of groups for the group norm layer.
+        norm_eps: Epsilon for the normalization.
+        out_channels: Number of output channels.
+        num_splits: Number of splits for the input tensor.
+        debug: Whether to print debug information.
     """
 
     def __init__(
@@ -438,24 +398,20 @@ class MaisiResBlock(nn.Module):
             debug=debug,
         )
 
-        if self.in_channels != self.out_channels:
-            self.nin_shortcut = MaisiConvolution(
-                spatial_dims=spatial_dims,
-                in_channels=self.in_channels,
-                out_channels=self.out_channels,
-                strides=1,
-                kernel_size=1,
-                padding=0,
-                conv_only=True,
-                num_splits=num_splits,
-                debug=debug,
-            )
-        else:
-            self.nin_shortcut = nn.Identity()
+        self.nin_shortcut = MaisiConvolution(
+            spatial_dims=spatial_dims,
+            in_channels=self.in_channels,
+            out_channels=self.out_channels,
+            strides=1,
+            kernel_size=1,
+            padding=0,
+            conv_only=True,
+            num_splits=num_splits,
+            debug=debug,
+        ) if self.in_channels != self.out_channels else nn.Identity()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        h = x
-        h = self.norm1(h)
+        h = self.norm1(x)
         torch.cuda.empty_cache()
 
         h = F.silu(h)
@@ -483,16 +439,18 @@ class MaisiEncoder(nn.Module):
     Convolutional cascade that downsamples the image into a spatial latent space.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
-        in_channels: number of input channels.
-        num_channels: sequence of block output channels.
-        out_channels: number of channels in the bottom layer (latent space) of the autoencoder.
-        num_res_blocks: number of residual blocks (see ResBlock) per level.
-        norm_num_groups: number of groups for the GroupNorm layers, num_channels must be divisible by this number.
-        norm_eps: epsilon for the normalization.
-        attention_levels: indicate which level from num_channels contain an attention block.
-        with_nonlocal_attn: if True use non-local attention block.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+        spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
+        in_channels: Number of input channels.
+        num_channels: Sequence of block output channels.
+        out_channels: Number of channels in the bottom layer (latent space) of the autoencoder.
+        num_res_blocks: Number of residual blocks (see ResBlock) per level.
+        norm_num_groups: Number of groups for the group norm layers.
+        norm_eps: Epsilon for the normalization.
+        attention_levels: Indicate which level from num_channels contain an attention block.
+        with_nonlocal_attn: If True, use non-local attention block.
+        use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
+        num_splits: Number of splits for the input tensor.
+        debug: Whether to print debug information.
     """
 
     def __init__(
@@ -523,7 +481,6 @@ class MaisiEncoder(nn.Module):
 
         blocks = []
 
-        # Initial convolution
         blocks.append(
             MaisiConvolution(
                 spatial_dims=spatial_dims,
@@ -538,7 +495,6 @@ class MaisiEncoder(nn.Module):
             )
         )
 
-        # Residual and downsampling blocks
         output_channel = num_channels[0]
         for i in range(len(num_channels)):
             input_channel = output_channel
@@ -576,8 +532,7 @@ class MaisiEncoder(nn.Module):
                     )
                 )
 
-        # Non-local attention block
-        if with_nonlocal_attn is True:
+        if with_nonlocal_attn:
             blocks.append(
                 ResBlock(
                     spatial_dims=spatial_dims,
@@ -606,7 +561,7 @@ class MaisiEncoder(nn.Module):
                     out_channels=num_channels[-1],
                 )
             )
-        # Normalise and convert to latent size
+
         blocks.append(
             MaisiGroupNorm3D(
                 num_groups=norm_num_groups,
@@ -644,17 +599,19 @@ class MaisiDecoder(nn.Module):
     Convolutional cascade upsampling from a spatial latent space into an image space.
 
     Args:
-        spatial_dims: number of spatial dimensions (1D, 2D, 3D).
-        num_channels: sequence of block output channels.
-        in_channels: number of channels in the bottom layer (latent space) of the autoencoder.
-        out_channels: number of output channels.
-        num_res_blocks: number of residual blocks (see ResBlock) per level.
-        norm_num_groups: number of groups for the GroupNorm layers, num_channels must be divisible by this number.
-        norm_eps: epsilon for the normalization.
-        attention_levels: indicate which level from num_channels contain an attention block.
-        with_nonlocal_attn: if True use non-local attention block.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
-        use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
+        spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
+        num_channels: Sequence of block output channels.
+        in_channels: Number of channels in the bottom layer (latent space) of the autoencoder.
+        out_channels: Number of output channels.
+        num_res_blocks: Number of residual blocks (see ResBlock) per level.
+        norm_num_groups: Number of groups for the group norm layers.
+        norm_eps: Epsilon for the normalization.
+        attention_levels: Indicate which level from num_channels contain an attention block.
+        with_nonlocal_attn: If True, use non-local attention block.
+        use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
+        use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
+        num_splits: Number of splits for the input tensor.
+        debug: Whether to print debug information.
     """
 
     def __init__(
@@ -672,7 +629,6 @@ class MaisiDecoder(nn.Module):
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
         use_convtranspose: bool = False,
-        tp_dim: int = 1,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -685,13 +641,11 @@ class MaisiDecoder(nn.Module):
         self.attention_levels = attention_levels
         self.num_splits = num_splits
         self.debug = debug
-        self.tp_dim = tp_dim
 
         reversed_block_out_channels = list(reversed(num_channels))
 
         blocks = []
 
-        # Initial convolution
         blocks.append(
             MaisiConvolution(
                 spatial_dims=spatial_dims,
@@ -706,8 +660,7 @@ class MaisiDecoder(nn.Module):
             )
         )
 
-        # Non-local attention block
-        if with_nonlocal_attn is True:
+        if with_nonlocal_attn:
             blocks.append(
                 ResBlock(
                     spatial_dims=spatial_dims,
@@ -806,142 +759,33 @@ class MaisiDecoder(nn.Module):
         self.blocks = nn.ModuleList(blocks)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        for _i in range(len(self.blocks)):
-            block = self.blocks[_i]
-
-            if self.debug:
-                print(block, type(block), type(type(block)))
-
-            if _i < len(self.blocks) - 0:
-                x = block(x)
-                torch.cuda.empty_cache()
-            else:
-                num_splits = self.num_splits
-
-                if self.debug:
-                    print("num_splits:", num_splits)
-
-                l = x.size(self.tp_dim + 2)
-                split_size = l // num_splits
-
-                padding = 3
-                if self.debug:
-                    print("padding:", padding)
-
-                overlaps = [0] + [padding] * (num_splits - 1)
-                if self.tp_dim == 0:
-                    splits = [
-                        x[
-                            :,
-                            :,
-                            i * split_size
-                            - overlaps[i] : (i + 1) * split_size
-                            + (padding if i != num_splits - 1 else 0),
-                            :,
-                            :,
-                        ]
-                        for i in range(num_splits)
-                    ]
-                elif self.tp_dim == 1:
-                    splits = [
-                        x[
-                            :,
-                            :,
-                            :,
-                            i * split_size
-                            - overlaps[i] : (i + 1) * split_size
-                            + (padding if i != num_splits - 1 else 0),
-                            :,
-                        ]
-                        for i in range(num_splits)
-                    ]
-                elif self.tp_dim == 2:
-                    splits = [
-                        x[
-                            :,
-                            :,
-                            :,
-                            :,
-                            i * split_size
-                            - overlaps[i] : (i + 1) * split_size
-                            + (padding if i != num_splits - 1 else 0),
-                        ]
-                        for i in range(num_splits)
-                    ]
-
-                if debug:
-                    for _j in range(len(splits)):
-                        print(f"splits {_j + 1}/{len(splits)}:", splits[_j].size())
-
-                del x
-                torch.cuda.empty_cache()
-
-                outputs = [block(splits[i]) for i in range(num_splits)]
-
-                del splits
-                torch.cuda.empty_cache()
-
-                split_size_out = split_size
-                padding_s = padding
-                non_tp_dim = self.tp_dim + 1 if self.tp_dim < 2 else 0
-                if outputs[0].size(non_tp_dim + 2) // splits[0].size(non_tp_dim + 2) == 2:
-                    split_size_out *= 2
-                    padding_s *= 2
-
-                if self.debug:
-                    print("split_size_out:", split_size_out)
-                    print("padding_s:", padding_s)
-
-                if self.tp_dim == 0:
-                    outputs[0] = outputs[0][:, :, :split_size_out, :, :]
-                    for i in range(1, num_splits):
-                        outputs[i] = outputs[i][:, :, padding_s : padding_s + split_size_out, :, :]
-                elif self.tp_dim == 1:
-                    if self.debug:
-                        print("outputs", outputs[0].size(3), f"padding_s: 0, {split_size_out}")
-
-                    outputs[0] = outputs[0][:, :, :, :split_size_out, :]
-                    for i in range(1, num_splits):
-                        if self.debug:
-                            print(
-                                "outputs",
-                                outputs[i].size(3),
-                                f"padding_s: {padding_s}, {padding_s + split_size_out}",
-                            )
-                        outputs[i] = outputs[i][:, :, :, padding_s : padding_s + split_size_out, :]
-                elif self.tp_dim == 2:
-                    outputs[0] = outputs[0][:, :, :, :, :split_size_out]
-                    for i in range(1, num_splits):
-                        outputs[i] = outputs[i][:, :, :, :, padding_s : padding_s + split_size_out]
-
-                if self.debug:
-                    for i in range(num_splits):
-                        print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
-
-                if max(outputs[0].size()) < 500:
-                    x = torch.cat([out for out in outputs], dim=self.tp_dim + 2)
-                else:
-                    x = outputs[0].clone().to("cpu", non_blocking=True)
-                    outputs[0] = 0
-                    torch.cuda.empty_cache()
-                    for _k in range(len(outputs) - 1):
-                        x = torch.cat((x, outputs[_k + 1].cpu()), dim=self.tp_dim + 2)
-                        outputs[_k + 1] = 0
-                        torch.cuda.empty_cache()
-                        gc.collect()
-                        if self.debug:
-                            print(f"cat: {_k + 1}/{len(outputs) - 1}.")
-                    x = x.to("cuda", non_blocking=True)
-
-                del outputs
-                torch.cuda.empty_cache()
-
+        for block in self.blocks:
+            x = block(x)
+            torch.cuda.empty_cache()
         return x
 
 
 class AutoencoderKlMaisi(AutoencoderKL):
     """
-    Override encoder to make it align with original ldm codebase and support activation checkpointing.
+    AutoencoderKL with custom MaisiEncoder and MaisiDecoder.
+
+    Args:
+        spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        num_res_blocks: Number of residual blocks per level.
+        num_channels: Sequence of block output channels.
+        attention_levels: Indicate which level from num_channels contain an attention block.
+        latent_channels: Number of channels in the latent space.
+        norm_num_groups: Number of groups for the group norm layers.
+        norm_eps: Epsilon for the normalization.
+        with_encoder_nonlocal_attn: If True, use non-local attention block in the encoder.
+        with_decoder_nonlocal_attn: If True, use non-local attention block in the decoder.
+        use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
+        use_checkpointing: If True, use activation checkpointing.
+        use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
+        num_splits: Number of splits for the input tensor.
+        debug: Whether to print debug information.
     """
 
     def __init__(
@@ -995,7 +839,6 @@ class AutoencoderKlMaisi(AutoencoderKL):
             debug=debug,
         )
 
-        # Override decoder using transposed conv
         self.decoder = MaisiDecoder(
             spatial_dims=spatial_dims,
             num_channels=num_channels,
