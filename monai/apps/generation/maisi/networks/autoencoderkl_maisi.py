@@ -113,6 +113,7 @@ class MaisiConvolution(nn.Module):
         in_channels: Number of input channels.
         out_channels: Number of output channels.
         num_splits: Number of splits for the input tensor.
+        dim_split: Dimension of splitting for the input tensor.
         debug: Whether to print debug information.
         Additional arguments for the convolution operation.
         https://docs.monai.io/en/stable/networks.html#convolution
@@ -124,6 +125,7 @@ class MaisiConvolution(nn.Module):
         in_channels: int,
         out_channels: int,
         num_splits: int,
+        dim_split: int,
         debug: bool,
         strides: Sequence[int] | int = 1,
         kernel_size: Sequence[int] | int = 3,
@@ -161,8 +163,8 @@ class MaisiConvolution(nn.Module):
             output_padding=output_padding,
         )
 
-        self.tp_dim = 1
-        self.stride = strides[self.tp_dim] if isinstance(strides, list) else strides
+        self.dim_split = dim_split
+        self.stride = strides[self.dim_split] if isinstance(strides, list) else strides
         self.num_splits = num_splits
         self.debug = debug
 
@@ -171,7 +173,7 @@ class MaisiConvolution(nn.Module):
         if self.debug:
             print("num_splits:", num_splits)
 
-        l = x.size(self.tp_dim + 2)
+        l = x.size(self.dim_split + 2)
         split_size = l // num_splits
 
         padding = 3
@@ -181,9 +183,9 @@ class MaisiConvolution(nn.Module):
             print("padding:", padding)
 
         overlaps = [0] + [padding] * (num_splits - 1)
-        last_padding = x.size(self.tp_dim + 2) % split_size
+        last_padding = x.size(self.dim_split + 2) % split_size
 
-        if self.tp_dim == 0:
+        if self.dim_split == 0:
             splits = [
                 x[
                     :,
@@ -196,7 +198,7 @@ class MaisiConvolution(nn.Module):
                 ]
                 for i in range(num_splits)
             ]
-        elif self.tp_dim == 1:
+        elif self.dim_split == 1:
             splits = [
                 x[
                     :,
@@ -209,7 +211,7 @@ class MaisiConvolution(nn.Module):
                 ]
                 for i in range(num_splits)
             ]
-        elif self.tp_dim == 2:
+        elif self.dim_split == 2:
             splits = [
                 x[
                     :,
@@ -238,20 +240,20 @@ class MaisiConvolution(nn.Module):
 
         split_size_out = split_size
         padding_s = padding
-        non_tp_dim = self.tp_dim + 1 if self.tp_dim < 2 else 0
-        if outputs[0].size(non_tp_dim + 2) // splits[0].size(non_tp_dim + 2) == 2:
+        non_dim_split = self.dim_split + 1 if self.dim_split < 2 else 0
+        if outputs[0].size(non_dim_split + 2) // splits[0].size(non_dim_split + 2) == 2:
             split_size_out *= 2
             padding_s *= 2
 
-        if self.tp_dim == 0:
+        if self.dim_split == 0:
             outputs[0] = outputs[0][:, :, :split_size_out, :, :]
             for i in range(1, num_splits):
                 outputs[i] = outputs[i][:, :, padding_s : padding_s + split_size_out, :, :]
-        elif self.tp_dim == 1:
+        elif self.dim_split == 1:
             outputs[0] = outputs[0][:, :, :, :split_size_out, :]
             for i in range(1, num_splits):
                 outputs[i] = outputs[i][:, :, :, padding_s : padding_s + split_size_out, :]
-        elif self.tp_dim == 2:
+        elif self.dim_split == 2:
             outputs[0] = outputs[0][:, :, :, :, :split_size_out]
             for i in range(1, num_splits):
                 outputs[i] = outputs[i][:, :, :, :, padding_s : padding_s + split_size_out]
@@ -261,13 +263,13 @@ class MaisiConvolution(nn.Module):
                 print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
 
         if max(outputs[0].size()) < 500:
-            x = torch.cat(outputs, dim=self.tp_dim + 2)
+            x = torch.cat(outputs, dim=self.dim_split + 2)
         else:
             x = outputs[0].clone().to("cpu", non_blocking=True)
             outputs[0] = 0
             torch.cuda.empty_cache()
             for k in range(len(outputs) - 1):
-                x = torch.cat((x, outputs[k + 1].cpu()), dim=self.tp_dim + 2)
+                x = torch.cat((x, outputs[k + 1].cpu()), dim=self.dim_split + 2)
                 outputs[k + 1] = 0
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -289,10 +291,13 @@ class MaisiUpsample(nn.Module):
         spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
         in_channels: Number of input channels to the layer.
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
+        num_splits: Number of splits for the input tensor.
+        dim_split: Dimension of splitting for the input tensor.
+        debug: Whether to print debug information.
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, use_convtranspose: bool, num_splits: int, debug: bool
+        self, spatial_dims: int, in_channels: int, use_convtranspose: bool, num_splits: int, dim_split: int, debug: bool
     ) -> None:
         super().__init__()
         self.conv = MaisiConvolution(
@@ -305,6 +310,7 @@ class MaisiUpsample(nn.Module):
             conv_only=True,
             is_transposed=use_convtranspose,
             num_splits=num_splits,
+            dim_split=dim_split,
             debug=debug,
         )
         self.use_convtranspose = use_convtranspose
@@ -328,10 +334,11 @@ class MaisiDownsample(nn.Module):
         spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
         in_channels: Number of input channels.
         num_splits: Number of splits for the input tensor.
+        dim_split: Dimension of splitting for the input tensor.
         debug: Whether to print debug information.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, num_splits: int, debug: bool) -> None:
+    def __init__(self, spatial_dims: int, in_channels: int, num_splits: int, dim_split: int, debug: bool) -> None:
         super().__init__()
         self.pad = (0, 1) * spatial_dims
         self.conv = MaisiConvolution(
@@ -343,6 +350,7 @@ class MaisiDownsample(nn.Module):
             padding=0,
             conv_only=True,
             num_splits=num_splits,
+            dim_split=dim_split,
             debug=debug,
         )
 
@@ -364,6 +372,7 @@ class MaisiResBlock(nn.Module):
         norm_eps: Epsilon for the normalization.
         out_channels: Number of output channels.
         num_splits: Number of splits for the input tensor.
+        dim_split: Dimension of splitting for the input tensor.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
@@ -376,6 +385,7 @@ class MaisiResBlock(nn.Module):
         norm_eps: float,
         out_channels: int,
         num_splits: int,
+        dim_split: int,
         norm_float16: bool,
         debug: bool,
     ) -> None:
@@ -400,6 +410,7 @@ class MaisiResBlock(nn.Module):
             padding=1,
             conv_only=True,
             num_splits=num_splits,
+            dim_split=dim_split,
             debug=debug,
         )
         self.norm2 = MaisiGroupNorm3D(
@@ -419,6 +430,7 @@ class MaisiResBlock(nn.Module):
             padding=1,
             conv_only=True,
             num_splits=num_splits,
+            dim_split=dim_split,
             debug=debug,
         )
 
@@ -432,6 +444,7 @@ class MaisiResBlock(nn.Module):
                 padding=0,
                 conv_only=True,
                 num_splits=num_splits,
+                dim_split=dim_split,
                 debug=debug,
             )
             if self.in_channels != self.out_channels
@@ -479,6 +492,7 @@ class MaisiEncoder(nn.Module):
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         num_splits: Number of splits for the input tensor.
+        dim_split: Dimension of splitting for the input tensor.
         debug: Whether to print debug information.
     """
 
@@ -493,21 +507,13 @@ class MaisiEncoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         num_splits: int,
+        dim_split: int,
         norm_float16: bool,
         debug: bool,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
-        self.spatial_dims = spatial_dims
-        self.in_channels = in_channels
-        self.num_channels = num_channels
-        self.out_channels = out_channels
-        self.num_res_blocks = num_res_blocks
-        self.norm_num_groups = norm_num_groups
-        self.norm_eps = norm_eps
-        self.attention_levels = attention_levels
-        self.num_splits = num_splits
 
         blocks = []
 
@@ -521,6 +527,7 @@ class MaisiEncoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                dim_split=dim_split,
                 debug=debug,
             )
         )
@@ -531,7 +538,7 @@ class MaisiEncoder(nn.Module):
             output_channel = num_channels[i]
             is_final_block = i == len(num_channels) - 1
 
-            for _ in range(self.num_res_blocks[i]):
+            for _ in range(num_res_blocks[i]):
                 blocks.append(
                     MaisiResBlock(
                         spatial_dims=spatial_dims,
@@ -540,6 +547,7 @@ class MaisiEncoder(nn.Module):
                         norm_eps=norm_eps,
                         out_channels=output_channel,
                         num_splits=num_splits,
+                        dim_split=dim_split,
                         norm_float16=norm_float16,
                         debug=debug,
                     )
@@ -559,7 +567,11 @@ class MaisiEncoder(nn.Module):
             if not is_final_block:
                 blocks.append(
                     MaisiDownsample(
-                        spatial_dims=spatial_dims, in_channels=input_channel, num_splits=num_splits, debug=debug
+                        spatial_dims=spatial_dims,
+                        in_channels=input_channel,
+                        num_splits=num_splits,
+                        dim_split=dim_split,
+                        debug=debug,
                     )
                 )
 
@@ -605,7 +617,7 @@ class MaisiEncoder(nn.Module):
         )
         blocks.append(
             MaisiConvolution(
-                spatial_dims=self.spatial_dims,
+                spatial_dims=spatial_dims,
                 in_channels=num_channels[-1],
                 out_channels=out_channels,
                 strides=1,
@@ -613,6 +625,7 @@ class MaisiEncoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                dim_split=dim_split,
                 debug=debug,
             )
         )
@@ -643,6 +656,7 @@ class MaisiDecoder(nn.Module):
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
         num_splits: Number of splits for the input tensor.
+        dim_split: Dimension of splitting for the input tensor.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
@@ -658,6 +672,7 @@ class MaisiDecoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         num_splits: int,
+        dim_split: int,
         norm_float16: bool,
         debug: bool,
         with_nonlocal_attn: bool = True,
@@ -665,15 +680,6 @@ class MaisiDecoder(nn.Module):
         use_convtranspose: bool = False,
     ) -> None:
         super().__init__()
-        self.spatial_dims = spatial_dims
-        self.num_channels = num_channels
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.num_res_blocks = num_res_blocks
-        self.norm_num_groups = norm_num_groups
-        self.norm_eps = norm_eps
-        self.attention_levels = attention_levels
-        self.num_splits = num_splits
         self.debug = debug
 
         reversed_block_out_channels = list(reversed(num_channels))
@@ -690,6 +696,7 @@ class MaisiDecoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                dim_split=dim_split,
                 debug=debug,
             )
         )
@@ -740,6 +747,7 @@ class MaisiDecoder(nn.Module):
                         norm_eps=norm_eps,
                         out_channels=block_out_ch,
                         num_splits=num_splits,
+                        dim_split=dim_split,
                         norm_float16=norm_float16,
                         debug=debug,
                     )
@@ -764,6 +772,7 @@ class MaisiDecoder(nn.Module):
                         in_channels=block_in_ch,
                         use_convtranspose=use_convtranspose,
                         num_splits=num_splits,
+                        dim_split=dim_split,
                         debug=debug,
                     )
                 )
@@ -788,6 +797,7 @@ class MaisiDecoder(nn.Module):
                 padding=1,
                 conv_only=True,
                 num_splits=num_splits,
+                dim_split=dim_split,
                 debug=debug,
             )
         )
@@ -821,6 +831,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_checkpointing: If True, use activation checkpointing.
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
         num_splits: Number of splits for the input tensor.
+        dim_split: Dimension of splitting for the input tensor.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
@@ -842,6 +853,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_checkpointing: bool = False,
         use_convtranspose: bool = False,
         num_splits: int = 16,
+        dim_split: int = 0,
         norm_float16: bool = False,
         debug: bool = True,
     ) -> None:
@@ -874,6 +886,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             with_nonlocal_attn=with_encoder_nonlocal_attn,
             use_flash_attention=use_flash_attention,
             num_splits=num_splits,
+            dim_split=dim_split,
             norm_float16=norm_float16,
             debug=debug,
         )
@@ -891,6 +904,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             use_flash_attention=use_flash_attention,
             use_convtranspose=use_convtranspose,
             num_splits=num_splits,
+            dim_split=dim_split,
             norm_float16=norm_float16,
             debug=debug,
         )
