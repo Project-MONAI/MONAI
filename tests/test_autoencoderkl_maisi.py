@@ -20,10 +20,10 @@ import torch
 from parameterized import parameterized
 
 from monai.apps import download_url
+from monai.apps.generation.maisi.networks.autoencoderkl_maisi import AutoencoderKlMaisi
 from monai.networks import eval_mode
 from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, testing_data_config
-from autoencoder_kl_maisi import AutoencoderKlMaisi  # Assuming the class is in a file named autoencoder_kl_maisi.py
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 _, has_einops = optional_import("einops")
@@ -50,7 +50,7 @@ CASES_NO_ATTENTION = [
         (1, 1, 16, 16, 16),
         (1, 1, 16, 16, 16),
         (1, 4, 4, 4, 4),
-    ],
+    ]
 ]
 
 CASES_ATTENTION = [
@@ -70,7 +70,7 @@ CASES_ATTENTION = [
         (1, 1, 16, 16, 16),
         (1, 1, 16, 16, 16),
         (1, 4, 4, 4, 4),
-    ],
+    ]
 ]
 
 if has_einops:

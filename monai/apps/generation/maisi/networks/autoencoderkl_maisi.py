@@ -9,15 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import gc
 from typing import Sequence, Union
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from generative.networks.nets.autoencoderkl import AttentionBlock, AutoencoderKL, ResBlock
 
 import monai
-from generative.networks.nets.autoencoderkl import AttentionBlock, ResBlock, AutoencoderKL
 
 
 class MaisiGroupNorm3D(nn.GroupNorm):
@@ -43,12 +45,12 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         if len(input.shape) != 5:
             raise ValueError("Expected a 5D tensor")
 
-        N, C, D, H, W = input.shape
-        input = input.view(N, self.num_groups, C // self.num_groups, D, H, W)
+        param_n, param_c, param_d, param_h, param_w = input.shape
+        input = input.view(param_n, self.num_groups, param_c // self.num_groups, param_d, param_h, param_w)
 
         inputs = []
         for i in range(input.size(1)):
-            array = input[:, i:i + 1, ...].to(dtype=torch.float32)
+            array = input[:, i : i + 1, ...].to(dtype=torch.float32)
             mean = array.mean([2, 3, 4, 5], keepdim=True)
             std = array.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
             inputs.append(array.sub_(mean).div_(std).to(dtype=torch.float16))
@@ -56,11 +58,15 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         del input
         torch.cuda.empty_cache()
 
-        input = torch.cat([inputs[k] for k in range(len(inputs))], dim=1) if max(inputs[0].size()) < 500 else self._cat_inputs(inputs)
+        input = (
+            torch.cat([inputs[k] for k in range(len(inputs))], dim=1)
+            if max(inputs[0].size()) < 500
+            else self._cat_inputs(inputs)
+        )
 
-        input = input.view(N, C, D, H, W)
+        input = input.view(param_n, param_c, param_d, param_h, param_w)
         if self.affine:
-            input.mul_(self.weight.view(1, C, 1, 1, 1)).add_(self.bias.view(1, C, 1, 1, 1))
+            input.mul_(self.weight.view(1, param_c, 1, 1, 1)).add_(self.bias.view(1, param_c, 1, 1, 1))
 
         if self.debug:
             print("MaisiGroupNorm3D out", input.size())
@@ -242,7 +248,7 @@ class MaisiConvolution(nn.Module):
                 print(f"outputs after {i + 1}/{len(outputs)}:", outputs[i].size())
 
         if max(outputs[0].size()) < 500:
-            x = torch.cat([out for out in outputs], dim=self.tp_dim + 2)
+            x = torch.cat(outputs, dim=self.tp_dim + 2)
         else:
             x = outputs[0].clone().to("cpu", non_blocking=True)
             outputs[0] = 0
@@ -363,11 +369,7 @@ class MaisiResBlock(nn.Module):
         self.out_channels = in_channels if out_channels is None else out_channels
 
         self.norm1 = MaisiGroupNorm3D(
-            num_groups=norm_num_groups,
-            num_channels=in_channels,
-            eps=norm_eps,
-            affine=True,
-            debug=debug,
+            num_groups=norm_num_groups, num_channels=in_channels, eps=norm_eps, affine=True, debug=debug
         )
         self.conv1 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -381,11 +383,7 @@ class MaisiResBlock(nn.Module):
             debug=debug,
         )
         self.norm2 = MaisiGroupNorm3D(
-            num_groups=norm_num_groups,
-            num_channels=out_channels,
-            eps=norm_eps,
-            affine=True,
-            debug=debug,
+            num_groups=norm_num_groups, num_channels=out_channels, eps=norm_eps, affine=True, debug=debug
         )
         self.conv2 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -399,17 +397,21 @@ class MaisiResBlock(nn.Module):
             debug=debug,
         )
 
-        self.nin_shortcut = MaisiConvolution(
-            spatial_dims=spatial_dims,
-            in_channels=self.in_channels,
-            out_channels=self.out_channels,
-            strides=1,
-            kernel_size=1,
-            padding=0,
-            conv_only=True,
-            num_splits=num_splits,
-            debug=debug,
-        ) if self.in_channels != self.out_channels else nn.Identity()
+        self.nin_shortcut = (
+            MaisiConvolution(
+                spatial_dims=spatial_dims,
+                in_channels=self.in_channels,
+                out_channels=self.out_channels,
+                strides=1,
+                kernel_size=1,
+                padding=0,
+                conv_only=True,
+                num_splits=num_splits,
+                debug=debug,
+            )
+            if self.in_channels != self.out_channels
+            else nn.Identity()
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.norm1(x)
@@ -565,11 +567,7 @@ class MaisiEncoder(nn.Module):
 
         blocks.append(
             MaisiGroupNorm3D(
-                num_groups=norm_num_groups,
-                num_channels=num_channels[-1],
-                eps=norm_eps,
-                affine=True,
-                debug=debug,
+                num_groups=norm_num_groups, num_channels=num_channels[-1], eps=norm_eps, affine=True, debug=debug
             )
         )
         blocks.append(
@@ -736,11 +734,7 @@ class MaisiDecoder(nn.Module):
 
         blocks.append(
             MaisiGroupNorm3D(
-                num_groups=norm_num_groups,
-                num_channels=block_in_ch,
-                eps=norm_eps,
-                affine=True,
-                debug=debug,
+                num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True, debug=debug
             )
         )
         blocks.append(
