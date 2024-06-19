@@ -40,11 +40,11 @@ CASES_NO_ATTENTION = [
             "num_channels": (4, 4, 4),
             "latent_channels": 4,
             "attention_levels": (False, False, False),
-            "num_res_blocks": 1,
+            "num_res_blocks": (1, 1, 1),
             "norm_num_groups": 4,
             "with_encoder_nonlocal_attn": False,
             "with_decoder_nonlocal_attn": False,
-            "num_splits": 1,
+            "num_splits": 4,
             "debug": False,
         },
         (1, 1, 16, 16, 16),
@@ -62,9 +62,9 @@ CASES_ATTENTION = [
             "num_channels": (4, 4, 4),
             "latent_channels": 4,
             "attention_levels": (False, False, True),
-            "num_res_blocks": 1,
+            "num_res_blocks": (1, 1, 1),
             "norm_num_groups": 4,
-            "num_splits": 1,
+            "num_splits": 4,
             "debug": False,
         },
         (1, 1, 16, 16, 16),
@@ -112,9 +112,9 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 num_channels=(24, 24, 24),
                 attention_levels=(False, False, False),
                 latent_channels=8,
-                num_res_blocks=1,
+                num_res_blocks=(1, 1, 1),
                 norm_num_groups=16,
-                num_splits=1,
+                num_splits=4,
                 debug=False,
             )
 
@@ -127,9 +127,9 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 num_channels=(24, 24, 24),
                 attention_levels=(False, False),
                 latent_channels=8,
-                num_res_blocks=1,
+                num_res_blocks=(1, 1, 1),
                 norm_num_groups=16,
-                num_splits=1,
+                num_splits=4,
                 debug=False,
             )
 
@@ -142,9 +142,9 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 num_channels=(24, 24, 24),
                 attention_levels=(False, False, False),
                 latent_channels=8,
-                num_res_blocks=(8, 8),
+                num_res_blocks=(8, 8, 8),
                 norm_num_groups=16,
-                num_splits=1,
+                num_splits=4,
                 debug=False,
             )
 
@@ -233,9 +233,9 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 num_channels=(4, 4, 4),
                 latent_channels=4,
                 attention_levels=(False, False, True),
-                num_res_blocks=1,
+                num_res_blocks=(1, 1, 1),
                 norm_num_groups=4,
-                num_splits=1,
+                num_splits=4,
                 debug=False,
             ).to(device)
 

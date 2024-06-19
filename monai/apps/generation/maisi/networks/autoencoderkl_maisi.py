@@ -31,11 +31,21 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         num_channels: Number of channels for the group norm.
         eps: Epsilon value for numerical stability.
         affine: Whether to use learnable affine parameters.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
 
-    def __init__(self, num_groups: int, num_channels: int, eps: float = 1e-5, affine: bool = True, debug: bool = True):
+    def __init__(
+        self,
+        num_groups: int,
+        num_channels: int,
+        eps: float = 1e-5,
+        affine: bool = True,
+        norm_float16: bool = False,
+        debug: bool = True,
+    ):
         super().__init__(num_groups, num_channels, eps, affine)
+        self.norm_float16 = norm_float16
         self.debug = debug
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
@@ -53,7 +63,10 @@ class MaisiGroupNorm3D(nn.GroupNorm):
             array = input[:, i : i + 1, ...].to(dtype=torch.float32)
             mean = array.mean([2, 3, 4, 5], keepdim=True)
             std = array.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
-            inputs.append(array.sub_(mean).div_(std).to(dtype=torch.float16))
+            if self.norm_float16:
+                inputs.append(array.sub_(mean).div_(std).to(dtype=torch.float16))
+            else:
+                inputs.append(array.sub_(mean).div_(std))
 
         del input
         torch.cuda.empty_cache()
@@ -351,6 +364,7 @@ class MaisiResBlock(nn.Module):
         norm_eps: Epsilon for the normalization.
         out_channels: Number of output channels.
         num_splits: Number of splits for the input tensor.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
 
@@ -362,6 +376,7 @@ class MaisiResBlock(nn.Module):
         norm_eps: float,
         out_channels: int,
         num_splits: int,
+        norm_float16: bool,
         debug: bool,
     ) -> None:
         super().__init__()
@@ -369,7 +384,12 @@ class MaisiResBlock(nn.Module):
         self.out_channels = in_channels if out_channels is None else out_channels
 
         self.norm1 = MaisiGroupNorm3D(
-            num_groups=norm_num_groups, num_channels=in_channels, eps=norm_eps, affine=True, debug=debug
+            num_groups=norm_num_groups,
+            num_channels=in_channels,
+            eps=norm_eps,
+            affine=True,
+            norm_float16=norm_float16,
+            debug=debug,
         )
         self.conv1 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -383,7 +403,12 @@ class MaisiResBlock(nn.Module):
             debug=debug,
         )
         self.norm2 = MaisiGroupNorm3D(
-            num_groups=norm_num_groups, num_channels=out_channels, eps=norm_eps, affine=True, debug=debug
+            num_groups=norm_num_groups,
+            num_channels=out_channels,
+            eps=norm_eps,
+            affine=True,
+            norm_float16=norm_float16,
+            debug=debug,
         )
         self.conv2 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -452,6 +477,7 @@ class MaisiEncoder(nn.Module):
         attention_levels: Indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: If True, use non-local attention block.
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         num_splits: Number of splits for the input tensor.
         debug: Whether to print debug information.
     """
@@ -467,6 +493,7 @@ class MaisiEncoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         num_splits: int,
+        norm_float16: bool,
         debug: bool,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
@@ -513,6 +540,7 @@ class MaisiEncoder(nn.Module):
                         norm_eps=norm_eps,
                         out_channels=output_channel,
                         num_splits=num_splits,
+                        norm_float16=norm_float16,
                         debug=debug,
                     )
                 )
@@ -567,7 +595,12 @@ class MaisiEncoder(nn.Module):
 
         blocks.append(
             MaisiGroupNorm3D(
-                num_groups=norm_num_groups, num_channels=num_channels[-1], eps=norm_eps, affine=True, debug=debug
+                num_groups=norm_num_groups,
+                num_channels=num_channels[-1],
+                eps=norm_eps,
+                affine=True,
+                norm_float16=norm_float16,
+                debug=debug,
             )
         )
         blocks.append(
@@ -610,6 +643,7 @@ class MaisiDecoder(nn.Module):
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
         num_splits: Number of splits for the input tensor.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
 
@@ -624,6 +658,7 @@ class MaisiDecoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         num_splits: int,
+        norm_float16: bool,
         debug: bool,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
@@ -705,6 +740,7 @@ class MaisiDecoder(nn.Module):
                         norm_eps=norm_eps,
                         out_channels=block_out_ch,
                         num_splits=num_splits,
+                        norm_float16=norm_float16,
                         debug=debug,
                     )
                 )
@@ -734,7 +770,12 @@ class MaisiDecoder(nn.Module):
 
         blocks.append(
             MaisiGroupNorm3D(
-                num_groups=norm_num_groups, num_channels=block_in_ch, eps=norm_eps, affine=True, debug=debug
+                num_groups=norm_num_groups,
+                num_channels=block_in_ch,
+                eps=norm_eps,
+                affine=True,
+                norm_float16=norm_float16,
+                debug=debug,
             )
         )
         blocks.append(
@@ -780,6 +821,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_checkpointing: If True, use activation checkpointing.
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
         num_splits: Number of splits for the input tensor.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
 
@@ -800,6 +842,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_checkpointing: bool = False,
         use_convtranspose: bool = False,
         num_splits: int = 16,
+        norm_float16: bool = False,
         debug: bool = True,
     ) -> None:
         super().__init__(
@@ -831,6 +874,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             with_nonlocal_attn=with_encoder_nonlocal_attn,
             use_flash_attention=use_flash_attention,
             num_splits=num_splits,
+            norm_float16=norm_float16,
             debug=debug,
         )
 
@@ -847,5 +891,6 @@ class AutoencoderKlMaisi(AutoencoderKL):
             use_flash_attention=use_flash_attention,
             use_convtranspose=use_convtranspose,
             num_splits=num_splits,
+            norm_float16=norm_float16,
             debug=debug,
         )
