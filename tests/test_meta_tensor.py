@@ -32,7 +32,7 @@ from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
 from monai.transforms import BorderPadd, Compose, DivisiblePadd, FromMetaTensord, ToMetaTensord
-from monai.utils.enums import PostFix
+from monai.utils.enums import KindKeys, PostFix
 from monai.utils.module import pytorch_after
 from tests.utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
 
@@ -50,7 +50,6 @@ def rand_string(min_len=5, max_len=10):
 
 
 class TestMetaTensor(unittest.TestCase):
-
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
@@ -302,6 +301,9 @@ class TestMetaTensor(unittest.TestCase):
         expected_shape = (numel,) + tuple(ims[0].affine.shape)
         self.assertTupleEqual(tuple(collated.affine.shape), expected_shape)
         self.assertEqual(len(collated.applied_operations), numel)
+
+        # data kind
+        self.assertEqual(collated.kind, KindKeys.PIXEL)
 
     @parameterized.expand(TESTS)
     def test_dataset(self, device, dtype):
