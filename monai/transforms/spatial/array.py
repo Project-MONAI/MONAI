@@ -268,6 +268,7 @@ class ResampleToMatch(SpatialResample):
         align_corners: bool | None = None,
         dtype: DtypeLike = None,
         lazy: bool | None = None,
+        update_to_match: Sequence[NdarrayOrTensor] | None = None,
     ) -> torch.Tensor:
         """
         Args:
@@ -321,6 +322,8 @@ class ResampleToMatch(SpatialResample):
                     original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
                     img.meta = deepcopy(img_dst.meta)
                     img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
+                for t in update_to_match or []:
+                    t.apply_transform(dst_affine, lazy=False) # PROBLEM: this is in-place; we'd have to return the transforms
         else:
             if isinstance(img, MetaTensor) and isinstance(img_dst, MetaTensor):
                 original_fname = img.meta.get(Key.FILENAME_OR_OBJ, "resample_to_match_source")
@@ -329,6 +332,8 @@ class ResampleToMatch(SpatialResample):
                     meta_dict.pop(k, None)
                 img.meta.update(meta_dict)
                 img.meta[Key.FILENAME_OR_OBJ] = original_fname  # keep the original name, the others are overwritten
+                for t in update_to_match or []:
+                    t.apply_transform(img.get_latest_transform(), lazy=True) # Not a problem as it is lazy
         return img
 
 
