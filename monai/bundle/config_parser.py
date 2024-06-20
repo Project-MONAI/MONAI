@@ -118,7 +118,7 @@ class ConfigParser:
         self.ref_resolver = ReferenceResolver()
         if config is None:
             config = {self.meta_key: {}}
-        self.set(config=config)
+        self.set(config=self.ref_resolver.normalize_meta_id(config))
 
     def __repr__(self):
         return f"{self.config}"
@@ -221,7 +221,7 @@ class ConfigParser:
                 if isinstance(conf_, dict) and k not in conf_:
                     conf_[k] = {}
                 conf_ = conf_[k if isinstance(conf_, dict) else int(k)]
-        self[ReferenceResolver.normalize_id(id)] = config
+        self[ReferenceResolver.normalize_id(id)] = self.ref_resolver.normalize_meta_id(config)
 
     def update(self, pairs: dict[str, Any]) -> None:
         """
