@@ -22,6 +22,12 @@ from generative.networks.nets.autoencoderkl import AttentionBlock, AutoencoderKL
 from monai.networks.blocks import Convolution
 
 
+def _empty_cuda_cache():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return
+
+
 class MaisiGroupNorm3D(nn.GroupNorm):
     """
     Custom 3D Group Normalization with optional debug output.
@@ -69,7 +75,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
                 inputs.append(array.sub_(mean).div_(std))
 
         del input
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         input = (
             torch.cat([inputs[k] for k in range(len(inputs))], dim=1)
@@ -90,12 +96,12 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         input_type = inputs[0].device.type
         input = inputs[0].clone().to("cpu", non_blocking=True) if input_type == "cuda" else inputs[0].clone()
         inputs[0] = 0
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         for k in range(len(inputs) - 1):
             input = torch.cat((input, inputs[k + 1].cpu()), dim=1)
             inputs[k + 1] = 0
-            torch.cuda.empty_cache()
+            _empty_cuda_cache()
             gc.collect()
 
             if self.debug:
@@ -230,7 +236,7 @@ class MaisiConvolution(nn.Module):
                 print(f"splits {j + 1}/{len(splits)}:", splits[j].size())
 
         del x
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         outputs = [self.conv(split) for split in splits]
 
@@ -270,18 +276,18 @@ class MaisiConvolution(nn.Module):
         else:
             x = outputs[0].clone().to("cpu", non_blocking=True)
             outputs[0] = 0
-            torch.cuda.empty_cache()
+            _empty_cuda_cache()
             for k in range(len(outputs) - 1):
                 x = torch.cat((x, outputs[k + 1].cpu()), dim=self.dim_split + 2)
                 outputs[k + 1] = 0
-                torch.cuda.empty_cache()
+                _empty_cuda_cache()
                 gc.collect()
                 if self.debug:
                     print(f"MaisiConvolution cat: {k + 1}/{len(outputs) - 1}.")
             x = x.to("cuda", non_blocking=True)
 
         del outputs
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         return x
 
@@ -323,9 +329,9 @@ class MaisiUpsample(nn.Module):
             return self.conv(x)
 
         x = F.interpolate(x, scale_factor=2.0, mode="trilinear")
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
         x = self.conv(x)
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
         return x
 
 
@@ -456,24 +462,24 @@ class MaisiResBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.norm1(x)
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         h = F.silu(h)
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
         h = self.conv1(h)
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         h = self.norm2(h)
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         h = F.silu(h)
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
         h = self.conv2(h)
-        torch.cuda.empty_cache()
+        _empty_cuda_cache()
 
         if self.in_channels != self.out_channels:
             x = self.nin_shortcut(x)
-            torch.cuda.empty_cache()
+            _empty_cuda_cache()
 
         return x + h
 
@@ -638,7 +644,7 @@ class MaisiEncoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.blocks:
             x = block(x)
-            torch.cuda.empty_cache()
+            _empty_cuda_cache()
         return x
 
 
@@ -810,7 +816,7 @@ class MaisiDecoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.blocks:
             x = block(x)
-            torch.cuda.empty_cache()
+            _empty_cuda_cache()
         return x
 
 
