@@ -19,7 +19,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from generative.networks.nets.autoencoderkl import AttentionBlock, AutoencoderKL, ResBlock
 
-import monai
 from monai.networks.blocks import Convolution
 
 
