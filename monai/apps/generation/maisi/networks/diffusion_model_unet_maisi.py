@@ -86,11 +86,11 @@ class DiffusionModelUNetMaisi(DiffusionModelUNet):
             use_flash_attention=use_flash_attention,
             dropout_cattn=dropout_cattn,
         )
-        
+
         self.input_top_region_index = input_top_region_index
         self.input_bottom_region_index = input_bottom_region_index
         self.input_spacing = input_spacing
-        
+
         time_embed_dim = num_channels[0] * 4
         new_time_embed_dim = time_embed_dim
         if self.input_top_region_index:
