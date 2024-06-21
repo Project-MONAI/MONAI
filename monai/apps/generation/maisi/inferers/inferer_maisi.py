@@ -148,10 +148,10 @@ class DiffusionInferer(Inferer):
                     bottom_region_index_tensor=bottom_region_index_tensor,
                     spacing_tensor=spacing_tensor,
                 )
-            
+
             if IF_PROFILE:
                 torch.cuda.nvtx.range_pop()
-            
+
             # diff = torch.norm(model_output).cpu().item()
             # print(diff)
             # with open("diff.txt", "a") as file:
@@ -161,7 +161,7 @@ class DiffusionInferer(Inferer):
             image, _ = scheduler.step(model_output, t, image)
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
-        
+
         if IF_PROFILE:
             torch.cuda.cudart().cudaProfilerStop()
 
