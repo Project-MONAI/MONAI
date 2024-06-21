@@ -77,6 +77,8 @@ class DDPMScheduler(Scheduler):
         variance_type: member of DDPMVarianceType
         clip_sample: option to clip predicted sample between -1 and 1 for numerical stability.
         prediction_type: member of DDPMPredictionType
+        clip_sample_min: minimum clipping value when clip_sample equals True
+        clip_sample_max: maximum clipping value when clip_sample equals True
         schedule_args: arguments to pass to the schedule function
     """
 
@@ -87,6 +89,8 @@ class DDPMScheduler(Scheduler):
         variance_type: str = DDPMVarianceType.FIXED_SMALL,
         clip_sample: bool = True,
         prediction_type: str = DDPMPredictionType.EPSILON,
+        clip_sample_min: float = -1.0,
+        clip_sample_max: float = 1.0,
         **schedule_args,
     ) -> None:
         super().__init__(num_train_timesteps, schedule, **schedule_args)
@@ -98,6 +102,7 @@ class DDPMScheduler(Scheduler):
             raise ValueError("Argument `prediction_type` must be a member of `DDPMPredictionType`")
 
         self.clip_sample = clip_sample
+        self.clip_sample_values = [clip_sample_min, clip_sample_max]
         self.variance_type = variance_type
         self.prediction_type = prediction_type
 
@@ -219,7 +224,9 @@ class DDPMScheduler(Scheduler):
 
         # 3. Clip "predicted x_0"
         if self.clip_sample:
-            pred_original_sample = torch.clamp(pred_original_sample, -1, 1)
+            pred_original_sample = torch.clamp(
+                pred_original_sample, self.clip_sample_values[0], self.clip_sample_values[1]
+            )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
         # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
