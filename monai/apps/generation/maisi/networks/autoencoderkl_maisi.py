@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from generative.networks.nets.autoencoderkl import AttentionBlock, AutoencoderKL, ResBlock
 
 import monai
+from monai.networks.blocks import Convolution
 
 
 class MaisiGroupNorm3D(nn.GroupNorm):
@@ -143,7 +144,7 @@ class MaisiConvolution(nn.Module):
         output_padding: Sequence[int] | int | None = None,
     ) -> None:
         super().__init__()
-        self.conv = monai.networks.blocks.Convolution(
+        self.conv = Convolution(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=out_channels,
@@ -518,7 +519,7 @@ class MaisiEncoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        blocks = []
+        blocks: list[nn.Module] = []
 
         blocks.append(
             MaisiConvolution(
@@ -687,7 +688,7 @@ class MaisiDecoder(nn.Module):
 
         reversed_block_out_channels = list(reversed(num_channels))
 
-        blocks = []
+        blocks: list[nn.Module] = []
 
         blocks.append(
             MaisiConvolution(
