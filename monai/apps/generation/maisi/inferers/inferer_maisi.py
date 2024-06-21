@@ -11,12 +11,10 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Callable
 
 import torch
 import torch.nn as nn
-from monai.inferers import Inferer
 from monai.utils import optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
