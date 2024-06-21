@@ -38,12 +38,39 @@ from torch import nn
 
 __all__ = ["DiffusionModelUNetMaisi"]
 
-
 from monai.networks.nets.diffusion_model_unet import DiffusionModelUNet
 from generative.networks.nets.diffusion_model_unet import get_timestep_embedding
 
 
 class DiffusionModelUNetMaisi(DiffusionModelUNet):
+    """
+    DiffusionModelUNetMaisi extends the DiffusionModelUNet class to support additional
+    input features like region indices and spacing. This class is specifically designed
+    for enhanced image synthesis in medical applications.
+
+    Args:
+        spatial_dims: Number of spatial dimensions (2 or 3).
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        num_res_blocks: Number of residual blocks per level.
+        num_channels: Tuple of block output channels.
+        attention_levels: List indicating which levels have attention.
+        norm_num_groups: Number of groups for group normalization.
+        norm_eps: Epsilon for group normalization.
+        resblock_updown: If True, use residual blocks for up/downsampling.
+        num_head_channels: Number of channels in each attention head.
+        with_conditioning: If True, add spatial transformers for conditioning.
+        transformer_num_layers: Number of layers of Transformer blocks to use.
+        cross_attention_dim: Number of context dimensions for cross-attention.
+        num_class_embeds: Number of class embeddings for class-conditional generation.
+        upcast_attention: If True, upcast attention operations to full precision.
+        use_flash_attention: If True, use flash attention for memory efficient attention.
+        dropout_cattn: Dropout value for cross-attention layers.
+        input_top_region_index: If True, include top region index in the input.
+        input_bottom_region_index: If True, include bottom region index in the input.
+        input_spacing: If True, include spacing information in the input.
+    """
+
     def __init__(
         self,
         spatial_dims: int,
@@ -86,11 +113,11 @@ class DiffusionModelUNetMaisi(DiffusionModelUNet):
             use_flash_attention=use_flash_attention,
             dropout_cattn=dropout_cattn,
         )
-        
+
         self.input_top_region_index = input_top_region_index
         self.input_bottom_region_index = input_bottom_region_index
         self.input_spacing = input_spacing
-        
+
         time_embed_dim = num_channels[0] * 4
         new_time_embed_dim = time_embed_dim
         if self.input_top_region_index:
@@ -133,6 +160,23 @@ class DiffusionModelUNetMaisi(DiffusionModelUNet):
         bottom_region_index_tensor: torch.Tensor | None = None,
         spacing_tensor: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        """
+        Forward pass through the DiffusionModelUNetMaisi.
+
+        Args:
+            x: Input tensor of shape (N, C, SpatialDims).
+            timesteps: Timestep tensor of shape (N,).
+            context: Optional context tensor of shape (N, 1, ContextDim).
+            class_labels: Optional class label tensor of shape (N,).
+            down_block_additional_residuals: Optional additional residual tensors for down blocks.
+            mid_block_additional_residual: Optional additional residual tensor for mid block.
+            top_region_index_tensor: Optional tensor for top region index of shape (N, 4).
+            bottom_region_index_tensor: Optional tensor for bottom region index of shape (N, 4).
+            spacing_tensor: Optional tensor for spacing information of shape (N, 3).
+
+        Returns:
+            Output tensor of shape (N, C, SpatialDims).
+        """
         t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0]).to(dtype=x.dtype)
         emb = self.time_embed(t_emb)
 
@@ -162,8 +206,4 @@ class DiffusionModelUNetMaisi(DiffusionModelUNet):
 
         for upsample_block in self.up_blocks:
             res_samples = down_block_res_samples[-len(upsample_block.resnets):]
-            down_block_res_samples = down_block_res_samples[:-len(upsample_block.resnets)]
-            h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
-
-        h = self.out(h)
-        return h
+            down_block_res_samples = down_block_res_samples[:-len(upsample_block.resnets
