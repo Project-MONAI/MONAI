@@ -138,6 +138,11 @@
             "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth",
             "hash_type": "sha256",
             "hash_val": "c3564f40a6a051d3753a6d8fae5cc8eaf21ce8d82a9a3baf80748d15664055e8"
+        },
+        "autoencoderkl_monai_generative_weights": {
+            "url": "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/autoencoderkl.pth",
+            "hash_type": "sha256",
+            "hash_val": "6e02c9540c51b16b9ba98b5c0c75d6b84b430afe9a3237df1d67a520f8d34184"
         }
     },
     "configs": {

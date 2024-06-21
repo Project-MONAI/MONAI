@@ -244,6 +244,9 @@ class MaisiConvolution(nn.Module):
         if outputs[0].size(non_dim_split + 2) // splits[0].size(non_dim_split + 2) == 2:
             split_size_out *= 2
             padding_s *= 2
+        elif splits[0].size(non_dim_split + 2) // outputs[0].size(non_dim_split + 2) == 2:
+            split_size_out //= 2
+            padding_s //= 2
 
         if self.dim_split == 0:
             outputs[0] = outputs[0][:, :, :split_size_out, :, :]
@@ -847,8 +850,8 @@ class AutoencoderKlMaisi(AutoencoderKL):
         latent_channels: int = 3,
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
-        with_encoder_nonlocal_attn: bool = True,
-        with_decoder_nonlocal_attn: bool = True,
+        with_encoder_nonlocal_attn: bool = False,
+        with_decoder_nonlocal_attn: bool = False,
         use_flash_attention: bool = False,
         use_checkpointing: bool = False,
         use_convtranspose: bool = False,

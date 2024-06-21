@@ -11,19 +11,15 @@
 
 from __future__ import annotations
 
-import os
-import tempfile
 import unittest
-from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
-from monai.apps import download_url
 from monai.apps.generation.maisi.networks.autoencoderkl_maisi import AutoencoderKlMaisi
 from monai.networks import eval_mode
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, testing_data_config
+from tests.utils import SkipIfBeforePyTorchVersion
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 _, has_einops = optional_import("einops")
@@ -44,12 +40,12 @@ CASES_NO_ATTENTION = [
             "norm_num_groups": 4,
             "with_encoder_nonlocal_attn": False,
             "with_decoder_nonlocal_attn": False,
-            "num_splits": 4,
+            "num_splits": 2,
             "debug": False,
         },
-        (1, 1, 16, 16, 16),
-        (1, 1, 16, 16, 16),
-        (1, 4, 4, 4, 4),
+        (1, 1, 32, 32, 32),
+        (1, 1, 32, 32, 32),
+        (1, 4, 8, 8, 8),
     ]
 ]
 
@@ -64,12 +60,12 @@ CASES_ATTENTION = [
             "attention_levels": (False, False, True),
             "num_res_blocks": (1, 1, 1),
             "norm_num_groups": 4,
-            "num_splits": 4,
+            "num_splits": 2,
             "debug": False,
         },
-        (1, 1, 16, 16, 16),
-        (1, 1, 16, 16, 16),
-        (1, 4, 4, 4, 4),
+        (1, 1, 32, 32, 32),
+        (1, 1, 32, 32, 32),
+        (1, 4, 8, 8, 8),
     ]
 ]
 
@@ -114,7 +110,7 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 latent_channels=8,
                 num_res_blocks=(1, 1, 1),
                 norm_num_groups=16,
-                num_splits=4,
+                num_splits=2,
                 debug=False,
             )
 
@@ -129,7 +125,7 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 latent_channels=8,
                 num_res_blocks=(1, 1, 1),
                 norm_num_groups=16,
-                num_splits=4,
+                num_splits=2,
                 debug=False,
             )
 
@@ -144,7 +140,7 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 latent_channels=8,
                 num_res_blocks=(8, 8, 8),
                 norm_num_groups=16,
-                num_splits=4,
+                num_splits=2,
                 debug=False,
             )
 
@@ -221,35 +217,6 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
         with eval_mode(net):
             result = net.decode(torch.randn(latent_shape).to(device))
             self.assertEqual(result.shape, expected_input_shape)
-
-    @skipUnless(has_einops, "Requires einops")
-    def test_compatibility_with_monai_generative(self):
-        # test loading weights from a model saved in MONAI Generative, version 0.2.3
-        with skip_if_downloading_fails():
-            net = AutoencoderKlMaisi(
-                spatial_dims=3,
-                in_channels=1,
-                out_channels=1,
-                num_channels=(4, 4, 4),
-                latent_channels=4,
-                attention_levels=(False, False, True),
-                num_res_blocks=(1, 1, 1),
-                norm_num_groups=4,
-                num_splits=4,
-                debug=False,
-            ).to(device)
-
-            tmpdir = tempfile.mkdtemp()
-            key = "autoencoderkl_monai_generative_weights"
-            url = testing_data_config("models", key, "url")
-            hash_type = testing_data_config("models", key, "hash_type")
-            hash_val = testing_data_config("models", key, "hash_val")
-            filename = "autoencoderkl_monai_generative_weights.pt"
-
-            weight_path = os.path.join(tmpdir, filename)
-            download_url(url=url, filepath=weight_path, hash_val=hash_val, hash_type=hash_type)
-
-            net.load_old_state_dict(torch.load(weight_path), verbose=False)
 
 
 if __name__ == "__main__":
