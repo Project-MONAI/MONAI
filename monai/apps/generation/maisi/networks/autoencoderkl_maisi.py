@@ -326,13 +326,20 @@ class MaisiUpsample(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.use_convtranspose:
-            return self.conv(x)
+            x = self.conv(x)
+
+            if isinstance(x, torch.Tensor):
+                return x
+            return torch.tensor(x)
 
         x = F.interpolate(x, scale_factor=2.0, mode="trilinear")
         _empty_cuda_cache()
         x = self.conv(x)
         _empty_cuda_cache()
-        return x
+
+        if isinstance(x, torch.Tensor):
+            return x
+        return torch.tensor(x)
 
 
 class MaisiDownsample(nn.Module):
@@ -481,7 +488,10 @@ class MaisiResBlock(nn.Module):
             x = self.nin_shortcut(x)
             _empty_cuda_cache()
 
-        return x + h
+        out = x + h
+        if isinstance(out, torch.Tensor):
+            return out
+        return torch.tensor(out)
 
 
 class MaisiEncoder(nn.Module):
