@@ -41,25 +41,11 @@ from torch import nn
 
 from monai.networks.blocks import Convolution, MLPBlock
 from monai.networks.layers.factories import Pool
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, optional_import
 
-# To install xformers, use pip install xformers==0.0.16rc401
-if importlib.util.find_spec("xformers") is not None:
-    import xformers
-    import xformers.ops
-
-    has_xformers = True
-else:
-    xformers = None
-    has_xformers = False
-
-
-# TODO: Use MONAI's optional_import
-# from monai.utils import optional_import
-# xformers, has_xformers = optional_import("xformers.ops", name="xformers")
+xformers, has_xformers = optional_import("xformers.ops", name="xformers")
 
 __all__ = ["CustomDiffusionModelUNet"]
-
 
 def zero_module(module: nn.Module) -> nn.Module:
     """
@@ -469,8 +455,6 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int, max_peri
         embedding_dim: the dimension of the output.
         max_period: controls the minimum frequency of the embeddings.
     """
-    # print(f'max_period: {max_period}; timesteps: {torch.norm(timesteps.float(), p=2)}; embedding_dim: {embedding_dim}')
-
     if timesteps.ndim != 1:
         raise ValueError("Timesteps should be a 1d-array")
 
@@ -1778,19 +1762,16 @@ class DiffusionModelUNetMaisi(nn.Module):
 
         new_time_embed_dim = time_embed_dim
         if self.input_top_region_index:
-            # self.top_region_index_layer = nn.Linear(4, time_embed_dim)
             self.top_region_index_layer = nn.Sequential(
                 nn.Linear(4, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
             )
             new_time_embed_dim += time_embed_dim
         if self.input_bottom_region_index:
-            # self.bottom_region_index_layer = nn.Linear(4, time_embed_dim)
             self.bottom_region_index_layer = nn.Sequential(
                 nn.Linear(4, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
             )
             new_time_embed_dim += time_embed_dim
         if self.input_spacing:
-            # self.spacing_layer = nn.Linear(3, time_embed_dim)
             self.spacing_layer = nn.Sequential(
                 nn.Linear(3, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
             )
@@ -1925,9 +1906,6 @@ class DiffusionModelUNetMaisi(nn.Module):
         # there might be better ways to encapsulate this.
         t_emb = t_emb.to(dtype=x.dtype)
         emb = self.time_embed(t_emb)
-        # print(f't_emb: {t_emb}; timesteps {timesteps}.')
-        # print(f'emb: {torch.norm(emb, p=2)}; t_emb: {torch.norm(t_emb, p=2)}')
-        # print(f"emb: {torch.norm(emb)}")
 
         # 2. class
         if self.num_class_embeds is not None:
@@ -1940,26 +1918,16 @@ class DiffusionModelUNetMaisi(nn.Module):
         # 3. input
         if self.input_top_region_index:
             _emb = self.top_region_index_layer(top_region_index_tensor)
-            # print(f"top_region_index_layer: {torch.norm(_emb)} {_emb.size()}")
-            # emb = emb + _emb.to(dtype=x.dtype)
             emb = torch.cat((emb, _emb), dim=1)
-            # print(f'emb: {emb.size()}, {torch.norm(emb, p=2)}; top_region_index_tensor: {torch.norm(_emb, p=2)}')
         if self.input_bottom_region_index:
             _emb = self.bottom_region_index_layer(bottom_region_index_tensor)
-            # print(f"bottom_region_index_layer: {torch.norm(_emb)}")
-            # emb = emb + _emb.to(dtype=x.dtype)
             emb = torch.cat((emb, _emb), dim=1)
-            # print(f'emb: {emb.size()}, {torch.norm(emb, p=2)}; bottom_region_index_tensor: {torch.norm(_emb, p=2)}')
         if self.input_spacing:
             _emb = self.spacing_layer(spacing_tensor)
-            # print(f"spacing_layer: {torch.norm(_emb)}")
-            # emb = emb + _emb.to(dtype=x.dtype)
             emb = torch.cat((emb, _emb), dim=1)
-            # print(f'emb: {emb.size()}, {torch.norm(emb, p=2)}; spacing_tensor: {torch.norm(spacing_tensor, p=2)}')
 
         # 3. initial convolution
         h = self.conv_in(x)
-        # print(f"x: {torch.norm(x)}; h: {torch.norm(h)}")
 
         # 4. down
         if context is not None and self.with_conditioning is False:
