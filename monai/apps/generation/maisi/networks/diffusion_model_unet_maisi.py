@@ -61,29 +61,31 @@ __all__ = ["DiffusionModelUNetMaisi"]
 
 class DiffusionModelUNetMaisi(nn.Module):
     """
-    Unet network with timestep embedding and attention mechanisms for conditioning based on
+    U-Net network with timestep embedding and attention mechanisms for conditioning based on
     Rombach et al. "High-Resolution Image Synthesis with Latent Diffusion Models" https://arxiv.org/abs/2112.10752
     and Pinaya et al. "Brain Imaging Generation with Latent Diffusion Models" https://arxiv.org/abs/2209.07162
 
     Args:
-        spatial_dims: number of spatial dimensions.
-        in_channels: number of input channels.
-        out_channels: number of output channels.
-        num_res_blocks: number of residual blocks (see ResnetBlock) per level.
-        num_channels: tuple of block output channels.
-        attention_levels: list of levels to add attention.
-        norm_num_groups: number of groups for the normalization.
-        norm_eps: epsilon for the normalization.
-        resblock_updown: if True use residual blocks for up/downsampling.
-        num_head_channels: number of channels in each attention head.
-        with_conditioning: if True add spatial transformers to perform conditioning.
-        transformer_num_layers: number of layers of Transformer blocks to use.
-        cross_attention_dim: number of context dimensions to use.
-        num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
-        classes.
-        upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
-        dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers
+        spatial_dims: Number of spatial dimensions.
+        in_channels: Number of input channels.
+        out_channels: Number of output channels.
+        num_res_blocks: Number of residual blocks (see ResnetBlock) per level. Can be a single integer or a sequence of integers.
+        num_channels: Tuple of block output channels.
+        attention_levels: List of levels to add attention.
+        norm_num_groups: Number of groups for the normalization.
+        norm_eps: Epsilon for the normalization.
+        resblock_updown: If True, use residual blocks for up/downsampling.
+        num_head_channels: Number of channels in each attention head. Can be a single integer or a sequence of integers.
+        with_conditioning: If True, add spatial transformers to perform conditioning.
+        transformer_num_layers: Number of layers of Transformer blocks to use.
+        cross_attention_dim: Number of context dimensions to use.
+        num_class_embeds: If specified (as an int), then this model will be class-conditional with `num_class_embeds` classes.
+        upcast_attention: If True, upcast attention operations to full precision.
+        use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
+        dropout_cattn: If different from zero, this will be the dropout value for the cross-attention layers.
+        input_top_region_index: If True, use top region index input.
+        input_bottom_region_index: If True, use bottom region index input.
+        input_spacing: If True, use spacing input.
     """
 
     def __init__(
@@ -319,13 +321,21 @@ class DiffusionModelUNetMaisi(nn.Module):
         spacing_tensor: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """
+        Forward pass through the UNet model.
+
         Args:
-            x: input tensor (N, C, SpatialDims).
-            timesteps: timestep tensor (N,).
-            context: context tensor (N, 1, ContextDim).
-            class_labels: context tensor (N, ).
-            down_block_additional_residuals: additional residual tensors for down blocks (N, C, FeatureMapsDims).
-            mid_block_additional_residual: additional residual tensor for mid block (N, C, FeatureMapsDims).
+            x: Input tensor of shape (N, C, SpatialDims).
+            timesteps: Timestep tensor of shape (N,).
+            context: Context tensor of shape (N, 1, ContextDim).
+            class_labels: Class labels tensor of shape (N,).
+            down_block_additional_residuals: Additional residual tensors for down blocks of shape (N, C, FeatureMapsDims).
+            mid_block_additional_residual: Additional residual tensor for mid block of shape (N, C, FeatureMapsDims).
+            top_region_index_tensor: Tensor representing top region index of shape (N, 4).
+            bottom_region_index_tensor: Tensor representing bottom region index of shape (N, 4).
+            spacing_tensor: Tensor representing spacing of shape (N, 3).
+
+        Returns:
+            A tensor representing the output of the UNet model.
         """
         # 1. time
         t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
