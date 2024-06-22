@@ -379,12 +379,12 @@ class DiffusionModelUNetMaisi(nn.Module):
 
         # Additional residual conections for Controlnets
         if down_block_additional_residuals is not None:
-            new_down_block_res_samples = ()
+            new_down_block_res_samples: list[torch.Tensor] = []
             for down_block_res_sample, down_block_additional_residual in zip(
                 down_block_res_samples, down_block_additional_residuals
             ):
                 down_block_res_sample = down_block_res_sample + down_block_additional_residual
-                new_down_block_res_samples += (down_block_res_sample,)
+                new_down_block_res_samples.append(down_block_res_sample)
 
             down_block_res_samples = new_down_block_res_samples
 
@@ -404,4 +404,6 @@ class DiffusionModelUNetMaisi(nn.Module):
         # 7. output block
         h = self.out(h)
 
-        return h
+        if isinstance(h, torch.Tensor):
+            return h
+        return torch.tensor(h)
