@@ -38,8 +38,7 @@ from torch import nn
 
 __all__ = ["DiffusionModelUNetMaisi"]
 
-from monai.networks.nets.diffusion_model_unet import DiffusionModelUNet
-from generative.networks.nets.diffusion_model_unet import get_timestep_embedding
+from generative.networks.nets.diffusion_model_unet import DiffusionModelUNet, get_timestep_embedding
 
 
 class DiffusionModelUNetMaisi(DiffusionModelUNet):
@@ -122,30 +121,22 @@ class DiffusionModelUNetMaisi(DiffusionModelUNet):
         new_time_embed_dim = time_embed_dim
         if self.input_top_region_index:
             self.top_region_index_layer = nn.Sequential(
-                nn.Linear(4, time_embed_dim),
-                nn.SiLU(),
-                nn.Linear(time_embed_dim, time_embed_dim),
+                nn.Linear(4, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
             )
             new_time_embed_dim += time_embed_dim
         if self.input_bottom_region_index:
             self.bottom_region_index_layer = nn.Sequential(
-                nn.Linear(4, time_embed_dim),
-                nn.SiLU(),
-                nn.Linear(time_embed_dim, time_embed_dim),
+                nn.Linear(4, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
             )
             new_time_embed_dim += time_embed_dim
         if self.input_spacing:
             self.spacing_layer = nn.Sequential(
-                nn.Linear(3, time_embed_dim),
-                nn.SiLU(),
-                nn.Linear(time_embed_dim, time_embed_dim),
+                nn.Linear(3, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
             )
             new_time_embed_dim += time_embed_dim
 
         self.time_embed = nn.Sequential(
-            nn.Linear(num_channels[0], time_embed_dim),
-            nn.SiLU(),
-            nn.Linear(time_embed_dim, new_time_embed_dim),
+            nn.Linear(num_channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, new_time_embed_dim)
         )
 
     def forward(
@@ -198,12 +189,20 @@ class DiffusionModelUNetMaisi(DiffusionModelUNet):
             down_block_res_samples.extend(res_samples)
 
         if down_block_additional_residuals is not None:
-            down_block_res_samples = [res + add_res for res, add_res in zip(down_block_res_samples, down_block_additional_residuals)]
+            down_block_res_samples = [
+                res + add_res for res, add_res in zip(down_block_res_samples, down_block_additional_residuals)
+            ]
 
         h = self.middle_block(hidden_states=h, temb=emb, context=context)
         if mid_block_additional_residual is not None:
             h = h + mid_block_additional_residual
 
         for upsample_block in self.up_blocks:
-            res_samples = down_block_res_samples[-len(upsample_block.resnets):]
-            down_block_res_samples = down_block_res_samples[:-len(upsample_block.resnets
+            res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
+            down_block_res_samples = down_block_res_samples[: -len(upsample_block.resnets)]
+            h = upsample_block(hidden_states=h, res_hidden_states_list=res_samples, temb=emb, context=context)
+
+        # 7. output block
+        h = self.out(h)
+
+        return h

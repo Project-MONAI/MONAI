@@ -16,13 +16,13 @@ from functools import partial
 
 import torch
 import torch.nn as nn
+from generative.inferers.inferer import DiffusionInferer
+from generative.networks.nets import VQVAE, SPADEDiffusionModelUNet
+
 from monai.data import decollate_batch
 from monai.utils import optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
-
-from generative.inferers.inferer import DiffusionInferer
-from generative.networks.nets import VQVAE, SPADEDiffusionModelUNet
 
 
 class DiffusionInfererMaisi(DiffusionInferer):
@@ -66,9 +66,7 @@ class DiffusionInfererMaisi(DiffusionInferer):
         if mode not in ["crossattn", "concat"]:
             raise NotImplementedError(f"{mode} condition is not supported")
 
-        noisy_image = self.scheduler.add_noise(
-            original_samples=inputs, noise=noise, timesteps=timesteps
-        )
+        noisy_image = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
         if mode == "concat":
             noisy_image = torch.cat([noisy_image, condition], dim=1)
             condition = None
@@ -156,7 +154,6 @@ class DiffusionInfererMaisi(DiffusionInferer):
             return image, intermediates
         else:
             return image
-
 
 
 class LatentDiffusionInfererMaisi(DiffusionInfererMaisi):
@@ -268,11 +265,7 @@ class LatentDiffusionInfererMaisi(DiffusionInfererMaisi):
         if save_intermediates:
             intermediates = []
             for latent_intermediate in latent_intermediates:
-                intermediates.append(
-                    autoencoder_model.decode_stage_2_outputs(
-                        latent_intermediate / self.scale_factor
-                    )
-                )
+                intermediates.append(autoencoder_model.decode_stage_2_outputs(latent_intermediate / self.scale_factor))
             return image, intermediates
 
         else:

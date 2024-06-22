@@ -11,7 +11,4 @@
 
 from __future__ import annotations
 
-from .inferer import (
-    DiffusionInfererMaisi,
-    LatentDiffusionInfererMaisi
-)
+from .inferer_maisi import DiffusionInfererMaisi, LatentDiffusionInfererMaisi

@@ -15,10 +15,11 @@ import unittest
 from unittest import skipUnless
 
 import torch
+from generative.networks.nets.autoencoderkl import AutoencoderKL
 from parameterized import parameterized
 
-from monai.inferers import LatentDiffusionInfererMaisi
-from monai.networks.nets import AutoencoderKL, DiffusionModelUNet
+from monai.apps.generation.maisi.inferers.inferer_maisi import LatentDiffusionInfererMaisi
+from monai.apps.generation.maisi.networks.diffusion_model_unet_maisi import DiffusionModelUNetMaisi
 from monai.networks.schedulers import DDPMScheduler
 from monai.utils import optional_import
 
@@ -38,7 +39,7 @@ TEST_CASES = [
             "with_decoder_nonlocal_attn": False,
             "norm_num_groups": 4,
         },
-        "DiffusionModelUNet",
+        "DiffusionModelUNetMaisi",
         {
             "spatial_dims": 2,
             "in_channels": 3,
@@ -51,7 +52,7 @@ TEST_CASES = [
         },
         (1, 1, 8, 8),
         (1, 3, 4, 4),
-    ],
+    ]
 ]
 
 
@@ -66,7 +67,7 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         else:
             raise ValueError(f"Unsupported autoencoder model type: {ae_model_type}")
 
-        stage_2 = DiffusionModelUNet(**stage_2_params) if dm_model_type == "DiffusionModelUNet" else None
+        stage_2 = DiffusionModelUNetMaisi(**stage_2_params) if dm_model_type == "DiffusionModelUNetMaisi" else None
         if stage_2 is None:
             raise ValueError(f"Unsupported diffusion model type: {dm_model_type}")
 
@@ -108,7 +109,7 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         else:
             raise ValueError(f"Unsupported autoencoder model type: {ae_model_type}")
 
-        stage_2 = DiffusionModelUNet(**stage_2_params) if dm_model_type == "DiffusionModelUNet" else None
+        stage_2 = DiffusionModelUNetMaisi(**stage_2_params) if dm_model_type == "DiffusionModelUNetMaisi" else None
         if stage_2 is None:
             raise ValueError(f"Unsupported diffusion model type: {dm_model_type}")
 
@@ -147,7 +148,7 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         else:
             raise ValueError(f"Unsupported autoencoder model type: {ae_model_type}")
 
-        stage_2 = DiffusionModelUNet(**stage_2_params) if dm_model_type == "DiffusionModelUNet" else None
+        stage_2 = DiffusionModelUNetMaisi(**stage_2_params) if dm_model_type == "DiffusionModelUNetMaisi" else None
         if stage_2 is None:
             raise ValueError(f"Unsupported diffusion model type: {dm_model_type}")
 
@@ -189,7 +190,7 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         else:
             raise ValueError(f"Unsupported autoencoder model type: {ae_model_type}")
 
-        stage_2 = DiffusionModelUNet(**stage_2_params) if dm_model_type == "DiffusionModelUNet" else None
+        stage_2 = DiffusionModelUNetMaisi(**stage_2_params) if dm_model_type == "DiffusionModelUNetMaisi" else None
         if stage_2 is None:
             raise ValueError(f"Unsupported diffusion model type: {dm_model_type}")
 
@@ -230,7 +231,7 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         else:
             raise ValueError(f"Unsupported autoencoder model type: {ae_model_type}")
 
-        stage_2 = DiffusionModelUNet(**stage_2_params) if dm_model_type == "DiffusionModelUNet" else None
+        stage_2 = DiffusionModelUNetMaisi(**stage_2_params) if dm_model_type == "DiffusionModelUNetMaisi" else None
         if stage_2 is None:
             raise ValueError(f"Unsupported diffusion model type: {dm_model_type}")
 
@@ -275,7 +276,7 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         stage_2_params = stage_2_params.copy()
         n_concat_channel = 3
         stage_2_params["in_channels"] = stage_2_params["in_channels"] + n_concat_channel
-        stage_2 = DiffusionModelUNet(**stage_2_params) if dm_model_type == "DiffusionModelUNet" else None
+        stage_2 = DiffusionModelUNetMaisi(**stage_2_params) if dm_model_type == "DiffusionModelUNetMaisi" else None
         if stage_2 is None:
             raise ValueError(f"Unsupported diffusion model type: {dm_model_type}")
 
@@ -326,7 +327,7 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         stage_2_params = stage_2_params.copy()
         n_concat_channel = 3
         stage_2_params["in_channels"] = stage_2_params["in_channels"] + n_concat_channel
-        stage_2 = DiffusionModelUNet(**stage_2_params) if dm_model_type == "DiffusionModelUNet" else None
+        stage_2 = DiffusionModelUNetMaisi(**stage_2_params) if dm_model_type == "DiffusionModelUNetMaisi" else None
         if stage_2 is None:
             raise ValueError(f"Unsupported diffusion model type: {dm_model_type}")
 

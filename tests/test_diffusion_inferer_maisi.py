@@ -9,14 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
-from monai.inferers import DiffusionInfererMaisi
-from monai.networks.nets import DiffusionModelUNet
+from monai.apps.generation.maisi.inferers.inferer_maisi import DiffusionInfererMaisi
+from monai.apps.generation.maisi.networks.diffusion_model_unet_maisi import DiffusionModelUNetMaisi
 from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
 from monai.utils import optional_import
 
@@ -52,11 +54,12 @@ TEST_CASES = [
     ],
 ]
 
+
 class TestDiffusionInfererMaisi(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
     def test_call(self, model_params, input_shape):
-        model = DiffusionModelUNet(**model_params)
+        model = DiffusionModelUNetMaisi(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
@@ -76,14 +79,14 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
             timesteps=timesteps,
             top_region_index_tensor=top_region_index_tensor,
             bottom_region_index_tensor=bottom_region_index_tensor,
-            spacing_tensor=spacing_tensor
+            spacing_tensor=spacing_tensor,
         )
         self.assertEqual(sample.shape, input_shape)
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
     def test_sample_intermediates(self, model_params, input_shape):
-        model = DiffusionModelUNet(**model_params)
+        model = DiffusionModelUNetMaisi(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
@@ -102,14 +105,14 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
             intermediate_steps=1,
             top_region_index_tensor=top_region_index_tensor,
             bottom_region_index_tensor=bottom_region_index_tensor,
-            spacing_tensor=spacing_tensor
+            spacing_tensor=spacing_tensor,
         )
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
     def test_ddpm_sampler(self, model_params, input_shape):
-        model = DiffusionModelUNet(**model_params)
+        model = DiffusionModelUNetMaisi(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
@@ -128,14 +131,14 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
             intermediate_steps=1,
             top_region_index_tensor=top_region_index_tensor,
             bottom_region_index_tensor=bottom_region_index_tensor,
-            spacing_tensor=spacing_tensor
+            spacing_tensor=spacing_tensor,
         )
         self.assertEqual(len(intermediates), 10)
 
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
     def test_ddim_sampler(self, model_params, input_shape):
-        model = DiffusionModelUNet(**model_params)
+        model = DiffusionModelUNetMaisi(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
@@ -154,7 +157,7 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
             intermediate_steps=1,
             top_region_index_tensor=top_region_index_tensor,
             bottom_region_index_tensor=bottom_region_index_tensor,
-            spacing_tensor=spacing_tensor
+            spacing_tensor=spacing_tensor,
         )
         self.assertEqual(len(intermediates), 10)
 
@@ -163,7 +166,7 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
     def test_sampler_conditioned(self, model_params, input_shape):
         model_params["with_conditioning"] = True
         model_params["cross_attention_dim"] = 3
-        model = DiffusionModelUNet(**model_params)
+        model = DiffusionModelUNetMaisi(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
@@ -184,7 +187,7 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
             conditioning=conditioning,
             top_region_index_tensor=top_region_index_tensor,
             bottom_region_index_tensor=bottom_region_index_tensor,
-            spacing_tensor=spacing_tensor
+            spacing_tensor=spacing_tensor,
         )
         self.assertEqual(len(intermediates), 10)
 
@@ -196,7 +199,7 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
         model_params["in_channels"] = model_params["in_channels"] + n_concat_channel
         model_params["cross_attention_dim"] = None
         model_params["with_conditioning"] = False
-        model = DiffusionModelUNet(**model_params)
+        model = DiffusionModelUNetMaisi(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
@@ -220,7 +223,7 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
             mode="concat",
             top_region_index_tensor=top_region_index_tensor,
             bottom_region_index_tensor=bottom_region_index_tensor,
-            spacing_tensor=spacing_tensor
+            spacing_tensor=spacing_tensor,
         )
         self.assertEqual(len(intermediates), 10)
 
@@ -232,7 +235,7 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
         model_params["in_channels"] = model_params["in_channels"] + n_concat_channel
         model_params["cross_attention_dim"] = None
         model_params["with_conditioning"] = False
-        model = DiffusionModelUNet(**model_params)
+        model = DiffusionModelUNetMaisi(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()
@@ -257,9 +260,10 @@ class TestDiffusionInfererMaisi(unittest.TestCase):
             mode="concat",
             top_region_index_tensor=top_region_index_tensor,
             bottom_region_index_tensor=bottom_region_index_tensor,
-            spacing_tensor=spacing_tensor
+            spacing_tensor=spacing_tensor,
         )
         self.assertEqual(sample.shape, input_shape)
+
 
 if __name__ == "__main__":
     unittest.main()
