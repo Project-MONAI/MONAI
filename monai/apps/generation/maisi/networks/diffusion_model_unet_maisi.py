@@ -31,7 +31,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 import math
 from collections.abc import Sequence
 
