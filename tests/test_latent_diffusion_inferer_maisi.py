@@ -15,12 +15,12 @@ import unittest
 from unittest import skipUnless
 
 import torch
-from generative.networks.nets.autoencoderkl import AutoencoderKL
+from generative.networks.nets import AutoencoderKL
+from generative.networks.schedulers import DDPMScheduler
 from parameterized import parameterized
 
 from monai.apps.generation.maisi.inferers.inferer_maisi import LatentDiffusionInfererMaisi
 from monai.apps.generation.maisi.networks.diffusion_model_unet_maisi import DiffusionModelUNetMaisi
-from monai.networks.schedulers import DDPMScheduler
 from monai.utils import optional_import
 
 _, has_einops = optional_import("einops")
@@ -31,7 +31,7 @@ TEST_CASES = [
             "spatial_dims": 2,
             "in_channels": 1,
             "out_channels": 1,
-            "channels": (4, 4),
+            "num_channels": (4, 4),
             "latent_channels": 3,
             "attention_levels": [False, False],
             "num_res_blocks": 1,
@@ -44,7 +44,7 @@ TEST_CASES = [
             "spatial_dims": 2,
             "in_channels": 3,
             "out_channels": 3,
-            "channels": [4, 4],
+            "num_channels": [4, 4],
             "norm_num_groups": 4,
             "attention_levels": [False, False],
             "num_res_blocks": 1,
@@ -79,9 +79,9 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
 
         input = torch.randn(input_shape).to(device)
         noise = torch.randn(latent_shape).to(device)
-        top_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        bottom_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        spacing_tensor = torch.randn(input_shape).to(device)
+        top_region_index_tensor = torch.rand((1, 4)).to(device)
+        bottom_region_index_tensor = torch.rand((1, 4)).to(device)
+        spacing_tensor = torch.rand((1, 3)).to(device)
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = LatentDiffusionInfererMaisi(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
@@ -120,9 +120,9 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         stage_2.eval()
 
         noise = torch.randn(latent_shape).to(device)
-        top_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        bottom_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        spacing_tensor = torch.randn(input_shape).to(device)
+        top_region_index_tensor = torch.rand((1, 4)).to(device)
+        bottom_region_index_tensor = torch.rand((1, 4)).to(device)
+        spacing_tensor = torch.rand((1, 3)).to(device)
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = LatentDiffusionInfererMaisi(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
@@ -159,9 +159,9 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         stage_2.eval()
 
         noise = torch.randn(latent_shape).to(device)
-        top_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        bottom_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        spacing_tensor = torch.randn(input_shape).to(device)
+        top_region_index_tensor = torch.rand((1, 4)).to(device)
+        bottom_region_index_tensor = torch.rand((1, 4)).to(device)
+        spacing_tensor = torch.rand((1, 3)).to(device)
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = LatentDiffusionInfererMaisi(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
@@ -201,9 +201,9 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         stage_2.eval()
 
         input = torch.randn(input_shape).to(device)
-        top_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        bottom_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        spacing_tensor = torch.randn(input_shape).to(device)
+        top_region_index_tensor = torch.rand((1, 4)).to(device)
+        bottom_region_index_tensor = torch.rand((1, 4)).to(device)
+        spacing_tensor = torch.rand((1, 3)).to(device)
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = LatentDiffusionInfererMaisi(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
@@ -242,9 +242,9 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         stage_2.eval()
 
         input = torch.randn(input_shape).to(device)
-        top_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        bottom_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        spacing_tensor = torch.randn(input_shape).to(device)
+        top_region_index_tensor = torch.rand((1, 4)).to(device)
+        bottom_region_index_tensor = torch.rand((1, 4)).to(device)
+        spacing_tensor = torch.rand((1, 3)).to(device)
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = LatentDiffusionInfererMaisi(scheduler=scheduler, scale_factor=1.0)
         scheduler.set_timesteps(num_inference_steps=10)
@@ -291,9 +291,9 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         conditioning_shape = list(latent_shape)
         conditioning_shape[1] = n_concat_channel
         conditioning = torch.randn(conditioning_shape).to(device)
-        top_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        bottom_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        spacing_tensor = torch.randn(input_shape).to(device)
+        top_region_index_tensor = torch.rand((1, 4)).to(device)
+        bottom_region_index_tensor = torch.rand((1, 4)).to(device)
+        spacing_tensor = torch.rand((1, 3)).to(device)
 
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = LatentDiffusionInfererMaisi(scheduler=scheduler, scale_factor=1.0)
@@ -341,9 +341,9 @@ class TestLatentDiffusionInfererMaisi(unittest.TestCase):
         conditioning_shape = list(latent_shape)
         conditioning_shape[1] = n_concat_channel
         conditioning = torch.randn(conditioning_shape).to(device)
-        top_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        bottom_region_index_tensor = torch.randint(0, 2, input_shape).to(device)
-        spacing_tensor = torch.randn(input_shape).to(device)
+        top_region_index_tensor = torch.rand((1, 4)).to(device)
+        bottom_region_index_tensor = torch.rand((1, 4)).to(device)
+        spacing_tensor = torch.rand((1, 3)).to(device)
 
         scheduler = DDPMScheduler(num_train_timesteps=10)
         inferer = LatentDiffusionInfererMaisi(scheduler=scheduler, scale_factor=1.0)

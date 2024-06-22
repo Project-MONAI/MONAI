@@ -12,12 +12,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from functools import partial
 
 import torch
 import torch.nn as nn
 from generative.inferers.inferer import DiffusionInferer
-from generative.networks.nets import VQVAE, SPADEDiffusionModelUNet
 
 from monai.data import decollate_batch
 from monai.utils import optional_import
@@ -158,7 +156,7 @@ class DiffusionInfererMaisi(DiffusionInferer):
 
 class LatentDiffusionInfererMaisi(DiffusionInfererMaisi):
     """
-    LatentDiffusionInferer takes a stage 1 model (VQVAE or AutoencoderKL), diffusion model, and a scheduler, and can
+    LatentDiffusionInferer takes a stage 1 model (AutoencoderKL), diffusion model, and a scheduler, and can
     be used to perform a signal forward pass for a training iteration, and sample from the model.
 
     Args:
@@ -286,8 +284,6 @@ class LatentDiffusionInfererMaisi(DiffusionInfererMaisi):
         verbose: bool = True,
         resample_latent_likelihoods: bool = False,
         resample_interpolation_mode: str = "nearest",
-        seg: torch.Tensor | None = None,
-        quantized: bool = True,
     ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         """
         Computes the log-likelihoods of the latent representations of the input.
@@ -306,11 +302,7 @@ class LatentDiffusionInfererMaisi(DiffusionInfererMaisi):
             resample_latent_likelihoods: if true, resamples the intermediate likelihood maps to have the same spatial
                 dimension as the input images.
             resample_interpolation_mode: if use resample_latent_likelihoods, select interpolation 'nearest', 'bilinear',
-                or 'trilinear;
-            seg: if diffusion model is instance of SPADEDiffusionModel, or autoencoder_model
-             is instance of SPADEAutoencoderKL, segmentation must be provided.
-            quantized: if autoencoder_model is a VQVAE, quantized controls whether the latents to the LDM
-            are quantized or not.
+                or 'trilinear.
         """
         if resample_latent_likelihoods and resample_interpolation_mode not in ("nearest", "bilinear", "trilinear"):
             raise ValueError(
@@ -318,16 +310,12 @@ class LatentDiffusionInfererMaisi(DiffusionInfererMaisi):
             )
 
         autoencode = autoencoder_model.encode_stage_2_inputs
-        if isinstance(autoencoder_model, VQVAE):
-            autoencode = partial(autoencoder_model.encode_stage_2_inputs, quantized=quantized)
         latents = autoencode(inputs) * self.scale_factor
 
         if self.ldm_latent_shape is not None:
             latents = torch.stack([self.ldm_resizer(i) for i in decollate_batch(latents)], 0)
 
         get_likelihood = super().get_likelihood
-        if isinstance(diffusion_model, SPADEDiffusionModelUNet):
-            get_likelihood = partial(super().get_likelihood, seg=seg)
 
         outputs = get_likelihood(
             inputs=latents,
