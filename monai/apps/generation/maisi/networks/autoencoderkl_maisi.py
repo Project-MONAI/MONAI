@@ -191,45 +191,13 @@ class MaisiConvolution(nn.Module):
         overlaps = [0] + [padding] * (num_splits - 1)
         last_padding = x.size(self.dim_split + 2) % split_size
 
-        if self.dim_split == 0:
-            splits = [
-                x[
-                    :,
-                    :,
-                    i * split_size
-                    - overlaps[i] : (i + 1) * split_size
-                    + (padding if i != num_splits - 1 else last_padding),
-                    :,
-                    :,
-                ]
-                for i in range(num_splits)
-            ]
-        elif self.dim_split == 1:
-            splits = [
-                x[
-                    :,
-                    :,
-                    :,
-                    i * split_size
-                    - overlaps[i] : (i + 1) * split_size
-                    + (padding if i != num_splits - 1 else last_padding),
-                    :,
-                ]
-                for i in range(num_splits)
-            ]
-        elif self.dim_split == 2:
-            splits = [
-                x[
-                    :,
-                    :,
-                    :,
-                    :,
-                    i * split_size
-                    - overlaps[i] : (i + 1) * split_size
-                    + (padding if i != num_splits - 1 else last_padding),
-                ]
-                for i in range(num_splits)
-            ]
+        slices = [slice(None)] * 5
+        splits: list[torch.Tensor] = []
+        for i in range(num_splits):
+            slices[self.dim_split + 2] = slice(
+                i * split_size - overlaps[i], (i + 1) * split_size + (padding if i != num_splits - 1 else last_padding)
+            )
+            splits.append(x[tuple(slices)])
 
         if self.debug:
             for j in range(len(splits)):
@@ -254,18 +222,12 @@ class MaisiConvolution(nn.Module):
             split_size_out //= 2
             padding_s //= 2
 
-        if self.dim_split == 0:
-            outputs[0] = outputs[0][:, :, :split_size_out, :, :]
-            for i in range(1, num_splits):
-                outputs[i] = outputs[i][:, :, padding_s : padding_s + split_size_out, :, :]
-        elif self.dim_split == 1:
-            outputs[0] = outputs[0][:, :, :, :split_size_out, :]
-            for i in range(1, num_splits):
-                outputs[i] = outputs[i][:, :, :, padding_s : padding_s + split_size_out, :]
-        elif self.dim_split == 2:
-            outputs[0] = outputs[0][:, :, :, :, :split_size_out]
-            for i in range(1, num_splits):
-                outputs[i] = outputs[i][:, :, :, :, padding_s : padding_s + split_size_out]
+        slices = [slice(None)] * 5
+        for i in range(num_splits):
+            slices[self.dim_split + 2] = (
+                slice(None, split_size_out) if i == 0 else slice(padding_s, padding_s + split_size_out)
+            )
+            outputs[i] = outputs[i][tuple(slices)]
 
         if self.debug:
             for i in range(num_splits):
