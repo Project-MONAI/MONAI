@@ -16,10 +16,7 @@ from functools import partial
 
 import torch
 import torch.nn as nn
-<<<<<<< HEAD
 from monai.data import decollate_batch
-=======
->>>>>>> f99f2f33503a3614c31ba7b600778b1f6cc6b5cf
 from monai.utils import optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
