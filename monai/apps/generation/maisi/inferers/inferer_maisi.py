@@ -22,8 +22,7 @@ from monai.utils import optional_import
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
 from generative.inferers.inferer import DiffusionInferer
-from generative.networks.nets import VQVAE, SPADEAutoencoderKL, SPADEDiffusionModelUNet
-
+from generative.networks.nets import VQVAE, SPADEDiffusionModelUNet
 
 
 class DiffusionInfererMaisi(DiffusionInferer):
