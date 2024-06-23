@@ -868,13 +868,12 @@ class DiceFocalLoss(_Loss):
             weight: weights to apply to the voxels of each class. If None no weights are applied.
                 The input can be a single value (same weight for all classes), a sequence of values (the length
                 of the sequence should be the same as the number of classes).
-            alpha: value of the alpha in the definition of the alpha-balanced Focal loss. The value should be in
-                [0, 1]. Defaults to None.
             lambda_dice: the trade-off weight value for dice loss. The value should be no less than 0.0.
                 Defaults to 1.0.
             lambda_focal: the trade-off weight value for focal loss. The value should be no less than 0.0.
                 Defaults to 1.0.
-
+            alpha: value of the alpha in the definition of the alpha-balanced Focal loss. The value should be in
+                [0, 1]. Defaults to None.
         """
         super().__init__()
         weight = focal_weight if focal_weight is not None else weight
