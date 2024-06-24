@@ -17,9 +17,13 @@ from typing import Sequence
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from generative.networks.nets.autoencoderkl import AttentionBlock, AutoencoderKL, ResBlock
 
 from monai.networks.blocks import Convolution
+from monai.utils import optional_import
+
+AttentionBlock, has_attentionblock = optional_import("generative.networks.nets.autoencoderkl", name="AttentionBlock")
+AutoencoderKL, has_autoencoderkl = optional_import("generative.networks.nets.autoencoderkl", name="AutoencoderKL")
+ResBlock, has_resblock = optional_import("generative.networks.nets.autoencoderkl", name="ResBlock")
 
 
 def _empty_cuda_cache():

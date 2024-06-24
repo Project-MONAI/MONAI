@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -23,6 +24,7 @@ from tests.utils import SkipIfBeforePyTorchVersion
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 _, has_einops = optional_import("einops")
+_, has_generative = optional_import("generative")
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -75,6 +77,7 @@ else:
     CASES = CASES_NO_ATTENTION
 
 
+@skipUnless(has_generative, "monai-generative required")
 class TestAutoencoderKlMaisi(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape):
