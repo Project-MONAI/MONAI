@@ -35,17 +35,22 @@ import importlib.util
 from collections.abc import Sequence
 
 import torch
-from generative.networks.nets.diffusion_model_unet import (
-    get_down_block,
-    get_mid_block,
-    get_timestep_embedding,
-    get_up_block,
-    zero_module,
-)
 from torch import nn
 
 from monai.networks.blocks import Convolution
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, optional_import
+
+get_down_block, has_get_down_block = optional_import(
+    "generative.networks.nets.diffusion_model_unet", name="get_down_block"
+)
+get_mid_block, has_get_mid_block = optional_import(
+    "generative.networks.nets.diffusion_model_unet", name="get_mid_block"
+)
+get_timestep_embedding, has_get_timestep_embedding = optional_import(
+    "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
+)
+get_up_block, has_get_up_block = optional_import("generative.networks.nets.diffusion_model_unet", name="get_up_block")
+zero_module, has_zero_module = optional_import("generative.networks.nets.diffusion_model_unet", name="zero_module")
 
 if importlib.util.find_spec("xformers") is not None:
     import xformers
@@ -55,6 +60,7 @@ if importlib.util.find_spec("xformers") is not None:
 else:
     xformers = None
     has_xformers = False
+
 
 __all__ = ["DiffusionModelUNetMaisi"]
 
