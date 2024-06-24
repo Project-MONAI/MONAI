@@ -23,6 +23,7 @@ csc_matrix, _ = optional_import("scipy.sparse", "1.7.1", min_version, "csc_matri
 spsolve, _ = optional_import("scipy.sparse.linalg", "1.7.1", min_version, "spsolve")
 cg, _ = optional_import("scipy.sparse.linalg", "1.7.1", min_version, "cg")
 hilbert, _ = optional_import("scipy.signal", "1.7.1", min_version, "hilbert")
+ruge_stuben_solver, _ = optional_import("pyamg", "5.0.0", min_version, "ruge_stuben_solver")
 
 
 class UltrasoundConfidenceMap:
@@ -48,7 +49,8 @@ class UltrasoundConfidenceMap:
         mode="B",
         sink_mode="all",
         use_cg=False,
-        cg_tol=1e-5,
+        cg_tol=1e-6,
+        cg_maxiter=200,
     ):
         # The hyperparameters for confidence map estimation
         self.alpha = alpha
@@ -58,6 +60,7 @@ class UltrasoundConfidenceMap:
         self.sink_mode = sink_mode
         self.use_cg = use_cg
         self.cg_tol = cg_tol
+        self.cg_maxiter = cg_maxiter
 
         # The precision to use for all computations
         self.eps = np.finfo("float64").eps
@@ -271,7 +274,10 @@ class UltrasoundConfidenceMap:
     def _solve_linear_system(self, lap, rhs):
 
         if self.use_cg:
-            x, _ = cg(lap, rhs, rtol=self.cg_tol)
+            lap_sparse = lap.tocsr()
+            ml = ruge_stuben_solver(lap_sparse, coarse_solver='pinv')
+            M = ml.aspreconditioner(cycle='V')
+            x, _ = cg(lap, rhs, rtol=self.cg_tol, maxiter=self.cg_maxiter, M=M)
         else:
             x = spsolve(lap, rhs)
 

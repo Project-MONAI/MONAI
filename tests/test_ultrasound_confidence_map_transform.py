@@ -34,7 +34,7 @@ TEST_INPUT = np.array(
         [1, 2, 3, 32, 33, 34, 35, 1, 2, 3],
         [1, 2, 3, 36, 37, 38, 39, 1, 2, 3],
         [1, 2, 3, 40, 41, 42, 43, 1, 2, 3],
-    ]
+    ], dtype=np.float32
 )
 
 TEST_MASK = np.array(
@@ -49,7 +49,7 @@ TEST_MASK = np.array(
         [1, 1, 1, 0, 0, 0, 1, 1, 1, 0],
         [1, 1, 1, 0, 0, 0, 1, 1, 1, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ]
+    ], dtype=np.float32
 )
 
 SINK_ALL_OUTPUT = np.array(
@@ -152,7 +152,7 @@ SINK_ALL_OUTPUT = np.array(
             0.08145227209865454,
         ],
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    ]
+    ], dtype=np.float32
 )
 
 SINK_MID_OUTPUT = np.array(
@@ -266,7 +266,7 @@ SINK_MID_OUTPUT = np.array(
             0.9999367861122628,
             0.9999793358521326,
         ],
-    ]
+    ], dtype=np.float32
 )
 
 SINK_MIN_OUTPUT = np.array(
@@ -380,7 +380,7 @@ SINK_MIN_OUTPUT = np.array(
             0.8382338778894218,
             0.9477082231321966,
         ],
-    ]
+    ], dtype=np.float32
 )
 
 SINK_MASK_OUTPUT = np.array(
@@ -472,7 +472,7 @@ SINK_MASK_OUTPUT = np.array(
             0.0023900192231620593,
             0.5686882523793125,
         ],
-    ]
+    ], dtype=np.float32
 )
 
 
@@ -673,6 +673,28 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
             output = transform(input_img)
 
             assert_allclose(output, result_img, rtol=1e-4, atol=1e-4)
+
+    def test_against_official_code_using_cg(self):
+        # This test is to compare the output of the transform with the official code
+        # The official code is available at:
+        # https://campar.in.tum.de/Main/AthanasiosKaramalisCode
+
+        for input_img_path, result_npy_path, params in zip(
+            self.real_input_img_paths, self.real_result_npy_paths, self.real_input_paramaters
+        ):
+            input_img = np.array(Image.open(input_img_path))
+            input_img = np.expand_dims(input_img, axis=0)
+
+            result_img = np.load(result_npy_path)
+
+            transform = UltrasoundConfidenceMapTransform(sink_mode="all", use_cg=True, cg_tol=1.e-6, cg_maxiter=300, **params)
+            output = transform(input_img)
+
+            import matplotlib.pyplot as plt
+            plt.imshow(output)
+            plt.show()
+
+            assert_allclose(output, result_img, rtol=1e-2, atol=1e-2)
 
 
 if __name__ == "__main__":
