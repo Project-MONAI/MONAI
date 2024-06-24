@@ -229,16 +229,17 @@ class UltrasoundConfidenceMap:
 
         # Horizontal penalty
         s[:vertical_end] += gamma
-        # s[vertical_end:diagonal_end] += gamma * np.sqrt(2) # --> In the paper it is sqrt(2)
-        # since the diagonal edges are longer yet does not exist in the original code
+        # Here there is a difference between the official MATLAB code and the paper	        # s[vertical_end:diagonal_end] += gamma * np.sqrt(2) # --> In the paper it is sqrt(2)
+        # on the edge penalty. We directly implement what the official code does.	        # since the diagonal edges are longer yet does not exist in the original code
 
         # Normalize differences
         s = self.normalize(s)
 
         # Gaussian weighting function
         s = -(
-            (np.exp(-beta * s, dtype="float64")) + 1.0e-6
-        )  # --> This epsilon changes results drastically default: 1.e-6
+            (np.exp(-beta * s, dtype="float64")) + 10e-6
+        )  # --> This epsilon changes results drastically default: 10e-6
+        # Please notice that it is not 1e-6, it is 10e-6 which is actually different.
 
         # Create Laplacian, diagonal missing
         lap = csc_matrix((s, (i, j)))
