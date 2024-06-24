@@ -21,6 +21,7 @@ __all__ = ["UltrasoundConfidenceMap"]
 cv2, _ = optional_import("cv2")
 csc_matrix, _ = optional_import("scipy.sparse", "1.7.1", min_version, "csc_matrix")
 spsolve, _ = optional_import("scipy.sparse.linalg", "1.7.1", min_version, "spsolve")
+cg, _ = optional_import("scipy.sparse.linalg", "1.7.1", min_version, "cg")
 hilbert, _ = optional_import("scipy.signal", "1.7.1", min_version, "hilbert")
 
 
@@ -39,13 +40,24 @@ class UltrasoundConfidenceMap:
             the transform. Can be 'all', 'mid', 'min', or 'mask'.
     """
 
-    def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all"):
+    def __init__(
+        self,
+        alpha: float = 2.0,
+        beta: float = 90.0,
+        gamma: float = 0.05,
+        mode="B",
+        sink_mode="all",
+        use_cg=False,
+        cg_tol=1e-5,
+    ):
         # The hyperparameters for confidence map estimation
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
         self.mode = mode
         self.sink_mode = sink_mode
+        self.use_cg = use_cg
+        self.cg_tol = cg_tol
 
         # The precision to use for all computations
         self.eps = np.finfo("float64").eps
@@ -228,9 +240,9 @@ class UltrasoundConfidenceMap:
         s = self.normalize(s)
 
         # Horizontal penalty
-        s[:vertical_end] += gamma
-        # Here there is a difference between the official MATLAB code and the paper	        # s[vertical_end:diagonal_end] += gamma * np.sqrt(2) # --> In the paper it is sqrt(2)
-        # on the edge penalty. We directly implement what the official code does.	        # since the diagonal edges are longer yet does not exist in the original code
+        s[vertical_end:] += gamma
+        # Here there is a difference between the official MATLAB code and the paper
+        # on the edge penalty. We directly implement what the official code does.
 
         # Normalize differences
         s = self.normalize(s)
@@ -257,7 +269,11 @@ class UltrasoundConfidenceMap:
         return lap
 
     def _solve_linear_system(self, lap, rhs):
-        x = spsolve(lap, rhs)
+
+        if self.use_cg:
+            x, _ = cg(lap, rhs, rtol=self.cg_tol)
+        else:
+            x = spsolve(lap, rhs)
 
         return x
 

@@ -26,7 +26,7 @@ mypy>=1.5.0
 ninja
 torchvision
 psutil
-cucim-cu12; platform_system == "Linux" and python_version >= "3.9" and python_version <= "3.10"
+#cucim-cu12; platform_system == "Linux" and python_version >= "3.9" and python_version <= "3.10"
 openslide-python
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
 tifffile; platform_system == "Linux" or platform_system == "Darwin"
