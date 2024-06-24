@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import gc
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence, cast
 
 import torch
 import torch.nn as nn
@@ -24,6 +24,12 @@ from monai.utils import optional_import
 AttentionBlock, has_attentionblock = optional_import("generative.networks.nets.autoencoderkl", name="AttentionBlock")
 AutoencoderKL, has_autoencoderkl = optional_import("generative.networks.nets.autoencoderkl", name="AutoencoderKL")
 ResBlock, has_resblock = optional_import("generative.networks.nets.autoencoderkl", name="ResBlock")
+
+
+if TYPE_CHECKING:
+    from generative.networks.nets.autoencoderkl import AutoencoderKL as AutoencoderKLType
+else:
+    AutoencoderKLType = cast(type, AutoencoderKL)
 
 
 def _empty_cuda_cache():
@@ -796,7 +802,7 @@ class MaisiDecoder(nn.Module):
         return x
 
 
-class AutoencoderKlMaisi(AutoencoderKL):
+class AutoencoderKlMaisi(AutoencoderKLType):
     """
     AutoencoderKL with custom MaisiEncoder and MaisiDecoder.
 
