@@ -2796,6 +2796,9 @@ class UltrasoundConfidenceMapTransform(Transform):
         mode (str, optional): 'RF' or 'B' mode data. Defaults to 'B'.
         sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when
             calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
+        use_cg (bool, optional): Use Conjugate Gradient method for solving the linear system. Defaults to False.
+        cg_tol (float, optional): Tolerance for the Conjugate Gradient method. Defaults to 1e-6.
+        cg_maxiter (int, optional): Maximum number of iterations for the Conjugate Gradient method. Defaults to 200.
     """
 
     def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all", use_cg=False, cg_tol: float = 1.e-6, cg_maxiter: int = 200):
