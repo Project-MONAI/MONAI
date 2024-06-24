@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import unittest
-from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -77,7 +76,7 @@ else:
     CASES = CASES_NO_ATTENTION
 
 
-@skipUnless(has_generative, "monai-generative required")
+@unittest.skipUnless(has_generative, "monai-generative required")
 class TestAutoencoderKlMaisi(unittest.TestCase):
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape):
