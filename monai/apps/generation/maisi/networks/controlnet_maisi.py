@@ -28,7 +28,7 @@ else:
     ControlNetType = cast(type, ControlNet)
 
 
-class ControlNetMaisi(ControlNet):
+class ControlNetMaisi(ControlNetType):
     """
     Control network for diffusion models based on Zhang and Agrawala "Adding Conditional Control to Text-to-Image
     Diffusion Models" (https://arxiv.org/abs/2302.05543)
