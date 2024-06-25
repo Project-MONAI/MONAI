@@ -9,14 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import torch
+from __future__ import annotations
 
 from typing import Sequence
-from generative.networks.nets.controlnet import ControlNet
-from generative.networks.nets.diffusion_model_unet import get_timestep_embedding
+
+import torch
+
+from monai.utils import optional_import
+
+ControlNet, has_controlnet = optional_import("generative.networks.nets.controlnet", name="ControlNet")
+get_timestep_embedding, has_get_timestep_embedding = optional_import(
+    "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
+)
+
+__all__ = ["ControlNetMaisi"]
 
 
-class CustomControlNet(ControlNet):
+class ControlNetMaisi(ControlNet):
     """
     Control network for diffusion models based on Zhang and Agrawala "Adding Conditional Control to Text-to-Image
     Diffusion Models" (https://arxiv.org/abs/2302.05543)
@@ -40,6 +49,7 @@ class CustomControlNet(ControlNet):
         use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         conditioning_embedding_in_channels: number of input channels for the conditioning embedding.
         conditioning_embedding_num_channels: number of channels for the blocks in the conditioning embedding.
+        use_checkpointing: if True, use activation checkpointing to save memory.
     """
 
     def __init__(
@@ -61,6 +71,7 @@ class CustomControlNet(ControlNet):
         use_flash_attention: bool = False,
         conditioning_embedding_in_channels: int = 1,
         conditioning_embedding_num_channels: Sequence[int] | None = (16, 32, 96, 256),
+        use_checkpointing: bool = True,
     ) -> None:
         super().__init__(
             spatial_dims,
@@ -81,7 +92,7 @@ class CustomControlNet(ControlNet):
             conditioning_embedding_in_channels,
             conditioning_embedding_num_channels,
         )
-
+        self.use_checkpointing = use_checkpointing
 
     def forward(
         self,
@@ -92,15 +103,25 @@ class CustomControlNet(ControlNet):
         context: torch.Tensor | None = None,
         class_labels: torch.Tensor | None = None,
     ) -> tuple[tuple[torch.Tensor], torch.Tensor]:
-        """
-        Args:
-            x: input tensor (N, C, SpatialDims).
-            timesteps: timestep tensor (N,).
-            controlnet_cond: controlnet conditioning tensor (N, C, SpatialDims).
-            conditioning_scale: conditioning scale.
-            context: context tensor (N, 1, ContextDim).
-            class_labels: context tensor (N, ).
-        """
+        emb = self._prepare_time_and_class_embedding(x, timesteps, class_labels)
+        h = self._apply_initial_convolution(x)
+        if self.use_checkpointing:
+            controlnet_cond = torch.utils.checkpoint.checkpoint(
+                self.controlnet_cond_embedding, controlnet_cond, use_reentrant=False
+            )
+        else:
+            controlnet_cond = self.controlnet_cond_embedding(controlnet_cond)
+        h += controlnet_cond
+        down_block_res_samples, h = self._apply_down_blocks(emb, context, h)
+        h = self._apply_mid_block(emb, context, h)
+        down_block_res_samples, mid_block_res_sample = self._apply_controlnet_blocks(h, down_block_res_samples)
+        # scaling
+        down_block_res_samples = [h * conditioning_scale for h in down_block_res_samples]
+        mid_block_res_sample *= conditioning_scale
+
+        return down_block_res_samples, mid_block_res_sample
+
+    def _prepare_time_and_class_embedding(self, x, timesteps, class_labels):
         # 1. time
         t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
 
@@ -118,16 +139,14 @@ class CustomControlNet(ControlNet):
             class_emb = class_emb.to(dtype=x.dtype)
             emb = emb + class_emb
 
+        return emb
+
+    def _apply_initial_convolution(self, x):
         # 3. initial convolution
         h = self.conv_in(x)
+        return h
 
-        # controlnet_cond = self.controlnet_cond_embedding(controlnet_cond)
-        controlnet_cond = torch.utils.checkpoint.checkpoint(self.controlnet_cond_embedding,
-                                                            controlnet_cond,
-                                                            use_reentrant=False)
-
-        h += controlnet_cond
-
+    def _apply_down_blocks(self, emb, context, h):
         # 4. down
         if context is not None and self.with_conditioning is False:
             raise ValueError("model should have with_conditioning = True if context is provided")
@@ -137,12 +156,16 @@ class CustomControlNet(ControlNet):
             for residual in res_samples:
                 down_block_res_samples.append(residual)
 
+        return down_block_res_samples, h
+
+    def _apply_mid_block(self, emb, context, h):
         # 5. mid
         h = self.middle_block(hidden_states=h, temb=emb, context=context)
+        return h
 
+    def _apply_controlnet_blocks(self, h, down_block_res_samples):
         # 6. Control net blocks
         controlnet_down_block_res_samples = ()
-
         for down_block_res_sample, controlnet_block in zip(down_block_res_samples, self.controlnet_down_blocks):
             down_block_res_sample = controlnet_block(down_block_res_sample)
             controlnet_down_block_res_samples += (down_block_res_sample,)
@@ -150,9 +173,5 @@ class CustomControlNet(ControlNet):
         down_block_res_samples = controlnet_down_block_res_samples
 
         mid_block_res_sample = self.controlnet_mid_block(h)
-
-        # 6. scaling
-        down_block_res_samples = [h * conditioning_scale for h in down_block_res_samples]
-        mid_block_res_sample *= conditioning_scale
 
         return down_block_res_samples, mid_block_res_sample
