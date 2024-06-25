@@ -698,7 +698,6 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
             )
             output = transform(input_img)
 
-
             assert_allclose(output, result_img, rtol=1e-2, atol=1e-2)
 
 
