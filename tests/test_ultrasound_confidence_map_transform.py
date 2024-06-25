@@ -698,10 +698,6 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
             )
             output = transform(input_img)
 
-            import matplotlib.pyplot as plt
-
-            plt.imshow(output)
-            plt.show()
 
             assert_allclose(output, result_img, rtol=1e-2, atol=1e-2)
 
