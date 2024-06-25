@@ -105,7 +105,7 @@ class ControlNetMaisi(ControlNetType):
         conditioning_scale: float = 1.0,
         context: torch.Tensor | None = None,
         class_labels: torch.Tensor | None = None,
-    ) -> tuple[tuple[torch.Tensor], torch.Tensor]:
+    ) -> tuple[tuple[torch.Tensor, ...], torch.Tensor]:
         emb = self._prepare_time_and_class_embedding(x, timesteps, class_labels)
         h = self._apply_initial_convolution(x)
         if self.use_checkpointing:
