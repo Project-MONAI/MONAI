@@ -34,7 +34,8 @@ TEST_INPUT = np.array(
         [1, 2, 3, 32, 33, 34, 35, 1, 2, 3],
         [1, 2, 3, 36, 37, 38, 39, 1, 2, 3],
         [1, 2, 3, 40, 41, 42, 43, 1, 2, 3],
-    ], dtype=np.float32
+    ],
+    dtype=np.float32,
 )
 
 TEST_MASK = np.array(
@@ -49,7 +50,8 @@ TEST_MASK = np.array(
         [1, 1, 1, 0, 0, 0, 1, 1, 1, 0],
         [1, 1, 1, 0, 0, 0, 1, 1, 1, 0],
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ], dtype=np.float32
+    ],
+    dtype=np.float32,
 )
 
 SINK_ALL_OUTPUT = np.array(
@@ -152,7 +154,8 @@ SINK_ALL_OUTPUT = np.array(
             0.08145227209865454,
         ],
         [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-    ], dtype=np.float32
+    ],
+    dtype=np.float32,
 )
 
 SINK_MID_OUTPUT = np.array(
@@ -266,7 +269,8 @@ SINK_MID_OUTPUT = np.array(
             0.9999367861122628,
             0.9999793358521326,
         ],
-    ], dtype=np.float32
+    ],
+    dtype=np.float32,
 )
 
 SINK_MIN_OUTPUT = np.array(
@@ -380,7 +384,8 @@ SINK_MIN_OUTPUT = np.array(
             0.8382338778894218,
             0.9477082231321966,
         ],
-    ], dtype=np.float32
+    ],
+    dtype=np.float32,
 )
 
 SINK_MASK_OUTPUT = np.array(
@@ -472,7 +477,8 @@ SINK_MASK_OUTPUT = np.array(
             0.0023900192231620593,
             0.5686882523793125,
         ],
-    ], dtype=np.float32
+    ],
+    dtype=np.float32,
 )
 
 
@@ -687,10 +693,13 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
             result_img = np.load(result_npy_path)
 
-            transform = UltrasoundConfidenceMapTransform(sink_mode="all", use_cg=True, cg_tol=1.e-6, cg_maxiter=300, **params)
+            transform = UltrasoundConfidenceMapTransform(
+                sink_mode="all", use_cg=True, cg_tol=1.0e-6, cg_maxiter=300, **params
+            )
             output = transform(input_img)
 
             import matplotlib.pyplot as plt
+
             plt.imshow(output)
             plt.show()
 

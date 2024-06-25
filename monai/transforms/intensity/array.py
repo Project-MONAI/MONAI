@@ -2801,7 +2801,17 @@ class UltrasoundConfidenceMapTransform(Transform):
         cg_maxiter (int, optional): Maximum number of iterations for the Conjugate Gradient method. Defaults to 200.
     """
 
-    def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all", use_cg=False, cg_tol: float = 1.e-6, cg_maxiter: int = 200):
+    def __init__(
+        self,
+        alpha: float = 2.0,
+        beta: float = 90.0,
+        gamma: float = 0.05,
+        mode="B",
+        sink_mode="all",
+        use_cg=False,
+        cg_tol: float = 1.0e-6,
+        cg_maxiter: int = 200,
+    ):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
@@ -2819,7 +2829,9 @@ class UltrasoundConfidenceMapTransform(Transform):
                 f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
             )
 
-        self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode, self.use_cg, self.cg_tol, self.cg_maxiter)
+        self._compute_conf_map = UltrasoundConfidenceMap(
+            self.alpha, self.beta, self.gamma, self.mode, self.sink_mode, self.use_cg, self.cg_tol, self.cg_maxiter
+        )
 
     def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
         """Compute confidence map from an ultrasound image.

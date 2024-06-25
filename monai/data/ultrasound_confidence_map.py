@@ -278,8 +278,8 @@ class UltrasoundConfidenceMap:
 
         if self.use_cg:
             lap_sparse = lap.tocsr()
-            ml = ruge_stuben_solver(lap_sparse, coarse_solver='pinv')
-            M = ml.aspreconditioner(cycle='V')
+            ml = ruge_stuben_solver(lap_sparse, coarse_solver="pinv")
+            M = ml.aspreconditioner(cycle="V")
             x, _ = cg(lap, rhs, rtol=self.cg_tol, maxiter=self.cg_maxiter, M=M)
         else:
             x = spsolve(lap, rhs)
