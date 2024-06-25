@@ -5,20 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.3.2] - 2024-06-24
-### Added
-* Refactot Dataset to use `Compose` for transforms (#7784)
-#### misc.
-* Combine `map_classes_to_indices` and `generate_label_classes_crop_centers` to `map_and_generate_sampling_centers` (#7712)
-* Add Norm parameter to `ResNet` (#7752)
+## [1.3.2] - 2024-06-25
 ### Fixed
-#### transforms
-* Ensure deterministic in `MixUp`, `CutMix` and `CutOut` (#7813)
-#### data
-* Fix negative strides handling in `NrrdReader` (#7809)
 #### misc.
-* Fix `WarpImageFilter` test error (#7794)
-* Fix precision issue in `TestClipIntensityPercentiles3D` (#7808)
 * Updated Numpy version constraint to < 2.0 (#7859)
 
 ## [1.3.1] - 2024-05-17
