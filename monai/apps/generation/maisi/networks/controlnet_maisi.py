@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence, cast
 
 import torch
 
@@ -22,7 +22,10 @@ get_timestep_embedding, has_get_timestep_embedding = optional_import(
     "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
 )
 
-__all__ = ["ControlNetMaisi"]
+if TYPE_CHECKING:
+    from generative.networks.nets.controlnet import ControlNet as ControlNetType
+else:
+    ControlNetType = cast(type, ControlNet)
 
 
 class ControlNetMaisi(ControlNet):
