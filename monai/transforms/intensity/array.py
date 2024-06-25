@@ -2789,6 +2789,9 @@ class UltrasoundConfidenceMapTransform(Transform):
     It generates a confidence map by setting source and sink points in the image and computing the probability
     for random walks to reach the source for each pixel.
 
+    The official code is available at:
+    https://campar.in.tum.de/Main/AthanasiosKaramalisCode
+
     Args:
         alpha (float, optional): Alpha parameter. Defaults to 2.0.
         beta (float, optional): Beta parameter. Defaults to 90.0.
