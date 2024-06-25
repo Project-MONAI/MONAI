@@ -255,7 +255,7 @@ class UltrasoundConfidenceMap:
 
         # Gaussian weighting function
         s = -(
-            (np.exp(-beta * s, dtype="float64")) + 10e-6
+            (np.exp(-beta * s, dtype="float64")) + 1e-5
         )  # --> This epsilon changes results drastically default: 10e-6
         # Please notice that it is not 1e-6, it is 10e-6 which is actually different.
 
