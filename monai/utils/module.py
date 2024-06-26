@@ -209,7 +209,7 @@ def load_submodules(
     ):
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
-                mod_spec = importer.find_spec(name)
+                mod_spec = importer.find_spec(name)  # type: ignore
                 if mod_spec and mod_spec.loader:
                     mod = importlib.util.module_from_spec(mod_spec)
                     mod_spec.loader.exec_module(mod)
