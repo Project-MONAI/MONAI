@@ -46,7 +46,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         num_groups: Number of groups for the group norm.
         num_channels: Number of channels for the group norm.
         eps: Epsilon value for numerical stability.
-        affine: Whether to use learnable affine parameters, default to `True`. 
+        affine: Whether to use learnable affine parameters, default to `True`.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         debug: Whether to print debug information, default to `False`.
     """
@@ -80,9 +80,9 @@ class MaisiGroupNorm3D(nn.GroupNorm):
             mean = array.mean([2, 3, 4, 5], keepdim=True)
             std = array.var([2, 3, 4, 5], unbiased=False, keepdim=True).add_(self.eps).sqrt_()
             if self.norm_float16:
-                inputs.append(array.sub_(mean).div_(std).to(dtype=torch.float16))
+                inputs.append(((array - mean) / std).to(dtype=torch.float16))
             else:
-                inputs.append(array.sub_(mean).div_(std))
+                inputs.append((array - mean) / std)
 
         del input
         _empty_cuda_cache()
