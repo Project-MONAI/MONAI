@@ -15,6 +15,7 @@ import os
 import tempfile
 import unittest
 import warnings
+from collections import OrderedDict
 from pathlib import Path
 from unittest import mock, skipUnless
 
@@ -22,10 +23,11 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, ReferenceResolver
-from monai.bundle.config_item import ConfigItem
-from monai.data import DataLoader, Dataset
+from monai.bundle.config_item import ConfigComponentReservedKeys, ConfigItem, _wrapper_feature_flag
+from monai.data import CacheDataset, DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
+from monai.utils.feature_flag import with_feature_flag
 from tests.utils import TimedCall
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
@@ -44,6 +46,11 @@ def case_pdb_inst(sarg=None):
     config = {"transform": {"_target_": "Compose", "transforms": [], "_mode_": "debug"}}
     parser = ConfigParser(config=config)
     return parser.transform
+
+
+class CacheDatasetFactory:
+    def __call__(self, data):
+        return CacheDataset(data)
 
 
 # test the resolved and parsed instances
@@ -123,6 +130,30 @@ TEST_CASE_DUPLICATED_KEY_YAML = [
     "yaml",
     1,
     [0, 4],
+]
+TEST_CASE_WRAPPER_ENABLED = [
+    {
+        "dataset": {
+            "_target_": "Dataset",
+            "data": [1, 2],
+            ConfigComponentReservedKeys.WRAPPER: {"_target_": "tests.test_config_parser.CacheDatasetFactory"},
+        }
+    },
+    ["dataset", f"dataset#{ConfigComponentReservedKeys.WRAPPER}"],
+    [CacheDataset, CacheDatasetFactory],
+    True,
+]
+TEST_CASE_WRAPPER_DISABLED = [
+    {
+        "dataset": {
+            "_target_": "collections.OrderedDict",
+            "data": [1, 2],
+            ConfigComponentReservedKeys.WRAPPER: {"_target_": "tests.test_config_parser.CacheDatasetFactory"},
+        }
+    },
+    ["dataset", f"dataset#{ConfigComponentReservedKeys.WRAPPER}"],
+    [OrderedDict, CacheDatasetFactory],
+    False,
 ]
 
 
@@ -356,6 +387,20 @@ class TestConfigParser(unittest.TestCase):
 
             self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
             self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
+
+    @parameterized.expand([TEST_CASE_WRAPPER_ENABLED, TEST_CASE_WRAPPER_DISABLED])
+    def test_parse_wrapper(self, config, expected_ids, output_types, enable_feature_flag):
+        with with_feature_flag(_wrapper_feature_flag, enable_feature_flag):
+            parser = ConfigParser(config=config, globals={"monai": "monai", "torch": "torch"})
+            for id, cls in zip(expected_ids, output_types):
+                parsed_content = parser.get_parsed_content(id)
+                self.assertIsInstance(parsed_content, cls)
+            # test root content
+            root = parser.get_parsed_content(id="")
+            for v, cls in zip(root.values(), output_types):
+                self.assertIsInstance(v, cls)
+            if not enable_feature_flag:
+                assert ConfigComponentReservedKeys.WRAPPER in root["dataset"]
 
 
 if __name__ == "__main__":

@@ -20,9 +20,11 @@ from parameterized import parameterized
 
 import monai
 from monai.bundle import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem
+from monai.bundle.config_item import ConfigComponentReservedKeys, _wrapper_feature_flag
 from monai.data import DataLoader, Dataset
 from monai.transforms import LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
+from monai.utils.feature_flag import with_feature_flag
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 
@@ -132,6 +134,18 @@ class TestConfigItem(unittest.TestCase):
     def test_error_expr(self):
         with self.assertRaisesRegex(RuntimeError, r"1\+\[\]"):
             ConfigExpression(id="", config="$1+[]").evaluate()
+
+    def test_wrapper(self):
+        with with_feature_flag(_wrapper_feature_flag, True):
+            config = {
+                "_target_": "fractions.Fraction",
+                "numerator": 5,
+                "denominator": 10,
+                ConfigComponentReservedKeys.WRAPPER: float,
+            }
+            configer = ConfigComponent(config=config, locator=None)
+            ret = configer.instantiate()
+            self.assertTrue(isinstance(ret, float))
 
 
 if __name__ == "__main__":

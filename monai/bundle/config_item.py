@@ -19,12 +19,26 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from importlib import import_module
 from pprint import pformat
-from typing import Any
+from typing import Any, Callable
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import CompInitMode, ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
+from monai.utils import CompInitMode, StrEnum, ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
+
+from monai.utils.feature_flag import FeatureFlag
+
+
+class ConfigComponentReservedKeys(StrEnum):
+    TARGET = "_target_"
+    MODE = "_mode_"
+    DESC = "_desc_"
+    REQUIRES = "_requires_"
+    DISABLED = "_disabled_"
+    WRAPPER = "_wrapper_"
+
+
+_wrapper_feature_flag = FeatureFlag("CONFIG_WRAPPER", default=False)
 
 
 class Instantiable(ABC):
@@ -166,7 +180,7 @@ class ConfigComponent(ConfigItem, Instantiable):
     Subclass of :py:class:`monai.bundle.ConfigItem`, this class uses a dictionary with string keys to
     represent a component of `class` or `function` and supports instantiation.
 
-    Currently, three special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
+    Currently, four special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
         - class or function identifier of the python module, specified by ``"_target_"``,
           indicating a monai built-in Python class or function such as ``"LoadImageDict"``,
@@ -183,6 +197,12 @@ class ConfigComponent(ConfigItem, Instantiable):
             - ``"default"``: returns ``component(**kwargs)``
             - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
+        - ``"_wrapper_"`` (optional): a callable that wraps the instantiation of the component.
+              This feature is currently experimental and hidden behind a feature flag. To enable it, set the
+              environment variable ``MONAI_FEATURE_ENABLED_CONFIG_WRAPPER=1`` or
+              call monai.bundle.config_item._wrapper_feature_flag.enable().
+              The callable should take the instantiated component as input and return the wrapped component.
+              A use case of this can be torch.compile(). See the Config Guide for more details.
 
     Other fields in the config content are input arguments to the python module.
 
@@ -210,7 +230,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_", "_mode_"}
+    non_arg_keys = set(ConfigComponentReservedKeys)
 
     def __init__(
         self,
@@ -231,7 +251,7 @@ class ConfigComponent(ConfigItem, Instantiable):
             config: input config content to check.
 
         """
-        return isinstance(config, Mapping) and "_target_" in config
+        return isinstance(config, Mapping) and ConfigComponentReservedKeys.TARGET in config
 
     def resolve_module_name(self):
         """
@@ -240,7 +260,7 @@ class ConfigComponent(ConfigItem, Instantiable):
 
         """
         config = dict(self.get_config())
-        target = config.get("_target_")
+        target = config.get(ConfigComponentReservedKeys.TARGET)
         if not isinstance(target, str):
             return target  # for feature discussed in project-monai/monai#5852
 
@@ -262,15 +282,44 @@ class ConfigComponent(ConfigItem, Instantiable):
         Utility function used in `instantiate()` to resolve the arguments from current config content.
 
         """
-        return {k: v for k, v in self.get_config().items() if k not in self.non_arg_keys}
+        return {
+            k: v
+            for k, v in self.get_config().items()
+            if (k not in self.non_arg_keys)
+            or (k == ConfigComponentReservedKeys.WRAPPER and not _wrapper_feature_flag.enabled)
+        }
 
     def is_disabled(self) -> bool:
         """
         Utility function used in `instantiate()` to check whether to skip the instantiation.
 
         """
-        _is_disabled = self.get_config().get("_disabled_", False)
+        _is_disabled = self.get_config().get(ConfigComponentReservedKeys.DISABLED, False)
         return _is_disabled.lower().strip() == "true" if isinstance(_is_disabled, str) else bool(_is_disabled)
+
+    def _get_wrapper(self) -> None | Callable[[object], object]:
+        """
+        Utility function used in `instantiate()` to check if a wrapper is specified in the config.
+
+        """
+        wrapper = self.get_config().get(ConfigComponentReservedKeys.WRAPPER, None)
+        if _wrapper_feature_flag.enabled:
+            if wrapper is not None:
+                if callable(wrapper):
+                    return wrapper  # type: ignore
+                else:
+                    raise ValueError(
+                        f"wrapper must be a callable, but got type {type(wrapper)}: {wrapper}."
+                        "make sure all references are resolved before calling instantiate "
+                        "and the wrapper is a callable."
+                    )
+        elif wrapper is not None:
+            warnings.warn(
+                f"ConfigComponent: {self.get_id()} has a key {ConfigComponentReservedKeys.WRAPPER}. "
+                "Since the feature flag CONFIG_WRAPPER is not enabled, the key will be treated as a normal config key. "
+                "In future versions of MONAI, this key might be reserved for the wrapper functionality."
+            )
+        return None
 
     def instantiate(self, **kwargs: Any) -> object:
         """
@@ -278,7 +327,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         The target component must be a `class` or a `function`, otherwise, return `None`.
 
         Args:
-            kwargs: args to override / add the config args when instantiation.
+            kwargs: instantiate_kwargs to override / add the config instantiate_kwargs when instantiation.
 
         """
         if not self.is_instantiable(self.get_config()) or self.is_disabled():
@@ -286,10 +335,25 @@ class ConfigComponent(ConfigItem, Instantiable):
             return None
 
         modname = self.resolve_module_name()
-        mode = self.get_config().get("_mode_", CompInitMode.DEFAULT)
-        args = self.resolve_args()
-        args.update(kwargs)
-        return instantiate(modname, mode, **args)
+        mode = self.get_config().get(ConfigComponentReservedKeys.MODE, CompInitMode.DEFAULT)
+        instantiate_kwargs = self.resolve_args()
+        instantiate_kwargs.update(kwargs)
+        wrapper = self._get_wrapper()
+        if wrapper is not None:
+            return wrapper(instantiate(modname, mode, **instantiate_kwargs))
+
+        try:
+            return instantiate(modname, mode, **instantiate_kwargs)
+        except Exception as e:
+            if _wrapper_feature_flag.enabled and self.get_id().endswith(ConfigComponentReservedKeys.WRAPPER):
+                raise RuntimeError(
+                    f"Failed to instantiate {self}. Make sure you are returning a partial "
+                    f"(you might need to add {ConfigComponentReservedKeys.MODE}:callable, "
+                    "especially when using specifying a class)."
+                ) from e
+            else:
+                # re-raise the exception if not using the wrapper
+                raise
 
 
 class ConfigExpression(ConfigItem):
