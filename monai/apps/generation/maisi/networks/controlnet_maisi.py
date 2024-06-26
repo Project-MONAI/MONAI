@@ -168,13 +168,11 @@ class ControlNetMaisi(ControlNetType):
 
     def _apply_controlnet_blocks(self, h, down_block_res_samples):
         # 6. Control net blocks
-        controlnet_down_block_res_samples = ()
-        for down_block_res_sample, controlnet_block in zip(down_block_res_samples, self.controlnet_down_blocks):
-            down_block_res_sample = controlnet_block(down_block_res_sample)
-            controlnet_down_block_res_samples += (down_block_res_sample,)  # type: ignore
+    controlnet_down_block_res_samples = []
+    for down_block_res_sample, controlnet_block in zip(down_block_res_samples, self.controlnet_down_blocks):
+        down_block_res_sample = controlnet_block(down_block_res_sample)
+        controlnet_down_block_res_samples.append(down_block_res_sample)
 
-        down_block_res_samples = controlnet_down_block_res_samples
+    mid_block_res_sample = self.controlnet_mid_block(h)
 
-        mid_block_res_sample = self.controlnet_mid_block(h)
-
-        return down_block_res_samples, mid_block_res_sample
+    return controlnet_down_block_res_samples, mid_block_res_sample
