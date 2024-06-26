@@ -13,12 +13,12 @@ from __future__ import annotations
 
 import enum
 import functools
+import importlib.util
 import os
 import pdb
 import re
 import sys
 import warnings
-import importlib.util
 from collections.abc import Callable, Collection, Hashable, Mapping
 from functools import partial, wraps
 from importlib import import_module
