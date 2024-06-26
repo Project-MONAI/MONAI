@@ -46,7 +46,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         num_groups: Number of groups for the group norm.
         num_channels: Number of channels for the group norm.
         eps: Epsilon value for numerical stability.
-        affine: Whether to use learnable affine parameters.
+        affine: Whether to use learnable affine parameters, default to `True`. 
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format.
         debug: Whether to print debug information.
     """
@@ -58,7 +58,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         eps: float = 1e-5,
         affine: bool = True,
         norm_float16: bool = False,
-        debug: bool = True,
+        debug: bool = False,
     ):
         super().__init__(num_groups, num_channels, eps, affine)
         self.norm_float16 = norm_float16
@@ -846,7 +846,7 @@ class AutoencoderKlMaisi(AutoencoderKLType):
         num_splits: int = 16,
         dim_split: int = 0,
         norm_float16: bool = False,
-        debug: bool = True,
+        debug: bool = False,
     ) -> None:
         super().__init__(
             spatial_dims,
