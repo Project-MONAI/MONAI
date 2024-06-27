@@ -186,28 +186,16 @@ class MaisiConvolution(nn.Module):
         self.num_splits = num_splits
         self.print_info = print_info
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        num_splits = self.num_splits
-        if self.print_info:
-            logger.info(f"Number of splits: {num_splits}")
-
-        l = x.size(self.dim_split + 2)
-        split_size = l // num_splits
-
-        padding = 3
-        if padding % self.stride > 0:
-            padding = (padding // self.stride + 1) * self.stride
-        if self.print_info:
-            logger.info(f"Padding size: {padding}")
-
-        overlaps = [0] + [padding] * (num_splits - 1)
+    def _split_tensor(self, x: torch.Tensor, split_size: int, padding: int) -> list[torch.Tensor]:
+        overlaps = [0] + [padding] * (self.num_splits - 1)
         last_padding = x.size(self.dim_split + 2) % split_size
 
         slices = [slice(None)] * 5
         splits: list[torch.Tensor] = []
-        for i in range(num_splits):
+        for i in range(self.num_splits):
             slices[self.dim_split + 2] = slice(
-                i * split_size - overlaps[i], (i + 1) * split_size + (padding if i != num_splits - 1 else last_padding)
+                i * split_size - overlaps[i],
+                (i + 1) * split_size + (padding if i != self.num_splits - 1 else last_padding),
             )
             splits.append(x[tuple(slices)])
 
@@ -215,15 +203,63 @@ class MaisiConvolution(nn.Module):
             for j in range(len(splits)):
                 logger.info(f"Split {j + 1}/{len(splits)} size: {splits[j].size()}")
 
+        return splits
+
+    def _concatenate_tensors(self, outputs: list[torch.Tensor], split_size: int, padding: int) -> torch.Tensor:
+        slices = [slice(None)] * 5
+        for i in range(self.num_splits):
+            slices[self.dim_split + 2] = slice(None, split_size) if i == 0 else slice(padding, padding + split_size)
+            outputs[i] = outputs[i][tuple(slices)]
+
+        if self.print_info:
+            for i in range(self.num_splits):
+                logger.info(f"Output {i + 1}/{len(outputs)} size after: {outputs[i].size()}")
+
+        if max(outputs[0].size()) < 500:
+            x = torch.cat(outputs, dim=self.dim_split + 2)
+        else:
+            x = outputs[0].clone().to("cpu", non_blocking=True)
+            outputs[0] = torch.Tensor(0)
+            _empty_cuda_cache()
+            for k in range(len(outputs) - 1):
+                x = torch.cat((x, outputs[k + 1].cpu()), dim=self.dim_split + 2)
+                outputs[k + 1] = torch.Tensor(0)
+                _empty_cuda_cache()
+                gc.collect()
+                if self.print_info:
+                    logger.info(f"MaisiConvolution concat progress: {k + 1}/{len(outputs) - 1}.")
+
+            x = x.to("cuda", non_blocking=True)
+        return x
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.print_info:
+            logger.info(f"Number of splits: {self.num_splits}")
+
+        # compute size of splits
+        l = x.size(self.dim_split + 2)
+        split_size = l // self.num_splits
+
+        # update padding length if necessary
+        padding = 3
+        if padding % self.stride > 0:
+            padding = (padding // self.stride + 1) * self.stride
+        if self.print_info:
+            logger.info(f"Padding size: {padding}")
+
+        # split tensor into a list of tensors
+        splits = self._split_tensor(x, split_size, padding)
+
         del x
         _empty_cuda_cache()
 
+        # convolution
         outputs = [self.conv(split) for split in splits]
-
         if self.print_info:
             for j in range(len(outputs)):
                 logger.info(f"Output {j + 1}/{len(outputs)} size before: {outputs[j].size()}")
 
+        # update size of splits and padding length for output
         split_size_out = split_size
         padding_s = padding
         non_dim_split = self.dim_split + 1 if self.dim_split < 2 else 0
@@ -234,32 +270,8 @@ class MaisiConvolution(nn.Module):
             split_size_out //= 2
             padding_s //= 2
 
-        slices = [slice(None)] * 5
-        for i in range(num_splits):
-            slices[self.dim_split + 2] = (
-                slice(None, split_size_out) if i == 0 else slice(padding_s, padding_s + split_size_out)
-            )
-            outputs[i] = outputs[i][tuple(slices)]
-
-        if self.print_info:
-            for i in range(num_splits):
-                logger.info(f"Output {i + 1}/{len(outputs)} size after: {outputs[i].size()}")
-
-        if max(outputs[0].size()) < 500:
-            x = torch.cat(outputs, dim=self.dim_split + 2)
-        else:
-            x = outputs[0].clone().to("cpu", non_blocking=True)
-            outputs[0] = 0
-            _empty_cuda_cache()
-            for k in range(len(outputs) - 1):
-                x = torch.cat((x, outputs[k + 1].cpu()), dim=self.dim_split + 2)
-                outputs[k + 1] = 0
-                _empty_cuda_cache()
-                gc.collect()
-                if self.print_info:
-                    logger.info(f"MaisiConvolution concat progress: {k + 1}/{len(outputs) - 1}.")
-
-            x = x.to("cuda", non_blocking=True)
+        # concatenate list of tensors
+        x = self._concatenate_tensors(outputs, split_size_out, padding_s)
 
         del outputs
         _empty_cuda_cache()
