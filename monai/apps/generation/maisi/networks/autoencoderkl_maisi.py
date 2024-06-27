@@ -93,11 +93,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         del input
         _empty_cuda_cache()
 
-        input = (
-            torch.cat([inputs[k] for k in range(len(inputs))], dim=1)
-            if max(inputs[0].size()) < 500
-            else self._cat_inputs(inputs)
-        )
+        input = torch.cat(inputs, dim=1) if max(inputs[0].size()) < 500 else self._cat_inputs(inputs)
 
         input = input.view(param_n, param_c, param_d, param_h, param_w)
         if self.affine:
