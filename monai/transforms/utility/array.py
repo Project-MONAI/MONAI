@@ -98,6 +98,7 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "TorchIO",
     "MapLabelValue",
     "IntensityStats",
     "ToDevice",
@@ -1127,12 +1128,10 @@ class AddExtremePointsChannel(Randomizable, Transform):
         return concatenate((img, points_image), axis=0)
 
 
-class TorchVision:
+class TorchVision(Transform):
     """
     This is a wrapper transform for PyTorch TorchVision transform based on the specified transform name and args.
-    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
-    data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
-
+    Data is converted to a torch.tensor before applying the transform and then converted back to the original data type.
     """
 
     backend = [TransformBackends.TORCH]
@@ -1161,6 +1160,47 @@ class TorchVision:
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
+
+
+class TorchIO(Transform, RandomizableTrait):
+    """
+    This is a wrapper transform for TorchIO transforms based on the specified transform name and args.
+    See https://torchio.readthedocs.io/transforms/transforms.html for more details.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchIO package.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+
+        Note:
+            The `p=` kwarg of TorchIO transforms control set the probability with which the transform is applied.
+            You can specify the probability of applying the transform by passing either `prob` ot `p` in kwargs but'
+            ' not both.
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+
+        if "prob" in kwargs:
+            if "p" in kwargs:
+                raise ValueError("Cannot specify both 'prob' and 'p' in kwargs.")
+            kwargs["p"] = kwargs.pop("prob")
+
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
+                 or dict containing 4D tensors as values
+
+        """
+        return self.trans(img)
 
 
 class MapLabelValue:
