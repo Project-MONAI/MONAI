@@ -44,7 +44,7 @@ CASES_NO_ATTENTION = [
             "with_encoder_nonlocal_attn": False,
             "with_decoder_nonlocal_attn": False,
             "num_splits": 2,
-            "debug": False,
+            "print_info": False,
         },
         (1, 1, 32, 32, 32),
         (1, 1, 32, 32, 32),
@@ -64,7 +64,7 @@ CASES_ATTENTION = [
             "num_res_blocks": (1, 1, 1),
             "norm_num_groups": 4,
             "num_splits": 2,
-            "debug": False,
+            "print_info": False,
         },
         (1, 1, 32, 32, 32),
         (1, 1, 32, 32, 32),
@@ -115,7 +115,7 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 num_res_blocks=(1, 1, 1),
                 norm_num_groups=16,
                 num_splits=2,
-                debug=False,
+                print_info=False,
             )
 
     def test_model_num_channels_not_same_size_of_attention_levels(self):
@@ -130,7 +130,7 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 num_res_blocks=(1, 1, 1),
                 norm_num_groups=16,
                 num_splits=2,
-                debug=False,
+                print_info=False,
             )
 
     def test_model_num_channels_not_same_size_of_num_res_blocks(self):
@@ -145,7 +145,7 @@ class TestAutoencoderKlMaisi(unittest.TestCase):
                 num_res_blocks=(8, 8, 8),
                 norm_num_groups=16,
                 num_splits=2,
-                debug=False,
+                print_info=False,
             )
 
     def test_shape_reconstruction(self):
