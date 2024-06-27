@@ -213,7 +213,7 @@ class MaisiConvolution(nn.Module):
 
         if self.print_info:
             for j in range(len(splits)):
-                logger.info(f"split {j + 1}/{len(splits)} size: {splits[j].size()}")
+                logger.info(f"Split {j + 1}/{len(splits)} size: {splits[j].size()}")
 
         del x
         _empty_cuda_cache()
@@ -222,7 +222,7 @@ class MaisiConvolution(nn.Module):
 
         if self.print_info:
             for j in range(len(outputs)):
-                logger.info(f"output {j + 1}/{len(outputs)} size before: {outputs[j].size()}")
+                logger.info(f"Output {j + 1}/{len(outputs)} size before: {outputs[j].size()}")
 
         split_size_out = split_size
         padding_s = padding
@@ -243,7 +243,7 @@ class MaisiConvolution(nn.Module):
 
         if self.print_info:
             for i in range(num_splits):
-                logger.info(f"output {i + 1}/{len(outputs)} size after: {outputs[i].size()}")
+                logger.info(f"Output {i + 1}/{len(outputs)} size after: {outputs[i].size()}")
 
         if max(outputs[0].size()) < 500:
             x = torch.cat(outputs, dim=self.dim_split + 2)
