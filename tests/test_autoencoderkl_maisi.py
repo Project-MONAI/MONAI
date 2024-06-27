@@ -63,6 +63,8 @@ CASES_ATTENTION = [
             "attention_levels": (False, False, True),
             "num_res_blocks": (1, 1, 1),
             "norm_num_groups": 4,
+            "with_encoder_nonlocal_attn": True,
+            "with_decoder_nonlocal_attn": True,
             "num_splits": 2,
             "print_info": False,
         },
