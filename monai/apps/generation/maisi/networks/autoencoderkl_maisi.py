@@ -136,7 +136,7 @@ class MaisiConvolution(nn.Module):
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
-        save_mem: Whether to clean CUDA cache in order to save GPU memory.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
         Additional arguments for the convolution operation.
         https://docs.monai.io/en/stable/networks.html#convolution
     """
@@ -149,7 +149,7 @@ class MaisiConvolution(nn.Module):
         num_splits: int,
         dim_split: int,
         print_info: bool,
-        save_mem: bool,
+        save_mem: bool = True,
         strides: Sequence[int] | int = 1,
         kernel_size: Sequence[int] | int = 3,
         adn_ordering: str = "NDA",
@@ -296,7 +296,7 @@ class MaisiUpsample(nn.Module):
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
-        save_mem: Whether to clean CUDA cache in order to save GPU memory.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
 
     def __init__(
@@ -307,7 +307,7 @@ class MaisiUpsample(nn.Module):
         num_splits: int,
         dim_split: int,
         print_info: bool,
-        save_mem: bool,
+        save_mem: bool = True,
     ) -> None:
         super().__init__()
         self.conv = MaisiConvolution(
@@ -352,11 +352,17 @@ class MaisiDownsample(nn.Module):
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
-        save_mem: Whether to clean CUDA cache in order to save GPU memory.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, num_splits: int, dim_split: int, print_info: bool, save_mem: bool
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        num_splits: int,
+        dim_split: int,
+        print_info: bool,
+        save_mem: bool = True,
     ) -> None:
         super().__init__()
         self.pad = (0, 1) * spatial_dims
