@@ -31,7 +31,6 @@
 
 from __future__ import annotations
 
-import importlib.util
 from collections.abc import Sequence
 
 import torch
@@ -50,17 +49,8 @@ get_timestep_embedding, has_get_timestep_embedding = optional_import(
     "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
 )
 get_up_block, has_get_up_block = optional_import("generative.networks.nets.diffusion_model_unet", name="get_up_block")
+xformers, has_xformers = optional_import("xformers")
 zero_module, has_zero_module = optional_import("generative.networks.nets.diffusion_model_unet", name="zero_module")
-
-if importlib.util.find_spec("xformers") is not None:
-    import xformers
-    import xformers.ops
-
-    has_xformers = True
-else:
-    xformers = None
-    has_xformers = False
-
 
 __all__ = ["DiffusionModelUNetMaisi"]
 
