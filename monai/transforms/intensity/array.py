@@ -2789,6 +2789,9 @@ class UltrasoundConfidenceMapTransform(Transform):
     It generates a confidence map by setting source and sink points in the image and computing the probability
     for random walks to reach the source for each pixel.
 
+    The official code is available at:
+    https://campar.in.tum.de/Main/AthanasiosKaramalisCode
+
     Args:
         alpha (float, optional): Alpha parameter. Defaults to 2.0.
         beta (float, optional): Beta parameter. Defaults to 90.0.
@@ -2796,14 +2799,32 @@ class UltrasoundConfidenceMapTransform(Transform):
         mode (str, optional): 'RF' or 'B' mode data. Defaults to 'B'.
         sink_mode (str, optional): Sink mode. Defaults to 'all'. If 'mask' is selected, a mask must be when
             calling the transform. Can be one of 'all', 'mid', 'min', 'mask'.
+        use_cg (bool, optional): Use Conjugate Gradient method for solving the linear system. Defaults to False.
+        cg_tol (float, optional): Tolerance for the Conjugate Gradient method. Defaults to 1e-6.
+            Will be used only if `use_cg` is True.
+        cg_maxiter (int, optional): Maximum number of iterations for the Conjugate Gradient method. Defaults to 200.
+            Will be used only if `use_cg` is True.
     """
 
-    def __init__(self, alpha: float = 2.0, beta: float = 90.0, gamma: float = 0.05, mode="B", sink_mode="all") -> None:
+    def __init__(
+        self,
+        alpha: float = 2.0,
+        beta: float = 90.0,
+        gamma: float = 0.05,
+        mode="B",
+        sink_mode="all",
+        use_cg=False,
+        cg_tol: float = 1.0e-6,
+        cg_maxiter: int = 200,
+    ):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
         self.mode = mode
         self.sink_mode = sink_mode
+        self.use_cg = use_cg
+        self.cg_tol = cg_tol
+        self.cg_maxiter = cg_maxiter
 
         if self.mode not in ["B", "RF"]:
             raise ValueError(f"Unknown mode: {self.mode}. Supported modes are 'B' and 'RF'.")
@@ -2813,7 +2834,9 @@ class UltrasoundConfidenceMapTransform(Transform):
                 f"Unknown sink mode: {self.sink_mode}. Supported modes are 'all', 'mid', 'min' and 'mask'."
             )
 
-        self._compute_conf_map = UltrasoundConfidenceMap(self.alpha, self.beta, self.gamma, self.mode, self.sink_mode)
+        self._compute_conf_map = UltrasoundConfidenceMap(
+            self.alpha, self.beta, self.gamma, self.mode, self.sink_mode, self.use_cg, self.cg_tol, self.cg_maxiter
+        )
 
     def __call__(self, img: NdarrayOrTensor, mask: NdarrayOrTensor | None = None) -> NdarrayOrTensor:
         """Compute confidence map from an ultrasound image.
