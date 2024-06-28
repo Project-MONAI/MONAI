@@ -181,9 +181,7 @@ class DiffusionModelUNetMaisi(nn.Module):
 
         # time
         time_embed_dim = num_channels[0] * 4
-        self.time_embed = nn.Sequential(
-            nn.Linear(num_channels[0], time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
-        )
+        self.time_embed = self._create_embedding_module(num_channels[0], time_embed_dim)
 
         # class embedding
         self.num_class_embeds = num_class_embeds
