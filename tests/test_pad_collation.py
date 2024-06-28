@@ -89,7 +89,7 @@ class TestPadCollation(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_pad_collation(self, t_type, collate_method, transform):
-        if isinstance(t_type, dict):
+        if t_type is dict:
             dataset = CacheDataset(self.dict_data, transform, progress=False)
         else:
             dataset = _Dataset(self.list_data, self.list_labels, transform)
@@ -104,7 +104,7 @@ class TestPadCollation(unittest.TestCase):
         loader = DataLoader(dataset, batch_size=10, collate_fn=collate_method)
         # check collation in forward direction
         for data in loader:
-            if isinstance(t_type, dict):
+            if t_type is dict:
                 shapes = []
                 decollated_data = decollate_batch(data)
                 for d in decollated_data:
@@ -113,7 +113,7 @@ class TestPadCollation(unittest.TestCase):
                     self.assertTrue(len(output["image"].applied_operations), len(dataset.transform.transforms))
                 self.assertTrue(len(set(shapes)) > 1)  # inverted shapes must be different because of random xforms
 
-        if isinstance(t_type, dict):
+        if t_type is dict:
             batch_inverse = BatchInverseTransform(dataset.transform, loader)
             for data in loader:
                 output = batch_inverse(data)
