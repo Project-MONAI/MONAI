@@ -110,22 +110,28 @@ class DiffusionModelUNetMaisi(nn.Module):
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
             raise ValueError(
-                "CustomDiffusionModelUNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
+                "DiffusionModelUNetMaisi expects dimension of the cross-attention conditioning (cross_attention_dim) "
                 "when using with_conditioning."
             )
         if cross_attention_dim is not None and with_conditioning is False:
             raise ValueError(
-                "CustomDiffusionModelUNet expects with_conditioning=True when specifying the cross_attention_dim."
+                "DiffusionModelUNetMaisi expects with_conditioning=True when specifying the cross_attention_dim."
             )
         if dropout_cattn > 1.0 or dropout_cattn < 0.0:
             raise ValueError("Dropout cannot be negative or >1.0!")
 
         # All number of channels should be multiple of num_groups
         if any((out_channel % norm_num_groups) != 0 for out_channel in num_channels):
-            raise ValueError("CustomDiffusionModelUNet expects all num_channels being multiple of norm_num_groups")
+            raise ValueError(
+                f"DiffusionModelUNetMaisi expects all num_channels being multiple of norm_num_groups, "
+                f"but get num_channels: {num_channels} and norm_num_groups: {norm_num_groups}"
+            )
 
         if len(num_channels) != len(attention_levels):
-            raise ValueError("CustomDiffusionModelUNet expects num_channels being same size of attention_levels")
+            raise ValueError(
+                f"DiffusionModelUNetMaisi expects num_channels being same size of attention_levels, "
+                f"but get num_channels: {len(num_channels)} and attention_levels: {len(attention_levels)}"
+            )
 
         if isinstance(num_head_channels, int):
             num_head_channels = ensure_tuple_rep(num_head_channels, len(attention_levels))
