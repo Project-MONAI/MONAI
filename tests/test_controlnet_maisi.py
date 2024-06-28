@@ -127,6 +127,7 @@ TEST_CASES_ERROR = [
 
 
 @skipUnless(has_generative, "monai-generative required")
+@skipUnless(torch.__version__ >= "2.0", "torch>=2.0 required")
 class TestControlNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape_unconditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
