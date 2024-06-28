@@ -38,6 +38,7 @@ from torch import nn
 
 from monai.networks.blocks import Convolution
 from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils.type_conversion import convert_to_tensor
 
 get_down_block, has_get_down_block = optional_import(
     "generative.networks.nets.diffusion_model_unet", name="get_down_block"
@@ -405,7 +406,5 @@ class DiffusionModelUNetMaisi(nn.Module):
 
         # 7. output block
         h = self.out(h)
-
-        if isinstance(h, torch.Tensor):
-            return h
-        return torch.tensor(h)
+        h_tensor: torch.Tensor = convert_to_tensor(h)
+        return h_tensor
