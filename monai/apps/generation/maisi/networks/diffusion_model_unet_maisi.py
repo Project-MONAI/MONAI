@@ -196,19 +196,13 @@ class DiffusionModelUNetMaisi(nn.Module):
 
         new_time_embed_dim = time_embed_dim
         if self.input_top_region_index:
-            self.top_region_index_layer = nn.Sequential(
-                nn.Linear(4, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
-            )
+            self.top_region_index_layer = self._create_embedding_module(4, time_embed_dim)
             new_time_embed_dim += time_embed_dim
         if self.input_bottom_region_index:
-            self.bottom_region_index_layer = nn.Sequential(
-                nn.Linear(4, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
-            )
+            self.bottom_region_index_layer = self._create_embedding_module(4, time_embed_dim)
             new_time_embed_dim += time_embed_dim
         if self.input_spacing:
-            self.spacing_layer = nn.Sequential(
-                nn.Linear(3, time_embed_dim), nn.SiLU(), nn.Linear(time_embed_dim, time_embed_dim)
-            )
+            self.spacing_layer = self._create_embedding_module(3, time_embed_dim)
             new_time_embed_dim += time_embed_dim
 
         # down
@@ -310,6 +304,10 @@ class DiffusionModelUNetMaisi(nn.Module):
                 )
             ),
         )
+
+    def _create_embedding_module(self, input_dim, embed_dim):
+        model = nn.Sequential(nn.Linear(input_dim, embed_dim), nn.SiLU(), nn.Linear(embed_dim, embed_dim))
+        return model
 
     def _get_time_and_class_embedding(self, x, timesteps, class_labels):
         t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
