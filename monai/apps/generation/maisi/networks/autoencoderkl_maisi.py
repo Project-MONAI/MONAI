@@ -21,6 +21,7 @@ import torch.nn.functional as F
 
 from monai.networks.blocks import Convolution
 from monai.utils import optional_import
+from monai.utils.type_conversion import convert_to_tensor
 
 AttentionBlock, has_attentionblock = optional_import("generative.networks.nets.autoencoderkl", name="AttentionBlock")
 AutoencoderKL, has_autoencoderkl = optional_import("generative.networks.nets.autoencoderkl", name="AutoencoderKL")
@@ -37,8 +38,8 @@ else:
 logger = logging.getLogger(__name__)
 
 
-def _empty_cuda_cache():
-    if torch.cuda.is_available():
+def _empty_cuda_cache(save_mem: bool) -> None:
+    if torch.cuda.is_available() and save_mem:
         torch.cuda.empty_cache()
     return
 
@@ -54,6 +55,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         affine: Whether to use learnable affine parameters, default to `True`.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
 
     def __init__(
@@ -64,10 +66,12 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         affine: bool = True,
         norm_float16: bool = False,
         print_info: bool = False,
+        save_mem: bool = True,
     ):
         super().__init__(num_groups, num_channels, eps, affine)
         self.norm_float16 = norm_float16
         self.print_info = print_info
+        self.save_mem = save_mem
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         if self.print_info:
@@ -90,7 +94,7 @@ class MaisiGroupNorm3D(nn.GroupNorm):
                 inputs.append((array - mean) / std)
 
         del input
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         input = torch.cat(inputs, dim=1) if max(inputs[0].size()) < 500 else self._cat_inputs(inputs)
 
@@ -107,12 +111,12 @@ class MaisiGroupNorm3D(nn.GroupNorm):
         input_type = inputs[0].device.type
         input = inputs[0].clone().to("cpu", non_blocking=True) if input_type == "cuda" else inputs[0].clone()
         inputs[0] = 0
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         for k in range(len(inputs) - 1):
             input = torch.cat((input, inputs[k + 1].cpu()), dim=1)
             inputs[k + 1] = 0
-            _empty_cuda_cache()
+            _empty_cuda_cache(self.save_mem)
             gc.collect()
 
             if self.print_info:
@@ -132,6 +136,7 @@ class MaisiConvolution(nn.Module):
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory.
         Additional arguments for the convolution operation.
         https://docs.monai.io/en/stable/networks.html#convolution
     """
@@ -144,6 +149,7 @@ class MaisiConvolution(nn.Module):
         num_splits: int,
         dim_split: int,
         print_info: bool,
+        save_mem: bool,
         strides: Sequence[int] | int = 1,
         kernel_size: Sequence[int] | int = 3,
         adn_ordering: str = "NDA",
@@ -184,6 +190,7 @@ class MaisiConvolution(nn.Module):
         self.stride = strides[self.dim_split] if isinstance(strides, list) else strides
         self.num_splits = num_splits
         self.print_info = print_info
+        self.save_mem = save_mem
 
     def _split_tensor(self, x: torch.Tensor, split_size: int, padding: int) -> list[torch.Tensor]:
         overlaps = [0] + [padding] * (self.num_splits - 1)
@@ -219,11 +226,11 @@ class MaisiConvolution(nn.Module):
         else:
             x = outputs[0].clone().to("cpu", non_blocking=True)
             outputs[0] = torch.Tensor(0)
-            _empty_cuda_cache()
+            _empty_cuda_cache(self.save_mem)
             for k in range(len(outputs) - 1):
                 x = torch.cat((x, outputs[k + 1].cpu()), dim=self.dim_split + 2)
                 outputs[k + 1] = torch.Tensor(0)
-                _empty_cuda_cache()
+                _empty_cuda_cache(self.save_mem)
                 gc.collect()
                 if self.print_info:
                     logger.info(f"MaisiConvolution concat progress: {k + 1}/{len(outputs) - 1}.")
@@ -250,7 +257,7 @@ class MaisiConvolution(nn.Module):
         splits = self._split_tensor(x, split_size, padding)
 
         del x
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         # convolution
         outputs = [self.conv(split) for split in splits]
@@ -273,7 +280,7 @@ class MaisiConvolution(nn.Module):
         x = self._concatenate_tensors(outputs, split_size_out, padding_s)
 
         del outputs
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         return x
 
@@ -289,6 +296,7 @@ class MaisiUpsample(nn.Module):
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory.
     """
 
     def __init__(
@@ -299,6 +307,7 @@ class MaisiUpsample(nn.Module):
         num_splits: int,
         dim_split: int,
         print_info: bool,
+        save_mem: bool,
     ) -> None:
         super().__init__()
         self.conv = MaisiConvolution(
@@ -313,25 +322,24 @@ class MaisiUpsample(nn.Module):
             num_splits=num_splits,
             dim_split=dim_split,
             print_info=print_info,
+            save_mem=save_mem,
         )
         self.use_convtranspose = use_convtranspose
+        self.save_mem = save_mem
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.use_convtranspose:
             x = self.conv(x)
-
-            if isinstance(x, torch.Tensor):
-                return x
-            return torch.tensor(x)
+            x_tensor: torch.Tensor = convert_to_tensor(x)
+            return x_tensor
 
         x = F.interpolate(x, scale_factor=2.0, mode="trilinear")
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
         x = self.conv(x)
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
-        if isinstance(x, torch.Tensor):
-            return x
-        return torch.tensor(x)
+        out_tensor: torch.Tensor = convert_to_tensor(x)
+        return out_tensor
 
 
 class MaisiDownsample(nn.Module):
@@ -344,9 +352,12 @@ class MaisiDownsample(nn.Module):
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
         print_info: Whether to print information.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory.
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, num_splits: int, dim_split: int, print_info: bool) -> None:
+    def __init__(
+        self, spatial_dims: int, in_channels: int, num_splits: int, dim_split: int, print_info: bool, save_mem: bool
+    ) -> None:
         super().__init__()
         self.pad = (0, 1) * spatial_dims
         self.conv = MaisiConvolution(
@@ -360,6 +371,7 @@ class MaisiDownsample(nn.Module):
             num_splits=num_splits,
             dim_split=dim_split,
             print_info=print_info,
+            save_mem=save_mem,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -383,6 +395,7 @@ class MaisiResBlock(nn.Module):
         dim_split: Dimension of splitting for the input tensor.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
 
     def __init__(
@@ -396,10 +409,12 @@ class MaisiResBlock(nn.Module):
         dim_split: int,
         norm_float16: bool = False,
         print_info: bool = False,
+        save_mem: bool = True,
     ) -> None:
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = in_channels if out_channels is None else out_channels
+        self.save_mem = save_mem
 
         self.norm1 = MaisiGroupNorm3D(
             num_groups=norm_num_groups,
@@ -408,6 +423,7 @@ class MaisiResBlock(nn.Module):
             affine=True,
             norm_float16=norm_float16,
             print_info=print_info,
+            save_mem=save_mem,
         )
         self.conv1 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -420,6 +436,7 @@ class MaisiResBlock(nn.Module):
             num_splits=num_splits,
             dim_split=dim_split,
             print_info=print_info,
+            save_mem=save_mem,
         )
         self.norm2 = MaisiGroupNorm3D(
             num_groups=norm_num_groups,
@@ -428,6 +445,7 @@ class MaisiResBlock(nn.Module):
             affine=True,
             norm_float16=norm_float16,
             print_info=print_info,
+            save_mem=save_mem,
         )
         self.conv2 = MaisiConvolution(
             spatial_dims=spatial_dims,
@@ -440,6 +458,7 @@ class MaisiResBlock(nn.Module):
             num_splits=num_splits,
             dim_split=dim_split,
             print_info=print_info,
+            save_mem=save_mem,
         )
 
         self.nin_shortcut = (
@@ -454,6 +473,7 @@ class MaisiResBlock(nn.Module):
                 num_splits=num_splits,
                 dim_split=dim_split,
                 print_info=print_info,
+                save_mem=save_mem,
             )
             if self.in_channels != self.out_channels
             else nn.Identity()
@@ -461,29 +481,28 @@ class MaisiResBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         h = self.norm1(x)
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         h = F.silu(h)
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
         h = self.conv1(h)
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         h = self.norm2(h)
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         h = F.silu(h)
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
         h = self.conv2(h)
-        _empty_cuda_cache()
+        _empty_cuda_cache(self.save_mem)
 
         if self.in_channels != self.out_channels:
             x = self.nin_shortcut(x)
-            _empty_cuda_cache()
+            _empty_cuda_cache(self.save_mem)
 
         out = x + h
-        if isinstance(out, torch.Tensor):
-            return out
-        return torch.tensor(out)
+        out_tensor: torch.Tensor = convert_to_tensor(out)
+        return out_tensor
 
 
 class MaisiEncoder(nn.Module):
@@ -505,6 +524,7 @@ class MaisiEncoder(nn.Module):
         dim_split: Dimension of splitting for the input tensor.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
 
     def __init__(
@@ -521,10 +541,21 @@ class MaisiEncoder(nn.Module):
         dim_split: int,
         norm_float16: bool = False,
         print_info: bool = False,
+        save_mem: bool = True,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
+
+        # Check if attention_levels and num_channels have the same size
+        if len(attention_levels) != len(num_channels):
+            raise ValueError("attention_levels and num_channels must have the same size")
+
+        # Check if num_res_blocks and num_channels have the same size
+        if len(num_res_blocks) != len(num_channels):
+            raise ValueError("num_res_blocks and num_channels must have the same size")
+
+        self.save_mem = save_mem
 
         blocks: list[nn.Module] = []
 
@@ -540,6 +571,7 @@ class MaisiEncoder(nn.Module):
                 num_splits=num_splits,
                 dim_split=dim_split,
                 print_info=print_info,
+                save_mem=save_mem,
             )
         )
 
@@ -561,6 +593,7 @@ class MaisiEncoder(nn.Module):
                         dim_split=dim_split,
                         norm_float16=norm_float16,
                         print_info=print_info,
+                        save_mem=save_mem,
                     )
                 )
                 input_channel = output_channel
@@ -583,6 +616,7 @@ class MaisiEncoder(nn.Module):
                         num_splits=num_splits,
                         dim_split=dim_split,
                         print_info=print_info,
+                        save_mem=save_mem,
                     )
                 )
 
@@ -624,6 +658,7 @@ class MaisiEncoder(nn.Module):
                 affine=True,
                 norm_float16=norm_float16,
                 print_info=print_info,
+                save_mem=save_mem,
             )
         )
         blocks.append(
@@ -638,6 +673,7 @@ class MaisiEncoder(nn.Module):
                 num_splits=num_splits,
                 dim_split=dim_split,
                 print_info=print_info,
+                save_mem=save_mem,
             )
         )
 
@@ -646,7 +682,7 @@ class MaisiEncoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.blocks:
             x = block(x)
-            _empty_cuda_cache()
+            _empty_cuda_cache(self.save_mem)
         return x
 
 
@@ -670,6 +706,7 @@ class MaisiDecoder(nn.Module):
         dim_split: Dimension of splitting for the input tensor.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
 
     def __init__(
@@ -686,12 +723,14 @@ class MaisiDecoder(nn.Module):
         dim_split: int,
         norm_float16: bool = False,
         print_info: bool = False,
+        save_mem: bool = True,
         with_nonlocal_attn: bool = True,
         use_flash_attention: bool = False,
         use_convtranspose: bool = False,
     ) -> None:
         super().__init__()
         self.print_info = print_info
+        self.save_mem = save_mem
 
         reversed_block_out_channels = list(reversed(num_channels))
 
@@ -709,6 +748,7 @@ class MaisiDecoder(nn.Module):
                 num_splits=num_splits,
                 dim_split=dim_split,
                 print_info=print_info,
+                save_mem=save_mem,
             )
         )
 
@@ -761,6 +801,7 @@ class MaisiDecoder(nn.Module):
                         dim_split=dim_split,
                         norm_float16=norm_float16,
                         print_info=print_info,
+                        save_mem=save_mem,
                     )
                 )
                 block_in_ch = block_out_ch
@@ -785,6 +826,7 @@ class MaisiDecoder(nn.Module):
                         num_splits=num_splits,
                         dim_split=dim_split,
                         print_info=print_info,
+                        save_mem=save_mem,
                     )
                 )
 
@@ -796,6 +838,7 @@ class MaisiDecoder(nn.Module):
                 affine=True,
                 norm_float16=norm_float16,
                 print_info=print_info,
+                save_mem=save_mem,
             )
         )
         blocks.append(
@@ -810,6 +853,7 @@ class MaisiDecoder(nn.Module):
                 num_splits=num_splits,
                 dim_split=dim_split,
                 print_info=print_info,
+                save_mem=save_mem,
             )
         )
 
@@ -818,7 +862,7 @@ class MaisiDecoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.blocks:
             x = block(x)
-            _empty_cuda_cache()
+            _empty_cuda_cache(self.save_mem)
         return x
 
 
@@ -845,6 +889,7 @@ class AutoencoderKlMaisi(AutoencoderKLType):
         dim_split: Dimension of splitting for the input tensor.
         norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
         print_info: Whether to print information, default to `False`.
+        save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
 
     def __init__(
@@ -867,6 +912,7 @@ class AutoencoderKlMaisi(AutoencoderKLType):
         dim_split: int = 0,
         norm_float16: bool = False,
         print_info: bool = False,
+        save_mem: bool = True,
     ) -> None:
         super().__init__(
             spatial_dims,
@@ -900,6 +946,7 @@ class AutoencoderKlMaisi(AutoencoderKLType):
             dim_split=dim_split,
             norm_float16=norm_float16,
             print_info=print_info,
+            save_mem=save_mem,
         )
 
         self.decoder = MaisiDecoder(
@@ -918,4 +965,5 @@ class AutoencoderKlMaisi(AutoencoderKLType):
             dim_split=dim_split,
             norm_float16=norm_float16,
             print_info=print_info,
+            save_mem=save_mem,
         )
