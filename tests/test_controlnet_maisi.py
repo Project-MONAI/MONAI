@@ -19,6 +19,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.utils import optional_import
+from tests.utils import SkipIfBeforePyTorchVersion
 
 _, has_generative = optional_import("generative")
 
@@ -126,8 +127,8 @@ TEST_CASES_ERROR = [
 ]
 
 
+@SkipIfBeforePyTorchVersion((2, 0))
 @skipUnless(has_generative, "monai-generative required")
-@skipUnless(torch.__version__ >= "2.0", "torch>=2.0 required")
 class TestControlNet(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_shape_unconditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
