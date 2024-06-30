@@ -107,6 +107,7 @@ TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
         "num_classes": 3,
         "conv1_t_size": [3],
         "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
     },
     (1, 2, 32),
     (1, 3),
@@ -185,27 +186,51 @@ TEST_CASE_7 = [  # 1D, batch 1, 2 input channels, bias_downsample
     (1, 3),
 ]
 
+TEST_CASE_8 = [
+    {
+        "block": "bottleneck",
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
+TEST_CASE_9 = [  # Layer norm
+    {
+        "block": ResNetBlock,
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+        "norm": ("layer", {"normalized_shape": (64, 32)}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
 TEST_CASES = []
 PRETRAINED_TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
         PRETRAINED_TEST_CASES.append([model, *case])
-for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7]:
+for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9]:
     TEST_CASES.append([ResNet, *case])
 
 TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 ]
-
-CASE_EXTRACT_FEATURES = [
-    (
-        {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
-        [1, 1, 64, 64, 64],
-        ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
-    )
-]
-
 
 CASE_EXTRACT_FEATURES = [
     (
