@@ -190,4 +190,3 @@ class CutOut(Mixer):
         if randomize:
             self.randomize(data)
         return convert_to_dst_type(self.apply(data_t), dst=data)[0]
-    
