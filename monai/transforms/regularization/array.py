@@ -87,7 +87,7 @@ class MixUp(Mixer):
 
     def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
         data_t = convert_to_tensor(data, track_meta=get_track_meta())
-        labels_t = None
+        labels_t = data_t  # will not stay this value, needed to satisfy pylint/mypy
 
         if labels is not None:
             labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
