@@ -41,6 +41,18 @@ def erode(mask: NdarrayOrTensor, filter_size: int|Sequence[int] = 3, pad_value: 
 
     Return:
         eroded mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
+
+    Example:
+
+        .. code-block:: python
+
+            # define a naive network
+            mask = torch.zeros(3,2,3,3,3)
+            mask[:,:,1,1,1] = 1.0
+            filter_size = 3
+            erode_result = morphological_ops.erode(mask,filter_size) # expect torch.zeros(3,2,3,3,3)
+            dilate_result = morphological_ops.dilate(mask,filter_size) # expect torch.ones(3,2,3,3,3)
+            
     """
     mask_t, *_ = convert_data_type(mask, torch.Tensor)
     res_mask_t = erode_t(mask_t, filter_size=filter_size, pad_value=pad_value)
@@ -59,6 +71,17 @@ def dilate(mask: NdarrayOrTensor, filter_size: int|Sequence[int] = 3, pad_value:
 
     Return:
         dilated mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
+
+    Example:
+
+        .. code-block:: python
+
+            # define a naive network
+            mask = torch.zeros(3,2,3,3,3)
+            mask[:,:,1,1,1] = 1.0
+            filter_size = 3
+            erode_result = morphological_ops.erode(mask,filter_size) # expect torch.zeros(3,2,3,3,3)
+            dilate_result = morphological_ops.dilate(mask,filter_size) # expect torch.ones(3,2,3,3,3)
     """
     mask_t, *_ = convert_data_type(mask, torch.Tensor)
     res_mask_t = dilate_t(mask_t, filter_size=filter_size, pad_value=pad_value)
