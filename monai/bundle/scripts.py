@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from __future__ import annotations
+from io import StringIO
 
 import ast
 import json
@@ -116,10 +117,14 @@ def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
 
 
 def _log_input_summary(tag: str, args: dict) -> None:
-    logger.info(f"--- input summary of monai.bundle.scripts.{tag} ---")
+    log_buffer = StringIO()
+
+    log_buffer.write(f"--- input summary of monai.bundle.scripts.{tag} ---\n")
     for name, val in args.items():
-        logger.info(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}")
-    logger.info("---\n\n")
+        log_buffer.write(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}\n")
+    log_buffer.write("---\n\n")
+
+    logger.info(log_buffer.getvalue())
 
 
 def _get_var_names(expr: str) -> list[str]:
