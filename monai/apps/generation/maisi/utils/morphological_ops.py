@@ -76,7 +76,7 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int|Sequence[
         pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input.
 
     Return:
-        morphological filter result mask, [N,C,M,N] or [N,C,M,N,P] torch tensor
+        Morphological filter result mask, [N,C,M,N] or [N,C,M,N,P] torch tensor
     """
     spatial_dims = len(mask_t.shape)-2
     if spatial_dims not in [2,3]:
@@ -87,7 +87,7 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int|Sequence[
     if any(size % 2 == 0 for size in filter_size):
         raise ValueError(f"All dimensions in filter_size must be odd numbers, yet got {filter_size}.")
     
-    filter_shape = [1,1]+list(filter_size)
+    filter_shape = [mask_t.shape[1],mask_t.shape[1]]+list(filter_size)
     structuring_element = torch.ones(filter_shape).to(
         mask_t.device
     )
