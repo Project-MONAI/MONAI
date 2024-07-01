@@ -168,6 +168,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
     def forward(self, input, _):
         i = 0
         result = input
+        result1 = None
         for l in self.children():
             # ignoring the max (un-)pool and droupout already added in the initial initialization step
             if isinstance(l, (nn.MaxPool2d, nn.MaxUnpool2d, nn.Dropout2d)):

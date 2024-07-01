@@ -379,6 +379,7 @@ class GenerateSuccinctContour(Transform):
         """
 
         p_delta = (current[0] - previous[0], current[1] - previous[1])
+        row, col = -1, -1
 
         if p_delta in ((0.0, 1.0), (0.5, 0.5), (1.0, 0.0)):
             row = int(current[0] + 0.5)

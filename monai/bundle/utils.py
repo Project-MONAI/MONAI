@@ -221,6 +221,7 @@ def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any
                 raise ValueError(f"Cannot find config file '{full_cname}'")
 
             ardata = archive.read(full_cname)
+            cdata = {}
 
             if full_cname.lower().endswith("json"):
                 cdata = json.loads(ardata, **load_kw_args)

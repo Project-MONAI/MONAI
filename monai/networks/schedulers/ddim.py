@@ -184,6 +184,8 @@ class DDIMScheduler(Scheduler):
 
         beta_prod_t = 1 - alpha_prod_t
 
+        pred_original_sample = pred_epsilon = None  # satisfies pylint
+
         # 3. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
         if self.prediction_type == DDIMPredictionType.EPSILON:
@@ -257,6 +259,8 @@ class DDIMScheduler(Scheduler):
         alpha_prod_t_prev = self.alphas_cumprod[prev_timestep] if prev_timestep >= 0 else self.final_alpha_cumprod
 
         beta_prod_t = 1 - alpha_prod_t
+
+        pred_original_sample = pred_epsilon = None  # satisfies pylint
 
         # 3. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
