@@ -12,12 +12,12 @@
 from __future__ import annotations
 
 import unittest
-import torch
-from tests.utils import TEST_NDARRAYS, assert_allclose
 
+import torch
 from parameterized import parameterized
 
 from monai.apps.generation.maisi.utils import morphological_ops
+from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS_SHAPE = []
 for p in TEST_NDARRAYS:

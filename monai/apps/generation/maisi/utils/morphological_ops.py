@@ -9,18 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from typing import Sequence
 
 import torch
 import torch.nn.functional as F
 from torch import Tensor
 
-from monai.utils import (
-    convert_data_type,
-    convert_to_dst_type,
-    ensure_tuple_rep,
-)
 from monai.config import NdarrayOrTensor
+from monai.utils import convert_data_type, convert_to_dst_type, ensure_tuple_rep
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 
