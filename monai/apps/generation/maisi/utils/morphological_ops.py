@@ -109,8 +109,8 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int|Sequence[
         value=pad_value,
     )
 
-    # Apply erosion operation
-    output = F.conv3d(input_padded, structuring_element, padding=0)
+    # Apply filter operation
+    output = F.conv3d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element)
 
     return output
     
@@ -130,7 +130,7 @@ def erode_t(mask_t: Tensor, filter_size: int|Sequence[int] = 3, pad_value: float
     output = get_morphological_filter_result_t(mask_t, filter_size, pad_value)
 
     # Set output values based on the minimum value within the structuring element
-    output = torch.where(output == torch.sum(structuring_element), 1.0, 0.0)
+    output = torch.where(output == 1.0, 1.0, 0.0)
 
     return output.squeeze(0).squeeze(0)
 
