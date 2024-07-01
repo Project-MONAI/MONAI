@@ -58,3 +58,4 @@ lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
 pyamg>=5.0.0
+git+https://github.com/KumoLiu/GenerativeModels.git@cuda#egg=monai-generative
