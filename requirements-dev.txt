@@ -57,5 +57,5 @@ zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
-monai-generative
+# monai-generative
 pyamg>=5.0.0
