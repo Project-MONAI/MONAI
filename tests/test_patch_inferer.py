@@ -15,7 +15,7 @@ import unittest
 
 import torch
 from parameterized import parameterized
-from torch.nn.functional import avg_pool2d
+from torch.nn.functional import avg_pool2d, pad
 
 from monai.data.meta_tensor import MetaTensor
 from monai.inferers import AvgMerger, PatchInferer, SlidingWindowSplitter
@@ -59,7 +59,7 @@ TEST_CASE_4_SPLIT_LIST = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(splitter=None, merger_cls=AvgMerger, output_shape=(2, 3, 4, 4)),
+    dict(splitter=None, merger_cls=AvgMerger, merged_shape=(2, 3, 4, 4)),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -72,7 +72,7 @@ TEST_CASE_5_SPLIT_LIST = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(merger_cls=AvgMerger, output_shape=(2, 3, 4, 4)),
+    dict(merger_cls=AvgMerger, merged_shape=(2, 3, 4, 4)),
     lambda x: x,
     TENSOR_4x4,
 ]
@@ -127,6 +127,50 @@ TEST_CASE_10_STR_MERGER = [
     TENSOR_4x4,
 ]
 
+# non-divisible patch_size leading to larger image (without matching spatial shape)
+TEST_CASE_11_PADDING = [
+    TENSOR_4x4,
+    dict(
+        splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode="constant", pad_value=0.0),
+        merger_cls=AvgMerger,
+        match_spatial_shape=False,
+    ),
+    lambda x: x,
+    pad(TENSOR_4x4, (0, 2), value=0.0),
+]
+
+# non-divisible patch_size with matching spatial shapes
+TEST_CASE_12_MATCHING = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 3), pad_mode=None), merger_cls=AvgMerger),
+    lambda x: x,
+    pad(TENSOR_4x4[..., :3], (0, 1), value=float("nan")),
+]
+
+# non-divisible patch_size with matching spatial shapes
+TEST_CASE_13_PADDING_MATCHING = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 3)), merger_cls=AvgMerger),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
+# multi-threading
+TEST_CASE_14_MULTITHREAD_BUFFER = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, buffer_size=2),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
+# multi-threading with batch
+TEST_CASE_15_MULTITHREADD_BUFFER = [
+    TENSOR_4x4,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger, buffer_size=4, batch_size=4),
+    lambda x: x,
+    TENSOR_4x4,
+]
+
 # list of tensor output
 TEST_CASE_0_LIST_TENSOR = [
     TENSOR_4x4,
@@ -149,17 +193,29 @@ TEST_CASE_0_DICT = [
 # invalid splitter: not callable
 TEST_CASE_ERROR_0 = [None, dict(splitter=1), TypeError]
 # invalid merger: non-existent merger
-TEST_CASE_ERROR_1 = [None, dict(splitter=lambda x: x, merger_cls="NonExistent"), ValueError]
+TEST_CASE_ERROR_1 = [
+    None,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls="NonExistent"),
+    ValueError,
+]
 # invalid merger: callable
-TEST_CASE_ERROR_2 = [None, dict(splitter=lambda x: x, merger_cls=lambda x: x), TypeError]
+TEST_CASE_ERROR_2 = [None, dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=lambda x: x), TypeError]
 # invalid merger: Merger object
-TEST_CASE_ERROR_3 = [None, dict(splitter=lambda x: x, merger_cls=AvgMerger(output_shape=(1, 1))), TypeError]
+TEST_CASE_ERROR_3 = [
+    None,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=AvgMerger(merged_shape=(1, 1))),
+    TypeError,
+]
 # invalid merger: list of Merger class
-TEST_CASE_ERROR_4 = [None, dict(splitter=lambda x: x, merger_cls=[AvgMerger, AvgMerger]), TypeError]
+TEST_CASE_ERROR_4 = [
+    None,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), merger_cls=[AvgMerger, AvgMerger]),
+    TypeError,
+]
 # invalid preprocessing
-TEST_CASE_ERROR_5 = [None, dict(splitter=lambda x: x, preprocessing=1), TypeError]
+TEST_CASE_ERROR_5 = [None, dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), preprocessing=1), TypeError]
 # invalid postprocessing
-TEST_CASE_ERROR_6 = [None, dict(splitter=lambda x: x, postprocessing=1), TypeError]
+TEST_CASE_ERROR_6 = [None, dict(splitter=SlidingWindowSplitter(patch_size=(2, 2)), postprocessing=1), TypeError]
 # provide splitter when data is already split (splitter is not None)
 TEST_CASE_ERROR_7 = [
     [
@@ -168,16 +224,28 @@ TEST_CASE_ERROR_7 = [
         (TENSOR_4x4[..., 2:, :2], (2, 0)),
         (TENSOR_4x4[..., 2:, 2:], (2, 2)),
     ],
-    dict(splitter=lambda x: x),
-    AttributeError,
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2))),
+    ValueError,
 ]
 # invalid inputs: split patches tensor without location
 TEST_CASE_ERROR_8 = [torch.zeros(2, 2), dict(splitter=None), ValueError]
 # invalid inputs: split patches MetaTensor without location metadata
 TEST_CASE_ERROR_9 = [MetaTensor(torch.zeros(2, 2)), dict(splitter=None), ValueError]
+# merged_shape is not provided for the merger
+TEST_CASE_ERROR_10 = [
+    [
+        (TENSOR_4x4[..., :2, :2], (0, 0)),
+        (TENSOR_4x4[..., :2, 2:], (0, 2)),
+        (TENSOR_4x4[..., 2:, :2], (2, 0)),
+        (TENSOR_4x4[..., 2:, 2:], (2, 2)),
+    ],
+    dict(splitter=SlidingWindowSplitter(patch_size=(2, 2))),
+    ValueError,
+]
 
 
 class PatchInfererTests(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_0_TENSOR,
@@ -191,6 +259,11 @@ class PatchInfererTests(unittest.TestCase):
             TEST_CASE_8_POSTPROCESS,
             TEST_CASE_9_STR_MERGER,
             TEST_CASE_10_STR_MERGER,
+            TEST_CASE_11_PADDING,
+            TEST_CASE_12_MATCHING,
+            TEST_CASE_13_PADDING_MATCHING,
+            TEST_CASE_14_MULTITHREAD_BUFFER,
+            TEST_CASE_15_MULTITHREADD_BUFFER,
         ]
     )
     def test_patch_inferer_tensor(self, inputs, arguments, network, expected):

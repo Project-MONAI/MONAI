@@ -14,7 +14,7 @@ from __future__ import annotations
 import inspect
 import warnings
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Optional
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -47,7 +47,7 @@ class MaskedLoss(_Loss):
         if not callable(self.loss):
             raise ValueError("The loss function is not callable.")
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(self, input: torch.Tensor, target: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Args:
             input: the shape should be BNH[WD].

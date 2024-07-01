@@ -38,7 +38,7 @@ num_images_perfold = max(torch.cuda.device_count(), 4)
 num_images_per_batch = 2
 
 sim_datalist: dict[str, list[dict]] = {
-    "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
+    "testing": [{"image": f"ts_image__{idx:03d}.nii.gz"} for idx in range(num_images_perfold)],
     "training": [
         {
             "fold": f,
@@ -71,6 +71,7 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 @SkipIfBeforePyTorchVersion((1, 11, 1))  # for mem_get_info
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestAutoRunner(unittest.TestCase):
+
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
@@ -113,7 +114,10 @@ class TestAutoRunner(unittest.TestCase):
     def test_autorunner(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(
-            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+            work_dir=work_dir,
+            input=self.data_src_cfg,
+            templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_num_fold(1)
@@ -124,7 +128,10 @@ class TestAutoRunner(unittest.TestCase):
     def test_autorunner_ensemble(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(
-            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+            work_dir=work_dir,
+            input=self.data_src_cfg,
+            templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         runner.set_training_params(train_param)  # 2 epochs
         runner.set_ensemble_method("AlgoEnsembleBestByFold")
@@ -136,7 +143,10 @@ class TestAutoRunner(unittest.TestCase):
     def test_autorunner_gpu_customization(self) -> None:
         work_dir = os.path.join(self.test_path, "work_dir")
         runner = AutoRunner(
-            work_dir=work_dir, input=self.data_src_cfg, templates_path_or_url=get_testing_algo_template_path()
+            work_dir=work_dir,
+            input=self.data_src_cfg,
+            templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         gpu_customization_specs = {
             "universal": {"num_trials": 1, "range_num_images_per_batch": [1, 2], "range_num_sw_batch_size": [1, 2]}
@@ -157,6 +167,7 @@ class TestAutoRunner(unittest.TestCase):
             hpo=True,
             ensemble=False,
             templates_path_or_url=get_testing_algo_template_path(),
+            allow_skip=False,
         )
         hpo_param = {
             "num_epochs_per_validation": train_param["num_epochs_per_validation"],

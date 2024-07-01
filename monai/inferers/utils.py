@@ -57,6 +57,7 @@ def sliding_window_inference(
     process_fn: Callable | None = None,
     buffer_steps: int | None = None,
     buffer_dim: int = -1,
+    with_coord: bool = False,
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
@@ -125,6 +126,8 @@ def sliding_window_inference(
             (i.e. no overlapping among the buffers) non_blocking copy may be automatically enabled for efficiency.
         buffer_dim: the spatial dimension along which the buffers are created.
             0 indicates the first spatial dimension. Default is -1, the last spatial dimension.
+        with_coord: whether to pass the window coordinates to ``predictor``. Default is False.
+            If True, the signature of ``predictor`` should be ``predictor(patch_data, patch_coord, ...)``.
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -220,7 +223,10 @@ def sliding_window_inference(
             win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
         else:
             win_data = inputs[unravel_slice[0]].to(sw_device)
-        seg_prob_out = predictor(win_data, *args, **kwargs)  # batched patch
+        if with_coord:
+            seg_prob_out = predictor(win_data, unravel_slice, *args, **kwargs)  # batched patch
+        else:
+            seg_prob_out = predictor(win_data, *args, **kwargs)  # batched patch
 
         # convert seg_prob_out to tuple seg_tuple, this does not allocate new memory.
         dict_keys, seg_tuple = _flatten_struct(seg_prob_out)
@@ -280,7 +286,7 @@ def sliding_window_inference(
             else:
                 sw_device_buffer[ss] *= w_t
                 sw_device_buffer[ss] = sw_device_buffer[ss].to(device)
-                _compute_coords(sw_batch_size, unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
+                _compute_coords(unravel_slice, z_scale, output_image_list[ss], sw_device_buffer[ss])
         sw_device_buffer = []
         if buffered:
             b_s += 1
@@ -342,7 +348,7 @@ def _create_buffered_slices(slices, batch_size, sw_batch_size, buffer_dim, buffe
     return slices, n_per_batch, b_slices, windows_range
 
 
-def _compute_coords(sw, coords, z_scale, out, patch):
+def _compute_coords(coords, z_scale, out, patch):
     """sliding window batch spatial scaling indexing for multi-resolution outputs."""
     for original_idx, p in zip(coords, patch):
         idx_zm = list(original_idx)  # 4D for 2D image, 5D for 3D image

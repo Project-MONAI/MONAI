@@ -36,6 +36,7 @@ TEST_CASES_MULTIOUTPUT = [[torch.ones((1, 6, 20, 20))], [MetaTensor(torch.ones((
 
 
 class TestSlidingWindowHoVerNetInference(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_PADDING)
     def test_sliding_window_with_padding(
         self, key, image_shape, roi_shape, sw_batch_size, overlap, mode, device, extra_input_padding
@@ -237,6 +238,7 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
             None,
             None,
             0,
+            False,
             t1,
             test2=t2,
         )

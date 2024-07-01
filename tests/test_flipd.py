@@ -35,6 +35,7 @@ for track_meta in (False, True):
 
 
 class TestFlipd(NumpyImageTestCase2D):
+
     @parameterized.expand(INVALID_CASES)
     def test_invalid_cases(self, _, spatial_axis, raises):
         with self.assertRaises(raises):
@@ -77,7 +78,7 @@ class TestFlipd(NumpyImageTestCase2D):
     def test_meta_dict(self):
         xform = Flipd("image", [0, 1])
         res = xform({"image": torch.zeros(1, 3, 4)})
-        self.assertTrue(res["image"].applied_operations == res["image_transforms"])
+        self.assertEqual(res["image"].applied_operations, res["image_transforms"])
 
 
 if __name__ == "__main__":

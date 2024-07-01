@@ -23,6 +23,7 @@ from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase3D, assert_allclose
 
 
 class TestRandAxisFlip(NumpyImageTestCase3D):
+
     def test_correct_results(self):
         for p in TEST_NDARRAYS_ALL:
             flip = RandAxisFlipd(keys="img", prob=1.0)
@@ -33,7 +34,7 @@ class TestRandAxisFlip(NumpyImageTestCase3D):
 
             # test lazy
             test_resampler_lazy(flip, result, call_param=call_param, output_key="img", seed=1234)
-            flip.lazy_evaluation = False
+            flip.lazy = False
 
             test_local_inversion(flip, result, {"img": im}, "img")
             expected = [np.flip(channel, flip.flipper._axis) for channel in self.imt[0]]

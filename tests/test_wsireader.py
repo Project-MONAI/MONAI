@@ -81,15 +81,27 @@ TEST_CASE_2 = [
 TEST_CASE_3 = [
     WSI_GENERIC_TIFF_PATH,
     {"channel_dim": -1},
-    {"location": (WSI_GENERIC_TIFF_HEIGHT // 2, WSI_GENERIC_TIFF_WIDTH // 2), "size": (2, 1), "level": 0},
-    np.moveaxis(np.array([[[246], [246]], [[246], [246]], [[246], [246]]], dtype=np.uint8), 0, -1),
+    {"location": (WSI_GENERIC_TIFF_HEIGHT // 2, WSI_GENERIC_TIFF_WIDTH // 2), "size": (4, 1), "level": 0},
+    np.moveaxis(
+        np.array(
+            [[[246], [246], [246], [246]], [[246], [246], [246], [246]], [[246], [246], [246], [246]]], dtype=np.uint8
+        ),
+        0,
+        -1,
+    ),
 ]
 
 TEST_CASE_4 = [
     WSI_GENERIC_TIFF_PATH,
     {"channel_dim": 2},
-    {"location": (0, 0), "size": (2, 1), "level": 8},
-    np.moveaxis(np.array([[[242], [242]], [[242], [242]], [[242], [242]]], dtype=np.uint8), 0, -1),
+    {"location": (0, 0), "size": (4, 1), "level": 8},
+    np.moveaxis(
+        np.array(
+            [[[242], [242], [242], [242]], [[242], [242], [242], [242]], [[242], [242], [242], [242]]], dtype=np.uint8
+        ),
+        0,
+        -1,
+    ),
 ]
 
 TEST_CASE_5 = [
@@ -390,6 +402,7 @@ def setUpModule():
 
 
 class WSIReaderTests:
+
     class Tests(unittest.TestCase):
         backend = None
 
@@ -628,6 +641,7 @@ class WSIReaderTests:
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestCuCIM(WSIReaderTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -635,6 +649,7 @@ class TestCuCIM(WSIReaderTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestOpenSlide(WSIReaderTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"
@@ -642,6 +657,7 @@ class TestOpenSlide(WSIReaderTests.Tests):
 
 @skipUnless(has_tiff, "Requires tifffile")
 class TestTiffFile(WSIReaderTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "tifffile"

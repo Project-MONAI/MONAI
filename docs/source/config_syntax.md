@@ -76,17 +76,21 @@ A few characters and keywords are interpreted beyond the plain texts, here are e
 ### To reference Python objects in configurations
 
 ```json
-"@preprocessing#transforms#keys"
+"@preprocessing::transforms::keys"
 ```
 
-_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing#transforms#keys`.
-where `#` indicates a sub-structure of this configuration file.
+_Description:_ `@` character indicates a reference to another configuration value defined at `preprocessing::transforms::keys`.
+where `::` indicates a sub-structure of this configuration file. (`#` is a synonym for `::`, `preprocessing#transforms#keys`
+refers to the same object.)
 
 ```json
-"@preprocessing#1"
+"@preprocessing::1"
 ```
 
 _Description:_ `1` is referencing as an integer, which is used to index (zero-based indexing) the `preprocessing` sub-structure.
+
+Relative reference is supported by starting the reference with `#`. For example, `@#A` is to use `A` at the
+same config structure level, and `@##A` refers to `A` at one level above.
 
 ### To evaluate as Python expressions
 
@@ -110,13 +114,19 @@ _Description:_ `$` followed by an import statement is handled slightly different
 Python expressions. The imported module `resnet18` will be available as a global variable
 to the other configuration sections. This is to simplify the use of external modules in the configuration.
 
+The config expressions may use `@` to reference other config items. For example, in `$lambda x: x + @a + @b`,
+`@a` and `@b` are references to other Python objects and are made available to the anonymous function
+as 'globals'.
+It's therefore possible to modify the Python objects within an expression, for example,
+`$lambda x: @my_list.pop() + x` will pop the last element from `@my_list` and add it to `x`.
+
 ### To textually replace configuration elements
 
 ```json
-"%demo_config.json#demo_net#in_channels"
+"%demo_config.json::demo_net::in_channels"
 ```
 
-_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net#in_channels` in the
+_Description:_ `%` character indicates a macro to replace the current configuration element with the texts at `demo_net::in_channels` in the
 `demo_config.json` file. The replacement is done before instantiating or evaluating the components.
 
 ### Instantiate a Python object
@@ -158,9 +168,10 @@ _Description:_ `_requires_`, `_disabled_`, `_desc_`, and `_mode_` are optional k
 - `_mode_` specifies the operating mode when the component is instantiated or the callable is called.
   it currently supports the following values:
   - `"default"` (default) -- return the return value of ``_target_(**kwargs)``
-  - `"partial"` -- return a partial function of ``functools.partial(_target_, **kwargs)`` (this is often
-    useful when some portion of the full set of arguments are supplied to the ``_target_``, and the user wants to
-    call it with additional arguments later).
+  - `"callable"` -- return a callable, either as ``_target_`` itself or, if ``kwargs`` are provided, as a
+    partial function of ``functools.partial(_target_, **kwargs)``. Useful for defining a class or function
+    that will be instantied or called later. User can pre-define some arguments to the ``_target_`` and call
+    it with additional arguments later.
   - `"debug"` -- execute with debug prompt and return the return value of ``pdb.runcall(_target_, **kwargs)``,
     see also [`pdb.runcall`](https://docs.python.org/3/library/pdb.html#pdb.runcall).
 
@@ -194,5 +205,6 @@ Details on the CLI argument parsing is provided in the
   simple structures with sparse uses of expressions or references are preferred.
 - For `$import <module>` in the configuration, please make sure there are instructions for the users to install
   the `<module>` if it is not a (optional) dependency of MONAI.
-- As "#" and "$" might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
+- As `#`, `::`, and `$` might be interpreted differently by the `shell` or `CLI` tools, may need to add escape characters
   or quotes for them in the command line, like: `"\$torch.device('cuda:1')"`, `"'train_part#trainer'"`.
+- For more details and examples, please see [the tutorials](https://github.com/Project-MONAI/tutorials/tree/main/bundle).

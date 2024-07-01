@@ -79,6 +79,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestBoxTransform(unittest.TestCase):
+
     @parameterized.expand(TESTS_2D_mask)
     def test_value_2d_mask(self, mask, expected_box_label):
         box_label = convert_mask_to_box(mask)
@@ -130,6 +131,24 @@ class TestBoxTransform(unittest.TestCase):
             data_back = transform_to_box(data_mask)
             assert_allclose(data_back["boxes"], data["boxes"], type_test=False, device_test=False, atol=1e-3)
             assert_allclose(data_back["labels"], data["labels"], type_test=False, device_test=False, atol=1e-3)
+
+    def test_shape_assertion(self):
+        test_dtype = torch.float32
+        image = np.zeros((1, 10, 10, 10))
+        boxes = np.array([[7, 8, 9, 10, 12, 13]])
+        data = {"image": image, "boxes": boxes, "labels": np.array((1,))}
+        data = CastToTyped(keys=["image", "boxes"], dtype=test_dtype)(data)
+        transform_to_mask = BoxToMaskd(
+            box_keys="boxes",
+            box_mask_keys="box_mask",
+            box_ref_image_keys="image",
+            label_keys="labels",
+            min_fg_label=0,
+            ellipse_mask=False,
+        )
+        with self.assertRaises(ValueError) as context:
+            transform_to_mask(data)
+        self.assertTrue("Some boxes are larger than the image." in str(context.exception))
 
     @parameterized.expand(TESTS_3D)
     def test_value_3d(

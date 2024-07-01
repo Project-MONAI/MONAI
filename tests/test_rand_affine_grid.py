@@ -198,6 +198,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandAffineGrid(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_rand_affine_grid(self, input_param, input_data, expected_val):
         g = RandAffineGrid(**input_param)

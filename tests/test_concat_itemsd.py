@@ -22,6 +22,7 @@ from tests.utils import assert_allclose
 
 
 class TestConcatItemsd(unittest.TestCase):
+
     def test_tensor_values(self):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         input_data = {
@@ -29,7 +30,7 @@ class TestConcatItemsd(unittest.TestCase):
             "img2": torch.tensor([[0, 1], [1, 2]], device=device),
         }
         result = ConcatItemsd(keys=["img1", "img2"], name="cat_img")(input_data)
-        self.assertTrue("cat_img" in result)
+        self.assertIn("cat_img", result)
         result["cat_img"] += 1
         assert_allclose(result["img1"], torch.tensor([[0, 1], [1, 2]], device=device))
         assert_allclose(result["cat_img"], torch.tensor([[1, 2], [2, 3], [1, 2], [2, 3]], device=device))
@@ -41,8 +42,8 @@ class TestConcatItemsd(unittest.TestCase):
             "img2": MetaTensor([[0, 1], [1, 2]], device=device),
         }
         result = ConcatItemsd(keys=["img1", "img2"], name="cat_img")(input_data)
-        self.assertTrue("cat_img" in result)
-        self.assertTrue(isinstance(result["cat_img"], MetaTensor))
+        self.assertIn("cat_img", result)
+        self.assertIsInstance(result["cat_img"], MetaTensor)
         self.assertEqual(result["img1"].meta, result["cat_img"].meta)
         result["cat_img"] += 1
         assert_allclose(result["img1"], torch.tensor([[0, 1], [1, 2]], device=device))
@@ -51,7 +52,7 @@ class TestConcatItemsd(unittest.TestCase):
     def test_numpy_values(self):
         input_data = {"img1": np.array([[0, 1], [1, 2]]), "img2": np.array([[0, 1], [1, 2]])}
         result = ConcatItemsd(keys=["img1", "img2"], name="cat_img")(input_data)
-        self.assertTrue("cat_img" in result)
+        self.assertIn("cat_img", result)
         result["cat_img"] += 1
         np.testing.assert_allclose(result["img1"], np.array([[0, 1], [1, 2]]))
         np.testing.assert_allclose(result["cat_img"], np.array([[1, 2], [2, 3], [1, 2], [2, 3]]))

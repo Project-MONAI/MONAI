@@ -35,7 +35,6 @@ from monai.utils import optional_import
 from monai.utils.enums import HoVerNetBranch
 
 find_contours, _ = optional_import("skimage.measure", name="find_contours")
-moments, _ = optional_import("skimage.measure", name="moments")
 
 __all__ = [
     "WatershedD",

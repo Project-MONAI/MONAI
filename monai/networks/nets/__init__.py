@@ -17,6 +17,7 @@ from .autoencoder import AutoEncoder
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetplusplus
 from .classifier import Classifier, Critic, Discriminator
+from .daf3d import DAF3D
 from .densenet import (
     DenseNet,
     Densenet,
@@ -51,12 +52,17 @@ from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
+from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
 from .resnet import (
     ResNet,
     ResNetBlock,
     ResNetBottleneck,
+    ResNetEncoder,
+    ResNetFeatures,
+    get_medicalnet_pretrained_resnet_args,
+    get_pretrained_resnet_medicalnet,
     resnet10,
     resnet18,
     resnet34,
@@ -107,3 +113,4 @@ from .varautoencoder import VarAutoEncoder
 from .vit import ViT
 from .vitautoenc import ViTAutoEnc
 from .vnet import VNet
+from .voxelmorph import VoxelMorph, VoxelMorphUNet

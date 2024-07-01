@@ -24,7 +24,7 @@ yaml, _ = optional_import("yaml")
 __all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
-ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
+ID_SEP_KEY = "::"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
 
@@ -113,7 +113,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         "experiment_name": "monai_experiment",
         "run_name": None,
         # may fill it at runtime
-        "execute_config": None,
+        "save_execute_config": True,
         "is_not_rank0": (
             "$torch.distributed.is_available() \
                 and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
@@ -125,7 +125,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
-            "artifacts": "@execute_config",
+            "artifacts": "@save_execute_config",
             "iteration_log": True,
             "epoch_log": True,
             "tag_name": "train_loss",
@@ -148,7 +148,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
-            "artifacts": "@execute_config",
+            "artifacts": "@save_execute_config",
             "iteration_log": False,
             "close_on_complete": True,
         },

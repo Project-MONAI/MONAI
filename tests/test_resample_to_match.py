@@ -46,6 +46,7 @@ def get_rand_fname(len=10, suffix=".nii.gz"):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestResampleToMatch(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
@@ -72,9 +73,8 @@ class TestResampleToMatch(unittest.TestCase):
         im_mod = tr(data["im2"], data["im1"])
 
         # check lazy resample
-        tr_lazy = ResampleToMatch()
         call_param = {"img": data["im2"], "img_dst": data["im1"]}
-        test_resampler_lazy(tr_lazy, im_mod, init_param={}, call_param=call_param)
+        test_resampler_lazy(tr, im_mod, init_param={}, call_param=call_param)
 
         saver = SaveImaged(
             "im3", output_dir=self.tmpdir, output_postfix="", separate_folder=False, writer=writer, resample=False
@@ -87,7 +87,7 @@ class TestResampleToMatch(unittest.TestCase):
         assert_allclose(saved.header["dim"][:4], np.array([3, 384, 384, 19]))
 
     def test_inverse(self):
-        loader = Compose([LoadImaged(("im1", "im2")), EnsureChannelFirstd(("im1", "im2"))])
+        loader = Compose([LoadImaged(("im1", "im2"), image_only=True), EnsureChannelFirstd(("im1", "im2"))])
         data = loader({"im1": self.fnames[0], "im2": self.fnames[1]})
         tr = ResampleToMatch()
         im_mod = tr(data["im2"], data["im1"])

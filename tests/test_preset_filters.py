@@ -63,6 +63,7 @@ TEST_CASES_SHARPEN = [
 
 
 class _TestFilter:
+
     def test_init(self, spatial_dims, size, expected):
         test_filter = self.filter_class(spatial_dims=spatial_dims, size=size)
         torch.testing.assert_allclose(expected, test_filter.filter)
@@ -75,6 +76,7 @@ class _TestFilter:
 
 
 class TestApplyFilter(unittest.TestCase):
+
     def test_init_and_forward_2d(self):
         filter_2d = torch.ones(3, 3)
         image_2d = torch.ones(1, 3, 3)
@@ -91,6 +93,7 @@ class TestApplyFilter(unittest.TestCase):
 
 
 class MeanFilterTestCase(_TestFilter, unittest.TestCase):
+
     def setUp(self) -> None:
         self.filter_class = MeanFilter
 
@@ -100,6 +103,7 @@ class MeanFilterTestCase(_TestFilter, unittest.TestCase):
 
 
 class LaplaceFilterTestCase(_TestFilter, unittest.TestCase):
+
     def setUp(self) -> None:
         self.filter_class = LaplaceFilter
 
@@ -109,6 +113,7 @@ class LaplaceFilterTestCase(_TestFilter, unittest.TestCase):
 
 
 class EllipticalTestCase(_TestFilter, unittest.TestCase):
+
     def setUp(self) -> None:
         self.filter_class = EllipticalFilter
 
@@ -118,6 +123,7 @@ class EllipticalTestCase(_TestFilter, unittest.TestCase):
 
 
 class SharpenTestCase(_TestFilter, unittest.TestCase):
+
     def setUp(self) -> None:
         self.filter_class = SharpenFilter
 

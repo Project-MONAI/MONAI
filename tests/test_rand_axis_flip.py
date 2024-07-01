@@ -23,6 +23,7 @@ from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandAxisFlip(NumpyImageTestCase2D):
+
     def test_correct_results(self):
         for p in TEST_NDARRAYS_ALL:
             flip = RandAxisFlip(prob=1.0)
@@ -33,7 +34,7 @@ class TestRandAxisFlip(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(flip, result, call_param=call_param, seed=321)
-            flip.lazy_evaluation = False
+            flip.lazy = False
 
             expected = [np.flip(channel, flip._axis) for channel in self.imt[0]]
             assert_allclose(result, p(np.stack(expected)), type_test="tensor")

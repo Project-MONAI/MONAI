@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for the model output tensors
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for the model output tensors.
 """
 
 from __future__ import annotations
@@ -32,6 +31,7 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import ToTensor
 from monai.transforms.utils import (
     convert_applied_interp_mode,
+    distance_transform_edt,
     fill_holes,
     get_largest_connected_component_mask,
     get_unique_labels,
@@ -54,6 +54,7 @@ __all__ = [
     "SobelGradients",
     "VoteEnsemble",
     "Invert",
+    "DistanceTransformEDT",
 ]
 
 
@@ -360,7 +361,8 @@ class RemoveSmallObjects(Transform):
     Data should be one-hotted.
 
     Args:
-        min_size: objects smaller than this size (in pixel) are removed.
+        min_size: objects smaller than this size (in number of voxels; or surface area/volume value
+            in whatever units your image is if by_measure is True) are removed.
         connectivity: Maximum number of orthogonal hops to consider a pixel/voxel as a neighbor.
             Accepted values are ranging from  1 to input.ndim. If ``None``, a full
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
@@ -368,14 +370,61 @@ class RemoveSmallObjects(Transform):
         independent_channels: Whether or not to consider channels as independent. If true, then
             conjoining islands from different labels will be removed if they are below the threshold.
             If false, the overall size islands made from all non-background voxels will be used.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False. e.g. if min_size is 3, by_measure is True and the units of your data is mm,
+            objects smaller than 3mm^3 are removed.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
+
+    Example::
+
+        .. code-block:: python
+
+            from monai.transforms import RemoveSmallObjects, Spacing, Compose
+            from monai.data import MetaTensor
+
+            data1 = torch.tensor([[[0, 0, 0, 0, 0], [0, 1, 1, 0, 1], [0, 0, 0, 1, 1]]])
+            affine = torch.as_tensor([[2,0,0,0],
+                                      [0,1,0,0],
+                                      [0,0,1,0],
+                                      [0,0,0,1]], dtype=torch.float64)
+            data2 = MetaTensor(data1, affine=affine)
+
+            # remove objects smaller than 3mm^3, input is MetaTensor
+            trans = RemoveSmallObjects(min_size=3, by_measure=True)
+            out = trans(data2)
+            # remove objects smaller than 3mm^3, input is not MetaTensor
+            trans = RemoveSmallObjects(min_size=3, by_measure=True, pixdim=(2, 1, 1))
+            out = trans(data1)
+
+            # remove objects smaller than 3 (in pixel)
+            trans = RemoveSmallObjects(min_size=3)
+            out = trans(data2)
+
+            # If the affine of the data is not identity, you can also add Spacing before.
+            trans = Compose([
+                Spacing(pixdim=(1, 1, 1)),
+                RemoveSmallObjects(min_size=3)
+            ])
+
     """
 
     backend = [TransformBackends.NUMPY]
 
-    def __init__(self, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True) -> None:
+    def __init__(
+        self,
+        min_size: int = 64,
+        connectivity: int = 1,
+        independent_channels: bool = True,
+        by_measure: bool = False,
+        pixdim: Sequence[float] | float | np.ndarray | None = None,
+    ) -> None:
         self.min_size = min_size
         self.connectivity = connectivity
         self.independent_channels = independent_channels
+        self.by_measure = by_measure
+        self.pixdim = pixdim
 
     def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
         """
@@ -386,7 +435,10 @@ class RemoveSmallObjects(Transform):
         Returns:
             An array with shape (C, spatial_dim1[, spatial_dim2, ...]).
         """
-        return remove_small_objects(img, self.min_size, self.connectivity, self.independent_channels)
+
+        return remove_small_objects(
+            img, self.min_size, self.connectivity, self.independent_channels, self.by_measure, self.pixdim
+        )
 
 
 class LabelFilter(Transform):
@@ -579,6 +631,7 @@ class LabelToContour(Transform):
 
 
 class Ensemble:
+
     @staticmethod
     def get_stacked_torch(img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> torch.Tensor:
         """Get either a sequence or single instance of np.ndarray/torch.Tensor. Return single torch.Tensor."""
@@ -937,3 +990,39 @@ class SobelGradients(Transform):
         grads = convert_to_dst_type(grads.squeeze(0), image_tensor)[0]
 
         return grads
+
+
+class DistanceTransformEDT(Transform):
+    """
+    Applies the Euclidean distance transform on the input.
+    Either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation and / or :func:`monai.transforms.utils.distance_transform_edt`.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+    """
+
+    backend = [TransformBackends.NUMPY, TransformBackends.CUPY]
+
+    def __init__(self, sampling: None | float | list[float] = None) -> None:
+        super().__init__()
+        self.sampling = sampling
+
+    def __call__(self, img: NdarrayOrTensor) -> NdarrayOrTensor:
+        """
+        Args:
+            img: Input image on which the distance transform shall be run.
+                Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+                Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+                Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+                from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+            sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+                if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+
+        Returns:
+            An array with the same shape and data type as img
+        """
+        return distance_transform_edt(img=img, sampling=self.sampling)  # type: ignore

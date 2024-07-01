@@ -73,6 +73,12 @@ def _network_sequence_output(images: Tensor, network: nn.Module, keys: list[str]
         network output values concat to a single List[Tensor]
     """
     head_outputs = network(images)
+
+    # if head_outputs is already a sequence of tensors, directly output it
+    if isinstance(head_outputs, (tuple, list)):
+        return list(head_outputs)
+
+    # if head_outputs is a dict
     ensure_dict_value_to_list_(head_outputs, keys)
     if keys is None:
         keys = list(head_outputs.keys())

@@ -70,8 +70,10 @@ for x in _windows:
 
 
 class TestSlidingWindowInference(unittest.TestCase):
+
     @parameterized.expand(BUFFER_CASES)
     def test_buffers(self, size_params, buffer_steps, buffer_dim, device_params):
+
         def mult_two(patch, *args, **kwargs):
             return 2.0 * patch
 
@@ -294,6 +296,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             None,
             None,
             0,
+            False,
             t1,
             test2=t2,
         )

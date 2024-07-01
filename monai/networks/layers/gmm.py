@@ -78,6 +78,7 @@ class GaussianMixtureModel:
 
 
 class _ApplyFunc(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, params, features, compiled_extension):
         return compiled_extension.apply(params, features)

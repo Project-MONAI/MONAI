@@ -72,6 +72,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestMeanEnsembled(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, input_param, data, expected_value):
         result = MeanEnsembled(**input_param)(data)

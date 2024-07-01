@@ -32,6 +32,7 @@ for device in TEST_DEVICES:
 
 
 class TestReplaceModule(unittest.TestCase):
+
     def setUp(self):
         self.net = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         self.num_relus = self.get_num_modules(torch.nn.ReLU)

@@ -50,6 +50,7 @@ def rand_string(min_len=5, max_len=10):
 
 
 class TestMetaTensor(unittest.TestCase):
+
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
@@ -221,9 +222,9 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_get_set_meta_fns(self):
         set_track_meta(False)
-        self.assertEqual(get_track_meta(), False)
+        self.assertFalse(get_track_meta())
         set_track_meta(True)
-        self.assertEqual(get_track_meta(), True)
+        self.assertTrue(get_track_meta())
 
     @parameterized.expand(TEST_DEVICES)
     def test_torchscript(self, device):
@@ -413,6 +414,10 @@ class TestMetaTensor(unittest.TestCase):
         x.is_batch = True
         with self.assertRaises(ValueError):
             x[slice(0, 8)]
+        x = MetaTensor(np.zeros((3, 3, 4)))
+        x.is_batch = True
+        self.assertEqual(x[torch.tensor([True, False, True])].shape, (2, 3, 4))
+        self.assertEqual(x[[True, False, True]].shape, (2, 3, 4))
 
     @parameterized.expand(DTYPES)
     @SkipIfBeforePyTorchVersion((1, 8))
@@ -433,6 +438,7 @@ class TestMetaTensor(unittest.TestCase):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
         self.assertEqual(str(t), "metatensor([1.])")
         self.assertEqual(t.__repr__(), "metatensor([1.])")
+        self.assertEqual(f"{t[0]:.2f}", "1.00")
 
     def test_shape(self):
         s = MetaTensor([1])

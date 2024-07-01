@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import math
 import os
 import pprint
 import random
 import shutil
+import subprocess
 import tempfile
 import types
 import warnings
@@ -72,6 +74,8 @@ __all__ = [
     "check_key_duplicates",
     "CheckKeyDuplicatesYamlLoader",
     "ConvertUnits",
+    "check_kwargs_exist_in_class_init",
+    "run_cmd",
 ]
 
 _seed = None
@@ -99,13 +103,11 @@ T = TypeVar("T")
 
 
 @overload
-def first(iterable: Iterable[T], default: T) -> T:
-    ...
+def first(iterable: Iterable[T], default: T) -> T: ...
 
 
 @overload
-def first(iterable: Iterable[T]) -> T | None:
-    ...
+def first(iterable: Iterable[T]) -> T | None: ...
 
 
 def first(iterable: Iterable[T], default: T | None = None) -> T | None:
@@ -523,6 +525,30 @@ class MONAIEnvVars:
     def doc_images() -> str | None:
         return os.environ.get("MONAI_DOC_IMAGES")
 
+    @staticmethod
+    def algo_hash() -> str | None:
+        return os.environ.get("MONAI_ALGO_HASH", "e4cf5a1")
+
+    @staticmethod
+    def trace_transform() -> str | None:
+        return os.environ.get("MONAI_TRACE_TRANSFORM", "1")
+
+    @staticmethod
+    def eval_expr() -> str | None:
+        return os.environ.get("MONAI_EVAL_EXPR", "1")
+
+    @staticmethod
+    def allow_missing_reference() -> str | None:
+        return os.environ.get("MONAI_ALLOW_MISSING_REFERENCE", "1")
+
+    @staticmethod
+    def extra_test_data() -> str | None:
+        return os.environ.get("MONAI_EXTRA_TEST_DATA", "1")
+
+    @staticmethod
+    def testing_algo_template() -> str | None:
+        return os.environ.get("MONAI_TESTING_ALGO_TEMPLATE", None)
+
 
 class ImageMetaKey:
     """
@@ -716,6 +742,7 @@ def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, 
 
 
 class CheckKeyDuplicatesYamlLoader(SafeLoader):
+
     def construct_mapping(self, node, deep=False):
         mapping = set()
         for key_node, _ in node.value:
@@ -800,3 +827,73 @@ class ConvertUnits:
 
     def __call__(self, value: int | float) -> Any:
         return float(value) * self.conversion_factor
+
+
+def check_kwargs_exist_in_class_init(cls, kwargs):
+    """
+    Check if the all keys in kwargs exist in the __init__ method of the class.
+
+    Args:
+        cls: the class to check.
+        kwargs: kwargs to examine.
+
+    Returns:
+        a boolean indicating if all keys exist.
+        a set of extra keys that are not used in the __init__.
+    """
+    init_signature = inspect.signature(cls.__init__)
+    init_params = set(init_signature.parameters) - {"self"}  # Exclude 'self' from the parameter list
+    input_kwargs = set(kwargs)
+    extra_kwargs = input_kwargs - init_params
+
+    return extra_kwargs == set(), extra_kwargs
+
+
+def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
+    """
+    Run a command by using ``subprocess.run`` with capture_output=True and stderr=subprocess.STDOUT
+    so that the raise exception will have that information. The argument `capture_output` can be set explicitly
+    if desired, but will be overriden with the debug status from the variable.
+
+    Args:
+        cmd_list: a list of strings describing the command to run.
+        kwargs: keyword arguments supported by the ``subprocess.run`` method.
+
+    Returns:
+        a CompletedProcess instance after the command completes.
+    """
+    debug = MONAIEnvVars.debug()
+    kwargs["capture_output"] = kwargs.get("capture_output", debug)
+
+    if kwargs.pop("run_cmd_verbose", False):
+        import monai
+
+        monai.apps.utils.get_logger("run_cmd").info(f"{cmd_list}")
+    try:
+        return subprocess.run(cmd_list, **kwargs)
+    except subprocess.CalledProcessError as e:
+        if not debug:
+            raise
+        output = str(e.stdout.decode(errors="replace"))
+        errors = str(e.stderr.decode(errors="replace"))
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
+
+
+def is_sqrt(num: Sequence[int] | int) -> bool:
+    """
+    Determine if the input is a square number or a squence of square numbers.
+    """
+    num = ensure_tuple(num)
+    sqrt_num = [int(math.sqrt(_num)) for _num in num]
+    ret = [_i * _j for _i, _j in zip(sqrt_num, sqrt_num)]
+    return ensure_tuple(ret) == num
+
+
+def unsqueeze_right(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+    """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    return arr[(...,) + (None,) * (ndim - arr.ndim)]
+
+
+def unsqueeze_left(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+    """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
+    return arr[(None,) * (ndim - arr.ndim)]

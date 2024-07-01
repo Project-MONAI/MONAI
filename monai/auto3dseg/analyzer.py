@@ -198,7 +198,7 @@ class ImageStats(Analyzer):
 
     """
 
-    def __init__(self, image_key: str, stats_name: str = "image_stats") -> None:
+    def __init__(self, image_key: str, stats_name: str = DataStatsKeys.IMAGE_STATS) -> None:
         if not isinstance(image_key, str):
             raise ValueError("image_key input must be str")
 
@@ -256,7 +256,7 @@ class ImageStats(Analyzer):
         )
 
         report[ImageStatsKeys.SIZEMM] = [
-            int(a * b) for a, b in zip(report[ImageStatsKeys.SHAPE][0], report[ImageStatsKeys.SPACING])
+            a * b for a, b in zip(report[ImageStatsKeys.SHAPE][0], report[ImageStatsKeys.SPACING])
         ]
 
         report[ImageStatsKeys.INTENSITY] = [
@@ -296,7 +296,7 @@ class FgImageStats(Analyzer):
 
     """
 
-    def __init__(self, image_key: str, label_key: str, stats_name: str = "image_foreground_stats"):
+    def __init__(self, image_key: str, label_key: str, stats_name: str = DataStatsKeys.FG_IMAGE_STATS):
         self.image_key = image_key
         self.label_key = label_key
 
@@ -378,7 +378,9 @@ class LabelStats(Analyzer):
 
     """
 
-    def __init__(self, image_key: str, label_key: str, stats_name: str = "label_stats", do_ccp: bool | None = True):
+    def __init__(
+        self, image_key: str, label_key: str, stats_name: str = DataStatsKeys.LABEL_STATS, do_ccp: bool | None = True
+    ):
         self.image_key = image_key
         self.label_key = label_key
         self.do_ccp = do_ccp
@@ -458,7 +460,7 @@ class LabelStats(Analyzer):
         torch.set_grad_enabled(False)
 
         ndas: list[MetaTensor] = [d[self.image_key][i] for i in range(d[self.image_key].shape[0])]  # type: ignore
-        ndas_label: MetaTensor = d[self.label_key]  # (H,W,D)
+        ndas_label: MetaTensor = d[self.label_key].astype(torch.int16)  # (H,W,D)
 
         if ndas_label.shape != ndas[0].shape:
             raise ValueError(f"Label shape {ndas_label.shape} is different from image shape {ndas[0].shape}")
@@ -470,7 +472,7 @@ class LabelStats(Analyzer):
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
             unique_label = unique_label.data.cpu().numpy()
 
-        unique_label = unique_label.astype(np.int8).tolist()
+        unique_label = unique_label.astype(np.int16).tolist()
 
         label_substats = []  # each element is one label
         pixel_sum = 0
@@ -533,7 +535,7 @@ class ImageStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "image_stats", average: bool | None = True):
+    def __init__(self, stats_name: str = DataStatsKeys.IMAGE_STATS, average: bool | None = True):
         self.summary_average = average
         report_format = {
             ImageStatsKeys.SHAPE: None,
@@ -623,7 +625,7 @@ class FgImageStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "image_foreground_stats", average: bool | None = True):
+    def __init__(self, stats_name: str = DataStatsKeys.FG_IMAGE_STATS, average: bool | None = True):
         self.summary_average = average
 
         report_format = {ImageStatsKeys.INTENSITY: None}
@@ -687,7 +689,9 @@ class LabelStatsSumm(Analyzer):
 
     """
 
-    def __init__(self, stats_name: str = "label_stats", average: bool | None = True, do_ccp: bool | None = True):
+    def __init__(
+        self, stats_name: str = DataStatsKeys.LABEL_STATS, average: bool | None = True, do_ccp: bool | None = True
+    ):
         self.summary_average = average
         self.do_ccp = do_ccp
 

@@ -22,4 +22,4 @@ from .ensemble_builder import (
     EnsembleRunner,
 )
 from .hpo_gen import NNIGen, OptunaGen
-from .utils import export_bundle_algo_history, import_bundle_algo_history
+from .utils import export_bundle_algo_history, get_name_from_algo_id, import_bundle_algo_history

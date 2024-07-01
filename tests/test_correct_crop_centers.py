@@ -23,6 +23,7 @@ TESTS = [[[1, 5, 0], [2, 2, 2], [10, 10, 10]], [[4, 4, 4], [2, 2, 1], [10, 10, 1
 
 
 class TestCorrectCropCenters(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_torch(self, spatial_size, centers, label_spatial_shape):
         result1 = correct_crop_centers(centers, spatial_size, label_spatial_shape)

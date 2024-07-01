@@ -44,27 +44,58 @@ ReturnType = TypeVar("ReturnType")
 
 
 def _apply_transform(
-    transform: Callable[..., ReturnType], parameters: Any, unpack_parameters: bool = False
+    transform: Callable[..., ReturnType],
+    data: Any,
+    unpack_parameters: bool = False,
+    lazy: bool | None = False,
+    overrides: dict | None = None,
+    logger_name: bool | str = False,
 ) -> ReturnType:
     """
-    Perform transformation `transform` with the provided parameters `parameters`.
+    Perform a transform 'transform' on 'data', according to the other parameters specified.
 
-    If `parameters` is a tuple and `unpack_items` is True, each parameter of `parameters` is unpacked
-    as arguments to `transform`.
-    Otherwise `parameters` is considered as single argument to `transform`.
+    If `data` is a tuple and `unpack_parameters` is True, each parameter of `data` is unpacked
+    as arguments to `transform`. Otherwise `data` is considered as single argument to `transform`.
+
+    If 'lazy' is True, this method first checks whether it can execute this method lazily. If it
+    can't, it will ensure that all pending lazy transforms on 'data' are applied before applying
+    this 'transform' to it. If 'lazy' is True, and 'overrides' are provided, those overrides will
+    be applied to the pending operations on 'data'. See ``Compose`` for more details on lazy
+    resampling, which is an experimental feature for 1.2.
+
+    Please note, this class is function is designed to be called by ``apply_transform``.
+    In general, you should not need to make specific use of it unless you are implementing
+    pipeline execution mechanisms.
 
     Args:
         transform: a callable to be used to transform `data`.
-        parameters: parameters for the `transform`.
+        data: the tensorlike or dictionary of tensorlikes to be executed on
         unpack_parameters: whether to unpack parameters for `transform`. Defaults to False.
+        lazy: whether to enable lazy evaluation for lazy transforms. If False, transforms will be
+            carried out on a transform by transform basis. If True, all lazy transforms will
+            be executed by accumulating changes and resampling as few times as possible.
+            See the :ref:`Lazy Resampling topic<lazy_resampling> for more information about lazy resampling.
+        overrides: this optional parameter allows you to specify a dictionary of parameters that should be overridden
+            when executing a pipeline. These each parameter that is compatible with a given transform is then applied
+            to that transform before it is executed. Note that overrides are currently only applied when
+            :ref:`Lazy Resampling<lazy_resampling>` is enabled for the pipeline or a given transform. If lazy is False
+            they are ignored. Currently supported args are:
+            {``"mode"``, ``"padding_mode"``, ``"dtype"``, ``"align_corners"``, ``"resample_mode"``, ``device``}.
+        logger_name: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
+            Setting this to False disables logging. Setting it to True enables logging to the default loggers.
+            Setting a string overrides the logger name to which logging is performed.
 
     Returns:
         ReturnType: The return type of `transform`.
     """
-    if isinstance(parameters, tuple) and unpack_parameters:
-        return transform(*parameters)
+    from monai.transforms.lazy.functional import apply_pending_transforms_in_order
 
-    return transform(parameters)
+    data = apply_pending_transforms_in_order(transform, data, lazy, overrides, logger_name)
+
+    if isinstance(data, tuple) and unpack_parameters:
+        return transform(*data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(*data)
+
+    return transform(data, lazy=lazy) if isinstance(transform, LazyTrait) else transform(data)
 
 
 def apply_transform(
@@ -72,7 +103,9 @@ def apply_transform(
     data: Any,
     map_items: bool = True,
     unpack_items: bool = False,
-    log_stats: bool = False,
+    log_stats: bool | str = False,
+    lazy: bool | None = None,
+    overrides: dict | None = None,
 ) -> list[ReturnType] | ReturnType:
     """
     Transform `data` with `transform`.
@@ -87,9 +120,14 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
-        log_stats: whether to log the detailed information of data and applied transform when error happened,
-            for NumPy array and PyTorch Tensor, log the data shape and value range,
-            for other metadata, log the values directly. default to `False`.
+        log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
+            disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
+            default logger name. Setting it to a string specifies the logger to which errors should be logged.
+        lazy: whether to execute in lazy mode or not. See the :ref:`Lazy Resampling topic<lazy_resampling> for more
+            information about lazy resampling. Defaults to None.
+        overrides: optional overrides to apply to transform parameters. This parameter is ignored unless transforms
+            are being executed lazily. See the :ref:`Lazy Resampling topic<lazy_resampling> for more details and
+            examples of its usage.
 
     Raises:
         Exception: When ``transform`` raises an exception.
@@ -99,18 +137,21 @@ def apply_transform(
     """
     try:
         if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items) for item in data]
-        return _apply_transform(transform, data, unpack_items)
+            return [_apply_transform(transform, item, unpack_items, lazy, overrides, log_stats) for item in data]
+        return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
         # appears where the exception was raised.
         if MONAIEnvVars.debug():
             raise
-        if log_stats and not isinstance(transform, transforms.compose.Compose):
+        if log_stats is not False and not isinstance(transform, transforms.compose.Compose):
             # log the input data information of exact transform in the transform chain
-            datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
+            if isinstance(log_stats, str):
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False, name=log_stats)
+            else:
+                datastats = transforms.utility.array.DataStats(data_shape=False, value_range=False)
             logger = logging.getLogger(datastats._logger_name)
-            logger.info(f"\n=== Transform input info -- {type(transform).__name__} ===")
+            logger.error(f"\n=== Transform input info -- {type(transform).__name__} ===")
             if isinstance(data, (list, tuple)):
                 data = data[0]
 
@@ -234,8 +275,7 @@ class Transform(ABC):
 
           #. string data without shape, `LoadImage` transform expects file paths,
           #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirst` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels),
+             except for example: `AddChannel` expects (spatial_dim_1[, spatial_dim_2, ...])
 
         - the channel dimension is often not omitted even if number of channels is one.
 
@@ -254,17 +294,26 @@ class LazyTransform(Transform, LazyTrait):
     dictionary transforms to simplify implementation of new lazy transforms.
     """
 
-    _lazy_evaluation: bool = False
+    def __init__(self, lazy: bool | None = False):
+        if lazy is not None:
+            if not isinstance(lazy, bool):
+                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
+        self._lazy = lazy
 
     @property
-    def lazy_evaluation(self):
-        return self._lazy_evaluation
+    def lazy(self):
+        return self._lazy
 
-    @lazy_evaluation.setter
-    def lazy_evaluation(self, lazy_evaluation: bool):
-        if not isinstance(lazy_evaluation, bool):
-            raise TypeError(f"lazy_evaluation must be a bool but is of type {type(lazy_evaluation)}")
-        self._lazy_evaluation = lazy_evaluation
+    @lazy.setter
+    def lazy(self, lazy: bool | None):
+        if lazy is not None:
+            if not isinstance(lazy, bool):
+                raise TypeError(f"lazy must be a bool but is of type {type(lazy)}")
+        self._lazy = lazy
+
+    @property
+    def requires_current_data(self):
+        return False
 
 
 class RandomizableTransform(Randomizable, Transform):
@@ -347,6 +396,7 @@ class MapTransform(Transform):
         return Transform.__new__(cls)
 
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        super().__init__()
         self.keys: tuple[Hashable, ...] = ensure_tuple(keys)
         self.allow_missing_keys = allow_missing_keys
         if not self.keys:
@@ -390,8 +440,7 @@ class MapTransform(Transform):
 
           #. string data without shape, `LoadImaged` transform expects file paths,
           #. most of the pre-/post-processing transforms expect: ``(num_channels, spatial_dim_1[, spatial_dim_2, ...])``,
-             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...]) and
-             `AsChannelFirstd` expects (spatial_dim_1[, spatial_dim_2, ...], num_channels)
+             except for example: `AddChanneld` expects (spatial_dim_1[, spatial_dim_2, ...])
 
         - the channel dimension is often not omitted even if number of channels is one.
 

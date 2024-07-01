@@ -36,26 +36,45 @@ class NonConfigWorkflow(BundleWorkflow):
 
     """
 
-    def __init__(self, filename, output_dir):
-        super().__init__(workflow="inference")
+    def __init__(self, filename, output_dir, meta_file=None, logging_file=None):
+        super().__init__(workflow_type="inference", meta_file=meta_file, logging_file=logging_file)
         self.filename = filename
         self.output_dir = output_dir
         self._bundle_root = "will override"
+        self._dataset_dir = "."
         self._device = torch.device("cpu")
+        self._data = [{"image": self.filename}]
+        self._dataset = None
         self._network_def = None
         self._inferer = None
         self._preprocessing = None
         self._postprocessing = None
         self._evaluator = None
+        self._version = None
+        self._monai_version = None
+        self._pytorch_version = None
+        self._numpy_version = None
 
     def initialize(self):
         set_determinism(0)
+        if self._version is None:
+            self._version = "0.1.0"
+
+        if self._monai_version is None:
+            self._monai_version = "1.1.0"
+
+        if self._pytorch_version is None:
+            self._pytorch_version = "1.13.1"
+
+        if self._numpy_version is None:
+            self._numpy_version = "1.22.2"
+
         if self._preprocessing is None:
             self._preprocessing = Compose(
                 [LoadImaged(keys="image"), EnsureChannelFirstd(keys="image"), ScaleIntensityd(keys="image")]
             )
-        dataset = Dataset(data=[{"image": self.filename}], transform=self._preprocessing)
-        dataloader = DataLoader(dataset, batch_size=1, num_workers=4)
+        self._dataset = Dataset(data=self._data, transform=self._preprocessing)
+        dataloader = DataLoader(self._dataset, batch_size=1, num_workers=4)
 
         if self._network_def is None:
             self._network_def = UNet(
@@ -97,8 +116,16 @@ class NonConfigWorkflow(BundleWorkflow):
     def _get_property(self, name, property):
         if name == "bundle_root":
             return self._bundle_root
+        if name == "dataset_dir":
+            return self._dataset_dir
+        if name == "dataset_data":
+            return self._data
+        if name == "dataset":
+            return self._dataset
         if name == "device":
             return self._device
+        if name == "evaluator":
+            return self._evaluator
         if name == "network_def":
             return self._network_def
         if name == "inferer":
@@ -107,6 +134,14 @@ class NonConfigWorkflow(BundleWorkflow):
             return self._preprocessing
         if name == "postprocessing":
             return self._postprocessing
+        if name == "version":
+            return self._version
+        if name == "monai_version":
+            return self._monai_version
+        if name == "pytorch_version":
+            return self._pytorch_version
+        if name == "numpy_version":
+            return self._numpy_version
         if property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")
 
@@ -115,6 +150,14 @@ class NonConfigWorkflow(BundleWorkflow):
             self._bundle_root = value
         elif name == "device":
             self._device = value
+        elif name == "dataset_dir":
+            self._dataset_dir = value
+        elif name == "dataset_data":
+            self._data = value
+        elif name == "dataset":
+            self._dataset = value
+        elif name == "evaluator":
+            self._evaluator = value
         elif name == "network_def":
             self._network_def = value
         elif name == "inferer":
@@ -123,5 +166,13 @@ class NonConfigWorkflow(BundleWorkflow):
             self._preprocessing = value
         elif name == "postprocessing":
             self._postprocessing = value
+        elif name == "version":
+            self._version = value
+        elif name == "monai_version":
+            self._monai_version = value
+        elif name == "pytorch_version":
+            self._pytorch_version = value
+        elif name == "numpy_version":
+            self._numpy_version = value
         elif property[BundleProperty.REQUIRED]:
             raise ValueError(f"unsupported property '{name}' is required in the bundle properties.")

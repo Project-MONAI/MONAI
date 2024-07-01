@@ -33,7 +33,7 @@ from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.misc import ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-label, _ = optional_import("scipy.ndimage.measurements", name="label")
+label, _ = optional_import("scipy.ndimage", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
@@ -162,7 +162,7 @@ class GenerateWatershedMask(Transform):
         pred = label(pred)[0]
         if self.remove_small_objects is not None:
             pred = self.remove_small_objects(pred)
-        pred[pred > 0] = 1  # type: ignore
+        pred[pred > 0] = 1
 
         return convert_to_dst_type(pred, prob_map, dtype=self.dtype)[0]
 
@@ -338,7 +338,7 @@ class GenerateWatershedMarkers(Transform):
         instance_border = instance_border >= self.threshold  # uncertain area
 
         marker = mask - convert_to_dst_type(instance_border, mask)[0]  # certain foreground
-        marker[marker < 0] = 0  # type: ignore
+        marker[marker < 0] = 0
         marker = self.postprocess_fn(marker)
         marker = convert_to_numpy(marker)
 
@@ -634,10 +634,10 @@ class GenerateInstanceType(Transform):
 
         seg_map_crop = convert_to_dst_type(seg_map_crop == instance_id, type_map_crop, dtype=bool)[0]
 
-        inst_type = type_map_crop[seg_map_crop]  # type: ignore
+        inst_type = type_map_crop[seg_map_crop]
         type_list, type_pixels = unique(inst_type, return_counts=True)
         type_list = list(zip(type_list, type_pixels))
-        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)  # type: ignore
+        type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
         inst_type = type_list[0][0]
         if inst_type == 0:  # ! pick the 2nd most dominant if exist
             if len(type_list) > 1:

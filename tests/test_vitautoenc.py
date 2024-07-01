@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
-from tests.utils import skip_if_windows
+from tests.utils import skip_if_quick, skip_if_windows
 
 TEST_CASE_Vitautoenc = []
 for in_channels in [1, 4]:
@@ -49,7 +49,7 @@ TEST_CASE_Vitautoenc.append(
         {
             "in_channels": 1,
             "img_size": (512, 512, 32),
-            "patch_size": (16, 16, 16),
+            "patch_size": (64, 64, 16),
             "hidden_size": 768,
             "mlp_dim": 3072,
             "num_layers": 4,
@@ -64,7 +64,16 @@ TEST_CASE_Vitautoenc.append(
 )
 
 
-class TestPatchEmbeddingBlock(unittest.TestCase):
+@skip_if_quick
+class TestVitAutoenc(unittest.TestCase):
+
+    def setUp(self):
+        self.threads = torch.get_num_threads()
+        torch.set_num_threads(4)
+
+    def tearDown(self):
+        torch.set_num_threads(self.threads)
+
     @parameterized.expand(TEST_CASE_Vitautoenc)
     @skip_if_windows
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -73,70 +82,30 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             result, _ = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    def test_ill_arg(self):
+    @parameterized.expand(
+        [
+            (1, (32, 32, 32), (64, 64, 64), 512, 3072, 12, 8, "perceptron", 0.3),  # img_size_too_large_for_patch_size
+            (1, (96, 96, 96), (8, 8, 8), 512, 3072, 12, 14, "conv", 0.3),  # num_heads_out_of_bound
+            (1, (97, 97, 97), (4, 4, 4), 768, 3072, 12, 8, "perceptron", 0.3),  # img_size_not_divisible_by_patch_size
+            (4, (96, 96, 96), (16, 16, 16), 768, 3072, 12, 12, "perc", 0.3),  # invalid_pos_embed
+            (4, (96, 96, 96), (9, 9, 9), 768, 3072, 12, 12, "perc", 0.3),  # patch_size_not_divisible
+            # Add more test cases as needed
+        ]
+    )
+    def test_ill_arg(
+        self, in_channels, img_size, patch_size, hidden_size, mlp_dim, num_layers, num_heads, pos_embed, dropout_rate
+    ):
         with self.assertRaises(ValueError):
             ViTAutoEnc(
-                in_channels=1,
-                img_size=(128, 128, 128),
-                patch_size=(16, 16, 16),
-                hidden_size=128,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                pos_embed="conv",
-                dropout_rate=5.0,
-            )
-
-        with self.assertRaises(ValueError):
-            ViTAutoEnc(
-                in_channels=1,
-                img_size=(32, 32, 32),
-                patch_size=(64, 64, 64),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                pos_embed="perceptron",
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            ViTAutoEnc(
-                in_channels=1,
-                img_size=(96, 96, 96),
-                patch_size=(8, 8, 8),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=14,
-                pos_embed="conv",
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            ViTAutoEnc(
-                in_channels=1,
-                img_size=(97, 97, 97),
-                patch_size=(4, 4, 4),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                pos_embed="perceptron",
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            ViTAutoEnc(
-                in_channels=4,
-                img_size=(96, 96, 96),
-                patch_size=(16, 16, 16),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                pos_embed="perc",
-                dropout_rate=0.3,
+                in_channels=in_channels,
+                img_size=img_size,
+                patch_size=patch_size,
+                hidden_size=hidden_size,
+                mlp_dim=mlp_dim,
+                num_layers=num_layers,
+                num_heads=num_heads,
+                pos_embed=pos_embed,
+                dropout_rate=dropout_rate,
             )
 
 

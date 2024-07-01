@@ -11,6 +11,10 @@
 
 from __future__ import annotations
 
+import copy
+import os
+import re
+import sys
 import unittest
 from typing import TYPE_CHECKING
 
@@ -18,10 +22,29 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import ResNet, resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
+from monai.networks.nets import (
+    ResNet,
+    ResNetFeatures,
+    get_medicalnet_pretrained_resnet_args,
+    get_pretrained_resnet_medicalnet,
+    resnet10,
+    resnet18,
+    resnet34,
+    resnet50,
+    resnet101,
+    resnet152,
+    resnet200,
+)
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
-from tests.utils import test_script_save
+from tests.utils import (
+    SkipIfNoModule,
+    equal_state_dict,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+    test_script_save,
+)
 
 if TYPE_CHECKING:
     import torchvision
@@ -29,6 +52,10 @@ if TYPE_CHECKING:
     has_torchvision = True
 else:
     torchvision, has_torchvision = optional_import("torchvision")
+
+has_hf_modules = "huggingface_hub" in sys.modules and "huggingface_hub.utils._errors" in sys.modules
+
+# from torchvision.models import ResNet50_Weights, resnet50
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -80,6 +107,7 @@ TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
         "num_classes": 3,
         "conv1_t_size": [3],
         "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
     },
     (1, 2, 32),
     (1, 3),
@@ -158,19 +186,73 @@ TEST_CASE_7 = [  # 1D, batch 1, 2 input channels, bias_downsample
     (1, 3),
 ]
 
+TEST_CASE_8 = [
+    {
+        "block": "bottleneck",
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
+TEST_CASE_9 = [  # Layer norm
+    {
+        "block": ResNetBlock,
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+        "norm": ("layer", {"normalized_shape": (64, 32)}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
 TEST_CASES = []
+PRETRAINED_TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
-for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7]:
+        PRETRAINED_TEST_CASES.append([model, *case])
+for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9]:
     TEST_CASES.append([ResNet, *case])
 
 TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 ]
 
+CASE_EXTRACT_FEATURES = [
+    (
+        {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
+        [1, 1, 64, 64, 64],
+        ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
+    )
+]
+
 
 class TestResNet(unittest.TestCase):
+
+    def setUp(self):
+        self.tmp_ckpt_filename = os.path.join("tests", "monai_unittest_tmp_ckpt.pth")
+
+    def tearDown(self):
+        if os.path.exists(self.tmp_ckpt_filename):
+            try:
+                os.remove(self.tmp_ckpt_filename)
+            except BaseException:
+                pass
+
     @parameterized.expand(TEST_CASES)
     def test_resnet_shape(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param).to(device)
@@ -179,13 +261,83 @@ class TestResNet(unittest.TestCase):
             if input_param.get("feed_forward", True):
                 self.assertEqual(result.shape, expected_shape)
             else:
-                self.assertTrue(result.shape in expected_shape)
+                self.assertIn(result.shape, expected_shape)
+
+    @parameterized.expand(PRETRAINED_TEST_CASES)
+    @skip_if_quick
+    @skip_if_no_cuda
+    def test_resnet_pretrained(self, model, input_param, input_shape, expected_shape):
+        net = model(**input_param).to(device)
+        # Save ckpt
+        torch.save(net.state_dict(), self.tmp_ckpt_filename)
+
+        cp_input_param = copy.copy(input_param)
+        # Custom pretrained weights
+        cp_input_param["pretrained"] = self.tmp_ckpt_filename
+        pretrained_net = model(**cp_input_param)
+        equal_state_dict(net.state_dict(), pretrained_net.state_dict())
+
+        if has_hf_modules:
+            # True flag
+            cp_input_param["pretrained"] = True
+            resnet_depth = int(re.search(r"resnet(\d+)", model.__name__).group(1))
+
+            bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
+
+            # With orig. test cases
+            if (
+                input_param.get("spatial_dims", 3) == 3
+                and input_param.get("n_input_channels", 3) == 1
+                and input_param.get("feed_forward", True) is False
+                and input_param.get("shortcut_type", "B") == shortcut_type
+                and (
+                    input_param.get("bias_downsample", True) == bool(bias_downsample) if bias_downsample != -1 else True
+                )
+            ):
+                model(**cp_input_param)
+            else:
+                with self.assertRaises(NotImplementedError):
+                    model(**cp_input_param)
+
+            # forcing MedicalNet pretrained download for 3D tests cases
+            cp_input_param["n_input_channels"] = 1
+            cp_input_param["feed_forward"] = False
+            cp_input_param["shortcut_type"] = shortcut_type
+            cp_input_param["bias_downsample"] = bool(bias_downsample) if bias_downsample != -1 else True
+            if cp_input_param.get("spatial_dims", 3) == 3:
+                with skip_if_downloading_fails():
+                    pretrained_net = model(**cp_input_param).to(device)
+                    medicalnet_state_dict = get_pretrained_resnet_medicalnet(resnet_depth, device=device)
+                    medicalnet_state_dict = {
+                        key.replace("module.", ""): value for key, value in medicalnet_state_dict.items()
+                    }
+                    equal_state_dict(pretrained_net.state_dict(), medicalnet_state_dict)
 
     @parameterized.expand(TEST_SCRIPT_CASES)
     def test_script(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
+
+
+@SkipIfNoModule("hf_hub_download")
+class TestExtractFeatures(unittest.TestCase):
+
+    @parameterized.expand(CASE_EXTRACT_FEATURES)
+    def test_shape(self, input_param, input_shape, expected_shapes):
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        with skip_if_downloading_fails():
+            net = ResNetFeatures(**input_param).to(device)
+
+        # run inference with random tensor
+        with eval_mode(net):
+            features = net(torch.randn(input_shape).to(device))
+
+        # check output shape
+        self.assertEqual(len(features), len(expected_shapes))
+        for feature, expected_shape in zip(features, expected_shapes):
+            self.assertEqual(feature.shape, torch.Size(expected_shape))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -86,6 +87,7 @@ class Bottleneck3x3x1(nn.Module):
 
 
 class Projection(nn.Sequential):
+
     def __init__(self, spatial_dims: int, num_input_features: int, num_output_features: int):
         super().__init__()
 
@@ -99,6 +101,7 @@ class Projection(nn.Sequential):
 
 
 class DenseBlock(nn.Sequential):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -117,6 +120,7 @@ class DenseBlock(nn.Sequential):
 
 
 class UpTransition(nn.Sequential):
+
     def __init__(
         self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
@@ -142,6 +146,7 @@ class UpTransition(nn.Sequential):
 
 
 class Final(nn.Sequential):
+
     def __init__(
         self, spatial_dims: int, num_input_features: int, num_output_features: int, upsample_mode: str = "transpose"
     ):
@@ -177,6 +182,7 @@ class Final(nn.Sequential):
 
 
 class Pseudo3DLayer(nn.Module):
+
     def __init__(self, spatial_dims: int, num_input_features: int, growth_rate: int, bn_size: int, dropout_prob: float):
         super().__init__()
         # 1x1x1
@@ -243,6 +249,7 @@ class Pseudo3DLayer(nn.Module):
 
 
 class PSP(nn.Module):
+
     def __init__(self, spatial_dims: int, psp_block_num: int, in_ch: int, upsample_mode: str = "transpose"):
         super().__init__()
         self.up_modules = nn.ModuleList()
@@ -279,7 +286,7 @@ class PSP(nn.Module):
         else:
             for project_module, pool_module in zip(self.project_modules, self.pool_modules):
                 interpolate_size = x.shape[2:]
-                align_corners: bool | None = None
+                align_corners: Union[bool, None] = None
                 if self.upsample_mode in ["trilinear", "bilinear"]:
                     align_corners = True
                 output = F.interpolate(

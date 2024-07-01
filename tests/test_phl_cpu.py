@@ -242,6 +242,7 @@ TEST_CASES = [
 
 @skip_if_no_cpp_extension
 class PHLFilterTestCaseCpu(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_cpu(self, test_case_description, sigmas, input, features, expected):
         # Create input tensors

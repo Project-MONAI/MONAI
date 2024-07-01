@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of transforms for signal operations
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of transforms for signal operations.
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
-shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
+shift, has_shift = optional_import("scipy.ndimage", name="shift")
 iirnotch, has_iirnotch = optional_import("scipy.signal", name="iirnotch")
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", UserWarning)  # project-monai/monai#5204
@@ -381,7 +380,7 @@ class SignalFillEmpty(Transform):
         Args:
             signal: signal to be filled
         """
-        signal = torch.nan_to_num(convert_to_tensor(signal), nan=self.replacement)
+        signal = torch.nan_to_num(convert_to_tensor(signal, track_meta=True), nan=self.replacement)
         return signal
 
 

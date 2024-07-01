@@ -42,6 +42,13 @@ for p in TEST_NDARRAYS:
             p([2, 0, 0, 1]),
         ]
     )
+    TESTS.append(
+        [
+            {"orig_labels": [1.5, 2.5, 3.5], "target_labels": [0, 1, 2], "dtype": torch.int8},
+            p([3.5, 1.5, 1.5, 2.5]),
+            p([2, 0, 0, 1]),
+        ]
+    )
 TESTS.extend(
     [
         [
@@ -68,6 +75,7 @@ TESTS.extend(
 
 
 class TestMapLabelValue(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_value):
         result = MapLabelValue(**input_param)(input_data)

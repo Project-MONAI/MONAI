@@ -22,6 +22,7 @@ p, _ = optional_import("monai._C", name="InterpolationType")
 
 @skip_if_no_cpp_extension
 class TestEnumBoundInterp(unittest.TestCase):
+
     def test_bound(self):
         self.assertEqual(str(b.replicate), "BoundType.replicate")
         self.assertEqual(str(b.nearest), "BoundType.replicate")

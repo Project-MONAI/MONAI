@@ -129,11 +129,7 @@ class NNIGen(HPOGen):
             else:
                 self.algo = algo
 
-            if isinstance(self.algo, BundleAlgo):
-                self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
-            else:
-                self.obj_filename = algo_to_pickle(self.algo)
-                # nni instruction unknown
+            self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
 
     def get_obj_filename(self):
         """Return the filename of the dumped pickle algo object."""
@@ -197,7 +193,9 @@ class NNIGen(HPOGen):
         self.obj_filename = os.path.join(write_path, "algo_object.pkl")
 
         if isinstance(self.algo, BundleAlgo):
-            self.algo.export_to_disk(output_folder, task_prefix + task_id, fill_with_datastats=False)
+            self.algo.export_to_disk(
+                output_folder, task_prefix + task_id, bundle_root=write_path, fill_with_datastats=False
+            )
         else:
             ConfigParser.export_config_file(self.params, write_path)
             logger.info(write_path)
@@ -226,9 +224,6 @@ class NNIGen(HPOGen):
 
         self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
 
-        if isinstance(self.algo, BundleAlgo):  # algo's template path needs override
-            self.algo.template_path = algo_meta_data["template_path"]
-
         # step 1 sample hyperparams
         params = self.get_hyperparameters()
         # step 2 set the update params for the algo to run in the next trial
@@ -240,10 +235,7 @@ class NNIGen(HPOGen):
         acc = self.algo.get_score()
         algo_meta_data = {str(AlgoKeys.SCORE): acc}
 
-        if isinstance(self.algo, BundleAlgo):
-            algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
-        else:
-            algo_to_pickle(self.algo, **algo_meta_data)
+        algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         self.set_score(acc)
 
 
@@ -304,11 +296,7 @@ class OptunaGen(HPOGen):
             else:
                 self.algo = algo
 
-            if isinstance(self.algo, BundleAlgo):
-                self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
-            else:
-                self.obj_filename = algo_to_pickle(self.algo)
-                # nni instruction unknown
+            self.obj_filename = algo_to_pickle(self.algo, template_path=self.algo.template_path)
 
     def get_obj_filename(self):
         """Return the dumped pickle object of algo."""
@@ -338,7 +326,7 @@ class OptunaGen(HPOGen):
         self, trial: Any, obj_filename: str, output_folder: str = ".", template_path: PathLike | None = None
     ) -> Any:
         """
-        Callabe that Optuna will use to optimize the hyper-parameters
+        Callable that Optuna will use to optimize the hyper-parameters
 
         Args:
             obj_filename: the pickle-exported Algo object.
@@ -399,9 +387,6 @@ class OptunaGen(HPOGen):
 
         self.algo, algo_meta_data = algo_from_pickle(obj_filename, template_path=template_path)
 
-        if isinstance(self.algo, BundleAlgo):  # algo's template path needs override
-            self.algo.template_path = algo_meta_data["template_path"]
-
         # step 1 sample hyperparams
         params = self.get_hyperparameters()
         # step 2 set the update params for the algo to run in the next trial
@@ -412,8 +397,5 @@ class OptunaGen(HPOGen):
         # step 4 report validation acc to controller
         acc = self.algo.get_score()
         algo_meta_data = {str(AlgoKeys.SCORE): acc}
-        if isinstance(self.algo, BundleAlgo):
-            algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
-        else:
-            algo_to_pickle(self.algo, **algo_meta_data)
+        algo_to_pickle(self.algo, template_path=self.algo.template_path, **algo_meta_data)
         self.set_score(acc)

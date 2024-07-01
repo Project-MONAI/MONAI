@@ -18,18 +18,19 @@ from tests.utils import skip_if_downloading_fails
 
 
 class TestTextEncoder(unittest.TestCase):
+
     def test_test_encoding_shape(self):
         with skip_if_downloading_fails():
             # test 2D encoder
             text_encoder = TextEncoder(
-                spatial_dims=2, out_channels=32, encoding="clip_encoding_univeral_model_32", pretrained=True
+                spatial_dims=2, out_channels=32, encoding="clip_encoding_universal_model_32", pretrained=True
             )
             text_encoding = text_encoder()
             self.assertEqual(text_encoding.shape, (32, 256, 1, 1))
 
             # test 3D encoder
             text_encoder = TextEncoder(
-                spatial_dims=3, out_channels=32, encoding="clip_encoding_univeral_model_32", pretrained=True
+                spatial_dims=3, out_channels=32, encoding="clip_encoding_universal_model_32", pretrained=True
             )
             text_encoding = text_encoder()
             self.assertEqual(text_encoding.shape, (32, 256, 1, 1, 1))

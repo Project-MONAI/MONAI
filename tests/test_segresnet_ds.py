@@ -72,6 +72,7 @@ TEST_CASE_SEGRESNET_DS3 = [
 
 
 class TestResNetDS(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_SEGRESNET_DS)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SegResNetDS(**input_param).to(device)

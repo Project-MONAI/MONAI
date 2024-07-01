@@ -65,6 +65,7 @@ for track_meta in (False, True):
 
 
 class TestOrientationdCase(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_orntd(
         self, init_param, img: torch.Tensor, affine: torch.Tensor | None, expected_shape, expected_code, device
@@ -74,7 +75,7 @@ class TestOrientationdCase(unittest.TestCase):
             img = MetaTensor(img, affine=affine)
         img = img.to(device)
         call_param = {"data": {k: img.clone() for k in ornt.keys}}
-        res = ornt(**call_param)
+        res = ornt(**call_param)  # type: ignore[arg-type]
         for k in ornt.keys:
             if img.ndim in (3, 4):
                 test_resampler_lazy(ornt, res, init_param, call_param, output_key=k)
@@ -92,7 +93,7 @@ class TestOrientationdCase(unittest.TestCase):
         expected_shape = img.shape
         expected_code = ornt.ornt_transform.axcodes
         call_param = {"data": {k: img.clone() for k in ornt.keys}}
-        res = ornt(**call_param)
+        res = ornt(**call_param)  # type: ignore[arg-type]
         for k in ornt.keys:
             _im = res[k]
             np.testing.assert_allclose(_im.shape, expected_shape)

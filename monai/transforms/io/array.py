@@ -9,8 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of "vanilla" transforms for IO functions
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of "vanilla" transforms for IO functions.
 """
 
 from __future__ import annotations
@@ -46,14 +45,7 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import (
-    OptionalImportError,
-    convert_to_dst_type,
-    deprecated_arg_default,
-    ensure_tuple,
-    look_up_option,
-    optional_import,
-)
+from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -128,11 +120,10 @@ class LoadImage(Transform):
 
     """
 
-    @deprecated_arg_default("image_only", False, True, since="1.1", replaced="1.3")
     def __init__(
         self,
         reader=None,
-        image_only: bool = False,
+        image_only: bool = True,
         dtype: DtypeLike | None = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
@@ -277,7 +268,7 @@ class LoadImage(Transform):
                         break
 
         if img is None or reader is None:
-            if isinstance(filename, tuple) and len(filename) == 1:
+            if isinstance(filename, Sequence) and len(filename) == 1:
                 filename = filename[0]
             msg = "\n".join([f"{e}" for e in err])
             raise RuntimeError(
@@ -381,14 +372,13 @@ class SaveImage(Transform):
             to where the input image has been saved.
     """
 
-    @deprecated_arg_default("resample", True, False, since="1.1", replaced="1.3")
     def __init__(
         self,
         output_dir: PathLike = "./",
         output_postfix: str = "trans",
         output_ext: str = ".nii.gz",
         output_dtype: DtypeLike | None = np.float32,
-        resample: bool = True,
+        resample: bool = False,
         mode: str = "nearest",
         padding_mode: str = GridSamplePadMode.BORDER,
         scale: int | None = None,
@@ -424,6 +414,9 @@ class SaveImage(Transform):
             self.fname_formatter = output_name_formatter
 
         self.output_ext = output_ext.lower() or output_format.lower()
+        self.output_ext = (
+            f".{self.output_ext}" if self.output_ext and not self.output_ext.startswith(".") else self.output_ext
+        )
         if isinstance(writer, str):
             writer_, has_built_in = optional_import("monai.data", name=f"{writer}")  # search built-in
             if not has_built_in:
@@ -468,15 +461,23 @@ class SaveImage(Transform):
             self.write_kwargs.update(write_kwargs)
         return self
 
-    def __call__(self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None):
+    def __call__(
+        self, img: torch.Tensor | np.ndarray, meta_data: dict | None = None, filename: str | PathLike | None = None
+    ):
         """
         Args:
             img: target data content that save into file. The image should be channel-first, shape: `[C,H,W,[D]]`.
             meta_data: key-value pairs of metadata corresponding to the data.
+            filename: str or file-like object which to save img.
+                If specified, will ignore `self.output_name_formatter` and `self.folder_layout`.
         """
         meta_data = img.meta if isinstance(img, MetaTensor) else meta_data
-        kw = self.fname_formatter(meta_data, self)
-        filename = self.folder_layout.filename(**kw)
+        if filename is not None:
+            filename = f"{filename}{self.output_ext}"
+        else:
+            kw = self.fname_formatter(meta_data, self)
+            filename = self.folder_layout.filename(**kw)
+
         if meta_data:
             meta_spatial_shape = ensure_tuple(meta_data.get("spatial_shape", ()))
             if len(meta_spatial_shape) >= len(img.shape):

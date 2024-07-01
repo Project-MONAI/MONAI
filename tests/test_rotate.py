@@ -22,7 +22,7 @@ from monai.config import USE_COMPILED
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
+from tests.utils import HAS_CUPY, TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 TEST_CASES_2D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
@@ -31,6 +31,8 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_2D.append((p, -np.pi / 4.5, True, "nearest", "border" if USE_COMPILED else "reflection", False))
     TEST_CASES_2D.append((p, np.pi, False, "nearest", "zeros", False))
     TEST_CASES_2D.append((p, -np.pi / 2, False, "bilinear", "zeros", True))
+    if HAS_CUPY:  # 1 and cuda image requires cupy
+        TEST_CASES_2D.append((p, -np.pi / 2, False, 1, "constant", True))
 
 TEST_CASES_3D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
@@ -39,6 +41,8 @@ for p in TEST_NDARRAYS_ALL:
     TEST_CASES_3D.append((p, -np.pi / 4.5, True, "nearest", "border" if USE_COMPILED else "reflection", False))
     TEST_CASES_3D.append((p, np.pi, False, "nearest", "zeros", False))
     TEST_CASES_3D.append((p, -np.pi / 2, False, "bilinear", "zeros", False))
+    if HAS_CUPY:
+        TEST_CASES_3D.append((p, -np.pi / 2, False, 1, "zeros", False))
 
 TEST_CASES_SHAPE_3D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:
@@ -48,6 +52,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRotate2D(NumpyImageTestCase2D):
+
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         init_param = {
@@ -86,6 +91,7 @@ class TestRotate2D(NumpyImageTestCase2D):
 
 
 class TestRotate3D(NumpyImageTestCase3D):
+
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         init_param = {
@@ -143,7 +149,7 @@ class TestRotate3D(NumpyImageTestCase3D):
 
             rotate_fn = Rotate(10, keep_size=False)
             with self.assertRaises(ValueError):  # wrong mode
-                rotate_fn(p(self.imt[0]), mode="trilinear")
+                rotate_fn(p(self.imt[0]), mode="trilinear_spell_error")
 
 
 if __name__ == "__main__":

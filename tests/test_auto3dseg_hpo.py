@@ -43,6 +43,7 @@ override_param = (
         "num_warmup_epochs": 1,
         "use_pretrain": False,
         "pretrained_path": "",
+        "auto_scale_allowed": False,
     }
     if torch.cuda.is_available()
     else {}
@@ -75,9 +76,10 @@ fake_datalist: dict[str, list[dict]] = {
 }
 
 
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@SkipIfBeforePyTorchVersion((1, 11, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestHPO(unittest.TestCase):
+
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
@@ -153,6 +155,7 @@ class TestHPO(unittest.TestCase):
         algo = algo_dict[AlgoKeys.ALGO]
 
         class OptunaGenLearningRate(OptunaGen):
+
             def get_hyperparameters(self):
                 return {"learning_rate": self.trial.suggest_float("learning_rate", 0.00001, 0.1)}
 
@@ -177,7 +180,6 @@ class TestHPO(unittest.TestCase):
         obj_filename = nni_gen.get_obj_filename()
 
         NNIGen().run_algo(obj_filename, self.work_dir)
-
         history = import_bundle_algo_history(self.work_dir, only_trained=True)
         assert len(history) == 1
 

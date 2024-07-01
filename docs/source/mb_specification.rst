@@ -13,11 +13,12 @@ This specification defines the directory structure a bundle must have and the ne
 Directory Structure
 ===================
 
-A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model and metadata files. The root directory should be named for the model, given as "ModelName" in this example, and should contain the following structure:
+A MONAI Bundle is defined primarily as a directory with a set of specifically named subdirectories containing the model, metadata files and license. The root directory should be named for the model, given as "ModelName" in this example, and should contain the following structure:
 
 ::
 
   ModelName
+  ┣━ LICENSE
   ┣━ configs
   ┃  ┗━ metadata.json
   ┣━ models
@@ -31,6 +32,7 @@ A MONAI Bundle is defined primarily as a directory with a set of specifically na
 
 The following files are **required** to be present with the given filenames for the directory to define a valid bundle:
 
+* **LICENSE**: a license for the software itself comprising the configuration files and model weights.
 * **metadata.json**: metadata information in JSON format relating to the type of model, definition of input and output tensors, versions of the model and used software, and other information described below.
 * **model.pt**: the state dictionary of a saved model, the information to instantiate the model must be found in the metadata file.
 
@@ -39,7 +41,7 @@ The following files are optional but must have these names in the directory give
 * **model.ts**: the Torchscript saved model if the model is compatible with being saved correctly in this format.
 * **model.onnx**: the ONNX model if the model is compatible with being saved correctly in this format.
 * **README.md**: plain-language information on the model, how to use it, author information, etc. in Markdown format.
-* **license.txt**: software license attached to the model, can be left blank if no license needed.
+* **license.txt**: software license attached to the data, can be left blank if no license needed.
 
 Other files can be included in any of the above directories. For example, `configs` can contain further configuration JSON or YAML files to define scripts for training or inference, overriding configuration values, environment definitions such as network instantiations, and so forth. One common file to include is `inference.json` which is used to define a basic inference script which uses input files with the stored network to produce prediction output files.
 
@@ -151,7 +153,7 @@ An example JSON metadata file:
                   "dtype": "float32",
                   "value_range": [0, 1],
                   "is_patch_data": false,
-                  "channel_def": {0: "image"}
+                  "channel_def": {"0": "image"}
               }
           },
           "outputs":{
@@ -163,7 +165,7 @@ An example JSON metadata file:
                   "dtype": "float32",
                   "value_range": [],
                   "is_patch_data": false,
-                  "channel_def": {0: "background", 1: "spleen"}
+                  "channel_def": {"0": "background", "1": "spleen"}
               }
           }
       }

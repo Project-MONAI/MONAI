@@ -39,10 +39,6 @@ class ContrastiveLoss(_Loss):
             ValueError: When an input of dimension length > 2 is passed
             ValueError: When input and target are of different shapes
 
-        .. deprecated:: 0.8.0
-
-            `reduction` is no longer supported.
-
         """
         super().__init__()
         self.temperature = temperature
@@ -68,13 +64,10 @@ class ContrastiveLoss(_Loss):
         temperature_tensor = torch.as_tensor(self.temperature).to(input.device)
         batch_size = input.shape[0]
 
-        norm_i = F.normalize(input, dim=1)
-        norm_j = F.normalize(target, dim=1)
-
         negatives_mask = ~torch.eye(batch_size * 2, batch_size * 2, dtype=torch.bool)
         negatives_mask = torch.clone(negatives_mask.type(torch.float)).to(input.device)
 
-        repr = torch.cat([norm_i, norm_j], dim=0)
+        repr = torch.cat([input, target], dim=0)
         sim_matrix = F.cosine_similarity(repr.unsqueeze(1), repr.unsqueeze(0), dim=2)
         sim_ij = torch.diag(sim_matrix, batch_size)
         sim_ji = torch.diag(sim_matrix, -batch_size)

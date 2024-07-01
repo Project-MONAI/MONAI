@@ -22,11 +22,14 @@ from monai.handlers import ValidationHandler
 
 
 class TestEvaluator(Evaluator):
+
     def _iteration(self, engine, batchdata):
-        pass
+        engine.state.output = "called"
+        return engine.state.output
 
 
 class TestHandlerValidation(unittest.TestCase):
+
     def test_content(self):
         data = [0] * 8
 
@@ -39,8 +42,12 @@ class TestHandlerValidation(unittest.TestCase):
         # set up testing handler
         val_data_loader = torch.utils.data.DataLoader(Dataset(data))
         evaluator = TestEvaluator(torch.device("cpu:0"), val_data_loader)
-        saver = ValidationHandler(interval=2, validator=evaluator)
-        saver.attach(engine)
+        ValidationHandler(interval=2, validator=evaluator, exec_at_start=True).attach(engine)
+        # test execution at start
+        engine.run(data, max_epochs=1)
+        self.assertEqual(evaluator.state.max_epochs, 1)
+        self.assertEqual(evaluator.state.epoch_length, 8)
+        self.assertEqual(evaluator.state.output, "called")
 
         engine.run(data, max_epochs=5)
         self.assertEqual(evaluator.state.max_epochs, 4)

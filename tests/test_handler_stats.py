@@ -26,6 +26,7 @@ from monai.handlers import StatsHandler
 
 
 def get_event_filter(e):
+
     def event_filter(_, event):
         if event in e:
             return True
@@ -35,6 +36,7 @@ def get_event_filter(e):
 
 
 class TestHandlerStats(unittest.TestCase):
+
     @parameterized.expand([[True], [get_event_filter([1, 2])]])
     def test_metrics_print(self, epoch_log):
         log_stream = StringIO()
@@ -74,9 +76,9 @@ class TestHandlerStats(unittest.TestCase):
             if has_key_word.match(line):
                 content_count += 1
         if epoch_log is True:
-            self.assertTrue(content_count == max_epochs)
+            self.assertEqual(content_count, max_epochs)
         else:
-            self.assertTrue(content_count == 2)  # 2 = len([1, 2]) from event_filter
+            self.assertEqual(content_count, 2)  # 2 = len([1, 2]) from event_filter
 
     @parameterized.expand([[True], [get_event_filter([1, 3])]])
     def test_loss_print(self, iteration_log):
@@ -114,9 +116,9 @@ class TestHandlerStats(unittest.TestCase):
             if has_key_word.match(line):
                 content_count += 1
         if iteration_log is True:
-            self.assertTrue(content_count == num_iters * max_epochs)
+            self.assertEqual(content_count, num_iters * max_epochs)
         else:
-            self.assertTrue(content_count == 2)  # 2 = len([1, 3]) from event_filter
+            self.assertEqual(content_count, 2)  # 2 = len([1, 3]) from event_filter
 
     def test_loss_dict(self):
         log_stream = StringIO()
@@ -148,7 +150,7 @@ class TestHandlerStats(unittest.TestCase):
         for line in output_str.split("\n"):
             if has_key_word.match(line):
                 content_count += 1
-        self.assertTrue(content_count > 0)
+        self.assertGreater(content_count, 0)
 
     def test_loss_file(self):
         key_to_handler = "test_logging"
@@ -182,7 +184,7 @@ class TestHandlerStats(unittest.TestCase):
                 for line in output_str.split("\n"):
                     if has_key_word.match(line):
                         content_count += 1
-                self.assertTrue(content_count > 0)
+                self.assertGreater(content_count, 0)
 
     def test_exception(self):
         # set up engine
@@ -237,7 +239,7 @@ class TestHandlerStats(unittest.TestCase):
         for line in output_str.split("\n"):
             if has_key_word.match(line):
                 content_count += 1
-        self.assertTrue(content_count > 0)
+        self.assertGreater(content_count, 0)
 
     def test_default_logger(self):
         log_stream = StringIO()
@@ -272,7 +274,7 @@ class TestHandlerStats(unittest.TestCase):
         for line in output_str.split("\n"):
             if has_key_word.match(line):
                 content_count += 1
-        self.assertTrue(content_count > 0)
+        self.assertGreater(content_count, 0)
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ from parameterized import parameterized
 import monai.transforms as mt
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.transform import MapTransform
 from monai.utils import set_determinism
 from tests.lazy_transforms_utils import get_apply_param
@@ -132,6 +132,7 @@ TEST_3D = [
 
 
 class CombineLazyTest(unittest.TestCase):
+
     @parameterized.expand(TEST_2D + TEST_3D)
     def test_combine_transforms(self, input_shape, funcs):
         for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
@@ -162,7 +163,7 @@ class CombineLazyTest(unittest.TestCase):
                 # lazy
                 pending_result = input_data
                 for _func in _funcs:
-                    _func.lazy_evaluation = True
+                    _func.lazy = True
                     if isinstance(_func, mt.Randomizable):
                         _func.set_random_state(seed=seed)
                     pending_result = _func(pending_result)
@@ -175,7 +176,7 @@ class CombineLazyTest(unittest.TestCase):
                 init_param = funcs[-1][1]
                 call_param = {}
                 apply_param = get_apply_param(init_param, call_param)
-                result = apply_transforms(pending_result, **apply_param)[0]
+                result = apply_pending(pending_result, overrides=apply_param)[0]
 
                 match_ratio = np.sum(np.isclose(result.array, expected.array, atol=5e-1)) / np.prod(result.shape)
                 self.assertGreater(match_ratio, 0.5)  # at least half of the images are very close

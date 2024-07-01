@@ -78,3 +78,18 @@ __all__ = [
     "utils",
     "visualize",
 ]
+
+try:
+    from .utils.tf32 import detect_default_tf32
+
+    detect_default_tf32()
+    import torch
+
+    # workaround related to https://github.com/Project-MONAI/MONAI/issues/7575
+    if hasattr(torch.cuda.device_count, "cache_clear"):
+        torch.cuda.device_count.cache_clear()
+except BaseException:
+    from .utils.misc import MONAIEnvVars
+
+    if MONAIEnvVars.debug():
+        raise

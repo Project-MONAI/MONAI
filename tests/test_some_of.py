@@ -12,9 +12,15 @@
 from __future__ import annotations
 
 import unittest
+from copy import deepcopy
 
+import numpy as np
+import torch
 from parameterized import parameterized
 
+import monai.transforms.intensity.array as ia
+import monai.transforms.spatial.array as sa
+import monai.transforms.spatial.dictionary as sd
 from monai.data import MetaTensor
 from monai.transforms import TraceableTransform, Transform
 from monai.transforms.compose import Compose, SomeOf
@@ -25,21 +31,25 @@ from tests.test_random_order import InvC, InvD
 
 
 class A(Transform):
+
     def __call__(self, x):
         return 2 * x
 
 
 class B(Transform):
+
     def __call__(self, x):
         return 3 * x
 
 
 class C(Transform):
+
     def __call__(self, x):
         return 5 * x
 
 
 class D(Transform):
+
     def __call__(self, x):
         return 7 * x
 
@@ -65,6 +75,7 @@ TEST_INVERSES = [
 
 
 class TestSomeOf(unittest.TestCase):
+
     def setUp(self):
         set_determinism(seed=0)
 
@@ -204,6 +215,43 @@ class TestSomeOf(unittest.TestCase):
         self.assertRaises(ValueError, SomeOf, (A(), B(), C()), num_transforms="str")
         self.assertRaises(ValueError, SomeOf, (A(), B(), C()), num_transforms=(1, 2, 3))
         self.assertRaises(ValueError, SomeOf, (A(), B(), C()), num_transforms=("a", 1))
+
+
+TEST_SOMEOF_EXTENDED_TEST_CASES = [
+    [None, tuple()],
+    [None, (sa.Rotate(np.pi / 8),)],
+    [None, (sa.Flip(0), sa.Flip(1), sa.Rotate90(1), sa.Zoom(0.8), ia.NormalizeIntensity())],
+    [("a",), (sd.Rotated(("a",), np.pi / 8),)],
+]
+
+
+class TestSomeOfAPITests(unittest.TestCase):
+
+    @staticmethod
+    def data_from_keys(keys):
+        if keys is None:
+            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+        else:
+            data = {}
+            for i_k, k in enumerate(keys):
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(12 * 16)).reshape(12, 16) + i_k * 192, dim=0)
+        return data
+
+    @parameterized.expand(TEST_SOMEOF_EXTENDED_TEST_CASES)
+    def test_execute_change_start_end(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        c = SomeOf(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+
+        c = SomeOf(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, end=1)
+        with self.assertRaises(ValueError):
+            c(data, end=1)
 
 
 if __name__ == "__main__":

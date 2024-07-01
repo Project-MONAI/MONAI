@@ -72,6 +72,7 @@ TEST_CASE_1 = [
 
 
 class TestClass:
+
     @staticmethod
     def compute(a, b, func=lambda x, y: x + y):
         return func(a, b)
@@ -126,6 +127,7 @@ TEST_CASE_DUPLICATED_KEY_YAML = [
 
 
 class TestConfigParser(unittest.TestCase):
+
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
@@ -174,15 +176,16 @@ class TestConfigParser(unittest.TestCase):
             self.assertTrue(isinstance(v, cls))
         # test default value
         self.assertEqual(parser.get_parsed_content(id="abc", default=ConfigItem(12345, "abc")), 12345)
+        self.assertEqual(parser.get_parsed_content(id="abcd", default=1), 1)
 
     @parameterized.expand([TEST_CASE_2])
     def test_function(self, config):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
             if id in ("compute", "cls_compute"):
-                parser[f"{id}#_mode_"] = "partial"
+                parser[f"{id}#_mode_"] = "callable"
             func = parser.get_parsed_content(id=id)
-            self.assertTrue(id in parser.ref_resolver.resolved_content)
+            self.assertIn(id, parser.ref_resolver.resolved_content)
             if id == "error_func":
                 with self.assertRaises(TypeError):
                     func(1, 2)
@@ -276,7 +279,7 @@ class TestConfigParser(unittest.TestCase):
 
     def test_non_str_target(self):
         configs = {
-            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "partial"},
+            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "callable"},
             "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
         }
         self.assertTrue(callable(ConfigParser(config=configs).fwd))
@@ -312,6 +315,12 @@ class TestConfigParser(unittest.TestCase):
     def test_builtin(self):
         config = {"import statements": "$import math", "calc": {"_target_": "math.isclose", "a": 0.001, "b": 0.001}}
         self.assertEqual(ConfigParser(config).calc, True)
+
+    def test_slicing(self):
+        config = {"test": [1, 2, 3, 4], "test1": "$@test[::]", "test2": "$@test[::-1]", "st": "aten::relu"}
+        self.assertEqual(ConfigParser(config).test1, [1, 2, 3, 4])
+        self.assertEqual(ConfigParser(config).test2, [4, 3, 2, 1])
+        self.assertEqual(ConfigParser(config).st, "aten::relu")
 
     @parameterized.expand([TEST_CASE_5])
     def test_substring_reference(self, config, expected):

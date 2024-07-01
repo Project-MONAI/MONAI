@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForegroundd
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_POSITION, TESTS = [], []
@@ -158,6 +158,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestCropForegroundd(unittest.TestCase):
+
     @parameterized.expand(TEST_POSITION + TESTS)
     def test_value(self, arguments, input_data, expected_data, _):
         cropper = CropForegroundd(**arguments)
@@ -189,13 +190,14 @@ class TestCropForegroundd(unittest.TestCase):
         expected = crop_fn(image)["img"]
         self.assertIsInstance(expected, MetaTensor)
         # lazy
-        crop_fn.lazy_evaluation = True
+        crop_fn.lazy = True
         pending_result = crop_fn(image)["img"]
         self.assertIsInstance(pending_result, MetaTensor)
         assert_allclose(pending_result.peek_pending_affine(), expected.affine)
         assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
         # only support nearest
-        result = apply_transforms(pending_result, mode="nearest", align_corners=align_corners)[0]
+        overrides = {"mode": "nearest", "align_corners": align_corners}
+        result = apply_pending(pending_result, overrides=overrides)[0]
         # compare
         assert_allclose(result, expected, rtol=1e-5)
 

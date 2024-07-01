@@ -42,6 +42,7 @@ TEST_CASES = [
 
 
 class TestDVF2DDF(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
 

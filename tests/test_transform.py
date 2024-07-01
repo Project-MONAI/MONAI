@@ -16,9 +16,11 @@ import unittest
 
 import monai.transforms as mt
 from monai.data import Dataset
+from monai.utils.misc import MONAIEnvVars
 
 
 class FaultyTransform(mt.Transform):
+
     def __call__(self, _):
         raise RuntimeError
 
@@ -28,10 +30,11 @@ def faulty_lambda(_):
 
 
 class TestTransform(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
-        cls.orig_value = os.environ.get("MONAI_DEBUG")
+        cls.orig_value = str(MONAIEnvVars.debug())
 
     @classmethod
     def tearDownClass(cls):

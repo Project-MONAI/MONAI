@@ -30,6 +30,7 @@ except ImportError:
 
 
 class TestHandlerLogfile(unittest.TestCase):
+
     def setUp(self):
         if has_ignite:
             # set up engine

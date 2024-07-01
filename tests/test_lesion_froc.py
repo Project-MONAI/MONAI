@@ -298,6 +298,7 @@ TEST_CASE_9 = [
 
 
 class TestEvaluateTumorFROC(unittest.TestCase):
+
     @skipUnless(has_cucim, "Requires cucim")
     @skipUnless(has_skimage, "Requires skimage")
     @skipUnless(has_sp, "Requires scipy")

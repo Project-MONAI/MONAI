@@ -31,6 +31,7 @@ TEST_CASES = [
 
 
 class TestPolyval(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_floats(self, coef, x, expected):
         result = polyval(coef, x)

@@ -29,12 +29,15 @@ jobs:
       args: ${{ env.args }}
 
     # This job only runs for pull request comments
-    if: contains('\
-      Nic-Ma,\
-      wyli,\
-      pxLi,\
-      YanxuanLiu,\
-      ', format('{0},', github.actor)) && github.event.comment.body == '/build'
+    if: |
+      github.event.comment.body == '/build' &&
+      (
+        github.actor == 'Nic-Ma' ||
+        github.actor == 'wyli' ||
+        github.actor == 'pxLi' ||
+        github.actor == 'YanxuanLiu' ||
+        github.actor == 'KumoLiu'
+      )
     steps:
       - name: Check if comment is issued by authorized person
         run: blossom-ci
@@ -49,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: ${{ fromJson(needs.Authorization.outputs.args).repo }}
           ref: ${{ fromJson(needs.Authorization.outputs.args).ref }}

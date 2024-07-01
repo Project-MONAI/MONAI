@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from copy import deepcopy
@@ -24,15 +23,22 @@ import torch
 import torch.distributed as dist
 
 from monai.apps.auto3dseg.bundle_gen import BundleAlgo
-from monai.apps.auto3dseg.utils import import_bundle_algo_history
+from monai.apps.auto3dseg.utils import get_name_from_algo_id, import_bundle_algo_history
 from monai.apps.utils import get_logger
 from monai.auto3dseg import concat_val_to_np
-from monai.auto3dseg.utils import datafold_read
+from monai.auto3dseg.utils import (
+    _prepare_cmd_bcprun,
+    _prepare_cmd_torchrun,
+    _run_cmd_bcprun,
+    _run_cmd_torchrun,
+    datafold_read,
+)
 from monai.bundle import ConfigParser
 from monai.data import partition_dataset
-from monai.transforms import MeanEnsemble, VoteEnsemble
+from monai.transforms import MeanEnsemble, SaveImage, VoteEnsemble
+from monai.utils import RankFilter
 from monai.utils.enums import AlgoKeys
-from monai.utils.misc import prob2class
+from monai.utils.misc import check_kwargs_exist_in_class_init, prob2class
 from monai.utils.module import look_up_option, optional_import
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
@@ -83,7 +89,7 @@ class AlgoEnsemble(ABC):
 
         Args:
             dataroot: the path of the files
-            data_src_cfg_file: the data source file path
+            data_list_or_path: the data source file path
         """
 
         self.infer_files = []
@@ -94,7 +100,7 @@ class AlgoEnsemble(ABC):
             datalist = ConfigParser.load_config_file(data_list_or_path)
             if data_key in datalist:
                 self.infer_files, _ = datafold_read(datalist=datalist, basedir=dataroot, fold=-1, key=data_key)
-            elif hasattr(self, "rank") and self.rank == 0:
+            elif not hasattr(self, "rank") or self.rank == 0:
                 logger.info(f"Datalist file has no testing key - {data_key}. No data for inference is specified")
 
         else:
@@ -126,6 +132,25 @@ class AlgoEnsemble(ABC):
             else:
                 return VoteEnsemble(num_classes=preds[0].shape[0])(classes)
 
+    def _apply_algo_specific_param(self, algo_spec_param: dict, param: dict, algo_name: str) -> dict:
+        """
+        Apply the model-specific params to the prediction params based on the name of the Algo.
+
+        Args:
+            algo_spec_param: a dict that has structure of {"<name of algo>": "<pred_params for that algo>"}.
+            param: the prediction params to override.
+            algo_name: name of the Algo
+
+        Returns:
+            param after being updated with the model-specific param
+        """
+        _param_to_override = deepcopy(algo_spec_param)
+        _param = deepcopy(param)
+        for k, v in _param_to_override.items():
+            if k.lower() == algo_name.lower():
+                _param.update(v)
+        return _param
+
     def __call__(self, pred_param: dict | None = None) -> list:
         """
         Use the ensembled model to predict result.
@@ -135,14 +160,24 @@ class AlgoEnsemble(ABC):
                 in this function, and the second group will be passed to the `InferClass` to override the
                 parameters of the class functions.
                 The first group contains:
-                'files_slices': a value type of `slice`. The files_slices will slice the infer_files and only
-                    make prediction on the infer_files[file_slices].
-                'mode': ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
-                'sigmoid': use the sigmoid function (e.g. x>0.5) to convert the prediction probability map to
-                    the label class prediction, otherwise argmax(x) is used.
+
+                    - ``"infer_files"``: file paths to the images to read in a list.
+                    - ``"files_slices"``: a value type of `slice`. The files_slices will slice the ``"infer_files"`` and
+                      only make prediction on the infer_files[file_slices].
+                    - ``"mode"``: ensemble mode. Currently "mean" and "vote" (majority voting) schemes are supported.
+                    - ``"image_save_func"``: a dictionary used to instantiate the ``SaveImage`` transform. When specified,
+                      the ensemble prediction will save the prediction files, instead of keeping the files in the memory.
+                      Example: `{"_target_": "SaveImage", "output_dir": "./"}`
+                    - ``"sigmoid"``: use the sigmoid function (e.g. x > 0.5) to convert the prediction probability map
+                      to the label class prediction, otherwise argmax(x) is used.
+                    - ``"algo_spec_params"``: a dictionary to add pred_params that are specific to a model.
+                      The dict has a format of {"<name of algo>": "<pred_params for that algo>"}.
+
+                The parameters in the second group is defined in the ``config`` of each Algo templates. Please check:
+                https://github.com/Project-MONAI/research-contributions/tree/main/auto3dseg/algorithm_templates
 
         Returns:
-            A list of tensors.
+            A list of tensors or file paths, depending on whether ``"image_save_func"`` is set.
         """
         param = {} if pred_param is None else deepcopy(pred_param)
         files = self.infer_files
@@ -163,6 +198,8 @@ class AlgoEnsemble(ABC):
         if "image_save_func" in param:
             img_saver = ConfigParser(param["image_save_func"]).get_parsed_content()
 
+        algo_spec_params = param.pop("algo_spec_params", {})
+
         outputs = []
         for _, file in (
             enumerate(tqdm(files, desc="Ensembling (rank 0)..."))
@@ -171,12 +208,25 @@ class AlgoEnsemble(ABC):
         ):
             preds = []
             for algo in self.algo_ensemble:
+                infer_algo_name = get_name_from_algo_id(algo[AlgoKeys.ID])
                 infer_instance = algo[AlgoKeys.ALGO]
-                pred = infer_instance.predict(predict_files=[file], predict_params=param)
+                _param = self._apply_algo_specific_param(algo_spec_params, param, infer_algo_name)
+                pred = infer_instance.predict(predict_files=[file], predict_params=_param)
                 preds.append(pred[0])
             if "image_save_func" in param:
-                res = img_saver(self.ensemble_pred(preds, sigmoid=sigmoid))
+                try:
+                    ensemble_preds = self.ensemble_pred(preds, sigmoid=sigmoid)
+                except BaseException:
+                    ensemble_preds = self.ensemble_pred([_.to("cpu") for _ in preds], sigmoid=sigmoid)
+                res = img_saver(ensemble_preds)
+                # res is the path to the saved results
+                if hasattr(res, "meta") and "saved_to" in res.meta.keys():
+                    res = res.meta["saved_to"]
+                else:
+                    warn("Image save path not returned.")
+                    res = None
             else:
+                warn("Prediction returned in list instead of disk, provide image_save_func to avoid out of memory.")
                 res = self.ensemble_pred(preds, sigmoid=sigmoid)
             outputs.append(res)
         return outputs
@@ -270,7 +320,7 @@ class AlgoEnsembleBuilder:
 
     Args:
         history: a collection of trained bundleAlgo algorithms.
-        data_src_cfg_filename: filename of the data source.
+        data_src_cfg_name: filename of the data source.
 
     Examples:
 
@@ -282,13 +332,13 @@ class AlgoEnsembleBuilder:
 
     """
 
-    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_filename: str | None = None):
+    def __init__(self, history: Sequence[dict[str, Any]], data_src_cfg_name: str | None = None):
         self.infer_algos: list[dict[AlgoKeys, Any]] = []
         self.ensemble: AlgoEnsemble
         self.data_src_cfg = ConfigParser(globals=False)
 
-        if data_src_cfg_filename is not None and os.path.exists(str(data_src_cfg_filename)):
-            self.data_src_cfg.read_config(data_src_cfg_filename)
+        if data_src_cfg_name is not None and os.path.exists(str(data_src_cfg_name)):
+            self.data_src_cfg.read_config(data_src_cfg_name)
 
         for algo_dict in history:
             # load inference_config_paths
@@ -346,17 +396,21 @@ class AlgoEnsembleBuilder:
 
 class EnsembleRunner:
     """
-    The Runner for ensembler
+    The Runner for ensembler. It ensembles predictions and saves them to the disk with a support of using multi-GPU.
 
     Args:
-        work_dir: working directory to save the intermediate and final results.
         data_src_cfg_name: filename of the data source.
-        num_fold: number of fold.
-        ensemble_method_name: method to ensemble predictions from different model.
-                              Suported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
-        mgpu: if using multi-gpu.
+        work_dir: working directory to save the intermediate and final results. Default is `./work_dir`.
+        num_fold: number of fold. Default is 5.
+        ensemble_method_name: method to ensemble predictions from different model. Default is AlgoEnsembleBestByFold.
+                              Supported methods: ["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"].
+        mgpu: if using multi-gpu. Default is True.
         kwargs: additional image writing, ensembling parameters and prediction parameters for the ensemble inference.
-    Examples:
+              - for image saving, please check the supported parameters in SaveImage transform.
+              - for prediction parameters, please check the supported parameters in the ``AlgoEnsemble`` callables.
+              - for ensemble parameters, please check the documentation of the selected AlgoEnsemble callable.
+
+    Example:
 
         .. code-block:: python
 
@@ -372,7 +426,7 @@ class EnsembleRunner:
 
     def __init__(
         self,
-        data_src_cfg_name: str = "./work_dir/input.yaml",
+        data_src_cfg_name: str,
         work_dir: str = "./work_dir",
         num_fold: int = 5,
         ensemble_method_name: str = "AlgoEnsembleBestByFold",
@@ -384,7 +438,7 @@ class EnsembleRunner:
         self.num_fold = num_fold
         self.ensemble_method_name = ensemble_method_name
         self.mgpu = mgpu
-        self.kwargs = kwargs
+        self.kwargs = deepcopy(kwargs)
         self.rank = 0
         self.world_size = 1
         self.device_setting: dict[str, int | str] = {
@@ -392,7 +446,7 @@ class EnsembleRunner:
             "n_devices": torch.cuda.device_count(),
             "NUM_NODES": int(os.environ.get("NUM_NODES", 1)),
             "MN_START_METHOD": os.environ.get("MN_START_METHOD", "bcprun"),
-            "CMD_PREFIX": os.environ.get("CMD_PREFIX"),  # type: ignore
+            "CMD_PREFIX": os.environ.get("CMD_PREFIX", ""),
         }
 
     def set_ensemble_method(self, ensemble_method_name: str = "AlgoEnsembleBestByFold", **kwargs: Any) -> None:
@@ -410,14 +464,62 @@ class EnsembleRunner:
             ensemble_method_name, supported=["AlgoEnsembleBestN", "AlgoEnsembleBestByFold"]
         )
         if self.ensemble_method_name == "AlgoEnsembleBestN":
-            n_best = kwargs.pop("n_best", False) or 2
+            n_best = kwargs.pop("n_best", 2)
             self.ensemble_method = AlgoEnsembleBestN(n_best=n_best)
         elif self.ensemble_method_name == "AlgoEnsembleBestByFold":
             self.ensemble_method = AlgoEnsembleBestByFold(n_fold=self.num_fold)  # type: ignore
         else:
             raise NotImplementedError(f"Ensemble method {self.ensemble_method_name} is not implemented.")
 
-    def set_image_save_transform(self, **kwargs):
+    def _pop_kwargs_to_get_image_save_transform(self, **kwargs):
+        """
+        Pop the kwargs used to define ImageSave class for the ensemble output.
+
+        Args:
+            kwargs: image writing parameters for the ensemble inference. The kwargs format follows SaveImage
+                transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
+
+        Returns:
+            save_image: a dictionary that can be used to instantiate a SaveImage class in ConfigParser.
+        """
+
+        output_dir = kwargs.pop("output_dir", None)
+
+        if output_dir is None:
+            output_dir = os.path.join(self.work_dir, "ensemble_output")
+            logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions.")
+
+        if not os.path.isdir(output_dir):
+            os.makedirs(output_dir, exist_ok=True)
+            logger.info(f"Directory {output_dir} is created to save ensemble predictions")
+
+        input_yaml = ConfigParser.load_config_file(self.data_src_cfg_name)
+        data_root_dir = input_yaml.get("dataroot", "")
+
+        save_image = {
+            "_target_": "SaveImage",
+            "output_dir": output_dir,
+            "output_postfix": kwargs.pop("output_postfix", "ensemble"),
+            "output_dtype": kwargs.pop("output_dtype", "$np.uint8"),
+            "resample": kwargs.pop("resample", False),
+            "print_log": False,
+            "savepath_in_metadict": True,
+            "data_root_dir": kwargs.pop("data_root_dir", data_root_dir),
+            "separate_folder": kwargs.pop("separate_folder", False),
+        }
+
+        are_all_args_save_image, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
+        if are_all_args_save_image:
+            save_image.update(kwargs)
+        else:
+            # kwargs has extra values for other purposes, for example, pred_params
+            for args in list(kwargs):
+                if args not in extra_args:
+                    save_image.update({args: kwargs.pop(args)})
+
+        return save_image
+
+    def set_image_save_transform(self, **kwargs: Any) -> None:
         """
         Set the ensemble output transform.
 
@@ -426,34 +528,14 @@ class EnsembleRunner:
                 transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage .
 
         """
-
-        if "output_dir" in kwargs:
-            output_dir = kwargs.pop("output_dir")
+        are_all_args_present, extra_args = check_kwargs_exist_in_class_init(SaveImage, kwargs)
+        if are_all_args_present:
+            self.kwargs.update(kwargs)
         else:
-            output_dir = os.path.join(self.work_dir, "ensemble_output")
-            if self.rank == 0:
-                logger.info(f"The output_dir is not specified. {output_dir} will be used to save ensemble predictions")
-
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
-            if self.rank == 0:
-                logger.info(f"Directory {output_dir} is created to save ensemble predictions")
-
-        self.output_dir = output_dir
-        output_postfix = kwargs.pop("output_postfix", "ensemble")
-        output_dtype = kwargs.pop("output_dtype", "$np.uint8")
-        resample = kwargs.pop("resample", False)
-
-        self.save_image = {
-            "_target_": "SaveImage",
-            "output_dir": output_dir,
-            "output_postfix": output_postfix,
-            "output_dtype": output_dtype,
-            "resample": resample,
-            "print_log": False,
-        }
-        if kwargs:
-            self.save_image.update(kwargs)
+            raise ValueError(
+                f"{extra_args} are not supported in monai.transforms.SaveImage,"
+                "Check https://docs.monai.io/en/stable/transforms.html#saveimage for more information."
+            )
 
     def set_num_fold(self, num_fold: int = 5) -> None:
         """
@@ -468,24 +550,25 @@ class EnsembleRunner:
         self.num_fold = num_fold
 
     def ensemble(self):
-        if self.mgpu:  # torch.cuda.device_count() is not used because env is not set by autorruner
+        if self.mgpu:  # torch.cuda.device_count() is not used because env is not set by autorunner
             # init multiprocessing and update infer_files
             dist.init_process_group(backend="nccl", init_method="env://")
             self.world_size = dist.get_world_size()
             self.rank = dist.get_rank()
+            logger.addFilter(RankFilter())
         # set params after init_process_group to know the rank
         self.set_num_fold(num_fold=self.num_fold)
-        self.set_image_save_transform(**self.kwargs)
         self.set_ensemble_method(self.ensemble_method_name, **self.kwargs)
+        # self.kwargs needs to pop out args for set_image_save_transform
+        save_image = self._pop_kwargs_to_get_image_save_transform(**self.kwargs)
 
         history = import_bundle_algo_history(self.work_dir, only_trained=False)
         history_untrained = [h for h in history if not h[AlgoKeys.IS_TRAINED]]
         if history_untrained:
-            if self.rank == 0:
-                warn(
-                    f"Ensembling step will skip {[h['name'] for h in history_untrained]} untrained algos."
-                    "Generally it means these algos did not complete training."
-                )
+            logger.warning(
+                f"Ensembling step will skip {[h[AlgoKeys.ID] for h in history_untrained]} untrained algos."
+                "Generally it means these algos did not complete training."
+            )
             history = [h for h in history if h[AlgoKeys.IS_TRAINED]]
         if len(history) == 0:
             raise ValueError(
@@ -497,18 +580,26 @@ class EnsembleRunner:
         builder.set_ensemble_method(self.ensemble_method)
         self.ensembler = builder.get_ensemble()
         infer_files = self.ensembler.infer_files
-        infer_files = partition_dataset(data=infer_files, shuffle=False, num_partitions=self.world_size)[self.rank]
+        if len(infer_files) < self.world_size:
+            if len(infer_files) == 0:
+                logger.info("No testing files for inference is provided. Ensembler ending.")
+                return
+            infer_files = [infer_files[self.rank]] if self.rank < len(infer_files) else []
+        else:
+            infer_files = partition_dataset(
+                data=infer_files, shuffle=False, num_partitions=self.world_size, even_divisible=False
+            )[self.rank]
+
         # TO DO: Add some function in ensembler for infer_files update?
         self.ensembler.infer_files = infer_files
-        # self.kwargs has poped out args for set_image_save_transform
         # add rank to pred_params
         self.kwargs["rank"] = self.rank
-        self.kwargs["image_save_func"] = self.save_image
-        if self.rank == 0:
-            logger.info("Auto3Dseg picked the following networks to ensemble:")
-            for algo in self.ensembler.get_algo_ensemble():
-                logger.info(algo[AlgoKeys.ID])
-            logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {self.output_dir}.")
+        self.kwargs["image_save_func"] = save_image
+        logger.info("Auto3Dseg picked the following networks to ensemble:")
+        for algo in self.ensembler.get_algo_ensemble():
+            logger.info(algo[AlgoKeys.ID])
+        output_dir = save_image["output_dir"]
+        logger.info(f"Auto3Dseg ensemble prediction outputs will be saved in {output_dir}.")
         self.ensembler(pred_param=self.kwargs)
 
         if self.mgpu:
@@ -520,9 +611,8 @@ class EnsembleRunner:
         algo_config.yaml file, which is pre-filled by the fill_template_config function in the same instance.
 
         Args:
-            train_params:  training parameters
-            device_settings: device related settings, should follow the device_setting in auto_runner.set_device_info.
-            'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
+            device_setting: device related settings, should follow the device_setting in auto_runner.set_device_info.
+                'CUDA_VISIBLE_DEVICES' should be a string e.g. '0,1,2,3'
         """
         # device_setting set default value and sanity check, in case device_setting not from autorunner
         if device_setting is not None:
@@ -551,9 +641,6 @@ class EnsembleRunner:
         # define env for subprocess
         ps_environ = os.environ.copy()
         ps_environ["CUDA_VISIBLE_DEVICES"] = str(self.device_setting["CUDA_VISIBLE_DEVICES"])
-        cmd: str | None = self.device_setting["CMD_PREFIX"]  # type: ignore
-        if cmd is not None and not str(cmd).endswith(" "):
-            cmd += " "
         if int(self.device_setting["NUM_NODES"]) > 1:
             if self.device_setting["MN_START_METHOD"] != "bcprun":
                 raise NotImplementedError(
@@ -561,13 +648,13 @@ class EnsembleRunner:
                     "Try modify EnsembleRunner._create_cmd for your cluster."
                 )
             logger.info(f"Ensembling on {self.device_setting['NUM_NODES']} nodes!")
-            cmd = "python " if cmd is None else cmd
-            cmd = f"{cmd} -m {base_cmd}"
-            cmd = f"bcprun -n {self.device_setting['NUM_NODES']} -p {self.device_setting['n_devices']} -c {cmd}"
+            cmd = _prepare_cmd_bcprun("-m " + base_cmd, cmd_prefix=f"{self.device_setting['CMD_PREFIX']}")
+            _run_cmd_bcprun(cmd, n=self.device_setting["NUM_NODES"], p=self.device_setting["n_devices"])
+
         else:
             logger.info(f"Ensembling using {self.device_setting['n_devices']} GPU!")
-            if cmd is None:
-                cmd = f"torchrun --nnodes={1:d} --nproc_per_node={self.device_setting['n_devices']:d} "
-            cmd = f"{cmd} -m {base_cmd}"
-        _ = subprocess.run(cmd.split(), env=ps_environ, check=True)
+            cmd = _prepare_cmd_torchrun("-m " + base_cmd)
+            _run_cmd_torchrun(
+                cmd, nnodes=1, nproc_per_node=self.device_setting["n_devices"], env=ps_environ, check=True
+            )
         return

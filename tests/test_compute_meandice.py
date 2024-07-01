@@ -185,8 +185,74 @@ TEST_CASE_12 = [
     [[0.0000, 0.0000], [0.0000, 0.0000]],
 ]
 
+# test return_with_label
+TEST_CASE_13 = [
+    {
+        "include_background": True,
+        "reduction": "mean_batch",
+        "get_not_nans": True,
+        "return_with_label": ["bg", "fg0", "fg1"],
+    },
+    {
+        "y_pred": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
+            ]
+        ),
+    },
+    {"bg": 0.6786, "fg0": 0.4000, "fg1": 0.6667},
+]
+
+# test return_with_label, include_background
+TEST_CASE_14 = [
+    {"include_background": True, "reduction": "mean_batch", "get_not_nans": True, "return_with_label": True},
+    {
+        "y_pred": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
+            ]
+        ),
+    },
+    {"label_0": 0.6786, "label_1": 0.4000, "label_2": 0.6667},
+]
+
+# test return_with_label, not include_background
+TEST_CASE_15 = [
+    {"include_background": False, "reduction": "mean_batch", "get_not_nans": True, "return_with_label": True},
+    {
+        "y_pred": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
+            ]
+        ),
+    },
+    {"label_1": 0.4000, "label_2": 0.6667},
+]
+
 
 class TestComputeMeanDice(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_9, TEST_CASE_11, TEST_CASE_12])
     def test_value(self, input_data, expected_value):
         result = compute_dice(**input_data)
@@ -207,24 +273,33 @@ class TestComputeMeanDice(unittest.TestCase):
         result = DiceHelper(softmax=True, get_not_nans=False)(**vals)
         np.testing.assert_allclose(result[0].cpu().numpy(), [0.0, 0.0], atol=1e-4)
 
+        num_classes = vals["y_pred"].shape[1]
+        vals["y_pred"] = torch.argmax(vals["y_pred"], dim=1, keepdim=True)
+        result = DiceHelper(sigmoid=True, num_classes=num_classes)(**vals)
+        np.testing.assert_allclose(result[0].cpu().numpy(), [0.0, 0.0, 0.0], atol=1e-4)
+
     # DiceMetric class tests
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_10])
     def test_value_class(self, input_data, expected_value):
         # same test as for compute_dice
-        vals = {}
-        vals["y_pred"] = input_data.pop("y_pred")
+        vals = {"y_pred": input_data.pop("y_pred")}
         vals["y"] = input_data.pop("y")
         dice_metric = DiceMetric(**input_data)
         dice_metric(**vals)
         result = dice_metric.aggregate(reduction="none")
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8])
+    @parameterized.expand(
+        [TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_13, TEST_CASE_14, TEST_CASE_15]
+    )
     def test_nans_class(self, params, input_data, expected_value):
         dice_metric = DiceMetric(**params)
         dice_metric(**input_data)
         result, _ = dice_metric.aggregate()
-        np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+        if isinstance(result, dict):
+            self.assertEqual(result, expected_value)
+        else:
+            np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
 
 if __name__ == "__main__":

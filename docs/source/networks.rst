@@ -408,6 +408,11 @@ Layers
 .. autoclass:: LLTM
     :members:
 
+`ConjugateGradient`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConjugateGradient
+    :members:
+
 `Utilities`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.convutils
@@ -471,6 +476,11 @@ Nets
 .. autoclass:: SegResNet
   :members:
 
+`SegResNetDS`
+~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS
+  :members:
+
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
@@ -479,6 +489,11 @@ Nets
 `ResNet`
 ~~~~~~~~
 .. autoclass:: ResNet
+  :members:
+
+`ResNetFeatures`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ResNetFeatures
   :members:
 
 `SENet`
@@ -694,6 +709,29 @@ Nets
 ~~~~~~~~~~~~
 .. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
    :members:
+
+`DAF3D`
+~~~~~~~~~~~~
+.. autoclass:: DAF3D
+   :members:
+
+`Quicknat`
+~~~~~~~~~~~~
+.. autoclass:: Quicknat
+   :members:
+
+`VoxelMorph`
+~~~~~~~~~~~~
+.. autoclass:: VoxelMorphUNet
+   :members:
+
+.. autoclass:: voxelmorphunet
+   :members:
+
+.. autoclass:: VoxelMorph
+   :members:
+
+.. autoclass:: voxelmorph
 
 Utilities
 ---------

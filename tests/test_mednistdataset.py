@@ -18,23 +18,30 @@ from pathlib import Path
 
 from monai.apps import MedNISTDataset
 from monai.data import MetaTensor
-from monai.transforms import AddChanneld, Compose, LoadImaged, ScaleIntensityd
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
 from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 MEDNIST_FULL_DATASET_LENGTH = 58954
 
 
 class TestMedNISTDataset(unittest.TestCase):
+
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
-        transform = Compose([LoadImaged(keys="image"), AddChanneld(keys="image"), ScaleIntensityd(keys="image")])
+        transform = Compose(
+            [
+                LoadImaged(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
+                ScaleIntensityd(keys="image"),
+            ]
+        )
 
         def _test_dataset(dataset):
             self.assertEqual(len(dataset), int(MEDNIST_FULL_DATASET_LENGTH * dataset.test_frac))
             self.assertTrue("image" in dataset[0])
             self.assertTrue("label" in dataset[0])
-            self.assertTrue(isinstance(dataset[0]["image"], MetaTensor))
+            self.assertIsInstance(dataset[0]["image"], MetaTensor)
             self.assertTupleEqual(dataset[0]["image"].shape, (1, 64, 64))
 
         with skip_if_downloading_fails():
@@ -58,11 +65,8 @@ class TestMedNISTDataset(unittest.TestCase):
         self.assertEqual(data[0]["class_name"], "AbdomenCT")
         self.assertEqual(data[0]["label"], 0)
         shutil.rmtree(os.path.join(testing_dir, "MedNIST"))
-        try:
+        with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
             MedNISTDataset(root_dir=testing_dir, transform=transform, section="test", download=False)
-        except RuntimeError as e:
-            print(str(e))
-            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
 
 
 if __name__ == "__main__":

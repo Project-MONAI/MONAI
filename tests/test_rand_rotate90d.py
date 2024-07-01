@@ -23,6 +23,7 @@ from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandRotate90d(NumpyImageTestCase2D):
+
     def test_default(self):
         key = "test"
         rotate = RandRotate90d(keys=key)
@@ -34,7 +35,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=1323, output_key=key)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im, key)
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
@@ -58,7 +59,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=234, output_key=key)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im, key)
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
@@ -76,7 +77,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=234, output_key=key)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             test_local_inversion(rotate, rotated, im, key)
             expected = [np.rot90(channel, 0, (0, 1)) for channel in self.imt[0]]
@@ -94,7 +95,7 @@ class TestRandRotate90d(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(rotate, rotated, call_param=call_param, seed=234, output_key=key)
-            rotate.lazy_evaluation = False
+            rotate.lazy = False
 
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)

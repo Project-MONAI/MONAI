@@ -18,11 +18,11 @@ from parameterized import parameterized
 
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, DivisiblePadd, RandSpatialCropSamplesd
-from monai.transforms.lazy.functional import apply_transforms
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
-    {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True},
+    {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True, "random_size": True},
     {"img": np.arange(81).reshape(3, 3, 3, 3), "seg": np.arange(81, 0, -1).reshape(3, 3, 3, 3)},
     [(3, 2, 2, 2), (3, 2, 3, 3), (3, 2, 3, 2), (3, 2, 3, 2)],
     {
@@ -47,7 +47,13 @@ TEST_CASE_2 = []
 for p in TEST_NDARRAYS_ALL:
     TEST_CASE_2.append(
         [
-            {"keys": ["img", "seg"], "num_samples": 8, "roi_size": [2, 2, 3], "random_center": False},
+            {
+                "keys": ["img", "seg"],
+                "num_samples": 8,
+                "roi_size": [2, 2, 3],
+                "random_center": False,
+                "random_size": True,
+            },
             {"img": p(np.arange(81).reshape(3, 3, 3, 3)), "seg": p(np.arange(81, 0, -1).reshape(3, 3, 3, 3))},
             [
                 (3, 2, 2, 3),
@@ -84,6 +90,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandSpatialCropSamplesd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, *TEST_CASE_2])
     def test_shape(self, input_param, input_data, expected_shape, expected_last):
         xform = RandSpatialCropSamplesd(**input_param)
@@ -122,15 +129,16 @@ class TestRandSpatialCropSamplesd(unittest.TestCase):
 
         # lazy
         xform.set_random_state(1234)
-        xform.lazy_evaluation = True
+        xform.lazy = True
         pending_result = xform(input_data)
         for i, _pending_result in enumerate(pending_result):
             self.assertIsInstance(_pending_result["img"], MetaTensor)
             assert_allclose(_pending_result["img"].peek_pending_affine(), expected[i]["img"].affine)
             assert_allclose(_pending_result["img"].peek_pending_shape(), expected[i]["img"].shape[1:])
             # only support nearest
-            result_img = apply_transforms(_pending_result["img"], mode="nearest", align_corners=False)[0]
-            result_seg = apply_transforms(_pending_result["seg"], mode="nearest", align_corners=False)[0]
+            overrides = {"mode": "nearest", "align_corners": False}
+            result_img = apply_pending(_pending_result["img"], overrides=overrides)[0]
+            result_seg = apply_pending(_pending_result["seg"], overrides=overrides)[0]
             # compare
             assert_allclose(result_img, expected[i]["img"], rtol=1e-5)
             assert_allclose(result_seg, expected[i]["seg"], rtol=1e-5)

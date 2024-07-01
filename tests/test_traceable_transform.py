@@ -17,6 +17,7 @@ from monai.transforms.inverse import TraceableTransform
 
 
 class _TraceTest(TraceableTransform):
+
     def __call__(self, data):
         self.push_transform(data)
         return data
@@ -27,16 +28,17 @@ class _TraceTest(TraceableTransform):
 
 
 class TestTraceable(unittest.TestCase):
+
     def test_default(self):
         expected_key = "_transforms"
         a = _TraceTest()
         for x in a.transform_info_keys():
-            self.assertTrue(x in a.get_transform_info())
+            self.assertIn(x, a.get_transform_info())
         self.assertEqual(a.trace_key(), expected_key)
 
         data = {"image": "test"}
         data = a(data)  # adds to the stack
-        self.assertTrue(isinstance(data[expected_key], list))
+        self.assertIsInstance(data[expected_key], list)
         self.assertEqual(data[expected_key][0]["class"], "_TraceTest")
 
         data = a(data)  # adds to the stack

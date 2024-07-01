@@ -35,6 +35,7 @@ TEST_CASES = [
 
 
 class TestGIoULoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_data, expected_val):
         loss = BoxGIoULoss()

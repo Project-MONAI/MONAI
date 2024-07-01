@@ -26,6 +26,7 @@ VALID_CASES = [("no_axis", None), ("one_axis", 1), ("many_axis", [0, 1])]
 
 
 class TestRandFlipd(NumpyImageTestCase2D):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, spatial_axis):
         for p in TEST_NDARRAYS_ALL:
@@ -37,7 +38,7 @@ class TestRandFlipd(NumpyImageTestCase2D):
 
             # test lazy
             test_resampler_lazy(flip, result, init_param, call_param, output_key="img")
-            flip.lazy_evaluation = False
+            flip.lazy = False
 
             expected = [np.flip(channel, spatial_axis) for channel in self.imt[0]]
             expected = np.stack(expected)

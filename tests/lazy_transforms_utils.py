@@ -11,9 +11,11 @@
 
 from __future__ import annotations
 
-from monai.data import set_track_meta
-from monai.transforms import Randomizable
-from monai.transforms.lazy.functional import apply_transforms
+from copy import deepcopy
+
+from monai.data import MetaTensor, set_track_meta
+from monai.transforms import InvertibleTransform, MapTransform, Randomizable
+from monai.transforms.lazy.functional import apply_pending
 from tests.utils import assert_allclose
 
 apply_transforms_kwargs = ("pending", "mode", "padding_mode", "dtype", "align_corners")
@@ -22,12 +24,10 @@ apply_transforms_kwargs = ("pending", "mode", "padding_mode", "dtype", "align_co
 def get_apply_param(init_param=None, call_param=None, params=apply_transforms_kwargs):
     apply_param = {}
     for key in apply_transforms_kwargs:
-        if init_param:
-            if key in init_param.keys():
-                apply_param[key] = init_param[key]
-        if call_param:
-            if key in call_param.keys():
-                apply_param[key] = call_param[key]
+        if init_param and key in init_param.keys():
+            apply_param[key] = init_param[key]
+        if call_param and key in call_param.keys():
+            apply_param[key] = call_param[key]
     return apply_param
 
 
@@ -61,8 +61,8 @@ def test_resampler_lazy(
     if isinstance(resampler, Randomizable):
         resampler.set_random_state(seed=seed)
     set_track_meta(True)
-    resampler.lazy_evaluation = True
-    pending_output = resampler(**call_param)
+    resampler.lazy = True
+    pending_output = resampler(**deepcopy(call_param))
     if output_idx is not None:
         expected_output, pending_output = expected_output[output_idx], pending_output[output_idx]
     if output_key is not None:
@@ -73,5 +73,19 @@ def test_resampler_lazy(
     if not skip_shape_check:
         assert_allclose(lazy_out.peek_pending_shape(), non_lazy_out.shape[1:4])
     apply_param = get_apply_param(init_param, call_param)
-    lazy_out = apply_transforms(lazy_out, **apply_param)[0]
+    lazy_out = apply_pending(lazy_out, overrides=apply_param)[0]
     assert_allclose(lazy_out, non_lazy_out, rtol=rtol, atol=atol)
+    if (
+        isinstance(resampler, InvertibleTransform)
+        and (not isinstance(resampler, MapTransform))
+        and isinstance(lazy_out, MetaTensor)
+        and isinstance(non_lazy_out, MetaTensor)
+        and non_lazy_out.applied_operations
+    ):
+        resampler.lazy = False
+        out = resampler.inverse(lazy_out.clone())
+        ref = resampler.inverse(non_lazy_out.clone())
+        assert_allclose(out.applied_operations, [])
+        assert_allclose(out.pending_operations, [])
+        assert_allclose(ref, out, type_test=False, rtol=1e-3, atol=1e-3)
+        resampler.lazy = True

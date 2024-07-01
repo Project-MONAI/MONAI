@@ -20,7 +20,7 @@ import torch
 
 from monai.apps import get_logger
 from monai.config import IgniteInfo
-from monai.utils import deprecated_arg_default, is_scalar, min_version, optional_import
+from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -66,7 +66,6 @@ class StatsHandler:
 
     """
 
-    @deprecated_arg_default("name", old_default=None, new_default="StatsHandler", since="1.1", replaced="1.3")
     def __init__(
         self,
         iteration_log: bool | Callable[[Engine, int], bool] = True,
@@ -76,7 +75,7 @@ class StatsHandler:
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
-        name: str | None = None,
+        name: str | None = "StatsHandler",
         tag_name: str = DEFAULT_TAG,
         key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
     ) -> None:

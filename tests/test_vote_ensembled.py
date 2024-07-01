@@ -86,6 +86,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestVoteEnsembled(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, input_param, img, expected_value):
         result = VoteEnsembled(**input_param)(img)

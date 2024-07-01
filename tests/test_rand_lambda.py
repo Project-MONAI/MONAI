@@ -37,6 +37,7 @@ class RandTest(Randomizable):
 
 
 class TestRandLambda(unittest.TestCase):
+
     def check(self, tr: RandLambda, img, img_orig_type, out, expected=None):
         # input shouldn't change
         self.assertIsInstance(img, img_orig_type)

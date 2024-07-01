@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import enum
 import functools
+import importlib.util
 import os
 import pdb
 import re
@@ -25,7 +26,7 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, cast
+from typing import Any, Iterable, cast
 
 import torch
 
@@ -55,6 +56,7 @@ __all__ = [
     "get_package_version",
     "get_torch_version_tuple",
     "version_leq",
+    "version_geq",
     "pytorch_after",
 ]
 
@@ -207,9 +209,11 @@ def load_submodules(
     ):
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
-                mod = import_module(name)
-                importer.find_module(name).load_module(name)  # type: ignore
-                submodules.append(mod)
+                mod_spec = importer.find_spec(name)  # type: ignore
+                if mod_spec and mod_spec.loader:
+                    mod = importlib.util.module_from_spec(mod_spec)
+                    mod_spec.loader.exec_module(mod)
+                    submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
@@ -230,11 +234,14 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
 
     Args:
         __path: if a string is provided, it's interpreted as the full path of the target class or function component.
-            If a callable is provided, ``__path(**kwargs)`` or ``functools.partial(__path, **kwargs)`` will be returned.
+            If a callable is provided, ``__path(**kwargs)`` will be invoked and returned for ``__mode="default"``.
+            For ``__mode="callable"``, the callable will be returned as ``__path`` or, if ``kwargs`` are provided,
+            as ``functools.partial(__path, **kwargs)`` for future invoking.
+
         __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
         kwargs: keyword arguments to the callable represented by ``__path``.
@@ -258,8 +265,8 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return component
         if m == CompInitMode.DEFAULT:
             return component(**kwargs)
-        if m == CompInitMode.PARTIAL:
-            return partial(component, **kwargs)
+        if m == CompInitMode.CALLABLE:
+            return partial(component, **kwargs) if kwargs else component
         if m == CompInitMode.DEBUG:
             warnings.warn(
                 f"\n\npdb: instantiating component={component}, mode={m}\n"
@@ -268,7 +275,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return pdb.runcall(component, **kwargs)
     except Exception as e:
         raise RuntimeError(
-            f"Failed to instantiate component '{__path}' with kwargs: {kwargs}"
+            f"Failed to instantiate component '{__path}' with keywords: {','.join(kwargs.keys())}"
             f"\n set '_mode_={CompInitMode.DEBUG}' to enter the debugging mode."
         ) from e
 
@@ -417,6 +424,7 @@ def optional_import(
         msg += f" ({exception_str})"
 
     class _LazyRaise:
+
         def __init__(self, *_args, **_kwargs):
             _default_msg = (
                 f"{msg}."
@@ -452,6 +460,7 @@ def optional_import(
         return _LazyRaise(), False
 
     class _LazyCls(_LazyRaise):
+
         def __init__(self, *_args, **kwargs):
             super().__init__()
             if not as_type.startswith("decorator"):
@@ -518,23 +527,10 @@ def get_torch_version_tuple():
     return tuple(int(x) for x in torch.__version__.split(".")[:2])
 
 
-def version_leq(lhs: str, rhs: str) -> bool:
+def parse_version_strs(lhs: str, rhs: str) -> tuple[Iterable[int | str], Iterable[int | str]]:
     """
-    Returns True if version `lhs` is earlier or equal to `rhs`.
-
-    Args:
-        lhs: version name to compare with `rhs`, return True if earlier or equal to `rhs`.
-        rhs: version name to compare with `lhs`, return True if later or equal to `lhs`.
-
+    Parse the version strings.
     """
-
-    lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
-    if has_ver:
-        try:
-            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
-        except pkging.version.InvalidVersion:
-            return True
 
     def _try_cast(val: str) -> int | str:
         val = val.strip()
@@ -554,12 +550,60 @@ def version_leq(lhs: str, rhs: str) -> bool:
     # parse the version strings in this basic way without `packaging` package
     lhs_ = map(_try_cast, lhs.split("."))
     rhs_ = map(_try_cast, rhs.split("."))
+    return lhs_, rhs_
 
+
+def version_leq(lhs: str, rhs: str) -> bool:
+    """
+    Returns True if version `lhs` is earlier or equal to `rhs`.
+
+    Args:
+        lhs: version name to compare with `rhs`, return True if earlier or equal to `rhs`.
+        rhs: version name to compare with `lhs`, return True if later or equal to `lhs`.
+
+    """
+
+    lhs, rhs = str(lhs), str(rhs)
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    if has_ver:
+        try:
+            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
+        except pkging.version.InvalidVersion:
+            return True
+
+    lhs_, rhs_ = parse_version_strs(lhs, rhs)
     for l, r in zip(lhs_, rhs_):
         if l != r:
             if isinstance(l, int) and isinstance(r, int):
                 return l < r
             return f"{l}" < f"{r}"
+
+    return True
+
+
+def version_geq(lhs: str, rhs: str) -> bool:
+    """
+    Returns True if version `lhs` is later or equal to `rhs`.
+
+    Args:
+        lhs: version name to compare with `rhs`, return True if later or equal to `rhs`.
+        rhs: version name to compare with `lhs`, return True if earlier or equal to `lhs`.
+
+    """
+    lhs, rhs = str(lhs), str(rhs)
+    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    if has_ver:
+        try:
+            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
+        except pkging.version.InvalidVersion:
+            return True
+
+    lhs_, rhs_ = parse_version_strs(lhs, rhs)
+    for l, r in zip(lhs_, rhs_):
+        if l != r:
+            if isinstance(l, int) and isinstance(r, int):
+                return l > r
+            return f"{l}" > f"{r}"
 
     return True
 

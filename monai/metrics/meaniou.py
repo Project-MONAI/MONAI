@@ -14,7 +14,7 @@ from __future__ import annotations
 import torch
 
 from monai.metrics.utils import do_metric_reduction, ignore_background
-from monai.utils import MetricReduction, deprecated
+from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
 
@@ -35,7 +35,7 @@ class MeanIoU(CumulativeIterationMetric):
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
     Args:
-        include_background: whether to skip IoU computation on the first channel of
+        include_background: whether to include IoU computation on the first channel of
             the predicted output. Defaults to ``True``.
         reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
             available reduction modes: {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
@@ -85,7 +85,7 @@ class MeanIoU(CumulativeIterationMetric):
         self, reduction: MetricReduction | str | None = None
     ) -> torch.Tensor | tuple[torch.Tensor, torch.Tensor]:
         """
-        Execute reduction logic for the output of `compute_meaniou`.
+        Execute reduction logic for the output of `compute_iou`.
 
         Args:
             reduction: define mode of reduction to the metrics, will only apply reduction on `not-nan` values,
@@ -113,7 +113,7 @@ def compute_iou(
             should be binarized.
         y: ground truth to compute mean IoU metric. It must be one-hot format and first dim is batch.
             The values should be binarized.
-        include_background: whether to skip IoU computation on the first channel of
+        include_background: whether to include IoU computation on the first channel of
             the predicted output. Defaults to True.
         ignore_empty: whether to ignore empty ground truth cases during calculation.
             If `True`, NaN value will be set for empty ground truth cases.
@@ -130,9 +130,6 @@ def compute_iou(
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
 
-    y = y.float()
-    y_pred = y_pred.float()
-
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
 
@@ -148,8 +145,3 @@ def compute_iou(
     if ignore_empty:
         return torch.where(y_o > 0, (intersection) / union, torch.tensor(float("nan"), device=y_o.device))
     return torch.where(union > 0, (intersection) / union, torch.tensor(1.0, device=y_o.device))
-
-
-@deprecated(since="1.0.0", msg_suffix="use `compute_iou` instead.")
-def compute_meaniou(*args, **kwargs):
-    return compute_iou(*args, **kwargs)
