@@ -110,7 +110,10 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int|Sequence[
     )
 
     # Apply filter operation
-    output = F.conv3d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element)
+    if spatial_dims == 2:
+        output = F.conv2d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element)
+    if spatial_dims == 3:
+        output = F.conv3d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element)
 
     return output
     
@@ -132,7 +135,7 @@ def erode_t(mask_t: Tensor, filter_size: int|Sequence[int] = 3, pad_value: float
     # Set output values based on the minimum value within the structuring element
     output = torch.where(output == 1.0, 1.0, 0.0)
 
-    return output.squeeze(0).squeeze(0)
+    return output
 
 
 def dilate_t(mask_t: Tensor, filter_size: int|Sequence[int] = 3, pad_value: float = 0.0) -> Tensor:
@@ -152,6 +155,6 @@ def dilate_t(mask_t: Tensor, filter_size: int|Sequence[int] = 3, pad_value: floa
     # Set output values based on the minimum value within the structuring element
     output = torch.where(output > 0, 1.0, 0.0)
 
-    return output.squeeze(0).squeeze(0)
+    return output
 
 
