@@ -811,7 +811,7 @@ class DiceFocalLoss(_Loss):
     The details of Focal Loss is shown in ``monai.losses.FocalLoss``.
 
     ``gamma`` and ``lambda_focal`` are only used for the focal loss.
-    ``include_background``, ``weight`` and ``reduction`` are used for both losses
+    ``include_background``, ``weight``, ``reduction``, and ``alpha`` are used for both losses,
     and other parameters are only used for dice loss.
 
     """
@@ -837,6 +837,7 @@ class DiceFocalLoss(_Loss):
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_focal: float = 1.0,
+        alpha: float | None = None,
     ) -> None:
         """
         Args:
@@ -871,7 +872,8 @@ class DiceFocalLoss(_Loss):
                 Defaults to 1.0.
             lambda_focal: the trade-off weight value for focal loss. The value should be no less than 0.0.
                 Defaults to 1.0.
-
+            alpha: value of the alpha in the definition of the alpha-balanced Focal loss. The value should be in
+                [0, 1]. Defaults to None.
         """
         super().__init__()
         weight = focal_weight if focal_weight is not None else weight
@@ -890,7 +892,12 @@ class DiceFocalLoss(_Loss):
             weight=weight,
         )
         self.focal = FocalLoss(
-            include_background=include_background, to_onehot_y=False, gamma=gamma, weight=weight, reduction=reduction
+            include_background=include_background,
+            to_onehot_y=False,
+            gamma=gamma,
+            weight=weight,
+            alpha=alpha,
+            reduction=reduction,
         )
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
