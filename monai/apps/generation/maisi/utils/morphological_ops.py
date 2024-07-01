@@ -37,7 +37,7 @@ def erode(mask: NdarrayOrTensor, filter_size: int|Sequence[int] = 3, pad_value: 
     Args:
         mask: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
         filter_size: erosion filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input.
+        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
         eroded mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
@@ -55,7 +55,7 @@ def dilate(mask: NdarrayOrTensor, filter_size: int|Sequence[int] = 3, pad_value:
     Args:
         mask: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
         filter_size: dilation filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input.
+        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
         dilated mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
@@ -107,9 +107,9 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int|Sequence[
 
     # Apply filter operation
     if spatial_dims == 2:
-        output = F.conv2d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element)
+        output = F.conv2d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element[0,...])
     if spatial_dims == 3:
-        output = F.conv3d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element)
+        output = F.conv3d(input_padded, structuring_element, padding=0)/torch.sum(structuring_element[0,...])
 
     return output
     
@@ -120,7 +120,7 @@ def erode_t(mask_t: Tensor, filter_size: int|Sequence[int] = 3, pad_value: float
     Args:
         mask_t: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor.
         filter_size: erosion filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input.
+        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
         eroded mask, [N,C,M,N] or [N,C,M,N,P] torch tensor
@@ -141,7 +141,7 @@ def dilate_t(mask_t: Tensor, filter_size: int|Sequence[int] = 3, pad_value: floa
     Args:
         mask_t: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor.
         filter_size: dilation filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input.
+        pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
         dilated mask, [N,C,M,N] or [N,C,M,N,P] torch tensor
