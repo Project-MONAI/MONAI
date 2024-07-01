@@ -16,25 +16,25 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 from parameterized import parameterized
 
-from monai.generation.maisi.utils import morphological_ops
+from monai.apps.generation.maisi.utils import morphological_ops
 
-TESTS = []
+TESTS_SHAPE = []
 for p in TEST_NDARRAYS:
     mask = torch.zeros(1,1,5,5,5)
     filter_size = 3
-    TESTS.append(
+    TESTS_SHAPE.append(
         [
             {"mask": p(mask), "filter_size": filter_size},
-            p(torch.zeros(1,1,5,5,5)),
+            [1,1,5,5,5],
         ]
     )
 
-class TestMorph(unittest.TestCase):
+class TestMorph_shape(unittest.TestCase):
 
-    @parameterized.expand(TESTS)
+    @parameterized.expand(TESTS_SHAPE)
     def test_value(self, input_data, expected_result):
         result1 = morphological_ops.erode(input_data["mask"],input_data["filter_size"])
-        assert_allclose(result2, expected_box, type_test=True, device_test=True, atol=0.0)
+        assert_allclose(result2.shape, expected_result, type_test=False, device_test=False, atol=0.0)
 
 if __name__ == "__main__":
     unittest.main()

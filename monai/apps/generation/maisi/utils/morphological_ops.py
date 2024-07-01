@@ -30,7 +30,7 @@ from monai.config import DtypeLike, NdarrayOrTensor
 from monai.bundle import ConfigParser
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
-def erode(mask: NdarrayTensor, filter_size: int|Sequence[int] = 3, pad_value: float = 1.0) -> NdarrayTensor:
+def erode(mask: NdarrayOrTensor, filter_size: int|Sequence[int] = 3, pad_value: float = 1.0) -> NdarrayOrTensor:
     """
     Erode 2D/3D binary mask.
 
@@ -48,7 +48,7 @@ def erode(mask: NdarrayTensor, filter_size: int|Sequence[int] = 3, pad_value: fl
     res_mask, *_ = convert_to_dst_type(src=res_mask_t, dst=mask)
     return res_mask
 
-def dilate(mask: NdarrayTensor, filter_size: int|Sequence[int] = 3, pad_value: float = 0.0) -> NdarrayTensor:
+def dilate(mask: NdarrayOrTensor, filter_size: int|Sequence[int] = 3, pad_value: float = 0.0) -> NdarrayOrTensor:
     """
     Dilate 2D/3D binary mask.
 
