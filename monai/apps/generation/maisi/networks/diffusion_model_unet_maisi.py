@@ -342,8 +342,7 @@ class DiffusionModelUNetMaisi(nn.Module):
         down_block_res_samples: list[torch.Tensor] = [h]
         for downsample_block in self.down_blocks:
             h, res_samples = downsample_block(hidden_states=h, temb=emb, context=context)
-            for residual in res_samples:
-                down_block_res_samples.append(residual)
+            down_block_res_samples.extend(res_samples)
 
         # Additional residual conections for Controlnets
         if down_block_additional_residuals is not None:
