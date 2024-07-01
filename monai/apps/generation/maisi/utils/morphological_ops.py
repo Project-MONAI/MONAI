@@ -19,7 +19,6 @@ from torch import Tensor
 
 from monai.config import NdarrayOrTensor
 from monai.utils import convert_data_type, convert_to_dst_type, ensure_tuple_rep
-from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 
 def erode(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_value: float = 1.0) -> NdarrayOrTensor:
@@ -115,12 +114,7 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequenc
     for size in filter_size:
         pad_size.extend([size // 2, size // 2])
 
-    input_padded = F.pad(
-        mask_t.float(),
-        pad_size,
-        mode="constant",
-        value=pad_value,
-    )
+    input_padded = F.pad(mask_t.float(), pad_size, mode="constant", value=pad_value)
 
     # Apply filter operation
     if spatial_dims == 2:
