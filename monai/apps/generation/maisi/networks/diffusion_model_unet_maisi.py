@@ -321,7 +321,7 @@ class DiffusionModelUNetMaisi(nn.Module):
                 raise ValueError("class_labels should be provided when num_class_embeds > 0")
             class_emb = self.class_embedding(class_labels)
             class_emb = class_emb.to(dtype=x.dtype)
-            emb = emb + class_emb
+            emb += class_emb
         return emb
 
     def _get_input_embeddings(self, emb, top_index, bottom_index, spacing):
@@ -351,7 +351,7 @@ class DiffusionModelUNetMaisi(nn.Module):
             for down_block_res_sample, down_block_additional_residual in zip(
                 down_block_res_samples, down_block_additional_residuals
             ):
-                down_block_res_sample = down_block_res_sample + down_block_additional_residual
+                down_block_res_sample += down_block_additional_residual
                 new_down_block_res_samples.append(down_block_res_sample)
 
             down_block_res_samples = new_down_block_res_samples
@@ -403,7 +403,7 @@ class DiffusionModelUNetMaisi(nn.Module):
 
         # Additional residual conections for Controlnets
         if mid_block_additional_residual is not None:
-            h = h + mid_block_additional_residual
+            h += mid_block_additional_residual
 
         h = self._apply_up_blocks(h, emb, context, _updated_down_block_res_samples)
         h = self.out(h)
