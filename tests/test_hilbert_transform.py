@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.networks.layers import HilbertTransform
 from monai.utils import OptionalImportError
-from tests.utils import SkipIfModule, SkipIfNoModule, skip_if_no_cuda
+from tests.utils import SkipIfModule, SkipIfNoModule
 
 
 def create_expected_numpy_output(input_datum, **kwargs):
