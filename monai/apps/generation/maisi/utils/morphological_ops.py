@@ -37,7 +37,7 @@ def erode(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_value
 
         .. code-block:: python
 
-            # define a naive network
+            # define a naive mask
             mask = torch.zeros(3,2,3,3,3)
             mask[:,:,1,1,1] = 1.0
             filter_size = 3
@@ -68,7 +68,7 @@ def dilate(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_valu
 
         .. code-block:: python
 
-            # define a naive network
+            # define a naive mask
             mask = torch.zeros(3,2,3,3,3)
             mask[:,:,1,1,1] = 1.0
             filter_size = 3
