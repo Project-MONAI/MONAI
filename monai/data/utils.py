@@ -924,7 +924,7 @@ def compute_shape_offset(
     corners = in_affine_ @ corners
     all_dist = corners_out[:-1].copy()
     corners_out = corners_out[:-1] / corners_out[-1]
-    out_shape = np.round(corners_out.ptp(axis=1)) if scale_extent else np.round(corners_out.ptp(axis=1) + 1.0)
+    out_shape = np.round(np.ptp(corners_out, axis=1)) if scale_extent else np.round(np.ptp(corners_out, axis=1) + 1.0)
     offset = None
     for i in range(corners.shape[1]):
         min_corner = np.min(all_dist - all_dist[:, i : i + 1], 1)
