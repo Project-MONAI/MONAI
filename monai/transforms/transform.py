@@ -204,7 +204,7 @@ class Randomizable(ThreadUnsafe, RandomizableTrait):
         """
         if seed is not None:
             _seed = id(seed) if not isinstance(seed, (int, np.integer)) else seed
-            _seed = _seed % MAX_SEED
+            _seed = int(_seed) % MAX_SEED
             self.R = np.random.RandomState(_seed)
             return self
 
