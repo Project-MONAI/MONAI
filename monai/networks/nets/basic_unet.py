@@ -19,7 +19,8 @@ import torch.nn as nn
 
 from monai.networks.blocks import Convolution, UpSample
 from monai.networks.layers.factories import Conv, Pool
-from monai.utils import ensure_tuple_rep
+from monai.utils import ensure_tuple_rep, MonaiHubMixin
+
 
 __all__ = ["BasicUnet", "Basicunet", "basicunet", "BasicUNet"]
 
@@ -175,7 +176,7 @@ class UpCat(nn.Module):
         return x
 
 
-class BasicUNet(nn.Module):
+class BasicUNet(nn.Module, MonaiHubMixin):
 
     def __init__(
         self,

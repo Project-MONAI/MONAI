@@ -21,6 +21,8 @@ import torch.nn.functional as F
 
 from monai.networks.blocks.fcn import FCN
 from monai.networks.layers.factories import Act, Conv, Norm, Pool
+from monai.utils import MonaiHubMixin
+
 
 __all__ = ["AHnet", "Ahnet", "AHNet"]
 
@@ -300,7 +302,7 @@ class PSP(nn.Module):
         return x
 
 
-class AHNet(nn.Module):
+class AHNet(nn.Module, MonaiHubMixin):
     """
     AHNet based on `Anisotropic Hybrid Network <https://arxiv.org/pdf/1711.08580.pdf>`_.
     Adapted from `lsqshr's official code <https://github.com/lsqshr/AH-Net/blob/master/net3d.py>`_.
