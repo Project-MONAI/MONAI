@@ -80,9 +80,9 @@ class DiffusionModelUNetMaisi(nn.Module):
         upcast_attention: If True, upcast attention operations to full precision.
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         dropout_cattn: If different from zero, this will be the dropout value for the cross-attention layers.
-        input_top_region_index: If True, use top region index input.
-        input_bottom_region_index: If True, use bottom region index input.
-        input_spacing: If True, use spacing input.
+        include_top_region_index_input: If True, use top region index input.
+        include_bottom_region_index_input: If True, use bottom region index input.
+        include_spacing_input: If True, use spacing input.
     """
 
     def __init__(
@@ -104,9 +104,9 @@ class DiffusionModelUNetMaisi(nn.Module):
         upcast_attention: bool = False,
         use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
-        input_top_region_index: bool = False,
-        input_bottom_region_index: bool = False,
-        input_spacing: bool = False,
+        include_top_region_index_input: bool = False,
+        include_bottom_region_index_input: bool = False,
+        include_spacing_input: bool = False,
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
@@ -188,18 +188,18 @@ class DiffusionModelUNetMaisi(nn.Module):
         if num_class_embeds is not None:
             self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
 
-        self.input_top_region_index = input_top_region_index
-        self.input_bottom_region_index = input_bottom_region_index
-        self.input_spacing = input_spacing
+        self.include_top_region_index_input = include_top_region_index_input
+        self.include_bottom_region_index_input = include_bottom_region_index_input
+        self.include_spacing_input = include_spacing_input
 
         new_time_embed_dim = time_embed_dim
-        if self.input_top_region_index:
+        if self.include_top_region_index_input:
             self.top_region_index_layer = self._create_embedding_module(4, time_embed_dim)
             new_time_embed_dim += time_embed_dim
-        if self.input_bottom_region_index:
+        if self.include_bottom_region_index_input:
             self.bottom_region_index_layer = self._create_embedding_module(4, time_embed_dim)
             new_time_embed_dim += time_embed_dim
-        if self.input_spacing:
+        if self.include_spacing_input:
             self.spacing_layer = self._create_embedding_module(3, time_embed_dim)
             new_time_embed_dim += time_embed_dim
 
@@ -325,13 +325,13 @@ class DiffusionModelUNetMaisi(nn.Module):
         return emb
 
     def _get_input_embeddings(self, emb, top_index, bottom_index, spacing):
-        if self.input_top_region_index:
+        if self.include_top_region_index_input:
             _emb = self.top_region_index_layer(top_index)
             emb = torch.cat((emb, _emb), dim=1)
-        if self.input_bottom_region_index:
+        if self.include_bottom_region_index_input:
             _emb = self.bottom_region_index_layer(bottom_index)
             emb = torch.cat((emb, _emb), dim=1)
-        if self.input_spacing:
+        if self.include_spacing_input:
             _emb = self.spacing_layer(spacing)
             emb = torch.cat((emb, _emb), dim=1)
         return emb

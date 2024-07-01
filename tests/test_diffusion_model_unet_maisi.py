@@ -495,9 +495,9 @@ class TestDiffusionModelUNetMaisi2D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_2D)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_with_additional_inputs(self, input_param):
-        input_param["input_top_region_index"] = True
-        input_param["input_bottom_region_index"] = True
-        input_param["input_spacing"] = True
+        input_param["include_top_region_index_input"] = True
+        input_param["include_bottom_region_index_input"] = True
+        input_param["include_spacing_input"] = True
         net = DiffusionModelUNetMaisi(**input_param)
         with eval_mode(net):
             result = net.forward(
@@ -573,9 +573,9 @@ class TestDiffusionModelUNetMaisi3D(unittest.TestCase):
     @parameterized.expand(UNCOND_CASES_3D)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_with_additional_inputs(self, input_param):
-        input_param["input_top_region_index"] = True
-        input_param["input_bottom_region_index"] = True
-        input_param["input_spacing"] = True
+        input_param["include_top_region_index_input"] = True
+        input_param["include_bottom_region_index_input"] = True
+        input_param["include_spacing_input"] = True
         net = DiffusionModelUNetMaisi(**input_param)
         with eval_mode(net):
             result = net.forward(
