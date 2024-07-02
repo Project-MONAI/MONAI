@@ -261,3 +261,11 @@ FastMRIReader
 
 .. autoclass:: monai.apps.nnunet.nnUNetV2Runner
   :members:
+
+`Generative AI`
+---------------
+
+`MAISI Utilities`
+~~~~~~~~~~~~~~~~~
+.. automodule:: monai.apps.generation.maisi.utils.morphological_ops
+    :members:
