@@ -15,6 +15,7 @@ A collection of "vanilla" transforms for IO functions.
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import sys
 import traceback
@@ -514,3 +515,46 @@ class SaveImage(Transform):
             "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
             f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
+
+
+class MappingJson(Transform):
+    """
+    Writes a JSON file that logs the mapping between input image paths and their corresponding output paths.
+
+    Args:
+        mapping_json_path (Path or str): Path to the JSON file where the mappings will be saved.
+    """
+
+    def __init__(self, mapping_json_path: Path | str = "mapping.json"):
+        self.mapping_json_path = Path(mapping_json_path)
+
+    def write_json(self, input_path: str, output_path: str):
+        """
+        Args:
+            input_path (str): The path of the input image file.
+            output_path (str): The path of the output image file.
+        """
+        log_data = {"input": input_path, "output": output_path}
+        try:
+            with self.mapping_json_path.open("r") as f:
+                existing_log_data = json.load(f)
+        except FileNotFoundError:
+            existing_log_data = []
+
+        existing_log_data.append(log_data)
+
+        with self.mapping_json_path.open("w") as f:
+            json.dump(existing_log_data, f, indent=4)
+
+    def __call__(self, img: MetaTensor):
+        """
+        Args:
+            img (MetaTensor): The input image with metadata.
+        """
+        if "saved_to" not in img.meta:
+            raise KeyError("Missing 'saved_to' key in metadata. Check SaveImage savepath_in_metadict.")
+
+        input_path = img.meta["filename_or_obj"]
+        output_path = img.meta["saved_to"]
+        self.write_json(input_path, output_path)
+        return img
