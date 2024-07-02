@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.generation.maisi.utils import morphological_ops
+from monai.apps.generation.maisi.utils.morphological_ops import dilate, erode, get_morphological_filter_result_t
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS_SHAPE = []
@@ -80,23 +80,21 @@ class TestMorph(unittest.TestCase):
 
     @parameterized.expand(TESTS_SHAPE)
     def test_shape(self, input_data, expected_result):
-        result1 = morphological_ops.erode(input_data["mask"], input_data["filter_size"])
+        result1 = erode(input_data["mask"], input_data["filter_size"])
         assert_allclose(result1.shape, expected_result, type_test=False, device_test=False, atol=0.0)
 
     @parameterized.expand(TESTS_VALUE_T)
     def test_value_t(self, input_data, expected_result):
-        result1 = morphological_ops.get_morphological_filter_result_t(
+        result1 = get_morphological_filter_result_t(
             input_data["mask"], input_data["filter_size"], input_data["pad_value"]
         )
-        # result1 = morphological_ops.erode(input_data["mask"],input_data["filter_size"])
-        # assert_allclose(result1, expected_erode_result, type_test=True, device_test=True, atol=0.0)
         assert_allclose(result1, expected_result, type_test=False, device_test=False, atol=0.0)
 
     @parameterized.expand(TESTS_VALUE)
     def test_value(self, input_data, expected_erode_result, expected_dilate_result):
-        result1 = morphological_ops.erode(input_data["mask"], input_data["filter_size"])
+        result1 = erode(input_data["mask"], input_data["filter_size"])
         assert_allclose(result1, expected_erode_result, type_test=True, device_test=True, atol=0.0)
-        result2 = morphological_ops.dilate(input_data["mask"], input_data["filter_size"])
+        result2 = dilate(input_data["mask"], input_data["filter_size"])
         assert_allclose(result2, expected_dilate_result, type_test=True, device_test=True, atol=0.0)
 
 
