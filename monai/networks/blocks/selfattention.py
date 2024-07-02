@@ -38,11 +38,7 @@ class SABlock(nn.Module):
         dim_head: int | None = None,
         qkv_bias: bool = False,
         save_attn: bool = False,
-        causal: bool = False,
-        sequence_length: int | None = None,
-        rel_pos_embedding: Optional[str] = None,
-        input_size: Optional[Tuple] = None,
-        attention_dtype: Optional[torch.dtype] = None,
+        dim_head: int | None = None,
     ) -> None:
         """
         Args:
@@ -53,14 +49,7 @@ class SABlock(nn.Module):
             dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
-            causal: whether to use causal attention (see https://arxiv.org/abs/1706.03762).
-            sequence_length: if causal is True, it is necessary to specify the sequence length.
-            rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map.
-                For now only "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
-            input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
-                positional parameter size.
-            attention_dtype: cast attention operations to this dtype.
-
+            dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
         """
 
         super().__init__()
@@ -81,9 +70,11 @@ class SABlock(nn.Module):
             raise ValueError("sequence_length is necessary for causal attention.")
 
         self.num_heads = num_heads
-        self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
-        self.out_proj = nn.Linear(inner_dim, self.hidden_input_size)
-        self.qkv = nn.Linear(self.hidden_input_size, inner_dim * 3, bias=qkv_bias)
+        self.dim_head = hidden_size // num_heads if dim_head is None else dim_head
+        self.inner_dim = self.dim_head * num_heads
+
+        self.out_proj = nn.Linear(self.inner_dim, hidden_size)
+        self.qkv = nn.Linear(hidden_size, self.inner_dim * 3, bias=qkv_bias)
         self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
         self.out_rearrange = Rearrange("b h l d -> b l (h d)")
         self.drop_output = nn.Dropout(dropout_rate)

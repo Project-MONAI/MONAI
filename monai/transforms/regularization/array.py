@@ -88,7 +88,6 @@ class MixUp(Mixer):
     def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
         data_t = convert_to_tensor(data, track_meta=get_track_meta())
         labels_t = data_t  # will not stay this value, needed to satisfy pylint/mypy
-
         if labels is not None:
             labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
         if randomize:
@@ -153,7 +152,6 @@ class CutMix(Mixer):
     def __call__(self, data: torch.Tensor, labels: torch.Tensor | None = None, randomize=True):
         data_t = convert_to_tensor(data, track_meta=get_track_meta())
         augmented_label = None
-
         if labels is not None:
             labels_t = convert_to_tensor(labels, track_meta=get_track_meta())
         if randomize:
@@ -162,7 +160,6 @@ class CutMix(Mixer):
 
         if labels is not None:
             augmented_label = convert_to_dst_type(self.apply(labels_t), dst=labels)[0]
-
         return (augmented, augmented_label) if labels is not None else augmented
 
 

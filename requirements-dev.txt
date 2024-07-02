@@ -57,4 +57,5 @@ zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
-opencv-python-headless
+pyamg>=5.0.0
+git+https://github.com/Project-MONAI/GenerativeModels.git@7428fce193771e9564f29b91d29e523dd1b6b4cd

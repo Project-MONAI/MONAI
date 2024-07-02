@@ -28,6 +28,7 @@ class MedianFilterTestCase(unittest.TestCase):
 
         expected = input_tensor.numpy()
         output = filter(input_tensor).cpu().numpy()
+
         np.testing.assert_allclose(output, expected, rtol=1e-5)
 
     def test_3d_radii(self):
