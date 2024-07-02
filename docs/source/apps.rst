@@ -267,5 +267,5 @@ FastMRIReader
 
 `MAISI Utilities`
 ~~~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: monai.apps.generation/maisi/utils/morphological_ops
+.. automodule:: monai.apps.generation.maisi.utils.morphological_ops
     :members:
