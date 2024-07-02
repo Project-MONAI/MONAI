@@ -26,9 +26,6 @@ RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
 
 WORKDIR /opt/monai
 
-# remove opencv-python before opencv-python-headless installation
-RUN pip uninstall -y opencv && rm /usr/local/lib/python3.10/dist-packages/cv2 -r
-
 # install full deps
 COPY requirements.txt requirements-min.txt requirements-dev.txt /tmp/
 RUN cp /tmp/requirements.txt /tmp/req.bak \
