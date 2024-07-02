@@ -31,7 +31,7 @@ def erode(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_value
         pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
-        eroded mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
+        eroded mask, same shape and data type as input.
 
     Example:
 
@@ -62,7 +62,7 @@ def dilate(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_valu
         pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
-        dilated mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
+        dilated mask, same shape and data type as input.
 
     Example:
 
@@ -84,7 +84,7 @@ def dilate(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_valu
 
 def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequence[int], pad_value: float) -> Tensor:
     """
-    Get morphological filter result for 2D/3D mask with data type as torch tensor.
+    Apply a morphological filter to a 2D/3D binary mask tensor.
 
     Args:
         mask_t: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor.
@@ -92,21 +92,21 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequenc
         pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input.
 
     Return:
-        Morphological filter result mask, [N,C,M,N] or [N,C,M,N,P] torch tensor
+        Tensor: Morphological filter result mask, same shape as input.
     """
     spatial_dims = len(mask_t.shape) - 2
     if spatial_dims not in [2, 3]:
         raise ValueError(
-            f"spatial_dims must be either 2 or 3, yet got spatial_dims={spatial_dims} for mask tensor with shape of {mask_t.shape}."
+            f"spatial_dims must be either 2 or 3, got spatial_dims={spatial_dims} for mask tensor with shape of {
+                mask_t.shape}."
         )
 
     # Define the structuring element
     filter_size = ensure_tuple_rep(filter_size, spatial_dims)
     if any(size % 2 == 0 for size in filter_size):
-        raise ValueError(f"All dimensions in filter_size must be odd numbers, yet got {filter_size}.")
+        raise ValueError(f"All dimensions in filter_size must be odd numbers, got {filter_size}.")
 
-    filter_shape = [mask_t.shape[1], mask_t.shape[1]] + list(filter_size)
-    structuring_element = torch.ones(filter_shape).to(mask_t.device)
+    structuring_element = torch.ones((mask_t.shape[1], mask_t.shape[1]) + filter_size).to(mask_t.device)
 
     # Pad the input tensor to handle border pixels
     # Calculate padding size
@@ -117,10 +117,8 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequenc
     input_padded = F.pad(mask_t.float(), pad_size, mode="constant", value=pad_value)
 
     # Apply filter operation
-    if spatial_dims == 2:
-        output = F.conv2d(input_padded, structuring_element, padding=0) / torch.sum(structuring_element[0, ...])
-    if spatial_dims == 3:
-        output = F.conv3d(input_padded, structuring_element, padding=0) / torch.sum(structuring_element[0, ...])
+    conv_fn = F.conv2d if spatial_dims == 2 else F.conv3d
+    output = conv_fn(input_padded, structuring_element, padding=0) / torch.sum(structuring_element[0, ...])
 
     return output
 
@@ -135,13 +133,13 @@ def erode_t(mask_t: Tensor, filter_size: int | Sequence[int] = 3, pad_value: flo
         pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
-        eroded mask, [N,C,M,N] or [N,C,M,N,P] torch tensor
+        Tensor: eroded mask, same shape as input.
     """
 
     output = get_morphological_filter_result_t(mask_t, filter_size, pad_value)
 
     # Set output values based on the minimum value within the structuring element
-    output = torch.where(abs(output - 1.0) < 1e-7, 1.0, 0.0)
+    output = torch.where(torch.abs(output - 1.0) < 1e-7, 1.0, 0.0)
 
     return output
 
@@ -156,7 +154,7 @@ def dilate_t(mask_t: Tensor, filter_size: int | Sequence[int] = 3, pad_value: fl
         pad_value: the filled value for padding. We need to pad the input before filtering to keep the output with the same size as input. Usually use default value and not changed.
 
     Return:
-        dilated mask, [N,C,M,N] or [N,C,M,N,P] torch tensor
+        Tensor: dilated mask, same shape as input.
     """
     output = get_morphological_filter_result_t(mask_t, filter_size, pad_value)
 
