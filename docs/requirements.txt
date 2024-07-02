@@ -6,7 +6,7 @@ itk>=5.2
 nibabel
 parameterized
 scikit-image>=0.19.0
-scipy>=1.7.1
+scipy>=1.12.0; python_version >= '3.9'
 tensorboard
 commonmark==0.9.1
 recommonmark==0.6.0

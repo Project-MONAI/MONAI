@@ -19,10 +19,10 @@ from monai.utils import min_version, optional_import
 __all__ = ["UltrasoundConfidenceMap"]
 
 cv2, _ = optional_import("cv2")
-csc_matrix, _ = optional_import("scipy.sparse", "1.7.1", min_version, "csc_matrix")
-spsolve, _ = optional_import("scipy.sparse.linalg", "1.7.1", min_version, "spsolve")
-cg, _ = optional_import("scipy.sparse.linalg", "1.7.1", min_version, "cg")
-hilbert, _ = optional_import("scipy.signal", "1.7.1", min_version, "hilbert")
+csc_matrix, _ = optional_import("scipy.sparse", "1.12.0", min_version, "csc_matrix")
+spsolve, _ = optional_import("scipy.sparse.linalg", "1.12.0", min_version, "spsolve")
+cg, _ = optional_import("scipy.sparse.linalg", "1.12.0", min_version, "cg")
+hilbert, _ = optional_import("scipy.signal", "1.12.0", min_version, "hilbert")
 ruge_stuben_solver, _ = optional_import("pyamg", "5.0.0", min_version, "ruge_stuben_solver")
 
 
@@ -285,7 +285,7 @@ class UltrasoundConfidenceMap:
             lap_sparse = lap.tocsr()
             ml = ruge_stuben_solver(lap_sparse, coarse_solver="pinv")
             m = ml.aspreconditioner(cycle="V")
-            x, _ = cg(lap, rhs, tol=self.cg_tol, maxiter=self.cg_maxiter, M=m)
+            x, _ = cg(lap, rhs, rtol=self.cg_tol, maxiter=self.cg_maxiter, M=m)
         else:
             x = spsolve(lap, rhs)
 
