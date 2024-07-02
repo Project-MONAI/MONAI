@@ -30,14 +30,19 @@ for p in TEST_NDARRAYS:
     mask = torch.zeros(1, 1, 1, 1, 1)
     filter_size = 5
     TESTS_SHAPE.append([{"mask": p(mask), "filter_size": filter_size}, [1, 1, 1, 1, 1]])
+    mask = torch.zeros(1, 1, 1, 1)
+    filter_size = 5
+    TESTS_SHAPE.append([{"mask": p(mask), "filter_size": filter_size}, [1, 1, 1, 1]])
 
 TESTS_VALUE_T = []
 mask = torch.ones(3, 2, 3, 3, 3)
 filter_size = 3
 TESTS_VALUE_T.append([{"mask": mask, "filter_size": filter_size, "pad_value": 1.0}, torch.ones(3, 2, 3, 3, 3)])
-mask = torch.zeros(3, 2, 3, 3, 3)
-filter_size = 3
 TESTS_VALUE_T.append([{"mask": mask, "filter_size": filter_size, "pad_value": 0.0}, torch.zeros(3, 2, 3, 3, 3)])
+mask = torch.ones(3, 2, 3, 3)
+filter_size = 3
+TESTS_VALUE_T.append([{"mask": mask, "filter_size": filter_size, "pad_value": 1.0}, torch.ones(3, 2, 3, 3)])
+TESTS_VALUE_T.append([{"mask": mask, "filter_size": filter_size, "pad_value": 0.0}, torch.zeros(3, 2, 3, 3)])
 
 TESTS_VALUE = []
 for p in TEST_NDARRAYS:
@@ -61,6 +66,12 @@ for p in TEST_NDARRAYS:
     filter_size = 3
     TESTS_VALUE.append(
         [{"mask": p(mask), "filter_size": filter_size}, p(torch.zeros(3, 2, 3, 3, 3)), p(torch.ones(3, 2, 3, 3, 3))]
+    )
+    mask = torch.zeros(3, 2, 3, 3)
+    mask[:, :, 1, 1, 1] = 1.0
+    filter_size = 3
+    TESTS_VALUE.append(
+        [{"mask": p(mask), "filter_size": filter_size}, p(torch.zeros(3, 2, 3, 3)), p(torch.ones(3, 2, 3, 3))]
     )
 
 
