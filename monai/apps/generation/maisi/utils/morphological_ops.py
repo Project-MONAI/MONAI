@@ -110,9 +110,7 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequenc
 
     # Pad the input tensor to handle border pixels
     # Calculate padding size
-    pad_size = []
-    for size in filter_size:
-        pad_size.extend([size // 2, size // 2])
+    pad_size = [size // 2 for size in filter_size for _ in range(2)]
 
     input_padded = F.pad(mask_t.float(), pad_size, mode="constant", value=pad_value)
 
