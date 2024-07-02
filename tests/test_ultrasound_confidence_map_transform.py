@@ -21,6 +21,9 @@ from PIL import Image
 
 from monai.transforms import UltrasoundConfidenceMapTransform
 from tests.utils import assert_allclose
+from monai.utils import optional_import
+
+_, has_scipy = optional_import("scipy")
 
 TEST_INPUT = np.array(
     [
@@ -482,6 +485,7 @@ SINK_MASK_OUTPUT = np.array(
 )
 
 
+@unittest.skipUnless(has_scipy, "Requires scipy")
 class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
 
     def setUp(self):
