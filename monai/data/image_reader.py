@@ -1331,7 +1331,7 @@ class NrrdReader(ImageReader):
                 header[MetaKeys.SPACE] = SpaceKeys.LPS  # assuming LPS if not specified
 
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
-            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
+            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"].copy()
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1

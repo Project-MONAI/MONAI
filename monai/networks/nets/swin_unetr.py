@@ -347,7 +347,7 @@ def window_partition(x, window_size):
         x: input tensor.
         window_size: local window size.
     """
-    x_shape = x.size()
+    x_shape = x.size()  # length 4 or 5 only
     if len(x_shape) == 5:
         b, d, h, w, c = x_shape
         x = x.view(
@@ -363,10 +363,11 @@ def window_partition(x, window_size):
         windows = (
             x.permute(0, 1, 3, 5, 2, 4, 6, 7).contiguous().view(-1, window_size[0] * window_size[1] * window_size[2], c)
         )
-    elif len(x_shape) == 4:
+    else:  # if len(x_shape) == 4:
         b, h, w, c = x.shape
         x = x.view(b, h // window_size[0], window_size[0], w // window_size[1], window_size[1], c)
         windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0] * window_size[1], c)
+
     return windows
 
 
@@ -613,7 +614,7 @@ class SwinTransformerBlock(nn.Module):
             _, dp, hp, wp, _ = x.shape
             dims = [b, dp, hp, wp]
 
-        elif len(x_shape) == 4:
+        else:  # elif len(x_shape) == 4
             b, h, w, c = x.shape
             window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
             pad_l = pad_t = 0

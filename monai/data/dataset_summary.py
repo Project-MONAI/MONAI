@@ -84,6 +84,7 @@ class DatasetSummary:
         """
 
         for data in self.data_loader:
+            meta_dict = {}
             if isinstance(data[self.image_key], MetaTensor):
                 meta_dict = data[self.image_key].meta
             elif self.meta_key in data:

@@ -68,7 +68,7 @@ class SpatialAttentionBlock(nn.Module):
             h, w = x.shape[2], x.shape[3]
             rearrange_input = Rearrange("b c h w -> b (h w) c")
             rearrange_output = Rearrange("b (h w) c -> b c h w", h=h, w=w)
-        if self.spatial_dims == 3:
+        else:
             h, w, d = x.shape[2], x.shape[3], x.shape[4]
             rearrange_input = Rearrange("b c h w d -> b (h w d) c")
             rearrange_output = Rearrange("b (h w d) c -> b c h w d", h=h, w=w, d=d)

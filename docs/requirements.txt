@@ -21,8 +21,8 @@ sphinxcontrib-serializinghtml
 sphinx-autodoc-typehints==1.11.1
 pandas
 einops
-transformers<4.22; python_version <= '3.10'  # https://github.com/Project-MONAI/MONAI/issues/5157
-mlflow>=1.28.0, <=2.11.3
+transformers>=4.36.0, <4.41.0; python_version <= '3.10'
+mlflow>=2.12.2
 clearml>=1.10.0rc0
 tensorboardX
 imagecodecs; platform_system == "Linux" or platform_system == "Darwin"

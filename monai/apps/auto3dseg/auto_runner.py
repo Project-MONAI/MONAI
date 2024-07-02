@@ -499,8 +499,8 @@ class AutoRunner:
 
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
-        if num_fold > self.max_fold + 1:
-            # Auto3DSeg allows no validation set, so the maximum fold number is max_fold + 1
+        if num_fold > self.max_fold:
+            # Auto3DSeg must contain validation set, so the maximum fold number is max_fold.
             raise ValueError(
                 f"num_fold is greater than the maximum fold number {self.max_fold} in {self.datalist_filename}."
             )
