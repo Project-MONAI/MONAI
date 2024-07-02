@@ -84,7 +84,7 @@ def dilate(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_valu
 
 def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequence[int], pad_value: float) -> Tensor:
     """
-    Get morphological filter result for 2D/3D mask with data type as torch tensor.
+    Apply a morphological filter to a 2D/3D binary mask tensor.
 
     Args:
         mask_t: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor.
