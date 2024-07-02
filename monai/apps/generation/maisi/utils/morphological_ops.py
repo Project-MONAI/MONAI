@@ -141,7 +141,7 @@ def erode_t(mask_t: Tensor, filter_size: int | Sequence[int] = 3, pad_value: flo
     output = get_morphological_filter_result_t(mask_t, filter_size, pad_value)
 
     # Set output values based on the minimum value within the structuring element
-    output = torch.where(output == 1.0, 1.0, 0.0)
+    output = torch.where(abs(output - 1.0) < 1e-7, 1.0, 0.0)
 
     return output
 
