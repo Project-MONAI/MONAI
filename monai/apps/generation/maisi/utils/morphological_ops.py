@@ -53,7 +53,6 @@ def erode(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_value
     return res_mask
 
 
-
 def dilate(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_value: float = 0.0) -> NdarrayOrTensor:
     """
     Dilate 2D/3D binary mask.
@@ -102,7 +101,8 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequenc
     spatial_dims = len(mask_t.shape) - 2
     if spatial_dims not in [2, 3]:
         raise ValueError(
-            f"spatial_dims must be either 2 or 3, got spatial_dims={spatial_dims} for mask tensor with shape of {mask_t.shape}."
+            f"spatial_dims must be either 2 or 3, "
+            f"got spatial_dims={spatial_dims} for mask tensor with shape of {mask_t.shape}."
         )
 
     # Define the structuring element
