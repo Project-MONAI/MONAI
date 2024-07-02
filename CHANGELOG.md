@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.2] - 2024-06-25
+### Fixed
+#### misc.
+* Updated Numpy version constraint to < 2.0 (#7859)
+
 ## [1.3.1] - 2024-05-17
 ### Added
 * Support for `by_measure` argument in `RemoveSmallObjects` (#7137)
@@ -1035,7 +1040,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.1...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.2...HEAD
+[1.3.2]: https://github.com/Project-MONAI/MONAI/compare/1.3.1...1.3.2
 [1.3.1]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/Project-MONAI/MONAI/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/Project-MONAI/MONAI/compare/1.1.0...1.2.0
