@@ -28,8 +28,8 @@ def erode(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_value
     Args:
         mask: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
         filter_size: erosion filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering 
-                   to keep the output with the same size as input. Usually use default value 
+        pad_value: the filled value for padding. We need to pad the input before filtering
+                   to keep the output with the same size as input. Usually use default value
                    and not changed.
 
     Return:
@@ -61,8 +61,8 @@ def dilate(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_valu
     Args:
         mask: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor or ndarray.
         filter_size: dilation filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering 
-                   to keep the output with the same size as input. Usually use default value 
+        pad_value: the filled value for padding. We need to pad the input before filtering
+                   to keep the output with the same size as input. Usually use default value
                    and not changed.
 
     Return:
@@ -93,7 +93,7 @@ def get_morphological_filter_result_t(mask_t: Tensor, filter_size: int | Sequenc
     Args:
         mask_t: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor.
         filter_size: morphological filter size, has to be odd numbers.
-        pad_value: the filled value for padding. We need to pad the input before filtering 
+        pad_value: the filled value for padding. We need to pad the input before filtering
                    to keep the output with the same size as input.
 
     Return:
@@ -132,8 +132,8 @@ def erode_t(mask_t: Tensor, filter_size: int | Sequence[int] = 3, pad_value: flo
     Args:
         mask_t: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor.
         filter_size: erosion filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering 
-                   to keep the output with the same size as input. Usually use default value 
+        pad_value: the filled value for padding. We need to pad the input before filtering
+                   to keep the output with the same size as input. Usually use default value
                    and not changed.
 
     Return:
@@ -155,8 +155,8 @@ def dilate_t(mask_t: Tensor, filter_size: int | Sequence[int] = 3, pad_value: fl
     Args:
         mask_t: input 2D/3D binary mask, [N,C,M,N] or [N,C,M,N,P] torch tensor.
         filter_size: dilation filter size, has to be odd numbers, default to be 3.
-        pad_value: the filled value for padding. We need to pad the input before filtering 
-                   to keep the output with the same size as input. Usually use default value 
+        pad_value: the filled value for padding. We need to pad the input before filtering
+                   to keep the output with the same size as input. Usually use default value
                    and not changed.
 
     Return:
