@@ -24,7 +24,6 @@ import types
 import warnings
 from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
-from distutils.util import strtobool
 from math import log10
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
@@ -77,6 +76,25 @@ __all__ = [
     "check_kwargs_exist_in_class_init",
     "run_cmd",
 ]
+
+
+def _strtobool(val: str) -> bool:
+    """
+    Replaces deprecated (pre python 3.12)
+    distutils strtobool function.
+
+    True values are y, yes, t, true, on and 1;
+    False values are n, no, f, false, off and 0.
+    Raises ValueError if val is anything else.
+    """
+    val = val.lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return False
+    else:
+        raise ValueError(f"invalid truth value {val}")
+
 
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
@@ -400,7 +418,7 @@ def list_to_dict(items):
                 d[key] = literal_eval(value)
             except ValueError:
                 try:
-                    d[key] = bool(strtobool(str(value)))
+                    d[key] = bool(_strtobool(str(value)))
                 except ValueError:
                     d[key] = value
     return d
