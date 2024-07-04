@@ -32,6 +32,10 @@ jobs:
         maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v4
+    - name: Clean up disk space
+      run: |
+        find /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        rm -rf /usr/share/dotnet/
     - uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
