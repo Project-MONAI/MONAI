@@ -20,8 +20,8 @@ from parameterized import parameterized
 from PIL import Image
 
 from monai.transforms import UltrasoundConfidenceMapTransform
-from tests.utils import assert_allclose
 from monai.utils import optional_import
+from tests.utils import assert_allclose
 
 _, has_scipy = optional_import("scipy")
 
