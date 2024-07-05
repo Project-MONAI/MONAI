@@ -36,6 +36,7 @@ jobs:
     - name: cache weekly timestamp
       id: pip-cache
       run: |
+        rm -rf /opt/hostedtoolcache
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v4
