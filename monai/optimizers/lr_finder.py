@@ -15,7 +15,7 @@ import pickle
 import types
 import warnings
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import numpy as np
 import torch
