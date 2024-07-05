@@ -36,7 +36,6 @@ jobs:
     - name: cache weekly timestamp
       id: pip-cache
       run: |
-        rm -rf /opt/hostedtoolcache
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       uses: actions/cache@v4
@@ -46,6 +45,7 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
     - name: Lint and type check
