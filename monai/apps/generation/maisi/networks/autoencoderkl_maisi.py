@@ -27,12 +27,10 @@ AttentionBlock, has_attentionblock = optional_import("generative.networks.nets.a
 AutoencoderKL, has_autoencoderkl = optional_import("generative.networks.nets.autoencoderkl", name="AutoencoderKL")
 ResBlock, has_resblock = optional_import("generative.networks.nets.autoencoderkl", name="ResBlock")
 
-
 if TYPE_CHECKING:
     from generative.networks.nets.autoencoderkl import AutoencoderKL as AutoencoderKLType
 else:
     AutoencoderKLType = cast(type, AutoencoderKL)
-
 
 # Set up logging configuration
 logger = logging.getLogger(__name__)

@@ -29,7 +29,6 @@ if has_generative:
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-
 CASES_NO_ATTENTION = [
     [
         {
@@ -82,6 +81,7 @@ else:
 
 @unittest.skipUnless(has_generative, "monai-generative required")
 class TestAutoencoderKlMaisi(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape):
         net = AutoencoderKlMaisi(**input_param).to(device)

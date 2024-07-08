@@ -26,7 +26,6 @@ _, has_generative = optional_import("generative")
 if has_generative:
     from monai.apps.generation.maisi.networks.diffusion_model_unet_maisi import DiffusionModelUNetMaisi
 
-
 UNCOND_CASES_2D = [
     [
         {
@@ -294,6 +293,7 @@ DROPOUT_WRONG = [
 
 @skipUnless(has_generative, "monai-generative required")
 class TestDiffusionModelUNetMaisi2D(unittest.TestCase):
+
     @parameterized.expand(UNCOND_CASES_2D)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param):
@@ -512,6 +512,7 @@ class TestDiffusionModelUNetMaisi2D(unittest.TestCase):
 
 @skipUnless(has_generative, "monai-generative required")
 class TestDiffusionModelUNetMaisi3D(unittest.TestCase):
+
     @parameterized.expand(UNCOND_CASES_3D)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param):
