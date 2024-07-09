@@ -12,10 +12,12 @@
 from __future__ import annotations
 
 import ast
+import io
 import json
 import os
 import re
 import warnings
+import zipfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from pydoc import locate
@@ -171,6 +173,13 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name.lower()}/versions/{version}/zip"
 
 
+def _get_nvstaging_bundle_url(model_name: str, version: str, org: str, team: str) -> str:
+    team_str = ""
+    if team != "no-team":
+        team_str = f"team/{team}"
+    return f"https://api.ngc.nvidia.com/v2/org/{org}/{team_str}/models/{model_name.lower()}/versions/{version}/zip"
+
+
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
     monaihosting_root_path = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
     return f"{monaihosting_root_path}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
@@ -219,6 +228,44 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
+def _download_from_nvstaging(
+    download_path: Path,
+    filename: str,
+    version: str,
+    remove_prefix: str | None,
+    org: str,
+    team: str,
+    headers: str | None = None,
+) -> None:
+    # ensure prefix is contained
+    filename = _add_ngc_prefix(filename)
+    request_url = _get_nvstaging_bundle_url(model_name=filename, version=version, org=org, team=team)
+    print(request_url)
+    response = requests_get(request_url, headers=headers)
+    if remove_prefix:
+        filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
+    extract_path = download_path / f"{filename}"
+    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+        z.extractall(extract_path)
+        logger.info(f"Writing into directory: {extract_path}.")
+
+
+def _get_ngc_token(api_key, retry=0):
+    """Try to connect to NGC."""
+    url = "https://authn.nvidia.com/token?service=ngc"
+    headers = {"Accept": "application/json", "Authorization": "ApiKey " + api_key}
+    if has_requests:
+        response = requests_get(url, headers=headers)
+        if not response.ok:
+            if retry < 3:
+                logger.info(f"Retrying {retry} time(s) to GET {url}.")
+                return _get_ngc_token(url, headers, retry + 1)
+            raise RuntimeError("NGC API response is not ok. Failed to get token.")
+        else:
+            token = response.json()["token"]
+        return token
+
+
 def _get_latest_bundle_version_monaihosting(name):
     url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
     full_url = f"{url}/{name.lower()}"
@@ -232,7 +279,23 @@ def _get_latest_bundle_version_monaihosting(name):
     return model_info["model"]["latestVersionIdStr"]
 
 
-def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
+def _get_latest_bundle_version_private_registry(name, org, team, headers={}):
+    team_str = ""
+    if team != "no-team":
+        team_str = f"team/{team}"
+    url = f"https://api.ngc.nvidia.com/v2/org/{org}/{team_str}/models"
+    full_url = f"{url}/{name.lower()}"
+    requests_get, has_requests = optional_import("requests", name="get")
+    if has_requests:
+        resp = requests_get(full_url, headers=headers)
+        resp.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package.  Please install it.")
+    model_info = json.loads(resp.text)
+    return model_info["model"]["latestVersionIdStr"]
+
+
+def _get_latest_bundle_version(source: str, name: str, repo: str, **kwargs) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
         model_dict = _get_all_ngc_models(name)
@@ -242,6 +305,11 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
         return None
     elif source == "monaihosting":
         return _get_latest_bundle_version_monaihosting(name)
+    elif source == "nvstaging":
+        org = kwargs.pop("org", "nvstaging")
+        team = kwargs.pop("team", "monaitoolkit")
+        headers = kwargs.pop("headers", {})
+        return _get_latest_bundle_version_private_registry(name, org, team, headers)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
@@ -279,6 +347,9 @@ def download(
     remove_prefix: str | None = "monai_",
     progress: bool = True,
     args_file: str | None = None,
+    org: str | None = None,
+    team: str | None = None,
+    api_key: str | None = None,
 ) -> None:
     """
     download bundle from the specified source or url. The bundle should be a zip file and it
@@ -354,11 +425,23 @@ def download(
         url=url,
         remove_prefix=remove_prefix,
         progress=progress,
+        org=org,
+        team=team,
     )
 
     _log_input_summary(tag="download", args=_args)
-    source_, progress_, remove_prefix_, repo_, name_, version_, bundle_dir_, url_ = _pop_args(
-        _args, "source", "progress", remove_prefix=None, repo=None, name=None, version=None, bundle_dir=None, url=None
+    source_, progress_, remove_prefix_, repo_, name_, version_, bundle_dir_, url_, org_, team_ = _pop_args(
+        _args,
+        "source",
+        "progress",
+        remove_prefix=None,
+        repo=None,
+        name=None,
+        version=None,
+        bundle_dir=None,
+        url=None,
+        org=None,
+        team=None,
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
@@ -376,10 +459,23 @@ def download(
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
         extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
     else:
+        headers = {}
         if name_ is None:
             raise ValueError(f"To download from source: {source_}, `name` must be provided.")
+        if source == "nvstaging":
+            api_key = os.getenv("NGC_API_KEY", api_key)
+            org_ = "nvstaging" if org_ is None else org_
+            team_ = "monaitoolkit" if team_ is None else team_
+            if api_key is None:
+                raise ValueError("API key is required for nvstaging source.")
+            else:
+                token = _get_ngc_token(api_key)
+                headers = {"Authorization": f"Bearer {token}"}
+
         if version_ is None:
-            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_)
+            version_ = _get_latest_bundle_version(
+                source=source_, name=name_, repo=repo_, org=org_, team=team_, headers=headers
+            )
         if source_ == "github":
             if version_ is not None:
                 name_ = "_v".join([name_, version_])
@@ -393,6 +489,16 @@ def download(
                 version=version_,
                 remove_prefix=remove_prefix_,
                 progress=progress_,
+            )
+        elif source_ == "nvstaging":
+            _download_from_nvstaging(
+                download_path=bundle_dir_,
+                filename=name_,
+                version=version_,
+                remove_prefix=remove_prefix_,
+                org=org_,
+                team=team_,
+                headers=headers,
             )
         elif source_ == "huggingface_hub":
             extract_path = os.path.join(bundle_dir_, name_)
