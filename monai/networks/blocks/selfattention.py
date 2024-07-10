@@ -41,7 +41,7 @@ class SABlock(nn.Module):
         sequence_length: int | None = None,
         rel_pos_embedding: Optional[str] = None,
         input_size: Optional[Tuple] = None,
-        attention_dtype: Optional[torch.dtype] = None
+        attention_dtype: Optional[torch.dtype] = None,
     ) -> None:
         """
         Args:
@@ -149,4 +149,3 @@ class SABlock(nn.Module):
         x = self.out_proj(x)
         x = self.drop_output(x)
         return x
-    
