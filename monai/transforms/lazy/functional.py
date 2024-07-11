@@ -31,7 +31,7 @@ from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
 from monai.utils import LazyAttr, MetaKeys, convert_to_tensor, look_up_option
 
-__all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending"]
+__all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending", "apply_to_geometry"]
 
 __override_keywords = {"mode", "padding_mode", "dtype", "align_corners", "resample_mode", "device"}
 
