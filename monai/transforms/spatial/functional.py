@@ -543,7 +543,78 @@ def resize(
             raise ValueError(f"Unsupported value for 'kind': {img.kind}")
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+# def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+#     """
+#     Functional implementation of rotate.
+#     This function operates eagerly or lazily according to
+#     ``lazy`` (default ``False``).
+
+#     Args:
+#         img: data to be changed, assuming `img` is channel-first.
+#         angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
+#         output_shape: output shape of the rotated data.
+#         mode: {``"bilinear"``, ``"nearest"``}
+#             Interpolation mode to calculate output values.
+#             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+#             Padding mode for outside grid values.
+#             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#         align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#         dtype: data type for resampling computation.
+#             If None, use the data type of input data. To be compatible with other modules,
+#             the output data type is always ``float32``.
+#         lazy: a flag that indicates whether the operation should be performed lazily or not
+#         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+#     """
+
+#     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+#     input_ndim = len(im_shape)
+#     if input_ndim not in (2, 3):
+#         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
+#     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
+#     transform = create_rotate(input_ndim, _angle)
+#     if output_shape is None:
+#         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
+#         corners = transform[:-1, :-1] @ corners  # type: ignore
+#         output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
+#     else:
+#         output_shape = np.asarray(output_shape, dtype=int)
+#     shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
+#     shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
+#     transform = shift @ transform @ shift_1
+#     extra_info = {
+#         "rot_mat": transform,
+#         "mode": mode,
+#         "padding_mode": padding_mode,
+#         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+#         "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+#     }
+#     meta_info = TraceableTransform.track_transform_meta(
+#         img,
+#         sp_size=output_shape,
+#         affine=transform,
+#         extra_info=extra_info,
+#         orig_size=im_shape,
+#         transform_info=transform_info,
+#         lazy=lazy,
+#     )
+#     out = _maybe_new_metatensor(img)
+#     if lazy:
+#         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+#     _, _m, _p, _ = resolves_modes(mode, padding_mode)
+#     xform = AffineTransform(
+#         normalized=False, mode=_m, padding_mode=_p, align_corners=align_corners, reverse_indexing=True
+#     )
+#     img_t = out.to(dtype)
+#     transform_t, *_ = convert_to_dst_type(transform, img_t)
+#     output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=tuple(int(i) for i in output_shape))
+#     output = output.float().squeeze(0)
+#     out, *_ = convert_to_dst_type(output, dst=out, dtype=torch.float32)
+#     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
@@ -599,6 +670,14 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
         transform_info=transform_info,
         lazy=lazy,
     )
+    return transform, meta_info
+
+
+def rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Raster-specific rotation functionality
+    """
+    transform, meta_info = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -612,6 +691,48 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     output = output.float().squeeze(0)
     out, *_ = convert_to_dst_type(output, dst=out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Geometry-specific rotation functionality
+    """
+    _, meta_info = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Functional implementation of rotate.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
+        output_shape: output shape of the rotated data.
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        dtype: data type for resampling computation.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``float32``.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    if isinstance(img, MetaTensor):
+        if img.kind == KindKeys.PIXEL:
+            return rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+        elif img.kind == KindKeys.GEOMETRY:
+            return rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
 
 
 def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
