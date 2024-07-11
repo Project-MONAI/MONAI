@@ -328,7 +328,81 @@ def flip(image, sp_axes, lazy, transform_info):
             return flip_geom(image, sp_axes, lazy, transform_info)
 
 
-def resize(
+# def resize(
+#     img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+# ):
+#     """
+#     Functional implementation of resize.
+#     This function operates eagerly or lazily according to
+#     ``lazy`` (default ``False``).
+
+#     Args:
+#         img: data to be changed, assuming `img` is channel-first.
+#         out_size: expected shape of spatial dimensions after resize operation.
+#         mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+#             ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+#             The interpolation mode.
+#             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+#         align_corners: This only has an effect when mode is
+#             'linear', 'bilinear', 'bicubic' or 'trilinear'.
+#         dtype: data type for resampling computation. If None, use the data type of input data.
+#         input_ndim: number of spatial dimensions.
+#         anti_aliasing: whether to apply a Gaussian filter to smooth the image prior
+#             to downsampling. It is crucial to filter when downsampling
+#             the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+#         anti_aliasing_sigma: {float, tuple of floats}, optional
+#             Standard deviation for Gaussian filtering used when anti-aliasing.
+#         lazy: a flag that indicates whether the operation should be performed lazily or not
+#         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+#     """
+#     img = convert_to_tensor(img, track_meta=get_track_meta())
+#     orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+#     extra_info = {
+#         "mode": mode,
+#         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+#         "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+#         "new_dim": len(orig_size) - input_ndim,
+#     }
+#     meta_info = TraceableTransform.track_transform_meta(
+#         img,
+#         sp_size=out_size,
+#         affine=scale_affine(orig_size, out_size),
+#         extra_info=extra_info,
+#         orig_size=orig_size,
+#         transform_info=transform_info,
+#         lazy=lazy,
+#     )
+#     if lazy:
+#         if anti_aliasing and lazy:
+#             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
+#         out = _maybe_new_metatensor(img)
+#         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+#     if tuple(convert_to_numpy(orig_size)) == out_size:
+#         out = _maybe_new_metatensor(img, dtype=torch.float32)
+#         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+#     out = _maybe_new_metatensor(img)
+#     img_ = convert_to_tensor(out, dtype=dtype, track_meta=False)  # convert to a regular tensor
+#     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
+#         factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(out_size))
+#         if anti_aliasing_sigma is None:
+#             # if sigma is not given, use the default sigma in skimage.transform.resize
+#             anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
+#         else:
+#             # if sigma is given, use the given value for downsampling axis
+#             anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(out_size)))
+#             for axis in range(len(out_size)):
+#                 anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
+#         anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
+#         img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
+#     _, _m, _, _ = resolves_modes(mode, torch_interpolate_spatial_nd=len(img_.shape) - 1)
+#     resized = torch.nn.functional.interpolate(
+#         input=img_.unsqueeze(0), size=out_size, mode=_m, align_corners=align_corners
+#     )
+#     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
+#     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def resize_impl(
     img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
 ):
     """
@@ -363,23 +437,36 @@ def resize(
         "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
         "new_dim": len(orig_size) - input_ndim,
     }
+    affine = scale_affine(orig_size, out_size)
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=out_size,
-        affine=scale_affine(orig_size, out_size),
+        affine=affine,
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
         lazy=lazy,
+    )
+
+    return affine, orig_size, meta_info
+
+
+def resize_raster(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
+    _, orig_size, meta_info = resize_impl(
+        img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
     )
     if lazy:
         if anti_aliasing and lazy:
             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
         out = _maybe_new_metatensor(img)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+
     if tuple(convert_to_numpy(orig_size)) == out_size:
         out = _maybe_new_metatensor(img, dtype=torch.float32)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
     out = _maybe_new_metatensor(img)
     img_ = convert_to_tensor(out, dtype=dtype, track_meta=False)  # convert to a regular tensor
     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
@@ -400,6 +487,60 @@ def resize(
     )
     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def resize_geom(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
+    _, _, meta_info = resize_impl(
+        img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+    )
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def resize(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
+    """
+    Functional implementation of resize.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        out_size: expected shape of spatial dimensions after resize operation.
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+            ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        align_corners: This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'.
+        dtype: data type for resampling computation. If None, use the data type of input data.
+        input_ndim: number of spatial dimensions.
+        anti_aliasing: whether to apply a Gaussian filter to smooth the image prior
+            to downsampling. It is crucial to filter when downsampling
+            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+        anti_aliasing_sigma: {float, tuple of floats}, optional
+            Standard deviation for Gaussian filtering used when anti-aliasing.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    if isinstance(img, MetaTensor):
+        if img.kind == KindKeys.PIXEL:
+            return resize_raster(
+                img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+            )
+        elif img.kind == KindKeys.GEOMETRY:
+            return resize_geom(
+                img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+            )
+        else:
+            raise ValueError(f"Unsupported value for 'kind': {img.kind}")
 
 
 def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
