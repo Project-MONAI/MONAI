@@ -298,7 +298,7 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
 
 def apply_to_geometry(
         data: torch.Tensor,
-        meta_info: dict | MetaObj = None,
+        meta_info: dict | MetaObj | None = None,
         transform: torch.Tensor | None = None,
 ):
     """
