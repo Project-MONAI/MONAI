@@ -17,6 +17,7 @@ import torch
 
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
+from monai.data.meta_obj import MetaObj
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
@@ -28,7 +29,7 @@ from monai.transforms.lazy.utils import (
 )
 from monai.transforms.traits import LazyTrait
 from monai.transforms.transform import MapTransform
-from monai.utils import LazyAttr, look_up_option
+from monai.utils import LazyAttr, MetaKeys, convert_to_tensor, look_up_option
 
 __all__ = ["apply_pending_transforms", "apply_pending_transforms_in_order", "apply_pending"]
 
@@ -293,3 +294,51 @@ def apply_pending(data: torch.Tensor | MetaTensor, pending: list | None = None, 
         for p in pending:
             data.push_applied_operation(p)
     return data, pending
+
+
+def apply_to_geometry(
+        data: torch.Tensor,
+        meta_info: dict | MetaObj = None,
+        transform: torch.Tensor | None = None,
+):
+    """
+    Apply an affine geometric transform or deformation field to geometry.
+    At present this is limited to the transformation of points.
+
+    The points must be provided as a tensor and must be  compatible with a homogeneous
+    transform. This means that:
+     - 2D points are of the form (x, y, 1)
+     - 3D points are of the form (x, y, z, 1)
+
+    The affine transform or deformation field is applied to the the points and a tensor of
+    the same shape as the input tensor is returned.
+
+    Args:
+        data: the tensor of points to be transformed.
+        meta_info: the metadata containing the affine transformation
+    """
+
+    if meta_info is None and transform is None:
+        raise ValueError("either meta_info or transform must be provided")
+    if meta_info is not None and transform is not None:
+        raise ValueError("only one of meta_info or transform can be provided")
+
+    if not isinstance(data, (torch.Tensor, MetaTensor)):
+        raise TypeError(f"data {type(data)} must be a torch.Tensor or MetaTensor")
+
+    data = convert_to_tensor(data, track_meta=get_track_meta())
+
+    if meta_info is not None:
+        transform_ = meta_info.meta[MetaKeys.AFFINE]
+    else:
+        transform_ = transform
+
+    if transform_.dtype != data.dtype:
+        transform_ = transform_.to(data.dtype)
+
+    if data.shape[1] != transform_.shape[0]:
+        raise ValueError(f"second element of data.shape {data.shape} must match transform shape {transform_.shape}")
+
+    result = torch.matmul(data, transform_.T)
+
+    return result
