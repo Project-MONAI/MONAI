@@ -17,7 +17,7 @@ import torch
 
 from monai.apps.utils import get_logger
 from monai.config import NdarrayOrTensor
-from monai.data.meta_obj import MetaObj
+from monai.data.meta_obj import get_track_meta, MetaObj
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.lazy.utils import (
