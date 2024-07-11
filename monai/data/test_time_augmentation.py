@@ -106,6 +106,8 @@ class TestTimeAugmentation:
             mode, mean, std, vvc = tt_aug(test_data)
     """
 
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def __init__(
         self,
         transform: InvertibleTransform,
