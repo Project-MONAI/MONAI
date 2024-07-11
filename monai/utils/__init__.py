@@ -42,6 +42,7 @@ from .enums import (
     HoVerNetMode,
     InterpolateMode,
     JITMetadataKeys,
+    KindKeys,
     LazyAttr,
     LossReduction,
     MetaKeys,
