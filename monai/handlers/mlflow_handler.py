@@ -29,6 +29,7 @@ mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before u
 mlflow.entities, _ = optional_import(
     "mlflow.entities", descriptor="Please install mlflow.entities before using MLFlowHandler."
 )
+MlflowException, _ = optional_import("mlflow.exceptions", name="MlflowException", descriptor="Please install mlflow before using MLFlowHandler.")
 pandas, _ = optional_import("pandas", descriptor="Please install pandas for recording the dataset.")
 tqdm, _ = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
@@ -236,14 +237,25 @@ class MLFlowHandler:
     def _set_experiment(self):
         experiment = self.experiment
         if not experiment:
-            experiment = self.client.get_experiment_by_name(self.experiment_name)
-            if not experiment:
-                experiment_id = self.client.create_experiment(self.experiment_name)
-                experiment = self.client.get_experiment(experiment_id)
+            for _ in range(3):
+                try:
+                    experiment = self.client.get_experiment_by_name(self.experiment_name)
+                    if not experiment:
+                        experiment_id = self.client.create_experiment(self.experiment_name)
+                        experiment = self.client.get_experiment(experiment_id)
+                    break
+                except MlflowException as e:
+                    if "RESOURCE_ALREADY_EXISTS" in str(e):
+                        time.sleep(1)
+                        continue
+                    else:
+                        raise e
 
         if experiment.lifecycle_stage != mlflow.entities.LifecycleStage.ACTIVE:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
         self.experiment = experiment
+
+
 
     @staticmethod
     def _get_pandas_dataset_info(pandas_dataset):
