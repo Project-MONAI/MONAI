@@ -21,6 +21,7 @@ import nibabel as nib
 import numpy as np
 from parameterized import parameterized
 
+from monai.data import NibabelReader
 from monai.transforms import Compose, LoadImage, SaveImage
 from monai.transforms.io.array import MappingJson
 
