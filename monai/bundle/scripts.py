@@ -234,7 +234,7 @@ def _download_from_nvstaging(
     remove_prefix: str | None,
     org: str,
     team: str,
-    headers: str | None = None,
+    headers: dict = {},
 ) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
@@ -266,7 +266,7 @@ def _get_ngc_token(api_key, retry=0):
         if not response.ok:
             if retry < 3:
                 logger.info(f"Retrying {retry} time(s) to GET {url}.")
-                return _get_ngc_token(url, headers, retry + 1)
+                return _get_ngc_token(url, retry + 1)
             raise RuntimeError("NGC API response is not ok. Failed to get token.")
         else:
             token = response.json()["token"]
@@ -302,7 +302,7 @@ def _get_latest_bundle_version_private_registry(name, org, team, headers={}):
     return model_info["model"]["latestVersionIdStr"]
 
 
-def _get_latest_bundle_version(source: str, name: str, repo: str, **kwargs) -> dict[str, list[str] | str] | Any | None:
+def _get_latest_bundle_version(source: str, name: str, repo: str, **kwargs: Any) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
         model_dict = _get_all_ngc_models(name)
