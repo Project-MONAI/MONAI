@@ -60,8 +60,6 @@ jobs:
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
-      env:
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
@@ -69,6 +67,7 @@ jobs:
       shell: bash
       env:
         QUICKTEST: True
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
 
   min-dep-py3:  # min dependencies installed tests for different python
     runs-on: ubuntu-latest
@@ -108,14 +107,13 @@ jobs:
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
-      env:
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
         ./runtests.sh --min
       env:
         QUICKTEST: True
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
 
   min-dep-pytorch:  # min dependencies installed tests for different pytorch
     runs-on: ubuntu-latest
@@ -159,11 +157,10 @@ jobs:
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - name: Run quick tests (pytorch ${{ matrix.pytorch-version }})
-      env:
-        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
         ./runtests.sh --min
       env:
         QUICKTEST: True
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
