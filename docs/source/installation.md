@@ -19,7 +19,7 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.8) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.9) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
