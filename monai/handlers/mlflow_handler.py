@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch.utils.data import Dataset
 
+from monai.apps.utils import get_logger
 from monai.config import IgniteInfo
 from monai.utils import CommonKeys, ensure_tuple, min_version, optional_import
 
@@ -29,7 +30,9 @@ mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before u
 mlflow.entities, _ = optional_import(
     "mlflow.entities", descriptor="Please install mlflow.entities before using MLFlowHandler."
 )
-MlflowException, _ = optional_import("mlflow.exceptions", name="MlflowException", descriptor="Please install mlflow before using MLFlowHandler.")
+MlflowException, _ = optional_import(
+    "mlflow.exceptions", name="MlflowException", descriptor="Please install mlflow before using MLFlowHandler."
+)
 pandas, _ = optional_import("pandas", descriptor="Please install pandas for recording the dataset.")
 tqdm, _ = optional_import("tqdm", "4.47.0", min_version, "tqdm")
 
@@ -41,6 +44,8 @@ else:
     )
 
 DEFAULT_TAG = "Loss"
+
+logger = get_logger(module_name=__name__)
 
 
 class MLFlowHandler:
@@ -246,6 +251,7 @@ class MLFlowHandler:
                     break
                 except MlflowException as e:
                     if "RESOURCE_ALREADY_EXISTS" in str(e):
+                        logger.warning("Experiment already exists; delaying before retrying.")
                         time.sleep(1)
                         continue
                     else:
@@ -254,8 +260,6 @@ class MLFlowHandler:
         if experiment.lifecycle_stage != mlflow.entities.LifecycleStage.ACTIVE:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
         self.experiment = experiment
-
-
 
     @staticmethod
     def _get_pandas_dataset_info(pandas_dataset):
