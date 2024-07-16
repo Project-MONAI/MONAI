@@ -93,6 +93,7 @@ jobs:
         run: blossom-ci
         env:
           OPERATION: 'START-CI-JOB'
+          NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
           CI_SERVER: ${{ secrets.CI_SERVER }}
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

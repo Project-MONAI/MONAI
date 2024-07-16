@@ -68,6 +68,7 @@ jobs:
       shell: bash
       env:
         BUILD_MONAI: 1
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: ./runtests.sh --build --net
 
     - name: Add reaction

@@ -60,6 +60,8 @@ jobs:
         conda deactivate
     - name: Test env (CPU ${{ runner.os }})
       shell: bash -el {0}
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         conda activate monai
         $(pwd)/runtests.sh --build --unittests

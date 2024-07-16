@@ -60,6 +60,8 @@ jobs:
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
@@ -106,6 +108,8 @@ jobs:
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - name: Run quick tests (CPU ${{ runner.os }})
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"
@@ -155,6 +159,8 @@ jobs:
         BUILD_MONAI=0 python setup.py develop  # no compile of extensions
       shell: bash
     - name: Run quick tests (pytorch ${{ matrix.pytorch-version }})
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
         python -c "import monai; monai.config.print_config()"

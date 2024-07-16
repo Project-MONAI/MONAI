@@ -90,6 +90,8 @@ jobs:
     runs-on: [self-hosted, linux, X64, docker]
     steps:
     - name: Import
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
       run: |
         export OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 CUDA_VISIBLE_DEVICES=  # cpu-only
         python -c 'import monai; monai.config.print_debug_info()'
