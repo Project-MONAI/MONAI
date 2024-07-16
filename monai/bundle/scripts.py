@@ -240,12 +240,20 @@ def _download_from_nvstaging(
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
     request_url = _get_nvstaging_bundle_url(model_name=filename, version=version, org=org, team=team)
-    print(request_url)
-    response = requests_get(request_url, headers=headers)
+    if has_requests:
+        response = requests_get(request_url, headers=headers)
+        response.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package.  Please install it.")
+
+    zip_path = download_path / f"{filename}_v{version}.zip"
+    with open(zip_path, "wb") as f:
+        f.write(response.content)
+    logger.info(f"Downloading: {zip_path}.")
     if remove_prefix:
         filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
     extract_path = download_path / f"{filename}"
-    with zipfile.ZipFile(io.BytesIO(response.content)) as z:
+    with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(extract_path)
         logger.info(f"Writing into directory: {extract_path}.")
 
@@ -309,6 +317,7 @@ def _get_latest_bundle_version(source: str, name: str, repo: str, **kwargs) -> d
         org = kwargs.pop("org", "nvstaging")
         team = kwargs.pop("team", "monaitoolkit")
         headers = kwargs.pop("headers", {})
+        name = _add_ngc_prefix(name)
         return _get_latest_bundle_version_private_registry(name, org, team, headers)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
