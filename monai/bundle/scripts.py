@@ -228,13 +228,7 @@ def _download_from_ngc(
 
 
 def _download_from_nvstaging(
-    download_path: Path,
-    filename: str,
-    version: str,
-    remove_prefix: str | None,
-    org: str,
-    team: str,
-    headers: dict = {},
+    download_path: Path, filename: str, version: str, remove_prefix: str | None, org: str, team: str, headers: dict = {}
 ) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
@@ -302,7 +296,9 @@ def _get_latest_bundle_version_private_registry(name, org, team, headers={}):
     return model_info["model"]["latestVersionIdStr"]
 
 
-def _get_latest_bundle_version(source: str, name: str, repo: str, **kwargs: Any) -> dict[str, list[str] | str] | Any | None:
+def _get_latest_bundle_version(
+    source: str, name: str, repo: str, **kwargs: Any
+) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
         model_dict = _get_all_ngc_models(name)
