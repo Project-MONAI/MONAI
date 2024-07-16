@@ -228,7 +228,13 @@ def _download_from_ngc(
 
 
 def _download_from_nvstaging(
-    download_path: Path, filename: str, version: str, remove_prefix: str | None, org: str, team: str, headers: dict | None = None
+    download_path: Path,
+    filename: str,
+    version: str,
+    remove_prefix: str | None,
+    org: str,
+    team: str,
+    headers: dict | None = None,
 ) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
