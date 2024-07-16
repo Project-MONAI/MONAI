@@ -228,12 +228,13 @@ def _download_from_ngc(
 
 
 def _download_from_nvstaging(
-    download_path: Path, filename: str, version: str, remove_prefix: str | None, org: str, team: str, headers: dict = {}
+    download_path: Path, filename: str, version: str, remove_prefix: str | None, org: str, team: str, headers: dict | None = None
 ) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
     request_url = _get_nvstaging_bundle_url(model_name=filename, version=version, org=org, team=team)
     if has_requests:
+        headers = {} if headers is None else headers
         response = requests_get(request_url, headers=headers)
         response.raise_for_status()
     else:
@@ -280,7 +281,7 @@ def _get_latest_bundle_version_monaihosting(name):
     return model_info["model"]["latestVersionIdStr"]
 
 
-def _get_latest_bundle_version_private_registry(name, org, team, headers={}):
+def _get_latest_bundle_version_private_registry(name, org, team, headers=None):
     team_str = ""
     if team != "no-team":
         team_str = f"team/{team}"
@@ -288,6 +289,7 @@ def _get_latest_bundle_version_private_registry(name, org, team, headers={}):
     full_url = f"{url}/{name.lower()}"
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
+        headers = {} if headers is None else headers
         resp = requests_get(full_url, headers=headers)
         resp.raise_for_status()
     else:
