@@ -518,8 +518,7 @@ def _resnet(
                         )
                     else:
                         raise NotImplementedError(
-                            f"Please set shortcut_type to {shortcut_type} and bias_downsample to "
-                            f"{bool(bias_downsample) if bias_downsample!=-1 else 'True or False'} "
+                            f"Please set shortcut_type to {shortcut_type} and bias_downsample to {bool(bias_downsample)} "
                             f"when using pretrained MedicalNet resnet{resnet_depth}"
                         )
                 else:
