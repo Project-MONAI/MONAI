@@ -172,7 +172,7 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name.lower()}/versions/{version}/zip"
 
 
-def _get_nvstaging_bundle_url(model_name: str, version: str, repo: str) -> str:
+def _get_ngc_private_bundle_url(model_name: str, version: str, repo: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/{repo}/models/{model_name.lower()}/versions/{version}/zip"
 
 
@@ -224,12 +224,12 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
-def _download_from_nvstaging(
+def _download_from_ngc_private(
     download_path: Path, filename: str, version: str, remove_prefix: str | None, repo: str, headers: dict | None = None
 ) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
-    request_url = _get_nvstaging_bundle_url(model_name=filename, version=version, repo=repo)
+    request_url = _get_ngc_private_bundle_url(model_name=filename, version=version, repo=repo)
     if has_requests:
         headers = {} if headers is None else headers
         response = requests_get(request_url, headers=headers)
@@ -304,7 +304,7 @@ def _get_latest_bundle_version(
         return None
     elif source == "monaihosting":
         return _get_latest_bundle_version_monaihosting(name)
-    elif source == "nvstaging":
+    elif source == "ngc_private":
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
         return _get_latest_bundle_version_private_registry(name, repo, headers)
@@ -374,8 +374,8 @@ def download(
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
 
-        # Execute this module as a CLI entry, and download bundle from nvstaging with latest version:
-        python -m monai.bundle download --name <bundle_name> --source "nvstaging" --bundle_dir "./" --repo "org/org_name"
+        # Execute this module as a CLI entry, and download bundle from ngc_private with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "ngc_private" --bundle_dir "./" --repo "org/org_name"
 
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime.
@@ -397,12 +397,12 @@ def download(
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "monaihosting", "github", "nvstaging", or "huggingface_hub".
-            If source is "nvstaging", you need specify the NGC_API_KEY in the environment variable.
+            it should be "ngc", "monaihosting", "github", "ngc_private", or "huggingface_hub".
+            If source is "ngc_private", you need specify the NGC_API_KEY in the environment variable.
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
             If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
-            If `source` is "nvstaging", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
+            If `source` is "ngc_private", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
             or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
@@ -440,7 +440,7 @@ def download(
         if org_ is not None:
             repo_ = f"org/{org_}/team/{team_}" if team_ is not None else f"org/{org_}"
         repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
-    if len(repo_.split("/")) not in (2, 4) and source_ == "nvstaging":
+    if len(repo_.split("/")) not in (2, 4) and source_ == "ngc_private":
         raise ValueError("repo should be in the form of `org/org_name/team/team_name` or `org/org_name`.")
     if len(repo_.split("/")) != 3 and source_ == "github":
         raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
@@ -457,10 +457,10 @@ def download(
         headers = {}
         if name_ is None:
             raise ValueError(f"To download from source: {source_}, `name` must be provided.")
-        if source == "nvstaging":
+        if source == "ngc_private":
             api_key = os.getenv("NGC_API_KEY", None)
             if api_key is None:
-                raise ValueError("API key is required for nvstaging source.")
+                raise ValueError("API key is required for ngc_private source.")
             else:
                 token = _get_ngc_token(api_key)
                 headers = {"Authorization": f"Bearer {token}"}
@@ -481,8 +481,8 @@ def download(
                 remove_prefix=remove_prefix_,
                 progress=progress_,
             )
-        elif source_ == "nvstaging":
-            _download_from_nvstaging(
+        elif source_ == "ngc_private":
+            _download_from_ngc_private(
                 download_path=bundle_dir_,
                 filename=name_,
                 version=version_,

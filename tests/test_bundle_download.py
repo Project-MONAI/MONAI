@@ -175,7 +175,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_5])
     @skip_if_quick
-    def test_nvstaging_source_download_bundle(self, bundle_files, bundle_name, _url):
+    def test_ngc_private_source_download_bundle(self, bundle_files, bundle_name, _url):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
             with tempfile.TemporaryDirectory() as tempdir:
@@ -184,7 +184,7 @@ class TestDownload(unittest.TestCase):
                 parser = ConfigParser()
                 parser.export_config_file(config=def_args, filepath=def_args_file)
                 cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
-                cmd += ["--progress", "False", "--source", "nvstaging"]
+                cmd += ["--progress", "False", "--source", "ngc_private"]
                 command_line_tests(cmd)
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
