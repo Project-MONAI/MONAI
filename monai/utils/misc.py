@@ -815,7 +815,7 @@ class ConvertUnits:
                 "Both input and target units should be from the same quantity. "
                 f"Input quantity is {input_base} while target quantity is {target_base}"
             )
-        self._calculate_conversion_factor()
+        self.conversion_factor = self._calculate_conversion_factor()
 
     def _get_valid_unit_and_base(self, unit):
         unit = str(unit).lower()
@@ -842,7 +842,7 @@ class ConvertUnits:
             return 1.0
         input_power = self._get_unit_power(self.input_unit)
         target_power = self._get_unit_power(self.target_unit)
-        self.conversion_factor = 10 ** (input_power - target_power)
+        return 10 ** (input_power - target_power)
 
     def __call__(self, value: int | float) -> Any:
         return float(value) * self.conversion_factor
