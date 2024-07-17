@@ -235,7 +235,7 @@ def _download_from_ngc_private(
         response = requests_get(request_url, headers=headers)
         response.raise_for_status()
     else:
-        raise ValueError("NGC API requires requests package.  Please install it.")
+        raise ValueError("NGC API requires requests package. Please install it.")
 
     zip_path = download_path / f"{filename}_v{version}.zip"
     with open(zip_path, "wb") as f:
@@ -273,7 +273,7 @@ def _get_latest_bundle_version_monaihosting(name):
         resp = requests_get(full_url)
         resp.raise_for_status()
     else:
-        raise ValueError("NGC API requires requests package.  Please install it.")
+        raise ValueError("NGC API requires requests package. Please install it.")
     model_info = json.loads(resp.text)
     return model_info["model"]["latestVersionIdStr"]
 
@@ -287,7 +287,7 @@ def _get_latest_bundle_version_private_registry(name, repo, headers=None):
         resp = requests_get(full_url, headers=headers)
         resp.raise_for_status()
     else:
-        raise ValueError("NGC API requires requests package.  Please install it.")
+        raise ValueError("NGC API requires requests package. Please install it.")
     model_info = json.loads(resp.text)
     return model_info["model"]["latestVersionIdStr"]
 
