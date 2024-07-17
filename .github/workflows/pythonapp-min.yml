@@ -67,6 +67,9 @@ jobs:
       shell: bash
       env:
         QUICKTEST: True
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
 
   min-dep-py3:  # min dependencies installed tests for different python
     runs-on: ubuntu-latest
@@ -112,6 +115,9 @@ jobs:
         ./runtests.sh --min
       env:
         QUICKTEST: True
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
 
   min-dep-pytorch:  # min dependencies installed tests for different pytorch
     runs-on: ubuntu-latest
@@ -161,3 +167,6 @@ jobs:
         ./runtests.sh --min
       env:
         QUICKTEST: True
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
