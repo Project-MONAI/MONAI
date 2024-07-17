@@ -435,15 +435,7 @@ def download(
 
     _log_input_summary(tag="download", args=_args)
     source_, progress_, remove_prefix_, repo_, name_, version_, bundle_dir_, url_ = _pop_args(
-        _args,
-        "source",
-        "progress",
-        remove_prefix=None,
-        repo=None,
-        name=None,
-        version=None,
-        bundle_dir=None,
-        url=None,
+        _args, "source", "progress", remove_prefix=None, repo=None, name=None, version=None, bundle_dir=None, url=None
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
@@ -479,9 +471,7 @@ def download(
                 headers = {"Authorization": f"Bearer {token}"}
 
         if version_ is None:
-            version_ = _get_latest_bundle_version(
-                source=source_, name=name_, repo=repo_, headers=headers
-            )
+            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_, headers=headers)
         if source_ == "github":
             if version_ is not None:
                 name_ = "_v".join([name_, version_])
