@@ -242,7 +242,7 @@ class MLFlowHandler:
     def _set_experiment(self):
         experiment = self.experiment
         if not experiment:
-            for _ in range(3):
+            for _retry_time in range(3):
                 try:
                     experiment = self.client.get_experiment_by_name(self.experiment_name)
                     if not experiment:
@@ -253,7 +253,8 @@ class MLFlowHandler:
                     if "RESOURCE_ALREADY_EXISTS" in str(e):
                         logger.warning("Experiment already exists; delaying before retrying.")
                         time.sleep(1)
-                        continue
+                        if _retry_time == 2:
+                            raise e
                     else:
                         raise e
 
