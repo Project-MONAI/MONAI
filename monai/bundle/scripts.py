@@ -350,7 +350,6 @@ def download(
     remove_prefix: str | None = "monai_",
     progress: bool = True,
     args_file: str | None = None,
-    api_key: str | None = None,
 ) -> None:
     """
     download bundle from the specified source or url. The bundle should be a zip file and it
@@ -400,10 +399,11 @@ def download(
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "monaihosting", "github", or "huggingface_hub".
+            it should be "ngc", "monaihosting", "github", "nvstaging", or "huggingface_hub".
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
             If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
+            If `source` is "nvstaging", it should be in the form of "org/org_name" or "org/org_name/team/team_name".
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -466,7 +466,7 @@ def download(
         if name_ is None:
             raise ValueError(f"To download from source: {source_}, `name` must be provided.")
         if source == "nvstaging":
-            api_key = os.getenv("NGC_API_KEY", api_key)
+            api_key = os.getenv("NGC_API_KEY", None)
             if api_key is None:
                 raise ValueError("API key is required for nvstaging source.")
             else:
