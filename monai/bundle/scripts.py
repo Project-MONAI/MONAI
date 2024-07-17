@@ -256,6 +256,7 @@ def _get_ngc_token(api_key, retry=0):
     if has_requests:
         response = requests_get(url, headers=headers)
         if not response.ok:
+            # retry 3 times, if failed, raise an error.
             if retry < 3:
                 logger.info(f"Retrying {retry} time(s) to GET {url}.")
                 return _get_ngc_token(url, retry + 1)
