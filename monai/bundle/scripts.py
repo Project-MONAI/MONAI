@@ -229,7 +229,7 @@ def _download_from_nvstaging(
     filename: str,
     version: str,
     remove_prefix: str | None,
-    repo: str | None,
+    repo: str,
     headers: dict | None = None,
 ) -> None:
     # ensure prefix is contained
