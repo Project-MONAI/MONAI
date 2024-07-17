@@ -62,6 +62,8 @@ jobs:
       shell: bash -el {0}
       env:
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         conda activate monai
         $(pwd)/runtests.sh --build --unittests

@@ -51,6 +51,8 @@ jobs:
     - name: Run unit tests report coverage
       env:
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         python -m pip list
         git config --global --add safe.directory /__w/MONAI/MONAI
@@ -108,6 +110,8 @@ jobs:
     - name: Run quick tests CPU ubuntu
       env:
         NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'

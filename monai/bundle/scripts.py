@@ -379,6 +379,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
 
+        # Execute this module as a CLI entry, and download bundle from nvstaging with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "nvstaging" --bundle_dir "./" --repo "org/org_name"
+
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime.
         # The content of the JSON / YAML file is a dictionary. For example:
