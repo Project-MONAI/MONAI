@@ -118,6 +118,7 @@ def star_zip_with(op, *vals):
 
 
 T = TypeVar("T")
+NT = TypeVar("NT", np.ndarray, torch.Tensor)
 
 
 @overload
@@ -907,11 +908,11 @@ def is_sqrt(num: Sequence[int] | int) -> bool:
     return ensure_tuple(ret) == num
 
 
-def unsqueeze_right(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+def unsqueeze_right(arr: NT, ndim: int) -> NT:
     """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(...,) + (None,) * (ndim - arr.ndim)]
 
 
-def unsqueeze_left(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+def unsqueeze_left(arr: NT, ndim: int) -> NT:
     """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(None,) * (ndim - arr.ndim)]
