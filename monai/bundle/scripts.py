@@ -225,12 +225,7 @@ def _download_from_ngc(
 
 
 def _download_from_nvstaging(
-    download_path: Path,
-    filename: str,
-    version: str,
-    remove_prefix: str | None,
-    repo: str,
-    headers: dict | None = None,
+    download_path: Path, filename: str, version: str, remove_prefix: str | None, repo: str, headers: dict | None = None
 ) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
@@ -407,8 +402,8 @@ def download(
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
             If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
-            If `source` is "nvstaging", it should be in the form of "org/org_name" or "org/org_name/team/team_name".
-                Or you can specify the environment variable NGC_ORG and NGC_TEAM.
+            If `source` is "nvstaging", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
+            or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
