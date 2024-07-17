@@ -439,13 +439,14 @@ def download(
         team_ = os.getenv("NGC_TEAM", None)
         if org_ is not None:
             repo_ = f"org/{org_}/team/{team_}" if team_ is not None else f"org/{org_}"
-        repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
+        else:
+            repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
     if len(repo_.split("/")) not in (2, 4) and source_ == "ngc_private":
-        raise ValueError("repo should be in the form of `org/org_name/team/team_name` or `org/org_name`.")
+        raise ValueError(f"repo should be in the form of `org/org_name/team/team_name` or `org/org_name`, got {repo_}.")
     if len(repo_.split("/")) != 3 and source_ == "github":
-        raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
+        raise ValueError(f"repo should be in the form of `repo_owner/repo_name/release_tag`, got {repo_}.")
     elif len(repo_.split("/")) != 2 and source_ == "huggingface_hub":
-        raise ValueError("Hugging Face Hub repo should be in the form of `repo_owner/repo_name`")
+        raise ValueError(f"Hugging Face Hub repo should be in the form of `repo_owner/repo_name`, got {repo_}.")
     if url_ is not None:
         if name_ is not None:
             filepath = bundle_dir_ / f"{name_}.zip"
