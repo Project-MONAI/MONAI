@@ -510,7 +510,7 @@ def _resnet(
                     # Check model bias_downsample and shortcut_type
                     bias_downsample, shortcut_type = get_medicalnet_pretrained_resnet_args(resnet_depth)
                     if shortcut_type == kwargs.get("shortcut_type", "B") and (
-                        bool(bias_downsample) == kwargs.get("bias_downsample", True)
+                        bias_downsample == kwargs.get("bias_downsample", True)
                     ):
                         # Download the MedicalNet pretrained model
                         model_state_dict = get_pretrained_resnet_medicalnet(
@@ -518,7 +518,7 @@ def _resnet(
                         )
                     else:
                         raise NotImplementedError(
-                            f"Please set shortcut_type to {shortcut_type} and bias_downsample to {bool(bias_downsample)} "
+                            f"Please set shortcut_type to {shortcut_type} and bias_downsample to {bias_downsample} "
                             f"when using pretrained MedicalNet resnet{resnet_depth}"
                         )
                 else:
@@ -680,7 +680,7 @@ def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
     # After testing
     # False: 10, 50, 101, 152, 200
     # Any: 18, 34
-    bias_downsample = -1 if resnet_depth in [18, 34] else 0  # 18, 10, 34
+    bias_downsample = True if resnet_depth in [18, 34] else False  # 18, 10, 34
     shortcut_type = "A" if resnet_depth in [18, 34] else "B"
     return bias_downsample, shortcut_type
 
