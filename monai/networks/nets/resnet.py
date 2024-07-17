@@ -680,7 +680,7 @@ def get_medicalnet_pretrained_resnet_args(resnet_depth: int):
     # After testing
     # False: 10, 50, 101, 152, 200
     # Any: 18, 34
-    bias_downsample = True if resnet_depth in [18, 34] else False  # 18, 10, 34
+    bias_downsample = resnet_depth in (18, 34)
     shortcut_type = "A" if resnet_depth in [18, 34] else "B"
     return bias_downsample, shortcut_type
 
