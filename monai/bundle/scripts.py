@@ -172,11 +172,8 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name.lower()}/versions/{version}/zip"
 
 
-def _get_nvstaging_bundle_url(model_name: str, version: str, org: str, team: str) -> str:
-    team_str = ""
-    if team != "no-team":
-        team_str = f"team/{team}"
-    return f"https://api.ngc.nvidia.com/v2/org/{org}/{team_str}/models/{model_name.lower()}/versions/{version}/zip"
+def _get_nvstaging_bundle_url(model_name: str, version: str, repo: str) -> str:
+    return f"https://api.ngc.nvidia.com/v2/{repo}/models/{model_name.lower()}/versions/{version}/zip"
 
 
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
@@ -232,13 +229,12 @@ def _download_from_nvstaging(
     filename: str,
     version: str,
     remove_prefix: str | None,
-    org: str,
-    team: str,
+    repo: str | None,
     headers: dict | None = None,
 ) -> None:
     # ensure prefix is contained
     filename = _add_ngc_prefix(filename)
-    request_url = _get_nvstaging_bundle_url(model_name=filename, version=version, org=org, team=team)
+    request_url = _get_nvstaging_bundle_url(model_name=filename, version=version, repo=repo)
     if has_requests:
         headers = {} if headers is None else headers
         response = requests_get(request_url, headers=headers)
@@ -287,11 +283,8 @@ def _get_latest_bundle_version_monaihosting(name):
     return model_info["model"]["latestVersionIdStr"]
 
 
-def _get_latest_bundle_version_private_registry(name, org, team, headers=None):
-    team_str = ""
-    if team != "no-team":
-        team_str = f"team/{team}"
-    url = f"https://api.ngc.nvidia.com/v2/org/{org}/{team_str}/models"
+def _get_latest_bundle_version_private_registry(name, repo, headers=None):
+    url = f"https://api.ngc.nvidia.com/v2/{repo}/models"
     full_url = f"{url}/{name.lower()}"
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
@@ -317,11 +310,9 @@ def _get_latest_bundle_version(
     elif source == "monaihosting":
         return _get_latest_bundle_version_monaihosting(name)
     elif source == "nvstaging":
-        org = kwargs.pop("org", "nvstaging")
-        team = kwargs.pop("team", "monaitoolkit")
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
-        return _get_latest_bundle_version_private_registry(name, org, team, headers)
+        return _get_latest_bundle_version_private_registry(name, repo, headers)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
@@ -359,8 +350,6 @@ def download(
     remove_prefix: str | None = "monai_",
     progress: bool = True,
     args_file: str | None = None,
-    org: str | None = None,
-    team: str | None = None,
     api_key: str | None = None,
 ) -> None:
     """
@@ -437,12 +426,10 @@ def download(
         url=url,
         remove_prefix=remove_prefix,
         progress=progress,
-        org=org,
-        team=team,
     )
 
     _log_input_summary(tag="download", args=_args)
-    source_, progress_, remove_prefix_, repo_, name_, version_, bundle_dir_, url_, org_, team_ = _pop_args(
+    source_, progress_, remove_prefix_, repo_, name_, version_, bundle_dir_, url_ = _pop_args(
         _args,
         "source",
         "progress",
@@ -452,14 +439,18 @@ def download(
         version=None,
         bundle_dir=None,
         url=None,
-        org=None,
-        team=None,
     )
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
     if repo_ is None:
+        org_ = os.getenv("NGC_ORG", None)
+        team_ = os.getenv("NGC_TEAM", None)
+        if org_ is not None:
+            repo_ = f"org/{org_}/team/{team_}" if team_ is not None else f"org/{org_}"
         repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
-    if len(repo_.split("/")) != 3 and source_ != "huggingface_hub":
+    if len(repo_.split("/")) not in (2, 4) and source_ == "nvstaging":
+        raise ValueError("repo should be in the form of `org/org_name/team/team_name` or `org/org_name`.")
+    if len(repo_.split("/")) != 3 and source_ == "github":
         raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
     elif len(repo_.split("/")) != 2 and source_ == "huggingface_hub":
         raise ValueError("Hugging Face Hub repo should be in the form of `repo_owner/repo_name`")
@@ -476,8 +467,6 @@ def download(
             raise ValueError(f"To download from source: {source_}, `name` must be provided.")
         if source == "nvstaging":
             api_key = os.getenv("NGC_API_KEY", api_key)
-            org_ = "nvstaging" if org_ is None else org_
-            team_ = "monaitoolkit" if team_ is None else team_
             if api_key is None:
                 raise ValueError("API key is required for nvstaging source.")
             else:
@@ -486,7 +475,7 @@ def download(
 
         if version_ is None:
             version_ = _get_latest_bundle_version(
-                source=source_, name=name_, repo=repo_, org=org_, team=team_, headers=headers
+                source=source_, name=name_, repo=repo_, headers=headers
             )
         if source_ == "github":
             if version_ is not None:
@@ -508,8 +497,7 @@ def download(
                 filename=name_,
                 version=version_,
                 remove_prefix=remove_prefix_,
-                org=org_,
-                team=team_,
+                repo=repo_,
                 headers=headers,
             )
         elif source_ == "huggingface_hub":
