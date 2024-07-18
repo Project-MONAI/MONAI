@@ -34,8 +34,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
-from monai.data import load_net_with_metadata
-from monai.data.saver_type import CkptSaver, OnnxSaver, TrtSaver
+from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import (
     convert_to_onnx,
     convert_to_torchscript,
@@ -1158,24 +1157,69 @@ def verify_net_in_out(
     logger.info("data shape of network is verified with no error.")
 
 
-def _export(converter: Callable, saver: Callable, net: str, filepath: str, **kwargs: Any) -> None:
+def _export(
+    converter: Callable,
+    parser: ConfigParser,
+    net_id: str,
+    filepath: str,
+    ckpt_file: str,
+    config_file: str,
+    key_in_ckpt: str,
+    **kwargs: Any,
+) -> None:
     """
     Export a model defined in the parser to a new one specified by the converter.
 
     Args:
         converter: a callable object that takes a torch.nn.module and kwargs as input and
             converts the module to another type.
-        saver: a callable object that takes the converted model and a filepath as input and
-            saves the model.
-        net: the network model to be converted.
+        parser: a ConfigParser of the bundle to be converted.
+        net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
+        ckpt_file: filepath of the model checkpoint to load.
+        config_file: filepath of the config file to save in the converted model,the saved key in the converted
+            model is the config filename without extension, and the saved config value is always serialized in
+            JSON format no matter the original file format is JSON or YAML. it can be a single file or a list
+            of files.
+        key_in_ckpt: for nested checkpoint like `{"model": XXX, "optimizer": XXX, ...}`, specify the key of model
+            weights. if not nested checkpoint, no need to set.
         kwargs: key arguments for the converter.
 
     """
+    net = parser.get_parsed_content(net_id)
+    if has_ignite:
+        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
+        Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
+    else:
+        ckpt = torch.load(ckpt_file)
+        copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
+
     # Use the given converter to convert a model and save with metadata, config content
     net = converter(model=net, **kwargs)
 
-    saver(model_obj=net, filepath=filepath)
+    extra_files: dict = {}
+    for i in ensure_tuple(config_file):
+        # split the filename and directory
+        filename = os.path.basename(i)
+        # remove extension
+        filename, _ = os.path.splitext(filename)
+        # because all files are stored as JSON their name parts without extension must be unique
+        if filename in extra_files:
+            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
+        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
+        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
+
+    # add .json extension to all extra files which are always encoded as JSON
+    extra_files = {k + ".json": v for k, v in extra_files.items()}
+
+    save_net_with_metadata(
+        jit_obj=net,
+        filename_prefix_or_stream=filepath,
+        include_config_vals=False,
+        append_timestamp=False,
+        meta_values=parser.get().pop("_meta_", None),
+        more_extra_files=extra_files,
+    )
     logger.info(f"exported to file: {filepath}.")
 
 
@@ -1283,10 +1327,8 @@ def onnx_export(
         copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-
-    onnx_saver = OnnxSaver()
-
-    _export(convert_to_onnx, onnx_saver.save, net=net, filepath=filepath_, **converter_kwargs_)
+    onnx_model = convert_to_onnx(model=net, **converter_kwargs_)
+    onnx.save(onnx_model, filepath_)
 
 
 def ckpt_export(
@@ -1406,38 +1448,17 @@ def ckpt_export(
     inputs_: Sequence[Any] | None = [torch.rand(input_shape_)] if input_shape_ else None
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-
-    net = parser.get_parsed_content(net_id_)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
-
-    extra_files: dict = {}
-    for i in ensure_tuple(config_file_):
-        # split the filename and directory
-        filename = os.path.basename(i)
-        # remove extension
-        filename, _ = os.path.splitext(filename)
-        # because all files are stored as JSON their name parts without extension must be unique
-        if filename in extra_files:
-            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
-        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
-        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
-
-    # add .json extension to all extra files which are always encoded as JSON
-    extra_files = {k + ".json": v for k, v in extra_files.items()}
-
-    ckpt_saver = CkptSaver(
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
+    # Use the given converter to convert a model and save with metadata, config content
+    _export(
+        convert_to_torchscript,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
     )
-
-    _export(convert_to_torchscript, ckpt_saver.save, net=net, filepath=filepath_, **converter_kwargs_)
 
 
 def trt_export(
@@ -1599,37 +1620,16 @@ def trt_export(
     }
     converter_kwargs_.update(trt_api_parameters)
 
-    net = parser.get_parsed_content(net_id_)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
-
-    extra_files: dict = {}
-    for i in ensure_tuple(config_file_):
-        # split the filename and directory
-        filename = os.path.basename(i)
-        # remove extension
-        filename, _ = os.path.splitext(filename)
-        # because all files are stored as JSON their name parts without extension must be unique
-        if filename in extra_files:
-            raise ValueError(f"Filename part '{filename}' is given multiple times in config file list.")
-        # the file may be JSON or YAML but will get loaded and dumped out again as JSON
-        extra_files[filename] = json.dumps(ConfigParser.load_config_file(i)).encode()
-
-    # add .json extension to all extra files which are always encoded as JSON
-    extra_files = {k + ".json": v for k, v in extra_files.items()}
-
-    trt_saver = TrtSaver(
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
+    _export(
+        convert_to_trt,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
     )
-
-    _export(convert_to_trt, trt_saver.save, net=net, filepath=filepath_, **converter_kwargs_)
 
 
 def init_bundle(
