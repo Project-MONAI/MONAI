@@ -33,7 +33,7 @@ from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.misc import ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-label, _ = optional_import("scipy.ndimage.measurements", name="label")
+label, _ = optional_import("scipy.ndimage", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")

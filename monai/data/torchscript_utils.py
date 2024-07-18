@@ -116,7 +116,7 @@ def load_net_with_metadata(
     Returns:
         Triple containing loaded object, metadata dict, and extra files dict containing other file data if present
     """
-    extra_files = {f: "" for f in more_extra_files}
+    extra_files = dict.fromkeys(more_extra_files, "")
     extra_files[METADATA_FILENAME] = ""
 
     jit_obj = torch.jit.load(filename_prefix_or_stream, map_location, extra_files)
