@@ -438,7 +438,7 @@ def download(
     if repo_ is None:
         org_ = os.getenv("NGC_ORG", None)
         team_ = os.getenv("NGC_TEAM", None)
-        if org_ is not None:
+        if org_ is not None and source_ == "ngc_private":
             repo_ = f"org/{org_}/team/{team_}" if team_ is not None else f"org/{org_}"
         else:
             repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
