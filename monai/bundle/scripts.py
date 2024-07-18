@@ -16,6 +16,7 @@ import json
 import os
 import re
 import warnings
+import zipfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from pydoc import locate
@@ -171,6 +172,10 @@ def _get_ngc_bundle_url(model_name: str, version: str) -> str:
     return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name.lower()}/versions/{version}/zip"
 
 
+def _get_ngc_private_bundle_url(model_name: str, version: str, repo: str) -> str:
+    return f"https://api.ngc.nvidia.com/v2/{repo}/models/{model_name.lower()}/versions/{version}/zip"
+
+
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
     monaihosting_root_path = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
     return f"{monaihosting_root_path}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
@@ -219,6 +224,48 @@ def _download_from_ngc(
     extractall(filepath=filepath, output_dir=extract_path, has_base=True)
 
 
+def _download_from_ngc_private(
+    download_path: Path, filename: str, version: str, remove_prefix: str | None, repo: str, headers: dict | None = None
+) -> None:
+    # ensure prefix is contained
+    filename = _add_ngc_prefix(filename)
+    request_url = _get_ngc_private_bundle_url(model_name=filename, version=version, repo=repo)
+    if has_requests:
+        headers = {} if headers is None else headers
+        response = requests_get(request_url, headers=headers)
+        response.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package. Please install it.")
+
+    zip_path = download_path / f"{filename}_v{version}.zip"
+    with open(zip_path, "wb") as f:
+        f.write(response.content)
+    logger.info(f"Downloading: {zip_path}.")
+    if remove_prefix:
+        filename = _remove_ngc_prefix(filename, prefix=remove_prefix)
+    extract_path = download_path / f"{filename}"
+    with zipfile.ZipFile(zip_path, "r") as z:
+        z.extractall(extract_path)
+        logger.info(f"Writing into directory: {extract_path}.")
+
+
+def _get_ngc_token(api_key, retry=0):
+    """Try to connect to NGC."""
+    url = "https://authn.nvidia.com/token?service=ngc"
+    headers = {"Accept": "application/json", "Authorization": "ApiKey " + api_key}
+    if has_requests:
+        response = requests_get(url, headers=headers)
+        if not response.ok:
+            # retry 3 times, if failed, raise an error.
+            if retry < 3:
+                logger.info(f"Retrying {retry} time(s) to GET {url}.")
+                return _get_ngc_token(url, retry + 1)
+            raise RuntimeError("NGC API response is not ok. Failed to get token.")
+        else:
+            token = response.json()["token"]
+        return token
+
+
 def _get_latest_bundle_version_monaihosting(name):
     url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
     full_url = f"{url}/{name.lower()}"
@@ -227,12 +274,28 @@ def _get_latest_bundle_version_monaihosting(name):
         resp = requests_get(full_url)
         resp.raise_for_status()
     else:
-        raise ValueError("NGC API requires requests package.  Please install it.")
+        raise ValueError("NGC API requires requests package. Please install it.")
     model_info = json.loads(resp.text)
     return model_info["model"]["latestVersionIdStr"]
 
 
-def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, list[str] | str] | Any | None:
+def _get_latest_bundle_version_private_registry(name, repo, headers=None):
+    url = f"https://api.ngc.nvidia.com/v2/{repo}/models"
+    full_url = f"{url}/{name.lower()}"
+    requests_get, has_requests = optional_import("requests", name="get")
+    if has_requests:
+        headers = {} if headers is None else headers
+        resp = requests_get(full_url, headers=headers)
+        resp.raise_for_status()
+    else:
+        raise ValueError("NGC API requires requests package. Please install it.")
+    model_info = json.loads(resp.text)
+    return model_info["model"]["latestVersionIdStr"]
+
+
+def _get_latest_bundle_version(
+    source: str, name: str, repo: str, **kwargs: Any
+) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
         model_dict = _get_all_ngc_models(name)
@@ -242,6 +305,10 @@ def _get_latest_bundle_version(source: str, name: str, repo: str) -> dict[str, l
         return None
     elif source == "monaihosting":
         return _get_latest_bundle_version_monaihosting(name)
+    elif source == "ngc_private":
+        headers = kwargs.pop("headers", {})
+        name = _add_ngc_prefix(name)
+        return _get_latest_bundle_version_private_registry(name, repo, headers)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
@@ -308,6 +375,9 @@ def download(
         # Execute this module as a CLI entry, and download bundle via URL:
         python -m monai.bundle download --name <bundle_name> --url <url>
 
+        # Execute this module as a CLI entry, and download bundle from ngc_private with latest version:
+        python -m monai.bundle download --name <bundle_name> --source "ngc_private" --bundle_dir "./" --repo "org/org_name"
+
         # Set default args of `run` in a JSON / YAML file, help to record and simplify the command line.
         # Other args still can override the default args at runtime.
         # The content of the JSON / YAML file is a dictionary. For example:
@@ -328,10 +398,13 @@ def download(
             Default is `bundle` subfolder under `torch.hub.get_dir()`.
         source: storage location name. This argument is used when `url` is `None`.
             In default, the value is achieved from the environment variable BUNDLE_DOWNLOAD_SRC, and
-            it should be "ngc", "monaihosting", "github", or "huggingface_hub".
+            it should be "ngc", "monaihosting", "github", "ngc_private", or "huggingface_hub".
+            If source is "ngc_private", you need specify the NGC_API_KEY in the environment variable.
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
             If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
+            If `source` is "ngc_private", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
+            or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
@@ -363,11 +436,18 @@ def download(
 
     bundle_dir_ = _process_bundle_dir(bundle_dir_)
     if repo_ is None:
-        repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
-    if len(repo_.split("/")) != 3 and source_ != "huggingface_hub":
-        raise ValueError("repo should be in the form of `repo_owner/repo_name/release_tag`.")
+        org_ = os.getenv("NGC_ORG", None)
+        team_ = os.getenv("NGC_TEAM", None)
+        if org_ is not None and source_ == "ngc_private":
+            repo_ = f"org/{org_}/team/{team_}" if team_ is not None else f"org/{org_}"
+        else:
+            repo_ = "Project-MONAI/model-zoo/hosting_storage_v1"
+    if len(repo_.split("/")) not in (2, 4) and source_ == "ngc_private":
+        raise ValueError(f"repo should be in the form of `org/org_name/team/team_name` or `org/org_name`, got {repo_}.")
+    if len(repo_.split("/")) != 3 and source_ == "github":
+        raise ValueError(f"repo should be in the form of `repo_owner/repo_name/release_tag`, got {repo_}.")
     elif len(repo_.split("/")) != 2 and source_ == "huggingface_hub":
-        raise ValueError("Hugging Face Hub repo should be in the form of `repo_owner/repo_name`")
+        raise ValueError(f"Hugging Face Hub repo should be in the form of `repo_owner/repo_name`, got {repo_}.")
     if url_ is not None:
         if name_ is not None:
             filepath = bundle_dir_ / f"{name_}.zip"
@@ -376,10 +456,19 @@ def download(
         download_url(url=url_, filepath=filepath, hash_val=None, progress=progress_)
         extractall(filepath=filepath, output_dir=bundle_dir_, has_base=True)
     else:
+        headers = {}
         if name_ is None:
             raise ValueError(f"To download from source: {source_}, `name` must be provided.")
+        if source == "ngc_private":
+            api_key = os.getenv("NGC_API_KEY", None)
+            if api_key is None:
+                raise ValueError("API key is required for ngc_private source.")
+            else:
+                token = _get_ngc_token(api_key)
+                headers = {"Authorization": f"Bearer {token}"}
+
         if version_ is None:
-            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_)
+            version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_, headers=headers)
         if source_ == "github":
             if version_ is not None:
                 name_ = "_v".join([name_, version_])
@@ -393,6 +482,15 @@ def download(
                 version=version_,
                 remove_prefix=remove_prefix_,
                 progress=progress_,
+            )
+        elif source_ == "ngc_private":
+            _download_from_ngc_private(
+                download_path=bundle_dir_,
+                filename=name_,
+                version=version_,
+                remove_prefix=remove_prefix_,
+                repo=repo_,
+                headers=headers,
             )
         elif source_ == "huggingface_hub":
             extract_path = os.path.join(bundle_dir_, name_)
