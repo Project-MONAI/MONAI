@@ -448,13 +448,13 @@ def resize_impl(
         lazy=lazy,
     )
 
-    return affine, orig_size, meta_info
+    return affine, meta_info, orig_size
 
 
 def resize_raster(
     img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
 ):
-    _, orig_size, meta_info = resize_impl(
+    _, meta_info, orig_size = resize_impl(
         img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
     )
     if lazy:
@@ -492,7 +492,7 @@ def resize_raster(
 def resize_geom(
     img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
 ):
-    _, _, meta_info = resize_impl(
+    _1, meta_info, _2 = resize_impl(
         img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
     )
     out = _maybe_new_metatensor(img)
@@ -535,7 +535,7 @@ def resize(
             return resize_raster(
                 img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
             )
-        elif img.kind == KindKeys.GEOMETRY:
+        elif img.kind == KindKeys.POINT:
             return resize_geom(
                 img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
             )
@@ -670,14 +670,14 @@ def rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dty
         transform_info=transform_info,
         lazy=lazy,
     )
-    return transform, meta_info
+    return transform, meta_info, output_shape
 
 
 def rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Raster-specific rotation functionality
     """
-    transform, meta_info = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    transform, meta_info, output_shape = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -697,7 +697,7 @@ def rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dty
     """
     Geometry-specific rotation functionality
     """
-    _, meta_info = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    _1, meta_info, _2 = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -731,7 +731,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     if isinstance(img, MetaTensor):
         if img.kind == KindKeys.PIXEL:
             return rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
-        elif img.kind == KindKeys.GEOMETRY:
+        elif img.kind == KindKeys.POINT:
             return rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
 
 
