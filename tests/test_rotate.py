@@ -21,6 +21,7 @@ from parameterized import parameterized
 from monai.config import USE_COMPILED
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate
+from monai.utils.enums import KindKeys
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import HAS_CUPY, TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
@@ -88,6 +89,16 @@ class TestRotate2D(NumpyImageTestCase2D):
         rotated = rotated.cpu() if isinstance(rotated, torch.Tensor) else rotated
         good = np.sum(np.isclose(expected, rotated, atol=1e-3))
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
+
+    def test_pure_geometry(self):
+        rotate_fn = Rotate(np.pi / 2, True)
+        geom = torch.tensor([[[0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = rotate_fn(geom)
+        expected = torch.tensor([[[0, 0, 1], [-1, 0, 1], [0, 1, 1], [-1, 1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
 
 
 class TestRotate3D(NumpyImageTestCase3D):
