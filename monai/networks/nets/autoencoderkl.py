@@ -670,7 +670,7 @@ class AutoencoderKL(nn.Module):
         # fix the attention blocks
         attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn.qkv.weight"] = torch.concat(
+            new_state_dict[f"{block}.attn.qkv.weight"] = torch.cat(
                 [
                     old_state_dict[f"{block}.to_q.weight"],
                     old_state_dict[f"{block}.to_k.weight"],
@@ -678,7 +678,7 @@ class AutoencoderKL(nn.Module):
                 ],
                 dim=0,
             )
-            new_state_dict[f"{block}.attn.qkv.bias"] = torch.concat(
+            new_state_dict[f"{block}.attn.qkv.bias"] = torch.cat(
                 [
                     old_state_dict[f"{block}.to_q.bias"],
                     old_state_dict[f"{block}.to_k.bias"],

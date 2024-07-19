@@ -1714,7 +1714,7 @@ class DiffusionModelUNet(nn.Module):
         # fix the attention blocks
         attention_blocks = [k.replace(".attn1.qkv.weight", "") for k in new_state_dict if "attn1.qkv.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.concat(
+            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.cat(
                 [
                     old_state_dict[f"{block}.attn1.to_q.weight"],
                     old_state_dict[f"{block}.attn1.to_k.weight"],
