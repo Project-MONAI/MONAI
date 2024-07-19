@@ -138,7 +138,7 @@ class DecoderOnlyTransformer(nn.Module):
         # fix the attention blocks
         attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn.qkv.weight"] = torch.concat(
+            new_state_dict[f"{block}.attn.qkv.weight"] = torch.cat(
                 [
                     old_state_dict[f"{block}.attn.to_q.weight"],
                     old_state_dict[f"{block}.attn.to_k.weight"],
