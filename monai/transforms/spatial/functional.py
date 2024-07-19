@@ -322,9 +322,9 @@ def flip(image, sp_axes, lazy, transform_info):
     """
 
     if isinstance(image, MetaTensor):
-        if image.kind == KindKeys.RASTER:
+        if image.kind == KindKeys.PIXEL:
             return flip_raster(image, sp_axes, lazy, transform_info)
-        elif image.kind == KindKeys.GEOM:
+        elif image.kind == KindKeys.POINT:
             return flip_geom(image, sp_axes, lazy, transform_info)
 
 
