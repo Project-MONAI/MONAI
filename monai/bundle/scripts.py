@@ -1216,11 +1216,7 @@ def _export(
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
 
-    saver(
-        net,
-        filepath,
-        more_extra_files = extra_files,
-    )
+    saver(net, filepath, more_extra_files=extra_files)
 
     logger.info(f"exported to file: {filepath}.")
 
