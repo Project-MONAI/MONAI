@@ -27,8 +27,12 @@ from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
 from typing import Any, Iterable, cast
-
 import torch
+
+import importlib.metadata
+from packaging import version
+from packaging.version import Version, parse
+
 
 # bundle config system flags
 # set MONAI_EVAL_EXPR=1 to use 'eval', default value: run_eval=True
@@ -564,11 +568,14 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging", name="packaging")
+    # pkging, has_ver = optional_import("pkg_resources", name="packaging")
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
-        except pkging.version.InvalidVersion:
+            return cast(bool, version(lhs) <= version(rhs))
+            # return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
+        except version.InvalidVersion:
+        # except pkging.version.InvalidVersion:
             return True
 
     lhs_, rhs_ = parse_version_strs(lhs, rhs)
@@ -591,11 +598,14 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging", name="packaging")
+    # pkging, has_ver = optional_import("pkg_resources", name="packaging")
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
-        except pkging.version.InvalidVersion:
+            return cast(bool, version(lhs) >= version(rhs))
+            # return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
+        except version.InvalidVersion:
+        # except pkging.version.InvalidVersion:
             return True
 
     lhs_, rhs_ = parse_version_strs(lhs, rhs)
@@ -629,7 +639,8 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
         if current_ver_string is None:
             _env_var = os.environ.get("PYTORCH_VER", "")
             current_ver_string = _env_var if _env_var else torch.__version__
-        ver, has_ver = optional_import("pkg_resources", name="parse_version")
+        ver, has_ver = optional_import("packaging.version", name="parse")
+        # ver, has_ver = optional_import("pkg_resources", name="parse_version")
         if has_ver:
             return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")  # type: ignore
         parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)
