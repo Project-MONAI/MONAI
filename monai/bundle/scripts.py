@@ -1216,7 +1216,11 @@ def _export(
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
 
-    saver(net, filepath, more_extra_files=extra_files)
+    saver(
+        net,
+        filepath,
+        more_extra_files = extra_files,
+    )
 
     logger.info(f"exported to file: {filepath}.")
 
@@ -1458,8 +1462,12 @@ def ckpt_export(
         save_net_with_metadata,
         include_config_vals=False,
         append_timestamp=False,
+<<<<<<< HEAD
         meta_values=parser.get().pop("_meta_", None),
     )
+=======
+        meta_values=parser.get().pop("_meta_", None))
+>>>>>>> c70f24e0... [pre-commit.ci] auto fixes from pre-commit.com hooks
 
     _export(
         convert_to_torchscript,
