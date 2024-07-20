@@ -18,11 +18,12 @@ import re
 import warnings
 import zipfile
 from collections.abc import Mapping, Sequence
+from functools import partial
 from pathlib import Path
 from pydoc import locate
 from shutil import copyfile
 from textwrap import dedent
-from typing import Any, Callable, IO
+from typing import IO, Any, Callable
 
 import torch
 from torch.cuda import is_available
@@ -35,7 +36,6 @@ from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
-from functools import partial
 from monai.networks import (
     convert_to_onnx,
     convert_to_torchscript,
@@ -1216,12 +1216,8 @@ def _export(
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
 
-    saver(
-        net,
-        filepath,
-        more_extra_files = extra_files,
-    )
-    
+    saver(net, filepath, more_extra_files=extra_files)
+
     logger.info(f"exported to file: {filepath}.")
 
 
@@ -1323,13 +1319,9 @@ def onnx_export(
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
 
-    def save_onnx(
-        onnx_obj: torch.nn.Module,
-        filename_prefix_or_stream: str | IO[Any],
-        **kwargs: Any,
-    ) -> None:
+    def save_onnx(onnx_obj: torch.nn.Module, filename_prefix_or_stream: str | IO[Any], **kwargs: Any) -> None:
         onnx.save(onnx_obj, filename_prefix_or_stream)
-    
+
     _export(
         convert_to_onnx,
         save_onnx,
@@ -1462,10 +1454,13 @@ def ckpt_export(
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
     # Use the given converter to convert a model and save with metadata, config content
 
-    save_ts = partial(save_net_with_metadata, include_config_vals=False,
+    save_ts = partial(
+        save_net_with_metadata,
+        include_config_vals=False,
         append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None))
-    
+        meta_values=parser.get().pop("_meta_", None),
+    )
+
     _export(
         convert_to_torchscript,
         save_ts,
@@ -1638,9 +1633,12 @@ def trt_export(
     }
     converter_kwargs_.update(trt_api_parameters)
 
-    save_ts = partial(save_net_with_metadata, include_config_vals=False,
+    save_ts = partial(
+        save_net_with_metadata,
+        include_config_vals=False,
         append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None))
+        meta_values=parser.get().pop("_meta_", None),
+    )
 
     _export(
         convert_to_trt,
