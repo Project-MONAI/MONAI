@@ -1328,7 +1328,7 @@ def onnx_export(
         filename_prefix_or_stream: str | IO[Any],
         more_extra_files: None = None,
     ) -> None:
-        
+
         onnx.save(jit_obj, filename_prefix_or_stream)
 
     _export(
