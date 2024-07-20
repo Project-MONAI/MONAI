@@ -1319,7 +1319,7 @@ def onnx_export(
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
 
-    def save_onnx(onnx_obj: torch.nn.Module, filename_prefix_or_stream: str | IO[Any], **kwargs: Any) -> None:
+    def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str | IO[Any], **kwargs: Any) -> None:
         onnx.save(onnx_obj, filename_prefix_or_stream)
 
     _export(
