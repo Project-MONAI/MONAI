@@ -30,6 +30,11 @@ Workflows
 .. autoclass:: GanTrainer
     :members:
 
+`AdversarialTrainer`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: AdversarialTrainer
+    :members:
+
 `Evaluator`
 ~~~~~~~~~~~
 .. autoclass:: Evaluator
