@@ -21,7 +21,7 @@ from pathlib import Path
 import numpy as np
 from parameterized import parameterized
 
-from monai.tests.utils import TEST_NDARRAYS, make_nifti_image
+from tests.utils import TEST_NDARRAYS, make_nifti_image
 from monai.transforms import Compose, LoadImage, MappingJson, SaveImage
 
 TESTS = []
