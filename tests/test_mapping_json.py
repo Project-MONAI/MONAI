@@ -19,7 +19,6 @@ import unittest
 from pathlib import Path
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.tests.utils import TEST_NDARRAYS, make_nifti_image
@@ -66,7 +65,7 @@ class TestMappingJson(unittest.TestCase):
         if savepath_in_metadict:
             transforms(input_file)
             self.assertTrue(Path(self.mapping_json_path).exists())
-            with open(self.mapping_json_path, "r") as f:
+            with open(self.mapping_json_path) as f:
                 mapping_data = json.load(f)
 
             self.assertEqual(len(mapping_data), 1)
