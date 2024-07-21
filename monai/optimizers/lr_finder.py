@@ -524,7 +524,7 @@ class LearningRateFinder:
         # Plot the LR with steepest gradient
         if steepest_lr:
             lr_at_steepest_grad, loss_at_steepest_grad = self.get_steepest_gradient(skip_start, skip_end)
-            if lr_at_steepest_grad is not None:
+            if lr_at_steepest_grad is not None and loss_at_steepest_grad is not None:
                 ax.scatter(
                     lr_at_steepest_grad,
                     loss_at_steepest_grad,

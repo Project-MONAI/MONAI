@@ -33,7 +33,7 @@ from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.misc import ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 
-label, _ = optional_import("scipy.ndimage.measurements", name="label")
+label, _ = optional_import("scipy.ndimage", name="label")
 disk, _ = optional_import("skimage.morphology", name="disk")
 opening, _ = optional_import("skimage.morphology", name="opening")
 watershed, _ = optional_import("skimage.segmentation", name="watershed")
@@ -379,6 +379,7 @@ class GenerateSuccinctContour(Transform):
         """
 
         p_delta = (current[0] - previous[0], current[1] - previous[1])
+        row, col = -1, -1
 
         if p_delta in ((0.0, 1.0), (0.5, 0.5), (1.0, 0.0)):
             row = int(current[0] + 0.5)
