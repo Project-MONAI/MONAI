@@ -13,68 +13,75 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 
-import nibabel as nib
 import numpy as np
+import torch
 from parameterized import parameterized
 
-from monai.transforms import Compose, LoadImage, SaveImage
-from monai.transforms.io.array import MappingJson
+from monai.tests.utils import TEST_NDARRAYS, make_nifti_image
+from monai.transforms import Compose, LoadImage, MappingJson, SaveImage
+
+TESTS = []
+for p in TEST_NDARRAYS:
+    for q in TEST_NDARRAYS:
+        TEST_IMAGE = p(np.arange(24).reshape((2, 4, 3)))
+        TEST_AFFINE = q(
+            np.array(
+                [[-5.3, 0.0, 0.0, 102.01], [0.0, 0.52, 2.17, -7.50], [-0.0, 1.98, -0.26, -23.12], [0.0, 0.0, 0.0, 1.0]]
+            )
+        )
+        TESTS.append([TEST_IMAGE, TEST_AFFINE, True])
+        TESTS.append([TEST_IMAGE, TEST_AFFINE, False])
 
 
 class TestMappingJson(unittest.TestCase):
     def setUp(self):
-        self.mapping_json_path = "test_mapping.json"
-        if Path(self.mapping_json_path).exists():
-            Path(self.mapping_json_path).unlink()
+        self.test_dir = tempfile.mkdtemp()
+        self.mapping_json_path = os.path.join(self.test_dir, "mapping.json")
 
-    TEST_CASE_1 = [{}, ["test_image.nii.gz"], (128, 128, 128), True]
-    TEST_CASE_2 = [{}, ["test_image.nii.gz"], (128, 128, 128), False]
+    def tearDown(self):
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_mapping_json(self, load_params, filenames, expected_shape, savepath_in_metadict):
-        test_image = np.random.rand(128, 128, 128)
+    @parameterized.expand(TESTS)
+    def test_mapping_json(self, array, affine, savepath_in_metadict):
+        name = "test_image"
+        output_ext = ".nii.gz"
+        test_image_name = make_nifti_image(array, affine, fname=os.path.join(self.test_dir, name))
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            for i, name in enumerate(filenames):
-                file_path = os.path.join(tempdir, name)
-                nib.save(nib.Nifti1Image(test_image, np.eye(4)), file_path)
-                filenames[i] = file_path
+        input_file = os.path.join(self.test_dir, test_image_name)
+        output_file = os.path.join(self.test_dir, name, name + "_trans" + output_ext)
 
-            transforms = Compose(
-                [
-                    LoadImage(image_only=True, **load_params),
-                    SaveImage(output_dir=tempdir, output_ext=".nii.gz", savepath_in_metadict=savepath_in_metadict),
-                    MappingJson(mapping_json_path=self.mapping_json_path),
-                ]
+        transforms = Compose(
+            [
+                LoadImage(reader="NibabelReader", image_only=True),
+                SaveImage(output_dir=self.test_dir, output_ext=output_ext, savepath_in_metadict=savepath_in_metadict),
+                MappingJson(mapping_json_path=self.mapping_json_path),
+            ]
+        )
+
+        if savepath_in_metadict:
+            transforms(input_file)
+            self.assertTrue(Path(self.mapping_json_path).exists())
+            with open(self.mapping_json_path, "r") as f:
+                mapping_data = json.load(f)
+
+            self.assertEqual(len(mapping_data), 1)
+            self.assertEqual(mapping_data[0]["input"], input_file)
+            self.assertEqual(mapping_data[0]["output"], output_file)
+        else:
+            with self.assertRaises(RuntimeError) as cm:
+                transforms(input_file)
+            the_exception = cm.exception
+            cause_exception = the_exception.__cause__
+
+            self.assertIsInstance(cause_exception, KeyError)
+            self.assertIn(
+                "Missing 'saved_to' key in metadata. Check SaveImage savepath_in_metadict.", str(cause_exception)
             )
-
-            if savepath_in_metadict:
-                result = transforms(filenames[0])
-
-                img = result
-                meta = img.meta
-
-                self.assertEqual(img.shape, expected_shape)
-
-                self.assertTrue(Path(self.mapping_json_path).exists())
-                with open(self.mapping_json_path) as f:
-                    mapping_data = json.load(f)
-
-                expected_mapping = [{"input": meta["filename_or_obj"], "output": meta["saved_to"]}]
-                self.assertEqual(expected_mapping, mapping_data)
-            else:
-                with self.assertRaises(RuntimeError) as cm:
-                    transforms(filenames[0])
-                the_exception = cm.exception
-                self.assertIsInstance(the_exception.__cause__, KeyError)
-                self.assertIn(
-                    "Missing 'saved_to' key in metadata. Check SaveImage savepath_in_metadict.",
-                    str(the_exception.__cause__),
-                )
 
 
 if __name__ == "__main__":
