@@ -53,7 +53,7 @@ class HPOGen(AlgoGen):
         raise NotImplementedError
 
     @abstractmethod
-    def set_score(self):
+    def set_score(self, *args, **kwargs):
         """Report the evaluated results to HPO."""
         raise NotImplementedError
 

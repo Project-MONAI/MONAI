@@ -42,7 +42,7 @@ class SkipConnectionWithIdx(SkipConnection):
     Inherits from SkipConnection but provides the indizes with each forward pass.
     """
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         return super().forward(input), indices
 
 
@@ -57,7 +57,7 @@ class SequentialWithIdx(nn.Sequential):
     def __init__(self, *args):
         super().__init__(*args)
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         for module in self:
             input, indices = module(input, indices)
         return input, indices
@@ -165,7 +165,7 @@ class ConvConcatDenseBlock(ConvDenseBlock):
         )
         return nn.Sequential(conv.get_submodule("adn"), conv.get_submodule("conv"))
 
-    def forward(self, input, _):
+    def forward(self, input, _):  # type: ignore[override]
         i = 0
         result = input
         result1 = input  # this will not stay this value, needed here for pylint/mypy
@@ -215,7 +215,7 @@ class Encoder(ConvConcatDenseBlock):
         super().__init__(in_channels, se_layer, dropout, kernel_size, num_filters)
         self.max_pool = max_pool
 
-    def forward(self, input, indices=None):
+    def forward(self, input, indices=None):  # type: ignore[override]
         input, indices = self.max_pool(input)
 
         out_block, _ = super().forward(input, None)
@@ -243,7 +243,7 @@ class Decoder(ConvConcatDenseBlock):
         super().__init__(in_channels, se_layer, dropout, kernel_size, num_filters)
         self.un_pool = un_pool
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         out_block, _ = super().forward(input, None)
         out_block = self.un_pool(out_block, indices)
         return out_block, None
@@ -270,7 +270,7 @@ class Bottleneck(ConvConcatDenseBlock):
         self.max_pool = max_pool
         self.un_pool = un_pool
 
-    def forward(self, input, indices):
+    def forward(self, input, indices):  # type: ignore[override]
         out_block, indices = self.max_pool(input)
         out_block, _ = super().forward(out_block, None)
         out_block = self.un_pool(out_block, indices)
