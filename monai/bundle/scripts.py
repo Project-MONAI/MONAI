@@ -27,6 +27,7 @@ from typing import Any, Callable
 import torch
 from torch.cuda import is_available
 
+from monai._version import get_versions
 from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
@@ -336,6 +337,23 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
     return Path(bundle_dir)
 
 
+def _check_monai_version(bundle_dir: PathLike) -> None:
+    """Get the `monai_versions` from the metadata.json and compare if it is smaller than the package version"""
+    metadata_file = Path(bundle_dir) / "configs" / "metadata.json"
+    if not metadata_file.exists():
+        logger.warning(f"metadata file not found in {metadata_file}.")
+        return
+    with open(metadata_file, "r") as f:
+        metadata = json.load(f)
+    monai_version = metadata.get("monai_version", None)
+    version_dict = get_versions()
+    package_version = version_dict.get("version", None)
+    if package_version and monai_version and package_version < monai_version:
+        logger.warning(
+            f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}."
+        )
+
+
 def download(
     name: str | None = None,
     version: str | None = None,
@@ -500,6 +518,8 @@ def download(
                 "Currently only download from `url`, source 'github', 'monaihosting', 'huggingface_hub' or 'ngc' are implemented,"
                 f"got source: {source_}."
             )
+
+    _check_monai_version(bundle_dir_)
 
 
 @deprecated_arg("net_name", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
