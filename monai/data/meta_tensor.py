@@ -580,7 +580,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             img.affine = MetaTensor.get_default_affine()
         return img
 
-    def __repr__(self, *, Any = ...):
+    def __repr__(self):  # type: ignore[override]
         """
         Prints a representation of the tensor.
         Prepends "meta" to ``torch.Tensor.__repr__``.
