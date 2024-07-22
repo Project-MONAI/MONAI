@@ -16,55 +16,50 @@ import os
 import shutil
 import tempfile
 import unittest
-from pathlib import Path
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
-from tests.utils import TEST_NDARRAYS, make_nifti_image
+from monai.data import NibabelWriter
 from monai.transforms import Compose, LoadImage, MappingJson, SaveImage
-
-TESTS = []
-for p in TEST_NDARRAYS:
-    for q in TEST_NDARRAYS:
-        TEST_IMAGE = p(np.arange(24).reshape((2, 4, 3)))
-        TEST_AFFINE = q(
-            np.array(
-                [[-5.3, 0.0, 0.0, 102.01], [0.0, 0.52, 2.17, -7.50], [-0.0, 1.98, -0.26, -23.12], [0.0, 0.0, 0.0, 1.0]]
-            )
-        )
-        TESTS.append([TEST_IMAGE, TEST_AFFINE, True])
-        TESTS.append([TEST_IMAGE, TEST_AFFINE, False])
 
 
 class TestMappingJson(unittest.TestCase):
     def setUp(self):
-        self.test_dir = tempfile.mkdtemp()
-        self.mapping_json_path = os.path.join(self.test_dir, "mapping.json")
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.mapping_json_path = os.path.join(self.temp_dir.name, "mapping.json")
 
     def tearDown(self):
-        shutil.rmtree(self.test_dir, ignore_errors=True)
+        self.temp_dir.cleanup()
 
-    @parameterized.expand(TESTS)
-    def test_mapping_json(self, array, affine, savepath_in_metadict):
-        name = "test_image"
+    @parameterized.expand([(True,), (False,)])
+    def test_mapping_json(self, savepath_in_metadict):
+        image_data = np.arange(48, dtype=np.uint8).reshape(1, 2, 3, 8)
         output_ext = ".nii.gz"
-        test_image_name = make_nifti_image(array, affine, fname=os.path.join(self.test_dir, name))
+        name = "test_image"
 
-        input_file = os.path.join(self.test_dir, test_image_name)
-        output_file = os.path.join(self.test_dir, name, name + "_trans" + output_ext)
+        input_file = os.path.join(self.temp_dir.name, name + output_ext)
+        output_file = os.path.join(self.temp_dir.name, name, name + "_trans" + output_ext)
+
+        writer = NibabelWriter()
+        writer.set_data_array(image_data, channel_dim=None)
+        writer.set_metadata({"affine": np.eye(4), "original_affine": np.eye(4)})
+        writer.write(input_file)
 
         transforms = Compose(
             [
                 LoadImage(reader="NibabelReader", image_only=True),
-                SaveImage(output_dir=self.test_dir, output_ext=output_ext, savepath_in_metadict=savepath_in_metadict),
+                SaveImage(
+                    output_dir=self.temp_dir.name, output_ext=output_ext, savepath_in_metadict=savepath_in_metadict
+                ),
                 MappingJson(mapping_json_path=self.mapping_json_path),
             ]
         )
 
         if savepath_in_metadict:
             transforms(input_file)
-            self.assertTrue(Path(self.mapping_json_path).exists())
+            self.assertTrue(os.path.exists(self.mapping_json_path))
             with open(self.mapping_json_path) as f:
                 mapping_data = json.load(f)
 
