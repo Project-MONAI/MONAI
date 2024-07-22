@@ -108,7 +108,6 @@ class TestViT(unittest.TestCase):
     @parameterized.expand(TEST_CASE_Vit[:1])
     @SkipIfBeforePyTorchVersion((1, 9))
     def test_script(self, input_param, input_shape, _):
-        print(input_param)
         net = ViT(**(input_param))
         net.eval()
         with torch.no_grad():

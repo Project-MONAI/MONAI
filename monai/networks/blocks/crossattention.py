@@ -102,7 +102,6 @@ class CrossAttentionBlock(nn.Module):
         self.causal = causal
         self.sequence_length = sequence_length
 
-        self.causal_mask = torch.Tensor()
         if causal and sequence_length is not None:
             # causal mask to ensure that attention is only applied to the left in the input sequence
             self.register_buffer(
@@ -110,6 +109,8 @@ class CrossAttentionBlock(nn.Module):
                 torch.tril(torch.ones(sequence_length, sequence_length)).view(1, 1, sequence_length, sequence_length),
             )
             self.causal_mask: torch.Tensor
+        else:
+            self.causal_mask = torch.Tensor()
 
         self.att_mat = torch.Tensor()
         self.rel_positional_embedding = (
