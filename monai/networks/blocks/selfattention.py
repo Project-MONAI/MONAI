@@ -98,6 +98,7 @@ class SABlock(nn.Module):
         self.causal = causal
         self.sequence_length = sequence_length
 
+        self.causal_mask = torch.Tensor()
         if causal and sequence_length is not None:
             # causal mask to ensure that attention is only applied to the left in the input sequence
             self.register_buffer(
