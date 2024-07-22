@@ -459,10 +459,10 @@ class SpatialCrop(Crop):
 
     def __init__(
         self,
-        roi_center: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_size: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_start: Sequence[int] | NdarrayOrTensor | None = None,
-        roi_end: Sequence[int] | NdarrayOrTensor | None = None,
+        roi_center: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_size: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_start: Sequence[int] | int | NdarrayOrTensor | None = None,
+        roi_end: Sequence[int] | int | NdarrayOrTensor | None = None,
         roi_slices: Sequence[slice] | None = None,
         lazy: bool = False,
     ) -> None:

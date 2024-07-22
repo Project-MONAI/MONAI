@@ -214,7 +214,7 @@ class CAMBase:
         acti_map = self.upsampler(img_spatial)(acti_map)
         return self.postprocessing(acti_map)
 
-    def __call__(self):
+    def __call__(self, **kwargs):
         raise NotImplementedError()
 
 
