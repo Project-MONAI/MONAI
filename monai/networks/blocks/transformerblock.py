@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 
@@ -73,7 +75,7 @@ class TransformerBlock(nn.Module):
             hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, qkv_bias=qkv_bias, causal=False
         )
 
-    def forward(self, x: torch.Tensor, context: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, context: Optional[torch.Tensor] = None) -> torch.Tensor:
         x = x + self.attn(self.norm1(x))
         if self.with_cross_attention:
             x = x + self.cross_attn(self.norm_cross_attn(x), context=context)
