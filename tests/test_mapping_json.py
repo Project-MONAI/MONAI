@@ -13,12 +13,10 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import tempfile
 import unittest
 
 import numpy as np
-import torch
 from parameterized import parameterized
 
 from monai.data import NibabelWriter
