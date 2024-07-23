@@ -28,7 +28,7 @@ from monai.transforms import (
     SobelGradients,
 )
 from monai.transforms.transform import Transform
-from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, sum, unique
+from monai.transforms.utils_pytorch_numpy_unification import max, maximum, min, sum, unique, where
 from monai.utils import TransformBackends, convert_to_numpy, optional_import
 from monai.utils.misc import ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
@@ -162,7 +162,8 @@ class GenerateWatershedMask(Transform):
         pred = label(pred)[0]
         if self.remove_small_objects is not None:
             pred = self.remove_small_objects(pred)
-        pred[pred > 0] = 1
+        pred_indices = np.where(pred > 0)
+        pred[pred_indices] = 1
 
         return convert_to_dst_type(pred, prob_map, dtype=self.dtype)[0]
 
@@ -338,7 +339,8 @@ class GenerateWatershedMarkers(Transform):
         instance_border = instance_border >= self.threshold  # uncertain area
 
         marker = mask - convert_to_dst_type(instance_border, mask)[0]  # certain foreground
-        marker[marker < 0] = 0
+        marker_indices = where(marker < 0)
+        marker[marker_indices] = 0  # type: ignore[index]
         marker = self.postprocess_fn(marker)
         marker = convert_to_numpy(marker)
 
@@ -635,7 +637,7 @@ class GenerateInstanceType(Transform):
 
         seg_map_crop = convert_to_dst_type(seg_map_crop == instance_id, type_map_crop, dtype=bool)[0]
 
-        inst_type = type_map_crop[seg_map_crop]
+        inst_type = type_map_crop[seg_map_crop]  # type: ignore[index]
         type_list, type_pixels = unique(inst_type, return_counts=True)
         type_list = list(zip(type_list, type_pixels))
         type_list = sorted(type_list, key=lambda x: x[1], reverse=True)
