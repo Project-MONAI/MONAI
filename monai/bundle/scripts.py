@@ -289,6 +289,33 @@ def _get_latest_bundle_version_monaihosting(name):
     return model_info["model"]["latestVersionIdStr"]
 
 
+def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
+    """Examine if the package version is compatible with the MONAI version in the metadata."""
+    version_dict = get_versions()
+    package_version = version_dict.get("version", None)
+    if package_version is None:
+        return False, "Package version is not available. Skipping version check."
+    # treat rc versions as the same as the release version
+    package_version = re.sub(r"rc\d.*", "", package_version)
+    monai_version = re.sub(r"rc\d.*", "", monai_version)
+    if package_version < monai_version:
+        return False, f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}."
+    return True, ""
+
+
+def _check_monai_version(bundle_dir: PathLike) -> None:
+    """Get the `monai_versions` from the metadata.json and compare if it is smaller than the package version"""
+    metadata_file = Path(bundle_dir) / "configs" / "metadata.json"
+    if not metadata_file.exists():
+        logger.warning(f"metadata file not found in {metadata_file}.")
+        return
+    with open(metadata_file, "r") as f:
+        metadata = json.load(f)
+    is_compatible, msg = _examine_monai_version(metadata["monai_version"])
+    if not is_compatible:
+        logger.warning(msg)
+
+
 def _list_latest_versions(data, max_versions: int = 3):
     """
     Extract the latest versions from the data dictionary.
@@ -325,8 +352,6 @@ def _list_latest_versions(data, max_versions: int = 3):
 def _get_latest_bundle_version_ngc(
     name: str, repo: str = None, headers: dict | None = None
 ) -> dict[str, list[str] | str]:
-    version_dict = get_versions()
-    package_version = version_dict.get("version", None)
     base_url = _get_ngc_private_base_url(repo) if repo else _get_ngc_base_url()
     version_endpoint = base_url + f"/{name.lower()}/versions/"
 
@@ -341,14 +366,13 @@ def _get_latest_bundle_version_ngc(
 
         for version in latest_versions:
             file_endpoint = base_url + f"/{name.lower()}/versions/{version}/files/configs/metadata.json"
-            try:
-                resp = requests_get(file_endpoint, headers=headers)
-                metadata = json.loads(resp.text)
-                # if the package version is not available or the model is compatible with the package version
-                if not package_version or metadata["monai_version"] <= package_version:
-                    return version
-            except Exception as e:
-                raise ValueError(f"Failed to get metadata from {file_endpoint}.") from e
+            resp = requests_get(file_endpoint, headers=headers)
+            metadata = json.loads(resp.text)
+            resp.raise_for_status()
+            # if the package version is not available or the model is compatible with the package version
+            is_compatible, _ = _examine_monai_version(metadata["monai_version"])
+            if is_compatible:
+                 return version
 
         # if no compatible version is found, return the latest version
         return latest_versions[0]
@@ -393,27 +417,6 @@ def _process_bundle_dir(bundle_dir: PathLike | None = None) -> Path:
         else:
             raise ValueError("bundle_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
     return Path(bundle_dir)
-
-
-def _check_monai_version(bundle_dir: PathLike) -> None:
-    """Get the `monai_versions` from the metadata.json and compare if it is smaller than the package version"""
-    metadata_file = Path(bundle_dir) / "configs" / "metadata.json"
-    if not metadata_file.exists():
-        logger.warning(f"metadata file not found in {metadata_file}.")
-        return
-    with open(metadata_file, "r") as f:
-        metadata = json.load(f)
-    monai_version = metadata.get("monai_version", None)
-    version_dict = get_versions()
-    package_version = version_dict.get("version", None)
-    if package_version and monai_version:
-        # treat rc versions as the same as the release version
-        package_version = re.sub(r"rc\d.*", "", package_version)
-        monai_version = re.sub(r"rc\d.*", "", monai_version)
-        if package_version < monai_version:
-            logger.warning(
-                f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}."
-            )
 
 
 def download(
