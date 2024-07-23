@@ -306,9 +306,9 @@ def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _check_monai_version(bundle_dir: PathLike) -> None:
+def _check_monai_version(bundle_dir: PathLike, name: str) -> None:
     """Get the `monai_versions` from the metadata.json and compare if it is smaller than the package version"""
-    metadata_file = Path(bundle_dir) / "configs" / "metadata.json"
+    metadata_file = Path(bundle_dir) / name / "configs" / "metadata.json"
     if not metadata_file.exists():
         logger.warning(f"metadata file not found in {metadata_file}.")
         return
@@ -585,7 +585,7 @@ def download(
                 f"got source: {source_}."
             )
 
-    _check_monai_version(bundle_dir_)
+    _check_monai_version(bundle_dir_, name_)
 
 
 @deprecated_arg("net_name", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")

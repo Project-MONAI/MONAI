@@ -16,6 +16,7 @@ import os
 import tempfile
 import unittest
 from unittest.case import skipUnless
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -24,6 +25,7 @@ from parameterized import parameterized
 import monai.networks.nets as nets
 from monai.apps import check_hash
 from monai.bundle import ConfigParser, create_workflow, load
+from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
 from monai.utils import optional_import
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
@@ -206,6 +208,55 @@ class TestDownload(unittest.TestCase):
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
+
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
+    def test_examine_monai_version(self, mock_get_versions):
+        self.assertTrue(_examine_monai_version("1.1")[0])  # Should return True, compatible
+        self.assertTrue(_examine_monai_version("1.2rc1")[0])  # Should return True, compatible
+        self.assertFalse(_examine_monai_version("1.3")[0])  # Should return False, not compatible
+
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2rc1"})
+    def test_examine_monai_version_rc(self, mock_get_versions):
+        self.assertTrue(_examine_monai_version("1.2")[0])  # Should return True, compatible
+        self.assertFalse(_examine_monai_version("1.3")[0])  # Should return False, not compatible
+
+    def test_list_latest_versions(self):
+        """Test listing of the latest versions."""
+        data = {
+            "modelVersions": [
+                {"createdDate": "2021-01-01", "versionId": "1.0"},
+                {"createdDate": "2021-01-02", "versionId": "1.1"},
+                {"createdDate": "2021-01-03", "versionId": "1.2"},
+            ]
+        }
+        self.assertEqual(_list_latest_versions(data), ["1.2", "1.1", "1.0"])
+        self.assertEqual(_list_latest_versions(data, max_versions=2), ["1.2", "1.1"])
+        data = {
+            "modelVersions": [
+                {"createdDate": "2021-01-01", "versionId": "1.0"},
+                {"createdDate": "2021-01-02", "versionId": "1.1"},
+            ]
+        }
+        self.assertEqual(_list_latest_versions(data), ["1.1", "1.0"])
+
+    @skip_if_quick
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
+    def test_download_monaihosting(self, mock_get_versions):
+        """Test checking MONAI version from a metadata file."""
+        with patch("monai.bundle.scripts.logger") as mock_logger:
+            with tempfile.TemporaryDirectory() as tempdir:
+                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="monaihosting")
+                # Should have a warning message because the latest version is using monai > 1.2
+                mock_logger.warning.assert_called_once()
+
+    @skip_if_quick
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
+    def test_download_ngc(self, mock_get_versions):
+        """Test checking MONAI version from a metadata file."""
+        with patch("monai.bundle.scripts.logger") as mock_logger:
+            with tempfile.TemporaryDirectory() as tempdir:
+                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
+                mock_logger.warning.assert_not_called()
 
 
 @skip_if_no_cuda
