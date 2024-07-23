@@ -331,7 +331,7 @@ def _get_latest_bundle_version_ngc(
     version_endpoint = base_url + f"/{name.lower()}/versions/"
 
     if has_requests:
-        version_header = {"Accept-Encoding": "gzip, deflate"}  # Excluding 'zstd'
+        version_header = {"Accept-Encoding": "gzip, deflate"}  # Excluding 'zstd' to fit NGC requirements
         if headers:
             version_header.update(headers)
         resp = requests_get(version_endpoint, headers=version_header)
