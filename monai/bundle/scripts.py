@@ -296,33 +296,42 @@ def _list_latest_versions(data, max_versions: int = 3):
     Args:
         data: the data dictionary.
         max_versions: the maximum number of versions to return.
-    
+
     Returns:
         versions of the latest models in the reverse order of creation date, e.g. ['1.0.0', '0.9.0', '0.8.0'].
     """
     # Check if the data is a dictionary and it has the key 'modelVersions'
-    if not isinstance(data, dict) or 'modelVersions' not in data:
+    if not isinstance(data, dict) or "modelVersions" not in data:
         raise ValueError("The data is not a dictionary or it does not have the key 'modelVersions'.")
 
     # Extract the list of model versions
-    model_versions = data['modelVersions']
+    model_versions = data["modelVersions"]
 
-    if not isinstance(model_versions, list) or len(model_versions) == 0 or "createdDate" not in model_versions[0] or "versionId" not in model_versions[0]:
-        raise ValueError("The model versions are not a list or it is empty or it does not have the keys 'createdDate' and 'versionId'.")
-    
+    if (
+        not isinstance(model_versions, list)
+        or len(model_versions) == 0
+        or "createdDate" not in model_versions[0]
+        or "versionId" not in model_versions[0]
+    ):
+        raise ValueError(
+            "The model versions are not a list or it is empty or it does not have the keys 'createdDate' and 'versionId'."
+        )
+
     # Sort the versions by the 'createdDate' in descending order
-    sorted_versions = sorted(model_versions, key=lambda x: x['createdDate'], reverse=True)
+    sorted_versions = sorted(model_versions, key=lambda x: x["createdDate"], reverse=True)
     return [v["versionId"] for v in sorted_versions[:max_versions]]
 
 
-def _get_latest_bundle_version_ngc(name: str, repo: str = None, headers: dict | None = None) -> dict[str, list[str] | str]:
+def _get_latest_bundle_version_ngc(
+    name: str, repo: str = None, headers: dict | None = None
+) -> dict[str, list[str] | str]:
     version_dict = get_versions()
     package_version = version_dict.get("version", None)
     base_url = _get_ngc_private_base_url(repo) if repo else _get_ngc_base_url()
     version_endpoint = base_url + f"/{name.lower()}/versions/"
 
     if has_requests:
-        version_header = {'Accept-Encoding': 'gzip, deflate'}  # Excluding 'zstd'
+        version_header = {"Accept-Encoding": "gzip, deflate"}  # Excluding 'zstd'
         if headers:
             version_header.update(headers)
         resp = requests_get(version_endpoint, headers=version_header)
@@ -340,7 +349,7 @@ def _get_latest_bundle_version_ngc(name: str, repo: str = None, headers: dict | 
                     return version
             except Exception as e:
                 raise ValueError(f"Failed to get metadata from {file_endpoint}.") from e
-        
+
         # if no compatible version is found, return the latest version
         return latest_versions[0]
     else:
