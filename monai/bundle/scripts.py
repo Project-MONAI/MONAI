@@ -299,7 +299,10 @@ def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
     package_version = re.sub(r"rc\d.*", "", package_version)
     monai_version = re.sub(r"rc\d.*", "", monai_version)
     if package_version < monai_version:
-        return False, f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}."
+        return (
+            False,
+            f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}.",
+        )
     return True, ""
 
 
@@ -372,7 +375,7 @@ def _get_latest_bundle_version_ngc(
             # if the package version is not available or the model is compatible with the package version
             is_compatible, _ = _examine_monai_version(metadata["monai_version"])
             if is_compatible:
-                 return version
+                return version
 
         # if no compatible version is found, return the latest version
         return latest_versions[0]
