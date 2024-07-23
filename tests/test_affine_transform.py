@@ -133,28 +133,17 @@ class TestToNormAffine(unittest.TestCase):
 
 class TestAffineTransform(unittest.TestCase):
 
-    def test_affine_shift(self):
-        affine = torch.as_tensor([[1.0, 0.0, 0.0], [0.0, 1.0, -1.0]])
+    @parameterized.expand(
+        [
+            (torch.as_tensor([[1.0, 0.0, 0.0], [0.0, 1.0, -1.0]]), [[[[0, 4, 1, 3], [0, 7, 6, 8], [0, 3, 5, 3]]]]),
+            (torch.as_tensor([[1.0, 0.0, -1.0], [0.0, 1.0, -1.0]]), [[[[0, 0, 0, 0], [0, 4, 1, 3], [0, 7, 6, 8]]]]),
+            (torch.as_tensor([[1.0, 0.0, -1.0], [0.0, 1.0, 0.0]]), [[[[0, 0, 0, 0], [4, 1, 3, 2], [7, 6, 8, 5]]]]),
+        ]
+    )
+    def test_affine_transforms(self, affine, expected):
         image = torch.as_tensor([[[[4.0, 1.0, 3.0, 2.0], [7.0, 6.0, 8.0, 5.0], [3.0, 5.0, 3.0, 6.0]]]])
         out = AffineTransform(align_corners=False)(image, affine)
         out = out.detach().cpu().numpy()
-        expected = [[[[0, 4, 1, 3], [0, 7, 6, 8], [0, 3, 5, 3]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5, rtol=_rtol)
-
-    def test_affine_shift_1(self):
-        affine = torch.as_tensor([[1.0, 0.0, -1.0], [0.0, 1.0, -1.0]])
-        image = torch.as_tensor([[[[4.0, 1.0, 3.0, 2.0], [7.0, 6.0, 8.0, 5.0], [3.0, 5.0, 3.0, 6.0]]]])
-        out = AffineTransform(align_corners=False)(image, affine)
-        out = out.detach().cpu().numpy()
-        expected = [[[[0, 0, 0, 0], [0, 4, 1, 3], [0, 7, 6, 8]]]]
-        np.testing.assert_allclose(out, expected, atol=1e-5, rtol=_rtol)
-
-    def test_affine_shift_2(self):
-        affine = torch.as_tensor([[1.0, 0.0, -1.0], [0.0, 1.0, 0.0]])
-        image = torch.as_tensor([[[[4.0, 1.0, 3.0, 2.0], [7.0, 6.0, 8.0, 5.0], [3.0, 5.0, 3.0, 6.0]]]])
-        out = AffineTransform(align_corners=False)(image, affine)
-        out = out.detach().cpu().numpy()
-        expected = [[[[0, 0, 0, 0], [4, 1, 3, 2], [7, 6, 8, 5]]]]
         np.testing.assert_allclose(out, expected, atol=1e-5, rtol=_rtol)
 
     def test_zoom(self):

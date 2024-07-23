@@ -71,8 +71,8 @@ class ComputeHoVerMapsDictTests(unittest.TestCase):
         for k in mask.keys():
             input_image[k] = in_type(mask[k])
         result = ComputeHoVerMapsd(keys="mask", **arguments)(input_image)[hv_key]
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(str(result.dtype).split(".")[1] == arguments.get("dtype", "float32"))
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertEqual(str(result.dtype).split(".")[1], arguments.get("dtype", "float32"))
         assert_allclose(result, hv_mask[hv_key], type_test="tensor")
 
 

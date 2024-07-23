@@ -185,7 +185,7 @@ class TestConfigParser(unittest.TestCase):
             if id in ("compute", "cls_compute"):
                 parser[f"{id}#_mode_"] = "callable"
             func = parser.get_parsed_content(id=id)
-            self.assertTrue(id in parser.ref_resolver.resolved_content)
+            self.assertIn(id, parser.ref_resolver.resolved_content)
             if id == "error_func":
                 with self.assertRaises(TypeError):
                     func(1, 2)
