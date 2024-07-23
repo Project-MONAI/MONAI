@@ -319,7 +319,7 @@ def _check_monai_version(bundle_dir: PathLike) -> None:
         logger.warning(msg)
 
 
-def _list_latest_versions(data, max_versions: int = 3):
+def _list_latest_versions(data: dict, max_versions: int = 3) -> list[str]:
     """
     Extract the latest versions from the data dictionary.
 
@@ -353,34 +353,34 @@ def _list_latest_versions(data, max_versions: int = 3):
 
 
 def _get_latest_bundle_version_ngc(
-    name: str, repo: str = None, headers: dict | None = None
-) -> dict[str, list[str] | str]:
+    name: str, repo: str | None = None, headers: dict | None = None
+) -> str:
     base_url = _get_ngc_private_base_url(repo) if repo else _get_ngc_base_url()
     version_endpoint = base_url + f"/{name.lower()}/versions/"
 
-    if has_requests:
-        version_header = {"Accept-Encoding": "gzip, deflate"}  # Excluding 'zstd' to fit NGC requirements
-        if headers:
-            version_header.update(headers)
-        resp = requests_get(version_endpoint, headers=version_header)
-        resp.raise_for_status()
-        model_info = json.loads(resp.text)
-        latest_versions = _list_latest_versions(model_info)
-
-        for version in latest_versions:
-            file_endpoint = base_url + f"/{name.lower()}/versions/{version}/files/configs/metadata.json"
-            resp = requests_get(file_endpoint, headers=headers)
-            metadata = json.loads(resp.text)
-            resp.raise_for_status()
-            # if the package version is not available or the model is compatible with the package version
-            is_compatible, _ = _examine_monai_version(metadata["monai_version"])
-            if is_compatible:
-                return version
-
-        # if no compatible version is found, return the latest version
-        return latest_versions[0]
-    else:
+    if not has_requests:
         raise ValueError("requests package is required, please install it.")
+
+    version_header = {"Accept-Encoding": "gzip, deflate"}  # Excluding 'zstd' to fit NGC requirements
+    if headers:
+        version_header.update(headers)
+    resp = requests_get(version_endpoint, headers=version_header)
+    resp.raise_for_status()
+    model_info = json.loads(resp.text)
+    latest_versions = _list_latest_versions(model_info)
+
+    for version in latest_versions:
+        file_endpoint = base_url + f"/{name.lower()}/versions/{version}/files/configs/metadata.json"
+        resp = requests_get(file_endpoint, headers=headers)
+        metadata = json.loads(resp.text)
+        resp.raise_for_status()
+        # if the package version is not available or the model is compatible with the package version
+        is_compatible, _ = _examine_monai_version(metadata["monai_version"])
+        if is_compatible:
+            return version
+
+    # if no compatible version is found, return the latest version
+    return latest_versions[0]
 
 
 def _get_latest_bundle_version(
