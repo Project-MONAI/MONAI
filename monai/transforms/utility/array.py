@@ -51,7 +51,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices, linalg_inv
 from monai.utils import (
     MetaKeys,
     TraceKeys,
@@ -1715,3 +1715,48 @@ class RandImageFilter(RandomizableTransform):
         if self._do_transform:
             img = self.filter(img)
         return img
+
+
+class ImageToWorldSpace(Transform):
+    """
+    Transform points from image coordinates to world coordinates.
+    
+    Parameters:
+    affine : A 3x3 or 4x4 affine transformation matrix.
+    
+    Returns:
+    The (x, y, z) coordinates in world space.
+    """
+
+    def __init__(self, affine, dtype) -> None:
+        super().__init__()
+        self.affine = affine
+        self.dtype = dtype
+
+    def __call__(self, data: Any):
+        """
+        data (tuple or list): The (x, y, z) coordinates in image space.
+        
+        """
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
+        image_homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
+        world_homogeneous = torch.matmul(self.affine, image_homogeneous.T)
+        out, *_ = convert_to_dst_type(world_homogeneous, data, dtype=self.dtype)
+        return out
+
+
+class WorldToImageSpace(Transform):
+    def __init__(self, affine) -> None:
+        super().__init__()
+        self.affine = affine
+
+    def __call__(self, data: Any):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        data_: torch.Tensor = convert_to_tensor(data, track_meta=False)
+
+        inv_affine = linalg_inv(self.affine)
+        world_homogeneous = concatenate((data_, np.ones((data_.shape[0], 1))), axis=1)    
+        voxel_homogeneous = torch.matmul(inv_affine, world_homogeneous.T)
+        out, *_ = convert_to_dst_type(voxel_homogeneous, data)
+        return out
