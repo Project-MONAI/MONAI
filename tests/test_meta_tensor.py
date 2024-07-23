@@ -221,9 +221,9 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_get_set_meta_fns(self):
         set_track_meta(False)
-        self.assertEqual(get_track_meta(), False)
+        self.assertFalse(get_track_meta())
         set_track_meta(True)
-        self.assertEqual(get_track_meta(), True)
+        self.assertTrue(get_track_meta())
 
     @parameterized.expand(TEST_DEVICES)
     def test_torchscript(self, device):

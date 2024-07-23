@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import enum
 import functools
+import importlib.util
 import os
 import pdb
 import re
@@ -208,9 +209,11 @@ def load_submodules(
     ):
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
-                mod = import_module(name)
-                importer.find_spec(name).loader.load_module(name)  # type: ignore
-                submodules.append(mod)
+                mod_spec = importer.find_spec(name)  # type: ignore
+                if mod_spec and mod_spec.loader:
+                    mod = importlib.util.module_from_spec(mod_spec)
+                    mod_spec.loader.exec_module(mod)
+                    submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
@@ -272,7 +275,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return pdb.runcall(component, **kwargs)
     except Exception as e:
         raise RuntimeError(
-            f"Failed to instantiate component '{__path}' with kwargs: {kwargs}"
+            f"Failed to instantiate component '{__path}' with keywords: {','.join(kwargs.keys())}"
             f"\n set '_mode_={CompInitMode.DEBUG}' to enter the debugging mode."
         ) from e
 

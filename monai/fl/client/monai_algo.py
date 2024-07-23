@@ -134,12 +134,14 @@ class MonaiAlgoStats(ClientAlgoStats):
 
         Args:
             extra: Dict with additional information that should be provided by FL system,
-                i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+                i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
+                You can diable the logging logic in the monai bundle by setting {ExtraItems.LOGGING_FILE} to False.
 
         """
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        logging_file = extra.get(ExtraItems.LOGGING_FILE, None)
         self.logger.info(f"Initializing {self.client_name} ...")
 
         # FL platform needs to provide filepath to configuration files
@@ -149,7 +151,7 @@ class MonaiAlgoStats(ClientAlgoStats):
         if self.workflow is None:
             config_train_files = self._add_config_files(self.config_train_filename)
             self.workflow = ConfigWorkflow(
-                config_file=config_train_files, meta_file=None, logging_file=None, workflow_type="train"
+                config_file=config_train_files, meta_file=None, logging_file=logging_file, workflow_type="train"
             )
         self.workflow.initialize()
         self.workflow.bundle_root = self.bundle_root
@@ -412,13 +414,15 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
         Args:
             extra: Dict with additional information that should be provided by FL system,
-                i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+                i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
+                You can diable the logging logic in the monai bundle by setting {ExtraItems.LOGGING_FILE} to False.
 
         """
         self._set_cuda_device()
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        logging_file = extra.get(ExtraItems.LOGGING_FILE, None)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.logger.info(f"Initializing {self.client_name} ...")
         # FL platform needs to provide filepath to configuration files
@@ -434,7 +438,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.train_workflow = ConfigWorkflow(
                 config_file=config_train_files,
                 meta_file=None,
-                logging_file=None,
+                logging_file=logging_file,
                 workflow_type="train",
                 **self.train_kwargs,
             )
@@ -459,7 +463,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.eval_workflow = ConfigWorkflow(
                 config_file=config_eval_files,
                 meta_file=None,
-                logging_file=None,
+                logging_file=logging_file,
                 workflow_type=self.eval_workflow_name,
                 **self.eval_kwargs,
             )

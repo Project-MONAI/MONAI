@@ -289,10 +289,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         mode = self.get_config().get("_mode_", CompInitMode.DEFAULT)
         args = self.resolve_args()
         args.update(kwargs)
-        try:
-            return instantiate(modname, mode, **args)
-        except Exception as e:
-            raise RuntimeError(f"Failed to instantiate {self}") from e
+        return instantiate(modname, mode, **args)
 
 
 class ConfigExpression(ConfigItem):

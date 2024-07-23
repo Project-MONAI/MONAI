@@ -408,6 +408,11 @@ Layers
 .. autoclass:: LLTM
     :members:
 
+`ConjugateGradient`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConjugateGradient
+    :members:
+
 `Utilities`
 ~~~~~~~~~~~
 .. automodule:: monai.networks.layers.convutils
@@ -484,6 +489,11 @@ Nets
 `ResNet`
 ~~~~~~~~
 .. autoclass:: ResNet
+  :members:
+
+`ResNetFeatures`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ResNetFeatures
   :members:
 
 `SENet`

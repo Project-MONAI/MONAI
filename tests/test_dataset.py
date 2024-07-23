@@ -23,7 +23,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data import Dataset
-from monai.transforms import Compose, LoadImaged, SimulateDelayd
+from monai.transforms import Compose, Lambda, LoadImage, LoadImaged, SimulateDelay, SimulateDelayd
 from tests.test_compose import TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES, data_from_keys
 
 TEST_CASE_1 = [(128, 128, 128)]
@@ -97,6 +97,72 @@ class TestDataset(unittest.TestCase):
     def test_dataset_lazy_on_call(self):
         data = np.zeros((1, 5, 5))
         data[0, 0:2, 0:2] = 1
+
+
+class TestTupleDataset(unittest.TestCase):
+
+    @parameterized.expand([TEST_CASE_1])
+    def test_shape(self, expected_shape):
+        test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
+        with tempfile.TemporaryDirectory() as tempdir:
+            nib.save(test_image, os.path.join(tempdir, "test_image1.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_label1.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_image2.nii.gz"))
+            nib.save(test_image, os.path.join(tempdir, "test_label2.nii.gz"))
+            test_data = [
+                (os.path.join(tempdir, "test_image1.nii.gz"), os.path.join(tempdir, "test_label1.nii.gz")),
+                (os.path.join(tempdir, "test_image2.nii.gz"), os.path.join(tempdir, "test_label2.nii.gz")),
+            ]
+
+            test_transform = Compose([LoadImage(), SimulateDelay(delay_time=1e-5)])
+
+            # Here test_transform is applied element by element for the tuple.
+            dataset = Dataset(data=test_data, transform=test_transform)
+            data1 = dataset[0]
+            data2 = dataset[1]
+
+            # Output is a list/tuple
+            self.assertTrue(isinstance(data1, (list, tuple)))
+            self.assertTrue(isinstance(data2, (list, tuple)))
+
+            # Number of elements are 2
+            self.assertEqual(len(data1), 2)
+            self.assertEqual(len(data2), 2)
+
+            # Output shapes are as expected
+            self.assertTupleEqual(data1[0].shape, expected_shape)
+            self.assertTupleEqual(data1[1].shape, expected_shape)
+            self.assertTupleEqual(data2[0].shape, expected_shape)
+            self.assertTupleEqual(data2[1].shape, expected_shape)
+
+            # Here test_transform is applied to the tuple as a whole.
+            test_transform = Compose(
+                [
+                    # LoadImage creates a channel-stacked image when applied to a tuple
+                    LoadImage(),
+                    # Get the channel-stacked image and the label
+                    Lambda(func=lambda x: (x[0].permute(2, 1, 0), x[1])),
+                ],
+                map_items=False,
+            )
+
+            dataset = Dataset(data=test_data, transform=test_transform)
+            data1 = dataset[0]
+            data2 = dataset[1]
+
+            # Output is a list/tuple
+            self.assertTrue(isinstance(data1, (list, tuple)))
+            self.assertTrue(isinstance(data2, (list, tuple)))
+
+            # Number of elements are 2
+            self.assertEqual(len(data1), 2)
+            self.assertEqual(len(data2), 2)
+
+            # Output shapes are as expected
+            self.assertTupleEqual(data1[0].shape, expected_shape)
+            self.assertTupleEqual(data1[1].shape, expected_shape)
+            self.assertTupleEqual(data2[0].shape, expected_shape)
+            self.assertTupleEqual(data2[1].shape, expected_shape)
 
 
 class TestDatsesetWithLazy(unittest.TestCase):
