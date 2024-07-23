@@ -16,7 +16,6 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
 from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
