@@ -312,7 +312,7 @@ def _check_monai_version(bundle_dir: PathLike) -> None:
     if not metadata_file.exists():
         logger.warning(f"metadata file not found in {metadata_file}.")
         return
-    with open(metadata_file, "r") as f:
+    with open(metadata_file) as f:
         metadata = json.load(f)
     is_compatible, msg = _examine_monai_version(metadata["monai_version"])
     if not is_compatible:
