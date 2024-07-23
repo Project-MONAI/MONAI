@@ -352,9 +352,7 @@ def _list_latest_versions(data: dict, max_versions: int = 3) -> list[str]:
     return [v["versionId"] for v in sorted_versions[:max_versions]]
 
 
-def _get_latest_bundle_version_ngc(
-    name: str, repo: str | None = None, headers: dict | None = None
-) -> str:
+def _get_latest_bundle_version_ngc(name: str, repo: str | None = None, headers: dict | None = None) -> str:
     base_url = _get_ngc_private_base_url(repo) if repo else _get_ngc_base_url()
     version_endpoint = base_url + f"/{name.lower()}/versions/"
 
