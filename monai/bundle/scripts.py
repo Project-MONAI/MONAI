@@ -28,7 +28,6 @@ import torch
 from torch.cuda import is_available
 
 from monai._version import get_versions
-from monai.apps.mmars.mmars import _get_all_ngc_models
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
@@ -169,17 +168,28 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
     return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
 
 
+def _get_ngc_base_url() -> str:
+    return "https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit"
+
+
 def _get_ngc_bundle_url(model_name: str, version: str) -> str:
-    return f"https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit/{model_name.lower()}/versions/{version}/zip"
+    return f"{_get_ngc_base_url()}/{model_name.lower()}/versions/{version}/zip"
+
+
+def _get_ngc_private_base_url(repo: str) -> str:
+    return f"https://api.ngc.nvidia.com/v2/{repo}/models"
 
 
 def _get_ngc_private_bundle_url(model_name: str, version: str, repo: str) -> str:
-    return f"https://api.ngc.nvidia.com/v2/{repo}/models/{model_name.lower()}/versions/{version}/zip"
+    return f"{_get_ngc_private_base_url(repo)}/{model_name.lower()}/versions/{version}/zip"
+
+
+def _get_monaihosting_base_url() -> str:
+    return "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
 
 
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
-    monaihosting_root_path = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-    return f"{monaihosting_root_path}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
+    return f"{_get_monaihosting_base_url()}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
 
 
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
@@ -268,8 +278,7 @@ def _get_ngc_token(api_key, retry=0):
 
 
 def _get_latest_bundle_version_monaihosting(name):
-    url = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-    full_url = f"{url}/{name.lower()}"
+    full_url = f"{_get_monaihosting_base_url()}/{name.lower()}"
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
         resp = requests_get(full_url)
@@ -280,18 +289,62 @@ def _get_latest_bundle_version_monaihosting(name):
     return model_info["model"]["latestVersionIdStr"]
 
 
-def _get_latest_bundle_version_private_registry(name, repo, headers=None):
-    url = f"https://api.ngc.nvidia.com/v2/{repo}/models"
-    full_url = f"{url}/{name.lower()}"
-    requests_get, has_requests = optional_import("requests", name="get")
+def _list_latest_versions(data, max_versions: int = 3):
+    """
+    Extract the latest versions from the data dictionary.
+
+    Args:
+        data: the data dictionary.
+        max_versions: the maximum number of versions to return.
+    
+    Returns:
+        versions of the latest models in the reverse order of creation date, e.g. ['1.0.0', '0.9.0', '0.8.0'].
+    """
+    # Check if the data is a dictionary and it has the key 'modelVersions'
+    if not isinstance(data, dict) or 'modelVersions' not in data:
+        raise ValueError("The data is not a dictionary or it does not have the key 'modelVersions'.")
+
+    # Extract the list of model versions
+    model_versions = data['modelVersions']
+
+    if not isinstance(model_versions, list) or len(model_versions) == 0 or "createdDate" not in model_versions[0] or "versionId" not in model_versions[0]:
+        raise ValueError("The model versions are not a list or it is empty or it does not have the keys 'createdDate' and 'versionId'.")
+    
+    # Sort the versions by the 'createdDate' in descending order
+    sorted_versions = sorted(model_versions, key=lambda x: x['createdDate'], reverse=True)
+    return [v["versionId"] for v in sorted_versions[:max_versions]]
+
+
+def _get_latest_bundle_version_ngc(name: str, repo: str = None, headers: dict | None = None) -> dict[str, list[str] | str]:
+    version_dict = get_versions()
+    package_version = version_dict.get("version", None)
+    base_url = _get_ngc_private_base_url(repo) if repo else _get_ngc_base_url()
+    version_endpoint = base_url + f"/{name.lower()}/versions/"
+
     if has_requests:
-        headers = {} if headers is None else headers
-        resp = requests_get(full_url, headers=headers)
+        version_header = {'Accept-Encoding': 'gzip, deflate'}  # Excluding 'zstd'
+        if headers:
+            version_header.update(headers)
+        resp = requests_get(version_endpoint, headers=version_header)
         resp.raise_for_status()
+        model_info = json.loads(resp.text)
+        latest_versions = _list_latest_versions(model_info)
+
+        for version in latest_versions:
+            file_endpoint = base_url + f"/{name.lower()}/versions/{version}/files/configs/metadata.json"
+            try:
+                resp = requests_get(file_endpoint, headers=headers)
+                metadata = json.loads(resp.text)
+                # if the package version is not available or the model is compatible with the package version
+                if not package_version or metadata["monai_version"] <= package_version:
+                    return version
+            except Exception as e:
+                raise ValueError(f"Failed to get metadata from {file_endpoint}.") from e
+        
+        # if no compatible version is found, return the latest version
+        return latest_versions[0]
     else:
-        raise ValueError("NGC API requires requests package. Please install it.")
-    model_info = json.loads(resp.text)
-    return model_info["model"]["latestVersionIdStr"]
+        raise ValueError("requests package is required, please install it.")
 
 
 def _get_latest_bundle_version(
@@ -299,17 +352,13 @@ def _get_latest_bundle_version(
 ) -> dict[str, list[str] | str] | Any | None:
     if source == "ngc":
         name = _add_ngc_prefix(name)
-        model_dict = _get_all_ngc_models(name)
-        for v in model_dict.values():
-            if v["name"] == name:
-                return v["latest"]
-        return None
+        return _get_latest_bundle_version_ngc(name)
     elif source == "monaihosting":
         return _get_latest_bundle_version_monaihosting(name)
     elif source == "ngc_private":
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
-        return _get_latest_bundle_version_private_registry(name, repo, headers)
+        return _get_latest_bundle_version_ngc(name, repo=repo, headers=headers)
     elif source == "github":
         repo_owner, repo_name, tag_name = repo.split("/")
         return get_bundle_versions(name, repo=f"{repo_owner}/{repo_name}", tag=tag_name)["latest_version"]
@@ -348,10 +397,14 @@ def _check_monai_version(bundle_dir: PathLike) -> None:
     monai_version = metadata.get("monai_version", None)
     version_dict = get_versions()
     package_version = version_dict.get("version", None)
-    if package_version and monai_version and package_version < monai_version:
-        logger.warning(
-            f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}."
-        )
+    if package_version and monai_version:
+        # treat rc versions as the same as the release version
+        package_version = re.sub(r"rc\d.*", "", package_version)
+        monai_version = re.sub(r"rc\d.*", "", monai_version)
+        if package_version < monai_version:
+            logger.warning(
+                f"Your MONAI version is {package_version}, but the bundle is built on MONAI version {monai_version}."
+            )
 
 
 def download(
