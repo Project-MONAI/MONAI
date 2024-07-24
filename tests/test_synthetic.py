@@ -47,7 +47,7 @@ class TestDiceCELoss(unittest.TestCase):
         set_determinism(seed=0)
         if dim == 2:
             img, seg = create_test_image_2d(**input_param)
-        elif dim == 3:
+        else:  # dim == 3
             img, seg = create_test_image_3d(**input_param)
         self.assertEqual(img.shape, expected_shape)
         self.assertEqual(seg.max(), expected_max_cls)

@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
+from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
 
 einops, has_einops = optional_import("einops")
@@ -28,12 +29,20 @@ TEST_CASE_SABLOCK = []
 for dropout_rate in np.linspace(0, 1, 4):
     for hidden_size in [360, 480, 600, 768]:
         for num_heads in [4, 6, 8, 12]:
-            test_case = [
-                {"hidden_size": hidden_size, "num_heads": num_heads, "dropout_rate": dropout_rate},
-                (2, 512, hidden_size),
-                (2, 512, hidden_size),
-            ]
-            TEST_CASE_SABLOCK.append(test_case)
+            for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
+                for input_size in [(16, 32), (8, 8, 8)]:
+                    test_case = [
+                        {
+                            "hidden_size": hidden_size,
+                            "num_heads": num_heads,
+                            "dropout_rate": dropout_rate,
+                            "rel_pos_embedding": rel_pos_embedding,
+                            "input_size": input_size,
+                        },
+                        (2, 512, hidden_size),
+                        (2, 512, hidden_size),
+                    ]
+                    TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
@@ -53,6 +62,27 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
+    def test_attention_dim_not_multiple_of_heads(self):
+        with self.assertRaises(ValueError):
+            SABlock(hidden_size=128, num_heads=3, dropout_rate=0.1)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_inner_dim_different(self):
+        SABlock(hidden_size=128, num_heads=4, dropout_rate=0.1, dim_head=30)
+
+    def test_causal_no_sequence_length(self):
+        with self.assertRaises(ValueError):
+            SABlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_causal(self):
+        block = SABlock(hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, save_attn=True)
+        input_shape = (1, 16, 128)
+        block(torch.randn(input_shape))
+        # check upper triangular part of the attention matrix is zero
+        assert torch.triu(block.att_mat, diagonal=1).sum() == 0
+
+    @skipUnless(has_einops, "Requires einops")
     def test_access_attn_matrix(self):
         # input format
         hidden_size = 128
