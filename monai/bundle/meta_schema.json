@@ -189,7 +189,17 @@
         },
         "references": {
             "description": "List of published referenced relating to the bundle.",
-            "type": "array"
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "supported_apps": {
+            "description": "List of supported applications, eg. 'monai-label'",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
         },
         "network_data_format": {
             "$ref": "#/$defs/network_io"
