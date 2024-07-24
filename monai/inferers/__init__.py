@@ -12,13 +12,18 @@
 from __future__ import annotations
 
 from .inferer import (
+    ControlNetDiffusionInferer,
+    ControlNetLatentDiffusionInferer,
+    DiffusionInferer,
     Inferer,
+    LatentDiffusionInferer,
     PatchInferer,
     SaliencyInferer,
     SimpleInferer,
     SliceInferer,
     SlidingWindowInferer,
     SlidingWindowInfererAdapt,
+    VQVAETransformerInferer,
 )
 from .merger import AvgMerger, Merger, ZarrAvgMerger
 from .splitter import SlidingWindowSplitter, Splitter, WSISlidingWindowSplitter
