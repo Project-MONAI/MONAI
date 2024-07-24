@@ -83,6 +83,7 @@ class MILModel(nn.Module):
             if mil_mode == "att_trans_pyramid":
                 # register hooks to capture outputs of intermediate layers
                 def forward_hook(layer_name):
+
                     def hook(module, input, output):
                         self.extra_outputs[layer_name] = output
 

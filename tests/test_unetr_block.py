@@ -102,6 +102,7 @@ for spatial_dims in range(1, 4):
 
 
 class TestResBasicBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_UNETR_BASIC_BLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         for net in [UnetrBasicBlock(**input_param)]:
@@ -124,6 +125,7 @@ class TestResBasicBlock(unittest.TestCase):
 
 
 class TestUpBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_UP_BLOCK)
     def test_shape(self, input_param, input_shape, expected_shape, skip_shape):
         net = UnetrUpBlock(**input_param)
@@ -140,6 +142,7 @@ class TestUpBlock(unittest.TestCase):
 
 
 class TestPrUpBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_PRUP_BLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UnetrPrUpBlock(**input_param)

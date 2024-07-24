@@ -153,6 +153,7 @@ TEST_CASE_PRETRAINED_6 = [
 
 
 class TestTorchVisionFCModel(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7]
         + ([TEST_CASE_8] if has_enum else [])
@@ -187,14 +188,15 @@ class TestTorchVisionFCModel(unittest.TestCase):
 
 
 class TestLookup(unittest.TestCase):
+
     def test_get_module(self):
         net = UNet(spatial_dims=2, in_channels=1, out_channels=1, channels=(4, 8, 16, 32, 64), strides=(2, 2, 2, 2))
         self.assertEqual(look_up_named_module("", net), net)
         mod = look_up_named_module("model.1.submodule.1.submodule.1.submodule.0.conv", net)
         self.assertTrue(str(mod).startswith("Conv2d"))
         self.assertIsInstance(set_named_module(net, "model", torch.nn.Identity()).model, torch.nn.Identity)
-        self.assertEqual(look_up_named_module("model.1.submodule.1.submodule.1.submodule.conv", net), None)
-        self.assertEqual(look_up_named_module("test attribute", net), None)
+        self.assertIsNone(look_up_named_module("model.1.submodule.1.submodule.1.submodule.conv", net))
+        self.assertIsNone(look_up_named_module("test attribute", net))
 
 
 if __name__ == "__main__":

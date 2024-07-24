@@ -235,6 +235,7 @@ def run_inference_test(root_dir, device="cuda:0"):
 
 @skip_if_quick
 class IntegrationSegmentation3D(DistTestCase):
+
     def setUp(self):
         set_determinism(seed=0)
 

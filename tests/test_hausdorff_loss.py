@@ -198,6 +198,7 @@ def _describe_test_case(test_func, test_number, params):
 
 @skipUnless(has_scipy, "Scipy required")
 class TestHausdorffDTLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES, doc_func=_describe_test_case)
     def test_shape(self, input_param, input_data, expected_val):
         result = HausdorffDTLoss(**input_param).forward(**input_data)
@@ -218,22 +219,18 @@ class TestHausdorffDTLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             HausdorffDTLoss(reduction=None)(chn_input, chn_target)
 
-    def test_input_warnings(self):
+    @parameterized.expand([(False, False, False), (False, True, False), (False, False, True)])
+    def test_input_warnings(self, include_background, softmax, to_onehot_y):
         chn_input = torch.ones((1, 1, 1, 3))
         chn_target = torch.ones((1, 1, 1, 3))
         with self.assertWarns(Warning):
-            loss = HausdorffDTLoss(include_background=False)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = HausdorffDTLoss(softmax=True)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = HausdorffDTLoss(to_onehot_y=True)
+            loss = HausdorffDTLoss(include_background=include_background, softmax=softmax, to_onehot_y=to_onehot_y)
             loss.forward(chn_input, chn_target)
 
 
 @skipUnless(has_scipy, "Scipy required")
 class TesLogtHausdorffDTLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_LOG, doc_func=_describe_test_case)
     def test_shape(self, input_param, input_data, expected_val):
         result = LogHausdorffDTLoss(**input_param).forward(**input_data)
@@ -254,17 +251,12 @@ class TesLogtHausdorffDTLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             LogHausdorffDTLoss(reduction=None)(chn_input, chn_target)
 
-    def test_input_warnings(self):
+    @parameterized.expand([(False, False, False), (False, True, False), (False, False, True)])
+    def test_input_warnings(self, include_background, softmax, to_onehot_y):
         chn_input = torch.ones((1, 1, 1, 3))
         chn_target = torch.ones((1, 1, 1, 3))
         with self.assertWarns(Warning):
-            loss = LogHausdorffDTLoss(include_background=False)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = LogHausdorffDTLoss(softmax=True)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = LogHausdorffDTLoss(to_onehot_y=True)
+            loss = LogHausdorffDTLoss(include_background=include_background, softmax=softmax, to_onehot_y=to_onehot_y)
             loss.forward(chn_input, chn_target)
 
 

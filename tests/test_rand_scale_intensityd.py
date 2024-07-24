@@ -20,6 +20,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandScaleIntensityd(NumpyImageTestCase2D):
+
     def test_value(self):
         key = "img"
         for p in TEST_NDARRAYS:

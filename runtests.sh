@@ -167,7 +167,7 @@ function clang_format {
 }
 
 function is_pip_installed() {
-	return $("${PY_EXE}" -c "import sys, pkgutil; sys.exit(0 if pkgutil.find_loader(sys.argv[1]) else 1)" $1)
+	return $("${PY_EXE}" -c "import sys, importlib.util; sys.exit(0 if importlib.util.find_spec(sys.argv[1]) else 1)" $1)
 }
 
 function clean_py {
@@ -738,12 +738,14 @@ fi
 # network training/inference/eval integration tests
 if [ $doNetTests = true ]
 then
+    set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}integration${noColor}"
     for i in tests/*integration_*.py
     do
         echo "$i"
         ${cmdPrefix}${cmd} "$i"
     done
+    set -e # enable exit on failure
 fi
 
 # run model zoo tests

@@ -45,6 +45,7 @@ def psnrmetric_np(max_val, y_pred, y):
 
 
 class TestRegressionMetrics(unittest.TestCase):
+
     def test_shape_reduction(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -69,22 +70,24 @@ class TestRegressionMetrics(unittest.TestCase):
                         mt = mt_fn(reduction="mean")
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate()
-                        self.assertTrue(len(out_tensor.shape) == 1)
+                        self.assertEqual(len(out_tensor.shape), 1)
 
                         mt = mt_fn(reduction="sum")
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate()
-                        self.assertTrue(len(out_tensor.shape) == 0)
+                        self.assertEqual(len(out_tensor.shape), 0)
 
                         mt = mt_fn(reduction="sum")  # test reduction arg overriding
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate(reduction="mean_channel")
-                        self.assertTrue(len(out_tensor.shape) == 1 and out_tensor.shape[0] == batch)
+                        self.assertEqual(len(out_tensor.shape), 1)
+                        self.assertEqual(out_tensor.shape[0], batch)
 
                         mt = mt_fn(reduction="sum_channel")
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate()
-                        self.assertTrue(len(out_tensor.shape) == 1 and out_tensor.shape[0] == batch)
+                        self.assertEqual(len(out_tensor.shape), 1)
+                        self.assertEqual(out_tensor.shape[0], batch)
 
     def test_compare_numpy(self):
         set_determinism(seed=123)

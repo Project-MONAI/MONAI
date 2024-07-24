@@ -55,6 +55,7 @@ for p in TEST_NDARRAYS[0:1]:
 
 
 class TestMedianSmoothd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         result = MedianSmoothd(**arguments)(image)

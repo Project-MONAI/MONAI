@@ -38,6 +38,7 @@ TEST_CASES = [
 
 @unittest.skipUnless(has_se, "squeeze_and_excitation not installed")
 class TestQuicknat(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"

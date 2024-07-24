@@ -58,6 +58,7 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestGenerateWatershedMask(unittest.TestCase):
+
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, arguments, exception_type):
         with self.assertRaises(exception_type):

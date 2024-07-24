@@ -119,6 +119,7 @@ TEST_CASE_9 = [{"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 
 
 
 class TestComputeGeneralizedDiceScore(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1])
     def test_device(self, input_data, _expected_value):
         result = compute_generalized_dice(**input_data)

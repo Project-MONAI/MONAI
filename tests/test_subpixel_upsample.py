@@ -55,9 +55,9 @@ TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA = [
     (2, 1, 32, 16, 8),
 ]
 
-TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_2D_EXTRA)
-TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_3D_EXTRA)
-TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA)
+TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_2D_EXTRA)  # type: ignore
+TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_3D_EXTRA)  # type: ignore
+TEST_CASE_SUBPIXEL.append(TEST_CASE_SUBPIXEL_CONV_BLOCK_EXTRA)  # type: ignore
 
 # add every test back with the pad/pool sequential component omitted
 for tests in list(TEST_CASE_SUBPIXEL):
@@ -68,6 +68,7 @@ for tests in list(TEST_CASE_SUBPIXEL):
 
 
 class TestSUBPIXEL(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_SUBPIXEL)
     def test_subpixel_shape(self, input_param, input_shape, expected_shape):
         net = SubpixelUpsample(**input_param)

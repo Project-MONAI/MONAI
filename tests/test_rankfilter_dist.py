@@ -23,6 +23,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedRankFilterTest(DistTestCase):
+
     def setUp(self):
         self.log_dir = tempfile.TemporaryDirectory()
 
@@ -50,6 +51,7 @@ class DistributedRankFilterTest(DistTestCase):
 
 
 class SingleRankFilterTest(unittest.TestCase):
+
     def tearDown(self) -> None:
         self.log_dir.cleanup()
 

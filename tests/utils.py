@@ -156,6 +156,7 @@ def skip_if_downloading_fails():
                 "limit",  # HTTP Error 503: Egress is over the account limit
                 "authenticate",
                 "timed out",  # urlopen error [Errno 110] Connection timed out
+                "HTTPError",  # HTTPError: 429 Client Error: Too Many Requests for huggingface hub
             )
         ):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -474,7 +475,7 @@ class DistCall:
             if self.verbose:
                 os.environ["NCCL_DEBUG"] = "INFO"
                 os.environ["NCCL_DEBUG_SUBSYS"] = "ALL"
-            os.environ["NCCL_BLOCKING_WAIT"] = str(1)
+            os.environ["TORCH_NCCL_BLOCKING_WAIT"] = str(1)
             os.environ["OMP_NUM_THREADS"] = str(1)
             os.environ["WORLD_SIZE"] = str(self.nproc_per_node * self.nnodes)
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
@@ -677,6 +678,7 @@ class NumpyImageTestCase2D(unittest.TestCase):
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
+
     def setUp(self):
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -707,6 +709,7 @@ class NumpyImageTestCase3D(unittest.TestCase):
 
 
 class TorchImageTestCase3D(NumpyImageTestCase3D):
+
     def setUp(self):
         NumpyImageTestCase3D.setUp(self)
         self.imt = torch.tensor(self.imt)

@@ -11,9 +11,10 @@
 
 from __future__ import annotations
 
+from .conjugate_gradient import ConjugateGradient
 from .convutils import calculate_out_shape, gaussian_1d, polyval, same_padding, stride_minus_kernel_padding
 from .drop_path import DropPath
-from .factories import Act, Conv, Dropout, LayerFactory, Norm, Pad, Pool, split_args
+from .factories import Act, Conv, Dropout, LayerFactory, Norm, Pad, Pool, RelPosEmbedding, split_args
 from .filtering import BilateralFilter, PHLFilter, TrainableBilateralFilter, TrainableJointBilateralFilter
 from .gmm import GaussianMixtureModel
 from .simplelayers import (
@@ -37,4 +38,5 @@ from .simplelayers import (
 )
 from .spatial_transforms import AffineTransform, grid_count, grid_grad, grid_pull, grid_push
 from .utils import get_act_layer, get_dropout_layer, get_norm_layer, get_pool_layer
+from .vector_quantizer import EMAQuantizer, VectorQuantizer
 from .weight_init import _no_grad_trunc_normal_, trunc_normal_

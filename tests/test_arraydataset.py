@@ -40,7 +40,8 @@ TEST_CASE_2 = [
 
 
 class TestCompose(Compose):
-    def __call__(self, input_, lazy):
+
+    def __call__(self, input_, lazy=False):
         img = self.transforms[0](input_)
         metadata = img.meta
         img = self.transforms[1](img)
@@ -77,6 +78,7 @@ TEST_CASE_4 = [
 
 
 class TestArrayDataset(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, img_transform, label_transform, indices, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=(128, 128, 128)).astype(float), np.eye(4))

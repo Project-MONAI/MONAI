@@ -452,7 +452,7 @@ def get_binary_kernel(window_size: Sequence[int], dtype=torch.float, device=None
 
 def median_filter(
     in_tensor: torch.Tensor,
-    kernel_size: Sequence[int] = (3, 3, 3),
+    kernel_size: Sequence[int] | int = (3, 3, 3),
     spatial_dims: int = 3,
     kernel: torch.Tensor | None = None,
     **kwargs,
@@ -552,6 +552,7 @@ class MedianFilter(nn.Module):
 
 
 class GaussianFilter(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -607,6 +608,7 @@ class GaussianFilter(nn.Module):
 
 
 class LLTMFunction(Function):
+
     @staticmethod
     def forward(ctx, input, weights, bias, old_h, old_cell):
         outputs = _C.lltm_forward(input, weights, bias, old_h, old_cell)

@@ -75,7 +75,7 @@ TEST_TRAIN_4 = [
             tracking={
                 "handlers_id": DEFAULT_HANDLERS_ID,
                 "configs": {
-                    "execute_config": f"{_data_dir}/config_executed.json",
+                    "save_execute_config": f"{_data_dir}/config_executed.json",
                     "trainer": {
                         "_target_": "MLFlowHandler",
                         "tracking_uri": path_to_uri(_data_dir) + "/mlflow_override",
@@ -181,6 +181,7 @@ TEST_GET_WEIGHTS_3 = [
 @SkipIfNoModule("ignite")
 @SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
+
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3, TEST_TRAIN_4])
     def test_train(self, input_params):
         # initialize algo
@@ -200,7 +201,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
         algo.finalize()
 
         # test experiment management
-        if "execute_config" in algo.train_workflow.parser:
+        if "save_execute_config" in algo.train_workflow.parser:
             self.assertTrue(os.path.exists(f"{_data_dir}/mlflow_override"))
             shutil.rmtree(f"{_data_dir}/mlflow_override")
             self.assertTrue(os.path.exists(f"{_data_dir}/config_executed.json"))
@@ -223,7 +224,7 @@ class TestFLMonaiAlgo(unittest.TestCase):
         algo.evaluate(data=data, extra={})
 
         # test experiment management
-        if "execute_config" in algo.eval_workflow.parser:
+        if "save_execute_config" in algo.eval_workflow.parser:
             self.assertGreater(len(list(glob.glob(f"{_data_dir}/mlflow_*"))), 0)
             for f in list(glob.glob(f"{_data_dir}/mlflow_*")):
                 shutil.rmtree(f)

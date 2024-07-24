@@ -189,7 +189,7 @@ class AnchorGenerator(nn.Module):
             w_ratios = 1 / area_scale
             h_ratios = area_scale
         # if 3d, w:h:d = 1:aspect_ratios[:,0]:aspect_ratios[:,1]
-        elif self.spatial_dims == 3:
+        else:
             area_scale = torch.pow(aspect_ratios_t[:, 0] * aspect_ratios_t[:, 1], 1 / 3.0)
             w_ratios = 1 / area_scale
             h_ratios = aspect_ratios_t[:, 0] / area_scale
@@ -199,7 +199,7 @@ class AnchorGenerator(nn.Module):
         hs = (h_ratios[:, None] * scales_t[None, :]).view(-1)
         if self.spatial_dims == 2:
             base_anchors = torch.stack([-ws, -hs, ws, hs], dim=1) / 2.0
-        elif self.spatial_dims == 3:
+        else:  # elif self.spatial_dims == 3:
             ds = (d_ratios[:, None] * scales_t[None, :]).view(-1)
             base_anchors = torch.stack([-ws, -hs, -ds, ws, hs, ds], dim=1) / 2.0
 
@@ -369,8 +369,12 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
     def __init__(
         self,
         feature_map_scales: Sequence[int] | Sequence[float] = (1, 2, 4, 8),
-        base_anchor_shapes: Sequence[Sequence[int]]
-        | Sequence[Sequence[float]] = ((32, 32, 32), (48, 20, 20), (20, 48, 20), (20, 20, 48)),
+        base_anchor_shapes: Sequence[Sequence[int]] | Sequence[Sequence[float]] = (
+            (32, 32, 32),
+            (48, 20, 20),
+            (20, 48, 20),
+            (20, 20, 48),
+        ),
         indexing: str = "ij",
     ) -> None:
         nn.Module.__init__(self)

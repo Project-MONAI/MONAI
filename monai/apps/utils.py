@@ -30,7 +30,7 @@ from urllib.request import urlopen, urlretrieve
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
-gdown, has_gdown = optional_import("gdown", "4.4")
+gdown, has_gdown = optional_import("gdown", "4.7.3")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -135,7 +135,12 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5
         logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
         return True
     actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
-    actual_hash = actual_hash_func()
+
+    if sys.version_info >= (3, 9):
+        actual_hash = actual_hash_func(usedforsecurity=False)  # allows checks on FIPS enabled machines
+    else:
+        actual_hash = actual_hash_func()
+
     try:
         with open(filepath, "rb") as f:
             for chunk in iter(lambda: f.read(1024 * 1024), b""):

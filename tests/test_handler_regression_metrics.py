@@ -46,6 +46,7 @@ def psnrmetric_np(max_val, y_pred, y):
 
 
 class TestHandlerRegressionMetrics(unittest.TestCase):
+
     def test_compute(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"

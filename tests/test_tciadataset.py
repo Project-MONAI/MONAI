@@ -23,6 +23,7 @@ from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestTciaDataset(unittest.TestCase):
+
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -107,7 +108,7 @@ class TestTciaDataset(unittest.TestCase):
             )[0]
 
         shutil.rmtree(os.path.join(testing_dir, collection))
-        try:
+        with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
             TciaDataset(
                 root_dir=testing_dir,
                 collection=collection,
@@ -116,8 +117,6 @@ class TestTciaDataset(unittest.TestCase):
                 download=False,
                 val_frac=val_frac,
             )
-        except RuntimeError as e:
-            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
 
 
 if __name__ == "__main__":

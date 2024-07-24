@@ -22,6 +22,7 @@ from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRotate90d(NumpyImageTestCase2D):
+
     def test_rotate90_default(self):
         key = "test"
         rotate = Rotate90d(keys=key)

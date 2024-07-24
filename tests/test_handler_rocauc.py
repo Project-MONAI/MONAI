@@ -21,6 +21,7 @@ from monai.transforms import Activations, AsDiscrete
 
 
 class TestHandlerROCAUC(unittest.TestCase):
+
     def test_compute(self):
         auc_metric = ROCAUC()
         act = Activations(softmax=True)

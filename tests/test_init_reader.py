@@ -19,6 +19,7 @@ from tests.utils import SkipIfNoModule
 
 
 class TestInitLoadImage(unittest.TestCase):
+
     def test_load_image(self):
         instance1 = LoadImage(image_only=False, dtype=None)
         instance2 = LoadImage(image_only=True, dtype=None)
