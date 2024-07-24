@@ -91,7 +91,7 @@ Optional keys:
 * **data_type**: type of source data used for training/validation.
 * **references**: list of published referenced relating to the model.
 * **supported_apps**: list of supported applications which use bundles, eg. 'monai-label' would be present if the bundle is compatible with MONAI Label applications.
-* **optional_packages_version**: dictionary relating optional package names to their versions. These packages are not needed but are recommended to be installed with this stated minimum version. If they are installed then specific features or optimisations may be enabled, so the README.md file for the bundle should be consulted to understand what these are for.
+* **required_packages_version**: dictionary relating required package names to their versions. These packages are needed to be installed with this stated version.
 
 The format for tensors used as inputs and outputs can be used to specify semantic meaning of these values, and later is used by software handling bundles to determine how to process and interpret this data. There are various types of image data that MONAI is uses, and other data types such as point clouds, dictionary sequences, time signals, and others. The following list is provided as a set of supported definitions of what a tensor "format" is but is not exhaustive and users can provide their own which would be left up to the model users to interpret:
 
