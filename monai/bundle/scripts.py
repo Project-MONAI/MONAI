@@ -307,7 +307,7 @@ def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
 
 
 def _check_monai_version(bundle_dir: PathLike, name: str) -> None:
-    """Get the `monai_versions` from the metadata.json and compare if it is smaller than the package version"""
+    """Get the `monai_version` from the metadata.json and compare if it is smaller than the installed `monai` package version"""
     metadata_file = Path(bundle_dir) / name / "configs" / "metadata.json"
     if not metadata_file.exists():
         logger.warning(f"metadata file not found in {metadata_file}.")
