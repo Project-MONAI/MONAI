@@ -716,15 +716,15 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                 for k in actual.keys():
                     self.assertEqual(expected[k], actual[k])
             else:
-                self.assertTrue(expected, actual)
+                self.assertEqual(expected, actual)
 
             p = deepcopy(pipeline)
             actual = execute_compose(execute_compose(data, p, start=0, end=cutoff, **flags), p, start=cutoff, **flags)
             if isinstance(actual, dict):
                 for k in actual.keys():
-                    self.assertTrue(expected[k], actual[k])
+                    self.assertEqual(expected[k], actual[k])
             else:
-                self.assertTrue(expected, actual)
+                self.assertEqual(expected, actual)
 
 
 class TestComposeCallableInput(unittest.TestCase):

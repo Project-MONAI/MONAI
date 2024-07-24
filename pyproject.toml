@@ -38,8 +38,7 @@ exclude = "monai/bundle/__main__.py"
 
 [tool.ruff]
 line-length = 133
-ignore-init-module-imports = true
-ignore = ["F401", "E741"]
+lint.ignore = ["F401", "E741"]
 
 [tool.pytype]
 # Space-separated list of files or directories to exclude.

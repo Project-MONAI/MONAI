@@ -70,6 +70,8 @@ class TestClassActivationMap(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, input_data, expected_shape):
+        model = None
+
         if input_data["model"] == "densenet2d":
             model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         if input_data["model"] == "densenet3d":
@@ -80,6 +82,7 @@ class TestClassActivationMap(unittest.TestCase):
             model = SEResNet50(spatial_dims=2, in_channels=3, num_classes=4)
         if input_data["model"] == "senet3d":
             model = SEResNet50(spatial_dims=3, in_channels=3, num_classes=4)
+
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
         model.eval()

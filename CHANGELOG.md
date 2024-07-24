@@ -5,6 +5,103 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.3.2] - 2024-06-25
+### Fixed
+#### misc.
+* Updated Numpy version constraint to < 2.0 (#7859)
+
+## [1.3.1] - 2024-05-17
+### Added
+* Support for `by_measure` argument in `RemoveSmallObjects` (#7137)
+* Support for `pretrained` flag in `ResNet` (#7095)
+* Support for uploading and downloading bundles to and from the Hugging Face Hub (#6454)
+* Added weight parameter in DiceLoss to apply weight to voxels of each class (#7158)
+* Support for returning dice for each class in `DiceMetric` (#7163)
+* Introduced `ComponentStore` for storage purposes (#7159)
+* Added utilities used in MONAI Generative (#7134)
+* Enabled Python 3.11 support for `convert_to_torchscript` and `convert_to_onnx` (#7182)
+* Support for MLflow in `AutoRunner` (#7176)
+* `fname_regex` option in PydicomReader (#7181)
+* Allowed setting AutoRunner parameters from config (#7175)
+* `VoxelMorphUNet` and `VoxelMorph` (#7178)
+* Enabled `cache` option in `GridPatchDataset` (#7180)
+* Introduced `class_labels` option in `write_metrics_reports` for improved readability (#7249)
+* `DiffusionLoss` for image registration task (#7272)
+* Supported specifying `filename` in `Saveimage` (#7318)
+* Compile support in `SupervisedTrainer` and `SupervisedEvaluator` (#7375)
+* `mlflow_experiment_name` support in `Auto3DSeg` (#7442)
+* Arm support (#7500)
+* `BarlowTwinsLoss` for representation learning (#7530)
+* `SURELoss` and `ConjugateGradient` for diffusion models (#7308)
+* Support for `CutMix`, `CutOut`, and `MixUp` augmentation techniques (#7198)
+* `meta_file` and `logging_file` options to `BundleWorkflow` (#7549)
+* `properties_path` option to `BundleWorkflow` for customized properties (#7542)
+* Support for both soft and hard clipping in `ClipIntensityPercentiles` (#7535)
+* Support for not saving artifacts in `MLFlowHandler` (#7604)
+* Support for multi-channel images in `PerceptualLoss` (#7568)
+* Added ResNet backbone for `FlexibleUNet` (#7571)
+* Introduced `dim_head` option in `SABlock` to set dimensions for each head (#7664)
+* Direct links to github source code to docs (#7738, #7779)
+#### misc.
+* Refactored `list_data_collate` and `collate_meta_tensor` to utilize the latest PyTorch API (#7165)
+* Added __str__ method in `Metric` base class (#7487)
+* Made enhancements for testing files (#7662, #7670, #7663, #7671, #7672)
+* Improved documentation for bundles (#7116)
+### Fixed
+#### transforms
+* Addressed issue where lazy mode was ignored in `SpatialPadd` (#7316)
+* Tracked applied operations in `ImageFilter` (#7395)
+* Warnings are now given only if missing class is not set to 0 in `generate_label_classes_crop_centers` (#7602)
+* Input is now always converted to C-order in `distance_transform_edt` to ensure consistent behavior (#7675)
+#### data
+* Modified .npz file behavior to use keys in `NumpyReader` (#7148)
+* Handled corrupted cached files in `PersistentDataset` (#7244)
+* Corrected affine update in `NrrdReader` (#7415)
+#### metrics and losses
+* Addressed precision issue in `get_confusion_matrix` (#7187)
+* Harmonized and clarified documentation and tests for dice losses variants (#7587)
+#### networks
+* Removed hard-coded `spatial_dims` in `SwinTransformer` (#7302)
+* Fixed learnable `position_embeddings` in `PatchEmbeddingBlock` (#7564, #7605)
+* Removed `memory_pool_limit` in TRT config (#7647)
+* Propagated `kernel_size` to `ConvBlocks` within `AttentionUnet` (#7734)
+* Addressed hard-coded activation layer in `ResNet` (#7749)
+#### bundle
+* Resolved bundle download issue (#7280)
+* Updated `bundle_root` directory for `NNIGen` (#7586)
+* Checked for `num_fold` and failed early if incorrect (#7634)
+* Enhanced logging logic in `ConfigWorkflow` (#7745)
+#### misc.
+* Enabled chaining in `Auto3DSeg` CLI (#7168)
+* Addressed useless error message in `nnUNetV2Runner` (#7217)
+* Resolved typing and deprecation issues in Mypy (#7231)
+* Quoted `$PY_EXE` variable to handle Python path that contains spaces in Bash (#7268)
+* Improved documentation, code examples, and warning messages in various modules (#7234, #7213, #7271, #7326, #7569, #7584)
+* Fixed typos in various modules (#7321, #7322, #7458, #7595, #7612)
+* Enhanced docstrings in various modules (#7245, #7381, #7746)
+* Handled error when data is on CPU in `DataAnalyzer` (#7310)
+* Updated version requirements for third-party packages (#7343, #7344, #7384, #7448, #7659, #7704, #7744, #7742, #7780)
+* Addressed incorrect slice compute in `ImageStats` (#7374)
+* Avoided editing a loop's mutable iterable to address B308 (#7397)
+* Fixed issue with `CUDA_VISIBLE_DEVICES` setting being ignored (#7408, #7581)
+* Avoided changing Python version in CICD (#7424)
+* Renamed partial to callable in instantiate mode (#7413)
+* Imported AttributeError for Python 3.12 compatibility (#7482)
+* Updated `nnUNetV2Runner` to support nnunetv2 2.2 (#7483)
+* Used uint8 instead of int8 in `LabelStats` (#7489)
+* Utilized subprocess for nnUNet training (#7576)
+* Addressed deprecated warning in ruff (#7625)
+* Fixed downloading failure on FIPS machine (#7698)
+* Updated `torch_tensorrt` compile parameters to avoid warning (#7714)
+* Restrict `Auto3DSeg` fold input based on datalist (#7778)
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:24.03-py3` from `nvcr.io/nvidia/pytorch:23.08-py3`
+### Removed
+* Removed unrecommended star-arg unpacking after a keyword argument, addressed B026 (#7262)
+* Skipped old PyTorch version test for `SwinUNETR` (#7266)
+* Dropped docker build workflow and migrated to Nvidia Blossom system (#7450)
+* Dropped Python 3.8 test on quick-py3 workflow (#7719)
+
 ## [1.3.0] - 2023-10-12
 ### Added
 * Intensity transforms `ScaleIntensityFixedMean` and `RandScaleIntensityFixedMean` (#6542)
@@ -943,7 +1040,9 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.2...HEAD
+[1.3.2]: https://github.com/Project-MONAI/MONAI/compare/1.3.1...1.3.2
+[1.3.1]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/Project-MONAI/MONAI/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/Project-MONAI/MONAI/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/Project-MONAI/MONAI/compare/1.0.1...1.1.0
