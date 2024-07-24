@@ -290,6 +290,8 @@ def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
     package_version = version_dict.get("version", "0+unknown")
     if package_version == "0+unknown":
         return False, "Package version is not available. Skipping version check."
+    if monai_version == "0+unknown":
+        return False, "MONAI version is not specified in the bundle. Skipping version check."
     # treat rc versions as the same as the release version
     package_version = re.sub(r"rc\d.*", "", package_version)
     monai_version = re.sub(r"rc\d.*", "", monai_version)
@@ -309,7 +311,7 @@ def _check_monai_version(bundle_dir: PathLike, name: str) -> None:
         return
     with open(metadata_file) as f:
         metadata = json.load(f)
-    is_compatible, msg = _examine_monai_version(metadata["monai_version"])
+    is_compatible, msg = _examine_monai_version(metadata.get("monai_version", "0+unknown"))
     if not is_compatible:
         logger.warning(msg)
 
