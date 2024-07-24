@@ -372,6 +372,8 @@ def _get_latest_bundle_version_ngc(name: str, repo: str | None = None, headers: 
         # if the package version is not available or the model is compatible with the package version
         is_compatible, _ = _examine_monai_version(metadata["monai_version"])
         if is_compatible:
+            if version != latest_versions[0]:
+                logger.info(f"Latest version is {latest_versions[0]}, but the compatible version is {version}.")
             return version
 
     # if no compatible version is found, return the latest version
@@ -552,8 +554,8 @@ def download(
             version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_, headers=headers)
         if source_ == "github":
             if version_ is not None:
-                name_ = "_v".join([name_, version_])
-            _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_, progress=progress_)
+                name_ver = "_v".join([name_, version_])
+            _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_ver, progress=progress_)
         elif source_ == "monaihosting":
             _download_from_monaihosting(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
         elif source_ == "ngc":
