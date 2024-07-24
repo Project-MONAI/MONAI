@@ -40,6 +40,7 @@ TEST_CASE_2 = [
 
 
 class TestCompose(Compose):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def __call__(self, input_, lazy=False):
         img = self.transforms[0](input_)
