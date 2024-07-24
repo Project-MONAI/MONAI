@@ -553,8 +553,7 @@ def download(
         if version_ is None:
             version_ = _get_latest_bundle_version(source=source_, name=name_, repo=repo_, headers=headers)
         if source_ == "github":
-            if version_ is not None:
-                name_ver = "_v".join([name_, version_])
+            name_ver = "_v".join([name_, version_]) if version_ is not None else name_
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_ver, progress=progress_)
         elif source_ == "monaihosting":
             _download_from_monaihosting(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
