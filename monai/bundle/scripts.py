@@ -67,6 +67,9 @@ logger = get_logger(module_name=__name__)
 DEFAULT_DOWNLOAD_SOURCE = os.environ.get("BUNDLE_DOWNLOAD_SRC", "monaihosting")
 PPRINT_CONFIG_N = 5
 
+MONAI_HOSTING_BASE_URL = "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
+NGC_BASE_URL = "https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit"
+
 
 def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kwargs: Any) -> dict:
     """
@@ -168,12 +171,8 @@ def _get_git_release_url(repo_owner: str, repo_name: str, tag_name: str, filenam
     return f"https://github.com/{repo_owner}/{repo_name}/releases/download/{tag_name}/{filename}"
 
 
-def _get_ngc_base_url() -> str:
-    return "https://api.ngc.nvidia.com/v2/models/nvidia/monaitoolkit"
-
-
 def _get_ngc_bundle_url(model_name: str, version: str) -> str:
-    return f"{_get_ngc_base_url()}/{model_name.lower()}/versions/{version}/zip"
+    return f"{NGC_BASE_URL}/{model_name.lower()}/versions/{version}/zip"
 
 
 def _get_ngc_private_base_url(repo: str) -> str:
@@ -184,12 +183,8 @@ def _get_ngc_private_bundle_url(model_name: str, version: str, repo: str) -> str
     return f"{_get_ngc_private_base_url(repo)}/{model_name.lower()}/versions/{version}/zip"
 
 
-def _get_monaihosting_base_url() -> str:
-    return "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting"
-
-
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
-    return f"{_get_monaihosting_base_url()}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
+    return f"{MONAI_HOSTING_BASE_URL}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
 
 
 def _download_from_github(repo: str, download_path: Path, filename: str, progress: bool = True) -> None:
@@ -278,7 +273,7 @@ def _get_ngc_token(api_key, retry=0):
 
 
 def _get_latest_bundle_version_monaihosting(name):
-    full_url = f"{_get_monaihosting_base_url()}/{name.lower()}"
+    full_url = f"{MONAI_HOSTING_BASE_URL}/{name.lower()}"
     requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
         resp = requests_get(full_url)
@@ -292,8 +287,8 @@ def _get_latest_bundle_version_monaihosting(name):
 def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
     """Examine if the package version is compatible with the MONAI version in the metadata."""
     version_dict = get_versions()
-    package_version = version_dict.get("version", None)
-    if package_version is None:
+    package_version = version_dict.get("version", "0+unknown")
+    if package_version == "0+unknown":
         return False, "Package version is not available. Skipping version check."
     # treat rc versions as the same as the release version
     package_version = re.sub(r"rc\d.*", "", package_version)
@@ -353,7 +348,7 @@ def _list_latest_versions(data: dict, max_versions: int = 3) -> list[str]:
 
 
 def _get_latest_bundle_version_ngc(name: str, repo: str | None = None, headers: dict | None = None) -> str:
-    base_url = _get_ngc_private_base_url(repo) if repo else _get_ngc_base_url()
+    base_url = _get_ngc_private_base_url(repo) if repo else NGC_BASE_URL
     version_endpoint = base_url + f"/{name.lower()}/versions/"
 
     if not has_requests:
