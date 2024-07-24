@@ -213,7 +213,9 @@ class ReferenceResolver:
         if isinstance(config, dict):
             for _id, _new_id in DEPRECATED_ID_MAPPING.items():
                 if _id in config.keys():
-                    warnings.warn(f"Detected deprecated name '{_id}' in configuration file, replacing with '{_new_id}'.")
+                    warnings.warn(
+                        f"Detected deprecated name '{_id}' in configuration file, replacing with '{_new_id}'."
+                    )
                     config[_new_id] = config.pop(_id)
         return config
 
