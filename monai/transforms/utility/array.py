@@ -1756,12 +1756,12 @@ class CoordinateTransform(InvertibleTransform, Transform):
 
         affine_t = linalg_inv(affine)
         _affine = affine_t if invert else affine
-        
+
         homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
         transformed_homogeneous = torch.matmul(_affine, homogeneous.T)
         transformed_coordinates = transformed_homogeneous[:-1].T
         out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=self.dtype)
-        
+
         extra_info = {
             "mode": self.mode,
             "dtype": str(self.dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
