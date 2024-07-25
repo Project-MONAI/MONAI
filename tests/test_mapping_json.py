@@ -15,15 +15,19 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import NibabelWriter
 from monai.transforms import Compose, LoadImage, MappingJson, SaveImage
+from monai.utils import optional_import
+
+nib, has_nib = optional_import("nibabel")
 
 
-class TestMappingJson(unittest.TestCase):
+@unittest.skipUnless(has_nib, "nibabel required")
+class TestMappingJsonD(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.mapping_json_path = os.path.join(self.temp_dir.name, "mapping.json")
@@ -32,22 +36,19 @@ class TestMappingJson(unittest.TestCase):
         self.temp_dir.cleanup()
 
     @parameterized.expand([(True,), (False,)])
-    def test_mapping_json(self, savepath_in_metadict):
-        image_data = np.arange(48, dtype=np.uint8).reshape(1, 2, 3, 8)
+    def test_mapping_jsond(self, savepath_in_metadict):
+        test_image = np.random.rand(128, 128, 128)
         output_ext = ".nii.gz"
         name = "test_image"
 
         input_file = os.path.join(self.temp_dir.name, name + output_ext)
         output_file = os.path.join(self.temp_dir.name, name, name + "_trans" + output_ext)
 
-        writer = NibabelWriter()
-        writer.set_data_array(image_data, channel_dim=None)
-        writer.set_metadata({"affine": np.eye(4), "original_affine": np.eye(4)})
-        writer.write(input_file)
+        nib.save(nib.Nifti1Image(test_image, np.eye(4)), input_file)
 
         transforms = Compose(
             [
-                LoadImage(reader="NibabelReader", image_only=True),
+                LoadImage(image_only=True),
                 SaveImage(
                     output_dir=self.temp_dir.name, output_ext=output_ext, savepath_in_metadict=savepath_in_metadict
                 ),
