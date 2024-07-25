@@ -1723,11 +1723,11 @@ class CoordinateTransform(Transform):
 
     Args:
         dtype: The desired data type for the output.
-        mode: Specifies the direction of transformation. This should be an instance of 
+        mode: Specifies the direction of transformation. This should be an instance of
             :py:class:`CoordinateTransformMode` enum, with either 'IMAGE_TO_WORLD' or 'WORLD_TO_IMAGE' as the value.
         affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if: 1) The image is read by ITKReader,
             and 2) The ITKReader has `affine_lps_to_ras=True`, and 3) The data is in world coordinates.
-            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS 
+            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS
             (right-anterior-superior) coordinate systems is correctly applied.
     """
 
@@ -1757,12 +1757,12 @@ class CoordinateTransform(Transform):
 
         if invert:
             affine = linalg_inv(affine)
-        
+
         homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
         transformed_homogeneous = torch.matmul(affine, homogeneous.T)
         transformed_coordinates = transformed_homogeneous[:-1].T
         out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=self.dtype)
-        
+
         return out
 
     def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
