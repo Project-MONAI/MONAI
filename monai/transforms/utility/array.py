@@ -42,7 +42,7 @@ from monai.networks.layers.simplelayers import (
     SharpenFilter,
     median_filter,
 )
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
@@ -1717,7 +1717,7 @@ class RandImageFilter(RandomizableTransform):
         return img
 
 
-class CoordinateTransform(Transform):
+class CoordinateTransform(InvertibleTransform, Transform):
     """
     Transform points between image coordinates and world coordinates.
 
@@ -1732,7 +1732,6 @@ class CoordinateTransform(Transform):
     """
 
     def __init__(self, dtype: DtypeLike = torch.float64, mode=CoordinateTransformMode.IMAGE_TO_WORLD, affine_lps_to_ras: bool = False) -> None:
-        super().__init__()
         self.dtype = dtype
         self.mode = mode
         self.affine_lps_to_ras = affine_lps_to_ras
@@ -1755,16 +1754,45 @@ class CoordinateTransform(Transform):
         if self.affine_lps_to_ras:  # RAS affine
             affine = orientation_ras_lps(affine)
 
-        if invert:
-            affine = linalg_inv(affine)
+        affine_t = linalg_inv(affine)
+        _affine = affine_t if invert else affine
         
         homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
-        transformed_homogeneous = torch.matmul(affine, homogeneous.T)
+        transformed_homogeneous = torch.matmul(_affine, homogeneous.T)
         transformed_coordinates = transformed_homogeneous[:-1].T
         out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=self.dtype)
         
-        return out
+        extra_info = {
+            "mode": self.mode,
+            "dtype": str(self.dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+            "affine": affine if invert else affine_t,
+            "affine_lps_to_ras": self.affine_lps_to_ras,
+        }
+        meta_info = TraceableTransform.track_transform_meta(
+            data,
+            affine=affine,
+            extra_info=extra_info,
+            transform_info=self.get_transform_info(),
+        )
+
+        return out, meta_info
 
     def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
         invert = (self.mode == CoordinateTransformMode.WORLD_TO_IMAGE)
-        return self.transform_coordinates(data, affine, invert=invert)
+        out, meta_info = self.transform_coordinates(data, affine, invert=invert)
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        # Create inverse transform
+        affine = transform[TraceKeys.EXTRA_INFO]["affine"]
+        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
+        mode_ = transform[TraceKeys.EXTRA_INFO]["mode"]
+        affine_lps_to_ras = not transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
+        mode = CoordinateTransformMode.WORLD_TO_IMAGE if mode_ == CoordinateTransformMode.IMAGE_TO_WORLD else CoordinateTransformMode.IMAGE_TO_WORLD
+        inverse_transform = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
+        # Apply inverse
+        with inverse_transform.trace_transform(False):
+            data = inverse_transform(data, affine=affine)
+
+        return data

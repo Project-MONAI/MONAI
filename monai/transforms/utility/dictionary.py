@@ -1742,7 +1742,7 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
         return d
 
 
-class CoordinateTransformd(MapTransform):
+class CoordinateTransformd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.CoordinateTransform`.
 
@@ -1769,7 +1769,7 @@ class CoordinateTransformd(MapTransform):
             affine_lps_to_ras: bool = False,
             allow_missing_keys: bool = False
         ):
-        super().__init__(keys, allow_missing_keys)
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.refer_key = refer_key
         self.converter = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
 
@@ -1784,6 +1784,12 @@ class CoordinateTransformd(MapTransform):
         for key in self.key_iterator(d):
             coords = d[key]
             d[key] = self.converter(coords, affine)
+        return d
+
+    def inverse(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter.inverse(d[key])
         return d
 
 
