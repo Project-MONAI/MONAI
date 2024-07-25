@@ -51,7 +51,7 @@ from monai.transforms.utils import (
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices, linalg_inv
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, linalg_inv, moveaxis, unravel_indices
 from monai.utils import (
     MetaKeys,
     TraceKeys,
@@ -64,7 +64,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
-from monai.utils.enums import TransformBackends, CoordinateTransformMode
+from monai.utils.enums import CoordinateTransformMode, TransformBackends
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
 
@@ -1731,7 +1731,12 @@ class CoordinateTransform(InvertibleTransform, Transform):
             (right-anterior-superior) coordinate systems is correctly applied.
     """
 
-    def __init__(self, dtype: DtypeLike = torch.float64, mode=CoordinateTransformMode.IMAGE_TO_WORLD, affine_lps_to_ras: bool = False) -> None:
+    def __init__(
+        self,
+        dtype: DtypeLike = torch.float64,
+        mode=CoordinateTransformMode.IMAGE_TO_WORLD,
+        affine_lps_to_ras: bool = False,
+    ) -> None:
         self.dtype = dtype
         self.mode = mode
         self.affine_lps_to_ras = affine_lps_to_ras
@@ -1769,16 +1774,13 @@ class CoordinateTransform(InvertibleTransform, Transform):
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
         meta_info = TraceableTransform.track_transform_meta(
-            data,
-            affine=affine,
-            extra_info=extra_info,
-            transform_info=self.get_transform_info(),
+            data, affine=affine, extra_info=extra_info, transform_info=self.get_transform_info()
         )
 
         return out, meta_info
 
     def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
-        invert = (self.mode == CoordinateTransformMode.WORLD_TO_IMAGE)
+        invert = self.mode == CoordinateTransformMode.WORLD_TO_IMAGE
         out, meta_info = self.transform_coordinates(data, affine, invert=invert)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
@@ -1789,7 +1791,11 @@ class CoordinateTransform(InvertibleTransform, Transform):
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         mode_ = transform[TraceKeys.EXTRA_INFO]["mode"]
         affine_lps_to_ras = not transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
-        mode = CoordinateTransformMode.WORLD_TO_IMAGE if mode_ == CoordinateTransformMode.IMAGE_TO_WORLD else CoordinateTransformMode.IMAGE_TO_WORLD
+        mode = (
+            CoordinateTransformMode.WORLD_TO_IMAGE
+            if mode_ == CoordinateTransformMode.IMAGE_TO_WORLD
+            else CoordinateTransformMode.IMAGE_TO_WORLD
+        )
         inverse_transform = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
         # Apply inverse
         with inverse_transform.trace_transform(False):

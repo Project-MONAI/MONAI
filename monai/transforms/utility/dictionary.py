@@ -40,6 +40,7 @@ from monai.transforms.utility.array import (
     CastToType,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
+    CoordinateTransform,
     CuCIM,
     DataStats,
     EnsureChannelFirst,
@@ -63,12 +64,11 @@ from monai.transforms.utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
-    CoordinateTransform,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import PostFix, TraceKeys, TransformBackends, CoordinateTransformMode
+from monai.utils.enums import CoordinateTransformMode, PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -1761,14 +1761,14 @@ class CoordinateTransformd(MapTransform, InvertibleTransform):
     """
 
     def __init__(
-            self,
-            keys: KeysCollection,
-            refer_key: str,
-            dtype: DtypeLike = torch.float64,
-            mode: str = CoordinateTransformMode.IMAGE_TO_WORLD,
-            affine_lps_to_ras: bool = False,
-            allow_missing_keys: bool = False
-        ):
+        self,
+        keys: KeysCollection,
+        refer_key: str,
+        dtype: DtypeLike = torch.float64,
+        mode: str = CoordinateTransformMode.IMAGE_TO_WORLD,
+        affine_lps_to_ras: bool = False,
+        allow_missing_keys: bool = False,
+    ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.refer_key = refer_key
         self.converter = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
@@ -1791,8 +1791,6 @@ class CoordinateTransformd(MapTransform, InvertibleTransform):
         for key in self.key_iterator(d):
             d[key] = self.converter.inverse(d[key])
         return d
-
-
 
 
 RandImageFilterD = RandImageFilterDict = RandImageFilterd
