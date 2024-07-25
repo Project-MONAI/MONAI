@@ -1717,46 +1717,47 @@ class RandImageFilter(RandomizableTransform):
         return img
 
 
-class ImageToWorldSpace(Transform):
+class CoordinateTransform(Transform):
     """
-    Transform points from image coordinates to world coordinates.
-    
-    Parameters:
-    affine : A 3x3 or 4x4 affine transformation matrix.
-    
-    Returns:
-    The (x, y, z) coordinates in world space.
+    Transform points between image coordinates and world coordinates.
+
+    Args:
+        affine: A 3x3 or 4x4 affine transformation matrix.
+        dtype: The desired data type for the output.
+        mode: 'image_to_world' or 'world_to_image' to specify the direction of transformation.
     """
 
-    def __init__(self, affine, dtype) -> None:
+    def __init__(self, affine, dtype=None, mode='image_to_world') -> None:
         super().__init__()
         self.affine = affine
         self.dtype = dtype
+        self.mode = mode
 
-    def __call__(self, data: Any):
+    def transform_coordinates(self, data, affine, dtype=None, invert=False):
         """
-        data (tuple or list): The (x, y, z) coordinates in image space.
+        Transform coordinates using an affine transformation matrix.
+
+        Args:
+            data: The input coordinates.
+            affine: The affine transformation matrix.
+            dtype: The desired data type for the output.
+            invert: Whether to invert the affine matrix.
+
+        Returns:
+            Transformed coordinates.
+        """
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64 if dtype is None else dtype)
+
+        if invert:
+            affine = linalg_inv(affine)
         
-        """
-        data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
-        image_homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
-        world_homogeneous = torch.matmul(self.affine, image_homogeneous.T)
-        out, *_ = convert_to_dst_type(world_homogeneous, data, dtype=self.dtype)
+        homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
+        transformed_homogeneous = torch.matmul(affine, homogeneous.T)
+        out, *_ = convert_to_dst_type(transformed_homogeneous, data, dtype=dtype)
+        
         return out
-
-
-class WorldToImageSpace(Transform):
-    def __init__(self, affine) -> None:
-        super().__init__()
-        self.affine = affine
 
     def __call__(self, data: Any):
-        data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_: torch.Tensor = convert_to_tensor(data, track_meta=False)
-
-        inv_affine = linalg_inv(self.affine)
-        world_homogeneous = concatenate((data_, np.ones((data_.shape[0], 1))), axis=1)    
-        voxel_homogeneous = torch.matmul(inv_affine, world_homogeneous.T)
-        out, *_ = convert_to_dst_type(voxel_homogeneous, data)
-        return out
+        invert = (self.mode == 'world_to_image')
+        return self.transform_coordinates(data, self.affine, dtype=self.dtype, invert=invert)
