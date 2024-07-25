@@ -2,7 +2,7 @@
 -r requirements-min.txt
 pytorch-ignite==0.4.11
 gdown>=4.7.3
-scipy>=1.7.1
+scipy>=1.12.0; python_version >= '3.9'
 itk>=5.2
 nibabel
 pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
@@ -57,3 +57,5 @@ zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
+pyamg>=5.0.0
+git+https://github.com/Project-MONAI/GenerativeModels.git@7428fce193771e9564f29b91d29e523dd1b6b4cd

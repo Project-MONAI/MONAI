@@ -307,11 +307,11 @@ class SaveImage(Transform):
 
     Args:
         output_dir: output image directory.
-        Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_postfix: a string appended to all output file names, default to `trans`.
-        Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_ext: output file extension name.
-        Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_dtype: data type (if not None) for saving data. Defaults to ``np.float32``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the ``"spatial_shape"`` (and ``"original_affine"``) from metadata.

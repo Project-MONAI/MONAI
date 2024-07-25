@@ -83,6 +83,9 @@ class TestRegLossIntegration(unittest.TestCase):
         # initialize a SGD optimizer
         optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
+        # declare first for pylint
+        init_loss = None
+
         # train the network
         for it in range(max_iter):
             # set the gradient to zero

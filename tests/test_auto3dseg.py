@@ -123,6 +123,8 @@ class TestOperations(Operations):
     Test example for user operation
     """
 
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def __init__(self) -> None:
         self.data = {"max": np.max, "mean": np.mean, "min": np.min}
 
@@ -131,6 +133,8 @@ class TestAnalyzer(Analyzer):
     """
     Test example for a simple Analyzer
     """
+
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def __init__(self, key, report_format, stats_name="test"):
         self.key = key
@@ -148,6 +152,8 @@ class TestImageAnalyzer(Analyzer):
     """
     Test example for a simple Analyzer
     """
+
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def __init__(self, image_key="image", stats_name="test_image"):
         self.image_key = image_key

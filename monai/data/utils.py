@@ -53,10 +53,6 @@ from monai.utils import (
     pytorch_after,
 )
 
-if pytorch_after(1, 13):
-    # import private code for reuse purposes, comment in case things break in the future
-    from torch.utils.data._utils.collate import collate_tensor_fn, default_collate_fn_map
-
 pd, _ = optional_import("pandas")
 DataFrame, _ = optional_import("pandas", name="DataFrame")
 nib, _ = optional_import("nibabel")
@@ -454,8 +450,13 @@ def collate_meta_tensor_fn(batch, *, collate_fn_map=None):
     Collate a sequence of meta tensor into a single batched metatensor. This is called by `collage_meta_tensor`
     and so should not be used as a collate function directly in dataloaders.
     """
-    collate_fn = collate_tensor_fn if pytorch_after(1, 13) else default_collate
-    collated = collate_fn(batch)  # type: ignore
+    if pytorch_after(1, 13):
+        from torch.utils.data._utils.collate import collate_tensor_fn  # imported here for pylint/mypy issues
+
+        collated = collate_tensor_fn(batch)
+    else:
+        collated = default_collate(batch)
+
     meta_dicts = [i.meta or TraceKeys.NONE for i in batch]
     common_ = set.intersection(*[set(d.keys()) for d in meta_dicts if isinstance(d, dict)])
     if common_:
@@ -496,6 +497,8 @@ def list_data_collate(batch: Sequence):
 
     if pytorch_after(1, 13):
         # needs to go here to avoid circular import
+        from torch.utils.data._utils.collate import default_collate_fn_map
+
         from monai.data.meta_tensor import MetaTensor
 
         default_collate_fn_map.update({MetaTensor: collate_meta_tensor_fn})
