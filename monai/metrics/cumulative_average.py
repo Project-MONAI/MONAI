@@ -96,10 +96,11 @@ class CumulativeAverage:
             dist.all_reduce(sum)
             dist.all_reduce(count)
 
+        val: NdarrayOrTensor
         val = torch.where(count > 0, sum / count, sum)
 
         if to_numpy:
-            val = val.cpu().numpy()  # type: ignore[assignment]
+            val = val.cpu().numpy()
         return val
 
     def append(self, val: Any, count: Any | None = 1) -> None:
