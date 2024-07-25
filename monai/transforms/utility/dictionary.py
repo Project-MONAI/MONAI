@@ -18,6 +18,7 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 from __future__ import annotations
 
 import re
+import warnings
 from collections.abc import Callable, Hashable, Mapping
 from copy import deepcopy
 from typing import Any, Sequence, cast
@@ -62,11 +63,12 @@ from monai.transforms.utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
+    CoordinateTransform,
 )
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import PostFix, TraceKeys, TransformBackends
+from monai.utils.enums import PostFix, TraceKeys, TransformBackends, CoordinateTransformMode
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -1738,6 +1740,53 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
             for key in self.key_iterator(d):
                 d[key] = self.filter(d[key])
         return d
+
+
+class CoordinateTransformd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.CoordinateTransform`.
+
+    Args:
+        keys: keys of the corresponding items to be transformed.
+            See also: monai.transforms.MapTransform
+        refer_key: the key of the reference item used for transformation.
+        dtype: The desired data type for the output.
+        mode: Specifies the direction of transformation. This should be an instance of 
+            :py:class:`CoordinateTransformMode` enum, with either 'IMAGE_TO_WORLD' or 'WORLD_TO_IMAGE' as the value.
+        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if: 1) The image is read by ITKReader,
+            and 2) The ITKReader has `affine_lps_to_ras=True`, and 3) The data is in world coordinates.
+            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS 
+            (right-anterior-superior) coordinate systems is correctly applied.
+        allow_missing_keys: Don't raise exception if key is missing.
+    """
+
+    def __init__(
+            self,
+            keys: KeysCollection,
+            refer_key: str,
+            dtype: DtypeLike = torch.float64,
+            mode: str = CoordinateTransformMode.IMAGE_TO_WORLD,
+            affine_lps_to_ras: bool = False,
+            allow_missing_keys: bool = False
+        ):
+        super().__init__(keys, allow_missing_keys)
+        self.refer_key = refer_key
+        self.converter = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
+
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]):
+        d = dict(data)
+        refer_data = d[self.refer_key]
+        if isinstance(refer_data, MetaTensor):
+            affine = refer_data.affine
+        else:
+            affine = MetaTensor.get_default_affine()
+            warnings.warn("No affine found in the reference data, use default affine.")
+        for key in self.key_iterator(d):
+            coords = d[key]
+            d[key] = self.converter(coords, affine)
+        return d
+
+
 
 
 RandImageFilterD = RandImageFilterDict = RandImageFilterd

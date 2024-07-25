@@ -31,7 +31,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import is_no_channel, no_collation
+from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
     EllipticalFilter,
@@ -64,7 +64,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import TransformBackends, CoordinateTransformMode
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
 
@@ -1722,42 +1722,49 @@ class CoordinateTransform(Transform):
     Transform points between image coordinates and world coordinates.
 
     Args:
-        affine: A 3x3 or 4x4 affine transformation matrix.
         dtype: The desired data type for the output.
-        mode: 'image_to_world' or 'world_to_image' to specify the direction of transformation.
+        mode: Specifies the direction of transformation. This should be an instance of 
+            :py:class:`CoordinateTransformMode` enum, with either 'IMAGE_TO_WORLD' or 'WORLD_TO_IMAGE' as the value.
+        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if: 1) The image is read by ITKReader,
+            and 2) The ITKReader has `affine_lps_to_ras=True`, and 3) The data is in world coordinates.
+            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS 
+            (right-anterior-superior) coordinate systems is correctly applied.
     """
 
-    def __init__(self, affine, dtype=None, mode='image_to_world') -> None:
+    def __init__(self, dtype: DtypeLike = torch.float64, mode=CoordinateTransformMode.IMAGE_TO_WORLD, affine_lps_to_ras: bool = False) -> None:
         super().__init__()
-        self.affine = affine
         self.dtype = dtype
         self.mode = mode
+        self.affine_lps_to_ras = affine_lps_to_ras
 
-    def transform_coordinates(self, data, affine, dtype=None, invert=False):
+    def transform_coordinates(self, data, affine, invert=False):
         """
         Transform coordinates using an affine transformation matrix.
 
         Args:
             data: The input coordinates.
-            affine: The affine transformation matrix.
-            dtype: The desired data type for the output.
+            affine: A 3x3 or 4x4 affine transformation matrix.
             invert: Whether to invert the affine matrix.
 
         Returns:
             Transformed coordinates.
         """
         data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64 if dtype is None else dtype)
+        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=self.dtype)
+
+        if self.affine_lps_to_ras:  # RAS affine
+            affine = orientation_ras_lps(affine)
 
         if invert:
             affine = linalg_inv(affine)
         
         homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
         transformed_homogeneous = torch.matmul(affine, homogeneous.T)
-        out, *_ = convert_to_dst_type(transformed_homogeneous, data, dtype=dtype)
+        transformed_coordinates = transformed_homogeneous[:-1].T
+        out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=self.dtype)
         
         return out
 
-    def __call__(self, data: Any):
-        invert = (self.mode == 'world_to_image')
-        return self.transform_coordinates(data, self.affine, dtype=self.dtype, invert=invert)
+    def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
+        invert = (self.mode == CoordinateTransformMode.WORLD_TO_IMAGE)
+        return self.transform_coordinates(data, affine, invert=invert)
