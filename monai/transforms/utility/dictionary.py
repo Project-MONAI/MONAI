@@ -1751,11 +1751,11 @@ class CoordinateTransformd(MapTransform, InvertibleTransform):
             See also: monai.transforms.MapTransform
         refer_key: the key of the reference item used for transformation.
         dtype: The desired data type for the output.
-        mode: Specifies the direction of transformation. This should be an instance of 
+        mode: Specifies the direction of transformation. This should be an instance of
             :py:class:`CoordinateTransformMode` enum, with either 'IMAGE_TO_WORLD' or 'WORLD_TO_IMAGE' as the value.
         affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if: 1) The image is read by ITKReader,
             and 2) The ITKReader has `affine_lps_to_ras=True`, and 3) The data is in world coordinates.
-            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS 
+            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS
             (right-anterior-superior) coordinate systems is correctly applied.
         allow_missing_keys: Don't raise exception if key is missing.
     """
