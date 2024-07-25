@@ -73,7 +73,7 @@ class CumulativeAverage:
             dist.all_reduce(val)
 
         if to_numpy:
-            val = val.cpu().numpy()
+            val = val.cpu().numpy()  # type: ignore[assignment]
 
         return val
 
@@ -99,7 +99,7 @@ class CumulativeAverage:
         val = torch.where(count > 0, sum / count, sum)
 
         if to_numpy:
-            val = val.cpu().numpy()
+            val = val.cpu().numpy()  # type: ignore[assignment]
         return val
 
     def append(self, val: Any, count: Any | None = 1) -> None:
