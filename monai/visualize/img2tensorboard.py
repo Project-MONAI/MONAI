@@ -176,7 +176,9 @@ def plot_2d_or_3d_image(
     # as the `d` data has no batch dim, reduce the spatial dim index if positive
     frame_dim = frame_dim - 1 if frame_dim > 0 else frame_dim
 
-    d: np.ndarray = data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else np.asarray(data_index)
+    d: np.ndarray = (
+        data_index.detach().cpu().numpy() if isinstance(data_index, torch.Tensor) else np.asarray(data_index)
+    )
 
     if d.ndim == 2:
         d = rescale_array(d, 0, 1)  # type: ignore
