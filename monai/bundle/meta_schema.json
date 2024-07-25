@@ -192,10 +192,7 @@
         },
         "supported_apps": {
             "description": "List of supported applications, eg. 'monai-label'",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
+            "type": "object",
         },
         "network_data_format": {
             "$ref": "#/$defs/network_io"
