@@ -73,7 +73,7 @@
             "$ref": "#/$defs/argument"
         },
         "network_io": {
-            "description": "Defines the format, shape, and meaning of inputs and outputs to the model.",
+            "description": "Defines the format, shape, and meaning of inputs, outputs (and optionally post-processed outputs) to the model.",
             "type": "object",
             "$comment": "Arguments/return values described by pattern property, order considered significant.",
             "properties": {
