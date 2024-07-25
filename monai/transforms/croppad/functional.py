@@ -27,7 +27,6 @@ from monai.data.utils import to_affine_nd
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import convert_pad_mode, create_translate
 from monai.utils import PytorchPadMode, convert_to_dst_type, convert_to_numpy, convert_to_tensor, ensure_tuple
-from monai.config.type_definitions import NdarrayOrTensor
 
 __all__ = ["pad_nd", "pad_func", "crop_func", "crop_or_pad_nd"]
 
