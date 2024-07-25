@@ -65,6 +65,7 @@ class CumulativeAverage:
         if self.val is None:
             return 0
 
+        val: NdarrayOrTensor
         val = self.val.clone()
         val[~torch.isfinite(val)] = 0
 
@@ -73,7 +74,7 @@ class CumulativeAverage:
             dist.all_reduce(val)
 
         if to_numpy:
-            val = val.cpu().numpy()  # type: ignore[assignment]
+            val = val.cpu().numpy()
 
         return val
 
