@@ -90,7 +90,7 @@ class TestRotate2D(NumpyImageTestCase2D):
         good = np.sum(np.isclose(expected, rotated, atol=1e-3))
         self.assertLessEqual(np.abs(good - expected.size), 5, "diff at most 5 pixels")
 
-    def test_pure_geometry(self):
+    def test_pure_geometry_2d(self):
         rotate_fn = Rotate(np.pi / 2, True)
         geom = torch.tensor([[[0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1]]], dtype=torch.float32)
         geom = MetaTensor(geom, requires_grad=False)
@@ -161,6 +161,30 @@ class TestRotate3D(NumpyImageTestCase3D):
             rotate_fn = Rotate(10, keep_size=False)
             with self.assertRaises(ValueError):  # wrong mode
                 rotate_fn(p(self.imt[0]), mode="trilinear_spell_error")
+
+    def test_pure_geometry_3d_x(self):
+        rotate_fn = Rotate((np.pi / 2, 0, 0), True)
+        geom = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
+                              [0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = rotate_fn(geom)
+        expected = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 0, 1, 1], [1, 0, 1, 1],
+                                  [0, -1, 0, 1], [1, -1, 0, 1], [0, -1, 1, 1], [1, -1, 1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+    def test_pure_geometry_3d_z(self):
+        rotate_fn = Rotate((0, 0, np.pi / 2), True)
+        geom = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
+                              [0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = rotate_fn(geom)
+        expected = torch.tensor([[[0, 0, 0, 1], [0, 1, 0, 1], [-1, 0, 0, 1], [-1, 1, 0, 1],
+                                  [0, 0, 1, 1], [0, 1, 1, 1], [-1, 0, 1, 1], [-1, 1, 1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
 
 
 if __name__ == "__main__":

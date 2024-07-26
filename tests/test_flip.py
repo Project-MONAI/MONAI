@@ -20,6 +20,7 @@ from parameterized import parameterized
 from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Flip
+from monai.utils.enums import KindKeys
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
@@ -72,6 +73,85 @@ class TestFlip(NumpyImageTestCase2D):
             self.assertIsInstance(res, torch.Tensor)
             with self.assertRaisesRegex(ValueError, "MetaTensor"):
                 xform.inverse(res)
+
+    def test_pure_geometry_flip_2d_x(self):
+        flip_fn = Flip(spatial_axis=[0])
+        geom = torch.tensor([[[0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = flip_fn(geom)
+        expected = torch.tensor([[[0, 0, 1], [0, 1, 1], [-1, 0, 1], [-1, 1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+    def test_pure_geometry_flip_2d_y(self):
+        flip_fn = Flip(spatial_axis=[1])
+        geom = torch.tensor([[[0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = flip_fn(geom)
+        expected = torch.tensor([[[0, 0, 1], [0, -1, 1], [1, 0, 1], [1, -1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+    def test_pure_geometry_flip_2d_all(self):
+        flip_fn = Flip(spatial_axis=[0, 1])
+        geom = torch.tensor([[[0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = flip_fn(geom)
+        expected = torch.tensor([[[0, 0, 1], [0, -1, 1], [-1, 0, 1], [-1, -1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+    def test_pure_geometry_flip_3d_x(self):
+        flip_fn = Flip(spatial_axis=[0])
+        geom = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
+                              [0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = flip_fn(geom)
+        expected = torch.tensor([[[0, 0, 0, 1], [-1, 0, 0, 1], [0, 1, 0, 1], [-1, 1, 0, 1],
+                                  [0, 0, 1, 1], [-1, 0, 1, 1], [0, 1, 1, 1], [-1, 1, 1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+    def test_pure_geometry_flip_3d_y(self):
+        flip_fn = Flip(spatial_axis=[1])
+        geom = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
+                              [0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = flip_fn(geom)
+        expected = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, -1, 0, 1], [1, -1, 0, 1],
+                                  [0, 0, 1, 1], [1, 0, 1, 1], [0, -1, 1, 1], [1, -1, 1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+    def test_pure_geometry_flip_3d_z(self):
+        flip_fn = Flip(spatial_axis=[2])
+        geom = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
+                              [0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = flip_fn(geom)
+        expected = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
+                                  [0, 0, -1, 1], [1, 0, -1, 1], [0, 1, -1, 1], [1, 1, -1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+
+    def test_pure_geometry_flip_3d_all(self):
+        flip_fn = Flip(spatial_axis=[0, 1, 2])
+        geom = torch.tensor([[[0, 0, 0, 1], [1, 0, 0, 1], [0, 1, 0, 1], [1, 1, 0, 1],
+                              [0, 0, 1, 1], [1, 0, 1, 1], [0, 1, 1, 1], [1, 1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = flip_fn(geom)
+        expected = torch.tensor([[[0, 0, 0, 1], [-1, 0, 0, 1], [0, -1, 0, 1], [-1, -1, 0, 1],
+                                  [0, 0, -1, 1], [-1, 0, -1, 1], [0, -1, -1, 1], [-1, -1, -1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
 
 
 if __name__ == "__main__":
