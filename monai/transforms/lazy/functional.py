@@ -335,9 +335,14 @@ def apply_to_geometry(
 
     if transform_.dtype != data.dtype:
         transform_ = transform_.to(data.dtype)
+        if data.shape[-1] == 3 and transform_.shape[0] == 4:
+            transform_[2, 0:2] = transform_[3, 0:2]
+            transform_[2, 2] = transform_[3, 3]
+            transform_[0:2, 2] = transform_[0:2, 3]
+            transform_ = transform_[:-1, :-1]
 
-    if data.shape[1] != transform_.shape[0]:
-        raise ValueError(f"second element of data.shape {data.shape} must match transform shape {transform_.shape}")
+    if data.shape[-1] != transform_.shape[0]:
+        raise ValueError(f"final element of data.shape {data.shape} must match transform shape {transform_.shape}")
 
     result = torch.matmul(data, transform_.T)
 
