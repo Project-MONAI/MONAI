@@ -1741,7 +1741,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
         self.mode = mode
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def transform_coordinates(self, data, affine, invert=False):
+    def transform_coordinates(self, data, v2w_affine):
         """
         Transform coordinates using an affine transformation matrix.
 
@@ -1757,10 +1757,10 @@ class CoordinateTransform(InvertibleTransform, Transform):
         data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=self.dtype)
 
         if self.affine_lps_to_ras:  # RAS affine
-            affine = orientation_ras_lps(affine)
+            v2w_affine = orientation_ras_lps(v2w_affine)
 
-        affine_t = linalg_inv(affine)
-        _affine = affine_t if invert else affine
+        w2v_affine = linalg_inv(v2w_affine)
+        _affine = w2v_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else v2w_affine
 
         homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
         transformed_homogeneous = torch.matmul(_affine, homogeneous.T)
@@ -1770,24 +1770,23 @@ class CoordinateTransform(InvertibleTransform, Transform):
         extra_info = {
             "mode": self.mode,
             "dtype": str(self.dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-            "affine": affine if invert else affine_t,
+            "image_affine": v2w_affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
         meta_info = TraceableTransform.track_transform_meta(
-            data, affine=affine, extra_info=extra_info, transform_info=self.get_transform_info()
+            data, affine=_affine, extra_info=extra_info, transform_info=self.get_transform_info()
         )
 
         return out, meta_info
 
     def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
-        invert = self.mode == CoordinateTransformMode.WORLD_TO_IMAGE
-        out, meta_info = self.transform_coordinates(data, affine, invert=invert)
+        out, meta_info = self.transform_coordinates(data, affine)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         # Create inverse transform
-        affine = transform[TraceKeys.EXTRA_INFO]["affine"]
+        affine = transform[TraceKeys.EXTRA_INFO]["image_affine"]
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         mode_ = transform[TraceKeys.EXTRA_INFO]["mode"]
         affine_lps_to_ras = not transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
