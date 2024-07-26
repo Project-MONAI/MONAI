@@ -31,7 +31,6 @@ import torch
 
 import importlib.metadata
 from packaging import version
-from packaging.version import Version, parse
 
 
 # bundle config system flags
