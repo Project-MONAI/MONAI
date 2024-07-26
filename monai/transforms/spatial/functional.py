@@ -291,7 +291,9 @@ def flip_impl(img, sp_axes, lazy, transform_info):
     xform = torch.eye(int(rank) + 1, dtype=torch.double)
     for axis in axes:
         sp = axis - 1
-        xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
+        xform[sp, sp] = xform[sp, sp] * -1
+        if not isinstance(img, MetaTensor) or img.kind == KindKeys.PIXEL:
+            xform[sp, -1] = sp_size[sp] - 1
     meta_info = TraceableTransform.track_transform_meta(
         img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
     )
@@ -321,11 +323,10 @@ def flip(image, sp_axes, lazy, transform_info):
     Flip the tensor / MetaTensor according to `sp_axes`.
     """
 
-    if isinstance(image, MetaTensor):
-        if image.kind == KindKeys.PIXEL:
-            return flip_raster(image, sp_axes, lazy, transform_info)
-        elif image.kind == KindKeys.POINT:
-            return flip_geom(image, sp_axes, lazy, transform_info)
+    if isinstance(image, MetaTensor) and image.kind == KindKeys.POINT:
+        return flip_geom(image, sp_axes, lazy, transform_info)
+    else:
+        return flip_raster(image, sp_axes, lazy, transform_info)
 
 
 # def resize(
@@ -530,17 +531,14 @@ def resize(
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
-    if isinstance(img, MetaTensor):
-        if img.kind == KindKeys.PIXEL:
-            return resize_raster(
-                img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
-            )
-        elif img.kind == KindKeys.POINT:
-            return resize_geom(
-                img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
-            )
-        else:
-            raise ValueError(f"Unsupported value for 'kind': {img.kind}")
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        return resize_geom(
+            img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+        )
+    else:
+        return resize_raster(
+            img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+        )
 
 
 # def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
@@ -640,7 +638,11 @@ def rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dty
     """
 
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    input_ndim = len(im_shape)
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        input_ndim = img.shape[-1] - 1
+    else:
+        input_ndim = len(img.shape) - 1
+
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
@@ -651,9 +653,13 @@ def rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dty
         output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
     else:
         output_shape = np.asarray(output_shape, dtype=int)
-    shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
-    shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
-    transform = shift @ transform @ shift_1
+    # TODO: this is needed for the raster case but not for geometry
+    if not isinstance(img, MetaTensor) or img.kind == KindKeys.PIXEL:
+        shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
+        shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
+        transform = shift @ transform @ shift_1
+    else:
+        transform = transform
     extra_info = {
         "rot_mat": transform,
         "mode": mode,
@@ -728,11 +734,10 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
-    if isinstance(img, MetaTensor):
-        if img.kind == KindKeys.PIXEL:
-            return rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
-        elif img.kind == KindKeys.POINT:
-            return rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        return rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    else:
+        return rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
 
 
 def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
