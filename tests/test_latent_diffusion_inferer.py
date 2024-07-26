@@ -320,6 +320,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_prediction_shape(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -368,6 +370,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_sample_shape(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -413,6 +417,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_sample_intermediates(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -468,6 +474,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_get_likelihoods(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -521,6 +529,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_resample_likelihoods(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -576,6 +586,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_prediction_shape_conditioned_concat(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -642,6 +654,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_sample_shape_conditioned_concat(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -703,6 +717,8 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
     def test_sample_shape_different_latents(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":

@@ -107,6 +107,7 @@ TEST_CASE_3 = [  # 1D, batch 1, 2 input channels
         "num_classes": 3,
         "conv1_t_size": [3],
         "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
     },
     (1, 2, 32),
     (1, 3),
@@ -185,27 +186,51 @@ TEST_CASE_7 = [  # 1D, batch 1, 2 input channels, bias_downsample
     (1, 3),
 ]
 
+TEST_CASE_8 = [
+    {
+        "block": "bottleneck",
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
+TEST_CASE_9 = [  # Layer norm
+    {
+        "block": ResNetBlock,
+        "layers": [3, 4, 6, 3],
+        "block_inplanes": [64, 128, 256, 512],
+        "spatial_dims": 1,
+        "n_input_channels": 2,
+        "num_classes": 3,
+        "conv1_t_size": [3],
+        "conv1_t_stride": 1,
+        "act": ("relu", {"inplace": False}),
+        "norm": ("layer", {"normalized_shape": (64, 32)}),
+    },
+    (1, 2, 32),
+    (1, 3),
+]
+
 TEST_CASES = []
 PRETRAINED_TEST_CASES = []
 for case in [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_2_A, TEST_CASE_3_A]:
     for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]:
         TEST_CASES.append([model, *case])
         PRETRAINED_TEST_CASES.append([model, *case])
-for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7]:
+for case in [TEST_CASE_5, TEST_CASE_5_A, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9]:
     TEST_CASES.append([ResNet, *case])
 
 TEST_SCRIPT_CASES = [
     [model, *TEST_CASE_1] for model in [resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200]
 ]
-
-CASE_EXTRACT_FEATURES = [
-    (
-        {"model_name": "resnet10", "pretrained": True, "spatial_dims": 3, "in_channels": 1},
-        [1, 1, 64, 64, 64],
-        ([1, 64, 32, 32, 32], [1, 64, 16, 16, 16], [1, 128, 8, 8, 8], [1, 256, 4, 4, 4], [1, 512, 2, 2, 2]),
-    )
-]
-
 
 CASE_EXTRACT_FEATURES = [
     (
@@ -241,7 +266,7 @@ class TestResNet(unittest.TestCase):
     @parameterized.expand(PRETRAINED_TEST_CASES)
     @skip_if_quick
     @skip_if_no_cuda
-    def test_resnet_pretrained(self, model, input_param, input_shape, expected_shape):
+    def test_resnet_pretrained(self, model, input_param, _input_shape, _expected_shape):
         net = model(**input_param).to(device)
         # Save ckpt
         torch.save(net.state_dict(), self.tmp_ckpt_filename)
@@ -265,9 +290,7 @@ class TestResNet(unittest.TestCase):
                 and input_param.get("n_input_channels", 3) == 1
                 and input_param.get("feed_forward", True) is False
                 and input_param.get("shortcut_type", "B") == shortcut_type
-                and (
-                    input_param.get("bias_downsample", True) == bool(bias_downsample) if bias_downsample != -1 else True
-                )
+                and (input_param.get("bias_downsample", True) == bias_downsample)
             ):
                 model(**cp_input_param)
             else:
@@ -278,7 +301,7 @@ class TestResNet(unittest.TestCase):
             cp_input_param["n_input_channels"] = 1
             cp_input_param["feed_forward"] = False
             cp_input_param["shortcut_type"] = shortcut_type
-            cp_input_param["bias_downsample"] = bool(bias_downsample) if bias_downsample != -1 else True
+            cp_input_param["bias_downsample"] = bias_downsample
             if cp_input_param.get("spatial_dims", 3) == 3:
                 with skip_if_downloading_fails():
                     pretrained_net = model(**cp_input_param).to(device)

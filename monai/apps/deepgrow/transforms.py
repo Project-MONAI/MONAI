@@ -27,7 +27,7 @@ from monai.utils import InterpolateMode, ensure_tuple, ensure_tuple_rep, min_ver
 from monai.utils.enums import PostFix
 
 measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
-distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
 
 DEFAULT_POST_FIX = PostFix.meta()
 

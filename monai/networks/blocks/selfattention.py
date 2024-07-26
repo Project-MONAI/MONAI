@@ -26,7 +26,6 @@ class SABlock(nn.Module):
     """
     A self-attention block, based on: "Dosovitskiy et al.,
     An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale <https://arxiv.org/abs/2010.11929>"
-    One can setup relative positional embedding as described in <https://arxiv.org/abs/2112.01526>
     """
 
     def __init__(
@@ -34,10 +33,10 @@ class SABlock(nn.Module):
         hidden_size: int,
         num_heads: int,
         dropout_rate: float = 0.0,
-        hidden_input_size: int | None = None,
-        dim_head: int | None = None,
         qkv_bias: bool = False,
         save_attn: bool = False,
+        dim_head: int | None = None,
+        hidden_input_size: int | None = None,
         causal: bool = False,
         sequence_length: int | None = None,
         rel_pos_embedding: Optional[str] = None,
@@ -49,10 +48,10 @@ class SABlock(nn.Module):
             hidden_size (int): dimension of hidden layer.
             num_heads (int): number of attention heads.
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
-            hidden_input_size (int, optional): dimension of the input tensor. Defaults to hidden_size.
-            dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+            dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
+            hidden_input_size (int, optional): dimension of the input tensor. Defaults to hidden_size.
             causal: whether to use causal attention (see https://arxiv.org/abs/1706.03762).
             sequence_length: if causal is True, it is necessary to specify the sequence length.
             rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map.
@@ -68,13 +67,16 @@ class SABlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
 
+        if hidden_size % num_heads != 0:
+            raise ValueError("hidden size should be divisible by num_heads.")
+
         if dim_head:
-            inner_dim = num_heads * dim_head
+            self.inner_dim = num_heads * dim_head
             self.dim_head = dim_head
         else:
             if hidden_size % num_heads != 0:
                 raise ValueError("hidden size should be divisible by num_heads.")
-            inner_dim = hidden_size
+            self.inner_dim = hidden_size
             self.dim_head = hidden_size // num_heads
 
         if causal and sequence_length is None:
@@ -82,14 +84,16 @@ class SABlock(nn.Module):
 
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
-        self.out_proj = nn.Linear(inner_dim, self.hidden_input_size)
-        self.qkv = nn.Linear(self.hidden_input_size, inner_dim * 3, bias=qkv_bias)
+        self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+
+        self.qkv = nn.Linear(self.hidden_input_size, self.inner_dim * 3, bias=qkv_bias)
         self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
         self.out_rearrange = Rearrange("b h l d -> b l (h d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
         self.scale = self.dim_head**-0.5
         self.save_attn = save_attn
+        self.att_mat = torch.Tensor()
         self.attention_dtype = attention_dtype
         self.causal = causal
         self.sequence_length = sequence_length
@@ -101,8 +105,9 @@ class SABlock(nn.Module):
                 torch.tril(torch.ones(sequence_length, sequence_length)).view(1, 1, sequence_length, sequence_length),
             )
             self.causal_mask: torch.Tensor
+        else:
+            self.causal_mask = torch.Tensor()
 
-        self.att_mat = torch.Tensor()
         self.rel_positional_embedding = (
             get_rel_pos_embedding_layer(rel_pos_embedding, input_size, self.dim_head, self.num_heads)
             if rel_pos_embedding is not None
@@ -110,7 +115,7 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
@@ -120,9 +125,11 @@ class SABlock(nn.Module):
         """
         output = self.input_rearrange(self.qkv(x))
         q, k, v = output[0], output[1], output[2]
+
         if self.attention_dtype is not None:
             q = q.to(self.attention_dtype)
             k = k.to(self.attention_dtype)
+
         att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
         # apply relative positional embedding if defined

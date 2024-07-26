@@ -48,7 +48,7 @@ def _np_pad(img: NdarrayTensor, pad_width: list[tuple[int, int]], mode: str, **k
             warnings.warn(f"Padding: moving img {img.shape} from cuda to cpu for dtype={img.dtype} mode={mode}.")
         img_np = img.detach().cpu().numpy()
     else:
-        img_np = img
+        img_np = np.asarray(img)
     mode = convert_pad_mode(dst=img_np, mode=mode).value
     if mode == "constant" and "value" in kwargs:
         kwargs["constant_values"] = kwargs.pop("value")

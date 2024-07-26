@@ -663,6 +663,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -730,6 +732,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -793,6 +797,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -835,6 +841,10 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
                 controlnet=controlnet,
                 cn_cond=mask,
             )
+
+            # TODO: this isn't correct, should the above produce intermediates as well?
+            # This test has always passed so is this branch not being used?
+            intermediates = None
         else:
             sample, intermediates = inferer.sample(
                 input_noise=noise,
@@ -846,6 +856,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
                 controlnet=controlnet,
                 cn_cond=mask,
             )
+
         self.assertEqual(len(intermediates), 10)
         self.assertEqual(intermediates[0].shape, input_shape)
 
@@ -861,6 +872,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -929,6 +942,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -999,6 +1014,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -1080,6 +1097,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":
@@ -1156,6 +1175,8 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input_shape,
         latent_shape,
     ):
+        stage_1 = None
+
         if ae_model_type == "AutoencoderKL":
             stage_1 = AutoencoderKL(**autoencoder_params)
         if ae_model_type == "VQVAE":

@@ -671,6 +671,7 @@ from .utils import (
     in_bounds,
     is_empty,
     is_positive,
+    map_and_generate_sampling_centers,
     map_binary_to_indices,
     map_classes_to_indices,
     map_spatial_axes,

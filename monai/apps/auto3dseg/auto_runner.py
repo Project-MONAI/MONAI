@@ -499,8 +499,8 @@ class AutoRunner:
 
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
-        if num_fold > self.max_fold + 1:
-            # Auto3DSeg allows no validation set, so the maximum fold number is max_fold + 1
+        if num_fold > self.max_fold:
+            # Auto3DSeg must contain validation set, so the maximum fold number is max_fold.
             raise ValueError(
                 f"num_fold is greater than the maximum fold number {self.max_fold} in {self.datalist_filename}."
             )
@@ -551,7 +551,7 @@ class AutoRunner:
             cmd_prefix: command line prefix for subprocess running in BundleAlgo and EnsembleRunner.
                 Default using env "CMD_PREFIX" or None, examples are:
 
-                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.8 ",
+                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.9 ",
                     - single node multi-GPU running "torchrun --nnodes=1 --nproc_per_node=2 "
 
                 If user define this prefix, please make sure --nproc_per_node matches cuda_visible_device or

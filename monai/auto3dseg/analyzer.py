@@ -470,7 +470,7 @@ class LabelStats(Analyzer):
 
         unique_label = unique(ndas_label)
         if isinstance(ndas_label, (MetaTensor, torch.Tensor)):
-            unique_label = unique_label.data.cpu().numpy()
+            unique_label = unique_label.data.cpu().numpy()  # type: ignore[assignment]
 
         unique_label = unique_label.astype(np.int16).tolist()
 

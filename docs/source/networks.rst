@@ -248,12 +248,6 @@ Blocks
 .. autoclass:: monai.apps.reconstruction.networks.blocks.varnetblock.VarNetBlock
    :members:
 
-`Attention utilities`
-~~~~~~~~~~~~~~~~~~~~~
-.. automodule:: monai.networks.blocks.attention_utils
-.. autofunction:: monai.networks.blocks.attention_utils.get_rel_pos
-.. autofunction:: monai.networks.blocks.attention_utils.add_decomposed_rel_pos
-
 N-Dim Fourier Transform
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. automodule:: monai.networks.blocks.fft_utils_t
@@ -263,11 +257,6 @@ N-Dim Fourier Transform
 .. autofunction:: monai.networks.blocks.fft_utils_t.roll_1d
 .. autofunction:: monai.networks.blocks.fft_utils_t.fftshift
 .. autofunction:: monai.networks.blocks.fft_utils_t.ifftshift
-
-`SPADE`
-~~~~~~~
-.. autoclass:: monai.networks.blocks.spade_norm.SPADE
-    :members:
 
 Layers
 ------
@@ -419,14 +408,6 @@ Layers
 .. autoclass:: LLTM
     :members:
 
-`Vector Quantizer`
-~~~~~~~~~~~~~~~~~~
-.. autoclass:: monai.networks.layers.vector_quantizer.EMAQuantizer
-   :members:
-.. autoclass:: monai.networks.layers.vector_quantizer.VectorQuantizer
-   :members:
-
-=======
 `ConjugateGradient`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ConjugateGradient
@@ -604,21 +585,6 @@ Nets
 .. autoclass:: VNet
   :members:
 
-`DiffusionModelUnet`
-~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: DiffusionModelUNet
-  :members:
-
-`SPADEDiffusionModelUNet`
-~~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: SPADEDiffusionModelUNet
-  :members:
-
-`ControlNet`
-~~~~~~~~~~~~
-.. autoclass:: ControlNet
-  :members:
-
 `RegUNet`
 ~~~~~~~~~
 .. autoclass:: RegUNet
@@ -639,25 +605,10 @@ Nets
 .. autoclass:: AutoEncoder
   :members:
 
-`AutoEncoderKL`
-~~~~~~~~~~~~~~~
-.. autoclass:: AutoencoderKL
-  :members:
-
-`SPADEAutoencoderKL`
-~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: SPADEAutoencoderKL
-  :members:
-
 `VarAutoEncoder`
 ~~~~~~~~~~~~~~~~
 .. autoclass:: VarAutoEncoder
   :members:
-
-`DecoderOnlyTransformer`
-~~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: DecoderOnlyTransformer
-    :members:
 
 `ViT`
 ~~~~~
@@ -781,39 +732,6 @@ Nets
    :members:
 
 .. autoclass:: voxelmorph
-
-`VQ-VAE`
-~~~~~~~~
-.. autoclass:: VQVAE
-   :members:
-
-`PatchGANDiscriminator`
-~~~~~~~~~~~~~~~~~~~~~~~
-.. autoclass:: PatchDiscriminator
-   :members:
-
-.. autoclass:: MultiScalePatchDiscriminator
-   :members:
-
-Diffusion Schedulers
---------------------
-.. autoclass:: monai.networks.schedulers.Scheduler
-  :members:
-
-`DDPM Scheduler`
-~~~~~~~~~~~~~~~~
-.. autoclass:: monai.networks.schedulers.DDPMScheduler
-   :members:
-
-`DDIM Scheduler`
-~~~~~~~~~~~~~~~~
-.. autoclass:: monai.networks.schedulers.DDIMScheduler
-    :members:
-
-`PNDM Scheduler`
-~~~~~~~~~~~~~~~~
-.. autoclass:: monai.networks.schedulers.PNDMScheduler
-    :members:
 
 Utilities
 ---------
