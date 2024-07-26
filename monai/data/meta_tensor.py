@@ -490,6 +490,13 @@ class MetaTensor(MetaObj, torch.Tensor):
             return [affine_to_spacing(a) for a in self.affine]
         return affine_to_spacing(self.affine)
 
+    # @property
+    # def ndims(self):
+    #     # TODO: this will be wrong when there are batches; review
+    #     if self.kind == KindKeys.POINT:
+    #         return self.shape[2] - 1
+    #     return len(self.shape)
+
     def peek_pending_shape(self):
         """
         Get the currently expected spatial shape as if all the pending operations are executed.
