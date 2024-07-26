@@ -106,12 +106,12 @@ def execute_compose(
         return data
 
     for _transform in transforms[start:end]:
-        if threading:
-            if isinstance(_transform, ThreadUnsafe):
-                if isinstance(_transform, Randomizable):
-                    # update the random state before deepcopy, otherwise there is no randomness
-                    _transform.set_random_state()
-                _transform = deepcopy(_transform)
+        if threading and isinstance(_transform, ThreadUnsafe):
+            if isinstance(_transform, Randomizable):
+                # iterate the random state before deepcopy, otherwise there is no randomness
+                d = dict(data) if isinstance(data, Mapping) else data
+                _transform.randomize(d)
+            _transform = deepcopy(_transform)
         data = apply_transform(
             _transform, data, map_items, unpack_items, lazy=lazy, overrides=overrides, log_stats=log_stats
         )
