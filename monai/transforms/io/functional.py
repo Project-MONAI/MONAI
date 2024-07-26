@@ -5,7 +5,7 @@ def load_geometry(file, image, origin):
     """
     Load geometry from a file and optionally map it to another coordinate space.
     """
-    with open(file, "r") as f:
+    with open(file) as f:
         geometry = json.load(f)
         geometry_schema = geometry.get("schema", None)
         if geometry_schema is None:
@@ -26,4 +26,4 @@ def load_geometry(file, image, origin):
                 if first_len is None:
                     first_len = len(p)
                 if len(p) != first_len:
-                    raise ValueError(f"Geometry import issue: 'points' entry contains inconsistent point lengths")
+                    raise ValueError("Geometry import issue: 'points' entry contains inconsistent point lengths")
