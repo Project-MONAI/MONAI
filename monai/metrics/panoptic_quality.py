@@ -274,7 +274,7 @@ def _get_paired_iou(
 
         return paired_iou, paired_true, paired_pred
 
-    pairwise_iou = pairwise_iou.cpu().numpy()
+    pairwise_iou = pairwise_iou.cpu().numpy()  # type: ignore[assignment]
     paired_true, paired_pred = linear_sum_assignment(-pairwise_iou)
     paired_iou = pairwise_iou[paired_true, paired_pred]
     paired_true = torch.as_tensor(list(paired_true[paired_iou > match_iou_threshold] + 1), device=device)
