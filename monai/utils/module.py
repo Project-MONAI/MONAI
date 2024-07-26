@@ -30,7 +30,6 @@ from typing import Any, Iterable, cast
 import torch
 
 import importlib.metadata
-from packaging import version
 
 
 # bundle config system flags
@@ -567,10 +566,10 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging", name="packaging")
+    pkging, has_ver = optional_import("packaging")
     if has_ver:
         try:
-            return cast(bool, version(lhs) <= version(rhs))
+            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
         except version.InvalidVersion:
             return True
 
@@ -594,10 +593,10 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging", name="packaging")
+    pkging, has_ver = optional_import("packaging")
     if has_ver:
         try:
-            return cast(bool, version(lhs) >= version(rhs))
+            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
         except version.InvalidVersion:
             return True
 
