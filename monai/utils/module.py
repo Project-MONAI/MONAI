@@ -29,8 +29,8 @@ from types import FunctionType, ModuleType
 from typing import Any, Iterable, cast
 import torch
 
-import importlib.metadata
-
+## import importlib.metadata
+## from packaging import version
 
 # bundle config system flags
 # set MONAI_EVAL_EXPR=1 to use 'eval', default value: run_eval=True
@@ -74,10 +74,10 @@ def look_up_option(
     Raise a value error possibly with a guess of the closest match.
 
     Args:
-        opt_str: The option string or Enum to look up.
+        opt_str: The option string or Enum to look up.        
         supported: The collection of supported options, it can be list, tuple, set, dict, or Enum.
         default: If it is given, this method will return `default` when `opt_str` is not found,
-            instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,
+            instead of raising a `ValueError`. Otherwise, it defaults to `"no_default"`,    
             so that the method may raise a `ValueError`.
         print_all_options: whether to print all available options when `opt_str` is not found. Defaults to True
 
@@ -566,10 +566,10 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging")
+    has_ver = optional_import("packaging")
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
+            return cast(bool, version(lhs) <= version(rhs))
         except version.InvalidVersion:
             return True
 
@@ -593,10 +593,10 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging")
+    has_ver = optional_import("packaging")
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
+            return cast(bool, version(lhs) >= version(rhs))
         except version.InvalidVersion:
             return True
 
