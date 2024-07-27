@@ -29,8 +29,8 @@ from types import FunctionType, ModuleType
 from typing import Any, Iterable, cast
 import torch
 
-import importlib.metadata
-
+## import importlib.metadata
+## from packaging import version
 
 # bundle config system flags
 # set MONAI_EVAL_EXPR=1 to use 'eval', default value: run_eval=True
@@ -566,10 +566,10 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging")
+    has_ver = optional_import("packaging")
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
+            return cast(bool, version(lhs) <= version(rhs))
         except version.InvalidVersion:
             return True
 
@@ -593,10 +593,10 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging")
+    has_ver = optional_import("packaging")
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
+            return cast(bool, version(lhs) >= version(rhs))
         except version.InvalidVersion:
             return True
 
