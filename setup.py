@@ -22,7 +22,7 @@ from setuptools import find_packages, setup
 
 import versioneer
 
-# TODO: debug mode -g -O0, compile test cases        
+# TODO: debug mode -g -O0, compile test cases
 
 RUN_BUILD = os.getenv("BUILD_MONAI", "0") == "1"
 FORCE_CUDA = os.getenv("FORCE_CUDA", "0") == "1"  # flag ignored if BUILD_MONAI is False
