@@ -30,7 +30,7 @@ from typing import Any, Iterable, cast
 import torch
 
 ## import importlib.metadata
-## from packaging import version
+from packaging import version
 
 # bundle config system flags
 # set MONAI_EVAL_EXPR=1 to use 'eval', default value: run_eval=True
