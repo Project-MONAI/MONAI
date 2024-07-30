@@ -298,9 +298,13 @@ class AutoRunner:
                 pass
 
         # inspect and update folds
-        num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
+        self.max_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
         if "num_fold" in self.data_src_cfg:
             num_fold = int(self.data_src_cfg["num_fold"])  # override from config
+            logger.info(f"Setting num_fold {num_fold} based on the input config.")
+        else:
+            num_fold = self.max_fold
+            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
 
         self.data_src_cfg["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
         ConfigParser.export_config_file(
@@ -398,7 +402,10 @@ class AutoRunner:
 
         if len(fold_list) > 0:
             num_fold = max(fold_list) + 1
-            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            logger.info(f"Found num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            # check if every fold is present
+            if len(set(fold_list)) != num_fold:
+                raise ValueError(f"Fold numbers are not continuous from 0 to {num_fold - 1}")
         elif "validation" in datalist and len(datalist["validation"]) > 0:
             logger.info("No fold numbers provided, attempting to use a single fold based on the validation key")
             # update the datalist file
@@ -492,6 +499,11 @@ class AutoRunner:
 
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
+        if num_fold > self.max_fold:
+            # Auto3DSeg must contain validation set, so the maximum fold number is max_fold.
+            raise ValueError(
+                f"num_fold is greater than the maximum fold number {self.max_fold} in {self.datalist_filename}."
+            )
         self.num_fold = num_fold
 
         return self
@@ -539,7 +551,7 @@ class AutoRunner:
             cmd_prefix: command line prefix for subprocess running in BundleAlgo and EnsembleRunner.
                 Default using env "CMD_PREFIX" or None, examples are:
 
-                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.8 ",
+                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.9 ",
                     - single node multi-GPU running "torchrun --nnodes=1 --nproc_per_node=2 "
 
                 If user define this prefix, please make sure --nproc_per_node matches cuda_visible_device or

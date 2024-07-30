@@ -88,7 +88,7 @@ class TestFlipd(NumpyImageTestCase2D):
     def test_meta_dict(self):
         xform = Flipd("image", [0, 1])
         res = xform({"image": torch.zeros(1, 3, 4)})
-        self.assertTrue(res["image"].applied_operations == res["image_transforms"])
+        self.assertEqual(res["image"].applied_operations, res["image_transforms"])
 
     @parameterized.expand(POINT_CASES)
     def test_points(self, spatial_axis, point):

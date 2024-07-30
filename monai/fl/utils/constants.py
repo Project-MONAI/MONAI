@@ -30,6 +30,7 @@ class ExtraItems(StrEnum):
     CLIENT_NAME = "fl_client_name"
     APP_ROOT = "fl_app_root"
     STATS_SENDER = "fl_stats_sender"
+    LOGGING_FILE = "logging_file"
 
 
 class FlPhase(StrEnum):

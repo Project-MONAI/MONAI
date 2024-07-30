@@ -142,7 +142,7 @@ class TestMMMARDownload(unittest.TestCase):
     def test_unique(self):
         # model ids are unique
         keys = sorted(m["id"] for m in MODEL_DESC)
-        self.assertTrue(keys == sorted(set(keys)))
+        self.assertEqual(keys, sorted(set(keys)))
 
     def test_search(self):
         self.assertEqual(_get_val({"a": 1, "b": 2}, key="b"), 2)
