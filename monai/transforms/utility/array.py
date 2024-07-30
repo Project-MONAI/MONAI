@@ -1741,13 +1741,13 @@ class CoordinateTransform(InvertibleTransform, Transform):
         self.mode = mode
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def transform_coordinates(self, data, v2w_affine):
+    def transform_coordinates(self, data, i2w_affine):
         """
         Transform coordinates using an affine transformation matrix.
 
         Args:
             data: The input coordinates.
-            affine: A 3x3 or 4x4 affine transformation matrix.
+            i2w_affine: A 3x3 or 4x4 affine transformation matrix.
             invert: Whether to invert the affine matrix.
 
         Returns:
@@ -1756,11 +1756,12 @@ class CoordinateTransform(InvertibleTransform, Transform):
         data = convert_to_tensor(data, track_meta=get_track_meta())
         data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=self.dtype)
 
+        original_i2w_affine = i2w_affine
         if self.affine_lps_to_ras:  # RAS affine
-            v2w_affine = orientation_ras_lps(v2w_affine)
+            i2w_affine = orientation_ras_lps(i2w_affine)
 
-        w2v_affine = linalg_inv(v2w_affine)
-        _affine = w2v_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else v2w_affine
+        w2i_affine = linalg_inv(i2w_affine)
+        _affine = w2i_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else i2w_affine
 
         homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
         transformed_homogeneous = torch.matmul(_affine, homogeneous.T)
@@ -1770,11 +1771,12 @@ class CoordinateTransform(InvertibleTransform, Transform):
         extra_info = {
             "mode": self.mode,
             "dtype": str(self.dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-            "image_affine": v2w_affine,
+            "image_affine": i2w_affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
+        xform = original_i2w_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_i2w_affine)
         meta_info = TraceableTransform.track_transform_meta(
-            data, affine=_affine, extra_info=extra_info, transform_info=self.get_transform_info()
+            data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
         )
 
         return out, meta_info
