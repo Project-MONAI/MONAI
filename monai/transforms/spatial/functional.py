@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import math
 import warnings
-from copy import deepcopy
 from enum import Enum
 
 import numpy as np
@@ -675,4 +674,3 @@ def apply_affine_to_points(data, affine, dtype):
     out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
 
     return out
-
