@@ -105,6 +105,8 @@ class SABlock(nn.Module):
                 torch.tril(torch.ones(sequence_length, sequence_length)).view(1, 1, sequence_length, sequence_length),
             )
             self.causal_mask: torch.Tensor
+        else:
+            self.causal_mask = torch.Tensor()
 
         self.rel_positional_embedding = (
             get_rel_pos_embedding_layer(rel_pos_embedding, input_size, self.dim_head, self.num_heads)
