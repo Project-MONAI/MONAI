@@ -781,7 +781,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         """
 
-        cucim_resize, _ = optional_import("cucim.skimage.transform", name="resize")
+        # cucim_resize, _ = optional_import("cucim.skimage.transform", name="resize")
         cp, _ = optional_import("cupy")
 
         user_mpp_x, user_mpp_y = mpp
@@ -789,11 +789,10 @@ class CuCIMWSIReader(BaseWSIReader):
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
         # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
-        mpp_closest_lvl = mpp_list[closest_lvl]
-        closest_lvl_dim = wsi.resolutions["level_dimensions"][closest_lvl]
+        # closest_lvl_dim = wsi.resolutions["level_dimensions"][closest_lvl]
 
-        print(f"Closest Level: {closest_lvl} with MPP: {mpp_closest_lvl}")
-        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
+        # mpp_closest_lvl = mpp_list[closest_lvl]
+        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
 
         # Define tolerance intervals for x and y of closest level
         lower_bound_x = mpp_closest_lvl_x * (1 - rtol) - atol
@@ -808,9 +807,8 @@ class CuCIMWSIReader(BaseWSIReader):
 
         if within_tolerance:
             # Take closest_level and continue with returning img at level
-            print(f"User-provided MPP lies within tolerance of level {closest_lvl}, returning wsi at this level.")
             closest_lvl_wsi = wsi.read_region(
-                (0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers
+                (0, 0), level=closest_lvl, size=wsi.resolutions["level_dimensions"][closest_lvl], num_workers=self.num_workers
             )
 
         else:
@@ -820,40 +818,12 @@ class CuCIMWSIReader(BaseWSIReader):
             closest_level_is_bigger = closest_level_is_bigger_x & closest_level_is_bigger_y
 
             if closest_level_is_bigger:
-                ds_factor_x = mpp_closest_lvl_x / user_mpp_x
-                ds_factor_y = mpp_closest_lvl_y / user_mpp_y
-
-                closest_lvl_wsi = wsi.read_region(
-                    (0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers
-                )
-                wsi_arr = cp.array(closest_lvl_wsi)
-
-                target_res_x = int(np.round(closest_lvl_dim[1] * ds_factor_x))
-                target_res_y = int(np.round(closest_lvl_dim[0] * ds_factor_y))
-
-                closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=0)
-                print(f"Case 1: Downscaling using factor {(ds_factor_x, ds_factor_y)}")
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
             else:
                 # Else: increase resolution (ie, decrement level) and then downsample
                 closest_lvl = closest_lvl - 1
-                mpp_closest_lvl = mpp_list[closest_lvl]
-                mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
-
-                ds_factor_x = mpp_closest_lvl_x / user_mpp_x
-                ds_factor_y = mpp_closest_lvl_y / user_mpp_y
-
-                closest_lvl_dim = wsi.resolutions["level_dimensions"][closest_lvl]
-                closest_lvl_wsi = wsi.read_region(
-                    (0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers
-                )
-                wsi_arr = cp.array(closest_lvl_wsi)
-
-                target_res_x = int(np.round(closest_lvl_dim[1] * ds_factor_x))
-                target_res_y = int(np.round(closest_lvl_dim[0] * ds_factor_y))
-
-                closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=0)
-                print(f"Case 2: Downscaling using factor {(ds_factor_x, ds_factor_y)}, now from level {closest_lvl}")
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
         wsi_arr = cp.asnumpy(closest_lvl_wsi)
         return wsi_arr
@@ -941,6 +911,36 @@ class CuCIMWSIReader(BaseWSIReader):
             patch = np.take(patch, [0, 1, 2], self.channel_dim)
 
         return patch
+    
+    def _resize_to_mpp_res(self, wsi, closest_lvl, mpp_list, user_mpp: tuple):
+        """
+        Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
+        
+        Args:
+            wsi: whole slide image object from WSIReader
+            user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
+            closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
+            mpp_list: list of mpp values for all levels of a whole slide image.
+            
+        """
+        cucim_resize, _ = optional_import("cucim.skimage.transform", name="resize")
+        cp, _ = optional_import("cupy")
+
+        mpp_closest_lvl = mpp_list[closest_lvl]
+        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
+
+        ds_factor_x = mpp_closest_lvl_x / user_mpp[0]
+        ds_factor_y = mpp_closest_lvl_y / user_mpp[1]
+
+        closest_lvl_dim = wsi.resolutions["level_dimensions"][closest_lvl]
+        closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers)
+        wsi_arr = cp.array(closest_lvl_wsi)
+
+        target_res_x = int(np.round(closest_lvl_dim[1] * ds_factor_x))
+        target_res_y = int(np.round(closest_lvl_dim[0] * ds_factor_y))
+
+        closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=1)
+        return closest_lvl_wsi
 
 
 @require_pkg(pkg_name="openslide")
@@ -1072,17 +1072,12 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         """
 
-        pil_image, _ = optional_import("PIL", name="Image")
         user_mpp_x, user_mpp_y = mpp
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(wsi.level_count)]
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
         # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
-        mpp_closest_lvl = mpp_list[closest_lvl]
-        closest_lvl_dim = wsi.level_dimensions[closest_lvl]
-
-        print(f"Closest Level: {closest_lvl} with MPP: {mpp_closest_lvl}")
-        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
+        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
 
         # Define tolerance intervals for x and y of closest level
         lower_bound_x = mpp_closest_lvl_x * (1 - rtol) - atol
@@ -1097,8 +1092,9 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         if within_tolerance:
             # Take closest_level and continue with returning img at level
-            print(f"User-provided MPP lies within tolerance of level {closest_lvl}, returning wsi at this level.")
-            closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim)
+            closest_lvl_wsi = wsi.read_region(
+                (0, 0), level=closest_lvl, size=wsi.level_dimensions[closest_lvl]
+            )
 
         else:
             # If mpp_closest_level < mpp -> closest_level has higher res than img at mpp => downscale from closest_level to mpp
@@ -1107,34 +1103,12 @@ class OpenSlideWSIReader(BaseWSIReader):
             closest_level_is_bigger = closest_level_is_bigger_x & closest_level_is_bigger_y
 
             if closest_level_is_bigger:
-                ds_factor_x = mpp_closest_lvl_x / user_mpp_x
-                ds_factor_y = mpp_closest_lvl_y / user_mpp_y
-
-                closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim)
-
-                target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
-                target_res_y = int(np.round(closest_lvl_dim[1] * ds_factor_y))
-
-                closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
-                print(f"Case 1: Downscaling using factor {(ds_factor_x, ds_factor_y)}")
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
             else:
                 # Else: increase resolution (ie, decrement level) and then downsample
                 closest_lvl = closest_lvl - 1
-                mpp_closest_lvl = mpp_list[closest_lvl]
-                mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
-
-                ds_factor_x = mpp_closest_lvl_x / user_mpp_x
-                ds_factor_y = mpp_closest_lvl_y / user_mpp_y
-
-                closest_lvl_dim = wsi.level_dimensions[closest_lvl]
-                closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim)
-
-                target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
-                target_res_y = int(np.round(closest_lvl_dim[1] * ds_factor_y))
-
-                closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
-                print(f"Case 2: Downscaling using factor {(ds_factor_x, ds_factor_y)}, now from level {closest_lvl}")
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
         wsi_arr = np.array(closest_lvl_wsi)
         return wsi_arr
@@ -1208,6 +1182,34 @@ class OpenSlideWSIReader(BaseWSIReader):
         patch = np.moveaxis(patch, -1, self.channel_dim)
 
         return patch
+    
+    def _resize_to_mpp_res(self, wsi, closest_lvl, mpp_list, user_mpp: tuple):
+        """
+        Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
+        
+        Args:
+            wsi: whole slide image object from WSIReader
+            user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
+            closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
+            mpp_list: list of mpp values for all levels of a whole slide image.
+            
+        """
+        pil_image, _ = optional_import("PIL", name="Image")
+
+        mpp_closest_lvl = mpp_list[closest_lvl]
+        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
+
+        ds_factor_x = mpp_closest_lvl_x / user_mpp[0]
+        ds_factor_y = mpp_closest_lvl_y / user_mpp[1]
+
+        closest_lvl_dim = wsi.level_dimensions[closest_lvl]
+        closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim)
+
+        target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
+        target_res_y = int(np.round(closest_lvl_dim[1] * ds_factor_y))
+
+        closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
+        return closest_lvl_wsi
 
 
 @require_pkg(pkg_name="tifffile")
@@ -1295,21 +1297,27 @@ class TiffFileWSIReader(BaseWSIReader):
             and wsi.pages[level].tags["YResolution"].value
         ):
             unit = wsi.pages[level].tags.get("ResolutionUnit")
-            if unit is not None:  # Needs to be improved
-                unit = str(unit.value)[8:]
-                # unit = str(unit.value.name).lower()  # TODO: Merge both methods
+            if unit is not None:  # Test with more tiff files
+                if isinstance(unit.value, int):
+                    unit = str(unit.value.name).lower()
+                else:
+                    unit = str(unit.value)[8:]
 
             else:
                 warnings.warn("The resolution unit is missing. `micrometer` will be used as default.")
                 unit = "micrometer"
 
             convert_to_micron = ConvertUnits(unit, "micrometer")
-            # Here x and y resolutions are rational numbers so each of them is represented by a tuple.
+
+            # Here, x and y resolutions are rational numbers so each of them is represented by a tuple.
             yres = wsi.pages[level].tags["YResolution"].value
             xres = wsi.pages[level].tags["XResolution"].value
-            return convert_to_micron(yres[1] / yres[0]), convert_to_micron(xres[1] / xres[0])
-
-        raise ValueError("`mpp`  cannot be obtained for this file. Please use `level` instead.")
+            if xres[0] & yres[0]:
+                return convert_to_micron(yres[1] / yres[0]), convert_to_micron(xres[1] / xres[0])
+            else:
+                raise ValueError("The `XResolution` and/or `YResolution` property of the image is zero, "
+                                 "which is needed to obtain `mpp` for this file. Please use `level` instead.")
+        raise ValueError("`mpp` cannot be obtained for this file. Please use `level` instead.")
 
     def get_wsi_at_mpp(self, wsi, mpp: tuple, atol: float = 0.00, rtol: float = 0.05) -> np.ndarray:
         """
@@ -1331,18 +1339,15 @@ class TiffFileWSIReader(BaseWSIReader):
 
         pil_image, _ = optional_import("PIL", name="Image")
         user_mpp_x, user_mpp_y = mpp
-        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]
+        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))] # Fails for some Tifffiles
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
         # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
-        mpp_closest_lvl = mpp_list[closest_lvl]
+        # lvl_dims = [self.get_size(wsi, lvl) for lvl in range(len(wsi.pages))]
+        # closest_lvl_dim = lvl_dims[closest_lvl]
+        # closest_lvl_dim = (closest_lvl_dim[1], closest_lvl_dim[0])
 
-        lvl_dims = [self.get_size(wsi, lvl) for lvl in range(len(wsi.pages))]
-        closest_lvl_dim = lvl_dims[closest_lvl]
-        closest_lvl_dim = (closest_lvl_dim[1], closest_lvl_dim[0])
-
-        print(f"Closest Level: {closest_lvl} with MPP: {mpp_closest_lvl}")
-        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
+        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
 
         # Define tolerance intervals for x and y of closest level
         lower_bound_x = mpp_closest_lvl_x * (1 - rtol) - atol
@@ -1357,8 +1362,8 @@ class TiffFileWSIReader(BaseWSIReader):
 
         if within_tolerance:
             # Take closest_level and continue with returning img at level
-            print(f"User-provided MPP lies within tolerance of level {closest_lvl}, returning wsi at this level.")
-            closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim)
+            print('Tifffile, within tolerance')
+            closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=self.get_size(wsi, closest_lvl))
 
         else:
             # If mpp_closest_level < mpp -> closest_level has higher res than img at mpp => downscale from closest_level to mpp
@@ -1367,36 +1372,11 @@ class TiffFileWSIReader(BaseWSIReader):
             closest_level_is_bigger = closest_level_is_bigger_x & closest_level_is_bigger_y
 
             if closest_level_is_bigger:
-                ds_factor_x = mpp_closest_lvl_x / user_mpp_x
-                ds_factor_y = mpp_closest_lvl_y / user_mpp_y
-
-                closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())  # Might be suboptimal
-
-                target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
-                target_res_y = int(np.round(closest_lvl_dim[1] * ds_factor_y))
-
-                closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
-                print(f"Case 1: Downscaling using factor {(ds_factor_x, ds_factor_y)}")
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
             else:
-                # Else: increase resolution (ie, decrement level) and then downsample
                 closest_lvl = closest_lvl - 1
-                mpp_closest_lvl = mpp_list[closest_lvl]  # Update MPP
-                mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
-
-                ds_factor_x = mpp_closest_lvl_x / user_mpp_x
-                ds_factor_y = mpp_closest_lvl_y / user_mpp_y
-
-                closest_lvl_dim = lvl_dims[closest_lvl]
-                closest_lvl_dim = (closest_lvl_dim[1], closest_lvl_dim[0])
-
-                closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())  # Might be suboptimal
-
-                target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
-                target_res_y = int(np.round(closest_lvl_dim[1] * ds_factor_y))
-
-                closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
-                print(f"Case 2: Downscaling using factor {(ds_factor_x, ds_factor_y)}, now from level {closest_lvl}")
+                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
         wsi_arr = np.array(closest_lvl_wsi)
         return wsi_arr
@@ -1445,7 +1425,7 @@ class TiffFileWSIReader(BaseWSIReader):
         Extracts and returns a patch image form the whole slide image.
 
         Args:
-            wsi: a whole slide image object loaded from a file or a lis of such objects
+            wsi: a whole slide image object loaded from a file or a list of such objects
             location: (top, left) tuple giving the top left pixel in the level 0 reference frame. Defaults to (0, 0).
             size: (height, width) tuple giving the patch size at the given level (`level`).
                 If None, it is set to the full image size at the given level.
@@ -1477,3 +1457,31 @@ class TiffFileWSIReader(BaseWSIReader):
             patch = np.take(patch, [0, 1, 2], self.channel_dim)
 
         return patch
+    
+    def _resize_to_mpp_res(self, wsi, closest_lvl, mpp_list, user_mpp: tuple):
+        """
+        Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
+        
+        Args:
+            wsi: whole slide image object from WSIReader
+            user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
+            closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
+            mpp_list: list of mpp values for all levels of a whole slide image.
+
+        """
+        pil_image, _ = optional_import("PIL", name="Image")
+
+        mpp_closest_lvl = mpp_list[closest_lvl]
+        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
+
+        ds_factor_x = mpp_closest_lvl_x / user_mpp[0]
+        ds_factor_y = mpp_closest_lvl_y / user_mpp[1]
+
+        closest_lvl_dim = self.get_size(wsi, closest_lvl)
+        closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())
+
+        target_res_x = int(np.round(closest_lvl_dim[0] * ds_factor_x))
+        target_res_y = int(np.round(closest_lvl_dim[1] * ds_factor_y))
+
+        closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
+        return closest_lvl_wsi
