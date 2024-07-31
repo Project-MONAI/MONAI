@@ -15,9 +15,10 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
-from monai.utils import optional_import
+from monai.utils import optional_import, pytorch_after
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
@@ -42,6 +43,7 @@ class SABlock(nn.Module):
         rel_pos_embedding: Optional[str] = None,
         input_size: Optional[Tuple] = None,
         attention_dtype: Optional[torch.dtype] = None,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -59,6 +61,7 @@ class SABlock(nn.Module):
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
                 positional parameter size.
             attention_dtype: cast attention operations to this dtype.
+            use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
 
         """
 
@@ -82,6 +85,17 @@ class SABlock(nn.Module):
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
+        if use_flash_attention and not pytorch_after(minor=0, major=2, patch=0):
+            raise ValueError(
+                "use_flash_attention is only supported for PyTorch versions > 2.0."
+                "Upgrade your PyTorch or set the flag to False."
+            )
+        if use_flash_attention and save_attn:
+            raise ValueError(
+                "save_attn has been set to True, but use_flash_attention is also set"
+                "to True. save_attn can only be used if use_flash_attention is False"
+            )
+
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
         self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
@@ -97,6 +111,7 @@ class SABlock(nn.Module):
         self.attention_dtype = attention_dtype
         self.causal = causal
         self.sequence_length = sequence_length
+        self.use_flash_attention = use_flash_attention
 
         if causal and sequence_length is not None:
             # causal mask to ensure that attention is only applied to the left in the input sequence
@@ -130,23 +145,28 @@ class SABlock(nn.Module):
             q = q.to(self.attention_dtype)
             k = k.to(self.attention_dtype)
 
-        att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
+        if self.use_flash_attention:
+            x = F.scaled_dot_product_attention(q, k, v)
+        else:
+            att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
-        # apply relative positional embedding if defined
-        att_mat = self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
+            # apply relative positional embedding if defined
+            att_mat = (
+                self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
+            )
 
-        if self.causal:
-            att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[1], : x.shape[1]] == 0, float("-inf"))
+            if self.causal:
+                att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[1], : x.shape[1]] == 0, float("-inf"))
 
-        att_mat = att_mat.softmax(dim=-1)
+            att_mat = att_mat.softmax(dim=-1)
 
-        if self.save_attn:
-            # no gradients and new tensor;
-            # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
-            self.att_mat = att_mat.detach()
+            if self.save_attn:
+                # no gradients and new tensor;
+                # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
+                self.att_mat = att_mat.detach()
 
-        att_mat = self.drop_weights(att_mat)
-        x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
+            att_mat = self.drop_weights(att_mat)
+            x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
         x = self.out_rearrange(x)
         x = self.out_proj(x)
         x = self.drop_output(x)

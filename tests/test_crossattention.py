@@ -119,7 +119,7 @@ class TestResBlock(unittest.TestCase):
         # no of elements is zero
         assert no_matrix_acess_blk.att_mat.nelement() == 0
 
-        # be able to acess the attention matrix
+        # be able to acess the attention matrix.
         matrix_acess_blk = CrossAttentionBlock(
             hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
         )

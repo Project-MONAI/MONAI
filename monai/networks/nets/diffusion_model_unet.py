@@ -66,6 +66,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
         dropout: dropout probability to use.
         cross_attention_dim: size of the context vector for cross attention.
         upcast_attention: if True, upcast attention operations to full precision.
+        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
 
     """
 
@@ -77,6 +78,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
         dropout: float = 0.0,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.attn1 = SABlock(
@@ -86,6 +88,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
             dim_head=num_head_channels,
             dropout_rate=dropout,
             attention_dtype=torch.float if upcast_attention else None,
+            use_flash_attention=use_flash_attention,
         )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
         self.attn2 = CrossAttentionBlock(

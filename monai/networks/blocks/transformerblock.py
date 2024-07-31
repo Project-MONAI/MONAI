@@ -36,6 +36,7 @@ class TransformerBlock(nn.Module):
         causal: bool = False,
         sequence_length: int | None = None,
         with_cross_attention: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -45,6 +46,7 @@ class TransformerBlock(nn.Module):
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+            use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
 
         """
 
@@ -66,6 +68,7 @@ class TransformerBlock(nn.Module):
             save_attn=save_attn,
             causal=causal,
             sequence_length=sequence_length,
+            use_flash_attention=use_flash_attention,
         )
         self.norm2 = nn.LayerNorm(hidden_size)
         self.with_cross_attention = with_cross_attention

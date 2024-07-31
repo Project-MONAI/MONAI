@@ -22,6 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
+from tests.utils import SkipIfBeforePyTorchVersion
 
 einops, has_einops = optional_import("einops")
 
@@ -49,11 +50,17 @@ class TestResBlock(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_SABLOCK)
     @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((0, 2))
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SABlock(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
+        # With flash attention
+        net_fa = SABlock(**input_param, use_flash_attention=True)
+        with eval_mode(net):
+            result_fa = net_fa(torch.randn(input_shape))
+            self.assertEqual(result_fa.shape, expected_shape)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
@@ -61,6 +68,11 @@ class TestResBlock(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
+
+    @SkipIfBeforePyTorchVersion((0, 2))
+    def test_save_attn_with_flash_attention(self):
+        with self.assertRaises(ValueError):
+            SABlock(hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True)
 
     def test_attention_dim_not_multiple_of_heads(self):
         with self.assertRaises(ValueError):
