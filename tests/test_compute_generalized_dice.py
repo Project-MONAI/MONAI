@@ -22,7 +22,7 @@ from monai.metrics import GeneralizedDiceScore, compute_generalized_dice
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 # keep background
-TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1)
+TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
     {
         "y_pred": torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]], device=_device),
         "y": torch.tensor([[[[1.0, 0.0], [1.0, 1.0]]]], device=_device),
@@ -32,7 +32,7 @@ TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1)
 ]
 
 # remove background
-TEST_CASE_2 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2) (no background)
+TEST_CASE_2 = [  # y (2, 3, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no background)
     {
         "y_pred": torch.tensor(
             [
@@ -48,11 +48,11 @@ TEST_CASE_2 = [  # y (2, 1, 2, 2), y_pred (2, 3, 2, 2), expected out (2) (no bac
         ),
         "include_background": False,
     },
-    [0.1667, 0.6667],
+    [0.416667],
 ]
 
 # should return 0 for both cases
-TEST_CASE_3 = [
+TEST_CASE_3 = [  # y (2, 3, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 3)
     {
         "y_pred": torch.tensor(
             [
@@ -68,7 +68,7 @@ TEST_CASE_3 = [
         ),
         "include_background": True,
     },
-    [0.0, 0.0],
+    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
 ]
 
 TEST_CASE_4 = [
@@ -87,11 +87,11 @@ TEST_CASE_4 = [
             ]
         ),
     },
-    [0.5455],
+    [0.678571, 0.2, 0.333333],
 ]
 
 TEST_CASE_5 = [
-    {"include_background": True, "reduction": "sum_batch"},
+    {"include_background": True, "reduction": "sum"},
     {
         "y_pred": torch.tensor(
             [
@@ -106,16 +106,28 @@ TEST_CASE_5 = [
             ]
         ),
     },
-    1.0455,
+    [1.045455],
 ]
 
-TEST_CASE_6 = [{"y": torch.ones((2, 2, 3, 3)), "y_pred": torch.ones((2, 2, 3, 3))}, [1.0000, 1.0000]]
+TEST_CASE_6 = [
+    {"y": torch.ones((2, 2, 3, 3)), "y_pred": torch.ones((2, 2, 3, 3))},
+    [[1.0000, 1.0000], [1.0000, 1.0000]],
+]
 
-TEST_CASE_7 = [{"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.ones((2, 2, 3, 3))}, [0.0000, 0.0000]]
+TEST_CASE_7 = [
+    {"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.ones((2, 2, 3, 3))},
+    [[0.0000, 0.0000], [0.0000, 0.0000]],
+]
 
-TEST_CASE_8 = [{"y": torch.ones((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 3))}, [0.0000, 0.0000]]
+TEST_CASE_8 = [
+    {"y": torch.ones((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 3))},
+    [[0.0000, 0.0000], [0.0000, 0.0000]],
+]
 
-TEST_CASE_9 = [{"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 3))}, [1.0000, 1.0000]]
+TEST_CASE_9 = [
+    {"y": torch.zeros((2, 2, 3, 3)), "y_pred": torch.zeros((2, 2, 3, 3))},
+    [[1.0000, 1.0000], [1.0000, 1.0000]],
+]
 
 
 class TestComputeGeneralizedDiceScore(unittest.TestCase):
@@ -126,7 +138,7 @@ class TestComputeGeneralizedDiceScore(unittest.TestCase):
         np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
     # Functional part tests
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9])
+    @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_9])
     def test_value(self, input_data, expected_value):
         result = compute_generalized_dice(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
@@ -146,7 +158,7 @@ class TestComputeGeneralizedDiceScore(unittest.TestCase):
         vals["y"] = input_data.pop("y")
         generalized_dice_score = GeneralizedDiceScore(**input_data)
         generalized_dice_score(**vals)
-        result = generalized_dice_score.aggregate(reduction="none")
+        result = generalized_dice_score.aggregate()
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     # Aggregation tests
