@@ -1649,12 +1649,12 @@ class Fourier:
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
             if hasattr(torch.fft, "fftshift"):  # `fftshift` is new in torch 1.8.0
-                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
+                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims).contiguous()
             else:
                 # if using old PyTorch, will convert to numpy array and return
-                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
+                k = np.ascontiguousarray(np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims))
         else:
-            k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
+            k = np.ascontiguousarray(np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims))
         return k
 
     @staticmethod
@@ -1674,12 +1674,12 @@ class Fourier:
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):
             if hasattr(torch.fft, "ifftshift"):  # `ifftshift` is new in torch 1.8.0
-                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
+                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real.contiguous()
             else:
                 # if using old PyTorch, will convert to numpy array and return
-                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
+                out = np.ascontiguousarray(np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real)
         else:
-            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
+            out = np.ascontiguousarray(np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real)
         return out
 
 
