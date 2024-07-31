@@ -1337,15 +1337,10 @@ class TiffFileWSIReader(BaseWSIReader):
 
         """
 
-        pil_image, _ = optional_import("PIL", name="Image")
         user_mpp_x, user_mpp_y = mpp
-        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))] # Fails for some Tifffiles
+        mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]  # Fails for some Tifffiles
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
         # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
-
-        # lvl_dims = [self.get_size(wsi, lvl) for lvl in range(len(wsi.pages))]
-        # closest_lvl_dim = lvl_dims[closest_lvl]
-        # closest_lvl_dim = (closest_lvl_dim[1], closest_lvl_dim[0])
 
         mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
 
@@ -1362,7 +1357,6 @@ class TiffFileWSIReader(BaseWSIReader):
 
         if within_tolerance:
             # Take closest_level and continue with returning img at level
-            print('Tifffile, within tolerance')
             closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=self.get_size(wsi, closest_lvl))
 
         else:
