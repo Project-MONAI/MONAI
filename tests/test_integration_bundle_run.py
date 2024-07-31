@@ -135,9 +135,8 @@ class TestBundleRun(unittest.TestCase):
         command_run = cmd + ["run", "training", "--config_file", config_file, "--meta_file", meta_file]
         completed_process = subprocess.run(command_run, check=True, capture_output=True, text=True)
         output = repr(completed_process.stdout).replace("\\n", "\n").replace("\\t", "\t")  # Get the captured output
-        print(output)
 
-        self.assertTrue(expected_condition in output)
+        self.assertIn(expected_condition, output)
         command_run_workflow = cmd + [
             "run_workflow",
             "--run_id",
@@ -149,8 +148,7 @@ class TestBundleRun(unittest.TestCase):
         ]
         completed_process = subprocess.run(command_run_workflow, check=True, capture_output=True, text=True)
         output = repr(completed_process.stdout).replace("\\n", "\n").replace("\\t", "\t")  # Get the captured output
-        print(output)
-        self.assertTrue(expected_condition in output)
+        self.assertIn(expected_condition, output)
 
         # test missing meta file
         self.assertIn("ERROR", command_line_tests(cmd + ["run", "training", "--config_file", config_file]))

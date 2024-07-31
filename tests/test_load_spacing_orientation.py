@@ -48,7 +48,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         ref = resample_to_output(anat, (1, 0.2, 1), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
-        self.assertTrue(t2 >= t1)
+        self.assertGreaterEqual(t2, t1)
         np.testing.assert_allclose(res_dict["image"].affine, ref.affine)
         np.testing.assert_allclose(res_dict["image"].shape[1:], ref.shape)
         np.testing.assert_allclose(ref.get_fdata(), res_dict["image"][0], atol=0.05)
@@ -68,7 +68,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         ref = resample_to_output(anat, (1, 2, 3), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
-        self.assertTrue(t2 >= t1)
+        self.assertGreaterEqual(t2, t1)
         np.testing.assert_allclose(res_dict["image"].affine, ref.affine)
         if "anatomical" not in filename:
             np.testing.assert_allclose(res_dict["image"].shape[1:], ref.shape)

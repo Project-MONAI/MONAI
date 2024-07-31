@@ -126,6 +126,7 @@ from .module import (
     version_leq,
 )
 from .nvtx import Range
+from .ordering import Ordering
 from .profiling import (
     PerfContext,
     ProfileHandler,

@@ -17,7 +17,7 @@ import sys
 from ._version import get_versions
 
 PY_REQUIRED_MAJOR = 3
-PY_REQUIRED_MINOR = 8
+PY_REQUIRED_MINOR = 9
 
 version_dict = get_versions()
 __version__: str = version_dict.get("version", "0+unknown")
@@ -83,6 +83,11 @@ try:
     from .utils.tf32 import detect_default_tf32
 
     detect_default_tf32()
+    import torch
+
+    # workaround related to https://github.com/Project-MONAI/MONAI/issues/7575
+    if hasattr(torch.cuda.device_count, "cache_clear"):
+        torch.cuda.device_count.cache_clear()
 except BaseException:
     from .utils.misc import MONAIEnvVars
 

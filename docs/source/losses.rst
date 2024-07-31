@@ -73,6 +73,11 @@ Segmentation Losses
 .. autoclass:: ContrastiveLoss
     :members:
 
+`BarlowTwinsLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: BarlowTwinsLoss
+    :members:
+
 `HausdorffDTLoss`
 ~~~~~~~~~~~~~~~~~
 .. autoclass:: HausdorffDTLoss
@@ -132,6 +137,11 @@ Reconstruction Losses
 `JukeboxLoss`
 ~~~~~~~~~~~~~~
 .. autoclass:: JukeboxLoss
+    :members:
+
+`SURELoss`
+~~~~~~~~~~
+.. autoclass:: SURELoss
     :members:
 
 

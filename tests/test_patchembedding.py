@@ -93,6 +93,32 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
+    def test_sincos_pos_embed(self):
+        net = PatchEmbeddingBlock(
+            in_channels=1,
+            img_size=(32, 32, 32),
+            patch_size=(8, 8, 8),
+            hidden_size=96,
+            num_heads=8,
+            pos_embed_type="sincos",
+            dropout_rate=0.5,
+        )
+
+        self.assertEqual(net.position_embeddings.requires_grad, False)
+
+    def test_learnable_pos_embed(self):
+        net = PatchEmbeddingBlock(
+            in_channels=1,
+            img_size=(32, 32, 32),
+            patch_size=(8, 8, 8),
+            hidden_size=96,
+            num_heads=8,
+            pos_embed_type="learnable",
+            dropout_rate=0.5,
+        )
+
+        self.assertEqual(net.position_embeddings.requires_grad, True)
+
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
             PatchEmbeddingBlock(
