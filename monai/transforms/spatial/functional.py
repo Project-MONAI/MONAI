@@ -313,6 +313,7 @@ def flip_point(points, sp_axes, lazy, transform_info):
         # TODO: add lazy support
         raise NotImplementedError
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    # TODO: use CoordinateTransformd.apply_affine_to_points instead
     out = apply_affine_to_points(out[0], xform, dtype=torch.float64).unsqueeze(0)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
