@@ -66,7 +66,8 @@ class DiffusionUNetTransformerBlock(nn.Module):
         dropout: dropout probability to use.
         cross_attention_dim: size of the context vector for cross attention.
         upcast_attention: if True, upcast attention operations to full precision.
-        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+        (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
 
     """
 

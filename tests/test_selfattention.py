@@ -32,35 +32,32 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
             for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
                 for input_size in [(16, 32), (8, 8, 8)]:
-                    test_case = [
-                        {
-                            "hidden_size": hidden_size,
-                            "num_heads": num_heads,
-                            "dropout_rate": dropout_rate,
-                            "rel_pos_embedding": rel_pos_embedding,
-                            "input_size": input_size,
-                        },
-                        (2, 512, hidden_size),
-                        (2, 512, hidden_size),
-                    ]
-                    TEST_CASE_SABLOCK.append(test_case)
+                    for flash_attn in [True, False]:
+                        test_case = [
+                            {
+                                "hidden_size": hidden_size,
+                                "num_heads": num_heads,
+                                "dropout_rate": dropout_rate,
+                                "rel_pos_embedding": rel_pos_embedding,
+                                "input_size": input_size,
+                                "use_flash_attention": flash_attn,
+                            },
+                            (2, 512, hidden_size),
+                            (2, 512, hidden_size),
+                        ]
+                        TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_SABLOCK)
     @skipUnless(has_einops, "Requires einops")
-    @SkipIfBeforePyTorchVersion((0, 2))
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SABlock(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
-        # With flash attention
-        net_fa = SABlock(**input_param, use_flash_attention=True)
-        with eval_mode(net):
-            result_fa = net_fa(torch.randn(input_shape))
-            self.assertEqual(result_fa.shape, expected_shape)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):

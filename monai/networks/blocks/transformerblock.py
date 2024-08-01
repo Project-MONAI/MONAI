@@ -39,14 +39,12 @@ class TransformerBlock(nn.Module):
         use_flash_attention: bool = False,
     ) -> None:
         """
-        Args:
-            hidden_size (int): dimension of hidden layer.
-            mlp_dim (int): dimension of feedforward layer.
-            num_heads (int): number of attention heads.
-            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
-            qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
-            save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
-            use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+        Args: hidden_size (int): dimension of hidden layer. mlp_dim (int): dimension of feedforward layer. num_heads
+        (int): number of attention heads. dropout_rate (float, optional): fraction of the input units to drop.
+        Defaults to 0.0. qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
+        save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+        (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
 
         """
 

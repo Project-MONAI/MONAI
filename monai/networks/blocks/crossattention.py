@@ -47,23 +47,20 @@ class CrossAttentionBlock(nn.Module):
         use_flash_attention: bool = False,
     ) -> None:
         """
-        Args:
-            hidden_size (int): dimension of hidden layer.
-            num_heads (int): number of attention heads.
-            dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
-            hidden_input_size (int, optional): dimension of the input tensor. Defaults to hidden_size.
-            context_input_size (int, optional): dimension of the context tensor. Defaults to hidden_size.
-            dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
-            qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
-            save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
-            causal: whether to use causal attention.
-            sequence_length: if causal is True, it is necessary to specify the sequence length.
-            rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map.
-                For now only "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
-            input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
-                positional parameter size.
-            attention_dtype: cast attention operations to this dtype.
-            use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+        Args: hidden_size (int): dimension of hidden layer. num_heads (int): number of attention heads. dropout_rate
+        (float, optional): fraction of the input units to drop. Defaults to 0.0. hidden_input_size (int, optional):
+        dimension of the input tensor. Defaults to hidden_size. context_input_size (int, optional): dimension of the
+        context tensor. Defaults to hidden_size. dim_head (int, optional): dimension of each head. Defaults to
+        hidden_size // num_heads. qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
+        save_attn (bool, optional): to make accessible the attention matrix. Defaults to False. causal: whether to
+        use causal attention. sequence_length: if causal is True, it is necessary to specify the sequence length.
+        rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map. For now only
+        "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported. input_size (tuple(
+        spatial_dim), optional): Input resolution for calculating the relative positional parameter size.
+        attention_dtype: cast attention operations to this dtype.
+        use_flash_attention: if True, use Pytorch's inbuilt
+        flash attention for a memory efficient attention mechanism (see
+        https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
         """
 
         super().__init__()
@@ -166,9 +163,8 @@ class CrossAttentionBlock(nn.Module):
 
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
             # apply relative positional embedding if defined
-            att_mat = (
-                self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
-            )
+            if self.rel_positional_embedding is not None:
+                att_mat = self.rel_positional_embedding(x, att_mat, q)
 
             if self.causal:
                 att_mat = att_mat.masked_fill(self.causal_mask[:, :, :t, :kv_t] == 0, float("-inf"))

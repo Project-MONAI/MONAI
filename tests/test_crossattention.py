@@ -32,18 +32,20 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
             for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
                 for input_size in [(16, 32), (8, 8, 8)]:
-                    test_case = [
-                        {
-                            "hidden_size": hidden_size,
-                            "num_heads": num_heads,
-                            "dropout_rate": dropout_rate,
-                            "rel_pos_embedding": rel_pos_embedding,
-                            "input_size": input_size,
-                        },
-                        (2, 512, hidden_size),
-                        (2, 512, hidden_size),
-                    ]
-                    TEST_CASE_CABLOCK.append(test_case)
+                    for flash_attn in [True, False]:
+                        test_case = [
+                            {
+                                "hidden_size": hidden_size,
+                                "num_heads": num_heads,
+                                "dropout_rate": dropout_rate,
+                                "rel_pos_embedding": rel_pos_embedding,
+                                "input_size": input_size,
+                                "use_flash_attention": flash_attn,
+                            },
+                            (2, 512, hidden_size),
+                            (2, 512, hidden_size),
+                        ]
+                        TEST_CASE_CABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
@@ -56,11 +58,6 @@ class TestResBlock(unittest.TestCase):
         with eval_mode(net):
             result = net(torch.randn(input_shape), context=torch.randn(2, 512, input_param["hidden_size"]))
             self.assertEqual(result.shape, expected_shape)
-        # With flash attention
-        net = CrossAttentionBlock(**input_param, use_flash_attention=True)
-        with eval_mode(net):
-            result = net(torch.randn(input_shape), context=torch.randn(2, 512, input_param["hidden_size"]))
-            self.assertEqual(result.shape, expected_shape)
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
@@ -69,7 +66,7 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
-    @SkipIfBeforePyTorchVersion((1, 13))
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(

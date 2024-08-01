@@ -61,7 +61,9 @@ class SABlock(nn.Module):
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
                 positional parameter size.
             attention_dtype: cast attention operations to this dtype.
-            use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
+            use_flash_attention: if True, use Pytorch's inbuilt
+            flash attention for a memory efficient attention mechanism (see
+            https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
 
         """
 
@@ -151,9 +153,8 @@ class SABlock(nn.Module):
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
             # apply relative positional embedding if defined
-            att_mat = (
-                self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
-            )
+            if self.rel_positional_embedding is not None:
+                att_mat = self.rel_positional_embedding(x, att_mat, q)
 
             if self.causal:
                 att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[1], : x.shape[1]] == 0, float("-inf"))
