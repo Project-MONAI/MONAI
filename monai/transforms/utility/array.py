@@ -1741,12 +1741,25 @@ class CoordinateTransform(InvertibleTransform, Transform):
         self.mode = mode
         self.affine_lps_to_ras = affine_lps_to_ras
 
+
+    @staticmethod
+    def apply_affine_to_points(data, affine, dtype):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=dtype)
+
+        homogeneous = concatenate((data_[0], torch.ones((data_[0].shape[0], 1))), axis=1)
+        transformed_homogeneous = torch.matmul(affine, homogeneous.T)
+        transformed_coordinates = transformed_homogeneous[:-1].T.unsqueeze(0)
+        out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
+
+        return out
+
     def transform_coordinates(self, data, i2w_affine):
         """
         Transform coordinates using an affine transformation matrix.
 
         Args:
-            data: The input coordinates.
+            data: The input coordinates, assume to be in shape (C, N, 3 or 4).
             i2w_affine: A 3x3 or 4x4 affine transformation matrix.
             invert: Whether to invert the affine matrix.
 
@@ -1763,10 +1776,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
         w2i_affine = linalg_inv(i2w_affine)
         _affine = w2i_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else i2w_affine
 
-        homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
-        transformed_homogeneous = torch.matmul(_affine, homogeneous.T)
-        transformed_coordinates = transformed_homogeneous[:-1].T
-        out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=self.dtype)
+        out = self.apply_affine_to_points(data_, _affine, self.dtype)
 
         extra_info = {
             "mode": self.mode,
