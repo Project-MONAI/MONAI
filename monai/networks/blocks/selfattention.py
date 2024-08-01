@@ -85,9 +85,9 @@ class SABlock(nn.Module):
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
-        if use_flash_attention and not pytorch_after(minor=0, major=2, patch=0):
+        if use_flash_attention and not pytorch_after(minor=13, major=1, patch=0):
             raise ValueError(
-                "use_flash_attention is only supported for PyTorch versions > 2.0."
+                "use_flash_attention is only supported for PyTorch versions >= 2.0."
                 "Upgrade your PyTorch or set the flag to False."
             )
         if use_flash_attention and save_attn:

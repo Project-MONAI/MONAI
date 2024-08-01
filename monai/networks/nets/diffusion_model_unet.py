@@ -99,6 +99,7 @@ class DiffusionUNetTransformerBlock(nn.Module):
             dim_head=num_head_channels,
             dropout_rate=dropout,
             attention_dtype=torch.float if upcast_attention else None,
+            use_flash_attention=use_flash_attention,
         )
         self.norm1 = nn.LayerNorm(num_channels)
         self.norm2 = nn.LayerNorm(num_channels)

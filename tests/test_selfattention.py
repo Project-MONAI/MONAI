@@ -69,7 +69,7 @@ class TestResBlock(unittest.TestCase):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
-    @SkipIfBeforePyTorchVersion((0, 2))
+    @SkipIfBeforePyTorchVersion((1, 13))
     def test_save_attn_with_flash_attention(self):
         with self.assertRaises(ValueError):
             SABlock(hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True)
