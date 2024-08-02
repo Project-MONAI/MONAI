@@ -109,6 +109,8 @@ class CrossAttentionBlock(nn.Module):
                 torch.tril(torch.ones(sequence_length, sequence_length)).view(1, 1, sequence_length, sequence_length),
             )
             self.causal_mask: torch.Tensor
+        else:
+            self.causal_mask = torch.Tensor()
 
         self.att_mat = torch.Tensor()
         self.rel_positional_embedding = (
@@ -118,7 +120,7 @@ class CrossAttentionBlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x: torch.Tensor, context: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, context: Optional[torch.Tensor] = None):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
