@@ -54,6 +54,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     resolves_modes,
     scale_affine,
+    spatial_dims_from_tensorlike,
 )
 from monai.transforms.utils_pytorch_numpy_unification import argsort, argwhere, linalg_inv, moveaxis
 from monai.utils import (
@@ -1089,7 +1090,8 @@ class Zoom(InvertibleTransform, LazyTransform):
                 during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        spatial_dims = spatial_dims_from_tensorlike(img)
+        _zoom = ensure_tuple_rep(self.zoom, spatial_dims)  # match the spatial image dim
         _mode = self.mode if mode is None else mode
         _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners
