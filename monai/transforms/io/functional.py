@@ -42,3 +42,43 @@ def load_geometry(file, image, origin):
     points.kind = KindKeys.POINT
 
     return points
+
+"""
+{
+            "schema": {
+                "geometry": "point"
+            },
+            "points": [
+                [0, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1],
+                [0, 1, 1],
+                [1, 0, 0],
+                [1, 1, 0],
+                [1, 0, 1],
+                [1, 1, 1],
+            ]
+        }
+"""
+
+def save_geometry(data, file, image, origin):
+    """
+    Load geometry from a file and optionally map it to another coordinate space.
+    """
+    if not isinstance(data, MetaTensor):
+        raise ValueError(f"Geometry export issue: data must be a MetaTensor, got: {type(data)}")
+    if data.kind != KindKeys.POINT:
+        raise ValueError(f"Geometry export issue: geometry must be a point {KindKeys.POINT}")
+    geometry = data.detach().cpu().numpy()
+    geometry = geometry[:, :-1].tolist()
+
+    schema = {
+        "schema": {
+            "geometry": "point"
+        },
+        "points":
+            geometry
+    }
+
+    geometry = json.dump(schema, file)
+    return None
