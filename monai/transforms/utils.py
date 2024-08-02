@@ -26,6 +26,7 @@ import torch
 import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose
@@ -65,7 +66,7 @@ from monai.utils import (
     optional_import,
     pytorch_after,
 )
-from monai.utils.enums import TransformBackends
+from monai.utils.enums import KindKeys, TransformBackends
 from monai.utils.type_conversion import (
     convert_data_type,
     convert_to_cupy,
@@ -94,6 +95,7 @@ __all__ = [
     "create_scale",
     "create_shear",
     "create_translate",
+    "spatial_dims_from_tensorlike",
     "extreme_points_to_image",
     "fill_holes",
     "Fourier",
@@ -951,6 +953,22 @@ def _create_translate(
     for i, a in enumerate(shift[:spatial_dims]):
         affine[i, spatial_dims] = a
     return array_func(affine)  # type: ignore
+
+
+def spatial_dims_from_tensorlike(data: NdarrayOrTensor) -> int:
+    """
+    Get the spatial dimensions of the input data.
+
+    Args:
+        data: input data to infer the spatial dimensions.
+
+    Returns:
+        spatial dimensions of the input data.
+
+    """
+    if isinstance(data, MetaTensor) and data.kind == KindKeys.POINT:
+        return data.shape[-1] - 1
+    return len(data.shape) - 1
 
 
 @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
