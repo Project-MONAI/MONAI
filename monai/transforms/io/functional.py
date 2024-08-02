@@ -13,7 +13,6 @@ def load_geometry(file, image, origin):
     """
     Load geometry from a file and optionally map it to another coordinate space.
     """
-
     geometry = json.load(file)
     geometry_schema = geometry.get("schema", None)
     if geometry_schema is None:
