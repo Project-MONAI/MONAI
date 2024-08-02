@@ -740,7 +740,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
         return rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
 
 
-def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def zoom_impl(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of zoom.
     This function operates eagerly or lazily according to
@@ -768,7 +768,13 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     """
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     output_size = [int(math.floor(float(i) * z)) for i, z in zip(im_shape, scale_factor)]
-    xform = scale_affine(im_shape, output_size)
+    if not isinstance(img, MetaTensor) or img.kind == KindKeys.PIXEL:
+        xform = scale_affine(im_shape, output_size)
+    else:
+        spatial_dims = im_shape[1] - 1
+        old_shape = [1 for _ in range(spatial_dims)]
+
+        xform = scale_affine(old_shape, scale_factor, False)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -798,6 +804,14 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         transform_info=transform_info,
         lazy=lazy,
     )
+    return xform, meta_info, output_size
+
+
+def zoom_raster(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Raster-specific zoom functionality
+    """
+    transform, meta_info, output_size = zoom_impl(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -822,6 +836,51 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         out.applied_operations[-1]["extra_info"]["do_padcrop"] = True
         out.applied_operations[-1]["extra_info"]["padcrop"] = padcrop_xform
     return out
+
+
+def zoom_geom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Geometry-specific zoom functionality
+    """
+    transform, meta_info, output_size = zoom_impl(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+    return out
+
+
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Functional implementation of zoom.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        scale_factor: The zoom factor along the spatial axes.
+            If a float, zoom is the same for each spatial axis.
+            If a sequence, zoom should contain one value for each spatial axis.
+        keep_size: Whether keep original size (padding/slicing if needed).
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        dtype: data type for resampling computation.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``float32``.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        return zoom_geom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    else:
+        return zoom_raster(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
 
 
 def rotate90(img, axes, k, lazy, transform_info):
