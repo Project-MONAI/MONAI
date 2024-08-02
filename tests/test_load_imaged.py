@@ -190,7 +190,7 @@ class TestLoadImagedMeta(unittest.TestCase):
                 self.assertTrue(hasattr(r, "affine"))
                 self.assertIsInstance(r.affine, torch.Tensor)
                 self.assertEqual(r.meta["space"], "RAS")
-                self.assertTrue("qform_code" not in r.meta)
+                self.assertNotIn("qform_code", r.meta)
             else:
                 self.assertIsInstance(r, torch.Tensor)
                 self.assertNotIsInstance(r, MetaTensor)

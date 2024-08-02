@@ -138,11 +138,11 @@ class TestBundleWorkflow(unittest.TestCase):
         self.assertListEqual(trainer.check_properties(), [])
         # test read / write the properties
         dataset = trainer.train_dataset
-        self.assertTrue(isinstance(dataset, Dataset))
+        self.assertIsInstance(dataset, Dataset)
         inferer = trainer.train_inferer
-        self.assertTrue(isinstance(inferer, SimpleInferer))
+        self.assertIsInstance(inferer, SimpleInferer)
         # test optional properties get
-        self.assertTrue(trainer.train_key_metric is None)
+        self.assertIsNone(trainer.train_key_metric)
         trainer.train_dataset = deepcopy(dataset)
         trainer.train_inferer = deepcopy(inferer)
         # test optional properties set

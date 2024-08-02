@@ -17,8 +17,12 @@ FROM ${PYTORCH_IMAGE}
 LABEL maintainer="monai.contact@gmail.com"
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
-WORKDIR /opt
-RUN git clone --recursive https://github.com/zarr-developers/numcodecs.git && pip wheel numcodecs
+RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
+      export CFLAGS="-O3" && \
+      export DISABLE_NUMCODECS_SSE2=true && \
+      export DISABLE_NUMCODECS_AVX2=true && \
+      pip install numcodecs; \
+    fi
 
 WORKDIR /opt/monai
 

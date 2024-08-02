@@ -50,6 +50,10 @@ jobs:
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run tests report coverage
+      env:
+          NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+          NGC_ORG: ${{ secrets.NGC_ORG }}
+          NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
         echo "Sleep $LAUNCH_DELAY"
@@ -94,6 +98,10 @@ jobs:
         python -m pip install -r requirements-dev.txt
         python -m pip list
     - name: Run tests report coverage
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         export LAUNCH_DELAY=$[ $RANDOM % 16 * 60 ]
         echo "Sleep $LAUNCH_DELAY"
@@ -196,6 +204,10 @@ jobs:
     - name: Run tests report coverage
       # The docker image process has done the compilation.
       # BUILD_MONAI=1 is necessary for triggering the USE_COMPILED flag.
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         cd /opt/monai
         nvidia-smi

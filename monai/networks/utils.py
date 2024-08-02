@@ -42,6 +42,7 @@ __all__ = [
     "predict_segmentation",
     "normalize_transform",
     "to_norm_affine",
+    "CastTempType",
     "normal_init",
     "icnr_init",
     "pixelshuffle",
@@ -840,7 +841,6 @@ def _onnx_trt_compile(
 
     # set up the conversion configuration
     config = builder.create_builder_config()
-    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 31)
     config.add_optimization_profile(profile)
     if precision == "fp16":
         config.set_flag(trt.BuilderFlag.FP16)
@@ -987,6 +987,7 @@ def convert_to_trt(
                     inputs=input_placeholder,
                     enabled_precisions=convert_precision,
                     device=target_device,
+                    ir="torchscript",
                     **kwargs,
                 )
 
@@ -1167,3 +1168,24 @@ def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
                 warnings.warn(f"The exclude_vars includes {param}, but requires_grad is False, change it to True.")
 
     logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")
+
+
+class CastTempType(nn.Module):
+    """
+    Cast the input tensor to a temporary type before applying the submodule, and then cast it back to the initial type.
+    """
+
+    def __init__(self, initial_type, temporary_type, submodule):
+        super().__init__()
+        self.initial_type = initial_type
+        self.temporary_type = temporary_type
+        self.submodule = submodule
+
+    def forward(self, x):
+        dtype = x.dtype
+        if dtype == self.initial_type:
+            x = x.to(self.temporary_type)
+        x = self.submodule(x)
+        if dtype == self.initial_type:
+            x = x.to(self.initial_type)
+        return x

@@ -1297,13 +1297,9 @@ class TiffFileWSIReader(BaseWSIReader):
             and wsi.pages[level].tags["YResolution"].value
         ):
             unit = wsi.pages[level].tags.get("ResolutionUnit")
-            if unit is not None:  # Test with more tiff files
-                if isinstance(unit.value, int):
-                    unit = str(unit.value.name).lower()
-                else:
-                    unit = str(unit.value)[8:]
-
-            else:
+            if unit is not None:
+                unit = str(unit.value.name)
+            if unit is None or len(unit) == 0:
                 warnings.warn("The resolution unit is missing. `micrometer` will be used as default.")
                 unit = "micrometer"
 

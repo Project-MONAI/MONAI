@@ -49,6 +49,29 @@ Inferers
     :members:
     :special-members: __call__
 
+`DiffusionInferer`
+~~~~~~~~~~~~~~~~~~
+.. autoclass:: DiffusionInferer
+    :members:
+    :special-members: __call__
+
+`LatentDiffusionInferer`
+~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: LatentDiffusionInferer
+    :members:
+    :special-members: __call__
+
+`ControlNetDiffusionInferer`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ControlNetDiffusionInferer
+    :members:
+    :special-members: __call__
+
+`ControlNetLatentDiffusionInferer`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ControlNetLatentDiffusionInferer
+    :members:
+    :special-members: __call__
 
 Splitters
 ---------

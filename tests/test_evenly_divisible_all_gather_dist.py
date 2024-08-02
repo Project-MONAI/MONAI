@@ -27,10 +27,10 @@ class DistributedEvenlyDivisibleAllGather(DistTestCase):
         self._run()
 
     def _run(self):
-        if dist.get_rank() == 0:
-            data1 = torch.tensor([[1, 2], [3, 4]])
-            data2 = torch.tensor([[1.0, 2.0]])
-            data3 = torch.tensor(7)
+        # if dist.get_rank() == 0
+        data1 = torch.tensor([[1, 2], [3, 4]])
+        data2 = torch.tensor([[1.0, 2.0]])
+        data3 = torch.tensor(7)
 
         if dist.get_rank() == 1:
             data1 = torch.tensor([[5, 6]])

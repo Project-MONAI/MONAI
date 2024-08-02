@@ -119,7 +119,8 @@ jobs:
           rm -rf {*,.[^.]*}
 
   release_tag_docker:
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}
     needs: versioning
     runs-on: ubuntu-latest
     steps:
