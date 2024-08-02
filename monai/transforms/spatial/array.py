@@ -44,6 +44,7 @@ from monai.transforms.spatial.functional import (
 )
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
+from monai.transforms.utility.functional import traced_no_op
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -73,7 +74,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, KindKeys, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -483,6 +484,12 @@ class Spacing(InvertibleTransform, LazyTransform):
             data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
+        lazy_ = self.lazy if lazy is None else lazy
+        if isinstance(data_array, MetaTensor) and data_array.kind == KindKeys.POINT:
+            warnings.warn("Spacing transform is not applied to point data.")
+            data_array = traced_no_op(data_array, lazy_, self.get_transform_info())
+            return data_array
+
         original_spatial_shape = (
             data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
         )
@@ -522,7 +529,6 @@ class Spacing(InvertibleTransform, LazyTransform):
         new_affine[:sr, -1] = offset[:sr]
 
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
-        lazy_ = self.lazy if lazy is None else lazy
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
