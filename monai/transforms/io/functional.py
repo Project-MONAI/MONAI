@@ -33,7 +33,7 @@ def load_geometry(file, image, origin):
             if first_len is None:
                 first_len = len(p)
             if len(p) != first_len:
-                raise ValueError(f"Geometry import issue: 'points' entry contains inconsistent point lengths")
+                raise ValueError("Geometry import issue: 'points' entry contains inconsistent point lengths")
 
     points = np.asarray(points)
     points = np.concatenate((points, np.ones((points.shape[0], 1))), axis=1)
