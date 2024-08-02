@@ -911,17 +911,17 @@ class CuCIMWSIReader(BaseWSIReader):
             patch = np.take(patch, [0, 1, 2], self.channel_dim)
 
         return patch
-    
+
     def _resize_to_mpp_res(self, wsi, closest_lvl, mpp_list, user_mpp: tuple):
         """
         Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
-        
+
         Args:
             wsi: whole slide image object from WSIReader
             user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
             closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
             mpp_list: list of mpp values for all levels of a whole slide image.
-            
+
         """
         cucim_resize, _ = optional_import("cucim.skimage.transform", name="resize")
         cp, _ = optional_import("cupy")
@@ -1182,17 +1182,17 @@ class OpenSlideWSIReader(BaseWSIReader):
         patch = np.moveaxis(patch, -1, self.channel_dim)
 
         return patch
-    
+
     def _resize_to_mpp_res(self, wsi, closest_lvl, mpp_list, user_mpp: tuple):
         """
         Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
-        
+
         Args:
             wsi: whole slide image object from WSIReader
             user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
             closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
             mpp_list: list of mpp values for all levels of a whole slide image.
-            
+
         """
         pil_image, _ = optional_import("PIL", name="Image")
 
@@ -1447,11 +1447,11 @@ class TiffFileWSIReader(BaseWSIReader):
             patch = np.take(patch, [0, 1, 2], self.channel_dim)
 
         return patch
-    
+
     def _resize_to_mpp_res(self, wsi, closest_lvl, mpp_list, user_mpp: tuple):
         """
         Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
-        
+
         Args:
             wsi: whole slide image object from WSIReader
             user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
