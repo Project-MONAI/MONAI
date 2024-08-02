@@ -21,7 +21,7 @@ black>=22.12
 isort>=5.1
 ruff
 pytype>=2020.6.1; platform_system != "Windows"
-types-pkg_resources
+types-setuptools
 mypy>=1.5.0
 ninja
 torchvision
