@@ -22,6 +22,7 @@ from typing import Any
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 import monai
 from monai.config import DtypeLike, IndexSelection
@@ -103,6 +104,10 @@ __all__ = [
     "generate_spatial_bounding_box",
     "get_extreme_points",
     "get_largest_connected_component_mask",
+    "get_largest_connected_component_mask_point",
+    "sample_points_from_label",
+    "erode3d",
+    "sample"
     "remove_small_objects",
     "img_bounds",
     "in_bounds",
@@ -1170,6 +1175,247 @@ def get_largest_connected_component_mask(
         out = lib.isin(features, features_to_keep)
 
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
+
+def get_largest_connected_component_mask_point(
+    img_pos: NdarrayTensor,
+    img_neg: NdarrayTensor,
+    pos_val: list=[1, 3],
+    neg_val: list=[0, 2],
+    point_coords: None = None,
+    point_labels: None = None,
+    margins: int = 3,
+) -> NdarrayTensor:
+    """
+    Gets the largest connected component mask of an image that include the point_coords.
+    Args:
+        img_pos: [1, B, H, W, D]
+        point_coords [B, N, 3]
+        point_labels [B, N]
+    """
+
+    img_pos_, *_ = convert_data_type(img_pos, np.ndarray)
+    img_neg_, *_ = convert_data_type(img_neg, np.ndarray)
+    label = measure.label
+    lib = np
+
+    features_pos, num_features = label(img_pos_, connectivity=3, return_num=True)
+    features_neg, num_features = label(img_neg_, connectivity=3, return_num=True)
+
+    outs = np.zeros_like(img_pos_)
+    for bs in range(point_coords.shape[0]):
+        for i, p in enumerate(point_coords[bs]):
+            if point_labels[bs, i] in pos_val:
+                features = features_pos
+            elif point_labels[bs, i] in neg_val:
+                features = features_neg
+            else:
+                # if -1 padding point, skip
+                continue
+            for margin in range(margins):
+                left, right = max(p[0].round().int().item() - margin, 0), min(
+                    p[0].round().int().item() + margin + 1, features.shape[-3]
+                )
+                t, d = max(p[1].round().int().item() - margin, 0), min(
+                    p[1].round().int().item() + margin + 1, features.shape[-2]
+                )
+                f, b = max(p[2].round().int().item() - margin, 0), min(
+                    p[2].round().int().item() + margin + 1, features.shape[-1]
+                )
+                if (features[bs, 0, left:right, t:d, f:b] > 0).any():
+                    index = features[bs, 0, left:right, t:d, f:b].max()
+                    outs[[bs]] += lib.isin(features[[bs]], index)
+                    break
+    outs[outs > 1] = 1
+    return convert_to_dst_type(outs, dst=img_pos, dtype=outs.dtype)[0]
+
+def convert_points_to_disc(image_size, point, point_label, radius=2, disc=False):
+    """
+    Convert a 3D point coordinates into image mask. The returned mask has the same spatial
+    size as `image_size` while the batch dimension is the same as point' batch dimension.  
+    The point is converted to a mask ball with radius defined by `radius`.
+    Args:
+        image_size: The output size of th
+        point: [b, N, 3]
+        point_label: [b, N]
+        radius: disc ball radius size
+        disc: If true, use regular disc other other use gaussian. 
+    """
+    if not torch.is_tensor(point):
+        point = torch.from_numpy(point)
+    masks = torch.zeros(
+        [point.shape[0], 2, image_size[0], image_size[1], image_size[2]],
+        device=point.device,
+    )
+    row_array = torch.arange(
+        start=0, end=image_size[0], step=1, dtype=torch.float32, device=point.device
+    )
+    col_array = torch.arange(
+        start=0, end=image_size[1], step=1, dtype=torch.float32, device=point.device
+    )
+    z_array = torch.arange(
+        start=0, end=image_size[2], step=1, dtype=torch.float32, device=point.device
+    )
+    coord_rows, coord_cols, coord_z = torch.meshgrid(z_array, col_array, row_array)
+    # [1,3,h,w,d] -> [b, 2, 3, h,w,d]
+    coords = (
+        torch.stack((coord_rows, coord_cols, coord_z), dim=0)
+        .unsqueeze(0)
+        .unsqueeze(0)
+        .repeat(point.shape[0], 2, 1, 1, 1, 1)
+    )
+    for b in range(point.shape[0]):
+        for n in range(point.shape[1]):
+            if point_label[b, n] > -1:
+                channel = 0 if (point_label[b, n] == 0 or point_label[b, n] == 2) else 1
+                if disc:
+                    masks[b, channel] += (
+                        torch.pow(
+                            coords[b, channel]
+                            - point[b, n].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1),
+                            2,
+                        ).sum(0)
+                        < radius**2
+                    )
+                else:
+                    masks[b, channel] += torch.exp(
+                        -torch.pow(
+                            coords[b, channel]
+                            - point[b, n].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1),
+                            2,
+                        ).sum(0)
+                        / (2 * radius**2)
+                    )
+    return masks
+
+def sample_points_from_label(
+    labels, label_set=None, max_ppoint=1, max_npoint=0, device="cpu", use_center=False
+):
+    """Sample points from labels.
+    Args:
+        labels: [1, 1, H, W, D]
+        label_set: local index, must match values in labels.
+        max_ppoint: maximum positive point samples.
+        max_npoint: maximum negative point samples.
+        device: returned tensor device.
+        use_center: whether to sample points from center.
+    Returns:
+        point: point coordinates of [B, N, 3].
+        point_label: [B, N], always 0 for negative, 1 for positive.
+    """
+    assert labels.shape[0] == 1, "only support batch size 1"
+    labels = labels[0, 0]
+    unique_labels = labels.unique().cpu().numpy().tolist()
+    _point = []
+    _point_label = []
+    Nn = max_npoint
+    Np = max_ppoint
+    for id in label_set:
+        if id in unique_labels:
+            plabels = labels == int(id)
+            nlabels = ~plabels
+            _plabels = get_largest_connected_component_mask(erode3d(plabels))
+            plabelpoints = torch.nonzero(_plabels).to(device)
+            if len(plabelpoints) == 0:
+                plabelpoints = torch.nonzero(plabels).to(device)
+            nlabelpoints = torch.nonzero(nlabels).to(device)
+            if use_center:
+                pmean = plabelpoints.float().mean(0)
+                pdis = ((plabelpoints - pmean) ** 2).sum(-1)
+                _, sorted_indices = torch.sort(pdis)
+                _point.append(
+                    torch.stack(
+                        [
+                            plabelpoints[sorted_indices[i]]
+                            for i in range(min(len(plabelpoints), Np))
+                        ]
+                        + random.choices(nlabelpoints, k=min(len(nlabelpoints), Nn))
+                        + [torch.tensor([0, 0, 0], device=device)]
+                        * (
+                            Np
+                            + Nn
+                            - min(len(plabelpoints), Np)
+                            - min(len(nlabelpoints), Nn)
+                        )
+                    )
+                )
+                _point_label.append(
+                    torch.tensor(
+                        [1] * min(len(plabelpoints), Np)
+                        + [0.0] * min(len(nlabelpoints), Nn)
+                        + [-1]
+                        * (
+                            Np
+                            + Nn
+                            - min(len(plabelpoints), Np)
+                            - min(len(nlabelpoints), Nn)
+                        )
+                    ).to(device)
+                )
+
+            else:
+                _point.append(
+                    torch.stack(
+                        random.choices(plabelpoints, k=min(len(plabelpoints), Np))
+                        + random.choices(nlabelpoints, k=min(len(nlabelpoints), Nn))
+                        + [torch.tensor([0, 0, 0], device=device)]
+                        * (
+                            Np
+                            + Nn
+                            - min(len(plabelpoints), Np)
+                            - min(len(nlabelpoints), Nn)
+                        )
+                    )
+                )
+                _point_label.append(
+                    torch.tensor(
+                        [1] * min(len(plabelpoints), Np)
+                        + [0.0] * min(len(nlabelpoints), Nn)
+                        + [-1]
+                        * (
+                            Np
+                            + Nn
+                            - min(len(plabelpoints), Np)
+                            - min(len(nlabelpoints), Nn)
+                        )
+                    ).to(device)
+                )
+        else:
+            # pad the background labels
+            _point.append(torch.zeros(Np + Nn, 3).to(device))  # all 0
+            _point_label.append(torch.zeros(Np + Nn).to(device) - 1)  # -1 not a point
+    point = torch.stack(_point)
+    point_label = torch.stack(_point_label)
+    return point, point_label
+
+def erode3d(input_tensor, erosion=3):
+    # Define the structuring element
+    erosion = ensure_tuple_rep(erosion, 3)
+    structuring_element = torch.ones(1, 1, erosion[0], erosion[1], erosion[2]).to(
+        input_tensor.device
+    )
+
+    # Pad the input tensor to handle border pixels
+    input_padded = F.pad(
+        input_tensor.float().unsqueeze(0).unsqueeze(0),
+        (
+            erosion[2] // 2,
+            erosion[2] // 2,
+            erosion[1] // 2,
+            erosion[1] // 2,
+            erosion[0] // 2,
+            erosion[0] // 2,
+        ),
+        mode="constant",
+        value=1.0,
+    )
+
+    # Apply erosion operation
+    output = F.conv3d(input_padded, structuring_element, padding=0)
+
+    # Set output values based on the minimum value within the structuring element
+    output = torch.where(output == torch.sum(structuring_element), 1.0, 0.0)
+
+    return output.squeeze(0).squeeze(0)
 
 
 def remove_small_objects(
