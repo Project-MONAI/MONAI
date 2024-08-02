@@ -17,7 +17,6 @@ from typing import Any, Optional, Tuple, Type
 from torch import Tensor, nn
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 import monai
@@ -61,8 +60,8 @@ class VISTA3D(nn.Module):
             return point_coords.shape[0]
         else:
             return class_vector.shape[0]
-        
-    def convert_point_label(self, point_label, label_set=None, 
+
+    def convert_point_label(self, point_label, label_set=None,
                             special_index=[23, 24, 25, 26, 27, 57, 128]):
         if label_set is None:
             return point_label
@@ -560,7 +559,7 @@ class Point_Mapping_SAM(nn.Module):
             )
         masks = torch.vstack(masks)
         return masks
-    
+
 
 class Class_Mapping_Classify(nn.Module):
     def __init__(self, n_classes, feature_size, use_mlp=False):

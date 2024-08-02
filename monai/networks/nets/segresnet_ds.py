@@ -429,8 +429,8 @@ class SegResNetDS(nn.Module):
 
 class SegResNetDS2(SegResNetDS):
     """
-    SegResNetDS2 is the image encoder used by VISTA3D. It adds one additional decoder branch. 
-    """    
+    SegResNetDS2 is the image encoder used by VISTA3D. It adds one additional decoder branch.
+    """
     def __init__(
         self,
         spatial_dims: int = 3,
@@ -459,7 +459,7 @@ class SegResNetDS2(SegResNetDS):
             preprocess = preprocess,
             upsample_mode = upsample_mode,
             resolution = resolution)
-        
+
         if spatial_dims not in (1, 2, 3):
             raise ValueError("`spatial_dims` can only be 1, 2 or 3.")
 
@@ -533,7 +533,7 @@ class SegResNetDS2(SegResNetDS):
                 }
             )
             self.up_layers_auto.append(level_auto)
-    
+
     def _forward(
         self, x: torch.Tensor, with_point, with_label
     ) -> Union[None, torch.Tensor, list[torch.Tensor]]:

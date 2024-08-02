@@ -1231,14 +1231,14 @@ def get_largest_connected_component_mask_point(
 def convert_points_to_disc(image_size, point, point_label, radius=2, disc=False):
     """
     Convert a 3D point coordinates into image mask. The returned mask has the same spatial
-    size as `image_size` while the batch dimension is the same as point' batch dimension.  
+    size as `image_size` while the batch dimension is the same as point' batch dimension.
     The point is converted to a mask ball with radius defined by `radius`.
     Args:
         image_size: The output size of th
         point: [b, N, 3]
         point_label: [b, N]
         radius: disc ball radius size
-        disc: If true, use regular disc other other use gaussian. 
+        disc: If true, use regular disc other other use gaussian.
     """
     if not torch.is_tensor(point):
         point = torch.from_numpy(point)
