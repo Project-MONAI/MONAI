@@ -38,7 +38,7 @@ for dropout_rate in np.linspace(0, 1, 4):
                                 "hidden_size": hidden_size,
                                 "num_heads": num_heads,
                                 "dropout_rate": dropout_rate,
-                                "rel_pos_embedding": rel_pos_embedding,
+                                "rel_pos_embedding": rel_pos_embedding if not flash_attn else None,
                                 "input_size": input_size,
                                 "use_flash_attention": flash_attn,
                             },
@@ -73,6 +73,18 @@ class TestResBlock(unittest.TestCase):
                 hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
             )
 
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_rel_pos_embedding_with_flash_attention(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(
+                hidden_size=128,
+                num_heads=3,
+                dropout_rate=0.1,
+                use_flash_attention=True,
+                save_attn=False,
+                rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
+            )
+
     @skipUnless(has_einops, "Requires einops")
     def test_attention_dim_not_multiple_of_heads(self):
         with self.assertRaises(ValueError):
@@ -85,6 +97,22 @@ class TestResBlock(unittest.TestCase):
     def test_causal_no_sequence_length(self):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
+
+    @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_causal_flash_attention(self):
+        block = CrossAttentionBlock(
+            hidden_size=128,
+            num_heads=1,
+            dropout_rate=0.1,
+            causal=True,
+            sequence_length=16,
+            save_attn=False,
+            use_flash_attention=True,
+        )
+        input_shape = (1, 16, 128)
+        # Check it runs correctly
+        block(torch.randn(input_shape))
 
     @skipUnless(has_einops, "Requires einops")
     def test_causal(self):

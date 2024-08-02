@@ -95,8 +95,11 @@ class SABlock(nn.Module):
         if use_flash_attention and save_attn:
             raise ValueError(
                 "save_attn has been set to True, but use_flash_attention is also set"
-                "to True. save_attn can only be used if use_flash_attention is False"
+                "to True. save_attn can only be used if use_flash_attention is False."
             )
+
+        if use_flash_attention and rel_pos_embedding is not None:
+            raise ValueError("rel_pos_embedding must be None if you are using flash_attention.")
 
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
@@ -107,6 +110,7 @@ class SABlock(nn.Module):
         self.out_rearrange = Rearrange("b h l d -> b l (h d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
+        self.dropout_rate = dropout_rate
         self.scale = self.dim_head**-0.5
         self.save_attn = save_attn
         self.att_mat = torch.Tensor()
@@ -148,7 +152,9 @@ class SABlock(nn.Module):
             k = k.to(self.attention_dtype)
 
         if self.use_flash_attention:
-            x = F.scaled_dot_product_attention(q, k, v)
+            x = F.scaled_dot_product_attention(
+                q, k, v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
+            )
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
