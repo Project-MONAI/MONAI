@@ -153,6 +153,8 @@ class TestGradientClassActivationMap(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_shape(self, cam_class, input_data, expected_shape):
+        model = None
+
         if input_data["model"] == "densenet2d":
             model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         elif input_data["model"] == "densenet2d_bin":

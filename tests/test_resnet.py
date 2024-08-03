@@ -266,7 +266,7 @@ class TestResNet(unittest.TestCase):
     @parameterized.expand(PRETRAINED_TEST_CASES)
     @skip_if_quick
     @skip_if_no_cuda
-    def test_resnet_pretrained(self, model, input_param, input_shape, expected_shape):
+    def test_resnet_pretrained(self, model, input_param, _input_shape, _expected_shape):
         net = model(**input_param).to(device)
         # Save ckpt
         torch.save(net.state_dict(), self.tmp_ckpt_filename)
@@ -290,9 +290,7 @@ class TestResNet(unittest.TestCase):
                 and input_param.get("n_input_channels", 3) == 1
                 and input_param.get("feed_forward", True) is False
                 and input_param.get("shortcut_type", "B") == shortcut_type
-                and (
-                    input_param.get("bias_downsample", True) == bool(bias_downsample) if bias_downsample != -1 else True
-                )
+                and (input_param.get("bias_downsample", True) == bias_downsample)
             ):
                 model(**cp_input_param)
             else:
@@ -303,7 +301,7 @@ class TestResNet(unittest.TestCase):
             cp_input_param["n_input_channels"] = 1
             cp_input_param["feed_forward"] = False
             cp_input_param["shortcut_type"] = shortcut_type
-            cp_input_param["bias_downsample"] = bool(bias_downsample) if bias_downsample != -1 else True
+            cp_input_param["bias_downsample"] = bias_downsample
             if cp_input_param.get("spatial_dims", 3) == 3:
                 with skip_if_downloading_fails():
                     pretrained_net = model(**cp_input_param).to(device)

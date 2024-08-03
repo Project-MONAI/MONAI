@@ -154,6 +154,7 @@ def run_testsuit():
         "test_plot_2d_or_3d_image",
         "test_png_rw",
         "test_prepare_batch_default",
+        "test_prepare_batch_diffusion",
         "test_prepare_batch_extra_input",
         "test_prepare_batch_hovernet",
         "test_rand_grid_patch",
