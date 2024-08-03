@@ -27,6 +27,7 @@ from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
 from typing import Any, Iterable, cast
+
 import torch
 
 # bundle config system flags
@@ -563,7 +564,7 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging")
+    pkging, has_ver = optional_import("packaging.Version")
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
@@ -590,7 +591,7 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging")
+    pkging, has_ver = optional_import("packaging.Version")
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
