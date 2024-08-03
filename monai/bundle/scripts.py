@@ -217,10 +217,15 @@ def _remove_ngc_prefix(name: str, prefix: str = "monai_") -> str:
 
 
 def _download_from_ngc(
-    download_path: Path, filename: str, version: str, remove_prefix: str | None, progress: bool
+    download_path: Path,
+    filename: str,
+    version: str,
+    prefix: str = "monai_",
+    remove_prefix: str | None = "monai_",
+    progress: bool = True,
 ) -> None:
     # ensure prefix is contained
-    filename = _add_ngc_prefix(filename)
+    filename = _add_ngc_prefix(filename, prefix=prefix)
     url = _get_ngc_bundle_url(model_name=filename, version=version)
     filepath = download_path / f"{filename}_v{version}.zip"
     if remove_prefix:
@@ -231,10 +236,16 @@ def _download_from_ngc(
 
 
 def _download_from_ngc_private(
-    download_path: Path, filename: str, version: str, remove_prefix: str | None, repo: str, headers: dict | None = None
+    download_path: Path,
+    filename: str,
+    version: str,
+    repo: str,
+    prefix: str = "monai_",
+    remove_prefix: str | None = "monai_",
+    headers: dict | None = None,
 ) -> None:
     # ensure prefix is contained
-    filename = _add_ngc_prefix(filename)
+    filename = _add_ngc_prefix(filename, prefix=prefix)
     request_url = _get_ngc_private_bundle_url(model_name=filename, version=version, repo=repo)
     if has_requests:
         headers = {} if headers is None else headers
@@ -491,7 +502,7 @@ def download(
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
-        remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
+        remove_prefix: This argument is used when `source` is "ngc" or "ngc_private". Currently, all ngc bundles
             have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
             maintain the consistency between these two sources, remove prefix is necessary.
             Therefore, if specified, downloaded folder name will remove the prefix.
