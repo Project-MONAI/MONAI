@@ -63,8 +63,8 @@ class GaussianFilter(torch.nn.Module):
     def __init__(self, dim: int = 3, ksize: int = 3, sigma: float = 1.0, channels: int = 0) -> torch.Tensor:
         super(GaussianFilter, self).__init__()
 
-        self.svls_kernel: torch.Tensor
-        self.svls_layer: torch.Tensor
+        self.svls_kernel: Any
+        self.svls_layer: Any
 
         if dim == 2:
             gkernel = get_gaussian_kernel_2d(ksize=ksize, sigma=sigma)
@@ -118,8 +118,8 @@ class MeanFilter(torch.nn.Module):
     def __init__(self, dim: int = 3, ksize: int = 3, channels: int = 0) -> torch.Tensor:
         super(MeanFilter, self).__init__()
 
-        self.svls_kernel: torch.Tensor
-        self.svls_layer: torch.Tensor
+        self.svls_kernel: Any
+        self.svls_layer: Any
 
         if dim == 2:
             self.svls_kernel = get_mean_kernel_2d(ksize=ksize)
@@ -209,7 +209,7 @@ class NACLLoss(_Loss):
         self.distance_type = distance_type
         self.alpha = alpha
         self.ks = kernel_size
-        self.svls_layer: torch.Tensor
+        self.svls_layer: Any
 
         if kernel_ops == "mean":
             self.svls_layer = MeanFilter(dim=dim, ksize=kernel_size, channels=classes)
