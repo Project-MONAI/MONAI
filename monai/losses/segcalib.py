@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 
 import torch
 import torch.nn as nn
@@ -62,6 +63,9 @@ def get_gaussian_kernel_3d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
 class GaussianFilter(torch.nn.Module):
     def __init__(self, dim: int = 3, ksize: int = 3, sigma: float = 1.0, channels: int = 0) -> torch.Tensor:
         super(GaussianFilter, self).__init__()
+        
+        self.svls_kernel: torch.Tensor
+        self.svls_layer: torch.Tensor 
 
         if dim == 2:
             gkernel = get_gaussian_kernel_2d(ksize=ksize, sigma=sigma)
@@ -114,6 +118,9 @@ class GaussianFilter(torch.nn.Module):
 class MeanFilter(torch.nn.Module):
     def __init__(self, dim: int = 3, ksize: int = 3, channels: int = 0) -> torch.Tensor:
         super(MeanFilter, self).__init__()
+        
+        self.svls_kernel: torch.Tensor
+        self.svls_layer: torch.Tensor 
 
         if dim == 2:
             self.svls_kernel = get_mean_kernel_2d(ksize=ksize)
@@ -135,8 +142,8 @@ class MeanFilter(torch.nn.Module):
 
         if dim == 3:
             self.svls_kernel = get_mean_kernel_3d(ksize=ksize)
-            svls_kernel_3d = self.svls_kernel.view(1, 1, ksize, ksize)
-            svls_kernel_3d = svls_kernel_3d.repeat(channels, 1, 1, 1)
+            svls_kernel_3d = self.svls_kernel.view(1, 1, ksize, ksize, ksize)
+            svls_kernel_3d = svls_kernel_3d.repeat(channels, 1, 1, 1, 1)
             padding = int(ksize / 2)
 
             self.svls_layer = torch.nn.Conv3d(
@@ -203,6 +210,7 @@ class NACLLoss(_Loss):
         self.distance_type = distance_type
         self.alpha = alpha
         self.ks = kernel_size
+        self.svls_layer: torch.Tensor
 
         if kernel_ops == "mean":
             self.svls_layer = MeanFilter(dim=dim, ksize=kernel_size, channels=classes)
