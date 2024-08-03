@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import math
-import warnings
 
 import torch
 import torch.nn as nn
@@ -63,7 +62,7 @@ class GaussianFilter(torch.nn.Module):
             svls_kernel_2d = self.svls_kernel.view(1, 1, ksize, ksize)
             svls_kernel_2d = svls_kernel_2d.repeat(channels, 1, 1, 1)
             padding = int(ksize / 2)
-            
+
             self.svls_layer = torch.nn.Conv2d(
                 in_channels=channels,
                 out_channels=channels,
@@ -85,7 +84,7 @@ class GaussianFilter(torch.nn.Module):
             svls_kernel_3d = self.svls_kernel.view(1, 1, ksize, ksize, ksize)
             svls_kernel_3d = svls_kernel_3d.repeat(channels, 1, 1, 1, 1)
             padding = int(ksize / 2)
-            
+
             self.svls_layer = torch.nn.Conv3d(
                 in_channels=channels,
                 out_channels=channels,
@@ -106,7 +105,7 @@ class NACLLoss(_Loss):
     """
     Neighbor-Aware Calibration Loss (NACL) is primarily developed for developing calibrated models in image segmentation.
     NACL computes standard cross-entropy loss with a linear penalty that enforces the logit distributions
-    to match a soft class proportion of surrounding pixel. 
+    to match a soft class proportion of surrounding pixel.
 
     Murugesan, Balamurali, et al.
     "Trust your neighbours: Penalty-based constraints for model calibration."
@@ -125,7 +124,7 @@ class NACLLoss(_Loss):
     ) -> torch.Tensor:
         """
         Args:
-            classes: number of classes 
+            classes: number of classes
             kernel_size: size of the spatial kernel
             distance_type: l1/l2 distance between spatial kernel and predicted logits
             alpha: weightage between cross entropy and logit constraint
@@ -174,7 +173,7 @@ class NACLLoss(_Loss):
     #     return self.cross_entropy(input, target)  # type: ignore[no-any-return]
 
     def get_constr_target(self, mask: torch.Tensor) -> torch.Tensor:
-        
+
         if self.dim == 2:
 
             oh_labels = (
@@ -187,8 +186,8 @@ class NACLLoss(_Loss):
             oh_labels = (
                 F.one_hot(mask.to(torch.int64), num_classes=self.nc).contiguous().permute(0, 4, 1, 2, 3).float()
             )
-            rmask = self.svls_layer(oh_labels)        
-            
+            rmask = self.svls_layer(oh_labels)
+
         return rmask
 
 
