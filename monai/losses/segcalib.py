@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import math
-import warnings
 
 import torch
 import torch.nn as nn
@@ -63,9 +62,9 @@ def get_gaussian_kernel_3d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
 class GaussianFilter(torch.nn.Module):
     def __init__(self, dim: int = 3, ksize: int = 3, sigma: float = 1.0, channels: int = 0) -> torch.Tensor:
         super(GaussianFilter, self).__init__()
-        
+
         self.svls_kernel: torch.Tensor
-        self.svls_layer: torch.Tensor 
+        self.svls_layer: torch.Tensor
 
         if dim == 2:
             gkernel = get_gaussian_kernel_2d(ksize=ksize, sigma=sigma)
@@ -118,9 +117,9 @@ class GaussianFilter(torch.nn.Module):
 class MeanFilter(torch.nn.Module):
     def __init__(self, dim: int = 3, ksize: int = 3, channels: int = 0) -> torch.Tensor:
         super(MeanFilter, self).__init__()
-        
+
         self.svls_kernel: torch.Tensor
-        self.svls_layer: torch.Tensor 
+        self.svls_layer: torch.Tensor
 
         if dim == 2:
             self.svls_kernel = get_mean_kernel_2d(ksize=ksize)
