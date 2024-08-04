@@ -195,8 +195,8 @@ class TestLookup(unittest.TestCase):
         mod = look_up_named_module("model.1.submodule.1.submodule.1.submodule.0.conv", net)
         self.assertTrue(str(mod).startswith("Conv2d"))
         self.assertIsInstance(set_named_module(net, "model", torch.nn.Identity()).model, torch.nn.Identity)
-        self.assertEqual(look_up_named_module("model.1.submodule.1.submodule.1.submodule.conv", net), None)
-        self.assertEqual(look_up_named_module("test attribute", net), None)
+        self.assertIsNone(look_up_named_module("model.1.submodule.1.submodule.1.submodule.conv", net))
+        self.assertIsNone(look_up_named_module("test attribute", net))
 
 
 if __name__ == "__main__":

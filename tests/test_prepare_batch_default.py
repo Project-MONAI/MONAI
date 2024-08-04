@@ -14,12 +14,14 @@ from __future__ import annotations
 import unittest
 
 import torch
+from parameterized import parameterized
 
 from monai.engines import PrepareBatchDefault, SupervisedEvaluator
 from tests.utils import assert_allclose
 
 
 class TestNet(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def forward(self, x: torch.Tensor):
         return x
@@ -27,85 +29,48 @@ class TestNet(torch.nn.Module):
 
 class TestPrepareBatchDefault(unittest.TestCase):
 
-    def test_dict_content(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        dataloader = [
-            {
-                "image": torch.tensor([1, 2]),
-                "label": torch.tensor([3, 4]),
-                "extra1": torch.tensor([5, 6]),
-                "extra2": 16,
-                "extra3": "test",
-            }
+    @parameterized.expand(
+        [
+            (
+                [
+                    {
+                        "image": torch.tensor([1, 2]),
+                        "label": torch.tensor([3, 4]),
+                        "extra1": torch.tensor([5, 6]),
+                        "extra2": 16,
+                        "extra3": "test",
+                    }
+                ],
+                TestNet(),
+                True,
+            ),  # dict_content
+            ([torch.tensor([1, 2])], torch.nn.Identity(), True),  # tensor_content
+            ([(torch.tensor([1, 2]), torch.tensor([3, 4]))], torch.nn.Identity(), True),  # pair_content
+            ([], TestNet(), False),  # empty_data
         ]
-        # set up engine
-        evaluator = SupervisedEvaluator(
-            device=device,
-            val_data_loader=dataloader,
-            epoch_length=1,
-            network=TestNet(),
-            non_blocking=False,
-            prepare_batch=PrepareBatchDefault(),
-            decollate=False,
-            mode="eval",
-        )
-        evaluator.run()
-        output = evaluator.state.output
-        assert_allclose(output["image"], torch.tensor([1, 2], device=device))
-        assert_allclose(output["label"], torch.tensor([3, 4], device=device))
-
-    def test_tensor_content(self):
+    )
+    def test_prepare_batch(self, dataloader, network, should_run):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        dataloader = [torch.tensor([1, 2])]
-
-        # set up engine
         evaluator = SupervisedEvaluator(
             device=device,
             val_data_loader=dataloader,
-            epoch_length=1,
-            network=torch.nn.Identity(),
+            epoch_length=len(dataloader) if should_run else 0,
+            network=network,
             non_blocking=False,
             prepare_batch=PrepareBatchDefault(),
             decollate=False,
-            mode="eval",
+            mode="eval" if should_run else "train",
         )
         evaluator.run()
-        output = evaluator.state.output
-        assert_allclose(output["image"], torch.tensor([1, 2], device=device))
-        self.assertTrue(output["label"] is None)
 
-    def test_pair_content(self):
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        dataloader = [(torch.tensor([1, 2]), torch.tensor([3, 4]))]
-
-        # set up engine
-        evaluator = SupervisedEvaluator(
-            device=device,
-            val_data_loader=dataloader,
-            epoch_length=1,
-            network=torch.nn.Identity(),
-            non_blocking=False,
-            prepare_batch=PrepareBatchDefault(),
-            decollate=False,
-            mode="eval",
-        )
-        evaluator.run()
-        output = evaluator.state.output
-        assert_allclose(output["image"], torch.tensor([1, 2], device=device))
-        assert_allclose(output["label"], torch.tensor([3, 4], device=device))
-
-    def test_empty_data(self):
-        dataloader = []
-        evaluator = SupervisedEvaluator(
-            val_data_loader=dataloader,
-            device=torch.device("cpu"),
-            epoch_length=0,
-            network=TestNet(),
-            non_blocking=False,
-            prepare_batch=PrepareBatchDefault(),
-            decollate=False,
-        )
-        evaluator.run()
+        if should_run:
+            output = evaluator.state.output
+            if isinstance(dataloader[0], dict) or isinstance(dataloader[0], tuple):
+                assert_allclose(output["image"], torch.tensor([1, 2], device=device))
+                assert_allclose(output["label"], torch.tensor([3, 4], device=device))
+            else:
+                assert_allclose(output["image"], torch.tensor([1, 2], device=device))
+                self.assertTrue(output["label"] is None)
 
 
 if __name__ == "__main__":
