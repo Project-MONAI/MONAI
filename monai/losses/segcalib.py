@@ -61,7 +61,7 @@ def get_gaussian_kernel_3d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
 
 
 class GaussianFilter(torch.nn.Module):
-    def __init__(self, dim: int = 3, ksize: int = 3, sigma: float = 1.0, channels: int = 0) -> torch.Tensor:
+    def __init__(self, dim: int = 3, ksize: int = 3, sigma: float = 1.0, channels: int = 0) -> None:
         super(GaussianFilter, self).__init__()
 
         self.svls_kernel: Any
@@ -111,12 +111,12 @@ class GaussianFilter(torch.nn.Module):
             self.svls_layer.weight.data = svls_kernel_3d
             self.svls_layer.weight.requires_grad = False
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         return self.svls_layer(x) / self.svls_kernel.sum()
 
 
 class MeanFilter(torch.nn.Module):
-    def __init__(self, dim: int = 3, ksize: int = 3, channels: int = 0) -> torch.Tensor:
+    def __init__(self, dim: int = 3, ksize: int = 3, channels: int = 0) -> None:
         super(MeanFilter, self).__init__()
 
         self.svls_kernel: Any
@@ -158,7 +158,7 @@ class MeanFilter(torch.nn.Module):
             self.svls_layer.weight.data = svls_kernel_3d
             self.svls_layer.weight.requires_grad = False
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor :
         return self.svls_layer(x) / self.svls_kernel.sum()
 
 
@@ -183,7 +183,7 @@ class NACLLoss(_Loss):
         distance_type: str = "l1",
         alpha: float = 0.1,
         sigma: float = 1.0,
-    ) -> torch.Tensor:
+    ) -> None:
         """
         Args:
             classes: number of classes
