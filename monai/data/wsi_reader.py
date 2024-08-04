@@ -434,13 +434,13 @@ class BaseWSIReader(ImageReader):
     def _compute_mpp_target_res(self, closest_lvl, closest_lvl_dim, mpp_list, user_mpp: tuple):
         """
         Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
-        
+
         Args:
             wsi: whole slide image object from WSIReader
             user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
             closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
             mpp_list: list of mpp values for all levels of a whole slide image.
-            
+
         """
         mpp_closest_lvl = mpp_list[closest_lvl]
         mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
@@ -1466,7 +1466,7 @@ class TiffFileWSIReader(BaseWSIReader):
             user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
             closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
             mpp_list: list of mpp values for all levels of a whole slide image.
-            
+
         """
         pil_image, _ = optional_import("PIL", name="Image")
 
