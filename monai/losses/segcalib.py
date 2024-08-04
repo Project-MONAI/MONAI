@@ -158,7 +158,7 @@ class MeanFilter(torch.nn.Module):
             self.svls_layer.weight.data = svls_kernel_3d
             self.svls_layer.weight.requires_grad = False
 
-    def forward(self, x) -> torch.Tensor :
+    def forward(self, x) -> torch.Tensor:
         return self.svls_layer(x) / self.svls_kernel.sum()
 
 
