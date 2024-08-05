@@ -38,7 +38,7 @@ def get_gaussian_kernel_2d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
     xy_grid = torch.stack([x_grid, y_grid], dim=-1).float()
     mean = (ksize - 1) / 2.0
     variance = sigma**2.0
-    gaussian_kernel = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
+    gaussian_kernel: torch.Tensor = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
         -torch.sum((xy_grid - mean) ** 2.0, dim=-1) / (2 * variance + 1e-16)
     )
     gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
@@ -55,7 +55,7 @@ def get_gaussian_kernel_3d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
     xyz_grid = torch.stack([x_grid, y_grid, z_grid], dim=-1).float()
     mean = (ksize - 1) / 2.0
     variance = sigma**2.0
-    gaussian_kernel = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
+    gaussian_kernel: torch.Tensor = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
         -torch.sum((xyz_grid - mean) ** 2.0, dim=-1) / (2 * variance + 1e-16)
     )
     gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
@@ -114,7 +114,7 @@ class GaussianFilter(torch.nn.Module):
             self.svls_layer.weight.requires_grad = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        svls_normalized = self.svls_layer(x) / self.svls_kernel.sum()
+        svls_normalized: torch.Tensor = self.svls_layer(x) / self.svls_kernel.sum()
         return svls_normalized
 
 
@@ -162,7 +162,7 @@ class MeanFilter(torch.nn.Module):
             self.svls_layer.weight.requires_grad = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        svls_normalized = self.svls_layer(x) / self.svls_kernel.sum()
+        svls_normalized: torch.Tensor = self.svls_layer(x) / self.svls_kernel.sum()
         return svls_normalized
 
 
@@ -247,6 +247,9 @@ class NACLLoss(_Loss):
     #     return self.cross_entropy(input, target)  # type: ignore[no-any-return]
 
     def get_constr_target(self, mask: torch.Tensor) -> torch.Tensor:
+
+        rmask: torch.Tensor
+
         if self.dim == 2:
             oh_labels = F.one_hot(mask.to(torch.int64), num_classes=self.nc).contiguous().permute(0, 3, 1, 2).float()
             rmask = self.svls_layer(oh_labels)
@@ -267,6 +270,6 @@ class NACLLoss(_Loss):
         elif self.distance_type == "l2":
             loss_conf = utargets.sub(inputs).pow_(2).abs_().mean()
 
-        loss = loss_ce + self.alpha * loss_conf
+        loss: torch.Tensor = loss_ce + self.alpha * loss_conf
 
         return loss
