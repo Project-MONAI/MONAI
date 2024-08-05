@@ -46,22 +46,8 @@ inputs = torch.tensor(
 targets = (torch.tensor([[[1, 1, 1, 1], [1, 1, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]]]),)
 
 TEST_CASES = [
-    [
-        {"classes": 3, "dim": 2},
-        {
-            "inputs": inputs,
-            "targets": targets,
-        },
-        1.1820,
-    ],
-    [
-        {"classes": 3, "dim": 2, "kernel_ops": "gaussian"},
-        {
-            "inputs": inputs,
-            "targets": targets,
-        },
-        1.1850,
-    ],
+    [{"classes": 3, "dim": 2}, {"inputs": inputs, "targets": targets}, 1.1820],
+    [{"classes": 3, "dim": 2, "kernel_ops": "gaussian"}, {"inputs": inputs, "targets": targets}, 1.1850],
     [
         {"classes": 3, "dim": 3, "kernel_ops": "gaussian"},
         {
