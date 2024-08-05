@@ -43,7 +43,7 @@ inputs = torch.tensor(
         ]
     ]
 )
-targets = (torch.tensor([[[1, 1, 1, 1], [1, 1, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]]]),)
+targets = torch.tensor([[[1, 1, 1, 1], [1, 1, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]]])
 
 TEST_CASES = [
     [{"classes": 3, "dim": 2}, {"inputs": inputs, "targets": targets}, 1.1820],
