@@ -40,15 +40,16 @@ from monai.networks.blocks import Convolution
 from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.type_conversion import convert_to_tensor
 
-get_down_block, has_get_down_block = optional_import(
-    "generative.networks.nets.diffusion_model_unet", name="get_down_block"
-)
-get_mid_block, has_get_mid_block = optional_import(
-    "generative.networks.nets.diffusion_model_unet", name="get_mid_block"
-)
-get_timestep_embedding, has_get_timestep_embedding = optional_import(
-    "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
-)
+# get_down_block, has_get_down_block = optional_import(
+#     "generative.networks.nets.diffusion_model_unet", name="get_down_block"
+# )
+# get_mid_block, has_get_mid_block = optional_import(
+#     "generative.networks.nets.diffusion_model_unet", name="get_mid_block"
+# )
+# get_timestep_embedding, has_get_timestep_embedding = optional_import(
+#     "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
+# )
+from monai.networks.nets.diffusion_model_unet import get_down_block, get_mid_block, get_timestep_embedding
 get_up_block, has_get_up_block = optional_import("generative.networks.nets.diffusion_model_unet", name="get_up_block")
 xformers, has_xformers = optional_import("xformers")
 zero_module, has_zero_module = optional_import("generative.networks.nets.diffusion_model_unet", name="zero_module")
