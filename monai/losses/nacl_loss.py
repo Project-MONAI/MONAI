@@ -41,7 +41,8 @@ def get_gaussian_kernel_2d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
     gaussian_kernel = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
         -torch.sum((xy_grid - mean) ** 2.0, dim=-1) / (2 * variance + 1e-16)
     )
-    return gaussian_kernel / torch.sum(gaussian_kernel)
+    gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
+    return gaussian_kernel
 
 
 def get_gaussian_kernel_3d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
@@ -57,7 +58,8 @@ def get_gaussian_kernel_3d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
     gaussian_kernel = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
         -torch.sum((xyz_grid - mean) ** 2.0, dim=-1) / (2 * variance + 1e-16)
     )
-    return gaussian_kernel / torch.sum(gaussian_kernel)
+    gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
+    return gaussian_kernel
 
 
 class GaussianFilter(torch.nn.Module):
@@ -112,7 +114,8 @@ class GaussianFilter(torch.nn.Module):
             self.svls_layer.weight.requires_grad = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.svls_layer(x) / self.svls_kernel.sum()
+        svls_normalized = self.svls_layer(x) / self.svls_kernel.sum()
+        return svls_normalized
 
 
 class MeanFilter(torch.nn.Module):
@@ -159,7 +162,8 @@ class MeanFilter(torch.nn.Module):
             self.svls_layer.weight.requires_grad = False
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.svls_layer(x) / self.svls_kernel.sum()
+        svls_normalized = self.svls_layer(x) / self.svls_kernel.sum()
+        return svls_normalized
 
 
 class NACLLoss(_Loss):
