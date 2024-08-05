@@ -125,9 +125,9 @@ class VISTA3D(nn.Module):
             patch_coords[-1].start,
         ]
         # update point coords
-        patch_starts = unsqueeze_left(torch.tensor(patch_starts, 
+        patch_starts = unsqueeze_left(torch.tensor(patch_starts,
                                                    device=point_coords.device), 5)
-        patch_ends = unsqueeze_left(torch.tensor(patch_ends, 
+        patch_ends = unsqueeze_left(torch.tensor(patch_ends,
                                                  device=point_coords.device), 5)
         # [1 N 1]
         indices = torch.logical_and(
@@ -185,7 +185,7 @@ class VISTA3D(nn.Module):
         )
         # cc is the region that can be updated by point_logits.
         cc = cc.to(logits.device)
-        # Need to replace NaN with point_logits. diff_neg will never lie in nan_mask, 
+        # Need to replace NaN with point_logits. diff_neg will never lie in nan_mask,
         # only remove unconnected positive region.
         uc_pos_region = torch.logical_and(pos_region, ~cc)
         fill_mask = torch.logical_and(nan_mask, uc_pos_region)

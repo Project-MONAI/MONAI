@@ -1313,7 +1313,7 @@ def sample_points_from_label(
         else:
             # pad the background labels
             _point.append(torch.zeros(max_ppoint + max_npoint, 3).to(device))
-            _point_label.append(torch.zeros(max_ppoint + max_npoint).to(device) - 1) 
+            _point_label.append(torch.zeros(max_ppoint + max_npoint).to(device) - 1)
     point = torch.stack(_point)
     point_label = torch.stack(_point_label)
     return point, point_label
