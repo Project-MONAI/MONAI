@@ -61,7 +61,7 @@ trt_to_torch_dtype_dict = {
 
 def get_dynamic_axes(profiles, extra_axes={}):
     """
-    Given [[min,opt,max],...] list of profile dimensions, 
+    Given [[min,opt,max],...] list of profile dimensions,
     this method calculates dynamic_axes to use in onnx.export()
     """
     dynamic_axes=extra_axes
@@ -120,7 +120,7 @@ class Engine:
         """
         Builds TRT engine from ONNX file at onnx_path and sets self.engine
         Args:
-             update_output_names: if set, use update_output_names as output names 
+             update_output_names: if set, use update_output_names as output names
              profiles, config_kwargs: passed to TRT's engine_from_network()
         """
 
@@ -234,8 +234,8 @@ class Engine:
 
     def infer(self, stream, use_cuda_graph=False):
         """
-        Runs TRT engine. 
-        Note use_cuda_graph requires all inputs to be the same GPU memory between calls. 
+        Runs TRT engine.
+        Note use_cuda_graph requires all inputs to be the same GPU memory between calls.
         """
         if use_cuda_graph:
             if self.cuda_graph_instance is not None:
@@ -396,7 +396,7 @@ class TRTWrapper(torch.nn.Module):
     def forward(self, **args):
         """
         Main forward method: depending on TRT/Torchscript/ONNX representation available,
-        runs appropriate accelerated method. If exception thrown, falls back to original Pytorch 
+        runs appropriate accelerated method. If exception thrown, falls back to original Pytorch
         """
         try:
             if self.engine is not None:
@@ -420,7 +420,7 @@ class TRTWrapper(torch.nn.Module):
     def forward_trt(self, trt_inputs):
         """
         Auxiliary method to run TRT engine.
-        Sets input bindings from trt_inputs, allocates memory and runs activated TRT engine 
+        Sets input bindings from trt_inputs, allocates memory and runs activated TRT engine
         """
         stream = torch.cuda.Stream(device=torch.cuda.current_device())
         self.engine.set_inputs(trt_inputs, stream.cuda_stream)
@@ -493,7 +493,7 @@ class TRTWrapper(torch.nn.Module):
     ):
         """
         Exports self.model to ONNX file at self.onnx_path
-        Args: passed to onnx.export() 
+        Args: passed to onnx.export()
         """
 
         LOGGER.info(f"Exporting to ONNX, dynamic shapes: {dynamic_shapes}")
@@ -552,9 +552,9 @@ class TRTWrapper(torch.nn.Module):
         builds TRT engine and saves serialized TRT engine to the disk.
         Args:
              input_example, dynamo, verbose:  passed to self.onnx_export()
-             input_profiles: used to get dynamic axes for onnx_export(), 
+             input_profiles: used to get dynamic axes for onnx_export(),
                              passed to self.build_engine()
-             build_args : passed to self.build_engine() 
+             build_args : passed to self.build_engine()
         enable_all_tactics=True,
         """
         if not self.has_engine():
