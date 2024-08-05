@@ -66,6 +66,8 @@ from monai.utils import (
     min_version,
     optional_import,
     pytorch_after,
+    unsqueeze_right,
+    unsqueeze_left
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import (
@@ -1212,17 +1214,12 @@ def get_largest_connected_component_mask_point(
                 # if -1 padding point, skip
                 continue
             for margin in range(margins):
-                left, right = max(p[0].round().int().item() - margin, 0), min(
-                    p[0].round().int().item() + margin + 1, features.shape[-3]
-                )
-                t, d = max(p[1].round().int().item() - margin, 0), min(
-                    p[1].round().int().item() + margin + 1, features.shape[-2]
-                )
-                f, b = max(p[2].round().int().item() - margin, 0), min(
-                    p[2].round().int().item() + margin + 1, features.shape[-1]
-                )
-                if (features[bs, 0, left:right, t:d, f:b] > 0).any():
-                    index = features[bs, 0, left:right, t:d, f:b].max()
+                x, y, z = p.round().int().tolist()
+                l, r = max(x - margin, 0), min(x + margin + 1, features.shape[-3])
+                t, d = max(y - margin, 0), min(y + margin + 1, features.shape[-2])
+                f, b = max(z - margin, 0), min(z + margin + 1, features.shape[-1])
+                if (features[bs, 0, l:r, t:d, f:b] > 0).any():
+                    index = features[bs, 0, l:r, t:d, f:b].max()
                     outs[[bs]] += lib.isin(features[[bs]], index)
                     break
     outs[outs > 1] = 1
@@ -1232,11 +1229,12 @@ def convert_points_to_disc(image_size, point, point_label, radius=2, disc=False)
     """
     Convert a 3D point coordinates into image mask. The returned mask has the same spatial
     size as `image_size` while the batch dimension is the same as point' batch dimension.
-    The point is converted to a mask ball with radius defined by `radius`.
+    The point is converted to a mask ball with radius defined by `radius`. The output
+    contains two channels each for negative (first channel) and positive points.
     Args:
         image_size: The output size of th
         point: [b, N, 3]
-        point_label: [b, N]
+        point_label: [b, N], 0 or 2 means negative points, 1 or 3 means postive points.
         radius: disc ball radius size
         disc: If true, use regular disc other other use gaussian.
     """
@@ -1246,45 +1244,23 @@ def convert_points_to_disc(image_size, point, point_label, radius=2, disc=False)
         [point.shape[0], 2, image_size[0], image_size[1], image_size[2]],
         device=point.device,
     )
-    row_array = torch.arange(
-        start=0, end=image_size[0], step=1, dtype=torch.float32, device=point.device
-    )
-    col_array = torch.arange(
-        start=0, end=image_size[1], step=1, dtype=torch.float32, device=point.device
-    )
-    z_array = torch.arange(
-        start=0, end=image_size[2], step=1, dtype=torch.float32, device=point.device
-    )
-    coord_rows, coord_cols, coord_z = torch.meshgrid(z_array, col_array, row_array)
-    # [1,3,h,w,d] -> [b, 2, 3, h,w,d]
-    coords = (
-        torch.stack((coord_rows, coord_cols, coord_z), dim=0)
-        .unsqueeze(0)
-        .unsqueeze(0)
-        .repeat(point.shape[0], 2, 1, 1, 1, 1)
-    )
+    _array = [torch.arange(
+        start=0, end=image_size[i], step=1, dtype=torch.float32, device=point.device
+    ) for i in range(3)]
+    coord_rows, coord_cols, coord_z = torch.meshgrid(_array[2], _array[1], _array[0])
+    # [1, 3, h, w, d] -> [b, 2, 3, h, w, d]
+    coords = unsqueeze_left(torch.stack((coord_rows, coord_cols, coord_z), dim=0), 6)
+    coords = coords.repeat(point.shape[0], 2, 1, 1, 1, 1)
     for b in range(point.shape[0]):
         for n in range(point.shape[1]):
+            point_bn = unsqueeze_right(point[b, n], 6)
             if point_label[b, n] > -1:
                 channel = 0 if (point_label[b, n] == 0 or point_label[b, n] == 2) else 1
+                pow_diff = torch.pow(coords[b, channel] - point_bn[b, n], 2)
                 if disc:
-                    masks[b, channel] += (
-                        torch.pow(
-                            coords[b, channel]
-                            - point[b, n].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1),
-                            2,
-                        ).sum(0)
-                        < radius**2
-                    )
+                    masks[b, channel] += pow_diff.sum(0) < radius**2
                 else:
-                    masks[b, channel] += torch.exp(
-                        -torch.pow(
-                            coords[b, channel]
-                            - point[b, n].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1),
-                            2,
-                        ).sum(0)
-                        / (2 * radius**2)
-                    )
+                    masks[b, channel] += torch.exp(-pow_diff.sum(0) / (2 * radius**2))
     return masks
 
 def sample_points_from_label(
@@ -1307,8 +1283,6 @@ def sample_points_from_label(
     unique_labels = labels.unique().cpu().numpy().tolist()
     _point = []
     _point_label = []
-    Nn = max_npoint
-    Np = max_ppoint
     for id in label_set:
         if id in unique_labels:
             plabels = labels == int(id)
@@ -1318,71 +1292,28 @@ def sample_points_from_label(
             if len(plabelpoints) == 0:
                 plabelpoints = torch.nonzero(plabels).to(device)
             nlabelpoints = torch.nonzero(nlabels).to(device)
+            Np = min(len(plabelpoints), max_ppoint)
+            Nn = min(len(nlabelpoints), max_npoint)
+            pad = max_ppoint + max_npoint - Np - Nn
             if use_center:
                 pmean = plabelpoints.float().mean(0)
                 pdis = ((plabelpoints - pmean) ** 2).sum(-1)
                 _, sorted_indices = torch.sort(pdis)
-                _point.append(
-                    torch.stack(
-                        [
-                            plabelpoints[sorted_indices[i]]
-                            for i in range(min(len(plabelpoints), Np))
-                        ]
-                        + random.choices(nlabelpoints, k=min(len(nlabelpoints), Nn))
-                        + [torch.tensor([0, 0, 0], device=device)]
-                        * (
-                            Np
-                            + Nn
-                            - min(len(plabelpoints), Np)
-                            - min(len(nlabelpoints), Nn)
-                        )
-                    )
-                )
-                _point_label.append(
-                    torch.tensor(
-                        [1] * min(len(plabelpoints), Np)
-                        + [0.0] * min(len(nlabelpoints), Nn)
-                        + [-1]
-                        * (
-                            Np
-                            + Nn
-                            - min(len(plabelpoints), Np)
-                            - min(len(nlabelpoints), Nn)
-                        )
-                    ).to(device)
-                )
-
             else:
-                _point.append(
-                    torch.stack(
-                        random.choices(plabelpoints, k=min(len(plabelpoints), Np))
-                        + random.choices(nlabelpoints, k=min(len(nlabelpoints), Nn))
-                        + [torch.tensor([0, 0, 0], device=device)]
-                        * (
-                            Np
-                            + Nn
-                            - min(len(plabelpoints), Np)
-                            - min(len(nlabelpoints), Nn)
-                        )
+                sorted_indices = list(range(len(plabelpoints)))
+                random.shuffle(sorted_indices)
+            _point.append(
+                torch.stack([plabelpoints[sorted_indices[i]] for i in Np]
+                    + random.choices(nlabelpoints, k=Nn)
+                    + [torch.tensor([0, 0, 0], device=device)] * pad
                     )
                 )
-                _point_label.append(
-                    torch.tensor(
-                        [1] * min(len(plabelpoints), Np)
-                        + [0.0] * min(len(nlabelpoints), Nn)
-                        + [-1]
-                        * (
-                            Np
-                            + Nn
-                            - min(len(plabelpoints), Np)
-                            - min(len(nlabelpoints), Nn)
-                        )
-                    ).to(device)
-                )
+            _point_label.append(
+                torch.tensor([1] * Np + [0] * Nn + [-1] * pad).to(device))
         else:
             # pad the background labels
-            _point.append(torch.zeros(Np + Nn, 3).to(device))  # all 0
-            _point_label.append(torch.zeros(Np + Nn).to(device) - 1)  # -1 not a point
+            _point.append(torch.zeros(max_ppoint + max_npoint, 3).to(device))
+            _point_label.append(torch.zeros(max_ppoint + max_npoint).to(device) - 1) 
     point = torch.stack(_point)
     point_label = torch.stack(_point_label)
     return point, point_label

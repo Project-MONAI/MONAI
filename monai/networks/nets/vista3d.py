@@ -21,11 +21,10 @@ import torch.nn.functional as F
 
 import monai
 from monai.networks.blocks import UnetrBasicBlock
+from monai.networks.blocks import MLPBlock
 from monai.transforms.utils import get_largest_connected_component_mask_point as lcc
 from monai.transforms.utils import convert_points_to_disc, sample_points_from_label
-
-from scripts.utils.workflow_utils import sample_points_patch_val
-
+from monai.utils import optional_import, unsqueeze_left, unsqueeze_right
 
 rearrange, _ = optional_import("einops", name="rearrange")
 
@@ -126,16 +125,10 @@ class VISTA3D(nn.Module):
             patch_coords[-1].start,
         ]
         # update point coords
-        patch_starts = (
-            torch.tensor(patch_starts, device=point_coords.device)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
-        patch_ends = (
-            torch.tensor(patch_ends, device=point_coords.device)
-            .unsqueeze(0)
-            .unsqueeze(0)
-        )
+        patch_starts = unsqueeze_left(torch.tensor(patch_starts, 
+                                                   device=point_coords.device), 5)
+        patch_ends = unsqueeze_left(torch.tensor(patch_ends, 
+                                                 device=point_coords.device), 5)
         # [1 N 1]
         indices = torch.logical_and(
             ((point_coords - patch_starts) > 0).all(2),
@@ -173,15 +166,8 @@ class VISTA3D(nn.Module):
             inside.append(
                 np.any(
                     [
-                        _logits[
-                            i,
-                            0,
-                            round(p[0].item()),
-                            round(p[1].item()),
-                            round(p[2].item()),
-                        ].item()
-                        > 0
-                        for p in point_coords[i]
+                        _logits[i,0,p[0],p[1],p[2]].item() > 0
+                        for p in point_coords[i].cpu().numpy().round()
                     ]
                 )
             )
@@ -190,10 +176,7 @@ class VISTA3D(nn.Module):
         _logits = torch.nan_to_num(_logits, nan=self.NINF_VALUE).sigmoid()
         pos_region = point_logits.sigmoid() > thred
         diff_pos = torch.logical_and(
-            torch.logical_or(
-                (_logits <= thred),
-                inside.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1),
-            ),
+            torch.logical_or(_logits <= thred, unsqueeze_right(inside, 5)),
             pos_region,
         )
         diff_neg = torch.logical_and((_logits > thred), ~pos_region)
@@ -202,7 +185,8 @@ class VISTA3D(nn.Module):
         )
         # cc is the region that can be updated by point_logits.
         cc = cc.to(logits.device)
-        # Need to replace NaN with point_logits. diff_neg will never lie in nan_mask, only remove unconnected positive region.
+        # Need to replace NaN with point_logits. diff_neg will never lie in nan_mask, 
+        # only remove unconnected positive region.
         uc_pos_region = torch.logical_and(pos_region, ~cc)
         fill_mask = torch.logical_and(nan_mask, uc_pos_region)
         if fill_mask.any():
@@ -212,7 +196,6 @@ class VISTA3D(nn.Module):
         cc = torch.logical_or(nan_mask, cc).to(logits.dtype)
         logits[mapping_index] *= 1 - cc
         logits[mapping_index] += cc * point_logits
-        # debug_ccp(_logits, point_logits.sigmoid(), point_coords, point_labels, diff, cc, logits[mapping_index], np.random.randint(10000))
         return logits
 
     def gaussian_combine(
@@ -303,7 +286,7 @@ class VISTA3D(nn.Module):
         image_size = input_images.shape[-3:]
         device = input_images.device
         if point_coords is None and class_vector is None:
-            return NINF_VALUE + torch.zeros([1, 1, *image_size], device=device)
+            return self.NINF_VALUE + torch.zeros([1, 1, *image_size], device=device)
 
         bs = self.get_bs(class_vector, point_coords)
         if patch_coords is not None:
@@ -311,7 +294,7 @@ class VISTA3D(nn.Module):
             if labels is not None and label_set is not None:
                 # if labels is not None, sample from labels for each patch.
                 if val_point_sampler is None:
-                    val_point_sampler = sample_points_patch_val
+                    val_point_sampler = self.sample_points_patch_val
                 point_coords, point_labels, prompt_class = val_point_sampler(
                     labels, patch_coords, label_set
                 )
@@ -552,11 +535,8 @@ class Point_Mapping_SAM(nn.Module):
             src = src.transpose(1, 2).view(b, c, h, w, d)
             upscaled_embedding = self.output_upscaling(src)
             b, c, h, w, d = upscaled_embedding.shape
-            masks.append(
-                (hyper_in @ upscaled_embedding.view(b, c, h * w * d)).view(
-                    b, -1, h, w, d
-                )
-            )
+            mask = hyper_in @ upscaled_embedding.view(b, c, h * w * d)
+            masks.append(mask.view(-1, 1, h, w, d))
         masks = torch.vstack(masks)
         return masks
 

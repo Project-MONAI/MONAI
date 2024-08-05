@@ -460,15 +460,6 @@ class SegResNetDS2(SegResNetDS):
             upsample_mode = upsample_mode,
             resolution = resolution)
 
-        if spatial_dims not in (1, 2, 3):
-            raise ValueError("`spatial_dims` can only be 1, 2 or 3.")
-
-        if resolution is not None:
-            if not isinstance(resolution, (list, tuple)):
-                raise TypeError("resolution must be a tuple")
-            elif not all(r > 0 for r in resolution):
-                raise ValueError("resolution must be positive")
-
         # ensure normalization had affine trainable parameters (if not specified)
         norm = split_args(norm)
         if has_option(Norm[norm[0], spatial_dims], "affine"):
@@ -517,9 +508,7 @@ class SegResNetDS2(SegResNetDS):
                 level_auto["head"] = nn.Identity()
             self.up_layers_auto.append(level_auto)
 
-        if (
-            n_up == 0
-        ):  # in a corner case of flat structure (no downsampling), attache a single head
+        if n_up == 0:  # in a corner case of flat structure (no downsampling), attache a single head
             level_auto = nn.ModuleDict(
                 {
                     "upsample": nn.Identity(),
@@ -598,6 +587,11 @@ class SegResNetDS2(SegResNetDS):
         return self._forward(x, with_point, with_label)
 
     def set_auto_grad(self, auto_freeze=False, point_freeze=False):
+        """
+        Args:
+            auto_freeze: if true, freeze the image encoder and the auto-branch.
+            point_freeze: if true, freeze the image encoder and the point-branch.
+        """
         for param in self.encoder.parameters():
             param.requires_grad = (not auto_freeze) and (not point_freeze)
 
