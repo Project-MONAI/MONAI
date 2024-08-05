@@ -31,6 +31,10 @@ from .cast_utils import CastToFloat
 
 
 class LinearWithBiasSkip(nn.Module):
+    """
+    Class used to replace Apex's RowParallelLinear and ColumnParallelLinear
+    for ONNX export
+    """
     def __init__(self, weight, bias, skip_bias_add):
         super().__init__()
         self.bias = bias
@@ -73,26 +77,6 @@ try:
         mod = nn.LayerNorm(
             shape, eps=eps, elementwise_affine=affine, device=p.device, dtype=p.dtype
         )
-        n_state = n.state_dict()
-        mod.load_state_dict(n_state)
-        return mod
-
-    def replace_RowParallelLinear(n: nn.Module) -> Optional[nn.Linear]:
-        """
-        Replaces Apex's FusedLayerNorm with nn.LayerNorm. This is required for ONNX export.
-        Args:
-           n: the FusedLayerNorm pytorch module to replace
-        Returns:
-           Equivalent LayerNorm module
-        """
-        if not isinstance(n, RowParallelLinear):
-            raise ValueError(
-                "This function can only change the RowParallelLinear module."
-            )
-
-        dev = next(n.parameters()).device
-        mod = LinearWithBiasSkip(n.weight, n.bias, n.skip_bias_add).to(device=dev)
-
         n_state = n.state_dict()
         mod.load_state_dict(n_state)
         return mod

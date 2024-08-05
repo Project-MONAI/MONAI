@@ -58,10 +58,16 @@ def avoid_float16_autocast_context():
 
 
 def cast_tensor(x, from_dtype=torch.float16, to_dtype=torch.float32):
+    """
+    Utility function to cast a single tensor from from_dtype to to_dtype
+    """
     return x.to(dtype=to_dtype) if x.dtype == from_dtype else x
 
 
 def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
+    """
+    Utility function to cast all tensors in a tuple from from_dtype to to_dtype
+    """
     if isinstance(x, torch.Tensor):
         return cast_tensor(x, from_dtype=from_dtype, to_dtype=to_dtype)
     else:
@@ -77,6 +83,10 @@ def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
 
 
 class CastToFloat(torch.nn.Module):
+    """
+    Class used to add autocast protection for ONNX export
+    for forward methods with single return vaue
+    """
     def __init__(self, mod):
         super().__init__()
         self.mod = mod
@@ -88,6 +98,10 @@ class CastToFloat(torch.nn.Module):
 
 
 class CastToFloatAll(torch.nn.Module):
+    """
+    Class used to add autocast protection for ONNX export
+    for forward methods with multiple return values
+    """
     def __init__(self, mod):
         super().__init__()
         self.mod = mod
