@@ -168,8 +168,13 @@ class CrossAttentionBlock(nn.Module):
 
         if self.use_flash_attention:
             x = torch.nn.functional.scaled_dot_product_attention(
-                q, k, v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
-            ).contiguous()
+                query=q.transpose(1, 2),
+                key=k.transpose(1, 2),
+                value=v.transpose(1, 2),
+                scale=self.scale,
+                dropout_p=self.dropout_rate,
+                is_causal=self.causal,
+            ).transpose(1, 2)
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
             # apply relative positional embedding if defined
