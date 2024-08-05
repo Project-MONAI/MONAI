@@ -24,7 +24,6 @@
 
 from typing import Callable, Dict, Optional, Type
 
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -33,7 +32,7 @@ from .cast_utils import CastToFloat
 
 class LinearWithBiasSkip(nn.Module):
     def __init__(self, weight, bias, skip_bias_add):
-        super(LinearWithBiasSkip, self).__init__()
+        super().__init__()
         self.bias = bias
         self.weight = weight
         self.skip_bias_add = skip_bias_add

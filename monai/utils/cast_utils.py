@@ -78,7 +78,7 @@ def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
 
 class CastToFloat(torch.nn.Module):
     def __init__(self, mod):
-        super(CastToFloat, self).__init__()
+        super().__init__()
         self.mod = mod
 
     def forward(self, x):
@@ -89,7 +89,7 @@ class CastToFloat(torch.nn.Module):
 
 class CastToFloatAll(torch.nn.Module):
     def __init__(self, mod):
-        super(CastToFloatAll, self).__init__()
+        super().__init__()
         self.mod = mod
 
     def forward(self, *args):

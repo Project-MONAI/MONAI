@@ -27,12 +27,8 @@
 #
 
 from collections import OrderedDict
-from typing import List
-from copy import copy
-import numpy as np
 import os
 import pickle
-from PIL import Image
 from polygraphy.backend.common import bytes_from_path
 from polygraphy.backend.onnx import onnx_from_path, fold_constants, save_onnx
 from polygraphy.backend.onnxrt import OnnxrtRunner, session_from_onnx
@@ -40,15 +36,10 @@ from polygraphy.backend.trt import TrtRunner, CreateConfig, ModifyNetworkOutputs
 from polygraphy.backend.trt import engine_from_bytes, engine_from_network, network_from_onnx_path, save_engine
 from polygraphy.logger import G_LOGGER as L_
 
-import random
-from scipy import integrate
 import tensorrt as trt
 import torch
-import traceback
 
-from io import BytesIO
 from cuda import cudart
-from enum import Enum, auto
 
 import threading
 
@@ -151,7 +142,7 @@ class Engine:
             save_timing_cache=timing_cache,
         )
         self.engine = engine
-        
+
     def save(self):
         save_engine(self.engine, path=self.engine_path)
 
@@ -176,11 +167,11 @@ class Engine:
                 self.output_names.append(binding)
                 dtype = trt_to_torch_dtype_dict[self.engine.get_tensor_dtype(binding)]
                 self.dtypes.append(dtype)
-        self.cur_profile = profile_num        
+        self.cur_profile = profile_num
         # L_.info(self.input_names)
         # L_.info(self.output_names)
-        
-    def allocate_buffers(self, device):        
+
+    def allocate_buffers(self, device):
         # allocate outputs
         ctx = self.context
 
@@ -269,7 +260,7 @@ class Engine:
 class TRTWrapper(torch.nn.Module):
     """
     This wrapper implements TRT, ONNX and Torchscript persistent export
-    and running with fallback to Torch (for TRT modules with limited profiles)  
+    and running with fallback to Torch (for TRT modules with limited profiles)
 
     """
 
@@ -290,7 +281,7 @@ class TRTWrapper(torch.nn.Module):
         self.onnx_runner = None
         self.path = path
         self.use_cuda_graph = use_cuda_graph
-        
+
         if os.path.exists(self.onnx_path):
             ftime=os.path.getmtime(self.onnx_path)
             if timestamp is not None and ftime < timestamp:
@@ -337,7 +328,6 @@ class TRTWrapper(torch.nn.Module):
             self.engine = engine
         except Exception as e:
             LOGGER.debug(f"Exception while loading the engine:\n{e}")
-            pass
 
     def load_jit(self):
         try:
@@ -548,7 +538,3 @@ class TRTWrapper(torch.nn.Module):
                 os.remove(self.onnx_path)
             except Exception as e:
                 raise e
-                pass
-
-
-
