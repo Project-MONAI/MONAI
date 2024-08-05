@@ -170,9 +170,7 @@ class TestNACLLoss(unittest.TestCase):
     def test_result(self, input_param, input_data, expected_val):
         loss = NACLLoss(**input_param)
         result = loss(**input_data)
-        np.testing.assert_allclose(
-            result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4
-        )
+        np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":

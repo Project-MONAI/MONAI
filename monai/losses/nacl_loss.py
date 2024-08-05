@@ -174,7 +174,7 @@ class NACLLoss(_Loss):
 
     Murugesan, Balamurali, et al.
     "Trust your neighbours: Penalty-based constraints for model calibration."
-    International Conference on Medical Image Computing and Computer-Assisted Intervention, 2023.
+    International Conference on Medical Image Computing and Computer-Assisted Intervention, MICCAI 2023.
     https://arxiv.org/abs/2303.06268
     """
 
@@ -191,6 +191,7 @@ class NACLLoss(_Loss):
         """
         Args:
             classes: number of classes
+            dim: dimension of data (supports 2d and 3d)
             kernel_size: size of the spatial kernel
             distance_type: l1/l2 distance between spatial kernel and predicted logits
             alpha: weightage between cross entropy and logit constraint
