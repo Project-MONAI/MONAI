@@ -176,6 +176,10 @@ class NACLLoss(_Loss):
     "Trust your neighbours: Penalty-based constraints for model calibration."
     International Conference on Medical Image Computing and Computer-Assisted Intervention, MICCAI 2023.
     https://arxiv.org/abs/2303.06268
+    
+    Murugesan, Balamurali, et al.
+    "Neighbor-Aware Calibration of Segmentation Networks with Penalty-Based Constraints."
+    https://arxiv.org/abs/2401.14487
     """
 
     def __init__(
