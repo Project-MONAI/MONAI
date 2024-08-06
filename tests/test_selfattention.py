@@ -22,6 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
+from tests.utils import test_script_save
 
 einops, has_einops = optional_import("einops")
 
@@ -137,6 +138,16 @@ class TestResBlock(unittest.TestCase):
         # Increasing the number of heads with the default behaviour should not change the number of params.
         nparams_default_more_heads = count_sablock_params(hidden_size=hidden_size, num_heads=num_heads * 2)
         self.assertEqual(nparams_default, nparams_default_more_heads)
+
+    @skipUnless(has_einops, "Requires einops")
+    def test_script(self):
+        for include_fc in [True, False]:
+            input_param = {'hidden_size': 360, 'num_heads': 4, 'dropout_rate': 0.0, 'rel_pos_embedding': None, 'input_size': (16, 32), "include_fc": include_fc}
+        net = SABlock(**input_param)
+        input_shape = (2, 512, 360)
+        test_data = torch.randn(input_shape)
+        test_script_save(net, test_data)
+
 
 
 if __name__ == "__main__":

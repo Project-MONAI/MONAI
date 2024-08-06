@@ -39,9 +39,10 @@ class SABlock(nn.Module):
         hidden_input_size: int | None = None,
         causal: bool = False,
         sequence_length: int | None = None,
-        rel_pos_embedding: Optional[str] = None,
-        input_size: Optional[Tuple] = None,
-        attention_dtype: Optional[torch.dtype] = None,
+        rel_pos_embedding: str | None = None,
+        input_size: Tuple | None = None,
+        attention_dtype: torch.dtype | None = None,
+        include_fc: bool = True,
     ) -> None:
         """
         Args:
@@ -97,6 +98,7 @@ class SABlock(nn.Module):
         self.attention_dtype = attention_dtype
         self.causal = causal
         self.sequence_length = sequence_length
+        self.include_fc = include_fc
 
         if causal and sequence_length is not None:
             # causal mask to ensure that attention is only applied to the left in the input sequence
@@ -148,6 +150,7 @@ class SABlock(nn.Module):
         att_mat = self.drop_weights(att_mat)
         x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
         x = self.out_rearrange(x)
-        x = self.out_proj(x)
+        if self.include_fc:
+            x = self.out_proj(x)
         x = self.drop_output(x)
         return x
