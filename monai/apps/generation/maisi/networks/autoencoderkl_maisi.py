@@ -13,14 +13,13 @@ from __future__ import annotations
 
 import gc
 import logging
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import Sequence
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.blocks import Convolution
-from monai.utils import optional_import
 from monai.utils.type_conversion import convert_to_tensor
 
 # AttentionBlock, has_attentionblock = optional_import("generative.networks.nets.autoencoderkl", name="AttentionBlock")
