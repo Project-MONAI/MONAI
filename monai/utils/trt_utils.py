@@ -40,6 +40,17 @@ try:
 
     import tensorrt as trt
     from cuda import cudart
+
+    # Map of TRT dtype -> Torch dtype
+    trt_to_torch_dtype_dict = {
+        trt.int32: torch.int32,
+        trt.float32: torch.float32,
+        trt.float16: torch.float16,
+        trt.bfloat16: torch.float16,
+        trt.int64: torch.int64,
+        trt.int8: torch.int8,
+        trt.bool: torch.bool,
+    }
 except Exception:
     pass
 
@@ -54,16 +65,6 @@ LOGGER=get_logger("run_cmd")
 lock_sm = threading.Lock()
 
 
-# Map of TRT dtype -> Torch dtype
-trt_to_torch_dtype_dict = {
-    trt.int32: torch.int32,
-    trt.float32: torch.float32,
-    trt.float16: torch.float16,
-    trt.bfloat16: torch.float16,
-    trt.int64: torch.int64,
-    trt.int8: torch.int8,
-    trt.bool: torch.bool,
-}
 
 def get_dynamic_axes(profiles, extra_axes={}):
     """
