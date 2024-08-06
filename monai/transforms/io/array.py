@@ -27,6 +27,7 @@ from typing import Callable
 
 import numpy as np
 import torch
+from filelock import FileLock
 
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
@@ -520,6 +521,7 @@ class SaveImage(Transform):
 class MappingJson(Transform):
     """
     Writes a JSON file that logs the mapping between input image paths and their corresponding output paths.
+    This class uses FileLock to ensure safe writing to the JSON file in a multiprocess environment.
 
     Args:
         mapping_json_path (Path or str): Path to the JSON file where the mappings will be saved.
@@ -527,6 +529,7 @@ class MappingJson(Transform):
 
     def __init__(self, mapping_json_path: Path | str = "mapping.json"):
         self.mapping_json_path = Path(mapping_json_path)
+        self.lock = FileLock(str(self.mapping_json_path) + ".lock")
 
     def write_json(self, input_path: str, output_path: str):
         """
@@ -535,16 +538,18 @@ class MappingJson(Transform):
             output_path (str): The path of the output image file.
         """
         log_data = {"input": input_path, "output": output_path}
-        try:
-            with self.mapping_json_path.open("r") as f:
-                existing_log_data = json.load(f)
-        except FileNotFoundError:
-            existing_log_data = []
 
-        existing_log_data.append(log_data)
+        with self.lock:
+            try:
+                with self.mapping_json_path.open("r") as f:
+                    existing_log_data = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_log_data = []
 
-        with self.mapping_json_path.open("w") as f:
-            json.dump(existing_log_data, f, indent=4)
+            existing_log_data.append(log_data)
+
+            with self.mapping_json_path.open("w") as f:
+                json.dump(existing_log_data, f, indent=4)
 
     def __call__(self, img: MetaTensor):
         """
@@ -553,7 +558,6 @@ class MappingJson(Transform):
         """
         if "saved_to" not in img.meta:
             raise KeyError("Missing 'saved_to' key in metadata. Check SaveImage savepath_in_metadict.")
-
         input_path = img.meta["filename_or_obj"]
         output_path = img.meta["saved_to"]
         self.write_json(input_path, output_path)
