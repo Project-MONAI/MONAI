@@ -94,7 +94,7 @@ Segmentation Losses
     :members:
 
 `NACLLoss`
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
 .. autoclass:: NACLLoss
     :members:
 
