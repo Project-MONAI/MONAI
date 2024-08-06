@@ -42,9 +42,14 @@ if P_imported:
     from polygraphy.backend.trt import engine_from_bytes, engine_from_network, network_from_onnx_path, save_engine
 
 trt, trt_imported = optional_import("tensorrt")
-cudart, _ =  optional_import("cuda" , name="cudart")
+cudart, _ =  optional_import("cuda.cudart")
 
-    # Map of TRT dtype -> Torch dtype
+from monai.apps.utils import get_logger
+LOGGER=get_logger("run_cmd")
+
+lock_sm = threading.Lock()
+
+# Map of TRT dtype -> Torch dtype
 def trt_to_torch_dtype_dict():
     return {
         trt.int32: torch.int32,
@@ -55,12 +60,6 @@ def trt_to_torch_dtype_dict():
         trt.int8: torch.int8,
         trt.bool: torch.bool,
     }
-
-from monai.apps.utils import get_logger
-LOGGER=get_logger("run_cmd")
-
-lock_sm = threading.Lock()
-
 
 
 def get_dynamic_axes(profiles, extra_axes={}):
@@ -507,31 +506,18 @@ class TRTWrapper(torch.nn.Module):
 
         replace_for_export(model, do_cast=True)
 
-        if dynamo:
-            torch.onnx.export(
-                model,
-                input_example,
-                self.onnx_path,
-                dynamo=dynamo,
-                verbose=verbose,
-                opset_version=opset_version,
-                do_constant_folding=True,
-                input_names=self.input_names,
-                output_names=self.output_names,
-                dynamic_shapes=dynamic_shapes,
-            )
-        else:
-            torch.onnx.export(
-                model,
-                input_example,
-                self.onnx_path,
-                verbose=verbose,
-                opset_version=opset_version,
-                do_constant_folding=True,
-                input_names=self.input_names,
-                output_names=self.output_names,
-                dynamic_axes=dynamic_shapes,
-            )
+        torch.onnx.export(
+            model,
+            input_example,
+            self.onnx_path,
+            dynamo=dynamo,
+            verbose=verbose,
+            opset_version=opset_version,
+            do_constant_folding=True,
+            input_names=self.input_names,
+            output_names=self.output_names,
+            dynamic_axes=dynamic_shapes,
+        )
         LOGGER.info("Folding constants...")
         model_onnx = onnx_from_path(self.onnx_path)
         fold_constants(model_onnx, allow_onnxruntime_shape_inference=False)

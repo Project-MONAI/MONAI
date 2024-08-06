@@ -51,32 +51,6 @@ def simple_replace(
     return expansion_fn
 
 
-def replace_MatchedScaleMaskSoftmax(n: nn.Module) -> Optional[nn.Linear]:
-    """
-    Replaces MatchedScaleMaskSoftmax with exportable softmax layer
-    Args:
-        n: module to replace
-    Returns:
-        exportable module
-    """
-    # including the import here to avoid circular imports
-    from nemo.collections.nlp.modules.common.megatron.fused_softmax import (
-        MatchedScaleMaskSoftmax,
-    )
-
-    # disabling fusion for the MatchedScaleMaskSoftmax
-    mod = MatchedScaleMaskSoftmax(
-        n.input_in_fp16,
-        n.input_in_bf16,
-        n.attn_mask_type,
-        False,
-        n.mask_func,
-        n.softmax_in_fp32,
-        n.scale,
-    )
-    return mod
-
-
 def wrap_module(
     BaseT: Type[nn.Module], DestT: Type[nn.Module]
 ) -> Callable[[nn.Module], Optional[nn.Module]]:
@@ -96,7 +70,7 @@ def wrap_module(
     return expansion_fn
 
 
-def swap_modules(model: nn.Module, mapping: Dict[str, nn.Module]):
+def swap_modules(model: nn.Module, mapping: Dict[str, nn.Module]) -> nn.Module:
     """
     This function swaps nested modules as specified by "dot paths" in mod with a desired replacement. This allows
     for swapping nested modules through arbitrary levels if children
@@ -116,7 +90,7 @@ def swap_modules(model: nn.Module, mapping: Dict[str, nn.Module]):
 
 def replace_modules(
     model: nn.Module,
-    expansions: Dict[str, Callable[[nn.Module], Optional[nn.Module]]] = None,
+    expansions: Dict[str, Callable[[nn.Module], Optional[nn.Module]]],
 ) -> nn.Module:
     """
     Top-level function to replace modules in model, specified by class name with a desired replacement.
@@ -160,3 +134,4 @@ def replace_for_export(model: nn.Module, do_cast: bool = True) -> nn.Module:
             "InstanceNorm3d": wrap_module(nn.InstanceNorm3d, CastToFloat),
         }
         replace_modules(model, cast_replacements)
+    return model
