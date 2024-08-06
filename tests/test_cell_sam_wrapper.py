@@ -18,7 +18,6 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.cell_sam_wrapper import CellSamWrapper
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 from monai.utils import optional_import
 build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="build_sam_vit_b")
@@ -48,7 +47,7 @@ class TestResNetDS(unittest.TestCase):
         with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape, msg=str(input_param))
-    
+
     def test_ill_arg0(self):
         with self.assertRaises(RuntimeError):
             net = CellSamWrapper(auto_resize_inputs=False, checkpoint=None).to(device)

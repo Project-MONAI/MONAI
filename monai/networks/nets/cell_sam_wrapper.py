@@ -51,7 +51,7 @@ class CellSamWrapper(torch.nn.Module):
 
         if not has_sam:
             raise ValueError("SAM is not installed, please run: pip install git+https://github.com/facebookresearch/segment-anything.git")
-        
+
         model = build_sam_vit_b(checkpoint=checkpoint)
 
         model.prompt_encoder = None
