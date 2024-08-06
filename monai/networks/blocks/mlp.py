@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from typing import Union
+
 import torch.nn as nn
 
 from monai.networks.layers import get_act_layer
@@ -53,6 +55,10 @@ class MLPBlock(nn.Module):
         self.linear1 = nn.Linear(hidden_size, mlp_dim) if act_name != "GEGLU" else nn.Linear(hidden_size, mlp_dim * 2)
         self.linear2 = nn.Linear(mlp_dim, hidden_size)
         self.fn = get_act_layer(act)
+        # Use Union[nn.Dropout, nn.Identity] for type annotations
+        self.drop1: Union[nn.Dropout, nn.Identity]
+        self.drop2: Union[nn.Dropout, nn.Identity]
+
         dropout_opt = look_up_option(dropout_mode, SUPPORTED_DROPOUT_MODE)
         if dropout_opt == "vit":
             self.drop1 = nn.Dropout(dropout_rate)
