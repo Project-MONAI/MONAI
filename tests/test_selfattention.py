@@ -32,18 +32,22 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
             for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
                 for input_size in [(16, 32), (8, 8, 8)]:
-                    test_case = [
-                        {
-                            "hidden_size": hidden_size,
-                            "num_heads": num_heads,
-                            "dropout_rate": dropout_rate,
-                            "rel_pos_embedding": rel_pos_embedding,
-                            "input_size": input_size,
-                        },
-                        (2, 512, hidden_size),
-                        (2, 512, hidden_size),
-                    ]
-                    TEST_CASE_SABLOCK.append(test_case)
+                    for include_fc in [True, False]:
+                        for use_combined_linear in [True, False]:
+                            test_case = [
+                                {
+                                    "hidden_size": hidden_size,
+                                    "num_heads": num_heads,
+                                    "dropout_rate": dropout_rate,
+                                    "rel_pos_embedding": rel_pos_embedding,
+                                    "input_size": input_size,
+                                    "include_fc": include_fc,
+                                    "use_combined_linear": use_combined_linear,
+                                },
+                                (2, 512, hidden_size),
+                                (2, 512, hidden_size),
+                            ]
+                            TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
@@ -142,12 +146,20 @@ class TestResBlock(unittest.TestCase):
     @skipUnless(has_einops, "Requires einops")
     def test_script(self):
         for include_fc in [True, False]:
-            input_param = {'hidden_size': 360, 'num_heads': 4, 'dropout_rate': 0.0, 'rel_pos_embedding': None, 'input_size': (16, 32), "include_fc": include_fc}
+            for use_combined_linear in [True, False]:
+                input_param = {
+                    "hidden_size": 360,
+                    "num_heads": 4,
+                    "dropout_rate": 0.0,
+                    "rel_pos_embedding": None,
+                    "input_size": (16, 32),
+                    "include_fc": include_fc,
+                    "use_combined_linear": use_combined_linear,
+                }
         net = SABlock(**input_param)
         input_shape = (2, 512, 360)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
-
 
 
 if __name__ == "__main__":
