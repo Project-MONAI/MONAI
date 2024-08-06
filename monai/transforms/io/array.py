@@ -51,7 +51,7 @@ from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 nrrd, _ = optional_import("nrrd")
-FileLock, _ = optional_import("filelock")
+FileLock, _ = optional_import("filelock", name="FileLock")
 
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
