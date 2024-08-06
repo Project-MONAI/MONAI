@@ -25,7 +25,6 @@
 from typing import Callable, Dict, Optional, Type
 
 import torch.nn as nn
-import torch.nn.functional as F
 
 from .cast_utils import CastToFloat
 
