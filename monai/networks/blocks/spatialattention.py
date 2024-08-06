@@ -33,6 +33,7 @@ class SpatialAttentionBlock(nn.Module):
         num_channels: number of input channels. Must be divisible by num_head_channels.
         num_head_channels: number of channels per head.
         attention_dtype: cast attention operations to this dtype.
+        use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
 
     """
 
@@ -44,6 +45,7 @@ class SpatialAttentionBlock(nn.Module):
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
         attention_dtype: Optional[torch.dtype] = None,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -54,7 +56,11 @@ class SpatialAttentionBlock(nn.Module):
             raise ValueError("num_channels must be divisible by num_head_channels")
         num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
         self.attn = SABlock(
-            hidden_size=num_channels, num_heads=num_heads, qkv_bias=True, attention_dtype=attention_dtype
+            hidden_size=num_channels,
+            num_heads=num_heads,
+            qkv_bias=True,
+            attention_dtype=attention_dtype,
+            use_flash_attention=use_flash_attention,
         )
 
     def forward(self, x: torch.Tensor):
