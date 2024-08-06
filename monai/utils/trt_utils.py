@@ -102,9 +102,7 @@ def cuassert(cuda_ret):
     """
     err = cuda_ret[0]
     if err != 0:
-        raise RuntimeError(
-            f"CUDA ERROR: {err}"
-        )
+        raise RuntimeError(f"CUDA ERROR: {err}")
     if len(cuda_ret) > 1:
         return cuda_ret[1]
     return None

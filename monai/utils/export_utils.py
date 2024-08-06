@@ -24,7 +24,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Type
 
 import torch.nn as nn
 
