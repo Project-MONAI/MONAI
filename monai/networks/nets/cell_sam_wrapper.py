@@ -15,11 +15,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-try:
-    from segment_anything.build_sam import build_sam_vit_b
-except ImportError:
-    raise AssertionError("SAM is not installed, please run: pip install git+https://github.com/facebookresearch/segment-anything.git")
-
+from monai.utils import optional_import
+build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="build_sam_vit_b")
 
 _all__ = ["CellSamWrapper"]
 
@@ -48,13 +45,13 @@ class CellSamWrapper(torch.nn.Module):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-        print(
-            f"CellSamWrapper auto_resize_inputs {auto_resize_inputs} network_resize_roi {network_resize_roi} checkpoint {checkpoint}"
-        )
         self.network_resize_roi = network_resize_roi
         self.auto_resize_inputs = auto_resize_inputs
         self.return_features = return_features
 
+        if not has_sam:
+            raise ValueError("SAM is not installed, please run: pip install git+https://github.com/facebookresearch/segment-anything.git")
+        
         model = build_sam_vit_b(checkpoint=checkpoint)
 
         model.prompt_encoder = None
