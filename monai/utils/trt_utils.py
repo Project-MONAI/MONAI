@@ -29,6 +29,8 @@
 from collections import OrderedDict
 import os
 import pickle
+import torch
+import threading
 
 # To keep CI and format check happy
 try:
@@ -53,11 +55,6 @@ try:
     }
 except Exception:
     pass
-
-import torch
-
-
-import threading
 
 from monai.apps.utils import get_logger
 LOGGER=get_logger("run_cmd")
