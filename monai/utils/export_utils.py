@@ -24,14 +24,14 @@
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Optional, Type
+from typing import Callable
 
 import torch.nn as nn
 
 from .cast_utils import CastToFloat
 
 
-def simple_replace(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
+def simple_replace(BaseT: type[nn.Module], DestT: type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
     """
     Generic function generator to replace BaseT module with DestT. BaseT and DestT should have same atrributes. No weights are copied.
     Args:
@@ -41,7 +41,7 @@ def simple_replace(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[
         swap function to replace BaseT module with DestT
     """
 
-    def expansion_fn(mod: nn.Module) -> Optional[nn.Module]:
+    def expansion_fn(mod: nn.Module) -> nn.Module | None:
         if not isinstance(mod, BaseT):
             return None
         args = [getattr(mod, name, None) for name in mod.__constants__]
@@ -51,7 +51,7 @@ def simple_replace(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[
     return expansion_fn
 
 
-def wrap_module(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
+def wrap_module(BaseT: type[nn.Module], DestT: type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
     """
     Generic function generator to replace BaseT module with DestT wrapper.
     Args:
@@ -61,14 +61,14 @@ def wrap_module(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[nn.
         swap function to replace BaseT module with DestT
     """
 
-    def expansion_fn(mod: nn.Module) -> Optional[nn.Module]:
+    def expansion_fn(mod: nn.Module) -> nn.Module | None:
         out = DestT(mod)
         return out
 
     return expansion_fn
 
 
-def swap_modules(model: nn.Module, mapping: Dict[str, nn.Module]) -> nn.Module:
+def swap_modules(model: nn.Module, mapping: dict[str, nn.Module]) -> nn.Module:
     """
     This function swaps nested modules as specified by "dot paths" in mod with a desired replacement. This allows
     for swapping nested modules through arbitrary levels if children
@@ -86,7 +86,7 @@ def swap_modules(model: nn.Module, mapping: Dict[str, nn.Module]) -> nn.Module:
     return model
 
 
-def replace_modules(model: nn.Module, expansions: Dict[str, Callable[[nn.Module], Optional[nn.Module]]]) -> nn.Module:
+def replace_modules(model: nn.Module, expansions: dict[str, Callable[[nn.Module], nn.Module | None]]) -> nn.Module:
     """
     Top-level function to replace modules in model, specified by class name with a desired replacement.
     NOTE: This occurs in place, if you want to preserve model then make sure to copy it first.
@@ -96,7 +96,7 @@ def replace_modules(model: nn.Module, expansions: Dict[str, Callable[[nn.Module]
     Returns:
         model, possibly modified in-place
     """
-    mapping: Dict[str, nn.Module] = {}
+    mapping: dict[str, nn.Module] = {}
     for name, m in model.named_modules():
         m_type = type(m).__name__
         if m_type in expansions:
