@@ -101,7 +101,7 @@ class TestMappingJson(unittest.TestCase):
             mapping_data = json.load(f)
 
         self.assertEqual(len(mapping_data), num_images, f"Expected {num_images} entries, but got {len(mapping_data)}")
-        unique_entries = set(tuple(sorted(entry.items())) for entry in mapping_data)
+        unique_entries = {tuple(sorted(entry.items())) for entry in mapping_data}
         self.assertEqual(len(mapping_data), len(unique_entries), "Duplicate entries exist")
         for entry in mapping_data:
             self.assertIn("input", entry, "Entry missing 'input' key")
