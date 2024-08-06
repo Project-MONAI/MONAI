@@ -168,7 +168,7 @@ class SABlock(nn.Module):
                 att_mat = self.rel_positional_embedding(x, att_mat, q)
 
             if self.causal:
-                att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[1], : x.shape[1]] == 0, float("-inf"))
+                att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[-2], : x.shape[-2]] == 0, float("-inf"))
 
             att_mat = att_mat.softmax(dim=-1)
 

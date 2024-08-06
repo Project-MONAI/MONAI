@@ -52,6 +52,7 @@ class TestResBlock(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_CABLOCK)
     @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_shape(self, input_param, input_shape, expected_shape):
         # Without flash attention
         net = CrossAttentionBlock(**input_param)

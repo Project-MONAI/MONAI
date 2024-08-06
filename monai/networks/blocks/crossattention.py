@@ -53,7 +53,7 @@ class CrossAttentionBlock(nn.Module):
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
             hidden_input_size (int, optional): dimension of the input tensor. Defaults to hidden_size.
             context_input_size (int, optional): dimension of the context tensor. Defaults to hidden_size.
-            dim_head (int, optional): dimension of each head. Defaults to  hidden_size // num_heads.
+            dim_head (int, optional): dimension of each head. Defaults to hidden_size // num_heads.
             qkv_bias (bool, optional): bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
             causal (bool, optional): whether to use causal attention.
@@ -162,7 +162,7 @@ class CrossAttentionBlock(nn.Module):
             q = q.to(self.attention_dtype)
             k = k.to(self.attention_dtype)
 
-        q = q.view(b, t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, t,  hs)
+        q = q.view(b, t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, t,  hs) #
         k = k.view(b, kv_t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, kv_t, hs)
         v = v.view(b, kv_t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, kv_t, hs)
 
@@ -174,7 +174,9 @@ class CrossAttentionBlock(nn.Module):
                 scale=self.scale,
                 dropout_p=self.dropout_rate,
                 is_causal=self.causal,
-            ).transpose(1, 2)
+            ).transpose(
+                1, 2
+            )  # Back to (b, nh, t, hs)
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
             # apply relative positional embedding if defined
