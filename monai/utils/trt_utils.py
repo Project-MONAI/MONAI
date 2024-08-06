@@ -26,28 +26,42 @@
 # limitations under the License.
 #
 
-from collections import OrderedDict
+from __future__ import annotations
+
 import os
 import pickle
-import torch
 import threading
+from collections import OrderedDict
+
+import torch
+
+from monai.apps.utils import get_logger
+
 from .module import optional_import
 
 P, P_imported = optional_import("polygraphy")
 if P_imported:
     from polygraphy.backend.common import bytes_from_path
-    from polygraphy.backend.onnx import onnx_from_path, fold_constants, save_onnx
+    from polygraphy.backend.onnx import fold_constants, onnx_from_path, save_onnx
     from polygraphy.backend.onnxrt import OnnxrtRunner, session_from_onnx
-    from polygraphy.backend.trt import CreateConfig, ModifyNetworkOutputs, Profile
-    from polygraphy.backend.trt import engine_from_bytes, engine_from_network, network_from_onnx_path, save_engine
+    from polygraphy.backend.trt import (
+        CreateConfig,
+        ModifyNetworkOutputs,
+        Profile,
+        engine_from_bytes,
+        engine_from_network,
+        network_from_onnx_path,
+        save_engine,
+    )
 
 trt, trt_imported = optional_import("tensorrt")
-cudart, _ =  optional_import("cuda.cudart")
+cudart, _ = optional_import("cuda.cudart")
 
-from monai.apps.utils import get_logger
-LOGGER=get_logger("run_cmd")
+
+LOGGER = get_logger("run_cmd")
 
 lock_sm = threading.Lock()
+
 
 # Map of TRT dtype -> Torch dtype
 def trt_to_torch_dtype_dict():
@@ -67,11 +81,11 @@ def get_dynamic_axes(profiles, extra_axes={}):
     Given [[min,opt,max],...] list of profile dimensions,
     this method calculates dynamic_axes to use in onnx.export()
     """
-    dynamic_axes=extra_axes
+    dynamic_axes = extra_axes
     for profile in profiles:
         for key in profile:
-            axes=[]
-            vals=profile[key]
+            axes = []
+            vals = profile[key]
             for i in range(len(vals[0])):
                 if vals[0][i] != vals[2][i]:
                     axes.append(i)
@@ -79,13 +93,16 @@ def get_dynamic_axes(profiles, extra_axes={}):
                 dynamic_axes[key] = axes
         return dynamic_axes
 
+
 def CUASSERT(cuda_ret):
     """
     Error reporting method for CUDA calls
     """
     err = cuda_ret[0]
     if err != 0:
-         raise RuntimeError(f"CUDA ERROR: {err}, error code reference: https://nvidia.github.io/cuda-python/module/cudart.html#cuda.cudart.cudaError_t")
+        raise RuntimeError(
+            f"CUDA ERROR: {err}, error code reference: https://nvidia.github.io/cuda-python/module/cudart.html#cuda.cudart.cudaError_t"
+        )
     if len(cuda_ret) > 1:
         return cuda_ret[1]
     return None
@@ -95,6 +112,7 @@ class ShapeException(Exception):
     """
     Exception class to report errors from setting TRT plan input shapes
     """
+
     pass
 
 
@@ -103,23 +121,15 @@ class Engine:
     An auxiliary class to implement running of TRT optimized engines
 
     """
-    def __init__(
-        self,
-        engine_path,
-    ):
+
+    def __init__(self, engine_path):
         self.engine_path = engine_path
         self.engine = None
         self.context = None
         self.tensors = OrderedDict()
-        self.cuda_graph_instance = None # cuda graph
+        self.cuda_graph_instance = None  # cuda graph
 
-    def build(
-            self,
-            onnx_path,
-            profiles=[],
-            update_output_names=False,
-            **config_kwargs
-    ):
+    def build(self, onnx_path, profiles=[], update_output_names=False, **config_kwargs):
         """
         Builds TRT engine from ONNX file at onnx_path and sets self.engine
         Args:
@@ -129,22 +139,14 @@ class Engine:
 
         LOGGER.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
 
-        network = network_from_onnx_path(
-            onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM]
-        )
+        network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
         if update_output_names:
             LOGGER.info(f"Updating network outputs to {update_output_names}")
             network = ModifyNetworkOutputs(network, update_output_names)
 
         LOGGER.info("Calling engine_from_network...")
 
-        engine = engine_from_network(
-            network,
-            config=CreateConfig(
-                profiles=profiles,
-                **config_kwargs,
-            ),
-        )
+        engine = engine_from_network(network, config=CreateConfig(profiles=profiles, **config_kwargs))
         self.engine = engine
 
     def save(self):
@@ -185,9 +187,7 @@ class Engine:
 
         for i, binding in enumerate(self.output_names):
             shape = ctx.get_tensor_shape(binding)
-            t = torch.empty(
-                list(shape), dtype=self.dtypes[i], device=device
-            ).contiguous()
+            t = torch.empty(list(shape), dtype=self.dtypes[i], device=device).contiguous()
             self.tensors[binding] = t
             ctx.set_tensor_address(binding, t.data_ptr())
 
@@ -252,16 +252,11 @@ class Engine:
                     raise ValueError("ERROR: inference failed.")
                 # capture cuda graph
                 CUASSERT(
-                    cudart.cudaStreamBeginCapture(
-                        stream,
-                        cudart.cudaStreamCaptureMode.cudaStreamCaptureModeThreadLocal,
-                    )
+                    cudart.cudaStreamBeginCapture(stream, cudart.cudaStreamCaptureMode.cudaStreamCaptureModeThreadLocal)
                 )
                 self.context.execute_async_v3(stream)
                 graph = CUASSERT(cudart.cudaStreamEndCapture(stream))
-                self.cuda_graph_instance = CUASSERT(
-                    cudart.cudaGraphInstantiate(graph, 0)
-                )
+                self.cuda_graph_instance = CUASSERT(cudart.cudaGraphInstantiate(graph, 0))
                 LOGGER.info("CUDA Graph captured!")
         else:
             noerror = self.context.execute_async_v3(stream)
@@ -279,13 +274,7 @@ class TRTWrapper(torch.nn.Module):
 
     """
 
-    def __init__(self,
-                 path,
-                 model=None,
-                 input_names=None,
-                 output_names=None,
-                 use_cuda_graph=False,
-                 timestamp=None):
+    def __init__(self, path, model=None, input_names=None, output_names=None, use_cuda_graph=False, timestamp=None):
         super().__init__()
         self.input_names = input_names
         self.output_names = output_names
@@ -298,17 +287,22 @@ class TRTWrapper(torch.nn.Module):
         self.use_cuda_graph = use_cuda_graph
 
         if os.path.exists(self.onnx_path):
-            ftime=os.path.getmtime(self.onnx_path)
+            ftime = os.path.getmtime(self.onnx_path)
             if timestamp is not None and ftime < timestamp:
                 os.remove(self.onnx_path)
             else:
                 timestamp = ftime
-        if timestamp is not None and os.path.exists(self.engine_path) and os.path.getmtime(self.engine_path) < timestamp:
+        if (
+            timestamp is not None
+            and os.path.exists(self.engine_path)
+            and os.path.getmtime(self.engine_path) < timestamp
+        ):
             os.remove(self.engine_path)
 
     """
     Auxiliary getters/setters
     """
+
     @property
     def engine_path(self):
         return self.path + ".plan"
@@ -363,9 +357,7 @@ class TRTWrapper(torch.nn.Module):
         Loads ONNX from disk and creates/activates OnnxrtRunner runner for it.
         """
         try:
-            onnx_runner = OnnxrtRunner(
-                session_from_onnx(self.onnx_path, providers=providers)
-            )
+            onnx_runner = OnnxrtRunner(session_from_onnx(self.onnx_path, providers=providers))
             onnx_runner.activate()
             self.onnx_runner = onnx_runner
         except Exception:
@@ -438,11 +430,7 @@ class TRTWrapper(torch.nn.Module):
             ret = ret[0]
         return ret
 
-    def build_engine(
-        self,
-        input_profiles=[],
-        **build_args
-    ):
+    def build_engine(self, input_profiles=[], **build_args):
         """
         Builds TRT engine from ONNX file at self.onnx_path and sets self.engine
         Args:
@@ -463,37 +451,20 @@ class TRTWrapper(torch.nn.Module):
             self.save_profiles()
 
         engine = Engine(self.path + ".plan")
-        engine.build(
-            self.onnx_path,
-            profiles,
-            **build_args
-        )
+        engine.build(self.onnx_path, profiles, **build_args)
         engine.activate()
         self.engine = engine
 
-    def jit_export(
-        self,
-        input_example,
-        verbose=False,
-    ):
+    def jit_export(self, input_example, verbose=False):
         """
         Exports self.model to Torchscript at self.jit_path and sets self.jit_model
         """
-        self.jit_model = torch.jit.trace(
-            self.model,
-            input_example,
-        ).eval()
+        self.jit_model = torch.jit.trace(self.model, input_example).eval()
         self.jit_model = torch.jit.freeze(self.jit_model)
         torch.jit.save(self.jit_model, self.jit_path)
 
     def onnx_export(
-        self,
-        input_example,
-        dynamo=False,
-        onnx_registry=None,
-        dynamic_shapes=None,
-        verbose=False,
-        opset_version=18,
+        self, input_example, dynamo=False, onnx_registry=None, dynamic_shapes=None, verbose=False, opset_version=18
     ):
         """
         Exports self.model to ONNX file at self.onnx_path
@@ -524,20 +495,10 @@ class TRTWrapper(torch.nn.Module):
         LOGGER.info("Done folding constants.")
 
         LOGGER.info("Saving model...")
-        save_onnx(
-            model_onnx,
-            self.onnx_path,
-        )
+        save_onnx(model_onnx, self.onnx_path)
         LOGGER.info("Done saving model.")
 
-    def build_and_save(
-        self,
-        input_example,
-        dynamo=False,
-        verbose=False,
-        input_profiles=[],
-        **build_args
-    ):
+    def build_and_save(self, input_example, dynamo=False, verbose=False, input_profiles=[], **build_args):
         """
         If serialized engine is not found, exports self.model to ONNX,
         builds TRT engine and saves serialized TRT engine to the disk.
@@ -552,14 +513,9 @@ class TRTWrapper(torch.nn.Module):
             try:
                 if not self.has_onnx():
                     self.onnx_export(
-                        input_example,
-                        dynamo=dynamo,
-                        dynamic_shapes=get_dynamic_axes(input_profiles),
-                        verbose=verbose,
+                        input_example, dynamo=dynamo, dynamic_shapes=get_dynamic_axes(input_profiles), verbose=verbose
                     )
-                self.build_engine(
-                    input_profiles=input_profiles,
-                    **build_args)
+                self.build_engine(input_profiles=input_profiles, **build_args)
                 self.engine.save()
                 os.remove(self.onnx_path)
             except Exception as e:

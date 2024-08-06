@@ -153,4 +153,4 @@ from .type_conversion import (
     get_torch_dtype_from_string,
 )
 
-TRTWrapper, TRT_AVAILABLE = optional_import('monai.utils.trt_utils', name='TRTWrapper')
+TRTWrapper, TRT_AVAILABLE = optional_import("monai.utils.trt_utils", name="TRTWrapper")

@@ -22,6 +22,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from contextlib import nullcontext
 
 import torch
@@ -77,9 +79,7 @@ def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
                 new_dict[k] = cast_all(x[k], from_dtype=from_dtype, to_dtype=to_dtype)
             return new_dict
         elif isinstance(x, tuple):
-            return tuple(
-                cast_all(y, from_dtype=from_dtype, to_dtype=to_dtype) for y in x
-            )
+            return tuple(cast_all(y, from_dtype=from_dtype, to_dtype=to_dtype) for y in x)
 
 
 class CastToFloat(torch.nn.Module):
@@ -87,6 +87,7 @@ class CastToFloat(torch.nn.Module):
     Class used to add autocast protection for ONNX export
     for forward methods with single return vaue
     """
+
     def __init__(self, mod):
         super().__init__()
         self.mod = mod
@@ -102,6 +103,7 @@ class CastToFloatAll(torch.nn.Module):
     Class used to add autocast protection for ONNX export
     for forward methods with multiple return values
     """
+
     def __init__(self, mod):
         super().__init__()
         self.mod = mod
@@ -109,7 +111,5 @@ class CastToFloatAll(torch.nn.Module):
     def forward(self, *args):
         from_dtype = args[0].dtype
         with torch.cuda.amp.autocast(enabled=False):
-            ret = self.mod.forward(
-                *cast_all(args, from_dtype=from_dtype, to_dtype=torch.float32)
-            )
+            ret = self.mod.forward(*cast_all(args, from_dtype=from_dtype, to_dtype=torch.float32))
         return cast_all(ret, from_dtype=torch.float32, to_dtype=from_dtype)

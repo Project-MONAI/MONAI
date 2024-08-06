@@ -22,15 +22,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from typing import Callable, Dict, Optional, Type
 
 import torch.nn as nn
 
 from .cast_utils import CastToFloat
 
-def simple_replace(
-    BaseT: Type[nn.Module], DestT: Type[nn.Module]
-) -> Callable[[nn.Module], Optional[nn.Module]]:
+
+def simple_replace(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
     """
     Generic function generator to replace BaseT module with DestT. BaseT and DestT should have same atrributes. No weights are copied.
     Args:
@@ -50,9 +51,7 @@ def simple_replace(
     return expansion_fn
 
 
-def wrap_module(
-    BaseT: Type[nn.Module], DestT: Type[nn.Module]
-) -> Callable[[nn.Module], Optional[nn.Module]]:
+def wrap_module(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
     """
     Generic function generator to replace BaseT module with DestT wrapper.
     Args:
@@ -87,10 +86,7 @@ def swap_modules(model: nn.Module, mapping: Dict[str, nn.Module]) -> nn.Module:
     return model
 
 
-def replace_modules(
-    model: nn.Module,
-    expansions: Dict[str, Callable[[nn.Module], Optional[nn.Module]]],
-) -> nn.Module:
+def replace_modules(model: nn.Module, expansions: Dict[str, Callable[[nn.Module], Optional[nn.Module]]]) -> nn.Module:
     """
     Top-level function to replace modules in model, specified by class name with a desired replacement.
     NOTE: This occurs in place, if you want to preserve model then make sure to copy it first.
@@ -112,6 +108,7 @@ def replace_modules(
     print(f"Swapped {len(mapping)} modules")
     swap_modules(model, mapping)
     return model
+
 
 def replace_for_export(model: nn.Module, do_cast: bool = True) -> nn.Module:
     """
