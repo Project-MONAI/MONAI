@@ -31,38 +31,39 @@ import torch.nn as nn
 from .cast_utils import CastToFloat
 
 
-def simple_replace(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
+def simple_replace(base_t: Type[nn.Module], dest_t: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
     """
-    Generic function generator to replace BaseT module with DestT. BaseT and DestT should have same atrributes. No weights are copied.
+    Generic function generator to replace base_t module with dest_t.
+    base_t and dest_t should have same atrributes. No weights are copied.
     Args:
-        BaseT : module type to replace
-        DestT : destination module type
+        base_t : module type to replace
+        dest_t : destination module type
     Returns:
-        swap function to replace BaseT module with DestT
+        swap function to replace base_t module with dest_t
     """
 
     def expansion_fn(mod: nn.Module) -> Optional[nn.Module]:
-        if not isinstance(mod, BaseT):
+        if not isinstance(mod, base_t):
             return None
         args = [getattr(mod, name, None) for name in mod.__constants__]
-        out = DestT(*args)
+        out = dest_t(*args)
         return out
 
     return expansion_fn
 
 
-def wrap_module(BaseT: Type[nn.Module], DestT: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
+def wrap_module(base_t: Type[nn.Module], dest_t: Type[nn.Module]) -> Callable[[nn.Module], Optional[nn.Module]]:
     """
-    Generic function generator to replace BaseT module with DestT wrapper.
+    Generic function generator to replace base_t module with dest_t wrapper.
     Args:
-        BaseT : module type to replace
-        DestT : destination module type
+        base_t : module type to replace
+        dest_t : destination module type
     Returns:
-        swap function to replace BaseT module with DestT
+        swap function to replace base_t module with dest_t
     """
 
     def expansion_fn(mod: nn.Module) -> Optional[nn.Module]:
-        out = DestT(mod)
+        out = dest_t(mod)
         return out
 
     return expansion_fn

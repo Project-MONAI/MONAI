@@ -76,12 +76,14 @@ def trt_to_torch_dtype_dict():
     }
 
 
-def get_dynamic_axes(profiles, extra_axes={}):
+def get_dynamic_axes(profiles):
     """
     Given [[min,opt,max],...] list of profile dimensions,
     this method calculates dynamic_axes to use in onnx.export()
     """
-    dynamic_axes = extra_axes
+    dynamic_axes = {}
+    if not profiles:
+        return dynamic_axes
     for profile in profiles:
         for key in profile:
             axes = []
@@ -91,24 +93,24 @@ def get_dynamic_axes(profiles, extra_axes={}):
                     axes.append(i)
             if len(axes) > 0:
                 dynamic_axes[key] = axes
-        return dynamic_axes
+    return dynamic_axes
 
 
-def CUASSERT(cuda_ret):
+def cuassert(cuda_ret):
     """
     Error reporting method for CUDA calls
     """
     err = cuda_ret[0]
     if err != 0:
         raise RuntimeError(
-            f"CUDA ERROR: {err}, error code reference: https://nvidia.github.io/cuda-python/module/cudart.html#cuda.cudart.cudaError_t"
+            f"CUDA ERROR: {err}"
         )
     if len(cuda_ret) > 1:
         return cuda_ret[1]
     return None
 
 
-class ShapeException(Exception):
+class ShapeError(Exception):
     """
     Exception class to report errors from setting TRT plan input shapes
     """
@@ -129,7 +131,7 @@ class Engine:
         self.tensors = OrderedDict()
         self.cuda_graph_instance = None  # cuda graph
 
-    def build(self, onnx_path, profiles=[], update_output_names=False, **config_kwargs):
+    def build(self, onnx_path, profiles=None, update_output_names=False, **config_kwargs):
         """
         Builds TRT engine from ONNX file at onnx_path and sets self.engine
         Args:
@@ -218,7 +220,7 @@ class Engine:
                     # TODO: port to new TRT10 API
                     # mincurmax = list(e.get_profile_shape(self.cur_profile, binding))
                     # if not self.check_shape(shape, mincurmax):
-                    #    raise ShapeException(f"Input shape to be set is outside the bounds: {binding} -> {shape}, profile is {mincurmax}, trying another profile: {self.cur_profile}")
+                    #    raise ShapeError(f"Input shape to be set is outside the bounds: {binding} -> {shape}")
                     ctx.set_input_shape(binding, shape)
                     ctx.set_tensor_address(binding, t.data_ptr())
 
@@ -226,7 +228,7 @@ class Engine:
             try:
                 try_set_inputs()
                 break
-            except ShapeException:
+            except ShapeError:
                 next_profile = (self.cur_profile + 1) % e.num_optimization_profiles
                 if next_profile == last_profile:
                     raise
@@ -243,24 +245,24 @@ class Engine:
         """
         if use_cuda_graph:
             if self.cuda_graph_instance is not None:
-                CUASSERT(cudart.cudaGraphLaunch(self.cuda_graph_instance, stream))
-                CUASSERT(cudart.cudaStreamSynchronize(stream))
+                cuassert(cudart.cudaGraphLaunch(self.cuda_graph_instance, stream))
+                cuassert(cudart.cudaStreamSynchronize(stream))
             else:
                 # do inference before CUDA graph capture
                 noerror = self.context.execute_async_v3(stream)
                 if not noerror:
                     raise ValueError("ERROR: inference failed.")
                 # capture cuda graph
-                CUASSERT(
+                cuassert(
                     cudart.cudaStreamBeginCapture(stream, cudart.cudaStreamCaptureMode.cudaStreamCaptureModeThreadLocal)
                 )
                 self.context.execute_async_v3(stream)
-                graph = CUASSERT(cudart.cudaStreamEndCapture(stream))
-                self.cuda_graph_instance = CUASSERT(cudart.cudaGraphInstantiate(graph, 0))
+                graph = cuassert(cudart.cudaStreamEndCapture(stream))
+                self.cuda_graph_instance = cuassert(cudart.cudaGraphInstantiate(graph, 0))
                 LOGGER.info("CUDA Graph captured!")
         else:
             noerror = self.context.execute_async_v3(stream)
-            CUASSERT(cudart.cudaStreamSynchronize(stream))
+            cuassert(cudart.cudaStreamSynchronize(stream))
             if not noerror:
                 raise ValueError("ERROR: inference failed.")
 
@@ -352,10 +354,12 @@ class TRTWrapper(torch.nn.Module):
         except Exception:
             pass
 
-    def load_onnx(self, providers=["CUDAExecutionProvider"]):
+    def load_onnx(self, providers=None):
         """
         Loads ONNX from disk and creates/activates OnnxrtRunner runner for it.
         """
+        if providers is None:
+            providers = ["CUDAExecutionProvider"]
         try:
             onnx_runner = OnnxrtRunner(session_from_onnx(self.onnx_path, providers=providers))
             onnx_runner.activate()
@@ -430,14 +434,14 @@ class TRTWrapper(torch.nn.Module):
             ret = ret[0]
         return ret
 
-    def build_engine(self, input_profiles=[], **build_args):
+    def build_engine(self, input_profiles=None, **build_args):
         """
         Builds TRT engine from ONNX file at self.onnx_path and sets self.engine
         Args:
              input_profiles, build_args - passed to engine.build()
         """
         profiles = []
-        if len(input_profiles) > 0:
+        if input_profiles:
             for input_profile in input_profiles:
                 if isinstance(input_profile, Profile):
                     profiles.append(input_profile)
@@ -498,7 +502,7 @@ class TRTWrapper(torch.nn.Module):
         save_onnx(model_onnx, self.onnx_path)
         LOGGER.info("Done saving model.")
 
-    def build_and_save(self, input_example, dynamo=False, verbose=False, input_profiles=[], **build_args):
+    def build_and_save(self, input_example, dynamo=False, verbose=False, input_profiles=None, **build_args):
         """
         If serialized engine is not found, exports self.model to ONNX,
         builds TRT engine and saves serialized TRT engine to the disk.
