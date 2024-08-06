@@ -149,6 +149,7 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --user --upgrade pip setuptools wheel twine
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated

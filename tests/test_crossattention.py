@@ -22,6 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.crossattention import CrossAttentionBlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
+from tests.utils import SkipIfBeforePyTorchVersion
 
 einops, has_einops = optional_import("einops")
 
@@ -31,25 +32,29 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
             for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
                 for input_size in [(16, 32), (8, 8, 8)]:
-                    test_case = [
-                        {
-                            "hidden_size": hidden_size,
-                            "num_heads": num_heads,
-                            "dropout_rate": dropout_rate,
-                            "rel_pos_embedding": rel_pos_embedding,
-                            "input_size": input_size,
-                        },
-                        (2, 512, hidden_size),
-                        (2, 512, hidden_size),
-                    ]
-                    TEST_CASE_CABLOCK.append(test_case)
+                    for flash_attn in [True, False]:
+                        test_case = [
+                            {
+                                "hidden_size": hidden_size,
+                                "num_heads": num_heads,
+                                "dropout_rate": dropout_rate,
+                                "rel_pos_embedding": rel_pos_embedding if not flash_attn else None,
+                                "input_size": input_size,
+                                "use_flash_attention": flash_attn,
+                            },
+                            (2, 512, hidden_size),
+                            (2, 512, hidden_size),
+                        ]
+                        TEST_CASE_CABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_CABLOCK)
     @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_shape(self, input_param, input_shape, expected_shape):
+        # Without flash attention
         net = CrossAttentionBlock(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape), context=torch.randn(2, 512, input_param["hidden_size"]))
@@ -61,6 +66,25 @@ class TestResBlock(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
+
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_save_attn_with_flash_attention(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(
+                hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
+            )
+
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_rel_pos_embedding_with_flash_attention(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(
+                hidden_size=128,
+                num_heads=3,
+                dropout_rate=0.1,
+                use_flash_attention=True,
+                save_attn=False,
+                rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
+            )
 
     @skipUnless(has_einops, "Requires einops")
     def test_attention_dim_not_multiple_of_heads(self):
@@ -74,6 +98,22 @@ class TestResBlock(unittest.TestCase):
     def test_causal_no_sequence_length(self):
         with self.assertRaises(ValueError):
             CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
+
+    @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_causal_flash_attention(self):
+        block = CrossAttentionBlock(
+            hidden_size=128,
+            num_heads=1,
+            dropout_rate=0.1,
+            causal=True,
+            sequence_length=16,
+            save_attn=False,
+            use_flash_attention=True,
+        )
+        input_shape = (1, 16, 128)
+        # Check it runs correctly
+        block(torch.randn(input_shape))
 
     @skipUnless(has_einops, "Requires einops")
     def test_causal(self):
@@ -119,7 +159,7 @@ class TestResBlock(unittest.TestCase):
         # no of elements is zero
         assert no_matrix_acess_blk.att_mat.nelement() == 0
 
-        # be able to acess the attention matrix
+        # be able to acess the attention matrix.
         matrix_acess_blk = CrossAttentionBlock(
             hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
         )
