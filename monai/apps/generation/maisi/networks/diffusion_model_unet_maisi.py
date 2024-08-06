@@ -37,7 +37,7 @@ import torch
 from torch import nn
 
 from monai.networks.blocks import Convolution
-from monai.utils import ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_tensor
 
 from monai.networks.nets.diffusion_model_unet import get_down_block, get_mid_block, get_up_block, get_timestep_embedding, zero_module
@@ -393,5 +393,3 @@ class DiffusionModelUNetMaisi(nn.Module):
         h = self.out(h)
         h_tensor: torch.Tensor = convert_to_tensor(h)
         return h_tensor
-
-    

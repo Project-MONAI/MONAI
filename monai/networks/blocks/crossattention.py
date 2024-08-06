@@ -172,4 +172,3 @@ class CrossAttentionBlock(nn.Module):
         # x = self.out_proj(x)
         x = self.drop_output(x)
         return x
-    

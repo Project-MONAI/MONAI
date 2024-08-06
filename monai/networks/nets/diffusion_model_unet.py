@@ -1936,4 +1936,3 @@ class DiffusionModelEncoder(nn.Module):
         output: torch.Tensor = self.out(h)
 
         return output
-    

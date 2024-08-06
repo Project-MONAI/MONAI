@@ -15,7 +15,6 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from monai.networks.blocks import SABlock
 from monai.utils import optional_import
@@ -82,4 +81,3 @@ class SpatialAttentionBlock(nn.Module):
         x = rearrange_output(x)  # B x  x C x x_dim * y_dim * [z_dim]
         x = x + residual
         return x
-    
