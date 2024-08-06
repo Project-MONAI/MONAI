@@ -23,14 +23,18 @@ from monai.networks.blocks import Convolution
 from monai.utils import optional_import
 from monai.utils.type_conversion import convert_to_tensor
 
-AttentionBlock, has_attentionblock = optional_import("generative.networks.nets.autoencoderkl", name="AttentionBlock")
-AutoencoderKL, has_autoencoderkl = optional_import("generative.networks.nets.autoencoderkl", name="AutoencoderKL")
-ResBlock, has_resblock = optional_import("generative.networks.nets.autoencoderkl", name="ResBlock")
+# AttentionBlock, has_attentionblock = optional_import("generative.networks.nets.autoencoderkl", name="AttentionBlock")
+# AutoencoderKL, has_autoencoderkl = optional_import("generative.networks.nets.autoencoderkl", name="AutoencoderKL")
+# ResBlock, has_resblock = optional_import("generative.networks.nets.autoencoderkl", name="ResBlock")
 
-if TYPE_CHECKING:
-    from generative.networks.nets.autoencoderkl import AutoencoderKL as AutoencoderKLType
-else:
-    AutoencoderKLType = cast(type, AutoencoderKL)
+# if TYPE_CHECKING:
+#     from generative.networks.nets.autoencoderkl import AutoencoderKL as AutoencoderKLType
+# else:
+#     AutoencoderKLType = cast(type, AutoencoderKL)
+
+from monai.networks.blocks import SpatialAttentionBlock
+from monai.networks.nets.autoencoderkl import AutoencoderKL, AEKLResBlock
+
 
 # Set up logging configuration
 logger = logging.getLogger(__name__)
@@ -603,7 +607,7 @@ class MaisiEncoder(nn.Module):
                 input_channel = output_channel
                 if attention_levels[i]:
                     blocks.append(
-                        AttentionBlock(
+                        SpatialAttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=input_channel,
                             norm_num_groups=norm_num_groups,
@@ -626,7 +630,7 @@ class MaisiEncoder(nn.Module):
 
         if with_nonlocal_attn:
             blocks.append(
-                ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=num_channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -636,7 +640,7 @@ class MaisiEncoder(nn.Module):
             )
 
             blocks.append(
-                AttentionBlock(
+                SpatialAttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=num_channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -645,7 +649,7 @@ class MaisiEncoder(nn.Module):
                 )
             )
             blocks.append(
-                ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=num_channels[-1],
                     norm_num_groups=norm_num_groups,
@@ -758,7 +762,7 @@ class MaisiDecoder(nn.Module):
 
         if with_nonlocal_attn:
             blocks.append(
-                ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -767,7 +771,7 @@ class MaisiDecoder(nn.Module):
                 )
             )
             blocks.append(
-                AttentionBlock(
+                SpatialAttentionBlock(
                     spatial_dims=spatial_dims,
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -776,7 +780,7 @@ class MaisiDecoder(nn.Module):
                 )
             )
             blocks.append(
-                ResBlock(
+                AEKLResBlock(
                     spatial_dims=spatial_dims,
                     in_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
@@ -812,7 +816,7 @@ class MaisiDecoder(nn.Module):
 
                 if reversed_attention_levels[i]:
                     blocks.append(
-                        AttentionBlock(
+                        SpatialAttentionBlock(
                             spatial_dims=spatial_dims,
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
@@ -870,7 +874,7 @@ class MaisiDecoder(nn.Module):
         return x
 
 
-class AutoencoderKlMaisi(AutoencoderKLType):
+class AutoencoderKlMaisi(AutoencoderKL):
     """
     AutoencoderKL with custom MaisiEncoder and MaisiDecoder.
 
