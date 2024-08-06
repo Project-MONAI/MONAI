@@ -15,6 +15,7 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from monai.networks.blocks import SABlock
 from monai.utils import optional_import
@@ -44,6 +45,7 @@ class SpatialAttentionBlock(nn.Module):
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
         attention_dtype: Optional[torch.dtype] = None,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -52,9 +54,9 @@ class SpatialAttentionBlock(nn.Module):
         # check num_head_channels is divisible by num_channels
         if num_head_channels is not None and num_channels % num_head_channels != 0:
             raise ValueError("num_channels must be divisible by num_head_channels")
-        num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
+        self.num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
         self.attn = SABlock(
-            hidden_size=num_channels, num_heads=num_heads, qkv_bias=True, attention_dtype=attention_dtype
+            hidden_size=num_channels, num_heads=self.num_heads, qkv_bias=True, attention_dtype=attention_dtype, use_flash_attention=use_flash_attention
         )
 
     def forward(self, x: torch.Tensor):
@@ -80,3 +82,4 @@ class SpatialAttentionBlock(nn.Module):
         x = rearrange_output(x)  # B x  x C x x_dim * y_dim * [z_dim]
         x = x + residual
         return x
+    

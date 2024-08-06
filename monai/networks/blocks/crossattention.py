@@ -15,6 +15,7 @@ from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
 from monai.utils import optional_import
@@ -44,6 +45,7 @@ class CrossAttentionBlock(nn.Module):
         rel_pos_embedding: Optional[str] = None,
         input_size: Optional[Tuple] = None,
         attention_dtype: Optional[torch.dtype] = None,
+        use_flash_attention: bool = False,
     ) -> None:
         """
         Args:
@@ -119,6 +121,7 @@ class CrossAttentionBlock(nn.Module):
             else None
         )
         self.input_size = input_size
+        self.use_flash_attention = use_flash_attention
 
     def forward(self, x: torch.Tensor, context: Optional[torch.Tensor] = None):
         """
@@ -147,22 +150,26 @@ class CrossAttentionBlock(nn.Module):
         v = v.view(b, kv_t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, kv_t, hs)
         att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
 
-        # apply relative positional embedding if defined
-        att_mat = self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
+        if self.use_flash_attention:
+            x = F.scaled_dot_product_attention(q, k, v)
+        else:
+            # apply relative positional embedding if defined
+            att_mat = self.rel_positional_embedding(x, att_mat, q) if self.rel_positional_embedding is not None else att_mat
 
-        if self.causal:
-            att_mat = att_mat.masked_fill(self.causal_mask[:, :, :t, :kv_t] == 0, float("-inf"))
+            if self.causal:
+                att_mat = att_mat.masked_fill(self.causal_mask[:, :, :t, :kv_t] == 0, float("-inf"))
 
-        att_mat = att_mat.softmax(dim=-1)
+            att_mat = att_mat.softmax(dim=-1)
 
-        if self.save_attn:
-            # no gradients and new tensor;
-            # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
-            self.att_mat = att_mat.detach()
+            if self.save_attn:
+                # no gradients and new tensor;
+                # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
+                self.att_mat = att_mat.detach()
 
-        att_mat = self.drop_weights(att_mat)
-        x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
+            att_mat = self.drop_weights(att_mat)
+            x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
         x = self.out_rearrange(x)
-        x = self.out_proj(x)
+        # x = self.out_proj(x)
         x = self.drop_output(x)
         return x
+    
