@@ -51,7 +51,7 @@ for dropout_rate in np.linspace(0, 1, 4):
 class TestResBlock(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_CABLOCK)
-    @skipUnless(has_einops, "Requires einops_")
+    @skipUnless(has_einops, "Requires einops")
     @SkipIfBeforePyTorchVersion((2, 0))
     def test_shape(self, input_param, input_shape, expected_shape):
         # Without flash attention
