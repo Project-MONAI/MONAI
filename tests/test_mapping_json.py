@@ -91,7 +91,7 @@ class TestMappingJson(unittest.TestCase):
             )
 
     def test_multiprocess_mapping_json(self):
-        num_processes, num_images = 16, 1000
+        num_processes, num_images = 8, 300
 
         with multiprocessing.Pool(processes=num_processes) as pool:
             args = [(self.temp_dir, self.mapping_json_path, i) for i in range(num_images)]

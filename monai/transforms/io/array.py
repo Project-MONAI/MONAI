@@ -27,7 +27,6 @@ from typing import Callable
 
 import numpy as np
 import torch
-from filelock import FileLock
 
 from monai.config import DtypeLike, NdarrayOrTensor, PathLike
 from monai.data import image_writer
@@ -52,6 +51,7 @@ from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 nrrd, _ = optional_import("nrrd")
+FileLock, _ = optional_import("filelock")
 
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
