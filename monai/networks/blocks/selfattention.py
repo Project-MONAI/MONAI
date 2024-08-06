@@ -42,6 +42,7 @@ class SABlock(nn.Module):
         rel_pos_embedding: Optional[str] = None,
         input_size: Optional[Tuple] = None,
         attention_dtype: Optional[torch.dtype] = None,
+        use_combined_linear: bool = True,
     ) -> None:
         """
         Args:
@@ -59,6 +60,7 @@ class SABlock(nn.Module):
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative
                 positional parameter size.
             attention_dtype: cast attention operations to this dtype.
+            use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
 
         """
 
@@ -86,9 +88,17 @@ class SABlock(nn.Module):
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
         self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
 
-        self.qkv = nn.Linear(self.hidden_input_size, self.inner_dim * 3, bias=qkv_bias)
-        self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
-        self.out_rearrange = Rearrange("b h l d -> b l (h d)")
+        if use_combined_linear:
+            self.qkv = nn.Linear(self.hidden_input_size, self.inner_dim * 3, bias=qkv_bias)
+            self.to_q = self.to_k = self.to_v = nn.Identity()  # add to enable torchscript
+            self.input_rearrange = Rearrange("b h (qkv l d) -> qkv b l h d", qkv=3, l=num_heads)
+        else:
+            self.to_q = nn.Linear(self.hidden_input_size, self.inner_dim, bias=qkv_bias)
+            self.to_k = nn.Linear(self.hidden_input_size, self.inner_dim, bias=qkv_bias)
+            self.to_v = nn.Linear(self.hidden_input_size, self.inner_dim, bias=qkv_bias)
+            self.qkv = nn.Identity()  # add to enable torchscript
+            self.input_rearrange = Rearrange("b h (l d) -> b l h d", l=num_heads)
+        self.out_rearrange = Rearrange("b l h d -> b h (l d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
         self.scale = self.dim_head**-0.5
@@ -97,6 +107,7 @@ class SABlock(nn.Module):
         self.attention_dtype = attention_dtype
         self.causal = causal
         self.sequence_length = sequence_length
+        self.use_combined_linear = use_combined_linear
 
         if causal and sequence_length is not None:
             # causal mask to ensure that attention is only applied to the left in the input sequence
@@ -123,8 +134,13 @@ class SABlock(nn.Module):
         Return:
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
         """
-        output = self.input_rearrange(self.qkv(x))
-        q, k, v = output[0], output[1], output[2]
+        if self.use_combined_linear:
+            output = self.input_rearrange(self.qkv(x))
+            q, k, v = output[0], output[1], output[2]
+        else:
+            q = self.input_rearrange(self.to_q(x))
+            k = self.input_rearrange(self.to_k(x))
+            v = self.input_rearrange(self.to_v(x))
 
         if self.attention_dtype is not None:
             q = q.to(self.attention_dtype)
