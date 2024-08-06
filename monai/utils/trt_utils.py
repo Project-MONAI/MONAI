@@ -31,20 +31,22 @@ import os
 import pickle
 import torch
 import threading
+from .module import optional_import
 
-# To keep CI and format check happy
-try:
+P, P_imported = optional_import("polygraphy")
+if P_imported:
     from polygraphy.backend.common import bytes_from_path
     from polygraphy.backend.onnx import onnx_from_path, fold_constants, save_onnx
     from polygraphy.backend.onnxrt import OnnxrtRunner, session_from_onnx
     from polygraphy.backend.trt import CreateConfig, ModifyNetworkOutputs, Profile
     from polygraphy.backend.trt import engine_from_bytes, engine_from_network, network_from_onnx_path, save_engine
 
-    import tensorrt as trt
-    from cuda import cudart
+trt, trt_imported = optional_import("tensorrt")
+cudart, _ =  optional_import("cuda" , name="cudart")
 
     # Map of TRT dtype -> Torch dtype
-    trt_to_torch_dtype_dict = {
+def trt_to_torch_dtype_dict():
+    return {
         trt.int32: torch.int32,
         trt.float32: torch.float32,
         trt.float16: torch.float16,
@@ -53,8 +55,6 @@ try:
         trt.int8: torch.int8,
         trt.bool: torch.bool,
     }
-except Exception:
-    pass
 
 from monai.apps.utils import get_logger
 LOGGER=get_logger("run_cmd")
@@ -167,13 +167,14 @@ class Engine:
         self.input_names = []
         self.output_names = []
         self.dtypes = []
+        dtype_dict = trt_to_torch_dtype_dict()
         for idx in range(self.engine.num_io_tensors):
             binding = self.engine[idx]
             if self.engine.get_tensor_mode(binding) == trt.TensorIOMode.INPUT:
                 self.input_names.append(binding)
             elif self.engine.get_tensor_mode(binding) == trt.TensorIOMode.OUTPUT:
                 self.output_names.append(binding)
-                dtype = trt_to_torch_dtype_dict[self.engine.get_tensor_dtype(binding)]
+                dtype = dtype_dict[self.engine.get_tensor_dtype(binding)]
                 self.dtypes.append(dtype)
         self.cur_profile = profile_num
 

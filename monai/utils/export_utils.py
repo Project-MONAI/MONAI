@@ -29,121 +29,6 @@ import torch.nn.functional as F
 
 from .cast_utils import CastToFloat
 
-
-class LinearWithBiasSkip(nn.Module):
-    """
-    Class used to replace Apex's RowParallelLinear and ColumnParallelLinear
-    for ONNX export
-    """
-    def __init__(self, weight, bias, skip_bias_add):
-        super().__init__()
-        self.bias = bias
-        self.weight = weight
-        self.skip_bias_add = skip_bias_add
-
-    def forward(self, x):
-        if self.skip_bias_add:
-            return F.linear(x, self.weight), self.bias
-        return F.linear(x, self.weight, self.bias), None
-
-apex_available = True
-
-try:
-    from apex.contrib.layer_norm.layer_norm import FastLayerNorm
-    from apex.normalization.fused_layer_norm import FusedLayerNorm, MixedFusedLayerNorm
-    from apex.transformer.functional.fused_softmax import FusedScaleMaskSoftmax
-    from apex.transformer.tensor_parallel.layers import (
-        ColumnParallelLinear,
-        RowParallelLinear,
-    )
-
-    def replace_FusedLayerNorm(n: nn.Module) -> Optional[nn.LayerNorm]:
-        """
-        Replaces Apex's FusedLayerNorm with nn.LayerNorm. This is required for ONNX export.
-        Args:
-           n: the FusedLayerNorm pytorch module to replace
-        Returns:
-           Equivalent LayerNorm module
-        """
-
-        p = next(n.parameters())
-        if isinstance(n, FusedLayerNorm) or isinstance(n, MixedFusedLayerNorm):
-            shape, eps, affine = n.normalized_shape, n.eps, n.elementwise_affine
-        elif isinstance(n, FastLayerNorm):
-            shape, eps, affine = n.weight.shape, n.epsilon, True
-        else:
-            return None
-
-        mod = nn.LayerNorm(
-            shape, eps=eps, elementwise_affine=affine, device=p.device, dtype=p.dtype
-        )
-        n_state = n.state_dict()
-        mod.load_state_dict(n_state)
-        return mod
-
-    def replace_ParallelLinear(n: nn.Module) -> Optional[nn.Linear]:
-        """
-        Replaces Apex's ColumnParallelLinear or RowParallelLinear with nn.Linear
-        Args:
-           n: the nn.Module pytorch module to replace
-        Returns:
-           Equivalent Linear module
-        """
-        if not (
-            isinstance(n, ColumnParallelLinear) or isinstance(n, RowParallelLinear)
-        ):
-            raise ValueError(
-                "This function can only change the ColumnParallelLinear or RowParallelLinear module."
-            )
-
-        dev = next(n.parameters()).device
-        mod = LinearWithBiasSkip(n.weight, n.bias, n.skip_bias_add).to(dev)
-
-        n_state = n.state_dict()
-        mod.load_state_dict(n_state)
-        return mod
-
-    def replace_FusedScaleMaskSoftmax(n: nn.Module) -> Optional[nn.Linear]:
-        """
-        Replaces Apex's FusedScaleMaskSoftmax with nn.LayerNorm. This is required for ONNX export.
-        Args:
-           n: the FusedScaleMaskSoftmax module to replace
-        Returns:
-           Equivalent LayerNorm module
-        """
-        if not isinstance(n, FusedScaleMaskSoftmax):
-            raise ValueError(
-                "This function can only change the FusedScaleMaskSoftmax module."
-            )
-
-        # disable the fusion only
-        mod = FusedScaleMaskSoftmax(
-            n.input_in_fp16,
-            n.input_in_bf16,
-            n.attn_mask_type,
-            False,
-            n.mask_func,
-            n.softmax_in_fp32,
-            n.scale,
-        )
-
-        return mod
-
-    default_Apex_replacements = {
-        "FusedLayerNorm": replace_FusedLayerNorm,
-        "MixedFusedLayerNorm": replace_FusedLayerNorm,
-        "FastLayerNorm": replace_FusedLayerNorm,
-        "ESM1bLayerNorm": replace_FusedLayerNorm,
-        "RowParallelLinear": replace_ParallelLinear,
-        "ColumnParallelLinear": replace_ParallelLinear,
-        "FusedScaleMaskSoftmax": replace_FusedScaleMaskSoftmax,
-    }
-
-except Exception:
-    default_Apex_replacements = {}
-    apex_available = False
-
-
 def simple_replace(
     BaseT: Type[nn.Module], DestT: Type[nn.Module]
 ) -> Callable[[nn.Module], Optional[nn.Module]]:
@@ -255,20 +140,15 @@ def replace_modules(
     swap_modules(model, mapping)
     return model
 
-def replace_for_export(model: nn.Module, do_cast: bool = False) -> nn.Module:
+def replace_for_export(model: nn.Module, do_cast: bool = True) -> nn.Module:
     """
     Top-level function to replace default set of modules in model
     NOTE: This occurs in place, if you want to preserve model then make sure to copy it first.
     Args:
         model : top level module
-        replace_1D_2D : include 1D -> 2D replacements
     Returns:
         model, possibly modified in-place
     """
-    if apex_available:
-        print("Replacing Apex layers ...")
-        replace_modules(model, default_Apex_replacements)
-
     if do_cast:
         print("Adding casts around norms...")
         cast_replacements = {
