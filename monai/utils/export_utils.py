@@ -24,14 +24,14 @@
 
 from __future__ import annotations
 
-from typing import Callable, Type
+from typing import Callable
 
 import torch.nn as nn
 
 from .cast_utils import CastToFloat
 
 
-def simple_replace(base_t: Type[nn.Module], dest_t: Type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
+def simple_replace(base_t: type[nn.Module], dest_t: type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
     """
     Generic function generator to replace base_t module with dest_t.
     base_t and dest_t should have same atrributes. No weights are copied.
@@ -52,7 +52,7 @@ def simple_replace(base_t: Type[nn.Module], dest_t: Type[nn.Module]) -> Callable
     return expansion_fn
 
 
-def wrap_module(base_t: Type[nn.Module], dest_t: Type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
+def wrap_module(base_t: type[nn.Module], dest_t: type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
     """
     Generic function generator to replace base_t module with dest_t wrapper.
     Args:
