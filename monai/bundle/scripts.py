@@ -1175,9 +1175,8 @@ def _export(
     Args:
         converter: a callable object that takes a torch.nn.module and kwargs as input and
             converts the module to another type.
-        saver: a callable object that takes the converted model and a filepath as input and
-            saves the model to the specified location.
-        parser: a ConfigParser of the bundle to be converted.
+        saver: a callable object that accepts the converted model to save, a filepath to save to, meta values
+            (extracted from the parser), and a dictionary of extra JSON files (name -> contents) as input.
         net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
@@ -1216,7 +1215,8 @@ def _export(
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
 
-    saver(net, filepath, more_extra_files=extra_files)
+    meta_values = parser.get().pop("_meta_", None)
+    saver(net, filepath, meta_values=meta_values, more_extra_files=extra_files)
 
     logger.info(f"exported to file: {filepath}.")
 
@@ -1319,7 +1319,7 @@ def onnx_export(
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
 
-    def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str | IO[Any], **kwargs: Any) -> None:
+    def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str, **kwargs: Any) -> None:
         onnx.save(onnx_obj, filename_prefix_or_stream)
 
     _export(
@@ -1458,7 +1458,6 @@ def ckpt_export(
         save_net_with_metadata,
         include_config_vals=False,
         append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
     )
 
     _export(
@@ -1637,7 +1636,6 @@ def trt_export(
         save_net_with_metadata,
         include_config_vals=False,
         append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
     )
 
     _export(
