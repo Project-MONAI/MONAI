@@ -50,121 +50,121 @@ for dropout_rate in np.linspace(0, 1, 4):
 
 class TestResBlock(unittest.TestCase):
 
-    # @parameterized.expand(TEST_CASE_CABLOCK)
-    # @skipUnless(has_einops, "Requires einops")
-    # @SkipIfBeforePyTorchVersion((2, 0))
-    # def test_shape(self, input_param, input_shape, expected_shape):
-    #     # Without flash attention
-    #     net = CrossAttentionBlock(**input_param)
-    #     with eval_mode(net):
-    #         result = net(torch.randn(input_shape), context=torch.randn(2, 512, input_param["hidden_size"]))
-    #         self.assertEqual(result.shape, expected_shape)
+    @parameterized.expand(TEST_CASE_CABLOCK)
+    @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_shape(self, input_param, input_shape, expected_shape):
+        # Without flash attention
+        net = CrossAttentionBlock(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape), context=torch.randn(2, 512, input_param["hidden_size"]))
+            self.assertEqual(result.shape, expected_shape)
 
-    # def test_ill_arg(self):
-    #     with self.assertRaises(ValueError):
-    #         CrossAttentionBlock(hidden_size=128, num_heads=12, dropout_rate=6.0)
+    def test_ill_arg(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(hidden_size=128, num_heads=12, dropout_rate=6.0)
 
-    #     with self.assertRaises(ValueError):
-    #         CrossAttentionBlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(hidden_size=620, num_heads=8, dropout_rate=0.4)
 
-    # @SkipIfBeforePyTorchVersion((2, 0))
-    # def test_save_attn_with_flash_attention(self):
-    #     with self.assertRaises(ValueError):
-    #         CrossAttentionBlock(
-    #             hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
-    #         )
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_save_attn_with_flash_attention(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(
+                hidden_size=128, num_heads=3, dropout_rate=0.1, use_flash_attention=True, save_attn=True
+            )
 
-    # @SkipIfBeforePyTorchVersion((2, 0))
-    # def test_rel_pos_embedding_with_flash_attention(self):
-    #     with self.assertRaises(ValueError):
-    #         CrossAttentionBlock(
-    #             hidden_size=128,
-    #             num_heads=3,
-    #             dropout_rate=0.1,
-    #             use_flash_attention=True,
-    #             save_attn=False,
-    #             rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
-    #         )
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_rel_pos_embedding_with_flash_attention(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(
+                hidden_size=128,
+                num_heads=3,
+                dropout_rate=0.1,
+                use_flash_attention=True,
+                save_attn=False,
+                rel_pos_embedding=RelPosEmbedding.DECOMPOSED,
+            )
 
-    # @skipUnless(has_einops, "Requires einops")
-    # def test_attention_dim_not_multiple_of_heads(self):
-    #     with self.assertRaises(ValueError):
-    #         CrossAttentionBlock(hidden_size=128, num_heads=3, dropout_rate=0.1)
+    @skipUnless(has_einops, "Requires einops")
+    def test_attention_dim_not_multiple_of_heads(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(hidden_size=128, num_heads=3, dropout_rate=0.1)
 
-    # @skipUnless(has_einops, "Requires einops")
-    # def test_inner_dim_different(self):
-    #     CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, dim_head=30)
+    @skipUnless(has_einops, "Requires einops")
+    def test_inner_dim_different(self):
+        CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, dim_head=30)
 
-    # def test_causal_no_sequence_length(self):
-    #     with self.assertRaises(ValueError):
-    #         CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
+    def test_causal_no_sequence_length(self):
+        with self.assertRaises(ValueError):
+            CrossAttentionBlock(hidden_size=128, num_heads=4, dropout_rate=0.1, causal=True)
 
-    # @skipUnless(has_einops, "Requires einops")
-    # @SkipIfBeforePyTorchVersion((2, 0))
-    # def test_causal_flash_attention(self):
-    #     block = CrossAttentionBlock(
-    #         hidden_size=128,
-    #         num_heads=1,
-    #         dropout_rate=0.1,
-    #         causal=True,
-    #         sequence_length=16,
-    #         save_attn=False,
-    #         use_flash_attention=True,
-    #     )
-    #     input_shape = (1, 16, 128)
-    #     # Check it runs correctly
-    #     block(torch.randn(input_shape))
+    @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_causal_flash_attention(self):
+        block = CrossAttentionBlock(
+            hidden_size=128,
+            num_heads=1,
+            dropout_rate=0.1,
+            causal=True,
+            sequence_length=16,
+            save_attn=False,
+            use_flash_attention=True,
+        )
+        input_shape = (1, 16, 128)
+        # Check it runs correctly
+        block(torch.randn(input_shape))
 
-    # @skipUnless(has_einops, "Requires einops")
-    # def test_causal(self):
-    #     block = CrossAttentionBlock(
-    #         hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, save_attn=True
-    #     )
-    #     input_shape = (1, 16, 128)
-    #     block(torch.randn(input_shape))
-    #     # check upper triangular part of the attention matrix is zero
-    #     assert torch.triu(block.att_mat, diagonal=1).sum() == 0
+    @skipUnless(has_einops, "Requires einops")
+    def test_causal(self):
+        block = CrossAttentionBlock(
+            hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, save_attn=True
+        )
+        input_shape = (1, 16, 128)
+        block(torch.randn(input_shape))
+        # check upper triangular part of the attention matrix is zero
+        assert torch.triu(block.att_mat, diagonal=1).sum() == 0
 
-    # @skipUnless(has_einops, "Requires einops")
-    # def test_context_input(self):
-    #     block = CrossAttentionBlock(
-    #         hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, context_input_size=12
-    #     )
-    #     input_shape = (1, 16, 128)
-    #     block(torch.randn(input_shape), context=torch.randn(1, 3, 12))
+    @skipUnless(has_einops, "Requires einops")
+    def test_context_input(self):
+        block = CrossAttentionBlock(
+            hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, context_input_size=12
+        )
+        input_shape = (1, 16, 128)
+        block(torch.randn(input_shape), context=torch.randn(1, 3, 12))
 
-    # @skipUnless(has_einops, "Requires einops")
-    # def test_context_wrong_input_size(self):
-    #     block = CrossAttentionBlock(
-    #         hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, context_input_size=12
-    #     )
-    #     input_shape = (1, 16, 128)
-    #     with self.assertRaises(RuntimeError):
-    #         block(torch.randn(input_shape), context=torch.randn(1, 3, 24))
+    @skipUnless(has_einops, "Requires einops")
+    def test_context_wrong_input_size(self):
+        block = CrossAttentionBlock(
+            hidden_size=128, num_heads=1, dropout_rate=0.1, causal=True, sequence_length=16, context_input_size=12
+        )
+        input_shape = (1, 16, 128)
+        with self.assertRaises(RuntimeError):
+            block(torch.randn(input_shape), context=torch.randn(1, 3, 24))
 
-    # @skipUnless(has_einops, "Requires einops")
-    # def test_access_attn_matrix(self):
-    #     # input format
-    #     hidden_size = 128
-    #     num_heads = 2
-    #     dropout_rate = 0
-    #     input_shape = (2, 256, hidden_size)
+    @skipUnless(has_einops, "Requires einops")
+    def test_access_attn_matrix(self):
+        # input format
+        hidden_size = 128
+        num_heads = 2
+        dropout_rate = 0
+        input_shape = (2, 256, hidden_size)
 
-    #     # be  not able to access the matrix
-    #     no_matrix_acess_blk = CrossAttentionBlock(
-    #         hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate
-    #     )
-    #     no_matrix_acess_blk(torch.randn(input_shape))
-    #     assert isinstance(no_matrix_acess_blk.att_mat, torch.Tensor)
-    #     # no of elements is zero
-    #     assert no_matrix_acess_blk.att_mat.nelement() == 0
+        # be  not able to access the matrix
+        no_matrix_acess_blk = CrossAttentionBlock(
+            hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate
+        )
+        no_matrix_acess_blk(torch.randn(input_shape))
+        assert isinstance(no_matrix_acess_blk.att_mat, torch.Tensor)
+        # no of elements is zero
+        assert no_matrix_acess_blk.att_mat.nelement() == 0
 
-    #     # be able to acess the attention matrix.
-    #     matrix_acess_blk = CrossAttentionBlock(
-    #         hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
-    #     )
-    #     matrix_acess_blk(torch.randn(input_shape))
-    #     assert matrix_acess_blk.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
+        # be able to acess the attention matrix.
+        matrix_acess_blk = CrossAttentionBlock(
+            hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, save_attn=True
+        )
+        matrix_acess_blk(torch.randn(input_shape))
+        assert matrix_acess_blk.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
 
     @skipUnless(has_einops, "Requires einops")
     @SkipIfBeforePyTorchVersion((2, 0))
