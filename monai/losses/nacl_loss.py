@@ -66,7 +66,7 @@ class NACLLoss(_Loss):
             raise ValueError(f"Support 2d and 3d, got dim={dim}.")
 
         if distance_type not in ["l1", "l2"]:
-            raise ValueError("Distance type must be either L1 or L2")
+            raise ValueError(f"Distance type must be either L1 or L2, got {distance_type}")
 
         self.nc = classes
         self.dim = dim
