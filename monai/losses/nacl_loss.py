@@ -63,7 +63,7 @@ class NACLLoss(_Loss):
             raise ValueError("Kernel ops must be either mean or gaussian")
 
         if dim not in [2, 3]:
-            raise ValueError("Supoorts 2d and 3d")
+            raise ValueError(f"Support 2d and 3d, got dim={dim}.")
 
         if distance_type not in ["l1", "l2"]:
             raise ValueError("Distance type must be either L1 or L2")
