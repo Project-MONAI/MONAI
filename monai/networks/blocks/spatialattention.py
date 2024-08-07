@@ -46,6 +46,8 @@ class SpatialAttentionBlock(nn.Module):
         norm_eps: float = 1e-6,
         attention_dtype: Optional[torch.dtype] = None,
         use_flash_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = True,
     ) -> None:
         super().__init__()
 
@@ -61,6 +63,8 @@ class SpatialAttentionBlock(nn.Module):
             qkv_bias=True,
             attention_dtype=attention_dtype,
             use_flash_attention=use_flash_attention,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
         )
 
     def forward(self, x: torch.Tensor):
