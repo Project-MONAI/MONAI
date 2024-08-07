@@ -16,9 +16,7 @@ from unittest import skipUnless
 
 import numpy as np
 import torch
-from parameterized import parameterized
 
-from monai.networks import eval_mode
 from monai.networks.blocks.crossattention import CrossAttentionBlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
