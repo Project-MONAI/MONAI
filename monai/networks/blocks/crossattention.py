@@ -171,8 +171,6 @@ class CrossAttentionBlock(nn.Module):
                 dropout_p=self.dropout_rate,
                 is_causal=self.causal,
             )
-
-
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
             # apply relative positional embedding if defined
@@ -193,7 +191,6 @@ class CrossAttentionBlock(nn.Module):
             x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
 
         x = self.out_rearrange(x)
-        print("reshape of monai 'b h l d -> b l (h d)':", x.shape)
         x = self.out_proj(x)
         x = self.drop_output(x)
         return x
