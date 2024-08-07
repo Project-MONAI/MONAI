@@ -16,13 +16,11 @@ from unittest import skipUnless
 
 import numpy as np
 import torch
-from parameterized import parameterized
 
-from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save, assert_allclose
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose
 
 einops, has_einops = optional_import("einops")
 
@@ -196,7 +194,7 @@ class TestResBlock(unittest.TestCase):
     #     input_shape = (2, 512, 360)
     #     test_data = torch.randn(input_shape)
     #     test_script_save(net, test_data)
-    
+
     @skipUnless(has_einops, "Requires einops")
     @SkipIfBeforePyTorchVersion((2, 0))
     def test_flash_attention(self):

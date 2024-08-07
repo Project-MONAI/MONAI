@@ -193,7 +193,7 @@ class SABlock(nn.Module):
 
             att_mat = self.drop_weights(att_mat)
             x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
-        
+
             y = torch.nn.functional.scaled_dot_product_attention(
                 query=q, key=k, value=v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
             )
