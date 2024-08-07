@@ -26,7 +26,7 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, Iterable, cast
+from typing import Any, Iterable, cast, Dict, List
 
 import torch
 
@@ -59,6 +59,16 @@ __all__ = [
     "version_geq",
     "pytorch_after",
 ]
+
+WRITER_PACKAGE_MAP: Dict[str, List[str]] = {
+    "png": ["pillow"],
+    "jpg": ["pillow"],
+    "jpeg": ["pillow"],
+    "nii": ["nibabel"],
+    "nii.gz": ["nibabel"],
+    "dcm": ["pydicom"],
+    # Add more mappings as needed
+}
 
 
 def look_up_option(
@@ -334,6 +344,20 @@ class OptionalImportError(ImportError):
     """
     Could not import APIs from an optional dependency.
     """
+    
+    def __init__(self, msg: str = "") -> None:
+        super().__init__(msg)
+        self.msg = msg
+
+    def __str__(self) -> str:
+        original_msg = super().__str__()
+        if "ImageWriter" in original_msg and "backend found for" in original_msg:
+            ext = original_msg.split("for ")[-1].strip(".")
+            suggested_packages = WRITER_PACKAGE_MAP.get(ext, [])
+            if suggested_packages:
+                package_list = ", ".join(suggested_packages)
+                return f"{original_msg} Please install one of the following packages: {package_list}"
+        return original_msg
 
 
 def optional_import(
