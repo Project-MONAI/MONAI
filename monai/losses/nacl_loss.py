@@ -87,10 +87,10 @@ class NACLLoss(_Loss):
         Converts the mask to one hot represenation and applies the spatial filter.
 
         Args:
-            mask: the shape should be BHW[D]
+            mask: the shape should be BH[WD].
 
         Returns:
-            torch.Tensor: the shape would be BNHW[D], N being number of classes.
+            torch.Tensor: the shape would be BNH[WD], N being number of classes.
         """
         rmask: torch.Tensor
 
@@ -109,8 +109,8 @@ class NACLLoss(_Loss):
         Computes standard cross-entropy loss and constraints it neighbor aware logit penalty.
 
         Args:
-            inputs: the shape should be BNHW[D], where N is the number of classes.
-            targets: the shape should be BHW[D].
+            inputs: the shape should be BNH[WD], where N is the number of classes.
+            targets: the shape should be BH[WD].
 
         Returns:
             torch.Tensor: value of the loss.
@@ -122,7 +122,7 @@ class NACLLoss(_Loss):
             >>> input = torch.rand(B, N, H, W)
             >>> target = torch.randint(0, N, (B, H, W))
             >>> criterion = NACLLoss(classes = N, dim = 2)
-            >>> loss = self(input, target)
+            >>> loss = criterion(input, target)
         """
 
         loss_ce = self.cross_entropy(inputs, targets)
