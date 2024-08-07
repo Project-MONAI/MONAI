@@ -32,24 +32,23 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
             for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
                 for input_size in [(16, 32), (8, 8, 8)]:
-                    for flash_attn in [True, False]:
-                        for include_fc in [True, False]:
-                            for use_combined_linear in [True, False]:
-                                test_case = [
-                                    {
-                                        "hidden_size": hidden_size,
-                                        "num_heads": num_heads,
-                                        "dropout_rate": dropout_rate,
-                                        "rel_pos_embedding": rel_pos_embedding,
-                                        "input_size": input_size,
-                                        "include_fc": include_fc,
-                                        "use_combined_linear": use_combined_linear,
-                                        "use_flash_attention": flash_attn,
-                                    },
-                                    (2, 512, hidden_size),
-                                    (2, 512, hidden_size),
-                                ]
-                                TEST_CASE_SABLOCK.append(test_case)
+                    for include_fc in [True, False]:
+                        for use_combined_linear in [True, False]:
+                            test_case = [
+                                {
+                                    "hidden_size": hidden_size,
+                                    "num_heads": num_heads,
+                                    "dropout_rate": dropout_rate,
+                                    "rel_pos_embedding": rel_pos_embedding,
+                                    "input_size": input_size,
+                                    "include_fc": include_fc,
+                                    "use_combined_linear": use_combined_linear,
+                                    "use_flash_attention": True if rel_pos_embedding is None else False,
+                                },
+                                (2, 512, hidden_size),
+                                (2, 512, hidden_size),
+                            ]
+                            TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
@@ -180,6 +179,7 @@ class TestResBlock(unittest.TestCase):
         self.assertEqual(nparams_default, nparams_default_more_heads)
 
     @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self):
         for include_fc in [True, False]:
             for use_combined_linear in [True, False]:
