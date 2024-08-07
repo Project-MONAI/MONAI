@@ -81,7 +81,11 @@ def swap_modules(model: nn.Module, mapping: dict[str, nn.Module]) -> nn.Module:
         expanded_path = path.split(".")
         parent_mod = model
         for sub_path in expanded_path[:-1]:
-            parent_mod = parent_mod._modules[sub_path]
+            submod = parent_mod._modules[sub_path]
+            if submod is None:
+                break
+            else:
+                parent_mod = submod
         parent_mod._modules[expanded_path[-1]] = new_mod
 
     return model

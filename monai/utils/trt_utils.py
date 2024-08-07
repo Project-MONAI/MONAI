@@ -81,7 +81,7 @@ def get_dynamic_axes(profiles):
     Given [[min,opt,max],...] list of profile dimensions,
     this method calculates dynamic_axes to use in onnx.export()
     """
-    dynamic_axes = {}
+    dynamic_axes: dict[str, list[int]] = {}
     if not profiles:
         return dynamic_axes
     for profile in profiles:
@@ -123,51 +123,19 @@ class Engine:
     """
 
     def __init__(self, engine_path):
+        """
+        Loads serialized engine, creates execution context and activates it
+        """
         self.engine_path = engine_path
-        self.engine = None
-        self.context = None
-        self.tensors = OrderedDict()
-        self.cuda_graph_instance = None  # cuda graph
-
-    def build(self, onnx_path, profiles=None, update_output_names=False, **config_kwargs):
-        """
-        Builds TRT engine from ONNX file at onnx_path and sets self.engine
-        Args:
-             update_output_names: if set, use update_output_names as output names
-             profiles, config_kwargs: passed to TRT's engine_from_network()
-        """
-
-        LOGGER.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
-
-        network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
-        if update_output_names:
-            LOGGER.info(f"Updating network outputs to {update_output_names}")
-            network = ModifyNetworkOutputs(network, update_output_names)
-
-        LOGGER.info("Calling engine_from_network...")
-
-        engine = engine_from_network(network, config=CreateConfig(profiles=profiles, **config_kwargs))
-        self.engine = engine
-
-    def save(self):
-        save_engine(self.engine, path=self.engine_path)
-
-    def load(self):
         LOGGER.info(f"Loading TensorRT engine: {self.engine_path}")
         self.engine = engine_from_bytes(bytes_from_path(self.engine_path))
-
-    def activate(self, profile_num=0, reuse_device_memory=None):
-        """
-        Creates execution context for self.engine and activates it
-        """
-        if reuse_device_memory:
-            self.context = self.engine.create_execution_context_without_device_memory()
-            self.context.device_memory = reuse_device_memory
-        else:
-            self.context = self.engine.create_execution_context()
+        self.tensors = OrderedDict()
+        self.cuda_graph_instance = None  # cuda graph
+        self.context = self.engine.create_execution_context()
         self.input_names = []
         self.output_names = []
         self.dtypes = []
+        self.cur_profile = 0
         dtype_dict = trt_to_torch_dtype_dict()
         for idx in range(self.engine.num_io_tensors):
             binding = self.engine[idx]
@@ -177,7 +145,6 @@ class Engine:
                 self.output_names.append(binding)
                 dtype = dtype_dict[self.engine.get_tensor_dtype(binding)]
                 self.dtypes.append(dtype)
-        self.cur_profile = profile_num
 
     def allocate_buffers(self, device):
         """
@@ -208,6 +175,7 @@ class Engine:
         """
         e = self.engine
         ctx = self.context
+
         last_profile = self.cur_profile
 
         def try_set_inputs():
@@ -280,7 +248,7 @@ class TRTWrapper(torch.nn.Module):
         self.output_names = output_names
         self.model = model
         self.profiles = None
-        self.engine = None
+        self.engine: Engine | None = None
         self.jit_model = None
         self.onnx_runner = None
         self.path = path
@@ -336,10 +304,7 @@ class TRTWrapper(torch.nn.Module):
         Loads TRT plan from disk and activates its execution context.
         """
         try:
-            engine = Engine(self.engine_path)
-            engine.load()
-            engine.activate()
-            self.engine = engine
+            self.engine = Engine(self.engine_path)
         except Exception as e:
             LOGGER.debug(f"Exception while loading the engine:\n{e}")
 
@@ -381,16 +346,6 @@ class TRTWrapper(torch.nn.Module):
         with open(self.profiles_path, "wb") as fp:
             pickle.dump(self.profiles, fp)
 
-    def inputs_to_dict(self, input_example):
-        """
-        Converts list of inputs indo a dict usable with TRT engine
-        """
-        trt_inputs = {}
-        for i, inp in enumerate(input_example):
-            input_name = self.engine.input_names[i]
-            trt_inputs[input_name] = inp
-        return trt_inputs
-
     def forward(self, **args):
         """
         Main forward method: depending on TRT/Torchscript/ONNX representation available,
@@ -400,7 +355,18 @@ class TRTWrapper(torch.nn.Module):
             if self.engine is not None:
                 # forward_trt is not thread safe as we do not use per-thread execution contexts
                 with lock_sm:
-                    return self.forward_trt(args)
+                    device = torch.cuda.current_device()
+                    stream = torch.cuda.Stream(device=device)
+                    self.engine.set_inputs(args, stream.cuda_stream)
+                    self.engine.allocate_buffers(device=device)
+                    # Need this to synchronize with Torch stream
+                    stream.wait_stream(torch.cuda.current_stream())
+                    ret = self.engine.infer(stream.cuda_stream, use_cuda_graph=self.use_cuda_graph)
+                    ret = list(ret.values())
+
+                    if len(ret) == 1:
+                        ret = ret[0]
+                    return ret
             elif self.jit_model is not None:
                 return self.jit_model.forward(**args)
             elif self.onnx_runner is not None:
@@ -415,29 +381,13 @@ class TRTWrapper(torch.nn.Module):
 
         return self.model.forward(**args)
 
-    def forward_trt(self, trt_inputs):
-        """
-        Auxiliary method to run TRT engine.
-        Sets input bindings from trt_inputs, allocates memory and runs activated TRT engine
-        """
-        stream = torch.cuda.Stream(device=torch.cuda.current_device())
-        self.engine.set_inputs(trt_inputs, stream.cuda_stream)
-        self.engine.allocate_buffers(torch.device("cuda"))
-        # Need this to synchronize with Torch stream
-        stream.wait_stream(torch.cuda.current_stream())
-        ret = self.engine.infer(stream.cuda_stream, use_cuda_graph=self.use_cuda_graph)
-        ret = list(ret.values())
-
-        if len(ret) == 1:
-            ret = ret[0]
-        return ret
-
     def build_engine(self, input_profiles=None, **build_args):
         """
         Builds TRT engine from ONNX file at self.onnx_path and sets self.engine
         Args:
              input_profiles, build_args - passed to engine.build()
         """
+
         profiles = []
         if input_profiles:
             for input_profile in input_profiles:
@@ -452,10 +402,17 @@ class TRTWrapper(torch.nn.Module):
             self.profiles = profiles
             self.save_profiles()
 
-        engine = Engine(self.path + ".plan")
-        engine.build(self.onnx_path, profiles, **build_args)
-        engine.activate()
-        self.engine = engine
+        LOGGER.info(f"Building TensorRT engine for {self.onnx_path}: {self.engine_path}")
+
+        network = network_from_onnx_path(self.onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
+        if self.output_names and False:
+            LOGGER.info(f"Updating network outputs to {self.output_names}")
+            network = ModifyNetworkOutputs(network, self.output_names)
+
+        LOGGER.info("Calling engine_from_network...")
+
+        engine = engine_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
+        save_engine(engine, path=self.engine_path)
 
     def jit_export(self, input_example, verbose=False):
         """
@@ -518,7 +475,7 @@ class TRTWrapper(torch.nn.Module):
                         input_example, dynamo=dynamo, dynamic_shapes=get_dynamic_axes(input_profiles), verbose=verbose
                     )
                 self.build_engine(input_profiles=input_profiles, **build_args)
-                self.engine.save()
+                self.engine = Engine(self.engine_path)
                 os.remove(self.onnx_path)
             except Exception as e:
-                raise e
+                LOGGER.info(f"Failed to build engine: {e}")
