@@ -666,6 +666,7 @@ class DiceCELoss(_Loss):
         weight: torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_ce: float = 1.0,
+        label_smoothing: float = 0.0,
     ) -> None:
         """
         Args:
@@ -728,7 +729,7 @@ class DiceCELoss(_Loss):
             batch=batch,
             weight=dice_weight,
         )
-        self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction)
+        self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction, label_smoothing=label_smoothing)
         self.binary_cross_entropy = nn.BCEWithLogitsLoss(pos_weight=weight, reduction=reduction)
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
@@ -737,6 +738,7 @@ class DiceCELoss(_Loss):
         self.lambda_dice = lambda_dice
         self.lambda_ce = lambda_ce
         self.old_pt_ver = not pytorch_after(1, 10)
+        self.label_smoothing = label_smoothing
 
     def ce(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
