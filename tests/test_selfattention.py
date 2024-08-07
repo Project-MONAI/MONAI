@@ -16,7 +16,9 @@ from unittest import skipUnless
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
+from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
