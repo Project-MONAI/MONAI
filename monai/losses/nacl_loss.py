@@ -85,6 +85,12 @@ class NACLLoss(_Loss):
     def get_constr_target(self, mask: torch.Tensor) -> torch.Tensor:
         """
         Converts the mask to one hot represenation and applies the spatial filter.
+
+        Args:
+            mask: the shape should be BHW[D]
+
+        Returns:
+            torch.Tensor: the shape would be BNHW[D], N being number of classes.
         """
         rmask: torch.Tensor
 
@@ -99,6 +105,23 @@ class NACLLoss(_Loss):
         return rmask
 
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        Computes standard cross-entropy loss and constraints it neighbor aware logit penalty.
+
+        Args:
+            inputs: the shape should be BNHW[D], where N is the number of classes.
+            targets: the shape should be BHW[D].
+
+        Example:
+            >>> import torch
+            >>> from monai.losses import NACLLoss
+            >>> B, N, H, W = 8, 3, 64, 64
+            >>> input = torch.rand(B, N, H, W)
+            >>> target = torch.randint(0, N, (B, H, W))
+            >>> criterion = NACLLoss(classes = N, dim = 2)
+            >>> loss = self(input, target)
+        """
+
         loss_ce = self.cross_entropy(inputs, targets)
 
         utargets = self.get_constr_target(targets)
