@@ -164,12 +164,7 @@ class CrossAttentionBlock(nn.Module):
 
         if self.use_flash_attention:
             x = torch.nn.functional.scaled_dot_product_attention(
-                query=q,
-                key=k,
-                value=v,
-                scale=self.scale,
-                dropout_p=self.dropout_rate,
-                is_causal=self.causal,
+                query=q, key=k, value=v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
             )
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
