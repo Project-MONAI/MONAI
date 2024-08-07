@@ -107,6 +107,7 @@ class CrossAttentionBlock(nn.Module):
         self.to_q = nn.Linear(self.hidden_input_size, inner_size, bias=qkv_bias)
         self.to_k = nn.Linear(self.context_input_size, inner_size, bias=qkv_bias)
         self.to_v = nn.Linear(self.context_input_size, inner_size, bias=qkv_bias)
+        self.input_rearrange = Rearrange("b h (l d) -> b l h d", l=num_heads)
 
         self.out_rearrange = Rearrange("b l h d -> b h (l d)")
         self.drop_output = nn.Dropout(dropout_rate)
@@ -151,19 +152,15 @@ class CrossAttentionBlock(nn.Module):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         b, t, c = x.size()  # batch size, sequence length, embedding dimensionality (hidden_size)
 
-        q = self.to_q(x)
+        q = self.input_rearrange(self.to_q(x))
         kv = context if context is not None else x
         _, kv_t, _ = kv.size()
-        k = self.to_k(kv)
-        v = self.to_v(kv)
+        k = self.input_rearrange(self.to_k(kv))
+        v = self.input_rearrange(self.to_v(kv))
 
         if self.attention_dtype is not None:
             q = q.to(self.attention_dtype)
             k = k.to(self.attention_dtype)
-
-        q = q.view(b, self.num_heads, t, c // self.num_heads)  # (b, nh, t,  hs)
-        k = k.view(b, self.num_heads, kv_t, c // self.num_heads)  # (b, nh, kv_t, hs)
-        v = v.view(b, self.num_heads, kv_t, c // self.num_heads)  # (b, nh, kv_t, hs)
 
         if self.use_flash_attention:
             x = torch.nn.functional.scaled_dot_product_attention(
@@ -174,6 +171,8 @@ class CrossAttentionBlock(nn.Module):
                 dropout_p=self.dropout_rate,
                 is_causal=self.causal,
             )
+
+
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
             # apply relative positional embedding if defined
@@ -192,7 +191,9 @@ class CrossAttentionBlock(nn.Module):
 
             att_mat = self.drop_weights(att_mat)
             x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
+        
         x = self.out_rearrange(x)
+        print("reshape of monai 'b h l d -> b l (h d)':", x.shape)
         x = self.out_proj(x)
         x = self.drop_output(x)
         return x
