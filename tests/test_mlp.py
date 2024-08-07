@@ -35,7 +35,7 @@ for dropout_rate in np.linspace(0, 1, 4):
 
 # test different activation layers
 TEST_CASE_ACT = []
-for act in ["GELU", "GEGLU", ("GEGLU", {})]:
+for act in ["GELU", "GEGLU", ("GEGLU", {})]:  # type: ignore
     TEST_CASE_ACT.append([{"hidden_size": 128, "mlp_dim": 0, "act": act}, (2, 512, 128), (2, 512, 128)])
 
 # test different dropout modes
