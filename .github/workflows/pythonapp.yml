@@ -101,6 +101,7 @@ jobs:
         python -m pip install --pre -U itk
     - name: Install the dependencies
       run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --user --upgrade pip wheel
         python -m pip install torch==1.13.1 torchvision==0.14.1
         cat "requirements-dev.txt"
