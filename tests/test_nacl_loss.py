@@ -43,11 +43,14 @@ inputs = torch.tensor(
         ]
     ]
 )
-targets = torch.tensor([[[1, 1, 1, 1], [1, 1, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0]]])
+targets = torch.tensor([[[1, 1, 1, 1], [1, 1, 1, 0], [0, 0, 1, 0], [0, 1, 0, 0]]])
 
 TEST_CASES = [
-    [{"classes": 3, "dim": 2}, {"inputs": inputs, "targets": targets}, 1.1820],
-    [{"classes": 3, "dim": 2, "kernel_ops": "gaussian"}, {"inputs": inputs, "targets": targets}, 1.1850],
+    [{"classes": 3, "dim": 2}, {"inputs": inputs, "targets": targets}, 1.1442],
+    [{"classes": 3, "dim": 2, "kernel_ops": "gaussian"}, {"inputs": inputs, "targets": targets}, 1.1433],
+    [{"classes": 3, "dim": 2, "kernel_ops": "gaussian", "sigma": 0.5}, {"inputs": inputs, "targets": targets}, 1.1469],
+    [{"classes": 3, "dim": 2, "distance_type": "l2"}, {"inputs": inputs, "targets": targets}, 1.1269],
+    [{"classes": 3, "dim": 2, "alpha": 0.2}, {"inputs": inputs, "targets": targets}, 1.1790],
     [
         {"classes": 3, "dim": 3, "kernel_ops": "gaussian"},
         {
@@ -146,7 +149,7 @@ TEST_CASES = [
                 ]
             ),
         },
-        1.1504,
+        1.15035,
     ],
 ]
 

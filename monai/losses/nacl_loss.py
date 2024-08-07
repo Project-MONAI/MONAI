@@ -19,151 +19,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
-from monai.utils import pytorch_after
-
-
-def get_mean_kernel_2d(ksize: int = 3) -> torch.Tensor:
-    mean_kernel = torch.ones([ksize, ksize]) / (ksize**2)
-    return mean_kernel
-
-
-def get_mean_kernel_3d(ksize: int = 3) -> torch.Tensor:
-    mean_kernel = torch.ones([ksize, ksize, ksize]) / (ksize**3)
-    return mean_kernel
-
-
-def get_gaussian_kernel_2d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
-    x_grid = torch.arange(ksize).repeat(ksize).view(ksize, ksize)
-    y_grid = x_grid.t()
-    xy_grid = torch.stack([x_grid, y_grid], dim=-1).float()
-    mean = (ksize - 1) / 2.0
-    variance = sigma**2.0
-    gaussian_kernel: torch.Tensor = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
-        -torch.sum((xy_grid - mean) ** 2.0, dim=-1) / (2 * variance + 1e-16)
-    )
-    gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
-    return gaussian_kernel
-
-
-def get_gaussian_kernel_3d(ksize: int = 3, sigma: float = 1.0) -> torch.Tensor:
-    x_coord = torch.arange(ksize)
-    x_grid_2d = x_coord.repeat(ksize).view(ksize, ksize)
-    x_grid = x_coord.repeat(ksize * ksize).view(ksize, ksize, ksize)
-    y_grid_2d = x_grid_2d.t()
-    y_grid = y_grid_2d.repeat(ksize, 1).view(ksize, ksize, ksize)
-    z_grid = y_grid_2d.repeat(1, ksize).view(ksize, ksize, ksize)
-    xyz_grid = torch.stack([x_grid, y_grid, z_grid], dim=-1).float()
-    mean = (ksize - 1) / 2.0
-    variance = sigma**2.0
-    gaussian_kernel: torch.Tensor = (1.0 / (2.0 * math.pi * variance + 1e-16)) * torch.exp(
-        -torch.sum((xyz_grid - mean) ** 2.0, dim=-1) / (2 * variance + 1e-16)
-    )
-    gaussian_kernel = gaussian_kernel / torch.sum(gaussian_kernel)
-    return gaussian_kernel
-
-
-class GaussianFilter(torch.nn.Module):
-    def __init__(self, dim: int = 3, ksize: int = 3, sigma: float = 1.0, channels: int = 0) -> None:
-        super(GaussianFilter, self).__init__()
-
-        self.svls_kernel: torch.Tensor
-        self.svls_layer: Any
-
-        if dim == 2:
-            gkernel = get_gaussian_kernel_2d(ksize=ksize, sigma=sigma)
-            neighbors_sum = (1 - gkernel[1, 1]) + 1e-16
-            gkernel[int(ksize / 2), int(ksize / 2)] = neighbors_sum
-            self.svls_kernel = gkernel / neighbors_sum
-
-            svls_kernel_2d = self.svls_kernel.view(1, 1, ksize, ksize)
-            svls_kernel_2d = svls_kernel_2d.repeat(channels, 1, 1, 1)
-            padding = int(ksize / 2)
-
-            self.svls_layer = torch.nn.Conv2d(
-                in_channels=channels,
-                out_channels=channels,
-                kernel_size=ksize,
-                groups=channels,
-                bias=False,
-                padding=padding,
-                padding_mode="replicate",
-            )
-            self.svls_layer.weight.data = svls_kernel_2d
-            self.svls_layer.weight.requires_grad = False
-
-        if dim == 3:
-            gkernel = get_gaussian_kernel_3d(ksize=ksize, sigma=sigma)
-            neighbors_sum = 1 - gkernel[1, 1, 1]
-            gkernel[1, 1, 1] = neighbors_sum
-            self.svls_kernel = gkernel / neighbors_sum
-
-            svls_kernel_3d = self.svls_kernel.view(1, 1, ksize, ksize, ksize)
-            svls_kernel_3d = svls_kernel_3d.repeat(channels, 1, 1, 1, 1)
-            padding = int(ksize / 2)
-
-            self.svls_layer = torch.nn.Conv3d(
-                in_channels=channels,
-                out_channels=channels,
-                kernel_size=ksize,
-                groups=channels,
-                bias=False,
-                padding=padding,
-                padding_mode="replicate",
-            )
-            self.svls_layer.weight.data = svls_kernel_3d
-            self.svls_layer.weight.requires_grad = False
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        svls_normalized: torch.Tensor = self.svls_layer(x) / self.svls_kernel.sum()
-        return svls_normalized
-
-
-class MeanFilter(torch.nn.Module):
-    def __init__(self, dim: int = 3, ksize: int = 3, channels: int = 0) -> None:
-        super(MeanFilter, self).__init__()
-
-        self.svls_kernel: torch.Tensor
-        self.svls_layer: Any
-
-        if dim == 2:
-            self.svls_kernel = get_mean_kernel_2d(ksize=ksize)
-            svls_kernel_2d = self.svls_kernel.view(1, 1, ksize, ksize)
-            svls_kernel_2d = svls_kernel_2d.repeat(channels, 1, 1, 1)
-            padding = int(ksize / 2)
-
-            self.svls_layer = torch.nn.Conv2d(
-                in_channels=channels,
-                out_channels=channels,
-                kernel_size=ksize,
-                groups=channels,
-                bias=False,
-                padding=padding,
-                padding_mode="replicate",
-            )
-            self.svls_layer.weight.data = svls_kernel_2d
-            self.svls_layer.weight.requires_grad = False
-
-        if dim == 3:
-            self.svls_kernel = get_mean_kernel_3d(ksize=ksize)
-            svls_kernel_3d = self.svls_kernel.view(1, 1, ksize, ksize, ksize)
-            svls_kernel_3d = svls_kernel_3d.repeat(channels, 1, 1, 1, 1)
-            padding = int(ksize / 2)
-
-            self.svls_layer = torch.nn.Conv3d(
-                in_channels=channels,
-                out_channels=channels,
-                kernel_size=ksize,
-                groups=channels,
-                bias=False,
-                padding=padding,
-                padding_mode="replicate",
-            )
-            self.svls_layer.weight.data = svls_kernel_3d
-            self.svls_layer.weight.requires_grad = False
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        svls_normalized: torch.Tensor = self.svls_layer(x) / self.svls_kernel.sum()
-        return svls_normalized
+from monai.networks.layers import GaussianFilter, MeanFilter
 
 
 class NACLLoss(_Loss):
@@ -222,36 +78,15 @@ class NACLLoss(_Loss):
         self.svls_layer: Any
 
         if kernel_ops == "mean":
-            self.svls_layer = MeanFilter(dim=dim, ksize=kernel_size, channels=classes)
+            self.svls_layer = MeanFilter(spatial_dims=dim, size=kernel_size)
+            self.svls_layer.filter = self.svls_layer.filter / (kernel_size**dim)
         if kernel_ops == "gaussian":
-            self.svls_layer = GaussianFilter(dim=dim, ksize=kernel_size, sigma=sigma, channels=classes)
-
-        self.old_pt_ver = not pytorch_after(1, 10)
-
-    # def ce(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-    #     """
-    #     Compute CrossEntropy loss for the input logits and target.
-    #     Will remove the channel dim according to PyTorch CrossEntropyLoss:
-    #     https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html?#torch.nn.CrossEntropyLoss.
-
-    #     """
-    #     n_pred_ch, n_target_ch = input.shape[1], target.shape[1]
-    #     if n_pred_ch != n_target_ch and n_target_ch == 1:
-    #         target = torch.squeeze(target, dim=1)
-    #         target = target.long()
-    #     elif self.old_pt_ver:
-    #         warnings.warn(
-    #             f"Multichannel targets are not supported in this older Pytorch version {torch.__version__}. "
-    #             "Using argmax (as a workaround) to convert target to a single channel."
-    #         )
-    #         target = torch.argmax(target, dim=1)
-    #     elif not torch.is_floating_point(target):
-    #         target = target.to(dtype=input.dtype)
-
-    #     return self.cross_entropy(input, target)  # type: ignore[no-any-return]
+            self.svls_layer = GaussianFilter(spatial_dims=dim, sigma=sigma)
 
     def get_constr_target(self, mask: torch.Tensor) -> torch.Tensor:
-
+        """
+        Converts the mask to one hot represenation and applies the spatial filter.
+        """
         rmask: torch.Tensor
 
         if self.dim == 2:
