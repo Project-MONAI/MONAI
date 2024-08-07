@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple
+from typing import Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -108,6 +108,11 @@ class SABlock(nn.Module):
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
         self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+
+        self.qkv: Union[nn.Linear, nn.Identity]
+        self.to_q: Union[nn.Linear, nn.Identity]
+        self.to_k: Union[nn.Linear, nn.Identity]
+        self.to_v: Union[nn.Linear, nn.Identity]
 
         if use_combined_linear:
             self.qkv = nn.Linear(self.hidden_input_size, self.inner_dim * 3, bias=qkv_bias)
