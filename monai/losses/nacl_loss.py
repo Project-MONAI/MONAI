@@ -112,6 +112,9 @@ class NACLLoss(_Loss):
             inputs: the shape should be BNHW[D], where N is the number of classes.
             targets: the shape should be BHW[D].
 
+        Returns:
+            torch.Tensor: value of the loss.
+
         Example:
             >>> import torch
             >>> from monai.losses import NACLLoss
