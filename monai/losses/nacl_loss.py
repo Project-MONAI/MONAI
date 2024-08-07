@@ -84,7 +84,7 @@ class NACLLoss(_Loss):
 
     def get_constr_target(self, mask: torch.Tensor) -> torch.Tensor:
         """
-        Converts the mask to one hot represenation and applies the spatial filter.
+        Converts the mask to one hot represenation and is smoothened with the selected spatial filter.
 
         Args:
             mask: the shape should be BH[WD].
