@@ -26,7 +26,7 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, Iterable, cast, Dict, List
+from typing import Any, Iterable, cast
 
 import torch
 
@@ -60,7 +60,7 @@ __all__ = [
     "pytorch_after",
 ]
 
-WRITER_PACKAGE_MAP: Dict[str, List[str]] = {
+WRITER_PACKAGE_MAP: dict[str, list[str]] = {
     "png": ["pillow"],
     "jpg": ["pillow"],
     "jpeg": ["pillow"],
@@ -344,7 +344,7 @@ class OptionalImportError(ImportError):
     """
     Could not import APIs from an optional dependency.
     """
-    
+
     def __init__(self, msg: str = "") -> None:
         super().__init__(msg)
         self.msg = msg
