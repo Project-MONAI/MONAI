@@ -22,7 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save, assert_allclose
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
 
 einops, has_einops = optional_import("einops")
 
@@ -196,17 +196,12 @@ class TestResBlock(unittest.TestCase):
         input_shape = (2, 512, 360)
         test_data = torch.randn(input_shape)
         test_script_save(net, test_data)
-    
+
     @skipUnless(has_einops, "Requires einops")
     @SkipIfBeforePyTorchVersion((2, 0))
     def test_flash_attention(self):
         for causal in [True, False]:
-            input_param = {
-                "hidden_size": 360,
-                "num_heads": 4,
-                "input_size": (16, 32),
-                "causal": causal,
-            }
+            input_param = {"hidden_size": 360, "num_heads": 4, "input_size": (16, 32), "causal": causal}
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         block_w_flash_attention = SABlock(**input_param, use_flash_attention=True).to(device)
         block_wo_flash_attention = SABlock(**input_param, use_flash_attention=False).to(device)
@@ -216,6 +211,7 @@ class TestResBlock(unittest.TestCase):
         out_1 = block_w_flash_attention(test_data)
         out_2 = block_wo_flash_attention(test_data)
         assert_allclose(out_1, out_2, atol=1e-4)
+
 
 if __name__ == "__main__":
     unittest.main()
