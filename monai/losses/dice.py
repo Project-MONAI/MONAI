@@ -705,8 +705,9 @@ class DiceCELoss(_Loss):
                 Defaults to 1.0.
             lambda_ce: the trade-off weight value for cross entropy loss. The value should be no less than 0.0.
                 Defaults to 1.0.
-            label_smoothing (float): a value in [0, 1] range. If > 0, the labels are smoothed by the given factor to reduce overfitting.
-                Default is 0.0.
+            label_smoothing: a value in [0, 1] range. If > 0, the labels are smoothed
+                by the given factor to reduce overfitting.
+                Defaults to 0.0.
 
         """
         super().__init__()
