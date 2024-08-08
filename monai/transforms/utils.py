@@ -1188,13 +1188,13 @@ def get_largest_connected_component_mask_point(
     margins: int = 3,
 ) -> NdarrayTensor:
     """
-    Gets the connected component of img_pos and img_neg that include the positive points and 
+    Gets the connected component of img_pos and img_neg that include the positive points and
     negative points separately. The function is used for combining automatic results with interactive
-    results in VISTA3D. 
+    results in VISTA3D.
     Args:
         img_pos: bool type array. [B, 1, H, W, D]. B foreground masks from a single 3D image.
         img_neg: same format as img_pos but corresponds to negative points.
-        pos_val: positive point label values.  
+        pos_val: positive point label values.
         neg_val: negative point label values.
         point_coords: [B, N, 3]
         point_labels: [B, N]
