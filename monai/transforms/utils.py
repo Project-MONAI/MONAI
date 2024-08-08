@@ -1177,6 +1177,62 @@ def get_largest_connected_component_mask(
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
 
+def get_largest_connected_component_mask_point(
+    img_pos: NdarrayTensor,
+    img_neg: NdarrayTensor,
+    point_coords: NdarrayTensor,
+    point_labels: NdarrayTensor,
+    pos_val: Sequence[int] = (1, 3),
+    neg_val: Sequence[int] = (0, 2),
+    margins: int = 3,
+) -> NdarrayTensor:
+    """
+    Gets the largest connected component mask of an image that include the point_coords.
+    # TODO: need author to provide more details about this function. Especially about each argument.
+    Args:
+        img_pos: [1, B, H, W, D]
+        img_neg: [1, B, H, W, D]
+
+        point_coords [B, N, 3]
+        point_labels [B, N]
+    """
+    if not has_measure:
+        raise RuntimeError("Skimage.measure required.")
+
+    img_pos_, *_ = convert_data_type(img_pos, np.ndarray)
+    img_neg_, *_ = convert_data_type(img_neg, np.ndarray)
+    label = measure.label
+    lib = np
+
+    features_pos, _ = label(img_pos_, connectivity=3, return_num=True)
+    features_neg, _ = label(img_neg_, connectivity=3, return_num=True)
+
+    pos_val = list(pos_val)
+    neg_val = list(neg_val)
+
+    outs = np.zeros_like(img_pos_)
+    for bs in range(point_coords.shape[0]):
+        for i, p in enumerate(point_coords[bs]):
+            if point_labels[bs, i] in pos_val:
+                features = features_pos
+            elif point_labels[bs, i] in neg_val:
+                features = features_neg
+            else:
+                # if -1 padding point, skip
+                continue
+            for margin in range(margins):
+                x, y, z = p.round().int().tolist()
+                l, r = max(x - margin, 0), min(x + margin + 1, features.shape[-3])
+                t, d = max(y - margin, 0), min(y + margin + 1, features.shape[-2])
+                f, b = max(z - margin, 0), min(z + margin + 1, features.shape[-1])
+                if (features[bs, 0, l:r, t:d, f:b] > 0).any():
+                    index = features[bs, 0, l:r, t:d, f:b].max()
+                    outs[[bs]] += lib.isin(features[[bs]], index)
+                    break
+    outs[outs > 1] = 1
+    return convert_to_dst_type(outs, dst=img_pos, dtype=outs.dtype)[0]
+
+
 def convert_points_to_disc(
     image_size: Sequence[int], point: Tensor, point_label: Tensor, radius: int = 2, disc: bool = False
 ):
@@ -1202,14 +1258,14 @@ def convert_points_to_disc(
     coords = unsqueeze_left(torch.stack((coord_rows, coord_cols, coord_z), dim=0), 6)
     coords = coords.repeat(point.shape[0], 2, 1, 1, 1, 1)
     for b, n in np.ndindex(*point.shape[:2]):
-            point_bn = unsqueeze_right(point[b, n], 6)
-            if point_label[b, n] > -1:
-                channel = 0 if (point_label[b, n] == 0 or point_label[b, n] == 2) else 1
-                pow_diff = torch.pow(coords[b, channel] - point_bn[b, n], 2)
-                if disc:
-                    masks[b, channel] += pow_diff.sum(0) < radius**2
-                else:
-                    masks[b, channel] += torch.exp(-pow_diff.sum(0) / (2 * radius**2))
+        point_bn = unsqueeze_right(point[b, n], 6)
+        if point_label[b, n] > -1:
+            channel = 0 if (point_label[b, n] == 0 or point_label[b, n] == 2) else 1
+            pow_diff = torch.pow(coords[b, channel] - point_bn[b, n], 2)
+            if disc:
+                masks[b, channel] += pow_diff.sum(0) < radius**2
+            else:
+                masks[b, channel] += torch.exp(-pow_diff.sum(0) / (2 * radius**2))
     return masks
 
 
@@ -1257,7 +1313,8 @@ def sample_points_from_label(
             if use_center:
                 pmean = plabelpoints.float().mean(0)
                 pdis = ((plabelpoints - pmean) ** 2).sum(-1)
-                _, sorted_indices = torch.sort(pdis)
+                _, sorted_indices_tensor = torch.sort(pdis)
+                sorted_indices = sorted_indices_tensor.cpu().tolist()
             else:
                 sorted_indices = list(range(len(plabelpoints)))
                 random.shuffle(sorted_indices)
