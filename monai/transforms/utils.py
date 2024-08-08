@@ -1179,20 +1179,25 @@ def get_largest_connected_component_mask(
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
 def get_largest_connected_component_mask_point(
-    img_pos: NdarrayTensor,
-    img_neg: NdarrayTensor,
-    pos_val: list=[1, 3],
-    neg_val: list=[0, 2],
+    img_pos: bool = NdarrayTensor,
+    img_neg: bool = NdarrayTensor,
+    pos_val: list = [1, 3],
+    neg_val: list = [0, 2],
     point_coords: None = None,
     point_labels: None = None,
     margins: int = 3,
 ) -> NdarrayTensor:
     """
-    Gets the largest connected component mask of an image that include the point_coords.
+    Gets the connected component of img_pos and img_neg that include the positive points and 
+    negative points separately. The function is used for combining automatic results with interactive
+    results in VISTA3D. 
     Args:
-        img_pos: [1, B, H, W, D]
-        point_coords [B, N, 3]
-        point_labels [B, N]
+        img_pos: bool type array. [B, 1, H, W, D]. B foreground masks from a single 3D image.
+        img_neg: same format as img_pos but corresponds to negative points.
+        pos_val: positive point label values.  
+        neg_val: negative point label values.
+        point_coords: [B, N, 3]
+        point_labels: [B, N]
     """
 
     img_pos_, *_ = convert_data_type(img_pos, np.ndarray)
@@ -1303,7 +1308,7 @@ def sample_points_from_label(
                 sorted_indices = list(range(len(plabelpoints)))
                 random.shuffle(sorted_indices)
             _point.append(
-                torch.stack([plabelpoints[sorted_indices[i]] for i in Np]
+                torch.stack([plabelpoints[sorted_indices[i]] for i in range(Np)]
                     + random.choices(nlabelpoints, k=Nn)
                     + [torch.tensor([0, 0, 0], device=device)] * pad
                     )

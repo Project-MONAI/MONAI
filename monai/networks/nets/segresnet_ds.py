@@ -23,7 +23,7 @@ from monai.networks.layers.factories import Act, Conv, Norm, split_args
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import UpsampleMode, has_option
 
-__all__ = ["SegResNetDS"]
+__all__ = ["SegResNetDS", "SegResNetDS2"]
 
 
 def scales_for_resolution(resolution: tuple | list, n_stages: int | None = None):

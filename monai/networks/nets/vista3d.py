@@ -22,6 +22,7 @@ import torch.nn.functional as F
 import monai
 from monai.networks.blocks import UnetrBasicBlock
 from monai.networks.blocks import MLPBlock
+from monai.networks.nets import SegResNetDS2
 from monai.transforms.utils import get_largest_connected_component_mask_point as lcc
 from monai.transforms.utils import convert_points_to_disc, sample_points_from_label
 from monai.utils import optional_import, unsqueeze_left, unsqueeze_right
@@ -152,10 +153,18 @@ class VISTA3D(nn.Module):
     def connected_components_combine(
         self, logits, point_logits, point_coords, point_labels, mapping_index, thred=0.5
     ):
-        """Combine auto results with point click response, or combine previous mask with point click response.
+        """ Combine auto results with point click response. The auto results have shape [B, 1, H, W, D] which means B foreground masks
+        from a single image patch. Out of those B foreground masks, user may add points to a subset of B1 foreground masks for editing.
+        mapping_index represents the correspondence between B and B1.
         For mapping_index with point clicks, NaN values in logits will be replaced with point_logits. Meanwhile, the added/removed
         region in point clicks must be updated by the lcc function. Notice, if a positive point is within logits/prev_mask, the components containing the positive point
         will be added.
+        Args:
+            logits: automatic branch results, [B, 1, H, W, D].
+            point_logits: point branch results, [B1, 1, H, W, D].
+            point_coords: point coordinates, [B1, N, 3].
+            point_labels: point labels, [B1, N].
+            mapping_index: [B].
         """
         logits = (
             logits.as_tensor() if isinstance(logits, monai.data.MetaTensor) else logits
@@ -173,6 +182,7 @@ class VISTA3D(nn.Module):
             )
         inside = torch.tensor(inside).to(logits.device)
         nan_mask = torch.isnan(_logits)
+        # _logits are converted to binary [B1, 1, H, W, D]
         _logits = torch.nan_to_num(_logits, nan=self.NINF_VALUE).sigmoid()
         pos_region = point_logits.sigmoid() > thred
         diff_pos = torch.logical_and(
@@ -383,7 +393,7 @@ class VISTA3D(nn.Module):
             self.image_embeddings = out.detach()
         return logits
 
-class Point_Mapping_SAM(nn.Module):
+class PointMappingSAM(nn.Module):
     def __init__(
         self,
         feature_size,
@@ -541,7 +551,7 @@ class Point_Mapping_SAM(nn.Module):
         return masks
 
 
-class Class_Mapping_Classify(nn.Module):
+class ClassMappingClassify(nn.Module):
     def __init__(self, n_classes, feature_size, use_mlp=False):
         super().__init__()
         self.use_mlp = use_mlp
@@ -590,6 +600,21 @@ class Class_Mapping_Classify(nn.Module):
         masks = torch.cat(masks, 1)
         return masks, class_embedding
 
+def VISTA3D132(encoder_embed_dim=48, in_channels=1):
+    segresnet = SegResNetDS2(
+        in_channels=in_channels,
+        blocks_down=(1, 2, 2, 4, 4),
+        norm="instance",
+        out_channels=encoder_embed_dim,
+        init_filters=encoder_embed_dim,
+        dsdepth=1,
+    )
+    point_head = PointMappingSAM(feature_size=encoder_embed_dim, n_classes=512, last_supported=132)
+    class_head = ClassMappingClassify(n_classes=512, feature_size=encoder_embed_dim, use_mlp=True)
+    vista = VISTA3D(
+        image_encoder=segresnet, class_head=class_head, point_head=point_head, feature_size=encoder_embed_dim
+    )
+    return vista
 
 # Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
