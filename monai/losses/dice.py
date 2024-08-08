@@ -733,7 +733,9 @@ class DiceCELoss(_Loss):
             weight=dice_weight,
         )
         if pytorch_after(1, 10):
-            self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction, label_smoothing=label_smoothing)
+            self.cross_entropy = nn.CrossEntropyLoss(
+                weight=weight, reduction=reduction, label_smoothing=label_smoothing
+            )
         else:
             self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction)
         self.binary_cross_entropy = nn.BCEWithLogitsLoss(pos_weight=weight, reduction=reduction)
