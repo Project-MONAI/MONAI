@@ -16,6 +16,12 @@ from typing import Callable
 import torch
 import torch.nn as nn
 
+from .module import optional_import
+
+P, P_imported = optional_import("polygraphy")
+if P_imported:
+    from polygraphy.backend.onnx import fold_constants, onnx_from_path, save_onnx
+
 
 def cast_tensor(x, from_dtype=torch.float16, to_dtype=torch.float32):
     """
@@ -52,7 +58,7 @@ class CastToFloat(torch.nn.Module):
 
     def forward(self, x):
         dtype = x.dtype
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast("cuda", enabled=False):
             ret = self.mod.forward(x.to(torch.float32)).to(dtype)
         return ret
 
@@ -69,7 +75,7 @@ class CastToFloatAll(torch.nn.Module):
 
     def forward(self, *args):
         from_dtype = args[0].dtype
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast("cuda", enabled=False):
             ret = self.mod.forward(*cast_all(args, from_dtype=from_dtype, to_dtype=torch.float32))
         return cast_all(ret, from_dtype=torch.float32, to_dtype=from_dtype)
 
@@ -179,3 +185,21 @@ def replace_for_export(model: nn.Module, do_cast: bool = True) -> nn.Module:
         }
         replace_modules(model, cast_replacements)
     return model
+
+
+def onnx_export(model, input_example, onnx_path, **export_args):
+    """
+    Exports model to ONNX file at onnx_path
+    Args: input_example, onnx_path, export_args : passed to onnx.export()
+    """
+
+    for p in model.parameters():
+        p.requires_grad = False
+
+    replace_for_export(model, do_cast=True)
+
+    torch.onnx.export(model, input_example, onnx_path, **export_args)
+    # onnx.export is not very good at folding constants so we use polygraphy
+    model_onnx = onnx_from_path(onnx_path)
+    fold_constants(model_onnx)  # , allow_onnxruntime_shape_inference=False)
+    save_onnx(model_onnx, onnx_path)

@@ -20,12 +20,12 @@ import torch
 
 from monai.apps.utils import get_logger
 
+from .export_utils import onnx_export
 from .module import optional_import
 
 P, P_imported = optional_import("polygraphy")
 if P_imported:
     from polygraphy.backend.common import bytes_from_path
-    from polygraphy.backend.onnx import fold_constants, onnx_from_path, save_onnx
     from polygraphy.backend.onnxrt import OnnxrtRunner, session_from_onnx
     from polygraphy.backend.trt import (
         CreateConfig,
@@ -220,11 +220,19 @@ class Engine:
 class TRTWrapper(torch.nn.Module):
     """
     This wrapper implements TRT, ONNX and Torchscript persistent export
-    and running with fallback to Torch (for TRT modules with limited profiles)
-
+    and running with optional fallback to Torch (for TRT modules with limited profiles)
     """
 
-    def __init__(self, path, model=None, input_names=None, output_names=None, use_cuda_graph=False, timestamp=None):
+    def __init__(
+        self,
+        path,
+        model=None,
+        input_names=None,
+        output_names=None,
+        use_cuda_graph=False,
+        timestamp=None,
+        fallback=False,
+    ):
         super().__init__()
         self.input_names = input_names
         self.output_names = output_names
@@ -235,6 +243,7 @@ class TRTWrapper(torch.nn.Module):
         self.onnx_runner = None
         self.path = path
         self.use_cuda_graph = use_cuda_graph
+        self.fallback = fallback
 
         if os.path.exists(self.onnx_path):
             ftime = os.path.getmtime(self.onnx_path)
@@ -281,12 +290,18 @@ class TRTWrapper(torch.nn.Module):
     def has_profiles(self):
         return os.path.exists(self.profiles_path)
 
+    def delete_model(self):
+        if self.fallback and self.model is not None:
+            del self.model
+            self.model = None
+
     def load_engine(self):
         """
         Loads TRT plan from disk and activates its execution context.
         """
         try:
             self.engine = Engine(self.engine_path)
+            self.delete_model()
         except Exception as e:
             LOGGER.debug(f"Exception while loading the engine:\n{e}")
 
@@ -296,6 +311,7 @@ class TRTWrapper(torch.nn.Module):
         """
         try:
             self.jit_model = torch.jit.load(self.jit_path)
+            self.delete_model()
         except Exception:
             pass
 
@@ -309,6 +325,7 @@ class TRTWrapper(torch.nn.Module):
             onnx_runner = OnnxrtRunner(session_from_onnx(self.onnx_path, providers=providers))
             onnx_runner.activate()
             self.onnx_runner = onnx_runner
+            self.delete_model()
         except Exception:
             pass
 
@@ -359,13 +376,15 @@ class TRTWrapper(torch.nn.Module):
                     ret = ret[0]
                 return ret
         except Exception as e:
-            LOGGER.info(f"Exception: {e}\nFalling back to Pytorch ...")
-
+            if self.model:
+                LOGGER.info(f"Exception: {e}\nFalling back to Pytorch ...")
+            else:
+                raise e
         return self.model.forward(**args)
 
-    def build_engine(self, input_profiles=None, **build_args):
+    def onnx_to_trt(self, input_profiles=None, **build_args):
         """
-        Builds TRT engine from ONNX file at self.onnx_path and sets self.engine
+        Builds TRT engine from ONNX file at self.onnx_path and saves to self.trt_path
         Args:
              input_profiles, build_args - passed to engine.build()
         """
@@ -396,68 +415,37 @@ class TRTWrapper(torch.nn.Module):
         engine = engine_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
         save_engine(engine, path=self.engine_path)
 
-    def jit_export(self, input_example, verbose=False):
-        """
-        Exports self.model to Torchscript at self.jit_path and sets self.jit_model
-        """
-        self.jit_model = torch.jit.trace(self.model, input_example).eval()
-        self.jit_model = torch.jit.freeze(self.jit_model)
-        torch.jit.save(self.jit_model, self.jit_path)
-
-    def onnx_export(
-        self, input_example, dynamo=False, onnx_registry=None, dynamic_shapes=None, verbose=False, opset_version=18
-    ):
-        """
-        Exports self.model to ONNX file at self.onnx_path
-        Args: passed to onnx.export()
-        """
-
-        LOGGER.info(f"Exporting to ONNX, dynamic shapes: {dynamic_shapes}")
-        model = self.model
-        from .export_utils import replace_for_export
-
-        replace_for_export(model, do_cast=True)
-
-        torch.onnx.export(
-            model,
-            input_example,
-            self.onnx_path,
-            dynamo=dynamo,
-            verbose=verbose,
-            opset_version=opset_version,
-            do_constant_folding=True,
-            input_names=self.input_names,
-            output_names=self.output_names,
-            dynamic_axes=dynamic_shapes,
-        )
-        LOGGER.info("Folding constants...")
-        model_onnx = onnx_from_path(self.onnx_path)
-        fold_constants(model_onnx, allow_onnxruntime_shape_inference=False)
-        LOGGER.info("Done folding constants.")
-
-        LOGGER.info("Saving model...")
-        save_onnx(model_onnx, self.onnx_path)
-        LOGGER.info("Done saving model.")
-
-    def build_and_save(self, input_example, dynamo=False, verbose=False, input_profiles=None, **build_args):
+    def build_and_save(self, input_example, export_args=None, input_profiles=None, **build_args):
         """
         If serialized engine is not found, exports self.model to ONNX,
         builds TRT engine and saves serialized TRT engine to the disk.
         Args:
-             input_example, dynamo, verbose:  passed to self.onnx_export()
+             input_example, export_args:  passed to self.onnx_export()
              input_profiles: used to get dynamic axes for onnx_export(),
                              passed to self.build_engine()
-             build_args : passed to self.build_engine()
+             build_args : passed to onnx_to_trt()
         enable_all_tactics=True,
         """
+        if not export_args:
+            export_args: dict = {}
+        if input_profiles:
+            export_args.update({"dynamic_axes": get_dynamic_axes(input_profiles)})
+
         if not self.has_engine():
             try:
                 if not self.has_onnx():
-                    self.onnx_export(
-                        input_example, dynamo=dynamo, dynamic_shapes=get_dynamic_axes(input_profiles), verbose=verbose
+                    LOGGER.info(f"Exporting to {self.onnx_path}, export args: {export_args}")
+                    onnx_export(
+                        self.model,
+                        input_example,
+                        self.onnx_path,
+                        input_names=self.input_names,
+                        output_names=self.output_names,
+                        **export_args,
                     )
-                self.build_engine(input_profiles=input_profiles, **build_args)
-                self.engine = Engine(self.engine_path)
+                    LOGGER.info("Export to ONNX successful.")
+                self.onnx_to_trt(input_profiles=input_profiles, **build_args)
+                self.load_engine()
                 os.remove(self.onnx_path)
             except Exception as e:
                 LOGGER.info(f"Failed to build engine: {e}")
