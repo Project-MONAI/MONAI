@@ -63,9 +63,8 @@ class CrossAttentionBlock(nn.Module):
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative positional
                 parameter size.
             attention_dtype: cast attention operations to this dtype.
-            use_flash_attention: if True, use Pytorch's inbuilt
-                flash attention for a memory efficient attention mechanism (see
-                https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+                (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
         """
 
         super().__init__()
