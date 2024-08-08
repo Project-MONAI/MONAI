@@ -11,11 +11,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import Sequence
 
 import torch
 
-from monai.utils import optional_import
 
 # ControlNet, has_controlnet = optional_import("generative.networks.nets.controlnet", name="ControlNet")
 # get_timestep_embedding, has_get_timestep_embedding = optional_import(
