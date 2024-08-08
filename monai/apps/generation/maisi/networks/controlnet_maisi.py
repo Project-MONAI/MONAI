@@ -17,18 +17,22 @@ import torch
 
 from monai.utils import optional_import
 
-ControlNet, has_controlnet = optional_import("generative.networks.nets.controlnet", name="ControlNet")
-get_timestep_embedding, has_get_timestep_embedding = optional_import(
-    "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
-)
+# ControlNet, has_controlnet = optional_import("generative.networks.nets.controlnet", name="ControlNet")
+# get_timestep_embedding, has_get_timestep_embedding = optional_import(
+#     "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
+# )
 
-if TYPE_CHECKING:
-    from generative.networks.nets.controlnet import ControlNet as ControlNetType
-else:
-    ControlNetType = cast(type, ControlNet)
+# if TYPE_CHECKING:
+#     from generative.networks.nets.controlnet import ControlNet as ControlNetType
+# else:
+#     ControlNetType = cast(type, ControlNet)
+
+from monai.networks.nets.controlnet import ControlNet
+from monai.networks.nets.diffusion_model_unet import get_timestep_embedding
 
 
-class ControlNetMaisi(ControlNetType):
+
+class ControlNetMaisi(ControlNet):
     """
     Control network for diffusion models based on Zhang and Agrawala "Adding Conditional Control to Text-to-Image
     Diffusion Models" (https://arxiv.org/abs/2302.05543)
