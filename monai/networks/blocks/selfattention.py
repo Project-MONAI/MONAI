@@ -65,9 +65,8 @@ class SABlock(nn.Module):
             attention_dtype: cast attention operations to this dtype.
             include_fc: whether to include the final linear layer. Default to True.
             use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
-            use_flash_attention: if True, use Pytorch's inbuilt
-                flash attention for a memory efficient attention mechanism (see
-                https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+                (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
 
         """
 

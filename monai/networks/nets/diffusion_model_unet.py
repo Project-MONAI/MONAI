@@ -67,7 +67,9 @@ class DiffusionUNetTransformerBlock(nn.Module):
         cross_attention_dim: size of the context vector for cross attention.
         upcast_attention: if True, upcast attention operations to full precision.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
-        (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
 
     """
 
@@ -80,6 +82,8 @@ class DiffusionUNetTransformerBlock(nn.Module):
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
         use_flash_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
     ) -> None:
         super().__init__()
         self.attn1 = SABlock(
@@ -89,6 +93,8 @@ class DiffusionUNetTransformerBlock(nn.Module):
             dim_head=num_head_channels,
             dropout_rate=dropout,
             attention_dtype=torch.float if upcast_attention else None,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
         )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
