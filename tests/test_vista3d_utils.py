@@ -22,11 +22,13 @@ from monai.transforms.utils import (
     get_largest_connected_component_mask_point,
     sample_points_from_label,
 )
+from monai.utils import min_version
 from monai.utils.module import optional_import
 from tests.utils import skip_if_no_cuda
 
 cp, has_cp = optional_import("cupy")
 cucim_skimage, has_cucim = optional_import("cucim.skimage")
+measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 
 
 TESTS_SAMPLE_POINTS_FROM_LABEL = []
@@ -54,6 +56,7 @@ for radius in [1, 2]:
         )
 
 
+@skipUnless(has_measure or has_cucim, "skimage or cucim required")
 class TestSamplePointsFromLabel(unittest.TestCase):
 
     @parameterized.expand(TESTS_SAMPLE_POINTS_FROM_LABEL)
@@ -71,8 +74,7 @@ class TestConvertPointsToDisc(unittest.TestCase):
         self.assertEqual(result.shape, expected_shape)
 
 
-@skipUnless(has_cp, "cupy required")
-@skipUnless(has_cucim, "cucim required")
+@skipUnless(has_cucim and has_cp, "cucim and cupy required")
 class TestGetLargestConnectedComponentMaskPoint(unittest.TestCase):
 
     @skip_if_no_cuda

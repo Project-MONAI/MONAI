@@ -1298,6 +1298,9 @@ def sample_points_from_label(
     if not labels.shape[0] == 1:
         raise ValueError("labels must have batch size 1.")
 
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     labels = labels[0, 0]
     unique_labels = labels.unique().cpu().numpy().tolist()
     _point = []
