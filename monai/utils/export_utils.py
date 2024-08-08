@@ -1,21 +1,8 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
-#
-# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
-# property and proprietary rights in and to this material, related
-# documentation and any modifications thereto. Any use, reproduction,
-# disclosure or distribution of this material and related documentation
-# without an express license agreement from NVIDIA CORPORATION or
-# its affiliates is strictly prohibited.
-
-# Copyright (c) 2023, NVIDIA CORPORATION.  All rights reserved.
-#
+# Copyright (c) MONAI Consortium
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-#
 #     http://www.apache.org/licenses/LICENSE-2.0
-#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -26,9 +13,65 @@ from __future__ import annotations
 
 from typing import Callable
 
+import torch
 import torch.nn as nn
 
-from .cast_utils import CastToFloat
+
+def cast_tensor(x, from_dtype=torch.float16, to_dtype=torch.float32):
+    """
+    Utility function to cast a single tensor from from_dtype to to_dtype
+    """
+    return x.to(dtype=to_dtype) if x.dtype == from_dtype else x
+
+
+def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
+    """
+    Utility function to cast all tensors in a tuple from from_dtype to to_dtype
+    """
+    if isinstance(x, torch.Tensor):
+        return cast_tensor(x, from_dtype=from_dtype, to_dtype=to_dtype)
+    else:
+        if isinstance(x, dict):
+            new_dict = {}
+            for k in x.keys():
+                new_dict[k] = cast_all(x[k], from_dtype=from_dtype, to_dtype=to_dtype)
+            return new_dict
+        elif isinstance(x, tuple):
+            return tuple(cast_all(y, from_dtype=from_dtype, to_dtype=to_dtype) for y in x)
+
+
+class CastToFloat(torch.nn.Module):
+    """
+    Class used to add autocast protection for ONNX export
+    for forward methods with single return vaue
+    """
+
+    def __init__(self, mod):
+        super().__init__()
+        self.mod = mod
+
+    def forward(self, x):
+        dtype = x.dtype
+        with torch.cuda.amp.autocast(enabled=False):
+            ret = self.mod.forward(x.to(torch.float32)).to(dtype)
+        return ret
+
+
+class CastToFloatAll(torch.nn.Module):
+    """
+    Class used to add autocast protection for ONNX export
+    for forward methods with multiple return values
+    """
+
+    def __init__(self, mod):
+        super().__init__()
+        self.mod = mod
+
+    def forward(self, *args):
+        from_dtype = args[0].dtype
+        with torch.cuda.amp.autocast(enabled=False):
+            ret = self.mod.forward(*cast_all(args, from_dtype=from_dtype, to_dtype=torch.float32))
+        return cast_all(ret, from_dtype=torch.float32, to_dtype=from_dtype)
 
 
 def simple_replace(base_t: type[nn.Module], dest_t: type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
