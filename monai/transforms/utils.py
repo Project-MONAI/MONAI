@@ -107,6 +107,7 @@ __all__ = [
     "generate_spatial_bounding_box",
     "get_extreme_points",
     "get_largest_connected_component_mask",
+    "get_largest_connected_component_mask_point",
     "convert_points_to_disc",
     "remove_small_objects",
     "img_bounds",
@@ -1178,31 +1179,34 @@ def get_largest_connected_component_mask(
 
 
 def get_largest_connected_component_mask_point(
-    img_pos: NdarrayTensor,
-    img_neg: NdarrayTensor,
-    point_coords: NdarrayTensor,
-    point_labels: NdarrayTensor,
+    img_pos: Tensor,
+    img_neg: Tensor,
+    point_coords: Tensor,
+    point_labels: Tensor,
     pos_val: Sequence[int] = (1, 3),
     neg_val: Sequence[int] = (0, 2),
     margins: int = 3,
-) -> NdarrayTensor:
+) -> Tensor:
     """
     Gets the largest connected component mask of an image that include the point_coords.
     # TODO: need author to provide more details about this function. Especially about each argument.
     Args:
-        img_pos: [1, B, H, W, D]
-        img_neg: [1, B, H, W, D]
+        img_pos: [1, 1, H, W, D]
+        img_neg: [1, 1, H, W, D]
 
-        point_coords [B, N, 3]
-        point_labels [B, N]
+        point_coords [1, N, 3]
+        point_labels [1, N]
     """
-    if not has_measure:
-        raise RuntimeError("Skimage.measure required.")
+    cucim_skimage, has_cucim = optional_import("cucim.skimage")
 
-    img_pos_, *_ = convert_data_type(img_pos, np.ndarray)
-    img_neg_, *_ = convert_data_type(img_neg, np.ndarray)
-    label = measure.label
-    lib = np
+    use_cp = has_cp and has_cucim and img_pos.device != torch.device("cpu")
+    if use_cp:
+        img_pos_ = convert_to_cupy(img_pos.short())  # type: ignore
+        img_neg_ = convert_to_cupy(img_neg.short())  # type: ignore
+        label = cucim_skimage.measure.label
+        lib = cp
+    else:
+        raise RuntimeError("Cucim.skimage and GPU device are required.")
 
     features_pos, _ = label(img_pos_, connectivity=3, return_num=True)
     features_neg, _ = label(img_neg_, connectivity=3, return_num=True)

@@ -12,11 +12,22 @@
 from __future__ import annotations
 
 import unittest
+from unittest.case import skipUnless
 
 import torch
 from parameterized import parameterized
 
-from monai.transforms.utils import convert_points_to_disc, sample_points_from_label
+from monai.transforms.utils import (
+    convert_points_to_disc,
+    get_largest_connected_component_mask_point,
+    sample_points_from_label,
+)
+from monai.utils.module import optional_import
+from tests.utils import skip_if_no_cuda
+
+cp, has_cp = optional_import("cupy")
+cucim_skimage, has_cucim = optional_import("cucim.skimage")
+
 
 TESTS_SAMPLE_POINTS_FROM_LABEL = []
 for use_center in [True, False]:
@@ -58,6 +69,21 @@ class TestConvertPointsToDisc(unittest.TestCase):
     def test_shape(self, input_data, expected_shape):
         result = convert_points_to_disc(**input_data)
         self.assertEqual(result.shape, expected_shape)
+
+
+@skipUnless(has_cp, "cupy required")
+@skipUnless(has_cucim, "cucim required")
+class TestGetLargestConnectedComponentMaskPoint(unittest.TestCase):
+
+    @skip_if_no_cuda
+    def test_shape(self):
+        shape = (1, 1, 128, 128, 128)
+        img_pos = torch.randint(0, 2, shape).cuda()
+        img_neg = torch.randint(0, 2, shape).cuda()
+        point_coords = torch.randint(0, 32, (1, 1, 3)).cuda()
+        point_labels = torch.randint(0, 4, (1, 1)).cuda()
+        mask = get_largest_connected_component_mask_point(img_pos, img_neg, point_coords, point_labels)
+        self.assertEqual(mask.shape, shape)
 
 
 if __name__ == "__main__":
