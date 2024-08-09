@@ -37,6 +37,8 @@ class TransformerBlock(nn.Module):
         sequence_length: int | None = None,
         with_cross_attention: bool = False,
         use_flash_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = True,
     ) -> None:
         """
         Args:
@@ -47,7 +49,9 @@ class TransformerBlock(nn.Module):
             qkv_bias(bool, optional): apply bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
             use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
-             (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+                (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            include_fc: whether to include the final linear layer. Default to True.
+            use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
 
         """
 
@@ -69,6 +73,8 @@ class TransformerBlock(nn.Module):
             save_attn=save_attn,
             causal=causal,
             sequence_length=sequence_length,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
         )
         self.norm2 = nn.LayerNorm(hidden_size)
