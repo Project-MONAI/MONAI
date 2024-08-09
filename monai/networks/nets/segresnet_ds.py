@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable
 from typing import Union
 
@@ -429,8 +430,10 @@ class SegResNetDS(nn.Module):
 
 class SegResNetDS2(SegResNetDS):
     """
-    SegResNetDS2 is the image encoder used by VISTA3D. It adds one additional decoder branch.
+    SegResNetDS2 based on `SegResNetDS` and adds an additional decorder branch.
+    It is the image encoder used by VISTA3D.
     """
+
     def __init__(
         self,
         spatial_dims: int = 3,
@@ -447,92 +450,30 @@ class SegResNetDS2(SegResNetDS):
         resolution: tuple | None = None,
     ):
         super().__init__(
-            spatial_dims = spatial_dims,
+            spatial_dims=spatial_dims,
             init_filters=init_filters,
             in_channels=in_channels,
-            out_channels= out_channels,
-            act = act,
-            norm = norm,
-            blocks_down = blocks_down,
-            blocks_up = blocks_up,
-            dsdepth = dsdepth,
-            preprocess = preprocess,
-            upsample_mode = upsample_mode,
-            resolution = resolution)
+            out_channels=out_channels,
+            act=act,
+            norm=norm,
+            blocks_down=blocks_down,
+            blocks_up=blocks_up,
+            dsdepth=dsdepth,
+            preprocess=preprocess,
+            upsample_mode=upsample_mode,
+            resolution=resolution,
+        )
 
-        # ensure normalization had affine trainable parameters (if not specified)
-        norm = split_args(norm)
-        if has_option(Norm[norm[0], spatial_dims], "affine"):
-            norm[1].setdefault("affine", True)  # type: ignore
+        self.up_layers_auto = nn.ModuleList([copy.deepcopy(layer) for layer in self.up_layers])
 
-        # ensure activation is inplace (if not specified)
-        act = split_args(act)
-        if has_option(Act[act[0]], "inplace"):
-            act[1].setdefault("inplace", True)  # type: ignore
-
-        n_up = len(blocks_down) - 1
-
-        filters = init_filters * 2**n_up
-        self.up_layers_auto = nn.ModuleList()
-
-        # self.anisotropic_scales and self.blocks_up are created within super().init()
-
-        for i in range(n_up):
-            filters = filters // 2
-            kernel_size, _, stride = (
-                aniso_kernel(self.anisotropic_scales[len(self.blocks_up) - i - 1])
-                if self.anisotropic_scales
-                else (3, 1, 2)
-            )
-
-            level_auto = nn.ModuleDict()
-            blocks = [
-                SegResBlock(
-                    spatial_dims=spatial_dims,
-                    in_channels=filters,
-                    kernel_size=kernel_size,
-                    norm=norm,
-                    act=act,
-                )
-                for _ in range(self.blocks_up[i])
-            ]
-            level_auto["blocks"] = nn.Sequential(*blocks)
-            if len(self.blocks_up) - i <= dsdepth:  # deep supervision heads
-                level_auto["head"] = Conv[Conv.CONV, spatial_dims](
-                    in_channels=filters,
-                    out_channels=out_channels,
-                    kernel_size=1,
-                    bias=True,
-                )
-            else:
-                level_auto["head"] = nn.Identity()
-            self.up_layers_auto.append(level_auto)
-
-        if n_up == 0:  # in a corner case of flat structure (no downsampling), attache a single head
-            level_auto = nn.ModuleDict(
-                {
-                    "upsample": nn.Identity(),
-                    "blocks": nn.Identity(),
-                    "head": Conv[Conv.CONV, spatial_dims](
-                        in_channels=filters,
-                        out_channels=out_channels,
-                        kernel_size=1,
-                        bias=True,
-                    ),
-                }
-            )
-            self.up_layers_auto.append(level_auto)
-
-    def _forward(
-        self, x: torch.Tensor, with_point, with_label
-    ) -> Union[None, torch.Tensor, list[torch.Tensor]]:
+    def forward(  # type: ignore
+        self, x: torch.Tensor, with_point: bool = True, with_label: bool = True, **kwargs
+    ) -> tuple[Union[None, torch.Tensor, list[torch.Tensor]], Union[None, torch.Tensor, list[torch.Tensor]]]:
         if self.preprocess is not None:
             x = self.preprocess(x)
 
         if not self.is_valid_shape(x):
-            raise ValueError(
-                f"Input spatial dims {x.shape} must be divisible by {self.shape_factor()}"
-            )
+            raise ValueError(f"Input spatial dims {x.shape} must be divisible by {self.shape_factor()}")
 
         x_down = self.encoder(x)
 
@@ -571,20 +512,7 @@ class SegResNetDS2(SegResNetDS):
 
             outputs_auto.reverse()
 
-        # in eval() mode, always return a single final output
-        if not self.training or len(outputs) == 1:
-            outputs = outputs[0] if len(outputs) == 1 else outputs
-
-        if not self.training or len(outputs_auto) == 1:
-            outputs_auto = outputs_auto[0] if len(outputs_auto) == 1 else outputs_auto
-
-        # return a list of DS outputs
-        return outputs, outputs_auto
-
-    def forward(
-        self, x: torch.Tensor, with_point=True, with_label=True, **kwargs
-    ) -> Union[None, torch.Tensor, list[torch.Tensor]]:
-        return self._forward(x, with_point, with_label)
+        return outputs[0] if len(outputs) == 1 else outputs, outputs_auto[0] if len(outputs_auto) == 1 else outputs_auto
 
     def set_auto_grad(self, auto_freeze=False, point_freeze=False):
         """
