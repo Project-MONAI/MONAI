@@ -123,7 +123,7 @@ class TestUNETR(unittest.TestCase):
             )
 
     @parameterized.expand(TEST_CASE_UNETR)
-    @SkipIfBeforePyTorchVersion((1, 9))
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, input_param, input_shape, _):
         net = UNETR(**(input_param))
         net.eval()
