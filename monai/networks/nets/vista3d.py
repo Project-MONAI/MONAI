@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Optional, Tuple, Type
+from typing import Any, Optional, Tuple
 
 from torch import Tensor, nn
 import numpy as np
