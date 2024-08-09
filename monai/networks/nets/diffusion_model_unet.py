@@ -67,7 +67,9 @@ class DiffusionUNetTransformerBlock(nn.Module):
         cross_attention_dim: size of the context vector for cross attention.
         upcast_attention: if True, upcast attention operations to full precision.
         use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
-        (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
 
     """
 
@@ -80,6 +82,8 @@ class DiffusionUNetTransformerBlock(nn.Module):
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
         use_flash_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
     ) -> None:
         super().__init__()
         self.attn1 = SABlock(
@@ -89,6 +93,8 @@ class DiffusionUNetTransformerBlock(nn.Module):
             dim_head=num_head_channels,
             dropout_rate=dropout,
             attention_dtype=torch.float if upcast_attention else None,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
         )
         self.ff = MLPBlock(hidden_size=num_channels, mlp_dim=num_channels * 4, act="GEGLU", dropout_rate=dropout)
@@ -134,6 +140,11 @@ class SpatialTransformer(nn.Module):
         norm_eps: epsilon for the normalization.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+
     """
 
     def __init__(
@@ -148,6 +159,9 @@ class SpatialTransformer(nn.Module):
         norm_eps: float = 1e-6,
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -175,6 +189,9 @@ class SpatialTransformer(nn.Module):
                     dropout=dropout,
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
                 for _ in range(num_layers)
             ]
@@ -529,6 +546,10 @@ class AttnDownBlock(nn.Module):
         resblock_updown: if True use residual blocks for downsampling.
         downsample_padding: padding used in the downsampling block.
         num_head_channels: number of channels in each attention head.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -544,6 +565,9 @@ class AttnDownBlock(nn.Module):
         resblock_updown: bool = False,
         downsample_padding: int = 1,
         num_head_channels: int = 1,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -570,6 +594,9 @@ class AttnDownBlock(nn.Module):
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -636,7 +663,11 @@ class CrossAttnDownBlock(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
-        dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers
+        dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -656,6 +687,9 @@ class CrossAttnDownBlock(nn.Module):
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
         dropout_cattn: float = 0.0,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -688,6 +722,9 @@ class CrossAttnDownBlock(nn.Module):
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
                     dropout=dropout_cattn,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -745,6 +782,10 @@ class AttnMidBlock(nn.Module):
         norm_num_groups: number of groups for the group normalization.
         norm_eps: epsilon for the group normalization.
         num_head_channels: number of channels in each attention head.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -755,6 +796,9 @@ class AttnMidBlock(nn.Module):
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
         num_head_channels: int = 1,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -772,6 +816,9 @@ class AttnMidBlock(nn.Module):
             num_head_channels=num_head_channels,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
 
         self.resnet_2 = DiffusionUNetResnetBlock(
@@ -808,6 +855,10 @@ class CrossAttnMidBlock(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -822,6 +873,9 @@ class CrossAttnMidBlock(nn.Module):
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
         dropout_cattn: float = 0.0,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -844,6 +898,9 @@ class CrossAttnMidBlock(nn.Module):
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
             dropout=dropout_cattn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
         self.resnet_2 = DiffusionUNetResnetBlock(
             spatial_dims=spatial_dims,
@@ -989,6 +1046,10 @@ class AttnUpBlock(nn.Module):
         add_upsample: if True add downsample block.
         resblock_updown: if True use residual blocks for upsampling.
         num_head_channels: number of channels in each attention head.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -1004,6 +1065,9 @@ class AttnUpBlock(nn.Module):
         add_upsample: bool = True,
         resblock_updown: bool = False,
         num_head_channels: int = 1,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -1032,6 +1096,9 @@ class AttnUpBlock(nn.Module):
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -1116,7 +1183,11 @@ class CrossAttnUpBlock(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
-        dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers
+        dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -1136,6 +1207,9 @@ class CrossAttnUpBlock(nn.Module):
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
         dropout_cattn: float = 0.0,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -1169,6 +1243,9 @@ class CrossAttnUpBlock(nn.Module):
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
                     dropout=dropout_cattn,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -1250,6 +1327,9 @@ def get_down_block(
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
     dropout_cattn: float = 0.0,
+    include_fc: bool = True,
+    use_combined_linear: bool = False,
+    use_flash_attention: bool = False,
 ) -> nn.Module:
     if with_attn:
         return AttnDownBlock(
@@ -1263,6 +1343,9 @@ def get_down_block(
             add_downsample=add_downsample,
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
     elif with_cross_attn:
         return CrossAttnDownBlock(
@@ -1280,6 +1363,9 @@ def get_down_block(
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
             dropout_cattn=dropout_cattn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
     else:
         return DownBlock(
@@ -1307,6 +1393,9 @@ def get_mid_block(
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
     dropout_cattn: float = 0.0,
+    include_fc: bool = True,
+    use_combined_linear: bool = False,
+    use_flash_attention: bool = False,
 ) -> nn.Module:
     if with_conditioning:
         return CrossAttnMidBlock(
@@ -1320,6 +1409,9 @@ def get_mid_block(
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
             dropout_cattn=dropout_cattn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
     else:
         return AttnMidBlock(
@@ -1329,6 +1421,9 @@ def get_mid_block(
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
             num_head_channels=num_head_channels,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
 
 
@@ -1350,6 +1445,9 @@ def get_up_block(
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
     dropout_cattn: float = 0.0,
+    include_fc: bool = True,
+    use_combined_linear: bool = False,
+    use_flash_attention: bool = False,
 ) -> nn.Module:
     if with_attn:
         return AttnUpBlock(
@@ -1364,6 +1462,9 @@ def get_up_block(
             add_upsample=add_upsample,
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
     elif with_cross_attn:
         return CrossAttnUpBlock(
@@ -1382,6 +1483,9 @@ def get_up_block(
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
             dropout_cattn=dropout_cattn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
     else:
         return UpBlock(
@@ -1419,9 +1523,13 @@ class DiffusionModelUNet(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
-        classes.
+            classes.
         upcast_attention: if True, upcast attention operations to full precision.
-        dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers
+        dropout_cattn: if different from zero, this will be the dropout value for the cross-attention layers.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -1442,6 +1550,9 @@ class DiffusionModelUNet(nn.Module):
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
         dropout_cattn: float = 0.0,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
@@ -1536,6 +1647,9 @@ class DiffusionModelUNet(nn.Module):
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
                 dropout_cattn=dropout_cattn,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
+                use_flash_attention=use_flash_attention,
             )
 
             self.down_blocks.append(down_block)
@@ -1553,6 +1667,9 @@ class DiffusionModelUNet(nn.Module):
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
             dropout_cattn=dropout_cattn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
 
         # up
@@ -1587,6 +1704,9 @@ class DiffusionModelUNet(nn.Module):
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
                 dropout_cattn=dropout_cattn,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
+                use_flash_attention=use_flash_attention,
             )
 
             self.up_blocks.append(up_block)
@@ -1714,31 +1834,23 @@ class DiffusionModelUNet(nn.Module):
         # copy over all matching keys
         for k in new_state_dict:
             if k in old_state_dict:
-                new_state_dict[k] = old_state_dict[k]
+                new_state_dict[k] = old_state_dict.pop(k)
 
         # fix the attention blocks
-        attention_blocks = [k.replace(".attn1.qkv.weight", "") for k in new_state_dict if "attn1.qkv.weight" in k]
+        attention_blocks = [k.replace(".out_proj.weight", "") for k in new_state_dict if "out_proj.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.attn1.to_q.weight"],
-                    old_state_dict[f"{block}.attn1.to_k.weight"],
-                    old_state_dict[f"{block}.attn1.to_v.weight"],
-                ],
-                dim=0,
-            )
-
             # projection
-            new_state_dict[f"{block}.attn1.out_proj.weight"] = old_state_dict[f"{block}.attn1.to_out.0.weight"]
-            new_state_dict[f"{block}.attn1.out_proj.bias"] = old_state_dict[f"{block}.attn1.to_out.0.bias"]
+            new_state_dict[f"{block}.out_proj.weight"] = old_state_dict.pop(f"{block}.to_out.0.weight")
+            new_state_dict[f"{block}.out_proj.bias"] = old_state_dict.pop(f"{block}.to_out.0.bias")
 
-            new_state_dict[f"{block}.attn2.out_proj.weight"] = old_state_dict[f"{block}.attn2.to_out.0.weight"]
-            new_state_dict[f"{block}.attn2.out_proj.bias"] = old_state_dict[f"{block}.attn2.to_out.0.bias"]
         # fix the upsample conv blocks which were renamed postconv
         for k in new_state_dict:
             if "postconv" in k:
                 old_name = k.replace("postconv", "conv")
-                new_state_dict[k] = old_state_dict[old_name]
+                new_state_dict[k] = old_state_dict.pop(old_name)
+        if verbose:
+            # print all remaining keys in old_state_dict
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
         self.load_state_dict(new_state_dict)
 
 
@@ -1782,6 +1894,9 @@ class DiffusionModelEncoder(nn.Module):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
@@ -1866,6 +1981,9 @@ class DiffusionModelEncoder(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
+                use_flash_attention=use_flash_attention,
             )
 
             self.down_blocks.append(down_block)
