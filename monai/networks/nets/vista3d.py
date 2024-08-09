@@ -29,9 +29,7 @@ from monai.utils import optional_import, unsqueeze_left, unsqueeze_right
 
 rearrange, _ = optional_import("einops", name="rearrange")
 
-__all__ = ["VISTA3D"]
-
-
+__all__ = ["VISTA3D", "VISTA3D132"]
 
 
 class VISTA3D(nn.Module):
@@ -611,9 +609,7 @@ def VISTA3D132(encoder_embed_dim=48, in_channels=1):
     )
     point_head = PointMappingSAM(feature_size=encoder_embed_dim, n_classes=512, last_supported=132)
     class_head = ClassMappingClassify(n_classes=512, feature_size=encoder_embed_dim, use_mlp=True)
-    vista = VISTA3D(
-        image_encoder=segresnet, class_head=class_head, point_head=point_head, feature_size=encoder_embed_dim
-    )
+    vista = VISTA3D(image_encoder=segresnet, class_head=class_head, point_head=point_head)
     return vista
 
 # Copyright (c) MONAI Consortium
