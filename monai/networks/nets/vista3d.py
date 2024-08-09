@@ -53,6 +53,8 @@ class VISTA3D(nn.Module):
         self.PINF_VALUE = 9999
 
     def get_bs(self, class_vector, point_coords):
+        """ Get number of foreground classes based on class and point prompt.
+        """
         if class_vector is None:
             assert point_coords is not None, "prompt is required"
             return point_coords.shape[0]
@@ -61,6 +63,10 @@ class VISTA3D(nn.Module):
 
     def convert_point_label(self, point_label, label_set=None,
                             special_index=[23, 24, 25, 26, 27, 57, 128]):
+        """ Convert point label based on its class prompt. For special classes defined in special index,
+        the positive/negative point label will be converted from 1/0 to 3/2. The purpose is to separate those
+        classes with ambiguous classes.  
+        """
         if label_set is None:
             return point_label
         assert point_label.shape[0] == len(label_set)
@@ -112,6 +118,11 @@ class VISTA3D(nn.Module):
     def update_point_to_patch(self, patch_coords, point_coords, point_labels):
         """ Update point_coords with respect to patch coords.
         If point is outside of the patch, remove the coordinates and set label to -1
+        Args:
+            patch_coords: the python slice object representing the patch coordinates during sliding window inference. This value is
+                          passed from sliding_window_inferer. 
+            point_coords: point coordinates, [B, N, 3].
+            point_labels: point labels, [B, N].            
         """
         patch_ends = [
             patch_coords[-3].stop,
@@ -125,9 +136,9 @@ class VISTA3D(nn.Module):
         ]
         # update point coords
         patch_starts = unsqueeze_left(torch.tensor(patch_starts,
-                                                   device=point_coords.device), 5)
+                                                   device=point_coords.device), 2)
         patch_ends = unsqueeze_left(torch.tensor(patch_ends,
-                                                 device=point_coords.device), 5)
+                                                 device=point_coords.device), 2)
         # [1 N 1]
         indices = torch.logical_and(
             ((point_coords - patch_starts) > 0).all(2),
@@ -174,7 +185,7 @@ class VISTA3D(nn.Module):
                 np.any(
                     [
                         _logits[i,0,p[0],p[1],p[2]].item() > 0
-                        for p in point_coords[i].cpu().numpy().round()
+                        for p in point_coords[i].cpu().numpy().round().astype(int)
                     ]
                 )
             )
@@ -209,7 +220,15 @@ class VISTA3D(nn.Module):
     def gaussian_combine(
         self, logits, point_logits, point_coords, point_labels, mapping_index, radius
     ):
-        """Combine point results with auto results using gaussian."""
+        """ Combine point results with auto results using gaussian.
+            Args:
+                logits: automatic branch results, [B, 1, H, W, D].
+                point_logits: point branch results, [B1, 1, H, W, D].
+                point_coords: point coordinates, [B1, N, 3].
+                point_labels: point labels, [B1, N].
+                mapping_index: [B].
+                radius: gaussian ball radius.
+        """
         if radius is None:
             radius = min(point_logits.shape[-3:]) // 5  # empirical value 5
         weight = 1 - convert_points_to_disc(
@@ -224,7 +243,11 @@ class VISTA3D(nn.Module):
         return logits
 
     def set_auto_grad(self, auto_freeze=False, point_freeze=False):
-        """Freeze auto-branch or point-branch"""
+        """Freeze auto-branch or point-branch.
+        Args:
+            auto_freeze: freeze the auto branch.
+            point_freeze: freeze the point branch.
+        """
         if auto_freeze != self.auto_freeze:
             if hasattr(self.image_encoder, "set_auto_grad"):
                 self.image_encoder.set_auto_grad(
@@ -279,7 +302,7 @@ class VISTA3D(nn.Module):
                           provided, prompt_class is the same as class_vector. For prompt_class[b] > 512, point_coords[b]
                           will be considered novel class.
             patch_coords: the python slice object representing the patch coordinates during sliding window inference. This value is
-                          passed from monai_utils.sliding_window_inferer. This is an indicator for training phase or validation phase.
+                          passed from sliding_window_inferer. This is an indicator for training phase or validation phase.
             labels: [1, 1, H, W, D], the groundtruth label tensor, only used for point-only evaluation
             label_set: the label index matching the indexes in labels. If labels are mapped to global index using RelabelID,
                        this label_set should be global mapped index. If labels are not mapped to global index, e.g. in zero-shot
@@ -591,10 +614,8 @@ class ClassMappingClassify(nn.Module):
         # [b,1,feat] @ [1,feat,dim], batch dimension become class_embedding batch dimension.
         masks = []
         for i in range(b):
-            mask = (class_embedding @ src[[i]].view(1, c, h * w * d)).view(
-                -1, 1, h, w, d
-            )
-            masks.append(mask)
+            mask = (class_embedding @ src[[i]].view(1, c, h * w * d))
+            masks.append(mask.view(-1, 1, h, w, d))
         masks = torch.cat(masks, 1)
         return masks, class_embedding
 
