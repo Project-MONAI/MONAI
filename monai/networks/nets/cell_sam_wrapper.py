@@ -33,7 +33,7 @@ class CellSamWrapper(torch.nn.Module):
             (currently SAM expects 1024x1024)
         checkpoint: checkpoint file to load the SAM weights from.
             (this can be downloaded from SAM repo https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth)
-        return_features: whether to return features from SAM encoder 
+        return_features: whether to return features from SAM encoder
             (without using decoder/upsampling to the original input size)
 
     """
