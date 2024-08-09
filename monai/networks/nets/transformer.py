@@ -51,6 +51,10 @@ class DecoderOnlyTransformer(nn.Module):
         attn_layers_heads: Number of attention heads.
         with_cross_attention: Whether to use cross attention for conditioning.
         embedding_dropout_rate: Dropout rate for the embedding.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -62,6 +66,9 @@ class DecoderOnlyTransformer(nn.Module):
         attn_layers_heads: int,
         with_cross_attention: bool = False,
         embedding_dropout_rate: float = 0.0,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.num_tokens = num_tokens
@@ -86,6 +93,9 @@ class DecoderOnlyTransformer(nn.Module):
                     causal=True,
                     sequence_length=max_seq_len,
                     with_cross_attention=with_cross_attention,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
                 for _ in range(attn_layers_depth)
             ]
@@ -133,25 +143,15 @@ class DecoderOnlyTransformer(nn.Module):
         # copy over all matching keys
         for k in new_state_dict:
             if k in old_state_dict:
-                new_state_dict[k] = old_state_dict[k]
-
-        # fix the attention blocks
-        attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
-        for block in attention_blocks:
-            new_state_dict[f"{block}.attn.qkv.weight"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.attn.to_q.weight"],
-                    old_state_dict[f"{block}.attn.to_k.weight"],
-                    old_state_dict[f"{block}.attn.to_v.weight"],
-                ],
-                dim=0,
-            )
+                new_state_dict[k] = old_state_dict.pop(k)
 
         # fix the renamed norm blocks first  norm2 -> norm_cross_attention , norm3 -> norm2
-        for k in old_state_dict:
+        for k in list(old_state_dict.keys()):
             if "norm2" in k:
-                new_state_dict[k.replace("norm2", "norm_cross_attn")] = old_state_dict[k]
+                new_state_dict[k.replace("norm2", "norm_cross_attn")] = old_state_dict.pop(k)
             if "norm3" in k:
-                new_state_dict[k.replace("norm3", "norm2")] = old_state_dict[k]
-
+                new_state_dict[k.replace("norm3", "norm2")] = old_state_dict.pop(k)
+        if verbose:
+            # print all remaining keys in old_state_dict
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
         self.load_state_dict(new_state_dict)
