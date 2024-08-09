@@ -65,7 +65,7 @@ class VISTA3D(nn.Module):
                             special_index=[23, 24, 25, 26, 27, 57, 128]):
         """ Convert point label based on its class prompt. For special classes defined in special index,
         the positive/negative point label will be converted from 1/0 to 3/2. The purpose is to separate those
-        classes with ambiguous classes.  
+        classes with ambiguous classes.
         """
         if label_set is None:
             return point_label
@@ -120,9 +120,9 @@ class VISTA3D(nn.Module):
         If point is outside of the patch, remove the coordinates and set label to -1
         Args:
             patch_coords: the python slice object representing the patch coordinates during sliding window inference. This value is
-                          passed from sliding_window_inferer. 
+                          passed from sliding_window_inferer.
             point_coords: point coordinates, [B, N, 3].
-            point_labels: point labels, [B, N].            
+            point_labels: point labels, [B, N].
         """
         patch_ends = [
             patch_coords[-3].stop,
