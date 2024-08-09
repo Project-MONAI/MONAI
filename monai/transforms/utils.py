@@ -1263,7 +1263,7 @@ def convert_points_to_disc(
         point: [B, N, 3], 3D point coordinates.
         point_label: [B, N], 0 or 2 means negative points, 1 or 3 means postive points.
         radius: disc ball radius size.
-        disc: If true, use regular disc other other use gaussian.
+        disc: If true, use regular disc, other use gaussian.
     """
     masks = torch.zeros([point.shape[0], 2, image_size[0], image_size[1], image_size[2]], device=point.device)
     _array = [
