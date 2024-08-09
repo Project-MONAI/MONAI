@@ -1834,31 +1834,23 @@ class DiffusionModelUNet(nn.Module):
         # copy over all matching keys
         for k in new_state_dict:
             if k in old_state_dict:
-                new_state_dict[k] = old_state_dict[k]
+                new_state_dict[k] = old_state_dict.pop(k)
 
         # fix the attention blocks
-        attention_blocks = [k.replace(".attn1.qkv.weight", "") for k in new_state_dict if "attn1.qkv.weight" in k]
+        attention_blocks = [k.replace(".out_proj.weight", "") for k in new_state_dict if "out_proj.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.attn1.to_q.weight"],
-                    old_state_dict[f"{block}.attn1.to_k.weight"],
-                    old_state_dict[f"{block}.attn1.to_v.weight"],
-                ],
-                dim=0,
-            )
-
             # projection
-            new_state_dict[f"{block}.attn1.out_proj.weight"] = old_state_dict[f"{block}.attn1.to_out.0.weight"]
-            new_state_dict[f"{block}.attn1.out_proj.bias"] = old_state_dict[f"{block}.attn1.to_out.0.bias"]
+            new_state_dict[f"{block}.out_proj.weight"] = old_state_dict.pop(f"{block}.to_out.0.weight")
+            new_state_dict[f"{block}.out_proj.bias"] = old_state_dict.pop(f"{block}.to_out.0.bias")
 
-            new_state_dict[f"{block}.attn2.out_proj.weight"] = old_state_dict[f"{block}.attn2.to_out.0.weight"]
-            new_state_dict[f"{block}.attn2.out_proj.bias"] = old_state_dict[f"{block}.attn2.to_out.0.bias"]
         # fix the upsample conv blocks which were renamed postconv
         for k in new_state_dict:
             if "postconv" in k:
                 old_name = k.replace("postconv", "conv")
-                new_state_dict[k] = old_state_dict[old_name]
+                new_state_dict[k] = old_state_dict.pop(old_name)
+        if verbose:
+            # print all remaining keys in old_state_dict
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
         self.load_state_dict(new_state_dict)
 
 

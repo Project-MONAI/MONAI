@@ -704,27 +704,18 @@ class AutoencoderKL(nn.Module):
         # copy over all matching keys
         for k in new_state_dict:
             if k in old_state_dict:
-                new_state_dict[k] = old_state_dict[k]
+                new_state_dict[k] = old_state_dict.pop(k)
 
         # fix the attention blocks
-        attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
+        attention_blocks = [k.replace(".attn.to_q.weight", "") for k in new_state_dict if "attn.to_q.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn.qkv.weight"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.to_q.weight"],
-                    old_state_dict[f"{block}.to_k.weight"],
-                    old_state_dict[f"{block}.to_v.weight"],
-                ],
-                dim=0,
-            )
-            new_state_dict[f"{block}.attn.qkv.bias"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.to_q.bias"],
-                    old_state_dict[f"{block}.to_k.bias"],
-                    old_state_dict[f"{block}.to_v.bias"],
-                ],
-                dim=0,
-            )
+            new_state_dict[f"{block}.attn.to_q.weight"] = old_state_dict.pop(f"{block}.to_q.weight")
+            new_state_dict[f"{block}.attn.to_k.weight"] = old_state_dict.pop(f"{block}.to_k.weight")
+            new_state_dict[f"{block}.attn.to_v.weight"] = old_state_dict.pop(f"{block}.to_v.weight")
+            new_state_dict[f"{block}.attn.to_q.bias"] = old_state_dict.pop(f"{block}.to_q.bias")
+            new_state_dict[f"{block}.attn.to_k.bias"] = old_state_dict.pop(f"{block}.to_k.bias")
+            new_state_dict[f"{block}.attn.to_v.bias"] = old_state_dict.pop(f"{block}.to_v.bias")
+
             # old version did not have a projection so set these to the identity
             new_state_dict[f"{block}.attn.out_proj.weight"] = torch.eye(
                 new_state_dict[f"{block}.attn.out_proj.weight"].shape[0]
@@ -737,5 +728,8 @@ class AutoencoderKL(nn.Module):
         for k in new_state_dict:
             if "postconv" in k:
                 old_name = k.replace("postconv", "conv")
-                new_state_dict[k] = old_state_dict[old_name]
-        self.load_state_dict(new_state_dict)
+                new_state_dict[k] = old_state_dict.pop(old_name)
+        if verbose:
+            # print all remaining keys in old_state_dict
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
+        self.load_state_dict(new_state_dict, strict=True)

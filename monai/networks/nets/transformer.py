@@ -143,25 +143,15 @@ class DecoderOnlyTransformer(nn.Module):
         # copy over all matching keys
         for k in new_state_dict:
             if k in old_state_dict:
-                new_state_dict[k] = old_state_dict[k]
-
-        # fix the attention blocks
-        attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
-        for block in attention_blocks:
-            new_state_dict[f"{block}.attn.qkv.weight"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.attn.to_q.weight"],
-                    old_state_dict[f"{block}.attn.to_k.weight"],
-                    old_state_dict[f"{block}.attn.to_v.weight"],
-                ],
-                dim=0,
-            )
+                new_state_dict[k] = old_state_dict.pop(k)
 
         # fix the renamed norm blocks first  norm2 -> norm_cross_attention , norm3 -> norm2
-        for k in old_state_dict:
+        for k in list(old_state_dict.keys()):
             if "norm2" in k:
-                new_state_dict[k.replace("norm2", "norm_cross_attn")] = old_state_dict[k]
+                new_state_dict[k.replace("norm2", "norm_cross_attn")] = old_state_dict.pop(k)
             if "norm3" in k:
-                new_state_dict[k.replace("norm3", "norm2")] = old_state_dict[k]
-
+                new_state_dict[k.replace("norm3", "norm2")] = old_state_dict.pop(k)
+        if verbose:
+            # print all remaining keys in old_state_dict
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
         self.load_state_dict(new_state_dict)
