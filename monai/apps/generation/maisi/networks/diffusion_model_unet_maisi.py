@@ -37,10 +37,15 @@ import torch
 from torch import nn
 
 from monai.networks.blocks import Convolution
+from monai.networks.nets.diffusion_model_unet import (
+    get_down_block,
+    get_mid_block,
+    get_timestep_embedding,
+    get_up_block,
+    zero_module,
+)
 from monai.utils import ensure_tuple_rep
 from monai.utils.type_conversion import convert_to_tensor
-
-from monai.networks.nets.diffusion_model_unet import get_down_block, get_mid_block, get_up_block, get_timestep_embedding, zero_module
 
 __all__ = ["DiffusionModelUNetMaisi"]
 
@@ -67,6 +72,8 @@ class DiffusionModelUNetMaisi(nn.Module):
         cross_attention_dim: Number of context dimensions to use.
         num_class_embeds: If specified (as an int), then this model will be class-conditional with `num_class_embeds` classes.
         upcast_attention: If True, upcast attention operations to full precision.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         dropout_cattn: If different from zero, this will be the dropout value for the cross-attention layers.
         include_top_region_index_input: If True, use top region index input.
@@ -91,6 +98,8 @@ class DiffusionModelUNetMaisi(nn.Module):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
         use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
         include_top_region_index_input: bool = False,
@@ -212,6 +221,8 @@ class DiffusionModelUNetMaisi(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
                 use_flash_attention=use_flash_attention,
                 dropout_cattn=dropout_cattn,
             )
@@ -230,6 +241,8 @@ class DiffusionModelUNetMaisi(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
             dropout_cattn=dropout_cattn,
         )
@@ -265,6 +278,8 @@ class DiffusionModelUNetMaisi(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
                 use_flash_attention=use_flash_attention,
                 dropout_cattn=dropout_cattn,
             )
