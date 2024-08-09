@@ -469,6 +469,12 @@ class SegResNetDS2(SegResNetDS):
     def forward(  # type: ignore
         self, x: torch.Tensor, with_point: bool = True, with_label: bool = True, **kwargs
     ) -> tuple[Union[None, torch.Tensor, list[torch.Tensor]], Union[None, torch.Tensor, list[torch.Tensor]]]:
+        """
+        Args:
+            x: input tensor.
+            with_point: if true, return the point branch output.
+            with_label: if true, return the label branch output.
+        """
         if self.preprocess is not None:
             x = self.preprocess(x)
 
