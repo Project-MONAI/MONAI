@@ -31,6 +31,8 @@ cp, has_cp = optional_import("cupy")
 cucim_skimage, has_cucim = optional_import("cucim.skimage")
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 TESTS_SAMPLE_POINTS_FROM_LABEL = []
 for use_center in [True, False]:
@@ -116,7 +118,7 @@ class TestGetLargestConnectedComponentMaskPoint(unittest.TestCase):
     @parameterized.expand(TEST_LCC_MASK_POINT_TORCH)
     def test_cp_shape(self, input_data, shape):
         for key in input_data:
-            input_data[key] = input_data[key].cuda()
+            input_data[key] = input_data[key].to(device)
         mask = get_largest_connected_component_mask_point(**input_data)
         self.assertEqual(mask.shape, shape)
 
