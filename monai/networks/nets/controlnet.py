@@ -143,6 +143,10 @@ class ControlNet(nn.Module):
         upcast_attention: if True, upcast attention operations to full precision.
         conditioning_embedding_in_channels: number of input channels for the conditioning embedding.
         conditioning_embedding_num_channels: number of channels for the blocks in the conditioning embedding.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -163,6 +167,9 @@ class ControlNet(nn.Module):
         upcast_attention: bool = False,
         conditioning_embedding_in_channels: int = 1,
         conditioning_embedding_num_channels: Sequence[int] = (16, 32, 96, 256),
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
@@ -282,6 +289,9 @@ class ControlNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
+                use_flash_attention=use_flash_attention,
             )
 
             self.down_blocks.append(down_block)
@@ -326,6 +336,9 @@ class ControlNet(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
 
         controlnet_block = Convolution(

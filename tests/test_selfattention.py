@@ -178,7 +178,7 @@ class TestResBlock(unittest.TestCase):
         nparams_default_more_heads = count_sablock_params(hidden_size=hidden_size, num_heads=num_heads * 2)
         self.assertEqual(nparams_default, nparams_default_more_heads)
 
-    @parameterized.expand([[True, False], [True, True], [False, True],[False, False]])
+    @parameterized.expand([[True, False], [True, True], [False, True], [False, False]])
     @skipUnless(has_einops, "Requires einops")
     @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, include_fc, use_combined_linear):

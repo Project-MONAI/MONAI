@@ -157,6 +157,10 @@ class Encoder(nn.Module):
         norm_eps: epsilon for the normalization.
         attention_levels: indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: if True use non-local attention block.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -170,6 +174,9 @@ class Encoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         with_nonlocal_attn: bool = True,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -220,6 +227,9 @@ class Encoder(nn.Module):
                             num_channels=input_channel,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
+                            include_fc=include_fc,
+                            use_combined_linear=use_combined_linear,
+                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -243,6 +253,9 @@ class Encoder(nn.Module):
                     num_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -291,6 +304,10 @@ class Decoder(nn.Module):
         attention_levels: indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: if True use non-local attention block.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -305,6 +322,9 @@ class Decoder(nn.Module):
         attention_levels: Sequence[bool],
         with_nonlocal_attn: bool = True,
         use_convtranspose: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -350,6 +370,9 @@ class Decoder(nn.Module):
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -389,6 +412,9 @@ class Decoder(nn.Module):
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
+                            include_fc=include_fc,
+                            use_combined_linear=use_combined_linear,
+                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -463,6 +489,10 @@ class AutoencoderKL(nn.Module):
         with_decoder_nonlocal_attn: if True use non-local attention block in the decoder.
         use_checkpoint: if True, use activation checkpoint to save memory.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
+        include_fc: whether to include the final linear layer in the attention block. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection in the attention block, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -480,6 +510,9 @@ class AutoencoderKL(nn.Module):
         with_decoder_nonlocal_attn: bool = True,
         use_checkpoint: bool = False,
         use_convtranspose: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -509,6 +542,9 @@ class AutoencoderKL(nn.Module):
             norm_eps=norm_eps,
             attention_levels=attention_levels,
             with_nonlocal_attn=with_encoder_nonlocal_attn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
         self.decoder = Decoder(
             spatial_dims=spatial_dims,
@@ -521,6 +557,9 @@ class AutoencoderKL(nn.Module):
             attention_levels=attention_levels,
             with_nonlocal_attn=with_decoder_nonlocal_attn,
             use_convtranspose=use_convtranspose,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
         self.quant_conv_mu = Convolution(
             spatial_dims=spatial_dims,

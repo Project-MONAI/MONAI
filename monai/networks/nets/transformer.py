@@ -51,6 +51,10 @@ class DecoderOnlyTransformer(nn.Module):
         attn_layers_heads: Number of attention heads.
         with_cross_attention: Whether to use cross attention for conditioning.
         embedding_dropout_rate: Dropout rate for the embedding.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -62,6 +66,9 @@ class DecoderOnlyTransformer(nn.Module):
         attn_layers_heads: int,
         with_cross_attention: bool = False,
         embedding_dropout_rate: float = 0.0,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.num_tokens = num_tokens
@@ -86,6 +93,9 @@ class DecoderOnlyTransformer(nn.Module):
                     causal=True,
                     sequence_length=max_seq_len,
                     with_cross_attention=with_cross_attention,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
                 for _ in range(attn_layers_depth)
             ]
