@@ -25,7 +25,7 @@ from monai.transforms.utils import (
 )
 from monai.utils import min_version
 from monai.utils.module import optional_import
-from tests.utils import skip_if_no_cuda
+from tests.utils import skip_if_no_cuda, skip_if_quick
 
 cp, has_cp = optional_import("cupy")
 cucim_skimage, has_cucim = optional_import("cucim.skimage")
@@ -110,6 +110,7 @@ class TestConvertPointsToDisc(unittest.TestCase):
 @skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
 class TestGetLargestConnectedComponentMaskPoint(unittest.TestCase):
 
+    @skip_if_quick
     @skip_if_no_cuda
     @skipUnless(has_cp and cucim_skimage, "cupy and cucim.skimage required")
     @parameterized.expand(TEST_LCC_MASK_POINT_TORCH)
