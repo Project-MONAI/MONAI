@@ -4,3 +4,4 @@ setuptools>=50.3.0,<66.0.0,!=60.6.0 ; python_version < "3.12"
 setuptools>=70.2.0; python_version >= "3.12"
 coverage>=5.5
 parameterized
+packaging
