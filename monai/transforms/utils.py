@@ -1237,7 +1237,7 @@ def get_largest_connected_component_mask_point(
                 if isinstance(p, np.ndarray):
                     x, y, z = np.round(p).astype(int).tolist()
                 else:
-                    x, y, z = p.round().int().tolist()
+                    x, y, z = p.float().round().int().tolist()
                 l, r = max(x - margin, 0), min(x + margin + 1, features.shape[-3])
                 t, d = max(y - margin, 0), min(y + margin + 1, features.shape[-2])
                 f, b = max(z - margin, 0), min(z + margin + 1, features.shape[-1])
