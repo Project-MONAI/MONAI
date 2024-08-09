@@ -11,12 +11,15 @@
 
 from __future__ import annotations
 
+from typing import Union
+
 import torch.nn as nn
 
 from monai.networks.layers import get_act_layer
+from monai.networks.layers.factories import split_args
 from monai.utils import look_up_option
 
-SUPPORTED_DROPOUT_MODE = {"vit", "swin"}
+SUPPORTED_DROPOUT_MODE = {"vit", "swin", "vista3d"}
 
 
 class MLPBlock(nn.Module):
@@ -39,7 +42,7 @@ class MLPBlock(nn.Module):
                 https://github.com/google-research/vision_transformer/blob/main/vit_jax/models.py#L87
                 "swin" corresponds to one instance as implemented in
                 https://github.com/microsoft/Swin-Transformer/blob/main/models/swin_mlp.py#L23
-
+                "vista3d" mode does not use dropout.
 
         """
 
@@ -48,15 +51,24 @@ class MLPBlock(nn.Module):
         if not (0 <= dropout_rate <= 1):
             raise ValueError("dropout_rate should be between 0 and 1.")
         mlp_dim = mlp_dim or hidden_size
-        self.linear1 = nn.Linear(hidden_size, mlp_dim) if act != "GEGLU" else nn.Linear(hidden_size, mlp_dim * 2)
+        act_name, _ = split_args(act)
+        self.linear1 = nn.Linear(hidden_size, mlp_dim) if act_name != "GEGLU" else nn.Linear(hidden_size, mlp_dim * 2)
         self.linear2 = nn.Linear(mlp_dim, hidden_size)
         self.fn = get_act_layer(act)
-        self.drop1 = nn.Dropout(dropout_rate)
+        # Use Union[nn.Dropout, nn.Identity] for type annotations
+        self.drop1: Union[nn.Dropout, nn.Identity]
+        self.drop2: Union[nn.Dropout, nn.Identity]
+
         dropout_opt = look_up_option(dropout_mode, SUPPORTED_DROPOUT_MODE)
         if dropout_opt == "vit":
+            self.drop1 = nn.Dropout(dropout_rate)
             self.drop2 = nn.Dropout(dropout_rate)
         elif dropout_opt == "swin":
+            self.drop1 = nn.Dropout(dropout_rate)
             self.drop2 = self.drop1
+        elif dropout_opt == "vista3d":
+            self.drop1 = nn.Identity()
+            self.drop2 = nn.Identity()
         else:
             raise ValueError(f"dropout_mode should be one of {SUPPORTED_DROPOUT_MODE}")
 
