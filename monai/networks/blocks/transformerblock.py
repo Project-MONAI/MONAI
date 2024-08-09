@@ -36,6 +36,9 @@ class TransformerBlock(nn.Module):
         causal: bool = False,
         sequence_length: int | None = None,
         with_cross_attention: bool = False,
+        use_flash_attention: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = True,
     ) -> None:
         """
         Args:
@@ -43,8 +46,12 @@ class TransformerBlock(nn.Module):
             mlp_dim (int): dimension of feedforward layer.
             num_heads (int): number of attention heads.
             dropout_rate (float, optional): fraction of the input units to drop. Defaults to 0.0.
-            qkv_bias (bool, optional): apply bias term for the qkv linear layer. Defaults to False.
+            qkv_bias(bool, optional): apply bias term for the qkv linear layer. Defaults to False.
             save_attn (bool, optional): to make accessible the attention matrix. Defaults to False.
+            use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+                (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            include_fc: whether to include the final linear layer. Default to True.
+            use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
 
         """
 
@@ -66,13 +73,21 @@ class TransformerBlock(nn.Module):
             save_attn=save_attn,
             causal=causal,
             sequence_length=sequence_length,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
         self.norm2 = nn.LayerNorm(hidden_size)
         self.with_cross_attention = with_cross_attention
 
         self.norm_cross_attn = nn.LayerNorm(hidden_size)
         self.cross_attn = CrossAttentionBlock(
-            hidden_size=hidden_size, num_heads=num_heads, dropout_rate=dropout_rate, qkv_bias=qkv_bias, causal=False
+            hidden_size=hidden_size,
+            num_heads=num_heads,
+            dropout_rate=dropout_rate,
+            qkv_bias=qkv_bias,
+            causal=False,
+            use_flash_attention=use_flash_attention,
         )
 
     def forward(self, x: torch.Tensor, context: Optional[torch.Tensor] = None) -> torch.Tensor:
