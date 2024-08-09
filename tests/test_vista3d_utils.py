@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 from unittest.case import skipUnless
 
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -55,8 +56,40 @@ for radius in [1, 2]:
             ]
         )
 
+TEST_LCC_MASK_POINT_TORCH = []
+for bs in [1, 2]:
+    for num_points in [1, 3]:
+        shape = (bs, 1, 128, 32, 32)
+        TEST_LCC_MASK_POINT_TORCH.append(
+            [
+                {
+                    "img_pos": torch.randint(0, 2, shape, dtype=torch.bool),
+                    "img_neg": torch.randint(0, 2, shape, dtype=torch.bool),
+                    "point_coords": torch.randint(0, 10, (bs, num_points, 3)),
+                    "point_labels": torch.randint(0, 4, (bs, num_points)),
+                },
+                shape,
+            ]
+        )
 
-@skipUnless(has_measure or has_cucim, "skimage or cucim required")
+TEST_LCC_MASK_POINT_NP = []
+for bs in [1, 2]:
+    for num_points in [1, 3]:
+        shape = (bs, 1, 32, 32, 64)
+        TEST_LCC_MASK_POINT_NP.append(
+            [
+                {
+                    "img_pos": np.random.randint(0, 2, shape, dtype=bool),
+                    "img_neg": np.random.randint(0, 2, shape, dtype=bool),
+                    "point_coords": np.random.randint(0, 5, (bs, num_points, 3)),
+                    "point_labels": np.random.randint(0, 4, (bs, num_points)),
+                },
+                shape,
+            ]
+        )
+
+
+@skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
 class TestSamplePointsFromLabel(unittest.TestCase):
 
     @parameterized.expand(TESTS_SAMPLE_POINTS_FROM_LABEL)
@@ -74,17 +107,22 @@ class TestConvertPointsToDisc(unittest.TestCase):
         self.assertEqual(result.shape, expected_shape)
 
 
-@skipUnless(has_cucim and has_cp, "cucim and cupy required")
+@skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
 class TestGetLargestConnectedComponentMaskPoint(unittest.TestCase):
 
     @skip_if_no_cuda
-    def test_shape(self):
-        shape = (1, 1, 128, 128, 128)
-        img_pos = torch.randint(0, 2, shape).cuda()
-        img_neg = torch.randint(0, 2, shape).cuda()
-        point_coords = torch.randint(0, 32, (1, 1, 3)).cuda()
-        point_labels = torch.randint(0, 4, (1, 1)).cuda()
-        mask = get_largest_connected_component_mask_point(img_pos, img_neg, point_coords, point_labels)
+    @skipUnless(has_cp and cucim_skimage, "cupy and cucim.skimage required")
+    @parameterized.expand(TEST_LCC_MASK_POINT_TORCH)
+    def test_cp_shape(self, input_data, shape):
+        for key in input_data:
+            input_data[key] = input_data[key].cuda()
+        mask = get_largest_connected_component_mask_point(**input_data)
+        self.assertEqual(mask.shape, shape)
+
+    @skipUnless(has_measure, "skimage required")
+    @parameterized.expand(TEST_LCC_MASK_POINT_NP)
+    def test_np_shape(self, input_data, shape):
+        mask = get_largest_connected_component_mask_point(**input_data)
         self.assertEqual(mask.shape, shape)
 
 

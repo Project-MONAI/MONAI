@@ -1179,40 +1179,49 @@ def get_largest_connected_component_mask(
 
 
 def get_largest_connected_component_mask_point(
-    img_pos: Tensor,
-    img_neg: Tensor,
-    point_coords: Tensor,
-    point_labels: Tensor,
+    img_pos: NdarrayTensor,
+    img_neg: NdarrayTensor,
+    point_coords: NdarrayTensor,
+    point_labels: NdarrayTensor,
     pos_val: Sequence[int] = (1, 3),
     neg_val: Sequence[int] = (0, 2),
     margins: int = 3,
-) -> Tensor:
+) -> NdarrayTensor:
     """
-    Gets the largest connected component mask of an image that include the point_coords.
-    # TODO: need author to provide more details about this function. Especially about each argument.
-    Args:
-        img_pos: [1, 1, H, W, D]
-        img_neg: [1, 1, H, W, D]
+    Gets the connected component of img_pos and img_neg that include the positive points and
+    negative points separately. The function is used for combining automatic results with interactive
+    results in VISTA3D.
 
-        point_coords [1, N, 3]
-        point_labels [1, N]
+    Args:
+        img_pos: bool type tensor, shape [B, 1, H, W, D], where B means the foreground masks from a single 3D image.
+        img_neg: same format as img_pos but corresponds to negative points.
+        pos_val: positive point label values.
+        neg_val: negative point label values.
+        point_coords: the coordinates of each point, shape [B, N, 3], where N means the number of points.
+        point_labels: the label of each point, shape [B, N].
     """
+
     cucim_skimage, has_cucim = optional_import("cucim.skimage")
 
-    use_cp = has_cp and has_cucim and img_pos.device != torch.device("cpu")
+    use_cp = has_cp and has_cucim and isinstance(img_pos, torch.Tensor) and img_pos.device != torch.device("cpu")
     if use_cp:
         img_pos_ = convert_to_cupy(img_pos.short())  # type: ignore
         img_neg_ = convert_to_cupy(img_neg.short())  # type: ignore
         label = cucim_skimage.measure.label
         lib = cp
     else:
-        raise RuntimeError("Cucim.skimage and GPU device are required.")
+        if not has_measure:
+            raise RuntimeError("skimage.measure required.")
+        img_pos_, *_ = convert_data_type(img_pos, np.ndarray)
+        img_neg_, *_ = convert_data_type(img_neg, np.ndarray)
+        # for skimage.measure.label, the input must be bool type
+        if img_pos_.dtype != bool or img_neg_.dtype != bool:
+            raise ValueError("img_pos and img_neg must be bool type.")
+        label = measure.label
+        lib = np
 
     features_pos, _ = label(img_pos_, connectivity=3, return_num=True)
     features_neg, _ = label(img_neg_, connectivity=3, return_num=True)
-
-    pos_val = list(pos_val)
-    neg_val = list(neg_val)
 
     outs = np.zeros_like(img_pos_)
     for bs in range(point_coords.shape[0]):
@@ -1225,7 +1234,10 @@ def get_largest_connected_component_mask_point(
                 # if -1 padding point, skip
                 continue
             for margin in range(margins):
-                x, y, z = p.round().int().tolist()
+                if isinstance(p, np.ndarray):
+                    x, y, z = np.round(p).astype(int).tolist()
+                else:
+                    x, y, z = p.round().int().tolist()
                 l, r = max(x - margin, 0), min(x + margin + 1, features.shape[-3])
                 t, d = max(y - margin, 0), min(y + margin + 1, features.shape[-2])
                 f, b = max(z - margin, 0), min(z + margin + 1, features.shape[-1])
