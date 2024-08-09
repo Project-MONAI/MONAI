@@ -178,20 +178,19 @@ class TestResBlock(unittest.TestCase):
         nparams_default_more_heads = count_sablock_params(hidden_size=hidden_size, num_heads=num_heads * 2)
         self.assertEqual(nparams_default, nparams_default_more_heads)
 
+    @parameterized.expand([[True,False], [True,True], [False, True],[False, False]])
     @skipUnless(has_einops, "Requires einops")
     @SkipIfBeforePyTorchVersion((2, 0))
-    def test_script(self):
-        for include_fc in [True, False]:
-            for use_combined_linear in [True, False]:
-                input_param = {
-                    "hidden_size": 360,
-                    "num_heads": 4,
-                    "dropout_rate": 0.0,
-                    "rel_pos_embedding": None,
-                    "input_size": (16, 32),
-                    "include_fc": include_fc,
-                    "use_combined_linear": use_combined_linear,
-                }
+    def test_script(self, include_fc, use_combined_linear):
+        input_param = {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "dropout_rate": 0.0,
+            "rel_pos_embedding": None,
+            "input_size": (16, 32),
+            "include_fc": include_fc,
+            "use_combined_linear": use_combined_linear,
+        }
         net = SABlock(**input_param)
         input_shape = (2, 512, 360)
         test_data = torch.randn(input_shape)
