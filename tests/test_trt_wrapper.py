@@ -22,7 +22,9 @@ from monai.utils import optional_import
 from tests.utils import skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 TRTWrapper, has_trtwrapper = optional_import(
-    "monai.utils", name="TRTWrapper", descriptor="TRT wrapper is not available - check your installation!"
+    "monai.networks.trt_wrapper",
+    name="TRTWrapper",
+    descriptor="TRT wrapper is not available - check your installation!",
 )
 
 TEST_CASE_1 = ["fp32"]

@@ -19,9 +19,8 @@ from collections import OrderedDict
 import torch
 
 from monai.apps.utils import get_logger
-
-from .export_utils import onnx_export
-from .module import optional_import
+from monai.networks.utils import add_casts_around_norms, convert_to_onnx
+from monai.utils.module import optional_import
 
 P, P_imported = optional_import("polygraphy")
 if P_imported:
@@ -427,7 +426,7 @@ class TRTWrapper(torch.nn.Module):
         enable_all_tactics=True,
         """
         if not export_args:
-            export_args: dict = {}
+            export_args = {}
         if input_profiles:
             export_args.update({"dynamic_axes": get_dynamic_axes(input_profiles)})
 
@@ -435,10 +434,11 @@ class TRTWrapper(torch.nn.Module):
             try:
                 if not self.has_onnx():
                     LOGGER.info(f"Exporting to {self.onnx_path}, export args: {export_args}")
-                    onnx_export(
+                    add_casts_around_norms(self.model)
+                    convert_to_onnx(
                         self.model,
                         input_example,
-                        self.onnx_path,
+                        filename=self.onnx_path,
                         input_names=self.input_names,
                         output_names=self.output_names,
                         **export_args,
@@ -448,4 +448,7 @@ class TRTWrapper(torch.nn.Module):
                 self.load_engine()
                 os.remove(self.onnx_path)
             except Exception as e:
-                LOGGER.info(f"Failed to build engine: {e}")
+                if self.fallback:
+                    LOGGER.info(f"Failed to build engine: {e}")
+                else:
+                    raise e
