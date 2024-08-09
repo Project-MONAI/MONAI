@@ -51,12 +51,12 @@ class TestResNetDS(unittest.TestCase):
     def test_ill_arg0(self):
         with self.assertRaises(RuntimeError):
             net = CellSamWrapper(auto_resize_inputs=False, checkpoint=None).to(device)
-            net(torch.randn([1, 3, 256, 256]))
+            net(torch.randn([1, 3, 256, 256]).to(device))
 
     def test_ill_arg1(self):
         with self.assertRaises(RuntimeError):
             net = CellSamWrapper(network_resize_roi=[256,256], checkpoint=None).to(device)
-            net(torch.randn([1, 3, 1024, 1024]))
+            net(torch.randn([1, 3, 1024, 1024]).to(device))
 
 if __name__ == "__main__":
     unittest.main()

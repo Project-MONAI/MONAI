@@ -28,9 +28,13 @@ class CellSamWrapper(torch.nn.Module):
 
     Args:
         auto_resize_inputs: whether to resize inputs before passing to the network.
+            (usually they need be resized, unless they are already at the expected size)
         network_resize_roi: expected input size for the network.
+            (currently SAM expects 1024x1024)
         checkpoint: checkpoint file to load the SAM weights from.
-        return_features: whether to return features
+            (this can be downloaded from SAM repo https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth)
+        return_features: whether to return features from SAM encoder 
+            (without using decoder/upsampling to the original input size)
 
     """
 
