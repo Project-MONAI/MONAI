@@ -564,7 +564,7 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging.Version")
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
@@ -591,7 +591,8 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging.Version")
+
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
@@ -629,7 +630,7 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
         if current_ver_string is None:
             _env_var = os.environ.get("PYTORCH_VER", "")
             current_ver_string = _env_var if _env_var else torch.__version__
-        ver, has_ver = optional_import("pkg_resources", name="parse_version")
+        ver, has_ver = optional_import("packaging.version", name="parse")
         if has_ver:
             return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")  # type: ignore
         parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)

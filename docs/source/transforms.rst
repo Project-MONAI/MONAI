@@ -2310,6 +2310,9 @@ Utilities
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
     :members:
 
+.. automodule:: monai.transforms.utils_morphological_ops
+    :members:
+
 By Categories
 -------------
 .. toctree::
