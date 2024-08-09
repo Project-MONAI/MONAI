@@ -22,7 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
 
 einops, has_einops = optional_import("einops")
 
@@ -32,20 +32,23 @@ for dropout_rate in np.linspace(0, 1, 4):
         for num_heads in [4, 6, 8, 12]:
             for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
                 for input_size in [(16, 32), (8, 8, 8)]:
-                    for flash_attn in [True, False]:
-                        test_case = [
-                            {
-                                "hidden_size": hidden_size,
-                                "num_heads": num_heads,
-                                "dropout_rate": dropout_rate,
-                                "rel_pos_embedding": rel_pos_embedding if not flash_attn else None,
-                                "input_size": input_size,
-                                "use_flash_attention": flash_attn,
-                            },
-                            (2, 512, hidden_size),
-                            (2, 512, hidden_size),
-                        ]
-                        TEST_CASE_SABLOCK.append(test_case)
+                    for include_fc in [True, False]:
+                        for use_combined_linear in [True, False]:
+                            test_case = [
+                                {
+                                    "hidden_size": hidden_size,
+                                    "num_heads": num_heads,
+                                    "dropout_rate": dropout_rate,
+                                    "rel_pos_embedding": rel_pos_embedding,
+                                    "input_size": input_size,
+                                    "include_fc": include_fc,
+                                    "use_combined_linear": use_combined_linear,
+                                    "use_flash_attention": True if rel_pos_embedding is None else False,
+                                },
+                                (2, 512, hidden_size),
+                                (2, 512, hidden_size),
+                            ]
+                            TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
@@ -174,6 +177,39 @@ class TestResBlock(unittest.TestCase):
         # Increasing the number of heads with the default behaviour should not change the number of params.
         nparams_default_more_heads = count_sablock_params(hidden_size=hidden_size, num_heads=num_heads * 2)
         self.assertEqual(nparams_default, nparams_default_more_heads)
+
+    @parameterized.expand([[True, False], [True, True], [False, True], [False, False]])
+    @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_script(self, include_fc, use_combined_linear):
+        input_param = {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "dropout_rate": 0.0,
+            "rel_pos_embedding": None,
+            "input_size": (16, 32),
+            "include_fc": include_fc,
+            "use_combined_linear": use_combined_linear,
+        }
+        net = SABlock(**input_param)
+        input_shape = (2, 512, 360)
+        test_data = torch.randn(input_shape)
+        test_script_save(net, test_data)
+
+    @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_flash_attention(self):
+        for causal in [True, False]:
+            input_param = {"hidden_size": 360, "num_heads": 4, "input_size": (16, 32), "causal": causal}
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        block_w_flash_attention = SABlock(**input_param, use_flash_attention=True).to(device)
+        block_wo_flash_attention = SABlock(**input_param, use_flash_attention=False).to(device)
+        block_wo_flash_attention.load_state_dict(block_w_flash_attention.state_dict())
+        test_data = torch.randn(2, 512, 360).to(device)
+
+        out_1 = block_w_flash_attention(test_data)
+        out_2 = block_wo_flash_attention(test_data)
+        assert_allclose(out_1, out_2, atol=1e-4)
 
 
 if __name__ == "__main__":
