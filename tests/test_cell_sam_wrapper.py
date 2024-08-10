@@ -24,14 +24,13 @@ build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="b
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_CASE_CELLSEGWRAPPER = []
-for auto_resize_inputs in [True, False]:
-    for dims in [128, 256, 512, 1024]:
-        test_case = [
-            {"auto_resize_inputs": True, "network_resize_roi": [1024, 1024], "checkpoint": None},
-            (1, 3, *([dims] * 2)),
-            (1, 3, *([dims] * 2)),
-        ]
-        TEST_CASE_CELLSEGWRAPPER.append(test_case)
+for dims in [128, 256, 512, 1024]:
+    test_case = [
+        {"auto_resize_inputs": True, "network_resize_roi": [1024, 1024], "checkpoint": None},
+        (1, 3, *([dims] * 2)),
+        (1, 3, *([dims] * 2)),
+    ]
+    TEST_CASE_CELLSEGWRAPPER.append(test_case)
 
 
 @unittest.skipUnless(has_sam, "Requires SAM installation")

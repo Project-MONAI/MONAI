@@ -43,7 +43,7 @@ class CellSamWrapper(torch.nn.Module):
     def __init__(
         self,
         auto_resize_inputs=True,
-        network_resize_roi=[1024, 1024],
+        network_resize_roi=(1024, 1024),
         checkpoint="sam_vit_b_01ec64.pth",
         return_features=False,
         *args,
