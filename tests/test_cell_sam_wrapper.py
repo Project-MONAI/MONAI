@@ -18,24 +18,20 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.cell_sam_wrapper import CellSamWrapper
-
 from monai.utils import optional_import
+
 build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="build_sam_vit_b")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_CASE_CELLSEGWRAPPER = []
 for auto_resize_inputs in [True, False]:
     for dims in [128, 256, 512, 1024]:
-            test_case = [
-                {
-                    "auto_resize_inputs": True,
-                    "network_resize_roi": [1024, 1024],
-                    "checkpoint": None,
-                },
-                (1, 3, *([dims] * 2)),
-                (1, 3, *([dims] * 2)),
-            ]
-            TEST_CASE_CELLSEGWRAPPER.append(test_case)
+        test_case = [
+            {"auto_resize_inputs": True, "network_resize_roi": [1024, 1024], "checkpoint": None},
+            (1, 3, *([dims] * 2)),
+            (1, 3, *([dims] * 2)),
+        ]
+        TEST_CASE_CELLSEGWRAPPER.append(test_case)
 
 
 @unittest.skipUnless(has_sam, "Requires SAM installation")
@@ -55,8 +51,9 @@ class TestResNetDS(unittest.TestCase):
 
     def test_ill_arg1(self):
         with self.assertRaises(RuntimeError):
-            net = CellSamWrapper(network_resize_roi=[256,256], checkpoint=None).to(device)
+            net = CellSamWrapper(network_resize_roi=[256, 256], checkpoint=None).to(device)
             net(torch.randn([1, 3, 1024, 1024]).to(device))
+
 
 if __name__ == "__main__":
     unittest.main()

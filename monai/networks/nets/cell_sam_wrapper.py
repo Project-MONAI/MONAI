@@ -16,9 +16,11 @@ from torch import nn
 from torch.nn import functional as F
 
 from monai.utils import optional_import
+
 build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="build_sam_vit_b")
 
 _all__ = ["CellSamWrapper"]
+
 
 class CellSamWrapper(torch.nn.Module):
     """
@@ -54,7 +56,9 @@ class CellSamWrapper(torch.nn.Module):
         self.return_features = return_features
 
         if not has_sam:
-            raise ValueError("SAM is not installed, please run: pip install git+https://github.com/facebookresearch/segment-anything.git")
+            raise ValueError(
+                "SAM is not installed, please run: pip install git+https://github.com/facebookresearch/segment-anything.git"
+            )
 
         model = build_sam_vit_b(checkpoint=checkpoint)
 
