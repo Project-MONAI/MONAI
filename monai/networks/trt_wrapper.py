@@ -11,10 +11,11 @@
 
 from __future__ import annotations
 
+import inspect
 import os
-import pickle
 import threading
 from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 
 import torch
 
@@ -25,10 +26,8 @@ from monai.utils.module import optional_import
 P, P_imported = optional_import("polygraphy")
 if P_imported:
     from polygraphy.backend.common import bytes_from_path
-    from polygraphy.backend.onnxrt import OnnxrtRunner, session_from_onnx
     from polygraphy.backend.trt import (
         CreateConfig,
-        ModifyNetworkOutputs,
         Profile,
         engine_from_bytes,
         engine_from_network,
@@ -97,7 +96,7 @@ class ShapeError(Exception):
     pass
 
 
-class Engine:
+class TRTEngine:
     """
     An auxiliary class to implement running of TRT optimized engines
 
@@ -218,44 +217,77 @@ class Engine:
 
 class TRTWrapper(torch.nn.Module):
     """
-    This wrapper implements TRT, ONNX and Torchscript persistent export
-    and running with optional fallback to Torch (for TRT modules with limited profiles)
+    This wrapper implements:
+      - TRT lazy persistent export
+      - Running TRT with optional fallback to Torch
+        (for TRT engines with limited profiles)
     """
 
     def __init__(
         self,
-        path,
-        model=None,
-        input_names=None,
-        output_names=None,
-        use_cuda_graph=False,
-        timestamp=None,
-        fallback=False,
+        path: str,
+        model: torch.nn.Module | None = None,
+        precision: str = "tf32",
+        input_names: Sequence[str] | None = None,
+        output_names: Sequence[str] | None = None,
+        export_args: Mapping | None = None,
+        build_args: Mapping | None = None,
+        input_profiles: Mapping | None = None,
+        dynamic_batchsize: Sequence[int] | None = None,
+        use_cuda_graph: bool = False,
+        timestamp: int | None = None,
+        fallback: bool = False,
     ):
+        """
+        Initialization method:
+         Tries to load persistent serialized TRT engine
+         Saves arguments for lazy TRT build on first forward() call
+        Args:
+            path : Path where to save persistent serialized TRT engine,
+            model: Model to "wrap". Can be None if TRT engine is supposed to exist.
+            input_names: Optional list of output names to pass to onnx.export()
+            output_names: Optional list of output names to pass to onnx.export()
+            export_args: Optional args to pass to onnx.export(). See onnx.export() for details.
+            build_args: Optional args to pass to TRT builder. See polygraphy.Config for details
+            input_profiles: Optional list of profiles for TRT builder and ONNX export.
+                            Each profile is a map of "input name" -> [min,opt,max] values.
+            dynamic_batchsize: A sequence with three elements to define the batch size range of the input for the model to be
+                               converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
+            If both input_profiles and dynamic_batchsize are omitted, static shapes will be used to build TRT engine.
+            use_cuda_graph: Use CUDA Graph for inference(all inputs have to be the same GPU memory between calls!)
+            timestamp: Optional timestamp to rebuild TRT engine (e.g. if config file changes)
+            fallback: Allow to fall back to Pytorch when TRT inference fails (e.g, shapes exceed max profile)
+        """
+
         super().__init__()
-        self.input_names = input_names
-        self.output_names = output_names
-        self.model = model
-        self.profiles = None
-        self.engine: Engine | None = None
-        self.jit_model = None
-        self.onnx_runner = None
         self.path = path
+        self.model = model
+        self.precision = precision
+        self.output_names = output_names or []
+        self.profiles = input_profiles or []
+        self.dynamic_batchsize = dynamic_batchsize
+        self.export_args = export_args or {}
+        self.build_args = build_args or {}
+        self.engine: TRTEngine | None = None
         self.use_cuda_graph = use_cuda_graph
         self.fallback = fallback
+        self.disabled = False
 
-        if os.path.exists(self.onnx_path):
-            ftime = os.path.getmtime(self.onnx_path)
-            if timestamp is not None and ftime < timestamp:
-                os.remove(self.onnx_path)
-            else:
-                timestamp = ftime
+        # Force engine rebuild if older than the timestamp passed
         if (
             timestamp is not None
             and os.path.exists(self.engine_path)
             and os.path.getmtime(self.engine_path) < timestamp
         ):
             os.remove(self.engine_path)
+
+        # Normally we read input_names from forward() but can be overridden
+        if input_names is None and self.model is not None:
+            argspec = inspect.getfullargspec(self.model.forward)
+            input_names = argspec.args[1:]
+        self.input_names = input_names
+
+        self._load_engine()
 
     """
     Auxiliary getters/setters
@@ -266,96 +298,53 @@ class TRTWrapper(torch.nn.Module):
         return self.path + ".plan"
 
     @property
-    def jit_path(self):
-        return self.path + ".ts"
-
-    @property
     def onnx_path(self):
         return self.path + ".onnx"
 
-    @property
-    def profiles_path(self):
-        return self.path + ".profiles.pkl"
+    def _inputs_to_dict(self, input_example):
+        trt_inputs = {}
+        for i, inp in enumerate(input_example):
+            input_name = self.input_names[i]
+            trt_inputs[input_name] = inp
+        return trt_inputs
 
-    def has_engine(self):
-        return self.engine is not None
-
-    def has_onnx(self):
-        return os.path.exists(self.onnx_path)
-
-    def has_jit(self):
-        return os.path.exists(self.jit_path)
-
-    def has_profiles(self):
-        return os.path.exists(self.profiles_path)
-
-    def delete_model(self):
-        if self.fallback and self.model is not None:
-            del self.model
-            self.model = None
-
-    def load_engine(self):
+    def _load_engine(self):
         """
         Loads TRT plan from disk and activates its execution context.
         """
         try:
-            self.engine = Engine(self.engine_path)
-            self.delete_model()
+            self.engine = TRTEngine(self.engine_path)
+            self.input_names = self.engine.input_names
+            if self.fallback and self.model is not None:
+                del self.model
+                self.model = None
         except Exception as e:
             LOGGER.debug(f"Exception while loading the engine:\n{e}")
 
-    def load_jit(self):
+    def forward(self, *argv, **kwargs):
         """
-        Loads Torchscript from disk
+        Main forward method:
+         Builds TRT engine if not available yet.
+         Tries to run TRT engine
+         If exception thrown and self.callback==True: falls back to original Pytorch
+
+        Args: Passing through whatever args wrapped module's forward() has
+        Returns: Passing through wrapped module's forward() return value(s)
+
         """
         try:
-            self.jit_model = torch.jit.load(self.jit_path)
-            self.delete_model()
-        except Exception:
-            pass
+            if len(argv) > 0:
+                kwargs.update(self._inputs_to_dict(argv))
+                argv = []
 
-    def load_onnx(self, providers=None):
-        """
-        Loads ONNX from disk and creates/activates OnnxrtRunner runner for it.
-        """
-        if providers is None:
-            providers = ["CUDAExecutionProvider"]
-        try:
-            onnx_runner = OnnxrtRunner(session_from_onnx(self.onnx_path, providers=providers))
-            onnx_runner.activate()
-            self.onnx_runner = onnx_runner
-            self.delete_model()
-        except Exception:
-            pass
-
-    def load_profiles(self):
-        """
-        Loads saved optimization profiles from disk
-        """
-        with open(self.profiles_path, "rb") as fp:
-            profiles = pickle.load(fp)
-        self.profiles = profiles
-        return profiles
-
-    def save_profiles(self):
-        """
-        Saves optimization profiles to disk using pickle
-        """
-        with open(self.profiles_path, "wb") as fp:
-            pickle.dump(self.profiles, fp)
-
-    def forward(self, **args):
-        """
-        Main forward method: depending on TRT/Torchscript/ONNX representation available,
-        runs appropriate accelerated method. If exception thrown, falls back to original Pytorch
-        """
-        try:
+            if self.engine is None and not self.disabled:
+                self._build_and_save(kwargs)
             if self.engine is not None:
                 # forward_trt is not thread safe as we do not use per-thread execution contexts
                 with lock_sm:
                     device = torch.cuda.current_device()
                     stream = torch.cuda.Stream(device=device)
-                    self.engine.set_inputs(args, stream.cuda_stream)
+                    self.engine.set_inputs(kwargs, stream.cuda_stream)
                     self.engine.allocate_buffers(device=device)
                     # Need this to synchronize with Torch stream
                     stream.wait_stream(torch.cuda.current_stream())
@@ -365,32 +354,21 @@ class TRTWrapper(torch.nn.Module):
                     if len(ret) == 1:
                         ret = ret[0]
                     return ret
-            elif self.jit_model is not None:
-                return self.jit_model.forward(**args)
-            elif self.onnx_runner is not None:
-                ret = self.onnx_runner.infer(args)
-                ret = list(ret.values())
-                ret = [r.cuda() for r in ret]
-                if len(ret) == 1:
-                    ret = ret[0]
-                return ret
         except Exception as e:
             if self.model:
                 LOGGER.info(f"Exception: {e}\nFalling back to Pytorch ...")
             else:
                 raise e
-        return self.model.forward(**args)
+        return self.model.forward(*argv, **kwargs)
 
-    def onnx_to_trt(self, input_profiles=None, **build_args):
+    def _onnx_to_trt(self):
         """
         Builds TRT engine from ONNX file at self.onnx_path and saves to self.trt_path
-        Args:
-             input_profiles, build_args - passed to engine.build()
         """
 
         profiles = []
-        if input_profiles:
-            for input_profile in input_profiles:
+        if self.profiles:
+            for input_profile in self.profiles:
                 if isinstance(input_profile, Profile):
                     profiles.append(input_profile)
                 else:
@@ -399,56 +377,64 @@ class TRTWrapper(torch.nn.Module):
                         assert len(dims) == 3
                         p.add(name, min=dims[0], opt=dims[1], max=dims[2])
                     profiles.append(p)
-            self.profiles = profiles
-            self.save_profiles()
+
+        build_args = self.build_args.copy()
+        build_args["tf32"] = self.precision != "fp32"
+        build_args["fp16"] = self.precision == "fp16"
+        build_args["bf16"] = self.precision == "bf16"
 
         LOGGER.info(f"Building TensorRT engine for {self.onnx_path}: {self.engine_path}")
-
         network = network_from_onnx_path(self.onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
-        if self.output_names and False:
-            LOGGER.info(f"Updating network outputs to {self.output_names}")
-            network = ModifyNetworkOutputs(network, self.output_names)
-
-        LOGGER.info("Calling engine_from_network...")
-
         engine = engine_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
         save_engine(engine, path=self.engine_path)
 
-    def build_and_save(self, input_example, export_args=None, input_profiles=None, **build_args):
+    def _build_and_save(self, input_example):
         """
-        If serialized engine is not found, exports self.model to ONNX,
+        If TRT engine is not ready, exports self.model to ONNX,
         builds TRT engine and saves serialized TRT engine to the disk.
         Args:
-             input_example, export_args:  passed to self.onnx_export()
-             input_profiles: used to get dynamic axes for onnx_export(),
-                             passed to self.build_engine()
-             build_args : passed to onnx_to_trt()
-        enable_all_tactics=True,
+             input_example: passed to onnx.export()
         """
-        if not export_args:
-            export_args = {}
-        if input_profiles:
-            export_args.update({"dynamic_axes": get_dynamic_axes(input_profiles)})
+        if self.engine is not None:
+            return
 
-        if not self.has_engine():
-            try:
-                if not self.has_onnx():
-                    LOGGER.info(f"Exporting to {self.onnx_path}, export args: {export_args}")
-                    add_casts_around_norms(self.model)
-                    convert_to_onnx(
-                        self.model,
-                        input_example,
-                        filename=self.onnx_path,
-                        input_names=self.input_names,
-                        output_names=self.output_names,
-                        **export_args,
-                    )
-                    LOGGER.info("Export to ONNX successful.")
-                self.onnx_to_trt(input_profiles=input_profiles, **build_args)
-                self.load_engine()
-                os.remove(self.onnx_path)
-            except Exception as e:
-                if self.fallback:
-                    LOGGER.info(f"Failed to build engine: {e}")
-                else:
-                    raise e
+        if self.model is None:
+            raise ValueError("ERROR: self.model is None!")
+
+        try:
+            export_args = self.export_args
+            dbs = self.dynamic_batchsize
+            if dbs:
+                if len(self.profiles) > 0:
+                    raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TRTWrapper!")
+                if len(dbs) != 3:
+                    raise ValueError("dynamic_batchsize has to have len ==3 ")
+                profiles = {}
+                for id, val in input_example.items():
+                    sh = val.shape[1:]
+                    profiles[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
+                self.profiles = [profiles]
+
+            if len(self.profiles) > 0:
+                export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
+
+            LOGGER.info(f"Exporting to {self.onnx_path}, export args: {export_args}")
+            add_casts_around_norms(self.model)
+            convert_to_onnx(
+                self.model,
+                (input_example,),
+                filename=self.onnx_path,
+                input_names=self.input_names,
+                output_names=self.output_names,
+                **export_args,
+            )
+            LOGGER.info("Export to ONNX successful.")
+            self._onnx_to_trt()
+            self._load_engine()
+            os.remove(self.onnx_path)
+        except Exception as e:
+            if self.fallback:
+                LOGGER.info(f"Failed to build engine: {e}")
+                self.disabled = True
+            else:
+                raise e

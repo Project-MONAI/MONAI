@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import tempfile
+import time
 import unittest
 
 import torch
@@ -60,14 +61,20 @@ class TestConvertToTRT(unittest.TestCase):
             model.eval()
             input_example = torch.randn(1, 1, 96, 96, 96).cuda()
             output_example = model(input_example)
-            args: dict = {"tf32": True}
-            if precision == "fp16":
-                args["fp16"] = True
-                args["precision_constraints"] = "obey"
+            args: dict = {"builder_optimization_level": 1}
 
-            trt_wrapper = TRTWrapper("test_wrapper", model, input_names=["x"])
-            trt_wrapper.build_and_save(input_example, **args, builder_optimization_level=1)
-            trt_output = trt_wrapper(x=input_example)
+            trt_wrapper = TRTWrapper(
+                "test_wrapper",
+                model,
+                precision=precision,
+                build_args=args,
+                dynamic_batchsize=[1, 4, 8],
+                timestamp=time.time(),
+            )
+            assert trt_wrapper.engine is None
+            trt_output = trt_wrapper(input_example)
+            # Check that lazy TRT build succeeded
+            assert trt_wrapper.engine is not None
             torch.testing.assert_close(trt_output, output_example, rtol=0.01, atol=0.01)
 
 
