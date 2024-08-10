@@ -245,6 +245,7 @@ class TRTWrapper(torch.nn.Module):
         Args:
             path : Path where to save persistent serialized TRT engine,
             model: Model to "wrap". Can be None if TRT engine is supposed to exist.
+            precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
             input_names: Optional list of output names to pass to onnx.export()
             output_names: Optional list of output names to pass to onnx.export()
             export_args: Optional args to pass to onnx.export(). See onnx.export() for details.
