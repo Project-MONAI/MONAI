@@ -1272,6 +1272,7 @@ def _export(
             converts the module to another type.
         saver: a callable object that accepts the converted model to save, a filepath to save to, meta values
             (extracted from the parser), and a dictionary of extra JSON files (name -> contents) as input.
+        parser: a ConfigParser of the bundle to be converted.
         net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
         ckpt_file: filepath of the model checkpoint to load.
