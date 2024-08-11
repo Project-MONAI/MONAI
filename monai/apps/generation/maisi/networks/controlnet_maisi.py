@@ -65,7 +65,7 @@ class ControlNetMaisi(ControlNet):
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
         conditioning_embedding_in_channels: int = 1,
-        conditioning_embedding_num_channels: Sequence[int] | None = (16, 32, 96, 256),
+        conditioning_embedding_num_channels: Sequence[int] = (16, 32, 96, 256),
         use_checkpointing: bool = True,
         include_fc: bool = False,
         use_combined_linear: bool = False,
@@ -102,7 +102,7 @@ class ControlNetMaisi(ControlNet):
         conditioning_scale: float = 1.0,
         context: torch.Tensor | None = None,
         class_labels: torch.Tensor | None = None,
-    ) -> tuple[Sequence[torch.Tensor], torch.Tensor]:
+    ) -> tuple[list[torch.Tensor], torch.Tensor]:
         emb = self._prepare_time_and_class_embedding(x, timesteps, class_labels)
         h = self._apply_initial_convolution(x)
         if self.use_checkpointing:
