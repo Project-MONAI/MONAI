@@ -72,8 +72,8 @@ class DiffusionModelUNetMaisi(nn.Module):
         cross_attention_dim: Number of context dimensions to use.
         num_class_embeds: If specified (as an int), then this model will be class-conditional with `num_class_embeds` classes.
         upcast_attention: If True, upcast attention operations to full precision.
-        include_fc: whether to include the final linear layer. Default to True.
-        use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
+        include_fc: whether to include the final linear layer. Default to False.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         dropout_cattn: If different from zero, this will be the dropout value for the cross-attention layers.
         include_top_region_index_input: If True, use top region index input.
