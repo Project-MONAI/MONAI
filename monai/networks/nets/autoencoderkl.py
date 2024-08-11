@@ -508,7 +508,6 @@ class AutoencoderKL(nn.Module):
         norm_eps: float = 1e-6,
         with_encoder_nonlocal_attn: bool = True,
         with_decoder_nonlocal_attn: bool = True,
-        use_flash_attention: bool = False,
         use_checkpoint: bool = False,
         use_convtranspose: bool = False,
         include_fc: bool = True,
