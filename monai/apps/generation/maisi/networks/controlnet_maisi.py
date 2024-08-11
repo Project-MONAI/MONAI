@@ -15,17 +15,6 @@ from typing import Sequence
 
 import torch
 
-
-# ControlNet, has_controlnet = optional_import("generative.networks.nets.controlnet", name="ControlNet")
-# get_timestep_embedding, has_get_timestep_embedding = optional_import(
-#     "generative.networks.nets.diffusion_model_unet", name="get_timestep_embedding"
-# )
-
-# if TYPE_CHECKING:
-#     from generative.networks.nets.controlnet import ControlNet as ControlNetType
-# else:
-#     ControlNetType = cast(type, ControlNet)
-
 from monai.networks.nets.controlnet import ControlNet
 from monai.networks.nets.diffusion_model_unet import get_timestep_embedding
 
@@ -52,6 +41,8 @@ class ControlNetMaisi(ControlNet):
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
             classes.
         upcast_attention: if True, upcast attention operations to full precision.
+        include_fc: whether to include the final linear layer. Default to False.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: if True, use flash attention for a memory efficient attention mechanism.
         conditioning_embedding_in_channels: number of input channels for the conditioning embedding.
         conditioning_embedding_num_channels: number of channels for the blocks in the conditioning embedding.
@@ -74,6 +65,8 @@ class ControlNetMaisi(ControlNet):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
+        include_fc: bool = False,
+        use_combined_linear: bool = False,
         use_flash_attention: bool = False,
         conditioning_embedding_in_channels: int = 1,
         conditioning_embedding_num_channels: Sequence[int] | None = (16, 32, 96, 256),
