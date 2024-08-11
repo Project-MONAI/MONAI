@@ -453,7 +453,7 @@ class BaseWSIReader(ImageReader):
         target_res_y = int(np.round(closest_lvl_dim[0] * ds_factor_y))
 
         return target_res_x, target_res_y
-    
+
     def _compute_mpp_tolerances(self, closest_lvl, mpp_list, mpp, atol, rtol) -> bool:
         """
         Determines if user-provided MPP values are within a specified tolerance of the closest
