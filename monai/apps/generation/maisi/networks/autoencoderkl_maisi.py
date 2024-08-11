@@ -901,7 +901,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
         num_splits: Number of splits for the input tensor.
         dim_split: Dimension of splitting for the input tensor.
-        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `False`.
+        norm_float16: If True, convert output of MaisiGroupNorm3D to float16 format, default to `True`.
         print_info: Whether to print information, default to `False`.
         save_mem: Whether to clean CUDA cache in order to save GPU memory, default to `True`.
     """
@@ -926,7 +926,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         use_convtranspose: bool = False,
         num_splits: int = 16,
         dim_split: int = 0,
-        norm_float16: bool = False,
+        norm_float16: bool = True,
         print_info: bool = False,
         save_mem: bool = True,
     ) -> None:
