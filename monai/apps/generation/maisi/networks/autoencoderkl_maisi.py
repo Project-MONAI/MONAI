@@ -501,7 +501,7 @@ class MaisiResBlock(nn.Module):
         return out_tensor
 
 
-class Encoder(nn.Module):
+class MaisiEncoder(nn.Module):
     """
     Convolutional cascade that downsamples the image into a spatial latent space.
 
@@ -690,7 +690,7 @@ class Encoder(nn.Module):
         return x
 
 
-class Decoder(nn.Module):
+class MaisiDecoder(nn.Module):
     """
     Convolutional cascade upsampling from a spatial latent space into an image space.
 
@@ -880,7 +880,7 @@ class Decoder(nn.Module):
 
 class AutoencoderKlMaisi(AutoencoderKL):
     """
-    AutoencoderKL with custom Encoder and Decoder.
+    AutoencoderKL with custom MaisiEncoder and MaisiDecoder.
 
     Args:
         spatial_dims: Number of spatial dimensions (1D, 2D, 3D).
@@ -949,7 +949,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             use_flash_attention,
         )
 
-        self.encoder = Encoder(
+        self.encoder = MaisiEncoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_channels=num_channels,
@@ -969,7 +969,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             save_mem=save_mem,
         )
 
-        self.decoder = Decoder(
+        self.decoder = MaisiDecoder(
             spatial_dims=spatial_dims,
             num_channels=num_channels,
             in_channels=latent_channels,
