@@ -98,7 +98,7 @@ class DiffusionModelUNetMaisi(nn.Module):
         cross_attention_dim: int | None = None,
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
-        include_fc: bool = True,
+        include_fc: bool = False,
         use_combined_linear: bool = False,
         use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
