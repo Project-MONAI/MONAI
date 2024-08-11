@@ -431,27 +431,62 @@ class BaseWSIReader(ImageReader):
                 metadata[key] = [m[key] for m in metadata_list]
         return _stack_images(patch_list, metadata), metadata
 
-    def _compute_mpp_target_res(self, closest_lvl, closest_lvl_dim, mpp_list, user_mpp: tuple):
+    def _compute_mpp_target_res(self, closest_lvl, closest_lvl_dim, mpp_list, mpp: tuple):
         """
-        Resizes the whole slide image to the specified resolution in microns per pixel (mpp).
+        Computes the target dimensions for resizing a whole slide image
+        to match a user-specified resolution in microns per pixel (MPP).
 
         Args:
-            wsi: whole slide image object from WSIReader
-            user_mpp: the resolution in microns per pixel at which the whole slide image representation should be extracted.
-            closest_lvl: the wsi level that is closest to the user-provided mpp resolution.
-            mpp_list: list of mpp values for all levels of a whole slide image.
+            closest_lvl: Whole slide image level closest to user-provided MPP resolution.
+            closest_lvl_dim: Dimensions (height, width) of the image at the closest level.
+            mpp_list: List of MPP values for all levels of the whole slide image.
+            mpp: The MPP resolution at which the whole slide image representation should be extracted.
 
         """
         mpp_closest_lvl = mpp_list[closest_lvl]
         mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_closest_lvl
 
-        ds_factor_x = mpp_closest_lvl_x / user_mpp[0]
-        ds_factor_y = mpp_closest_lvl_y / user_mpp[1]
+        ds_factor_x = mpp_closest_lvl_x / mpp[0]
+        ds_factor_y = mpp_closest_lvl_y / mpp[1]
 
         target_res_x = int(np.round(closest_lvl_dim[1] * ds_factor_x))
         target_res_y = int(np.round(closest_lvl_dim[0] * ds_factor_y))
 
         return target_res_x, target_res_y
+    
+    def _compute_mpp_tolerances(self, closest_lvl, mpp_list, mpp, atol, rtol) -> bool:
+        """
+        Determines if user-provided MPP values are within a specified tolerance of the closest
+        level's MPP and checks if the closest level has higher resolution than desired MPP.
+
+        Args:
+            closest_lvl: Whole slide image level closest to user-provided MPP resolution.
+            mpp_list: List of MPP values for all levels of the whole slide image.
+            mpp: The MPP resolution at which the whole slide image representation should be extracted.
+            atol: Absolute tolerance for MPP comparison.
+            rtol: Relative tolerance for MPP comparison.
+
+        """
+        user_mpp_x, user_mpp_y = mpp
+        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
+
+        # Define tolerance intervals for x and y of closest level
+        lower_bound_x = mpp_closest_lvl_x * (1 - rtol) - atol
+        upper_bound_x = mpp_closest_lvl_x * (1 + rtol) + atol
+        lower_bound_y = mpp_closest_lvl_y * (1 - rtol) - atol
+        upper_bound_y = mpp_closest_lvl_y * (1 + rtol) + atol
+
+        # Check if user-provided mpp_x and mpp_y fall within the tolerance intervals for closest level
+        is_within_tolerance_x = (user_mpp_x >= lower_bound_x) & (user_mpp_x <= upper_bound_x)
+        is_within_tolerance_y = (user_mpp_y >= lower_bound_y) & (user_mpp_y <= upper_bound_y)
+        is_within_tolerance = is_within_tolerance_x & is_within_tolerance_y
+
+        # If mpp_closest_level < mpp -> closest_level has higher res than img at mpp => downscale from closest_level to mpp
+        closest_level_is_bigger_x = mpp_closest_lvl_x < user_mpp_x
+        closest_level_is_bigger_y = mpp_closest_lvl_y < user_mpp_y
+        closest_level_is_bigger = closest_level_is_bigger_x & closest_level_is_bigger_y
+
+        return is_within_tolerance, closest_level_is_bigger
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -802,50 +837,27 @@ class CuCIMWSIReader(BaseWSIReader):
             rtol: the acceptable relative tolerance for resolution in micro per pixel.
 
         """
-
-        # cucim_resize, _ = optional_import("cucim.skimage.transform", name="resize")
         cp, _ = optional_import("cupy")
 
-        user_mpp_x, user_mpp_y = mpp
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(wsi.resolutions["level_count"])]
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
-        # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
-        # closest_lvl_dim = wsi.resolutions["level_dimensions"][closest_lvl]
-
-        # mpp_closest_lvl = mpp_list[closest_lvl]
-        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
-
-        # Define tolerance intervals for x and y of closest level
-        lower_bound_x = mpp_closest_lvl_x * (1 - rtol) - atol
-        upper_bound_x = mpp_closest_lvl_x * (1 + rtol) + atol
-        lower_bound_y = mpp_closest_lvl_y * (1 - rtol) - atol
-        upper_bound_y = mpp_closest_lvl_y * (1 + rtol) + atol
-
-        # Check if user-provided mpp_x and mpp_y fall within the tolerance intervals for closest level
-        within_tolerance_x = (user_mpp_x >= lower_bound_x) & (user_mpp_x <= upper_bound_x)
-        within_tolerance_y = (user_mpp_y >= lower_bound_y) & (user_mpp_y <= upper_bound_y)
-        within_tolerance = within_tolerance_x & within_tolerance_y
+        within_tolerance, closest_level_is_bigger = super()._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
 
         if within_tolerance:
-            # Take closest_level and continue with returning img at level
+            # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
             closest_lvl_wsi = wsi.read_region(
                 (0, 0), level=closest_lvl, size=wsi.resolutions["level_dimensions"][closest_lvl], num_workers=self.num_workers
             )
 
+        elif closest_level_is_bigger:
+            # Otherwise, select the level closest to the desired mpp with a higher resolution and downsample it.
+            closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+
         else:
-            # If mpp_closest_level < mpp -> closest_level has higher res than img at mpp => downscale from closest_level to mpp
-            closest_level_is_bigger_x = mpp_closest_lvl_x < user_mpp_x
-            closest_level_is_bigger_y = mpp_closest_lvl_y < user_mpp_y
-            closest_level_is_bigger = closest_level_is_bigger_x & closest_level_is_bigger_y
-
-            if closest_level_is_bigger:
-                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
-
-            else:
-                # Else: increase resolution (ie, decrement level) and then downsample
-                closest_lvl = closest_lvl - 1
-                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+            # If both checks fail, increase resolution (i.e., decrement level) and then downsample it.
+            closest_lvl = closest_lvl - 1
+            closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
         wsi_arr = cp.asnumpy(closest_lvl_wsi)
         return wsi_arr
@@ -1087,43 +1099,25 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         """
 
-        user_mpp_x, user_mpp_y = mpp
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(wsi.level_count)]
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
-        # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
-        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
-
-        # Define tolerance intervals for x and y of closest level
-        lower_bound_x = mpp_closest_lvl_x * (1 - rtol) - atol
-        upper_bound_x = mpp_closest_lvl_x * (1 + rtol) + atol
-        lower_bound_y = mpp_closest_lvl_y * (1 - rtol) - atol
-        upper_bound_y = mpp_closest_lvl_y * (1 + rtol) + atol
-
-        # Check if user-provided mpp_x and mpp_y fall within the tolerance intervals for closest level
-        within_tolerance_x = (user_mpp_x >= lower_bound_x) & (user_mpp_x <= upper_bound_x)
-        within_tolerance_y = (user_mpp_y >= lower_bound_y) & (user_mpp_y <= upper_bound_y)
-        within_tolerance = within_tolerance_x & within_tolerance_y
+        within_tolerance, closest_level_is_bigger = super()._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
 
         if within_tolerance:
-            # Take closest_level and continue with returning img at level
+            # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
             closest_lvl_wsi = wsi.read_region(
                 (0, 0), level=closest_lvl, size=wsi.level_dimensions[closest_lvl]
             )
 
+        elif closest_level_is_bigger:
+            # Otherwise, select the level closest to the desired mpp with a higher resolution and downsample it.
+            closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+
         else:
-            # If mpp_closest_level < mpp -> closest_level has higher res than img at mpp => downscale from closest_level to mpp
-            closest_level_is_bigger_x = mpp_closest_lvl_x < user_mpp_x
-            closest_level_is_bigger_y = mpp_closest_lvl_y < user_mpp_y
-            closest_level_is_bigger = closest_level_is_bigger_x & closest_level_is_bigger_y
-
-            if closest_level_is_bigger:
-                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
-
-            else:
-                # Else: increase resolution (ie, decrement level) and then downsample
-                closest_lvl = closest_lvl - 1
-                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+            # If both checks fail, increase resolution (i.e., decrement level) and then downsample it.
+            closest_lvl = closest_lvl - 1
+            closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
         wsi_arr = np.array(closest_lvl_wsi)
         return wsi_arr
@@ -1342,40 +1336,23 @@ class TiffFileWSIReader(BaseWSIReader):
 
         """
 
-        user_mpp_x, user_mpp_y = mpp
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]  # Fails for some Tifffiles
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
-        # -> Should not throw ValueError, instead just return the closest value; how to select tolerances?
 
-        mpp_closest_lvl_x, mpp_closest_lvl_y = mpp_list[closest_lvl]
-
-        # Define tolerance intervals for x and y of closest level
-        lower_bound_x = mpp_closest_lvl_x * (1 - rtol) - atol
-        upper_bound_x = mpp_closest_lvl_x * (1 + rtol) + atol
-        lower_bound_y = mpp_closest_lvl_y * (1 - rtol) - atol
-        upper_bound_y = mpp_closest_lvl_y * (1 + rtol) + atol
-
-        # Check if user-provided mpp_x and mpp_y fall within the tolerance intervals for closest level
-        within_tolerance_x = (user_mpp_x >= lower_bound_x) & (user_mpp_x <= upper_bound_x)
-        within_tolerance_y = (user_mpp_y >= lower_bound_y) & (user_mpp_y <= upper_bound_y)
-        within_tolerance = within_tolerance_x & within_tolerance_y
+        within_tolerance, closest_level_is_bigger = super()._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
 
         if within_tolerance:
-            # Take closest_level and continue with returning img at level
+            # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
             closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=self.get_size(wsi, closest_lvl))
 
+        elif closest_level_is_bigger:
+            # Otherwise, select the level closest to the desired mpp with a higher resolution and downsample it.
+            closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+
         else:
-            # If mpp_closest_level < mpp -> closest_level has higher res than img at mpp => downscale from closest_level to mpp
-            closest_level_is_bigger_x = mpp_closest_lvl_x < user_mpp_x
-            closest_level_is_bigger_y = mpp_closest_lvl_y < user_mpp_y
-            closest_level_is_bigger = closest_level_is_bigger_x & closest_level_is_bigger_y
-
-            if closest_level_is_bigger:
-                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
-
-            else:
-                closest_lvl = closest_lvl - 1
-                closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
+            # If both checks fail, increase resolution (i.e., decrement level) and then downsample it.
+            closest_lvl = closest_lvl - 1
+            closest_lvl_wsi = self._resize_to_mpp_res(wsi, closest_lvl, mpp_list, mpp)
 
         wsi_arr = np.array(closest_lvl_wsi)
         return wsi_arr
