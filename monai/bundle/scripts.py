@@ -1549,11 +1549,7 @@ def ckpt_export(
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
     # Use the given converter to convert a model and save with metadata, config content
 
-    save_ts = partial(
-        save_net_with_metadata,
-        include_config_vals=False,
-        append_timestamp=False,
-    )
+    save_ts = partial(save_net_with_metadata, include_config_vals=False, append_timestamp=False)
 
     _export(
         convert_to_torchscript,
@@ -1727,11 +1723,7 @@ def trt_export(
     }
     converter_kwargs_.update(trt_api_parameters)
 
-    save_ts = partial(
-        save_net_with_metadata,
-        include_config_vals=False,
-        append_timestamp=False,
-    )
+    save_ts = partial(save_net_with_metadata, include_config_vals=False, append_timestamp=False)
 
     _export(
         convert_to_trt,
