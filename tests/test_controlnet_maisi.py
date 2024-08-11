@@ -12,13 +12,17 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
 
 from monai.apps.generation.maisi.networks.controlnet_maisi import ControlNetMaisi
 from monai.networks import eval_mode
+from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion
+
+_, has_einops = optional_import("einops")
 
 TEST_CASES = [
     [
@@ -127,6 +131,7 @@ TEST_CASES_ERROR = [
 class TestControlNet(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
         net = ControlNetMaisi(**input_param)
         with eval_mode(net):
@@ -140,6 +145,7 @@ class TestControlNet(unittest.TestCase):
             self.assertEqual(result[1].shape, expected_shape)
 
     @parameterized.expand(TEST_CASES_CONDITIONAL)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
         net = ControlNetMaisi(**input_param)
         with eval_mode(net):
