@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import tempfile
-import time
 import unittest
 
 import torch
@@ -35,7 +34,7 @@ TEST_CASE_2 = ["fp16"]
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
-class TestConvertToTRT(unittest.TestCase):
+class TestTRTWrapper(unittest.TestCase):
 
     def setUp(self):
         self.gpu_device = torch.cuda.current_device()
@@ -57,19 +56,14 @@ class TestConvertToTRT(unittest.TestCase):
             num_res_units=2,
             norm="batch",
         ).cuda()
-        with torch.no_grad(), tempfile.TemporaryDirectory() as _:
+        with torch.no_grad(), tempfile.TemporaryDirectory() as tmpdir:
             model.eval()
             input_example = torch.randn(1, 1, 96, 96, 96).cuda()
             output_example = model(input_example)
             args: dict = {"builder_optimization_level": 1}
 
             trt_wrapper = TRTWrapper(
-                "test_wrapper",
-                model,
-                precision=precision,
-                build_args=args,
-                dynamic_batchsize=[1, 4, 8],
-                timestamp=time.time(),
+                model, f"{tmpdir}/test_wrapper", precision=precision, build_args=args, dynamic_batchsize=[1, 4, 8]
             )
             assert trt_wrapper.engine is None
             trt_output = trt_wrapper(input_example)

@@ -634,7 +634,9 @@ def convert_to_onnx(
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
-        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+        do_constant_folding: passed to onnx.export(). If True, extra polygraphy folding pass is done.
+        kwargs: if use_trace=True: additional arguments to pass to torch.onnx.export()
+            else: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """

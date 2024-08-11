@@ -15,7 +15,6 @@ import inspect
 import os
 import threading
 from collections import OrderedDict
-from collections.abc import Mapping, Sequence
 
 import torch
 
@@ -225,44 +224,44 @@ class TRTWrapper(torch.nn.Module):
 
     def __init__(
         self,
-        path: str,
-        model: torch.nn.Module | None = None,
-        precision: str = "tf32",
-        input_names: Sequence[str] | None = None,
-        output_names: Sequence[str] | None = None,
-        export_args: Mapping | None = None,
-        build_args: Mapping | None = None,
-        input_profiles: Mapping | None = None,
-        dynamic_batchsize: Sequence[int] | None = None,
-        use_cuda_graph: bool = False,
-        timestamp: int | None = None,
-        fallback: bool = False,
+        model,
+        path,
+        precision="tf32",
+        input_names=None,
+        output_names=None,
+        export_args=None,
+        build_args=None,
+        input_profiles=None,
+        dynamic_batchsize=None,
+        use_cuda_graph=False,
+        timestamp=None,
+        fallback=False,
     ):
         """
         Initialization method:
          Tries to load persistent serialized TRT engine
-         Saves arguments for lazy TRT build on first forward() call
+         Saves its arguments for lazy TRT build on first forward() call
         Args:
-            path : Path where to save persistent serialized TRT engine,
-            model: Model to "wrap". Can be None if TRT engine is supposed to exist.
+            model: Model to "wrap". If None, TRT engine is supposed to already exist.
+            path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
-            input_names: Optional list of output names to pass to onnx.export()
-            output_names: Optional list of output names to pass to onnx.export()
+            input_names: Optional list of output names to pass to onnx.export().
+            output_names: Optional list of output names to pass to onnx.export().
             export_args: Optional args to pass to onnx.export(). See onnx.export() for details.
-            build_args: Optional args to pass to TRT builder. See polygraphy.Config for details
+            build_args: Optional args to pass to TRT builder. See polygraphy.Config for details.
             input_profiles: Optional list of profiles for TRT builder and ONNX export.
-                            Each profile is a map of "input name" -> [min,opt,max] values.
+                            Each profile is a map of the form : {"input id" : [min_shape, opt_shape, max_shape], ...}.
             dynamic_batchsize: A sequence with three elements to define the batch size range of the input for the model to be
                                converted. Should be a sequence like [MIN_BATCH, OPT_BATCH, MAX_BATCH].
-            If both input_profiles and dynamic_batchsize are omitted, static shapes will be used to build TRT engine.
-            use_cuda_graph: Use CUDA Graph for inference(all inputs have to be the same GPU memory between calls!)
-            timestamp: Optional timestamp to rebuild TRT engine (e.g. if config file changes)
-            fallback: Allow to fall back to Pytorch when TRT inference fails (e.g, shapes exceed max profile)
+            [note]: If neither input_profiles nor dynamic_batchsize specified, static shapes will be used to build TRT engine.
+            use_cuda_graph: Use CUDA Graph for inference. Note: all inputs have to be the same GPU memory between calls!
+            timestamp: Optional timestamp to rebuild TRT engine (e.g. if config file changes).
+            fallback: Allow to fall back to Pytorch when TRT inference fails (e.g, shapes exceed max profile).
         """
 
         super().__init__()
-        self.path = path
         self.model = model
+        self.path = path
         self.precision = precision
         self.output_names = output_names or []
         self.profiles = input_profiles or []
@@ -336,7 +335,7 @@ class TRTWrapper(torch.nn.Module):
         try:
             if len(argv) > 0:
                 kwargs.update(self._inputs_to_dict(argv))
-                argv = []
+                argv = ()
 
             if self.engine is None and not self.disabled:
                 self._build_and_save(kwargs)
