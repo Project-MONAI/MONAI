@@ -23,7 +23,7 @@ from pathlib import Path
 from pydoc import locate
 from shutil import copyfile
 from textwrap import dedent
-from typing import IO, Any, Callable
+from typing import Any, Callable
 
 import torch
 from torch.cuda import is_available
