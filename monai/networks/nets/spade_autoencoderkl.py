@@ -137,6 +137,10 @@ class SPADEDecoder(nn.Module):
         label_nc: number of semantic channels for SPADE normalisation.
         with_nonlocal_attn: if True use non-local attention block.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -152,6 +156,9 @@ class SPADEDecoder(nn.Module):
         label_nc: int,
         with_nonlocal_attn: bool = True,
         spade_intermediate_channels: int = 128,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -200,6 +207,9 @@ class SPADEDecoder(nn.Module):
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -243,6 +253,9 @@ class SPADEDecoder(nn.Module):
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
+                            include_fc=include_fc,
+                            use_combined_linear=use_combined_linear,
+                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -331,6 +344,9 @@ class SPADEAutoencoderKL(nn.Module):
         with_encoder_nonlocal_attn: bool = True,
         with_decoder_nonlocal_attn: bool = True,
         spade_intermediate_channels: int = 128,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -360,6 +376,9 @@ class SPADEAutoencoderKL(nn.Module):
             norm_eps=norm_eps,
             attention_levels=attention_levels,
             with_nonlocal_attn=with_encoder_nonlocal_attn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
         self.decoder = SPADEDecoder(
             spatial_dims=spatial_dims,
@@ -373,6 +392,9 @@ class SPADEAutoencoderKL(nn.Module):
             label_nc=label_nc,
             with_nonlocal_attn=with_decoder_nonlocal_attn,
             spade_intermediate_channels=spade_intermediate_channels,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
         self.quant_conv_mu = Convolution(
             spatial_dims=spatial_dims,
