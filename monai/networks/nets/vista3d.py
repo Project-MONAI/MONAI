@@ -97,7 +97,8 @@ class VISTA3D(nn.Module):
             patch_coords: sliding window slice object
             label_set: local index, must match values in labels
             use_center: sample points from the center
-            mapped_label_set: global index, it is used to identify special classes.
+            mapped_label_set: global index, it is used to identify special classes and is the global index 
+                              for the sampled points.
             max_ppoint/max_npoint: positive points and negative points to sample.
         """
         point_coords, point_labels = sample_points_from_label(
@@ -620,6 +621,11 @@ class ClassMappingClassify(nn.Module):
         return masks, class_embedding
 
 def VISTA3D132(encoder_embed_dim=48, in_channels=1):
+    """ Exact VISTA3D network configuration used in https://arxiv.org/abs/2406.05285>`_. The model treats class index larger than 132 as zero-shot.
+    Args:
+        encoder_embed_dim: hidden dimension for encoder.
+        in_channels: input channel number.
+    """
     segresnet = SegResNetDS2(
         in_channels=in_channels,
         blocks_down=(1, 2, 2, 4, 4),
