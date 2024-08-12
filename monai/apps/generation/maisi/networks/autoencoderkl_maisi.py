@@ -704,7 +704,7 @@ class MaisiDecoder(nn.Module):
         norm_eps: Epsilon for the normalization.
         attention_levels: Indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: If True, use non-local attention block.
-        include_fc: whether to include the final linear layer in the attention block. Default to True.
+        include_fc: whether to include the final linear layer in the attention block. Default to False.
         use_combined_linear: whether to use a single linear layer for qkv projection in the attention block, default to False.
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         use_convtranspose: If True, use ConvTranspose to upsample feature maps in decoder.
