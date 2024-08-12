@@ -101,16 +101,16 @@ TEST_CASES_CONDITIONAL = [
 TEST_CASES_ERROR = [
     [
         {"spatial_dims": 2, "in_channels": 1, "with_conditioning": True, "cross_attention_dim": None},
-        "DiffusionModelUNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
+        "ControlNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
         "to be specified when with_conditioning=True.",
     ],
     [
         {"spatial_dims": 2, "in_channels": 1, "with_conditioning": False, "cross_attention_dim": 2},
-        "DiffusionModelUNet expects with_conditioning=True when specifying the cross_attention_dim.",
+        "ControlNet expects with_conditioning=True when specifying the cross_attention_dim.",
     ],
     [
         {"spatial_dims": 2, "in_channels": 1, "num_channels": (8, 16), "norm_num_groups": 16},
-        f"DiffusionModelUNet expects all channels to be a multiple of norm_num_groups, but got"
+        f"ControlNet expects all channels to be a multiple of norm_num_groups, but got"
         f" channels={(8, 16)} and norm_num_groups={16}",
     ],
     [
@@ -121,7 +121,7 @@ TEST_CASES_ERROR = [
             "attention_levels": (True,),
             "norm_num_groups": 8,
         },
-        f"DiffusionModelUNet expects channels to have the same length as attention_levels, but got "
+        f"ControlNet expects channels to have the same length as attention_levels, but got "
         f"channels={(8, 16)} and attention_levels={(True,)}",
     ],
 ]
