@@ -894,7 +894,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
         norm_eps: Epsilon for the normalization.
         with_encoder_nonlocal_attn: If True, use non-local attention block in the encoder.
         with_decoder_nonlocal_attn: If True, use non-local attention block in the decoder.
-        include_fc: whether to include the final linear layer. Default to True.
+        include_fc: whether to include the final linear layer. Default to False.
         use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
         use_flash_attention: If True, use flash attention for a memory efficient attention mechanism.
         use_checkpointing: If True, use activation checkpointing.
