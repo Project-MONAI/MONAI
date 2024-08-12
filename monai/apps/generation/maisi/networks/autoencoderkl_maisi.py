@@ -949,7 +949,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             use_flash_attention,
         )
 
-        self.encoder = MaisiEncoder(
+        self.encoder: nn.Module = MaisiEncoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             num_channels=num_channels,
@@ -969,7 +969,7 @@ class AutoencoderKlMaisi(AutoencoderKL):
             save_mem=save_mem,
         )
 
-        self.decoder = MaisiDecoder(
+        self.decoder: nn.Module = MaisiDecoder(
             spatial_dims=spatial_dims,
             num_channels=num_channels,
             in_channels=latent_channels,
