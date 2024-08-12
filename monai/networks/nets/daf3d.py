@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Callable, Sequence
+from functools import partial
 
 import torch
 import torch.nn as nn
@@ -25,6 +26,7 @@ from monai.networks.blocks.backbone_fpn_utils import BackboneWithFPN
 from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.feature_pyramid_network import ExtraFPNBlock, FeaturePyramidNetwork
 from monai.networks.layers.factories import Conv, Norm
+from monai.networks.layers.utils import get_norm_layer
 from monai.networks.nets.resnet import ResNet, ResNetBottleneck
 
 __all__ = [
@@ -170,27 +172,31 @@ class Daf3dResNetBottleneck(ResNetBottleneck):
         spatial_dims: number of spatial dimensions of the input image.
         stride: stride to use for second conv layer.
         downsample: which downsample layer to use.
+        norm: which normalization layer to use. Defaults to group.
     """
 
     expansion = 2
 
-    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None):
-        norm_type: Callable = Norm[Norm.GROUP, spatial_dims]
+    def __init__(
+        self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})
+    ):
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]
+
+        norm_layer = partial(get_norm_layer, name=norm, spatial_dims=spatial_dims)
 
         # in case downsample uses batch norm, change to group norm
         if isinstance(downsample, nn.Sequential):
             downsample = nn.Sequential(
                 conv_type(in_planes, planes * self.expansion, kernel_size=1, stride=stride, bias=False),
-                norm_type(num_groups=32, num_channels=planes * self.expansion),
+                norm_layer(channels=planes * self.expansion),
             )
 
         super().__init__(in_planes, planes, spatial_dims, stride, downsample)
 
         # change norm from batch to group norm
-        self.bn1 = norm_type(num_groups=32, num_channels=planes)
-        self.bn2 = norm_type(num_groups=32, num_channels=planes)
-        self.bn3 = norm_type(num_groups=32, num_channels=planes * self.expansion)
+        self.bn1 = norm_layer(channels=planes)
+        self.bn2 = norm_layer(channels=planes)
+        self.bn3 = norm_layer(channels=planes * self.expansion)
 
         # adapt second convolution to work with groups
         self.conv2 = conv_type(planes, planes, kernel_size=3, padding=1, stride=stride, groups=32, bias=False)
@@ -212,8 +218,10 @@ class Daf3dResNetDilatedBottleneck(Daf3dResNetBottleneck):
         downsample: which downsample layer to use.
     """
 
-    def __init__(self, in_planes, planes, spatial_dims=3, stride=1, downsample=None):
-        super().__init__(in_planes, planes, spatial_dims, stride, downsample)
+    def __init__(
+        self, in_planes, planes, spatial_dims=3, stride=1, downsample=None, norm=("group", {"num_groups": 32})
+    ):
+        super().__init__(in_planes, planes, spatial_dims, stride, downsample, norm)
 
         # add dilation in second convolution
         conv_type: Callable = Conv[Conv.CONV, spatial_dims]

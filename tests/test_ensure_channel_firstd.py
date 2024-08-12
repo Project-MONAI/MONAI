@@ -35,9 +35,10 @@ class TestEnsureChannelFirstd(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_load_nifti(self, input_param, filenames, original_channel_dim):
-        if original_channel_dim is None:
-            test_image = np.random.rand(8, 8, 8)
-        elif original_channel_dim == -1:
+        # if original_channel_dim is None:
+        test_image = np.random.rand(8, 8, 8)
+
+        if original_channel_dim == -1:
             test_image = np.random.rand(8, 8, 8, 1)
 
         with tempfile.TemporaryDirectory() as tempdir:

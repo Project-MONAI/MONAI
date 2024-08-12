@@ -30,7 +30,7 @@ for dropout_rate in [0.4]:
                         for num_heads in [8]:
                             for mlp_dim in [3072]:
                                 for norm_name in ["instance"]:
-                                    for pos_embed in ["perceptron"]:
+                                    for proj_type in ["perceptron"]:
                                         for nd in (2, 3):
                                             test_case = [
                                                 {
@@ -42,7 +42,7 @@ for dropout_rate in [0.4]:
                                                     "norm_name": norm_name,
                                                     "mlp_dim": mlp_dim,
                                                     "num_heads": num_heads,
-                                                    "pos_embed": pos_embed,
+                                                    "proj_type": proj_type,
                                                     "dropout_rate": dropout_rate,
                                                     "conv_block": True,
                                                     "res_block": False,
@@ -75,7 +75,7 @@ class TestUNETR(unittest.TestCase):
                 hidden_size=128,
                 mlp_dim=3072,
                 num_heads=12,
-                pos_embed="conv",
+                proj_type="conv",
                 norm_name="instance",
                 dropout_rate=5.0,
             )
@@ -89,7 +89,7 @@ class TestUNETR(unittest.TestCase):
                 hidden_size=512,
                 mlp_dim=3072,
                 num_heads=12,
-                pos_embed="conv",
+                proj_type="conv",
                 norm_name="instance",
                 dropout_rate=0.5,
             )
@@ -103,7 +103,7 @@ class TestUNETR(unittest.TestCase):
                 hidden_size=512,
                 mlp_dim=3072,
                 num_heads=14,
-                pos_embed="conv",
+                proj_type="conv",
                 norm_name="batch",
                 dropout_rate=0.4,
             )
@@ -117,13 +117,13 @@ class TestUNETR(unittest.TestCase):
                 hidden_size=768,
                 mlp_dim=3072,
                 num_heads=12,
-                pos_embed="perc",
+                proj_type="perc",
                 norm_name="instance",
                 dropout_rate=0.2,
             )
 
     @parameterized.expand(TEST_CASE_UNETR)
-    @SkipIfBeforePyTorchVersion((1, 9))
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, input_param, input_shape, _):
         net = UNETR(**(input_param))
         net.eval()

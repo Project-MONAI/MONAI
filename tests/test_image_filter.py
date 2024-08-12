@@ -38,6 +38,7 @@ ADDITIONAL_ARGUMENTS = {"order": 1, "sigma": 1, "padding_mode": "zeros"}
 
 
 class TestModule(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def __init__(self):
         super().__init__()
