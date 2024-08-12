@@ -172,7 +172,7 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
     @parameterized.expand(TEST_CASES[0:2])
     def test_old_ignite_metric(self, input_param, input_data, expected_val):
         loss_fn = DiceLoss(**input_param)
-        ignite_metric = IgniteMetric(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
+        ignite_metric = IgniteMetricHandler(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
 
         def _val_func(engine, batch):
             pass
