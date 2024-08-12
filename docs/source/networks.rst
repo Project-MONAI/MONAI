@@ -561,6 +561,11 @@ Nets
 .. autoclass:: UNETR
     :members:
 
+`VISTA3D`
+~~~~~~~~~
+.. autoclass:: VISTA3D
+    :members:
+
 `SwinUNETR`
 ~~~~~~~~~~~
 .. autoclass:: SwinUNETR
