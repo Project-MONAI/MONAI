@@ -481,6 +481,11 @@ Nets
 .. autoclass:: SegResNetDS
   :members:
 
+`SegResNetDS2`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS2
+  :members:
+
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE

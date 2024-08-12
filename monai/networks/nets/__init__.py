@@ -118,9 +118,9 @@ from .transformer import DecoderOnlyTransformer
 from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
+from .vista3d import VISTA3D, vista3d132
 from .vit import ViT
 from .vitautoenc import ViTAutoEnc
-from .vista3d import VISTA3D, VISTA3D132
 from .vnet import VNet
 from .voxelmorph import VoxelMorph, VoxelMorphUNet
 from .vqvae import VQVAE
