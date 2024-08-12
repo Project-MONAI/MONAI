@@ -97,7 +97,7 @@ class VISTA3D(nn.Module):
             patch_coords: sliding window slice object
             label_set: local index, must match values in labels
             use_center: sample points from the center
-            mapped_label_set: global index, it is used to identify special classes and is the global index 
+            mapped_label_set: global index, it is used to identify special classes and is the global index
                               for the sampled points.
             max_ppoint/max_npoint: positive points and negative points to sample.
         """
