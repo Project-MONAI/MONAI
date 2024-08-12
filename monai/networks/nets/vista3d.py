@@ -123,7 +123,7 @@ class VISTA3D(nn.Module):
             use_center=use_center,
         )
         point_labels = self.convert_point_label(point_labels, mapped_label_set)
-        return (point_coords, point_labels, torch.Tensor(label_set).to(point_coords.device).unsqueeze(-1))
+        return (point_coords, point_labels, torch.tensor(label_set).to(point_coords.device).unsqueeze(-1))
 
     def update_point_to_patch(
         self, patch_coords: Sequence[slice], point_coords: torch.Tensor, point_labels: torch.Tensor
@@ -141,8 +141,8 @@ class VISTA3D(nn.Module):
         patch_ends = [patch_coords[-3].stop, patch_coords[-2].stop, patch_coords[-1].stop]
         patch_starts = [patch_coords[-3].start, patch_coords[-2].start, patch_coords[-1].start]
         # update point coords
-        patch_starts_tensor = unsqueeze_left(torch.Tensor(patch_starts, device=point_coords.device), 2)
-        patch_ends_tensor = unsqueeze_left(torch.Tensor(patch_ends, device=point_coords.device), 2)
+        patch_starts_tensor = unsqueeze_left(torch.tensor(patch_starts, device=point_coords.device), 2)
+        patch_ends_tensor = unsqueeze_left(torch.tensor(patch_ends, device=point_coords.device), 2)
         # [1 N 1]
         indices = torch.logical_and(
             ((point_coords - patch_starts_tensor) > 0).all(2), ((patch_ends_tensor - point_coords) > 0).all(2)
@@ -198,7 +198,7 @@ class VISTA3D(nn.Module):
                     ]
                 )
             )
-        inside_tensor = torch.Tensor(inside).to(logits.device)
+        inside_tensor = torch.tensor(inside).to(logits.device)
         nan_mask = torch.isnan(_logits)
         # _logits are converted to binary [B1, 1, H, W, D]
         _logits = torch.nan_to_num(_logits, nan=self.NINF_VALUE).sigmoid()
@@ -655,8 +655,8 @@ class TwoWayTransformer(nn.Module):
                 Must have shape B x N_points x embedding_dim for any N_points.
 
         Returns:
-            torch.torch.Tensor: the processed point_embedding.
-            torch.torch.Tensor: the processed image_embedding.
+            torch.Tensor: the processed point_embedding.
+            torch.Tensor: the processed image_embedding.
         """
         # BxCxHxW -> BxHWxC == B x N_image_tokens x C
         image_embedding = image_embedding.flatten(2).permute(0, 2, 1)
