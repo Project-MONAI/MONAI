@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.handlers import IgniteMetric, IgniteMetricHandler, from_engine
+from monai.handlers import IgniteMetricHandler, from_engine
 from monai.losses import DiceLoss
 from monai.metrics import LossMetric
 from tests.utils import SkipIfNoModule, assert_allclose, optional_import
