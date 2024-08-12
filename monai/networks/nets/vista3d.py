@@ -329,9 +329,6 @@ class VISTA3D(nn.Module):
         if point_coords is None and class_vector is None:
             return self.NINF_VALUE + torch.zeros([1, 1, *image_size], device=device)
 
-        if point_coords is not None and point_labels is None:
-            raise ValueError("point_labels must be provided when point_coords is provided.")
-
         bs = self.get_bs(class_vector, point_coords)
         if patch_coords is not None:
             # if during validation and perform enable based point-validation.
