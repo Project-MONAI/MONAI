@@ -178,9 +178,7 @@ class ControlNet(nn.Module):
                 "to be specified when with_conditioning=True."
             )
         if cross_attention_dim is not None and with_conditioning is False:
-            raise ValueError(
-                "ControlNet expects with_conditioning=True when specifying the cross_attention_dim."
-            )
+            raise ValueError("ControlNet expects with_conditioning=True when specifying the cross_attention_dim.")
 
         # All number of channels should be multiple of num_groups
         if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
