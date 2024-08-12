@@ -510,7 +510,7 @@ class MaisiEncoder(nn.Module):
         in_channels: Number of input channels.
         num_channels: Sequence of block output channels.
         out_channels: Number of channels in the bottom layer (latent space) of the autoencoder.
-        num_res_blocks: Number of residual blocks (see ResBlock) per level.
+        num_res_blocks: Number of residual blocks (see AEKLResBlock) per level.
         norm_num_groups: Number of groups for the group norm layers.
         norm_eps: Epsilon for the normalization.
         attention_levels: Indicate which level from num_channels contain an attention block.
@@ -699,7 +699,7 @@ class MaisiDecoder(nn.Module):
         num_channels: Sequence of block output channels.
         in_channels: Number of channels in the bottom layer (latent space) of the autoencoder.
         out_channels: Number of output channels.
-        num_res_blocks: Number of residual blocks (see ResBlock) per level.
+        num_res_blocks: Number of residual blocks (see AEKLResBlock) per level.
         norm_num_groups: Number of groups for the group norm layers.
         norm_eps: Epsilon for the normalization.
         attention_levels: Indicate which level from num_channels contain an attention block.
