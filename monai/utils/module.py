@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import enum
 import functools
-import importlib.util
 import os
 import pdb
 import re
@@ -215,7 +214,7 @@ def load_submodules(
                     loader = mod_spec.loader
                     loader.exec_module(mod)
                     submodules.append(mod)
-                
+
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
