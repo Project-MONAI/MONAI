@@ -430,8 +430,24 @@ class SegResNetDS(nn.Module):
 
 class SegResNetDS2(SegResNetDS):
     """
-    SegResNetDS2 based on `SegResNetDS` and adds an additional decorder branch.
-    It is the image encoder used by VISTA3D.
+    SegResNetDS2 adds an additional decorder branch to SegResNetDS and is the image encoder of VISTA3D
+     <https://arxiv.org/abs/2406.05285>`_.
+    Args:
+        spatial_dims: spatial dimension of the input data. Defaults to 3.
+        init_filters: number of output channels for initial convolution layer. Defaults to 32.
+        in_channels: number of input channels for the network. Defaults to 1.
+        out_channels: number of output channels for the network. Defaults to 2.
+        act: activation type and arguments. Defaults to ``RELU``.
+        norm: feature normalization type and arguments. Defaults to ``BATCH``.
+        blocks_down: number of downsample blocks in each layer. Defaults to ``[1,2,2,4]``.
+        blocks_up: number of upsample blocks (optional).
+        dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
+                 At dsdepth==1,only a single output is returned.
+        preprocess: optional callable function to apply before the model's forward pass
+        resolution: optional input image resolution. When provided, the network will first use non-isotropic kernels to bring
+                    image spacing into an approximately isotropic space.
+                    Otherwise, by default, the kernel size and downsampling is always isotropic.
+
     """
 
     def __init__(
@@ -467,7 +483,7 @@ class SegResNetDS2(SegResNetDS):
         self.up_layers_auto = nn.ModuleList([copy.deepcopy(layer) for layer in self.up_layers])
 
     def forward(  # type: ignore
-        self, x: torch.Tensor, with_point: bool = True, with_label: bool = True, **kwargs
+        self, x: torch.Tensor, with_point: bool = True, with_label: bool = True,
     ) -> tuple[Union[None, torch.Tensor, list[torch.Tensor]], Union[None, torch.Tensor, list[torch.Tensor]]]:
         """
         Args:

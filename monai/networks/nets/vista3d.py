@@ -31,6 +31,27 @@ rearrange, _ = optional_import("einops", name="rearrange")
 
 __all__ = ["VISTA3D", "vista3d132"]
 
+def vista3d132(encoder_embed_dim: int = 48, in_channels: int = 1):
+    """
+    Exact VISTA3D network configuration used in https://arxiv.org/abs/2406.05285>`_.
+    The model treats class index larger than 132 as zero-shot.
+
+    Args:
+        encoder_embed_dim: hidden dimension for encoder.
+        in_channels: input channel number.
+    """
+    segresnet = SegResNetDS2(
+        in_channels=in_channels,
+        blocks_down=(1, 2, 2, 4, 4),
+        norm="instance",
+        out_channels=encoder_embed_dim,
+        init_filters=encoder_embed_dim,
+        dsdepth=1,
+    )
+    point_head = PointMappingSAM(feature_size=encoder_embed_dim, n_classes=512, last_supported=132)
+    class_head = ClassMappingClassify(n_classes=512, feature_size=encoder_embed_dim, use_mlp=True)
+    vista = VISTA3D(image_encoder=segresnet, class_head=class_head, point_head=point_head)
+    return vista
 
 class VISTA3D(nn.Module):
     """
@@ -55,7 +76,7 @@ class VISTA3D(nn.Module):
         self.NINF_VALUE = -9999
         self.PINF_VALUE = 9999
 
-    def get_bs(self, class_vector: torch.Tensor | None, point_coords: torch.Tensor | None) -> int:
+    def get_foreground_class_count(self, class_vector: torch.Tensor | None, point_coords: torch.Tensor | None) -> int:
         """Get number of foreground classes based on class and point prompt."""
         if class_vector is None:
             if point_coords is None:
@@ -305,18 +326,18 @@ class VISTA3D(nn.Module):
             input_images: [1, 1, H, W, D]
             point_coords: [B, N, 3]
             point_labels: [B, N], -1 represents padding. 0/1 means negative/positive points for regular class.
-                          2/3 means negative/postive ponits for special supported class like tumor.
+                2/3 means negative/postive ponits for special supported class like tumor.
             class_vector: [B, 1], the global class index
             prompt_class: [B, 1], the global class index. This value is associated with point_coords to identify if
-                          the points are for zero-shot or supported class. When class_vector and point_coords are both
-                          provided, prompt_class is the same as class_vector. For prompt_class[b] > 512, point_coords[b]
-                          will be considered novel class.
+                the points are for zero-shot or supported class. When class_vector and point_coords are both
+                provided, prompt_class is the same as class_vector. For prompt_class[b] > 512, point_coords[b]
+                will be considered novel class.
             patch_coords: a sequence of the python slice objects representing the patch coordinates during sliding window inference.
                 This value is passed from sliding_window_inferer. This is an indicator for training phase or validation phase.
             labels: [1, 1, H, W, D], the groundtruth label tensor, only used for point-only evaluation
             label_set: the label index matching the indexes in labels. If labels are mapped to global index using RelabelID,
-                       this label_set should be global mapped index. If labels are not mapped to global index, e.g. in zero-shot
-                       evaluation, this label_set should be the original index.
+                this label_set should be global mapped index. If labels are not mapped to global index, e.g. in zero-shot
+                evaluation, this label_set should be the original index.
             prev_mask: [B, N, H_fullsize, W_fullsize, D_fullsize].
                 This is the transposed raw output from sliding_window_inferer before any postprocessing.
                 When user click points to perform auto-results correction, this can be the auto-results.
@@ -330,7 +351,7 @@ class VISTA3D(nn.Module):
         if point_coords is None and class_vector is None:
             return self.NINF_VALUE + torch.zeros([1, 1, *image_size], device=device)
 
-        bs = self.get_bs(class_vector, point_coords)
+        bs = self.get_foreground_class_count(class_vector, point_coords)
         if patch_coords is not None:
             # if during validation and perform enable based point-validation.
             if labels is not None and label_set is not None:
@@ -412,10 +433,17 @@ class PointMappingSAM(nn.Module):
         self,
         feature_size: int,
         max_prompt: int = 32,
-        num_add_mask_tokens: int = 2,
         n_classes: int = 512,
         last_supported: int = 132,
     ):
+        """ Interactive point head used for VISTA3D.
+            Adapted from segment anything Adapted from `https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/mask_decoder.py`.
+            Args:
+                feature_size: feature channel from encoder.
+                max_prompt: max prompt number in each forward iteration.
+                n_classes: number of classes the model can potentially support. This is the maximum number of class embeddings.
+                last_supported: number of classes the model support, this value should match the trained model weights. 
+        """
         super().__init__()
         transformer_dim = feature_size
         self.max_prompt = max_prompt
@@ -444,12 +472,6 @@ class PointMappingSAM(nn.Module):
         )
 
         self.output_hypernetworks_mlps = MLP(transformer_dim, transformer_dim, transformer_dim, 3)
-
-        # MultiMask output
-        self.num_add_mask_tokens = num_add_mask_tokens
-        self.output_add_hypernetworks_mlps = nn.ModuleList(
-            [MLP(transformer_dim, transformer_dim, transformer_dim, 3) for i in range(self.num_add_mask_tokens)]
-        )
         # class embedding
         self.n_classes = n_classes
         self.last_supported = last_supported
@@ -464,6 +486,12 @@ class PointMappingSAM(nn.Module):
         point_labels: torch.Tensor,
         class_vector: torch.Tensor | None = None,
     ):
+        """ Args:
+            out: feature from encoder, [1, C, H, W, C]
+            point_coords: point coordinates, [B, N, 3]
+            point_labels: point labels, [B, N]
+            class_vector: class prompts, [B]
+        """
         # downsample out
         out_low = self.feat_downsample(out)
         out_shape = tuple(out.shape[-3:])
@@ -525,7 +553,14 @@ class PointMappingSAM(nn.Module):
 
 
 class ClassMappingClassify(nn.Module):
-    def __init__(self, n_classes: int, feature_size: int, use_mlp: bool = False):
+    """ Class head that performs automatic segmentation based on class vector.
+    """
+    def __init__(self, n_classes: int, feature_size: int, use_mlp: bool = True):
+        """Args:
+            n_classes: maximum number of class embedding.
+            feature_size: class embedding size.
+            use_mlp: use mlp to further map class embedding.
+        """
         super().__init__()
         self.use_mlp = use_mlp
         if use_mlp:
@@ -570,30 +605,6 @@ class ClassMappingClassify(nn.Module):
             masks.append(mask.view(-1, 1, h, w, d))
 
         return torch.cat(masks, 1), class_embedding
-
-
-def vista3d132(encoder_embed_dim: int = 48, in_channels: int = 1):
-    """
-    Exact VISTA3D network configuration used in https://arxiv.org/abs/2406.05285>`_.
-    The model treats class index larger than 132 as zero-shot.
-
-    Args:
-        encoder_embed_dim: hidden dimension for encoder.
-        in_channels: input channel number.
-    """
-    segresnet = SegResNetDS2(
-        in_channels=in_channels,
-        blocks_down=(1, 2, 2, 4, 4),
-        norm="instance",
-        out_channels=encoder_embed_dim,
-        init_filters=encoder_embed_dim,
-        dsdepth=1,
-    )
-    point_head = PointMappingSAM(feature_size=encoder_embed_dim, n_classes=512, last_supported=132)
-    class_head = ClassMappingClassify(n_classes=512, feature_size=encoder_embed_dim, use_mlp=True)
-    vista = VISTA3D(image_encoder=segresnet, class_head=class_head, point_head=point_head)
-    return vista
-
 
 class TwoWayTransformer(nn.Module):
     def __init__(
