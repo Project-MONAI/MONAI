@@ -442,7 +442,7 @@ class PointMappingSAM(nn.Module):
                 feature_size: feature channel from encoder.
                 max_prompt: max prompt number in each forward iteration.
                 n_classes: number of classes the model can potentially support. This is the maximum number of class embeddings.
-                last_supported: number of classes the model support, this value should match the trained model weights. 
+                last_supported: number of classes the model support, this value should match the trained model weights.
         """
         super().__init__()
         transformer_dim = feature_size
