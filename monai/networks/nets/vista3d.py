@@ -78,8 +78,8 @@ class VISTA3D(nn.Module):
         Args:
             point_label: the point label tensor, [B, N].
             label_set: the label index matching the indexes in labels. If labels are mapped to global index using RelabelID,
-                       this label_set should be global mapped index. If labels are not mapped to global index, e.g. in zero-shot
-                       evaluation, this label_set should be the original index.
+                this label_set should be global mapped index. If labels are not mapped to global index, e.g. in zero-shot
+                evaluation, this label_set should be the original index.
             special_index: the special class index that needs to be converted.
         """
         if label_set is None:
