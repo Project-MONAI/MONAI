@@ -34,8 +34,9 @@ __all__ = ["VISTA3D", "vista3d132"]
 
 class VISTA3D(nn.Module):
     """
-    VISTA3D based on `VISTA3D: Versatile Imaging SegmenTation and Annotation model for 3D Computed Tomography
-    https://arxiv.org/abs/2406.05285>`_.
+    VISTA3D based on:
+        `VISTA3D: Versatile Imaging SegmenTation and Annotation model for 3D Computed Tomography
+        <https://arxiv.org/abs/2406.05285>`_.
 
     Args:
         image_encoder: image encoder backbone for feature extraction.
