@@ -19,6 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import VISTA3D, SegResNetDS2
 from monai.networks.nets.vista3d import ClassMappingClassify, PointMappingSAM
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -53,6 +54,8 @@ TEST_CASES = [
 ]
 
 
+@SkipIfBeforePyTorchVersion((1, 11))
+@skip_if_quick
 class TestVista3d(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
