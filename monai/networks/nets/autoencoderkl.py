@@ -532,7 +532,7 @@ class AutoencoderKL(nn.Module):
                 "`num_channels`."
             )
 
-        self.encoder = Encoder(
+        self.encoder: nn.Module = Encoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             channels=channels,
@@ -546,7 +546,7 @@ class AutoencoderKL(nn.Module):
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
         )
-        self.decoder = Decoder(
+        self.decoder: nn.Module = Decoder(
             spatial_dims=spatial_dims,
             channels=channels,
             in_channels=latent_channels,
