@@ -59,13 +59,12 @@ class CrossAttentionBlock(nn.Module):
             causal (bool, optional): whether to use causal attention.
             sequence_length (int, optional): if causal is True, it is necessary to specify the sequence length.
             rel_pos_embedding (str, optional): Add relative positional embeddings to the attention map. For now only
-            "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
+                "decomposed" is supported (see https://arxiv.org/abs/2112.01526). 2D and 3D are supported.
             input_size (tuple(spatial_dim), optional): Input resolution for calculating the relative positional
-            parameter size.
+                parameter size.
             attention_dtype: cast attention operations to this dtype.
-            use_flash_attention: if True, use Pytorch's inbuilt
-            flash attention for a memory efficient attention mechanism (see
-            https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
+            use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+                (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
         """
 
         super().__init__()
@@ -109,7 +108,7 @@ class CrossAttentionBlock(nn.Module):
         self.to_v = nn.Linear(self.context_input_size, inner_size, bias=qkv_bias)
         self.input_rearrange = Rearrange("b h (l d) -> b l h d", l=num_heads)
 
-        self.out_rearrange = Rearrange("b h l d -> b l (h d)")
+        self.out_rearrange = Rearrange("b l h d -> b h (l d)")
         self.drop_output = nn.Dropout(dropout_rate)
         self.drop_weights = nn.Dropout(dropout_rate)
         self.dropout_rate = dropout_rate
@@ -152,31 +151,20 @@ class CrossAttentionBlock(nn.Module):
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         b, t, c = x.size()  # batch size, sequence length, embedding dimensionality (hidden_size)
 
-        q = self.to_q(x)
+        q = self.input_rearrange(self.to_q(x))
         kv = context if context is not None else x
         _, kv_t, _ = kv.size()
-        k = self.to_k(kv)
-        v = self.to_v(kv)
+        k = self.input_rearrange(self.to_k(kv))
+        v = self.input_rearrange(self.to_v(kv))
 
         if self.attention_dtype is not None:
             q = q.to(self.attention_dtype)
             k = k.to(self.attention_dtype)
 
-        q = q.view(b, t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, t,  hs) #
-        k = k.view(b, kv_t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, kv_t, hs)
-        v = v.view(b, kv_t, self.num_heads, c // self.num_heads).transpose(1, 2)  # (b, nh, kv_t, hs)
-
         if self.use_flash_attention:
             x = torch.nn.functional.scaled_dot_product_attention(
-                query=q.transpose(1, 2),
-                key=k.transpose(1, 2),
-                value=v.transpose(1, 2),
-                scale=self.scale,
-                dropout_p=self.dropout_rate,
-                is_causal=self.causal,
-            ).transpose(
-                1, 2
-            )  # Back to (b, nh, t, hs)
+                query=q, key=k, value=v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
+            )
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
             # apply relative positional embedding if defined
@@ -195,6 +183,7 @@ class CrossAttentionBlock(nn.Module):
 
             att_mat = self.drop_weights(att_mat)
             x = torch.einsum("bhxy,bhyd->bhxd", att_mat, v)
+
         x = self.out_rearrange(x)
         x = self.out_proj(x)
         x = self.drop_output(x)

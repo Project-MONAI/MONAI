@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.apps.generation.maisi.utils.morphological_ops import dilate, erode, get_morphological_filter_result_t
+from monai.transforms.utils_morphological_ops import dilate, erode, get_morphological_filter_result_t
 from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS_SHAPE = []

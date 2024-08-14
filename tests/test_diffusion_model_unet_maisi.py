@@ -17,14 +17,11 @@ from unittest import skipUnless
 import torch
 from parameterized import parameterized
 
+from monai.apps.generation.maisi.networks.diffusion_model_unet_maisi import DiffusionModelUNetMaisi
 from monai.networks import eval_mode
 from monai.utils import optional_import
 
 _, has_einops = optional_import("einops")
-_, has_generative = optional_import("generative")
-
-if has_generative:
-    from monai.apps.generation.maisi.networks.diffusion_model_unet_maisi import DiffusionModelUNetMaisi
 
 UNCOND_CASES_2D = [
     [
@@ -291,7 +288,6 @@ DROPOUT_WRONG = [
 ]
 
 
-@skipUnless(has_generative, "monai-generative required")
 class TestDiffusionModelUNetMaisi2D(unittest.TestCase):
 
     @parameterized.expand(UNCOND_CASES_2D)
@@ -510,7 +506,6 @@ class TestDiffusionModelUNetMaisi2D(unittest.TestCase):
             self.assertEqual(result.shape, (1, 1, 16, 16))
 
 
-@skipUnless(has_generative, "monai-generative required")
 class TestDiffusionModelUNetMaisi3D(unittest.TestCase):
 
     @parameterized.expand(UNCOND_CASES_3D)

@@ -17,14 +17,12 @@ from unittest import skipUnless
 import torch
 from parameterized import parameterized
 
+from monai.apps.generation.maisi.networks.controlnet_maisi import ControlNetMaisi
 from monai.networks import eval_mode
 from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion
 
-_, has_generative = optional_import("generative")
-
-if has_generative:
-    from monai.apps.generation.maisi.networks.controlnet_maisi import ControlNetMaisi
+_, has_einops = optional_import("einops")
 
 TEST_CASES = [
     [
@@ -103,8 +101,8 @@ TEST_CASES_CONDITIONAL = [
 TEST_CASES_ERROR = [
     [
         {"spatial_dims": 2, "in_channels": 1, "with_conditioning": True, "cross_attention_dim": None},
-        "ControlNet expects dimension of the cross-attention conditioning "
-        "(cross_attention_dim) when using with_conditioning.",
+        "ControlNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
+        "to be specified when with_conditioning=True.",
     ],
     [
         {"spatial_dims": 2, "in_channels": 1, "with_conditioning": False, "cross_attention_dim": 2},
@@ -112,7 +110,8 @@ TEST_CASES_ERROR = [
     ],
     [
         {"spatial_dims": 2, "in_channels": 1, "num_channels": (8, 16), "norm_num_groups": 16},
-        "ControlNet expects all num_channels being multiple of norm_num_groups",
+        f"ControlNet expects all channels to be a multiple of norm_num_groups, but got"
+        f" channels={(8, 16)} and norm_num_groups={16}",
     ],
     [
         {
@@ -122,16 +121,17 @@ TEST_CASES_ERROR = [
             "attention_levels": (True,),
             "norm_num_groups": 8,
         },
-        "ControlNet expects num_channels being same size of attention_levels",
+        f"ControlNet expects channels to have the same length as attention_levels, but got "
+        f"channels={(8, 16)} and attention_levels={(True,)}",
     ],
 ]
 
 
 @SkipIfBeforePyTorchVersion((2, 0))
-@skipUnless(has_generative, "monai-generative required")
 class TestControlNet(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
         net = ControlNetMaisi(**input_param)
         with eval_mode(net):
@@ -145,6 +145,7 @@ class TestControlNet(unittest.TestCase):
             self.assertEqual(result[1].shape, expected_shape)
 
     @parameterized.expand(TEST_CASES_CONDITIONAL)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape_conditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):
         net = ControlNetMaisi(**input_param)
         with eval_mode(net):
