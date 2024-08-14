@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import enum
 import functools
-import importlib.util
 import os
 import pdb
 import re
@@ -215,12 +214,11 @@ def load_submodules(
                     loader = mod_spec.loader
                     loader.exec_module(mod)
                     submodules.append(mod)
-                
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
                 msg = (
-                    "\nMultiple versions of MONAI may have been installed?\n"
+                    "\nMultßiple versions of MONAI may have been installed?\n"
                     "Please see the installation guide: https://docs.monai.io/en/stable/installation.html\n"
                 )  # issue project-monai/monai#5193
                 raise type(e)(f"{e}\n{msg}").with_traceback(e.__traceback__) from e  # raise with modified message
