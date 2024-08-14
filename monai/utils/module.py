@@ -218,7 +218,7 @@ def load_submodules(
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
                 msg = (
-                    "\nMultßiple versions of MONAI may have been installed?\n"
+                    "\nMultiple versions of MONAI may have been installed?\n"
                     "Please see the installation guide: https://docs.monai.io/en/stable/installation.html\n"
                 )  # issue project-monai/monai#5193
                 raise type(e)(f"{e}\n{msg}").with_traceback(e.__traceback__) from e  # raise with modified message
