@@ -65,10 +65,10 @@ class TestTRTWrapper(unittest.TestCase):
             trt_wrapper = TRTWrapper(
                 model, f"{tmpdir}/test_wrapper", precision=precision, build_args=args, dynamic_batchsize=[1, 4, 8]
             )
-            assert trt_wrapper.engine is None
+            self.assertIsNone(trt_wrapper.engine)
             trt_output = trt_wrapper(input_example)
             # Check that lazy TRT build succeeded
-            assert trt_wrapper.engine is not None
+            self.assertIsNotNone(trt_wrapper.engine)
             torch.testing.assert_close(trt_output, output_example, rtol=0.01, atol=0.01)
 
 

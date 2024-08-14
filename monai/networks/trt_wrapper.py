@@ -37,7 +37,7 @@ if P_imported:
 trt, trt_imported = optional_import("tensorrt")
 cudart, _ = optional_import("cuda.cudart")
 
-LOGGER = get_logger("run_cmd")
+LOGGER = get_logger("trt_wrapper")
 
 lock_sm = threading.Lock()
 
@@ -132,10 +132,11 @@ class TRTEngine:
         ctx = self.context
 
         for i, binding in enumerate(self.output_names):
-            shape = ctx.get_tensor_shape(binding)
-            t = torch.empty(list(shape), dtype=self.dtypes[i], device=device).contiguous()
-            self.tensors[binding] = t
-            ctx.set_tensor_address(binding, t.data_ptr())
+            shape = list(ctx.get_tensor_shape(binding))
+            if binding not in self.tensors or list(self.tensors[binding].shape) != shape:
+                t = torch.empty(shape, dtype=self.dtypes[i], device=device).contiguous()
+                self.tensors[binding] = t
+                ctx.set_tensor_address(binding, t.data_ptr())
 
     @staticmethod
     def check_shape(shape, profile):
