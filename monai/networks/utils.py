@@ -822,7 +822,7 @@ def _onnx_trt_compile(
     output_names = [] if not output_names else output_names
 
     # set up the TensorRT builder
-    torch_tensorrt.set_device(device)
+    torch.cuda.set_device(device)
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
@@ -931,7 +931,7 @@ def convert_to_trt(
         warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
 
     device = device if device else 0
-    target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
+    target_device = torch.device(f"cuda:{device}")
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
@@ -986,7 +986,7 @@ def convert_to_trt(
                     ir_model,
                     inputs=input_placeholder,
                     enabled_precisions=convert_precision,
-                    device=target_device,
+                    device=torch_tensorrt.Device(f"cuda:{device}"),
                     ir="torchscript",
                     **kwargs,
                 )

@@ -157,6 +157,10 @@ class Encoder(nn.Module):
         norm_eps: epsilon for the normalization.
         attention_levels: indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: if True use non-local attention block.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -170,6 +174,9 @@ class Encoder(nn.Module):
         norm_eps: float,
         attention_levels: Sequence[bool],
         with_nonlocal_attn: bool = True,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -220,6 +227,9 @@ class Encoder(nn.Module):
                             num_channels=input_channel,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
+                            include_fc=include_fc,
+                            use_combined_linear=use_combined_linear,
+                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -243,6 +253,9 @@ class Encoder(nn.Module):
                     num_channels=channels[-1],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -291,6 +304,10 @@ class Decoder(nn.Module):
         attention_levels: indicate which level from num_channels contain an attention block.
         with_nonlocal_attn: if True use non-local attention block.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -305,6 +322,9 @@ class Decoder(nn.Module):
         attention_levels: Sequence[bool],
         with_nonlocal_attn: bool = True,
         use_convtranspose: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -350,6 +370,9 @@ class Decoder(nn.Module):
                     num_channels=reversed_block_out_channels[0],
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
             blocks.append(
@@ -389,6 +412,9 @@ class Decoder(nn.Module):
                             num_channels=block_in_ch,
                             norm_num_groups=norm_num_groups,
                             norm_eps=norm_eps,
+                            include_fc=include_fc,
+                            use_combined_linear=use_combined_linear,
+                            use_flash_attention=use_flash_attention,
                         )
                     )
 
@@ -463,6 +489,10 @@ class AutoencoderKL(nn.Module):
         with_decoder_nonlocal_attn: if True use non-local attention block in the decoder.
         use_checkpoint: if True, use activation checkpoint to save memory.
         use_convtranspose: if True, use ConvTranspose to upsample feature maps in decoder.
+        include_fc: whether to include the final linear layer in the attention block. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection in the attention block, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -480,6 +510,9 @@ class AutoencoderKL(nn.Module):
         with_decoder_nonlocal_attn: bool = True,
         use_checkpoint: bool = False,
         use_convtranspose: bool = False,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -499,7 +532,7 @@ class AutoencoderKL(nn.Module):
                 "`num_channels`."
             )
 
-        self.encoder = Encoder(
+        self.encoder: nn.Module = Encoder(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             channels=channels,
@@ -509,8 +542,11 @@ class AutoencoderKL(nn.Module):
             norm_eps=norm_eps,
             attention_levels=attention_levels,
             with_nonlocal_attn=with_encoder_nonlocal_attn,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
-        self.decoder = Decoder(
+        self.decoder: nn.Module = Decoder(
             spatial_dims=spatial_dims,
             channels=channels,
             in_channels=latent_channels,
@@ -521,6 +557,9 @@ class AutoencoderKL(nn.Module):
             attention_levels=attention_levels,
             with_nonlocal_attn=with_decoder_nonlocal_attn,
             use_convtranspose=use_convtranspose,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
         self.quant_conv_mu = Convolution(
             spatial_dims=spatial_dims,
@@ -665,27 +704,18 @@ class AutoencoderKL(nn.Module):
         # copy over all matching keys
         for k in new_state_dict:
             if k in old_state_dict:
-                new_state_dict[k] = old_state_dict[k]
+                new_state_dict[k] = old_state_dict.pop(k)
 
         # fix the attention blocks
-        attention_blocks = [k.replace(".attn.qkv.weight", "") for k in new_state_dict if "attn.qkv.weight" in k]
+        attention_blocks = [k.replace(".attn.to_q.weight", "") for k in new_state_dict if "attn.to_q.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn.qkv.weight"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.to_q.weight"],
-                    old_state_dict[f"{block}.to_k.weight"],
-                    old_state_dict[f"{block}.to_v.weight"],
-                ],
-                dim=0,
-            )
-            new_state_dict[f"{block}.attn.qkv.bias"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.to_q.bias"],
-                    old_state_dict[f"{block}.to_k.bias"],
-                    old_state_dict[f"{block}.to_v.bias"],
-                ],
-                dim=0,
-            )
+            new_state_dict[f"{block}.attn.to_q.weight"] = old_state_dict.pop(f"{block}.to_q.weight")
+            new_state_dict[f"{block}.attn.to_k.weight"] = old_state_dict.pop(f"{block}.to_k.weight")
+            new_state_dict[f"{block}.attn.to_v.weight"] = old_state_dict.pop(f"{block}.to_v.weight")
+            new_state_dict[f"{block}.attn.to_q.bias"] = old_state_dict.pop(f"{block}.to_q.bias")
+            new_state_dict[f"{block}.attn.to_k.bias"] = old_state_dict.pop(f"{block}.to_k.bias")
+            new_state_dict[f"{block}.attn.to_v.bias"] = old_state_dict.pop(f"{block}.to_v.bias")
+
             # old version did not have a projection so set these to the identity
             new_state_dict[f"{block}.attn.out_proj.weight"] = torch.eye(
                 new_state_dict[f"{block}.attn.out_proj.weight"].shape[0]
@@ -698,5 +728,8 @@ class AutoencoderKL(nn.Module):
         for k in new_state_dict:
             if "postconv" in k:
                 old_name = k.replace("postconv", "conv")
-                new_state_dict[k] = old_state_dict[old_name]
-        self.load_state_dict(new_state_dict)
+                new_state_dict[k] = old_state_dict.pop(old_name)
+        if verbose:
+            # print all remaining keys in old_state_dict
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
+        self.load_state_dict(new_state_dict, strict=True)
