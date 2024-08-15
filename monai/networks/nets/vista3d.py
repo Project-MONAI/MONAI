@@ -77,7 +77,7 @@ class VISTA3D(nn.Module):
         self.point_freeze = False
         self.NINF_VALUE = -9999
         self.PINF_VALUE = 9999
-    
+
     def update_slidingwindow_padding(self, pad_size: list | None, labels: torch.Tensor | None, prev_mask: torch.Tensor | None, point_coords: torch.Tensor | None):
         """ Image has been padded by sliding window inferer. The related padding need to be performed outside of slidingwindow inferer.
         Args:

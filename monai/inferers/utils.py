@@ -16,7 +16,6 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any, Iterable
 
 import numpy as np
-import copy
 import torch
 import torch.nn.functional as F
 
