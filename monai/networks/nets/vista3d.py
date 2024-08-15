@@ -77,6 +77,25 @@ class VISTA3D(nn.Module):
         self.point_freeze = False
         self.NINF_VALUE = -9999
         self.PINF_VALUE = 9999
+    
+    def update_slidingwindow_padding(self, pad_size: list | None, labels: torch.Tensor | None, prev_mask: torch.Tensor | None, point_coords: torch.Tensor | None):
+        """ Image has been padded by sliding window inferer. The related padding need to be performed outside of slidingwindow inferer.
+        Args:
+            pad_size: padding size passed from sliding window inferer.
+            labels: image label ground truth.
+            prev_mask: previous segmentation mask.
+            point_coords: point click coordinates.
+        """
+        if pad_size is None:
+            return labels, prev_mask, point_coords
+        if labels is not None:
+            labels = F.pad(labels, pad=pad_size, mode='constant', val=0)
+        if prev_mask is not None:
+            prev_mask = F.pad(prev_mask, pad=pad_size, mode='constant', val=0)
+        if point_coords is not None:
+            point_coords = point_coords + torch.tensor([pad_size[-2], pad_size[-4], pad_size[-6]], device=point_coords.device)
+        return labels, prev_mask, point_coords
+
 
     def get_foreground_class_count(self, class_vector: torch.Tensor | None, point_coords: torch.Tensor | None) -> int:
         """Get number of foreground classes based on class and point prompt."""
@@ -348,6 +367,7 @@ class VISTA3D(nn.Module):
             val_point_sampler: function used to sample points from labels. This is only used for point-only evaluation.
 
         """
+        labels, prev_mask, point_coords = self.update_slidingwindow_padding(kwargs.get('pad_size', None), labels, prev_mask, point_coords)
         image_size = input_images.shape[-3:]
         device = input_images.device
         if point_coords is None and class_vector is None:
