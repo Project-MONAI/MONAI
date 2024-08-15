@@ -29,12 +29,12 @@ if P_imported:
         CreateConfig,
         Profile,
         engine_from_bytes,
-        engine_from_network,
+        engine_bytes_from_network,
         network_from_onnx_path,
-        save_engine,
     )
 
 trt, trt_imported = optional_import("tensorrt")
+torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 cudart, _ = optional_import("cuda.cudart")
 
 LOGGER = get_logger("trt_wrapper")
@@ -228,6 +228,7 @@ class TRTWrapper(torch.nn.Module):
         model,
         path,
         precision="tf32",
+        export_method="onnx",
         input_names=None,
         output_names=None,
         export_args=None,
@@ -246,9 +247,10 @@ class TRTWrapper(torch.nn.Module):
             model: Model to "wrap". If None, TRT engine is supposed to already exist.
             path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
-            input_names: Optional list of output names to pass to onnx.export().
-            output_names: Optional list of output names to pass to onnx.export().
-            export_args: Optional args to pass to onnx.export(). See onnx.export() for details.
+            export_method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
+            input_names: Optional list of input names to use for export.
+            output_names: Optional list of output names to use for export.
+            export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
             build_args: Optional args to pass to TRT builder. See polygraphy.Config for details.
             input_profiles: Optional list of profiles for TRT builder and ONNX export.
                             Each profile is a map of the form : {"input id" : [min_shape, opt_shape, max_shape], ...}.
@@ -264,6 +266,7 @@ class TRTWrapper(torch.nn.Module):
         self.model = model
         self.path = path
         self.precision = precision
+        self.export_method = export_method
         self.output_names = output_names or []
         self.profiles = input_profiles or []
         self.dynamic_batchsize = dynamic_batchsize
@@ -333,13 +336,21 @@ class TRTWrapper(torch.nn.Module):
         Returns: Passing through wrapped module's forward() return value(s)
 
         """
-        try:
-            if len(argv) > 0:
-                kwargs.update(self._inputs_to_dict(argv))
-                argv = ()
+        if len(argv) > 0:
+            kwargs.update(self._inputs_to_dict(argv))
+            argv = ()
 
-            if self.engine is None and not self.disabled:
+        if self.engine is None and not self.disabled:
+            try:
                 self._build_and_save(kwargs)
+                self._load_engine()
+            except Exception as e:
+                if self.fallback:
+                    LOGGER.info(f"Failed to build engine: {e}")
+                    self.disabled = True
+                else:
+                    raise e
+        try:
             if self.engine is not None:
                 # forward_trt is not thread safe as we do not use per-thread execution contexts
                 with lock_sm:
@@ -386,8 +397,7 @@ class TRTWrapper(torch.nn.Module):
 
         LOGGER.info(f"Building TensorRT engine for {self.onnx_path}: {self.engine_path}")
         network = network_from_onnx_path(self.onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
-        engine = engine_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
-        save_engine(engine, path=self.engine_path)
+        return engine_bytes_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
 
     def _build_and_save(self, input_example):
         """
@@ -402,40 +412,45 @@ class TRTWrapper(torch.nn.Module):
         if self.model is None:
             raise ValueError("ERROR: self.model is None!")
 
-        try:
-            export_args = self.export_args
-            dbs = self.dynamic_batchsize
-            if dbs:
-                if len(self.profiles) > 0:
-                    raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TRTWrapper!")
-                if len(dbs) != 3:
-                    raise ValueError("dynamic_batchsize has to have len ==3 ")
-                profiles = {}
-                for id, val in input_example.items():
-                    sh = val.shape[1:]
-                    profiles[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
-                self.profiles = [profiles]
-
+        export_args = self.export_args
+        dbs = self.dynamic_batchsize
+        if dbs:
             if len(self.profiles) > 0:
-                export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
+                raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TRTWrapper!")
+            if len(dbs) != 3:
+                raise ValueError("dynamic_batchsize has to have len ==3 ")
+            profiles = {}
+            for id, val in input_example.items():
+                sh = val.shape[1:]
+                profiles[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
+            self.profiles = [profiles]
 
-            LOGGER.info(f"Exporting to {self.onnx_path}, export args: {export_args}")
-            add_casts_around_norms(self.model)
+        if len(self.profiles) > 0:
+            export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
+
+        LOGGER.info(f"Exporting to {self.onnx_path}, export args: {export_args}")
+        add_casts_around_norms(self.model)
+        if self.export_method == 'torch_trt':
+            enabled_precisions = [torch.float32]
+            if self.precision == "fp16":
+                enabled_precisions.append(torch.float16)
+            elif self.precision == "bf16":
+                enabled_precisions.append(torch.bfloat16)
+            engine_bytes = torch_tensorrt.convert_method_to_trt_engine(self.model,
+                                                                       input_example,
+                                                                       enabled_precisions=enabled_precisions,
+                                                                       **export_args)
+        else:
             convert_to_onnx(
                 self.model,
-                (input_example,),
+                input_example,
                 filename=self.onnx_path,
                 input_names=self.input_names,
                 output_names=self.output_names,
+                dynamo=self.export_method == 'onnx_dynamo',
                 **export_args,
             )
             LOGGER.info("Export to ONNX successful.")
-            self._onnx_to_trt()
-            self._load_engine()
+            engine_bytes = self._onnx_to_trt()
             os.remove(self.onnx_path)
-        except Exception as e:
-            if self.fallback:
-                LOGGER.info(f"Failed to build engine: {e}")
-                self.disabled = True
-            else:
-                raise e
+        open(self.engine_path, 'wb').write(engine_bytes)

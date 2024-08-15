@@ -608,6 +608,7 @@ def convert_to_onnx(
     atol: float = 0.0,
     use_trace: bool = True,
     do_constant_folding: bool = True,
+    dynamo=False,
     **kwargs,
 ):
     """
@@ -635,6 +636,7 @@ def convert_to_onnx(
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
         do_constant_folding: passed to onnx.export(). If True, extra polygraphy folding pass is done.
+        dynamo: passed to onnx.export(). [When dynamo export API is finalized]
         kwargs: if use_trace=True: additional arguments to pass to torch.onnx.export()
             else: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
@@ -669,13 +671,14 @@ def convert_to_onnx(
 
         torch.onnx.export(
             mode_to_export,
-            tuple(inputs),
+            inputs,
             f=f,
             input_names=input_names,
             output_names=output_names,
             dynamic_axes=dynamic_axes,
             opset_version=opset_version,
             do_constant_folding=do_constant_folding,
+            # dynamo=dynamo,
             **torch_versioned_kwargs,
         )
         if filename is None:
@@ -958,8 +961,6 @@ def convert_to_trt(
 
     # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
-    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
-    ir_model.eval()
 
     if use_onnx:
         # set the batch dim as dynamic
@@ -981,6 +982,8 @@ def convert_to_trt(
             output_names=onnx_output_names,
         )
     else:
+        ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+        ir_model.eval()
         # convert the model through the Torch-TensorRT way
         ir_model.to(target_device)
         with torch.no_grad():
