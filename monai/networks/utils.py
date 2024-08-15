@@ -822,7 +822,7 @@ def _onnx_trt_compile(
     output_names = [] if not output_names else output_names
 
     # set up the TensorRT builder
-    torch_tensorrt.set_device(device)
+    torch.cuda.set_device(device)
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
