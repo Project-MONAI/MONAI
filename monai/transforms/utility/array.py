@@ -1789,6 +1789,8 @@ class CoordinateTransform(InvertibleTransform, Transform):
         return out, meta_info
 
     def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
+        if data.ndim != 3 or data.shape[0] != 1 or data.shape[-1] not in (3, 4):
+            raise ValueError(f"data should be in shape (1, N, 3 or 4), got {data.shape}.")
         out, meta_info = self.transform_coordinates(data, affine)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
