@@ -66,7 +66,7 @@ from monai.utils import (
 )
 from monai.utils.enums import CoordinateTransformMode, TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
+from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype, get_dtype_string
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -1733,7 +1733,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
 
     def __init__(
         self,
-        dtype: DtypeLike = torch.float64,
+        dtype: DtypeLike | torch.dtype = torch.float64,
         mode=CoordinateTransformMode.IMAGE_TO_WORLD,
         affine_lps_to_ras: bool = False,
     ) -> None:
@@ -1743,48 +1743,45 @@ class CoordinateTransform(InvertibleTransform, Transform):
 
 
     @staticmethod
-    def apply_affine_to_points(data, affine, dtype):
-        data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=dtype)
+    def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: DtypeLike | torch.dtype):
+        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
 
         homogeneous = concatenate((data_[0], torch.ones((data_[0].shape[0], 1))), axis=1)
         transformed_homogeneous = torch.matmul(affine, homogeneous.T)
-        transformed_coordinates = transformed_homogeneous[:-1].T.unsqueeze(0)
+        transformed_coordinates = transformed_homogeneous[:-1].T.unsqueeze(0)  # unsqueeze to add channel dim back
         out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
 
         return out
 
-    def transform_coordinates(self, data, i2w_affine):
+    def transform_coordinates(self, data: torch.Tensor, image_to_world_affine: torch.Tensor):
         """
         Transform coordinates using an affine transformation matrix.
 
         Args:
-            data: The input coordinates, assume to be in shape (C, N, 3 or 4).
-            i2w_affine: A 3x3 or 4x4 affine transformation matrix.
-            invert: Whether to invert the affine matrix.
+            data: The input coordinates, assume to be in shape (1, N, 3 or 4).
+            image_to_world_affine: A 3x3 or 4x4 affine transformation matrix.
 
         Returns:
             Transformed coordinates.
         """
         data = convert_to_tensor(data, track_meta=get_track_meta())
-        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=self.dtype)
 
-        original_i2w_affine = i2w_affine
+        original_image_to_world_affine = image_to_world_affine
         if self.affine_lps_to_ras:  # RAS affine
-            i2w_affine = orientation_ras_lps(i2w_affine)
+            image_to_world_affine = orientation_ras_lps(image_to_world_affine)
 
-        w2i_affine = linalg_inv(i2w_affine)
-        _affine = w2i_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else i2w_affine
+        world_to_image_affine = linalg_inv(image_to_world_affine)
+        _affine = world_to_image_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else image_to_world_affine
 
-        out = self.apply_affine_to_points(data_, _affine, self.dtype)
+        out = self.apply_affine_to_points(data, _affine, self.dtype)
 
         extra_info = {
             "mode": self.mode,
-            "dtype": str(self.dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
-            "image_affine": i2w_affine,
+            "dtype": get_dtype_string(self.dtype),
+            "image_affine": image_to_world_affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
-        xform = original_i2w_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_i2w_affine)
+        xform = original_image_to_world_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_image_to_world_affine)
         meta_info = TraceableTransform.track_transform_meta(
             data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
         )
