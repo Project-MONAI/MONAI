@@ -1789,8 +1789,15 @@ class CoordinateTransform(InvertibleTransform, Transform):
         return out, meta_info
 
     def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            data: The input coordinates, assume to be in shape (1, N, 3 or 4).
+            image_to_world_affine: A 3x3 or 4x4 affine transformation matrix.
+        """
         if data.ndim != 3 or data.shape[0] != 1 or data.shape[-1] not in (3, 4):
             raise ValueError(f"data should be in shape (1, N, 3 or 4), got {data.shape}.")
+        if affine.ndim not in (2, 3) or affine.shape[-2:] not in ((3, 3), (4, 4)):
+            raise ValueError(f"image_to_world_affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
         out, meta_info = self.transform_coordinates(data, affine)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
