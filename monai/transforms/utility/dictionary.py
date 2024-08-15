@@ -1764,7 +1764,7 @@ class CoordinateTransformd(MapTransform, InvertibleTransform):
         self,
         keys: KeysCollection,
         refer_key: str,
-        dtype: DtypeLike = torch.float64,
+        dtype: DtypeLike | torch.dtype = torch.float64,
         mode: str = CoordinateTransformMode.IMAGE_TO_WORLD,
         affine_lps_to_ras: bool = False,
         allow_missing_keys: bool = False,
