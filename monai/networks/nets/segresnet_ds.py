@@ -432,6 +432,7 @@ class SegResNetDS2(SegResNetDS):
     """
     SegResNetDS2 adds an additional decorder branch to SegResNetDS and is the image encoder of VISTA3D
      <https://arxiv.org/abs/2406.05285>`_.
+
     Args:
         spatial_dims: spatial dimension of the input data. Defaults to 3.
         init_filters: number of output channels for initial convolution layer. Defaults to 32.
@@ -483,7 +484,7 @@ class SegResNetDS2(SegResNetDS):
         self.up_layers_auto = nn.ModuleList([copy.deepcopy(layer) for layer in self.up_layers])
 
     def forward(  # type: ignore
-        self, x: torch.Tensor, with_point: bool = True, with_label: bool = True,
+        self, x: torch.Tensor, with_point: bool = True, with_label: bool = True
     ) -> tuple[Union[None, torch.Tensor, list[torch.Tensor]], Union[None, torch.Tensor, list[torch.Tensor]]]:
         """
         Args:

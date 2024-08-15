@@ -31,6 +31,7 @@ rearrange, _ = optional_import("einops", name="rearrange")
 
 __all__ = ["VISTA3D", "vista3d132"]
 
+
 def vista3d132(encoder_embed_dim: int = 48, in_channels: int = 1):
     """
     Exact VISTA3D network configuration used in https://arxiv.org/abs/2406.05285>`_.
@@ -52,6 +53,7 @@ def vista3d132(encoder_embed_dim: int = 48, in_channels: int = 1):
     class_head = ClassMappingClassify(n_classes=512, feature_size=encoder_embed_dim, use_mlp=True)
     vista = VISTA3D(image_encoder=segresnet, class_head=class_head, point_head=point_head)
     return vista
+
 
 class VISTA3D(nn.Module):
     """
@@ -429,20 +431,16 @@ class VISTA3D(nn.Module):
 
 
 class PointMappingSAM(nn.Module):
-    def __init__(
-        self,
-        feature_size: int,
-        max_prompt: int = 32,
-        n_classes: int = 512,
-        last_supported: int = 132,
-    ):
-        """ Interactive point head used for VISTA3D.
-            Adapted from segment anything Adapted from `https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/mask_decoder.py`.
-            Args:
-                feature_size: feature channel from encoder.
-                max_prompt: max prompt number in each forward iteration.
-                n_classes: number of classes the model can potentially support. This is the maximum number of class embeddings.
-                last_supported: number of classes the model support, this value should match the trained model weights.
+    def __init__(self, feature_size: int, max_prompt: int = 32, n_classes: int = 512, last_supported: int = 132):
+        """Interactive point head used for VISTA3D.
+        Adapted from segment anything:
+        `https://github.com/facebookresearch/segment-anything/blob/main/segment_anything/modeling/mask_decoder.py`.
+
+        Args:
+            feature_size: feature channel from encoder.
+            max_prompt: max prompt number in each forward iteration.
+            n_classes: number of classes the model can potentially support. This is the maximum number of class embeddings.
+            last_supported: number of classes the model support, this value should match the trained model weights.
         """
         super().__init__()
         transformer_dim = feature_size
@@ -486,11 +484,11 @@ class PointMappingSAM(nn.Module):
         point_labels: torch.Tensor,
         class_vector: torch.Tensor | None = None,
     ):
-        """ Args:
-            out: feature from encoder, [1, C, H, W, C]
-            point_coords: point coordinates, [B, N, 3]
-            point_labels: point labels, [B, N]
-            class_vector: class prompts, [B]
+        """Args:
+        out: feature from encoder, [1, C, H, W, C]
+        point_coords: point coordinates, [B, N, 3]
+        point_labels: point labels, [B, N]
+        class_vector: class prompts, [B]
         """
         # downsample out
         out_low = self.feat_downsample(out)
@@ -553,13 +551,13 @@ class PointMappingSAM(nn.Module):
 
 
 class ClassMappingClassify(nn.Module):
-    """ Class head that performs automatic segmentation based on class vector.
-    """
+    """Class head that performs automatic segmentation based on class vector."""
+
     def __init__(self, n_classes: int, feature_size: int, use_mlp: bool = True):
         """Args:
-            n_classes: maximum number of class embedding.
-            feature_size: class embedding size.
-            use_mlp: use mlp to further map class embedding.
+        n_classes: maximum number of class embedding.
+        feature_size: class embedding size.
+        use_mlp: use mlp to further map class embedding.
         """
         super().__init__()
         self.use_mlp = use_mlp
@@ -605,6 +603,7 @@ class ClassMappingClassify(nn.Module):
             masks.append(mask.view(-1, 1, h, w, d))
 
         return torch.cat(masks, 1), class_embedding
+
 
 class TwoWayTransformer(nn.Module):
     def __init__(
