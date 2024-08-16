@@ -107,7 +107,8 @@ __all__ = [
     "generate_spatial_bounding_box",
     "get_extreme_points",
     "get_largest_connected_component_mask",
-    "get_largest_connected_component_mask_point",
+    "keep_merge_components_with_points",
+    "keep_components_with_positive_points",
     "convert_points_to_disc",
     "remove_small_objects",
     "img_bounds",
@@ -1178,7 +1179,7 @@ def get_largest_connected_component_mask(
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
 
-def get_largest_connected_component_mask_point(
+def keep_merge_components_with_points(
     img_pos: NdarrayTensor,
     img_neg: NdarrayTensor,
     point_coords: NdarrayTensor,
@@ -1188,8 +1189,8 @@ def get_largest_connected_component_mask_point(
     margins: int = 3,
 ) -> NdarrayTensor:
     """
-    Gets the connected component of img_pos and img_neg that include the positive points and
-    negative points separately. The function is used for combining automatic results with interactive
+    Keep connected regions of img_pos and img_neg that include the positive points and
+    negative points separately. The function is used for merging automatic results with interactive
     results in VISTA3D.
 
     Args:
@@ -1199,6 +1200,7 @@ def get_largest_connected_component_mask_point(
         neg_val: negative point label values.
         point_coords: the coordinates of each point, shape [B, N, 3], where N means the number of points.
         point_labels: the label of each point, shape [B, N].
+        margins: include points outside of the region but within the margin.
     """
 
     cucim_skimage, has_cucim = optional_import("cucim.skimage")
@@ -1247,6 +1249,48 @@ def get_largest_connected_component_mask_point(
                     break
     outs[outs > 1] = 1
     return convert_to_dst_type(outs, dst=img_pos, dtype=outs.dtype)[0]
+
+def keep_components_with_positive_points(
+        img: NdarrayTensor, 
+        point_coords: NdarrayTensor, 
+        point_labels: NdarrayTensor) -> NdarrayTensor:
+    """
+    Keep connected regions that include the positive points. Used for point-only inference postprocessing to remove
+    regions without positive points.
+    Args:
+        img: [1, B, H, W, D]. Output prediction from VISTA3D. Value is before sigmoid and contain NaN value.
+        point_coords: [B, N, 3]. Point click coordinates
+        point_labels: [B, N]. Point click labels.
+    """
+    outs = torch.zeros_like(img)
+    for c in range(len(point_coords)):
+        if not ((point_labels[c] == 3).any() or (point_labels[c] == 1).any()):
+            # skip if no positive points. 
+            continue
+        coords = point_coords[c, point_labels[c] == 3].tolist() + point_coords[c, point_labels[c] == 1].tolist()
+        not_nan_mask = ~torch.isnan(img[0, c])
+        img_ = torch.nan_to_num(img[0, c] > 0, 0)
+        img_, *_ = convert_data_type(img_, np.ndarray)
+        label = measure.label
+        features = label(img_, connectivity=3)
+        pos_mask = torch.from_numpy(img_).to(img.device) > 0
+        # if num features less than max desired, nothing to do.
+        features = torch.from_numpy(features).to(img.device)
+        # generate a map with all pos points
+        idx = []
+        for p in coords:
+            idx.append(features[round(p[0]), round(p[1]), round(p[2])].item())
+        idx = list(set(idx))
+        for i in idx:
+            if i == 0:
+                continue
+            outs[0, c] += features == i
+        outs = outs > 0
+        # find negative mean value
+        fill_in = img[0, c][torch.logical_and(~outs[0, c], not_nan_mask)].mean()
+        img[0, c][torch.logical_and(pos_mask, ~outs[0, c])] = fill_in
+    return img
+
 
 
 def convert_points_to_disc(

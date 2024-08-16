@@ -23,7 +23,7 @@ import monai
 from monai.networks.blocks import MLPBlock, UnetrBasicBlock
 from monai.networks.nets import SegResNetDS2
 from monai.transforms.utils import convert_points_to_disc
-from monai.transforms.utils import get_largest_connected_component_mask_point as lcc
+from monai.transforms.utils import keep_merge_components_with_points as lcc
 from monai.transforms.utils import sample_points_from_label
 from monai.utils import optional_import, unsqueeze_left, unsqueeze_right
 
@@ -346,6 +346,7 @@ class VISTA3D(nn.Module):
         prev_mask: torch.Tensor | None = None,
         radius: int | None = None,
         val_point_sampler: Callable | None = None,
+        transpose: bool = False,
         **kwargs,
     ):
         """
@@ -375,7 +376,8 @@ class VISTA3D(nn.Module):
             radius: single float value controling the gaussian blur when combining point and auto results.
                 The gaussian combine is not used in VISTA3D training but might be useful for finetuning purposes.
             val_point_sampler: function used to sample points from labels. This is only used for point-only evaluation.
-
+            transpose: bool. If true, the output will be transposed to be [1, B, H, W, D]. Required to be true if calling from
+                sliding window inferer/point inferer. 
         """
         labels, prev_mask, point_coords = self.update_slidingwindow_padding(
             kwargs.get("pad_size", None), labels, prev_mask, point_coords
@@ -456,9 +458,10 @@ class VISTA3D(nn.Module):
                     point_labels,  # type: ignore
                     mapping_index,
                 )
-
         if kwargs.get("keep_cache", False) and class_vector is None:
             self.image_embeddings = out.detach()
+        if transpose:
+            logits = logits.transpose(1, 0)
         return logits
 
 

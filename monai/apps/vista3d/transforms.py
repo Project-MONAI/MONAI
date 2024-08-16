@@ -14,10 +14,15 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
+import torch
+
+from collections.abc import Hashable, Mapping
 
 from monai.config import DtypeLike, KeysCollection
+from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
 from monai.transforms import MapLabelValue
 from monai.transforms.transform import MapTransform
+from monai.transforms.utils import keep_components_with_positive_points
 from monai.utils import look_up_option
 
 
@@ -103,6 +108,51 @@ class VistaPreTransform(MapTransform):
 
         return data
 
+class VistaPostTransform(MapTransform):
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            dataset_transforms: a dictionary specifies the transform for corresponding dataset:
+                key: dataset name, value: list of data transforms.
+            dataset_key: key to get the dataset name from the data dictionary, default to "dataset_name".
+            allow_missing_keys: don't raise exception if key is missing.
+
+        """
+        super().__init__(keys, allow_missing_keys)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        for keys in self.keys:
+            if keys in data:
+                pred = data[keys]
+                object_num = pred.shape[0]
+                device = pred.device
+                if data.get("label_prompt", None) is None and data.get("points", None) is not None:
+                    pred = keep_components_with_positive_points(
+                        pred.unsqueeze(0),
+                        point_coords=data.get("points").to(device),
+                        point_labels=data.get("point_labels").to(device),
+                    )[0]
+                pred[pred < 0] = 0.0
+                # if it's multichannel, perform argmax
+                if object_num > 1:
+                    # concate background channel. Make sure user did not provide 0 as prompt.
+                    is_bk = torch.all(pred <= 0, dim=0, keepdim=True)
+                    pred = pred.argmax(0).unsqueeze(0).float() + 1.0
+                    pred[is_bk] = 0.0
+                else:
+                    # AsDiscrete will remove NaN
+                    # pred = monai.transforms.AsDiscrete(threshold=0.5)(pred)
+                    pred[pred > 0] = 1.0
+                if "label_prompt" in data and data["label_prompt"] is not None:
+                    pred += 0.5  # inplace mapping to avoid cloning pred
+                    for i in range(1, object_num + 1):
+                        frac = i + 0.5
+                        pred[pred == frac] = data["label_prompt"][i - 1].to(pred.dtype)
+                    pred[pred == 0.5] = 0.0
+                data[keys] = pred
+        return data
+    
 
 class RelabelD(MapTransform):
     def __init__(
