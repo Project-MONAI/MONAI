@@ -33,3 +33,5 @@ from .utils import (
     to_norm_affine,
     train_mode,
 )
+
+from .trt_wrapper import trt_wrap

@@ -22,8 +22,8 @@ from monai.apps.utils import get_logger
 from monai.networks.utils import add_casts_around_norms, convert_to_onnx
 from monai.utils.module import optional_import
 
-P, P_imported = optional_import("polygraphy")
-if P_imported:
+polygraphy, polygraphy_imported = optional_import("polygraphy")
+if polygraphy_imported:
     from polygraphy.backend.common import bytes_from_path
     from polygraphy.backend.trt import (
         CreateConfig,
@@ -277,7 +277,16 @@ class TRTWrapper(torch.nn.Module):
         self.fallback = fallback
         self.disabled = False
 
-        # Force engine rebuild if older than the timestamp passed
+        # if "path" filename point to existing file (e.g. checkpoint)
+        # it's also treated as dependency
+        if os.path.exists(path):
+            path_timestamp = os.path.getmtime(path)
+            if timestamp is None:
+                timestamp = path_timestamp
+            else:
+                timestamp = max(timestamp, path_timestamp)
+
+        # Force engine rebuild if older than the timestamp
         if (
             timestamp is not None
             and os.path.exists(self.engine_path)
@@ -454,3 +463,16 @@ class TRTWrapper(torch.nn.Module):
             engine_bytes = self._onnx_to_trt()
             os.remove(self.onnx_path)
         open(self.engine_path, 'wb').write(engine_bytes)
+
+
+def trt_wrap(model, path, trt_wrapper_args):
+    """
+    TRTWrapper factory function and argument adapter
+    Args:
+      model, path: passed to TRTWrapper().
+      trt_wrapper_args: dict : unpacked and passed to TRTWrapper().
+    """
+    if trt_imported and polygraphy_imported and torch.cuda.is_available():
+        return TRTWrapper(model, path, **trt_wrapper_args)
+    else:
+        return model
