@@ -248,6 +248,10 @@ FastMRIReader
 ~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
 
+`Vista3d`
+---------
+.. autofunction:: monai.apps.vista3d.inferer.point_based_window_inferer
+
 `Auto3DSeg`
 -----------
 .. automodule:: monai.apps.auto3dseg

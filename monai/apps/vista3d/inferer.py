@@ -11,34 +11,36 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+import copy
+from collections.abc import Sequence
 from typing import Any
 
-import copy
 import torch
 
 from monai.data.meta_tensor import MetaTensor
-from monai.utils import (
-    optional_import
-)
+from monai.utils import optional_import
 
 tqdm, _ = optional_import("tqdm", name="tqdm")
 
 __all__ = ["point_based_window_inferer"]
 
+
 def point_based_window_inferer(
     inputs: torch.Tensor | MetaTensor,
-    roi_size: Sequence[int] | int,
-    predictor: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
-    point_coords: torch.Tensor | None = None,
-    point_labels: torch.Tensor | None = None,
+    roi_size: Sequence[int],
+    predictor: torch.nn.Module,
+    point_coords: torch.Tensor,
+    point_labels: torch.Tensor,
     class_vector: torch.Tensor | None = None,
     prompt_class: torch.Tensor | None = None,
     prev_mask: torch.Tensor | None = None,
     point_start: int = 0,
     **kwargs: Any,
-):
-    """Point based window inferer, crop a patch centered at the point, and perform inference. Different patches are combined with gaussian weighted weights.
+) -> torch.Tensor:
+    """
+    Point based window inferer, crop a patch centered at the point, and perform inference.
+    Different patches are combined with gaussian weighted weights.
+
     Args:
         inputs: input image to be processed (assuming NCHW[D])
         roi_size: the spatial window size for inferences.
@@ -47,48 +49,30 @@ def point_based_window_inferer(
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
-        predictor: partial(infer_wrapper, model). infer_wrapper transpose the model output. The model output is [B, 1, H, W, D] which needs to be transposed to [1, B, H, W, D]
+        predictor: partial(infer_wrapper, model). infer_wrapper transpose the model output.
+            The model output is [B, 1, H, W, D] which needs to be transposed to [1, B, H, W, D].
         point_coords: [B, N, 3]
         point_labels: [B, N]
         class_vector: [B]
-        prev_mask: [1, B, H, W, D], THE VALUE IS BEFORE SIGMOID!
+        prev_mask: [1, B, H, W, D]. The value is before sigmoid.
     Returns:
         stitched_output: [1, B, H, W, D]. The value is before sigmoid.
     Notice: The function only supports SINGLE OBJECT INFERENCE with B=1.
     """
     assert point_coords.shape[0] == 1, "Only supports single object point click"
     image, pad = pad_previous_mask(copy.deepcopy(inputs), roi_size)
-    point_coords = point_coords + torch.tensor([pad[-2], pad[-4], pad[-6]]).to(
-        point_coords.device
-    )
-    prev_mask = (
-        pad_previous_mask(copy.deepcopy(prev_mask), roi_size)[0]
-        if prev_mask is not None
-        else None
-    )
+    point_coords = point_coords + torch.tensor([pad[-2], pad[-4], pad[-6]]).to(point_coords.device)
+    prev_mask = pad_previous_mask(copy.deepcopy(prev_mask), roi_size)[0] if prev_mask is not None else None
     stitched_output = None
     center_only = True
     for p in point_coords[0][point_start:]:
-        lx_, rx_ = get_window_idx(
-            p[0], roi_size[0], image.shape[-3], center_only=center_only, margin=5
-        )
-        ly_, ry_ = get_window_idx(
-            p[1], roi_size[1], image.shape[-2], center_only=center_only, margin=5
-        )
-        lz_, rz_ = get_window_idx(
-            p[2], roi_size[2], image.shape[-1], center_only=center_only, margin=5
-        )
+        lx_, rx_ = get_window_idx(p[0], roi_size[0], image.shape[-3], center_only=center_only, margin=5)
+        ly_, ry_ = get_window_idx(p[1], roi_size[1], image.shape[-2], center_only=center_only, margin=5)
+        lz_, rz_ = get_window_idx(p[2], roi_size[2], image.shape[-1], center_only=center_only, margin=5)
         for i in range(len(lx_)):
             for j in range(len(ly_)):
                 for k in range(len(lz_)):
-                    lx, rx, ly, ry, lz, rz = (
-                        lx_[i],
-                        rx_[i],
-                        ly_[j],
-                        ry_[j],
-                        lz_[k],
-                        rz_[k],
-                    )
+                    lx, rx, ly, ry, lz, rz = (lx_[i], rx_[i], ly_[j], ry_[j], lz_[k], rz_[k])
                     unravel_slice = [
                         slice(None),
                         slice(None),
@@ -97,7 +81,6 @@ def point_based_window_inferer(
                         slice(int(lz), int(rz)),
                     ]
                     batch_image = image[unravel_slice]
-                    # ball = get_gaussian_ball(batch_image.shape[-3:])
                     output = predictor(
                         batch_image,
                         point_coords=point_coords,
@@ -110,24 +93,10 @@ def point_based_window_inferer(
                     )
                     if stitched_output is None:
                         stitched_output = torch.zeros(
-                            [
-                                1,
-                                output.shape[1],
-                                image.shape[-3],
-                                image.shape[-2],
-                                image.shape[-1],
-                            ],
-                            device="cpu",
+                            [1, output.shape[1], image.shape[-3], image.shape[-2], image.shape[-1]], device="cpu"
                         )
                         stitched_mask = torch.zeros(
-                            [
-                                1,
-                                output.shape[1],
-                                image.shape[-3],
-                                image.shape[-2],
-                                image.shape[-1],
-                            ],
-                            device="cpu",
+                            [1, output.shape[1], image.shape[-3], image.shape[-2], image.shape[-1]], device="cpu"
                         )
                     stitched_output[unravel_slice] += output.to("cpu")
                     stitched_mask[unravel_slice] = 1
@@ -135,18 +104,10 @@ def point_based_window_inferer(
     stitched_output = stitched_output / stitched_mask
     # revert padding
     stitched_output = stitched_output[
-        :,
-        :,
-        pad[4] : image.shape[-3] - pad[5],
-        pad[2] : image.shape[-2] - pad[3],
-        pad[0] : image.shape[-1] - pad[1],
+        :, :, pad[4] : image.shape[-3] - pad[5], pad[2] : image.shape[-2] - pad[3], pad[0] : image.shape[-1] - pad[1]
     ]
     stitched_mask = stitched_mask[
-        :,
-        :,
-        pad[4] : image.shape[-3] - pad[5],
-        pad[2] : image.shape[-2] - pad[3],
-        pad[0] : image.shape[-1] - pad[1],
+        :, :, pad[4] : image.shape[-3] - pad[5], pad[2] : image.shape[-2] - pad[3], pad[0] : image.shape[-1] - pad[1]
     ]
     if prev_mask is not None:
         prev_mask = prev_mask[
@@ -156,14 +117,13 @@ def point_based_window_inferer(
             pad[2] : image.shape[-2] - pad[3],
             pad[0] : image.shape[-1] - pad[1],
         ]
-        prev_mask = prev_mask.to("cpu")
+        prev_mask = prev_mask.to("cpu")  # type: ignore
         # for un-calculated place, use previous mask
         stitched_output[stitched_mask < 1] = prev_mask[stitched_mask < 1]
     if not hasattr(stitched_output, "meta"):
-        stitched_output = MetaTensor(
-            stitched_output, affine=inputs.meta["affine"], meta=inputs.meta
-        )
+        stitched_output = MetaTensor(stitched_output, affine=inputs.meta["affine"], meta=inputs.meta)  # type: ignore
     return stitched_output
+
 
 def get_window_idx_c(p, roi, s):
     if p - roi // 2 < 0:
@@ -193,7 +153,5 @@ def pad_previous_mask(inputs, roi_size, padvalue=0):
         half = diff // 2
         pad_size.extend([half, diff - half])
     if any(pad_size):
-        inputs = torch.nn.functional.pad(
-            inputs, pad=pad_size, mode="constant", value=padvalue
-        )
+        inputs = torch.nn.functional.pad(inputs, pad=pad_size, mode="constant", value=padvalue)
     return inputs, pad_size
