@@ -42,7 +42,7 @@ def point_based_window_inferer(
     Different patches are combined with gaussian weighted weights.
 
     Args:
-        inputs: input image to be processed (assuming NCHW[D])
+        inputs: [1CHWD], input image to be processed.
         roi_size: the spatial window size for inferences.
             When its components have None or non-positives, the corresponding inputs dimension will be used.
             if the components of the `roi_size` are non-positive values, the transform will use the
