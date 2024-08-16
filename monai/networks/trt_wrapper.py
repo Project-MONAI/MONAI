@@ -277,15 +277,6 @@ class TRTWrapper(torch.nn.Module):
         self.fallback = fallback
         self.disabled = False
 
-        # if "path" filename point to existing file (e.g. checkpoint)
-        # it's also treated as dependency
-        if os.path.exists(path):
-            path_timestamp = os.path.getmtime(path)
-            if timestamp is None:
-                timestamp = path_timestamp
-            else:
-                timestamp = max(timestamp, path_timestamp)
-
         # Force engine rebuild if older than the timestamp
         if (
             timestamp is not None
@@ -465,14 +456,43 @@ class TRTWrapper(torch.nn.Module):
         open(self.engine_path, 'wb').write(engine_bytes)
 
 
-def trt_wrap(model, path, trt_wrapper_args):
+def trt_wrap(model, path, args=None, submodule=None):
     """
     TRTWrapper factory function and argument adapter
     Args:
       model, path: passed to TRTWrapper().
-      trt_wrapper_args: dict : unpacked and passed to TRTWrapper().
+      args: dict : unpacked and passed to TRTWrapper().
+      submodule : Hierarchical id of submodule to convert, e.g. 'image_decoder.decoder'
+                  If None, TRTWrapper is applied to the whole model and returned.
+                  Otherwise, submodule is replaced in-place with TRTWrapper.
     """
+    if args is None:
+        args = {}
     if trt_imported and polygraphy_imported and torch.cuda.is_available():
-        return TRTWrapper(model, path, **trt_wrapper_args)
-    else:
-        return model
+        # if "path" filename point to existing file (e.g. checkpoint)
+        # it's also treated as dependency
+        if os.path.exists(path):
+            timestamp = os.path.getmtime(path)
+            if 'timestamp' in args:
+                timestamp = max(args['timestamp'], timestamp)
+            args['timestamp'] = timestamp
+
+        if submodule is None:
+            return TRTWrapper(model, path, **args)
+        else:
+            def find_sub(parent, submodule):
+                idx = submodule.find(".")
+                # if there is "." in name, call recursively
+                if idx != -1:
+                    parent_name = submodule[:idx]
+                    parent = getattr(parent, parent_name)
+                    submodule = submodule[idx + 1 :]
+                    return find_sub(parent, submodule)
+                return parent, submodule
+
+            path = path + '.' + submodule
+            parent, submodule = find_sub(model, submodule)
+            submodel = getattr(parent, submodule)
+            wrapper = TRTWrapper(submodel, path, **args)
+            setattr(parent, submodule, wrapper)
+    return model
