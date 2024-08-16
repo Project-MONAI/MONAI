@@ -23,11 +23,6 @@ from monai.transforms.utils import (
     keep_merge_components_with_points,
     sample_points_from_label,
 )
-from monai.apps.vista3d import (
-    VistaPreTransform,
-    VistaPostTransform,
-    RelabelD
-)
 from monai.utils import min_version
 from monai.utils.module import optional_import
 from tests.utils import skip_if_no_cuda, skip_if_quick

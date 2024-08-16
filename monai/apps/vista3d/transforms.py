@@ -19,7 +19,7 @@ import torch
 from collections.abc import Hashable, Mapping
 
 from monai.config import DtypeLike, KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms import MapLabelValue
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils import keep_components_with_positive_points
@@ -152,7 +152,7 @@ class VistaPostTransform(MapTransform):
                     pred[pred == 0.5] = 0.0
                 data[keys] = pred
         return data
-    
+
 
 class RelabelD(MapTransform):
     def __init__(

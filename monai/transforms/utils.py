@@ -1251,8 +1251,8 @@ def keep_merge_components_with_points(
     return convert_to_dst_type(outs, dst=img_pos, dtype=outs.dtype)[0]
 
 def keep_components_with_positive_points(
-        img: NdarrayTensor, 
-        point_coords: NdarrayTensor, 
+        img: NdarrayTensor,
+        point_coords: NdarrayTensor,
         point_labels: NdarrayTensor) -> NdarrayTensor:
     """
     Keep connected regions that include the positive points. Used for point-only inference postprocessing to remove
@@ -1265,7 +1265,7 @@ def keep_components_with_positive_points(
     outs = torch.zeros_like(img)
     for c in range(len(point_coords)):
         if not ((point_labels[c] == 3).any() or (point_labels[c] == 1).any()):
-            # skip if no positive points. 
+            # skip if no positive points.
             continue
         coords = point_coords[c, point_labels[c] == 3].tolist() + point_coords[c, point_labels[c] == 1].tolist()
         not_nan_mask = ~torch.isnan(img[0, c])

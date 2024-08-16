@@ -377,7 +377,7 @@ class VISTA3D(nn.Module):
                 The gaussian combine is not used in VISTA3D training but might be useful for finetuning purposes.
             val_point_sampler: function used to sample points from labels. This is only used for point-only evaluation.
             transpose: bool. If true, the output will be transposed to be [1, B, H, W, D]. Required to be true if calling from
-                sliding window inferer/point inferer. 
+                sliding window inferer/point inferer.
         """
         labels, prev_mask, point_coords = self.update_slidingwindow_padding(
             kwargs.get("pad_size", None), labels, prev_mask, point_coords
