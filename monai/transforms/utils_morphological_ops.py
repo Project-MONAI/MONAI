@@ -20,6 +20,8 @@ from torch import Tensor
 from monai.config import NdarrayOrTensor
 from monai.utils import convert_data_type, convert_to_dst_type, ensure_tuple_rep
 
+__all__ = ["erode", "dilate"]
+
 
 def erode(mask: NdarrayOrTensor, filter_size: int | Sequence[int] = 3, pad_value: float = 1.0) -> NdarrayOrTensor:
     """

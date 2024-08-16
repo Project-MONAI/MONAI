@@ -93,6 +93,11 @@ Segmentation Losses
 .. autoclass:: SoftDiceclDiceLoss
     :members:
 
+`NACLLoss`
+~~~~~~~~~~
+.. autoclass:: NACLLoss
+    :members:
+
 Registration Losses
 -------------------
 

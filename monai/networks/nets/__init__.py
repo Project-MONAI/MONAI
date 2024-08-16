@@ -76,7 +76,7 @@ from .resnet import (
     resnet200,
 )
 from .segresnet import SegResNet, SegResNetVAE
-from .segresnet_ds import SegResNetDS
+from .segresnet_ds import SegResNetDS, SegResNetDS2
 from .senet import (
     SENet,
     SEnet,
@@ -118,6 +118,7 @@ from .transformer import DecoderOnlyTransformer
 from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
+from .vista3d import VISTA3D, vista3d132
 from .vit import ViT
 from .vitautoenc import ViTAutoEnc
 from .vnet import VNet

@@ -143,6 +143,10 @@ class ControlNet(nn.Module):
         upcast_attention: if True, upcast attention operations to full precision.
         conditioning_embedding_in_channels: number of input channels for the conditioning embedding.
         conditioning_embedding_num_channels: number of channels for the blocks in the conditioning embedding.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to True.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -163,28 +167,29 @@ class ControlNet(nn.Module):
         upcast_attention: bool = False,
         conditioning_embedding_in_channels: int = 1,
         conditioning_embedding_num_channels: Sequence[int] = (16, 32, 96, 256),
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
             raise ValueError(
-                "DiffusionModelUNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
+                "ControlNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
                 "to be specified when with_conditioning=True."
             )
         if cross_attention_dim is not None and with_conditioning is False:
-            raise ValueError(
-                "DiffusionModelUNet expects with_conditioning=True when specifying the cross_attention_dim."
-            )
+            raise ValueError("ControlNet expects with_conditioning=True when specifying the cross_attention_dim.")
 
         # All number of channels should be multiple of num_groups
         if any((out_channel % norm_num_groups) != 0 for out_channel in channels):
             raise ValueError(
-                f"DiffusionModelUNet expects all channels to be a multiple of norm_num_groups, but got"
+                f"ControlNet expects all channels to be a multiple of norm_num_groups, but got"
                 f" channels={channels} and norm_num_groups={norm_num_groups}"
             )
 
         if len(channels) != len(attention_levels):
             raise ValueError(
-                f"DiffusionModelUNet expects channels to have the same length as attention_levels, but got "
+                f"ControlNet expects channels to have the same length as attention_levels, but got "
                 f"channels={channels} and attention_levels={attention_levels}"
             )
 
@@ -282,6 +287,9 @@ class ControlNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
+                use_flash_attention=use_flash_attention,
             )
 
             self.down_blocks.append(down_block)
@@ -326,6 +334,9 @@ class ControlNet(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
 
         controlnet_block = Convolution(
@@ -441,25 +452,16 @@ class ControlNet(nn.Module):
         # copy over all matching keys
         for k in new_state_dict:
             if k in old_state_dict:
-                new_state_dict[k] = old_state_dict[k]
+                new_state_dict[k] = old_state_dict.pop(k)
 
         # fix the attention blocks
-        attention_blocks = [k.replace(".attn1.qkv.weight", "") for k in new_state_dict if "attn1.qkv.weight" in k]
+        attention_blocks = [k.replace(".out_proj.weight", "") for k in new_state_dict if "out_proj.weight" in k]
         for block in attention_blocks:
-            new_state_dict[f"{block}.attn1.qkv.weight"] = torch.cat(
-                [
-                    old_state_dict[f"{block}.attn1.to_q.weight"],
-                    old_state_dict[f"{block}.attn1.to_k.weight"],
-                    old_state_dict[f"{block}.attn1.to_v.weight"],
-                ],
-                dim=0,
-            )
-
             # projection
-            new_state_dict[f"{block}.attn1.out_proj.weight"] = old_state_dict[f"{block}.attn1.to_out.0.weight"]
-            new_state_dict[f"{block}.attn1.out_proj.bias"] = old_state_dict[f"{block}.attn1.to_out.0.bias"]
+            new_state_dict[f"{block}.out_proj.weight"] = old_state_dict.pop(f"{block}.to_out.0.weight")
+            new_state_dict[f"{block}.out_proj.bias"] = old_state_dict.pop(f"{block}.to_out.0.bias")
 
-            new_state_dict[f"{block}.attn2.out_proj.weight"] = old_state_dict[f"{block}.attn2.to_out.0.weight"]
-            new_state_dict[f"{block}.attn2.out_proj.bias"] = old_state_dict[f"{block}.attn2.to_out.0.bias"]
-
+        if verbose:
+            # print all remaining keys in old_state_dict
+            print("remaining keys in old_state_dict:", old_state_dict.keys())
         self.load_state_dict(new_state_dict)
