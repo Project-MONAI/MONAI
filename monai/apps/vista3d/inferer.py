@@ -33,7 +33,7 @@ def point_based_window_inferer(
     point_labels: torch.Tensor,
     class_vector: torch.Tensor | None = None,
     prompt_class: torch.Tensor | None = None,
-    prev_mask: torch.Tensor | None = None,
+    prev_mask: torch.Tensor | MetaTensor | None = None,
     point_start: int = 0,
     **kwargs: Any,
 ) -> torch.Tensor:
@@ -59,16 +59,17 @@ def point_based_window_inferer(
         stitched_output: [1, B, H, W, D]. The value is before sigmoid.
     Notice: The function only supports SINGLE OBJECT INFERENCE with B=1.
     """
-    assert point_coords.shape[0] == 1, "Only supports single object point click"
-    image, pad = pad_previous_mask(copy.deepcopy(inputs), roi_size)
+    if not point_coords.shape[0] == 1:
+        raise ValueError("Only supports single object point click.")
+    image, pad = _pad_previous_mask(copy.deepcopy(inputs), roi_size)
     point_coords = point_coords + torch.tensor([pad[-2], pad[-4], pad[-6]]).to(point_coords.device)
-    prev_mask = pad_previous_mask(copy.deepcopy(prev_mask), roi_size)[0] if prev_mask is not None else None
+    prev_mask = _pad_previous_mask(copy.deepcopy(prev_mask), roi_size)[0] if prev_mask is not None else None
     stitched_output = None
     center_only = True
     for p in point_coords[0][point_start:]:
-        lx_, rx_ = get_window_idx(p[0], roi_size[0], image.shape[-3], center_only=center_only, margin=5)
-        ly_, ry_ = get_window_idx(p[1], roi_size[1], image.shape[-2], center_only=center_only, margin=5)
-        lz_, rz_ = get_window_idx(p[2], roi_size[2], image.shape[-1], center_only=center_only, margin=5)
+        lx_, rx_ = _get_window_idx(p[0], roi_size[0], image.shape[-3], center_only=center_only, margin=5)
+        ly_, ry_ = _get_window_idx(p[1], roi_size[1], image.shape[-2], center_only=center_only, margin=5)
+        lz_, rz_ = _get_window_idx(p[2], roi_size[2], image.shape[-1], center_only=center_only, margin=5)
         for i in range(len(lx_)):
             for j in range(len(ly_)):
                 for k in range(len(lz_)):
@@ -120,12 +121,15 @@ def point_based_window_inferer(
         prev_mask = prev_mask.to("cpu")  # type: ignore
         # for un-calculated place, use previous mask
         stitched_output[stitched_mask < 1] = prev_mask[stitched_mask < 1]
+    if isinstance(inputs, torch.Tensor):
+        inputs = MetaTensor(inputs)
     if not hasattr(stitched_output, "meta"):
-        stitched_output = MetaTensor(stitched_output, affine=inputs.meta["affine"], meta=inputs.meta)  # type: ignore
+        stitched_output = MetaTensor(stitched_output, affine=inputs.meta["affine"], meta=inputs.meta)
     return stitched_output
 
 
-def get_window_idx_c(p, roi, s):
+def _get_window_idx_c(p: int, roi: int, s: int) -> tuple[int, int]:
+    """Helper function to get the window index."""
     if p - roi // 2 < 0:
         left, right = 0, roi
     elif p + roi // 2 > s:
@@ -135,23 +139,27 @@ def get_window_idx_c(p, roi, s):
     return left, right
 
 
-def get_window_idx(p, roi, s, center_only=True, margin=5):
-    left, right = get_window_idx_c(p, roi, s)
+def _get_window_idx(p: int, roi: int, s: int, center_only: bool = True, margin: int = 5) -> tuple[list[int], list[int]]:
+    """Get the window index."""
+    left, right = _get_window_idx_c(p, roi, s)
     if center_only:
         return [left], [right]
     left_most = max(0, p - roi + margin)
     right_most = min(s, p + roi - margin)
-    left = [left_most, right_most - roi, left]
-    right = [left_most + roi, right_most, right]
-    return left, right
+    left_list = [left_most, right_most - roi, left]
+    right_list = [left_most + roi, right_most, right]
+    return left_list, right_list
 
 
-def pad_previous_mask(inputs, roi_size, padvalue=0):
+def _pad_previous_mask(
+    inputs: torch.Tensor | MetaTensor, roi_size: Sequence[int], padvalue: int = 0
+) -> tuple[torch.Tensor | MetaTensor, list[int]]:
+    """Helper function to pad inputs."""
     pad_size = []
     for k in range(len(inputs.shape) - 1, 1, -1):
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
     if any(pad_size):
-        inputs = torch.nn.functional.pad(inputs, pad=pad_size, mode="constant", value=padvalue)
+        inputs = torch.nn.functional.pad(inputs, pad=pad_size, mode="constant", value=padvalue)  # type: ignore
     return inputs, pad_size
