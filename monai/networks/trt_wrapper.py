@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import inspect
 import os
+from pathlib import Path
+import tempfile
 import threading
 from collections import OrderedDict
 
@@ -301,10 +303,6 @@ class TRTWrapper(torch.nn.Module):
     def engine_path(self):
         return self.path + ".plan"
 
-    @property
-    def onnx_path(self):
-        return self.path + ".onnx"
-
     def _inputs_to_dict(self, input_example):
         trt_inputs = {}
         for i, inp in enumerate(input_example):
@@ -373,9 +371,9 @@ class TRTWrapper(torch.nn.Module):
                 raise e
         return self.model.forward(*argv, **kwargs)
 
-    def _onnx_to_trt(self):
+    def _onnx_to_trt(self, onnx_path):
         """
-        Builds TRT engine from ONNX file at self.onnx_path and saves to self.trt_path
+        Builds TRT engine from ONNX file at onnx_path and saves to self.trt_path
         """
 
         profiles = []
@@ -395,8 +393,8 @@ class TRTWrapper(torch.nn.Module):
         build_args["fp16"] = self.precision == "fp16"
         build_args["bf16"] = self.precision == "bf16"
 
-        LOGGER.info(f"Building TensorRT engine for {self.onnx_path}: {self.engine_path}")
-        network = network_from_onnx_path(self.onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
+        LOGGER.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
+        network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
         return engine_bytes_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
 
     def _build_and_save(self, input_example):
@@ -428,7 +426,6 @@ class TRTWrapper(torch.nn.Module):
         if len(self.profiles) > 0:
             export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
 
-        LOGGER.info(f"Exporting to {self.onnx_path}, export args: {export_args}")
         add_casts_around_norms(self.model)
         if self.export_method == 'torch_trt':
             enabled_precisions = [torch.float32]
@@ -441,18 +438,22 @@ class TRTWrapper(torch.nn.Module):
                                                                        enabled_precisions=enabled_precisions,
                                                                        **export_args)
         else:
-            convert_to_onnx(
-                self.model,
-                input_example,
-                filename=self.onnx_path,
-                input_names=self.input_names,
-                output_names=self.output_names,
-                dynamo=self.export_method == 'onnx_dynamo',
-                **export_args,
-            )
-            LOGGER.info("Export to ONNX successful.")
-            engine_bytes = self._onnx_to_trt()
-            os.remove(self.onnx_path)
+            # Use temporary directory for easy cleanup in case of external weights
+            with tempfile.TemporaryDirectory() as tmpdir:
+                onnx_path = Path(tmpdir) / 'model.onnx'
+                LOGGER.info(f"Exporting to {onnx_path}, export args: {export_args}")
+                convert_to_onnx(
+                    self.model,
+                    input_example,
+                    filename=onnx_path,
+                    input_names=self.input_names,
+                    output_names=self.output_names,
+                    dynamo=self.export_method == 'onnx_dynamo',
+                    **export_args,
+                )
+                LOGGER.info("Export to ONNX successful.")
+                engine_bytes = self._onnx_to_trt(str(onnx_path))
+
         open(self.engine_path, 'wb').write(engine_bytes)
 
 
