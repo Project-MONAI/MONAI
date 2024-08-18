@@ -53,7 +53,10 @@ def point_based_window_inferer(
             The model output is [B, 1, H, W, D] which needs to be transposed to [1, B, H, W, D].
         point_coords: [B, N, 3]
         point_labels: [B, N]
-        class_vector: [B]
+        class_vector: [B]. Used for class-head automatic segmentation. Can be None value.
+        prompt_class: [B]. The same as class_vector representing the point class and inform point head about
+            supported class or zeroshot, not used for automatic segmentation. If None, point head is default
+            to supported class segmentation.
         prev_mask: [1, B, H, W, D]. The value is before sigmoid.
     Returns:
         stitched_output: [1, B, H, W, D]. The value is before sigmoid.

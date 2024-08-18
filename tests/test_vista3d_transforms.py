@@ -57,7 +57,8 @@ output1 = torch.zeros([1,64,64,64])
 output1[:,:10,:10,:10] = 2
 output1[:,20:30,20:30,20:30] = 3
 
-pred2 = torch.zeros([1,64,64,64])
+# -1 is needed since pred should be before sigmoid.
+pred2 = torch.zeros([1,64,64,64]) - 1
 pred2[:,:10,:10,:10] = 1
 pred2[:,20:30,20:30,20:30] = 1
 output2 = torch.zeros([1,64,64,64])

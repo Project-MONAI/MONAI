@@ -35,6 +35,27 @@ TEST_CASES = [
             "point_coords": torch.tensor([[[1, 2, 3], [1, 2, 3]]], device=device),
             "point_labels": torch.tensor([[1, 0]], device=device),
         },
+    ],
+    [
+        {"encoder_embed_dim": 48, "in_channels": 1},
+        (1, 1, 64, 64, 64),
+        {
+            "roi_size": [32, 32, 32],
+            "point_coords": torch.tensor([[[1, 2, 3], [1, 2, 3]]], device=device),
+            "point_labels": torch.tensor([[1, 0]], device=device),
+            "class_vector": torch.tensor([1], device=device)
+        },
+    ],
+    [
+        {"encoder_embed_dim": 48, "in_channels": 1},
+        (1, 1, 64, 64, 64),
+        {
+            "roi_size": [32, 32, 32],
+            "point_coords": torch.tensor([[[1, 2, 3], [1, 2, 3]]], device=device),
+            "point_labels": torch.tensor([[1, 0]], device=device),
+            "class_vector": torch.tensor([1], device=device),
+            "point_start": 1
+        },
     ]
 ]
 
