@@ -21,9 +21,9 @@ from monai.networks.nets import UNet
 from monai.utils import optional_import
 from tests.utils import skip_if_no_cuda, skip_if_quick, skip_if_windows
 
-TRTWrapper, has_trtwrapper = optional_import(
-    "monai.networks.trt_wrapper",
-    name="TRTWrapper",
+trt_wrap, has_trtwrapper = optional_import(
+    "monai.networks",
+    name="trt_wrap",
     descriptor="TRT wrapper is not available - check your installation!",
 )
 
@@ -61,14 +61,17 @@ class TestTRTWrapper(unittest.TestCase):
             input_example = torch.randn(1, 1, 96, 96, 96).cuda()
             output_example = model(input_example)
             args: dict = {"builder_optimization_level": 1}
-
-            trt_wrapper = TRTWrapper(
-                model, f"{tmpdir}/test_wrapper", precision=precision, build_args=args, dynamic_batchsize=[1, 4, 8]
-            )
-            self.assertIsNone(trt_wrapper.engine)
-            trt_output = trt_wrapper(input_example)
+            trt_wrap(model,
+                     f"{tmpdir}/test_wrapper",
+                     args={"precision": precision,
+                           "build_args": args,
+                           "dynamic_batchsize": [1, 4, 8]
+                           }
+                     )
+            self.assertIsNone(model._trt_wrapper.engine)
+            trt_output = model(input_example)
             # Check that lazy TRT build succeeded
-            self.assertIsNotNone(trt_wrapper.engine)
+            self.assertIsNotNone(model._trt_wrapper.engine)
             torch.testing.assert_close(trt_output, output_example, rtol=0.01, atol=0.01)
 
 

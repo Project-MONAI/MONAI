@@ -19,6 +19,7 @@ import threading
 from collections import OrderedDict
 
 import torch
+from types import MethodType
 
 from monai.apps.utils import get_logger
 from monai.networks.utils import add_casts_around_norms, convert_to_onnx
@@ -217,7 +218,7 @@ class TRTEngine:
         return self.tensors
 
 
-class TRTWrapper(torch.nn.Module):
+class TrtWrappper:
     """
     This wrapper implements:
       - TRT lazy persistent export
@@ -246,7 +247,7 @@ class TRTWrapper(torch.nn.Module):
          Tries to load persistent serialized TRT engine
          Saves its arguments for lazy TRT build on first forward() call
         Args:
-            model: Model to "wrap". If None, TRT engine is supposed to already exist.
+            model: Model to "wrap".
             path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
             export_method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
@@ -263,9 +264,6 @@ class TRTWrapper(torch.nn.Module):
             timestamp: Optional timestamp to rebuild TRT engine (e.g. if config file changes).
             fallback: Allow to fall back to Pytorch when TRT inference fails (e.g, shapes exceed max profile).
         """
-
-        super().__init__()
-        self.model = model
         self.path = path
         self.precision = precision
         self.export_method = export_method
@@ -279,6 +277,13 @@ class TRTWrapper(torch.nn.Module):
         self.fallback = fallback
         self.disabled = False
 
+        # Normally we read input_names from forward() but can be overridden
+        if input_names is None:
+            argspec = inspect.getfullargspec(model.forward)
+            input_names = argspec.args[1:]
+        self.input_names = input_names
+        self.old_forward = model.forward
+
         # Force engine rebuild if older than the timestamp
         if (
             timestamp is not None
@@ -286,14 +291,6 @@ class TRTWrapper(torch.nn.Module):
             and os.path.getmtime(self.engine_path) < timestamp
         ):
             os.remove(self.engine_path)
-
-        # Normally we read input_names from forward() but can be overridden
-        if input_names is None and self.model is not None:
-            argspec = inspect.getfullargspec(self.model.forward)
-            input_names = argspec.args[1:]
-        self.input_names = input_names
-
-        self._load_engine()
 
     """
     Auxiliary getters/setters
@@ -317,13 +314,10 @@ class TRTWrapper(torch.nn.Module):
         try:
             self.engine = TRTEngine(self.engine_path)
             self.input_names = self.engine.input_names
-            if self.fallback and self.model is not None:
-                del self.model
-                self.model = None
         except Exception as e:
             LOGGER.debug(f"Exception while loading the engine:\n{e}")
 
-    def forward(self, *argv, **kwargs):
+    def forward(self, model, argv, kwargs):
         """
         Main forward method:
          Builds TRT engine if not available yet.
@@ -339,15 +333,28 @@ class TRTWrapper(torch.nn.Module):
             argv = ()
 
         if self.engine is None and not self.disabled:
+            # Restore original forward for export
+            new_forward = model.forward
+            model.forward = self.old_forward
             try:
-                self._build_and_save(kwargs)
                 self._load_engine()
+                if self.engine is None:
+                    self._build_and_save(model, kwargs)
+                    self._load_engine()
             except Exception as e:
                 if self.fallback:
                     LOGGER.info(f"Failed to build engine: {e}")
                     self.disabled = True
                 else:
                     raise e
+            if not self.disabled and not self.fallback:
+                # Delete all parameters
+                for param in model.parameters():
+                    del param
+                # Call empty_cache to release GPU memory
+                torch.cuda.empty_cache()
+            model.forward = new_forward
+        # Run the engine
         try:
             if self.engine is not None:
                 # forward_trt is not thread safe as we do not use per-thread execution contexts
@@ -365,11 +372,11 @@ class TRTWrapper(torch.nn.Module):
                         ret = ret[0]
                     return ret
         except Exception as e:
-            if self.model:
+            if model is not None:
                 LOGGER.info(f"Exception: {e}\nFalling back to Pytorch ...")
             else:
                 raise e
-        return self.model.forward(*argv, **kwargs)
+        return self.old_forward(model, *argv, **kwargs)
 
     def _onnx_to_trt(self, onnx_path):
         """
@@ -397,24 +404,22 @@ class TRTWrapper(torch.nn.Module):
         network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
         return engine_bytes_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
 
-    def _build_and_save(self, input_example):
+    def _build_and_save(self, model, input_example):
         """
-        If TRT engine is not ready, exports self.model to ONNX,
+        If TRT engine is not ready, exports model to ONNX,
         builds TRT engine and saves serialized TRT engine to the disk.
         Args:
              input_example: passed to onnx.export()
         """
+
         if self.engine is not None:
             return
-
-        if self.model is None:
-            raise ValueError("ERROR: self.model is None!")
 
         export_args = self.export_args
         dbs = self.dynamic_batchsize
         if dbs:
             if len(self.profiles) > 0:
-                raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TRTWrapper!")
+                raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TrtWrappper!")
             if len(dbs) != 3:
                 raise ValueError("dynamic_batchsize has to have len ==3 ")
             profiles = {}
@@ -426,14 +431,14 @@ class TRTWrapper(torch.nn.Module):
         if len(self.profiles) > 0:
             export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
 
-        add_casts_around_norms(self.model)
+        add_casts_around_norms(model)
         if self.export_method == 'torch_trt':
             enabled_precisions = [torch.float32]
             if self.precision == "fp16":
                 enabled_precisions.append(torch.float16)
             elif self.precision == "bf16":
                 enabled_precisions.append(torch.bfloat16)
-            engine_bytes = torch_tensorrt.convert_method_to_trt_engine(self.model,
+            engine_bytes = torch_tensorrt.convert_method_to_trt_engine(model,
                                                                        input_example,
                                                                        enabled_precisions=enabled_precisions,
                                                                        **export_args)
@@ -443,9 +448,9 @@ class TRTWrapper(torch.nn.Module):
                 onnx_path = Path(tmpdir) / 'model.onnx'
                 LOGGER.info(f"Exporting to {onnx_path}, export args: {export_args}")
                 convert_to_onnx(
-                    self.model,
+                    model,
                     input_example,
-                    filename=onnx_path,
+                    filename=str(onnx_path),
                     input_names=self.input_names,
                     output_names=self.output_names,
                     dynamo=self.export_method == 'onnx_dynamo',
@@ -457,15 +462,23 @@ class TRTWrapper(torch.nn.Module):
         open(self.engine_path, 'wb').write(engine_bytes)
 
 
+def trt_forward(self, *argv, **kwargs):
+    """
+    Patch function to replace original model's forward() with.
+    Redirects to TrtWrappper.forward()
+    """
+    return self._trt_wrapper.forward(self, argv, kwargs)
+
+
 def trt_wrap(model, path, args=None, submodule=None):
     """
-    TRTWrapper factory function and argument adapter
+    TrtWrappper factory function and argument adapter
     Args:
-      model, path: passed to TRTWrapper().
-      args: dict : unpacked and passed to TRTWrapper().
+      model, path: passed to TrtWrappper().
+      args: dict : unpacked and passed to TrtWrappper().
       submodule : Hierarchical id of submodule to convert, e.g. 'image_decoder.decoder'
-                  If None, TRTWrapper is applied to the whole model and returned.
-                  Otherwise, submodule is replaced in-place with TRTWrapper.
+                  If None, TrtWrappper is applied to the whole model and returned.
+                  Otherwise, submodule is replaced in-place with TrtWrappper.
     """
     if args is None:
         args = {}
@@ -478,9 +491,7 @@ def trt_wrap(model, path, args=None, submodule=None):
                 timestamp = max(args['timestamp'], timestamp)
             args['timestamp'] = timestamp
 
-        if submodule is None:
-            return TRTWrapper(model, path, **args)
-        else:
+        if submodule:
             def find_sub(parent, submodule):
                 idx = submodule.find(".")
                 # if there is "." in name, call recursively
@@ -493,7 +504,8 @@ def trt_wrap(model, path, args=None, submodule=None):
 
             path = path + '.' + submodule
             parent, submodule = find_sub(model, submodule)
-            submodel = getattr(parent, submodule)
-            wrapper = TRTWrapper(submodel, path, **args)
-            setattr(parent, submodule, wrapper)
-    return model
+            model = getattr(parent, submodule)
+
+        wrapper = TrtWrappper(model, path, **args)
+        model._trt_wrapper = wrapper
+        model.forward = MethodType(trt_forward, model)
