@@ -472,16 +472,19 @@ def trt_forward(self, *argv, **kwargs):
 
 def trt_wrap(model, path, args=None, submodule=None):
     """
-    TrtWrappper factory function and argument adapter
+    Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
     Args:
       model, path: passed to TrtWrappper().
       args: dict : unpacked and passed to TrtWrappper().
       submodule : Hierarchical id of submodule to convert, e.g. 'image_decoder.decoder'
                   If None, TrtWrappper is applied to the whole model and returned.
                   Otherwise, submodule is replaced in-place with TrtWrappper.
+    Returns:
+      Always returns same model passed in as argument. This is for ease of use in configs.
     """
     if args is None:
         args = {}
+    orig_model = model
     if trt_imported and polygraphy_imported and torch.cuda.is_available():
         # if "path" filename point to existing file (e.g. checkpoint)
         # it's also treated as dependency
@@ -509,3 +512,4 @@ def trt_wrap(model, path, args=None, submodule=None):
         wrapper = TrtWrappper(model, path, **args)
         model._trt_wrapper = wrapper
         model.forward = MethodType(trt_forward, model)
+    return orig_model
