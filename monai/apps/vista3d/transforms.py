@@ -64,15 +64,17 @@ class VistaPreTransform(MapTransform):
         subclass: dict | None = None,
     ) -> None:
         """
-        Pre-transform for Vista3d.
-
+        Pre-transform for Vista3d. It performs two functionalities: 
+            1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels), 
+            convert point labels from 0,1 to 2,3. 
+            2. If label prompt is within the keys in subclass, convert the label prompt to its subclasses defined by subclass[key].
+            e.g. "lung" label is converted to ["left lung", "right lung"] 
         Args:
-            keys: keys of the corresponding items to be transformed.
-            dataset_transforms: a dictionary specifies the transform for corresponding dataset:
-                key: dataset name, value: list of data transforms.
-            dataset_key: key to get the dataset name from the data dictionary, default to "dataset_name".
+            keys: keys of the corresponding items to be transformed. Not used by the transform but kept here for formatting. 
             allow_missing_keys: don't raise exception if key is missing.
-            special_index: the class index that need to be handled differently.
+            special_index: the class index that need to be handled differently. If label_prompt is within special index, 
+                the point label will be converted from 0,1 to 2, 3 for negative/positive points.
+            subclass: if label_prompt is in subclass keys, the label_prompt will be converted to the subclasses defined in the dict.
         """
         super().__init__(keys, allow_missing_keys)
         self.special_index = special_index
@@ -95,7 +97,6 @@ class VistaPreTransform(MapTransform):
                     else:
                         _label_prompt.append(label_prompt[i])
                 data["label_prompt"] = _label_prompt
-
             if label_prompt is not None and point_labels is not None:
                 if label_prompt[0] in self.special_index:
                     point_labels = np.array(point_labels)

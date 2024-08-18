@@ -18,10 +18,10 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.utils import (
-    convert_points_to_disc,
-    keep_merge_components_with_points,
-    sample_points_from_label,
+from monai.apps.vista3d.transforms import (
+    VistaPostTransform,
+    VistaPreTransform,
+    RelabelD
 )
 from monai.utils import min_version
 from monai.utils.module import optional_import
@@ -34,99 +34,68 @@ measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-TESTS_SAMPLE_POINTS_FROM_LABEL = []
-for use_center in [True, False]:
-    labels = torch.zeros(1, 1, 32, 32, 32)
-    labels[0, 0, 5:10, 5:10, 5:10] = 1
-    labels[0, 0, 10:15, 10:15, 10:15] = 3
-    labels[0, 0, 20:25, 20:25, 20:25] = 5
-    TESTS_SAMPLE_POINTS_FROM_LABEL.append(
-        [{"labels": labels, "label_set": (1, 3, 5), "use_center": use_center}, (3, 1, 3), (3, 1)]
-    )
+TEST_VISTA_PRETRANSFORM = [
+    [
+        {"label_prompt":[1], "points": [[0,0,0]], "point_labels": [1]},
+        {"label_prompt":[1], "points": [[0,0,0]], "point_labels": [3]},
+    ],
+    [
+        {"label_prompt":[2], "points": [[0,0,0]], "point_labels": [0]},
+        {"label_prompt":[2], "points": [[0,0,0]], "point_labels": [2]},
+    ],
+    [
+        {"label_prompt":[3], "points": [[0,0,0]], "point_labels": [0]},
+        {"label_prompt":[4,5], "points": [[0,0,0]], "point_labels": [0]},
+    ],
+    [
+        {"label_prompt":[6], "points": [[0,0,0]], "point_labels": [0]},
+        {"label_prompt":[7,8], "points": [[0,0,0]], "point_labels": [0]},
+    ]
+]
 
-TEST_CONVERT_POINTS_TO_DISC = []
-for radius in [1, 2]:
-    for disc in [True, False]:
-        image_size = (32, 32, 32)
-        point = torch.randn(3, 1, 3)
-        point_label = torch.randint(0, 4, (3, 1))
-        expected_shape = (point.shape[0], 2, *image_size)
-        TEST_CONVERT_POINTS_TO_DISC.append(
-            [
-                {"image_size": image_size, "point": point, "point_label": point_label, "radius": radius, "disc": disc},
-                expected_shape,
-            ]
+
+pred1 = torch.zeros([2,64,64,64])
+pred1[0,:10,:10,:10] = 1
+pred1[1,20:30,20:30,20:30] = 1
+output1 = torch.zeros([1,64,64,64])
+output1[:,:10,:10,:10] = 2
+output1[:,20:30,20:30,20:30] = 3
+
+pred2 = torch.zeros([1,64,64,64])
+pred2[:,:10,:10,:10] = 1
+pred2[:,20:30,20:30,20:30] = 1
+output2 = torch.zeros([1,64,64,64])
+output2[:,20:30,20:30,20:30] = 1
+
+TEST_VISTA_POSTTRANSFORM = [
+    [
+        {"pred":pred1, "label_prompt":torch.tensor([2,3])},
+        output1
+    ],
+    [
+        {"pred":pred2, "points": torch.tensor([[25,25,25]]), "point_labels": torch.tensor([1])},
+        output2  
+    ]  
+]
+
+
+class TestVistaPreTransform(unittest.TestCase):
+    @parameterized.expand(TEST_VISTA_PRETRANSFORM)
+    def test_result(self, input_data, expected):
+        transform = VistaPreTransform(
+            keys="image",
+            subclass = {"3": [4, 5], "6": [7,8]},
+            special_index = [1, 2]
         )
+        result = transform(input_data)
+        self.assertEqual(result, expected)
 
-TEST_LCC_MASK_POINT_TORCH = []
-for bs in [1, 2]:
-    for num_points in [1, 3]:
-        shape = (bs, 1, 128, 32, 32)
-        TEST_LCC_MASK_POINT_TORCH.append(
-            [
-                {
-                    "img_pos": torch.randint(0, 2, shape, dtype=torch.bool),
-                    "img_neg": torch.randint(0, 2, shape, dtype=torch.bool),
-                    "point_coords": torch.randint(0, 10, (bs, num_points, 3)),
-                    "point_labels": torch.randint(0, 4, (bs, num_points)),
-                },
-                shape,
-            ]
-        )
-
-TEST_LCC_MASK_POINT_NP = []
-for bs in [1, 2]:
-    for num_points in [1, 3]:
-        shape = (bs, 1, 32, 32, 64)
-        TEST_LCC_MASK_POINT_NP.append(
-            [
-                {
-                    "img_pos": np.random.randint(0, 2, shape, dtype=bool),
-                    "img_neg": np.random.randint(0, 2, shape, dtype=bool),
-                    "point_coords": np.random.randint(0, 5, (bs, num_points, 3)),
-                    "point_labels": np.random.randint(0, 4, (bs, num_points)),
-                },
-                shape,
-            ]
-        )
-
-
-@skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
-class TestSamplePointsFromLabel(unittest.TestCase):
-
-    @parameterized.expand(TESTS_SAMPLE_POINTS_FROM_LABEL)
-    def test_shape(self, input_data, expected_point_shape, expected_point_label_shape):
-        point, point_label = sample_points_from_label(**input_data)
-        self.assertEqual(point.shape, expected_point_shape)
-        self.assertEqual(point_label.shape, expected_point_label_shape)
-
-
-class TestConvertPointsToDisc(unittest.TestCase):
-
-    @parameterized.expand(TEST_CONVERT_POINTS_TO_DISC)
-    def test_shape(self, input_data, expected_shape):
-        result = convert_points_to_disc(**input_data)
-        self.assertEqual(result.shape, expected_shape)
-
-
-@skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
-class TestGetLargestConnectedComponentMaskPoint(unittest.TestCase):
-
-    @skip_if_quick
-    @skip_if_no_cuda
-    @skipUnless(has_cp and cucim_skimage, "cupy and cucim.skimage required")
-    @parameterized.expand(TEST_LCC_MASK_POINT_TORCH)
-    def test_cp_shape(self, input_data, shape):
-        for key in input_data:
-            input_data[key] = input_data[key].to(device)
-        mask = keep_merge_components_with_points(**input_data)
-        self.assertEqual(mask.shape, shape)
-
-    @skipUnless(has_measure, "skimage required")
-    @parameterized.expand(TEST_LCC_MASK_POINT_NP)
-    def test_np_shape(self, input_data, shape):
-        mask = keep_merge_components_with_points(**input_data)
-        self.assertEqual(mask.shape, shape)
+class TestVistaPostTransform(unittest.TestCase):
+    @parameterized.expand(TEST_VISTA_POSTTRANSFORM)
+    def test_result(self, input_data, expected):
+        transform = VistaPostTransform(keys="pred")
+        result = transform(input_data)
+        self.assertEqual((result['pred'] == expected).all(), True)
 
 
 if __name__ == "__main__":
