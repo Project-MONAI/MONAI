@@ -12,20 +12,16 @@
 from __future__ import annotations
 
 import unittest
-from unittest.case import skipUnless
 
-import numpy as np
 import torch
 from parameterized import parameterized
 
 from monai.apps.vista3d.transforms import (
     VistaPostTransform,
-    VistaPreTransform,
-    RelabelD
+    VistaPreTransform
 )
 from monai.utils import min_version
 from monai.utils.module import optional_import
-from tests.utils import skip_if_no_cuda, skip_if_quick
 
 cp, has_cp = optional_import("cupy")
 cucim_skimage, has_cucim = optional_import("cucim.skimage")
@@ -74,8 +70,8 @@ TEST_VISTA_POSTTRANSFORM = [
     ],
     [
         {"pred":pred2, "points": torch.tensor([[25,25,25]]), "point_labels": torch.tensor([1])},
-        output2  
-    ]  
+        output2
+    ]
 ]
 
 
