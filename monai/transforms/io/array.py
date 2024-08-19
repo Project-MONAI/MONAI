@@ -46,6 +46,7 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
+from monai.utils import MetaKeys
 from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
 
 nib, _ = optional_import("nibabel")
@@ -507,7 +508,7 @@ class SaveImage(Transform):
             else:
                 self._data_index += 1
                 if self.savepath_in_metadict and meta_data is not None:
-                    meta_data["saved_to"] = filename
+                    meta_data[MetaKeys.SAVED_TO] = filename
                 return img
         msg = "\n".join([f"{e}" for e in err])
         raise RuntimeError(
@@ -518,47 +519,40 @@ class SaveImage(Transform):
         )
 
 
-class MappingJson(Transform):
+class WriteFileMapping(Transform):
     """
     Writes a JSON file that logs the mapping between input image paths and their corresponding output paths.
     This class uses FileLock to ensure safe writing to the JSON file in a multiprocess environment.
-
+    
     Args:
-        mapping_json_path (Path or str): Path to the JSON file where the mappings will be saved.
+        mapping_file_path (Path or str): Path to the JSON file where the mappings will be saved.
     """
-
-    def __init__(self, mapping_json_path: Path | str = "mapping.json"):
-        self.mapping_json_path = Path(mapping_json_path)
-        self.lock = FileLock(str(self.mapping_json_path) + ".lock")
-
-    def write_json(self, input_path: str, output_path: str):
-        """
-        Args:
-            input_path (str): The path of the input image file.
-            output_path (str): The path of the output image file.
-        """
-        log_data = {"input": input_path, "output": output_path}
-
-        with self.lock:
-            try:
-                with self.mapping_json_path.open("r") as f:
-                    existing_log_data = json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError):
-                existing_log_data = []
-
-            existing_log_data.append(log_data)
-
-            with self.mapping_json_path.open("w") as f:
-                json.dump(existing_log_data, f, indent=4)
+    def __init__(self, mapping_file_path: Path | str = "mapping.json"):
+        self.mapping_file_path = Path(mapping_file_path)
+        self.lock = FileLock(str(self.mapping_file_path) + ".lock")
 
     def __call__(self, img: MetaTensor):
         """
         Args:
             img (MetaTensor): The input image with metadata.
         """
-        if "saved_to" not in img.meta:
-            raise KeyError("Missing 'saved_to' key in metadata. Check SaveImage savepath_in_metadict.")
-        input_path = img.meta["filename_or_obj"]
-        output_path = img.meta["saved_to"]
-        self.write_json(input_path, output_path)
+        if MetaKeys.SAVED_TO not in img.meta:
+            raise KeyError("Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True.")
+        
+        input_path = img.meta[Key.FILENAME_OR_OBJ]
+        output_path = img.meta[MetaKeys.SAVED_TO]
+        log_data = {"input": input_path, "output": output_path}
+        
+        with self.lock:
+            try:
+                with self.mapping_file_path.open("r") as f:
+                    existing_log_data = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                existing_log_data = []
+            
+            existing_log_data.append(log_data)
+            
+            with self.mapping_file_path.open("w") as f:
+                json.dump(existing_log_data, f, indent=4)
+        
         return img
