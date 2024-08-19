@@ -1,8 +1,11 @@
 name: weekly-preview
 
 on:
-  schedule:
-  - cron: "0 2 * * 0"  # 02:00 of every Sunday
+  # schedule:
+  # - cron: "0 2 * * 0"  # 02:00 of every Sunday
+  pull_request:
+    head_ref-ignore:
+      - dev
 
 jobs:
   flake8-py3:
