@@ -32,7 +32,13 @@ class SpatialAttentionBlock(nn.Module):
         spatial_dims: number of spatial dimensions, could be 1, 2, or 3.
         num_channels: number of input channels. Must be divisible by num_head_channels.
         num_head_channels: number of channels per head.
+        norm_num_groups: Number of groups for the group norm layer.
+        norm_eps: Epsilon for the normalization.
         attention_dtype: cast attention operations to this dtype.
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
 
     """
 
@@ -44,6 +50,9 @@ class SpatialAttentionBlock(nn.Module):
         norm_num_groups: int = 32,
         norm_eps: float = 1e-6,
         attention_dtype: Optional[torch.dtype] = None,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
 
@@ -54,7 +63,13 @@ class SpatialAttentionBlock(nn.Module):
             raise ValueError("num_channels must be divisible by num_head_channels")
         num_heads = num_channels // num_head_channels if num_head_channels is not None else 1
         self.attn = SABlock(
-            hidden_size=num_channels, num_heads=num_heads, qkv_bias=True, attention_dtype=attention_dtype
+            hidden_size=num_channels,
+            num_heads=num_heads,
+            qkv_bias=True,
+            attention_dtype=attention_dtype,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
 
     def forward(self, x: torch.Tensor):

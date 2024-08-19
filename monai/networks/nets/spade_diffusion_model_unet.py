@@ -325,6 +325,10 @@ class SPADEAttnUpBlock(nn.Module):
         resblock_updown: if True use residual blocks for upsampling.
         num_head_channels: number of channels in each attention head.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer
+        include_fc: whether to include the final linear layer. Default to True.
+        use_combined_linear: whether to use a single linear layer for qkv projection, default to False.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -342,6 +346,9 @@ class SPADEAttnUpBlock(nn.Module):
         resblock_updown: bool = False,
         num_head_channels: int = 1,
         spade_intermediate_channels: int = 128,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -371,6 +378,9 @@ class SPADEAttnUpBlock(nn.Module):
                     num_head_channels=num_head_channels,
                     norm_num_groups=norm_num_groups,
                     norm_eps=norm_eps,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -457,6 +467,8 @@ class SPADECrossAttnUpBlock(nn.Module):
         cross_attention_dim: number of context dimensions to use.
         upcast_attention: if True, upcast attention operations to full precision.
         spade_intermediate_channels: number of intermediate channels for SPADE block layer.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism.
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -477,6 +489,9 @@ class SPADECrossAttnUpBlock(nn.Module):
         cross_attention_dim: int | None = None,
         upcast_attention: bool = False,
         spade_intermediate_channels: int = 128,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         self.resblock_updown = resblock_updown
@@ -510,6 +525,9 @@ class SPADECrossAttnUpBlock(nn.Module):
                     num_layers=transformer_num_layers,
                     cross_attention_dim=cross_attention_dim,
                     upcast_attention=upcast_attention,
+                    include_fc=include_fc,
+                    use_combined_linear=use_combined_linear,
+                    use_flash_attention=use_flash_attention,
                 )
             )
 
@@ -592,6 +610,9 @@ def get_spade_up_block(
     cross_attention_dim: int | None,
     upcast_attention: bool = False,
     spade_intermediate_channels: int = 128,
+    include_fc: bool = True,
+    use_combined_linear: bool = False,
+    use_flash_attention: bool = False,
 ) -> nn.Module:
     if with_attn:
         return SPADEAttnUpBlock(
@@ -608,6 +629,9 @@ def get_spade_up_block(
             resblock_updown=resblock_updown,
             num_head_channels=num_head_channels,
             spade_intermediate_channels=spade_intermediate_channels,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
     elif with_cross_attn:
         return SPADECrossAttnUpBlock(
@@ -627,6 +651,7 @@ def get_spade_up_block(
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
             spade_intermediate_channels=spade_intermediate_channels,
+            use_flash_attention=use_flash_attention,
         )
     else:
         return SPADEUpBlock(
@@ -667,9 +692,11 @@ class SPADEDiffusionModelUNet(nn.Module):
         transformer_num_layers: number of layers of Transformer blocks to use.
         cross_attention_dim: number of context dimensions to use.
         num_class_embeds: if specified (as an int), then this model will be class-conditional with `num_class_embeds`
-        classes.
+            classes.
         upcast_attention: if True, upcast attention operations to full precision.
-        spade_intermediate_channels: number of intermediate channels for SPADE block layer
+        spade_intermediate_channels: number of intermediate channels for SPADE block layer.
+        use_flash_attention: if True, use Pytorch's inbuilt flash attention for a memory efficient attention mechanism
+            (see https://pytorch.org/docs/2.2/generated/torch.nn.functional.scaled_dot_product_attention.html).
     """
 
     def __init__(
@@ -691,6 +718,9 @@ class SPADEDiffusionModelUNet(nn.Module):
         num_class_embeds: int | None = None,
         upcast_attention: bool = False,
         spade_intermediate_channels: int = 128,
+        include_fc: bool = True,
+        use_combined_linear: bool = False,
+        use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
         if with_conditioning is True and cross_attention_dim is None:
@@ -783,6 +813,9 @@ class SPADEDiffusionModelUNet(nn.Module):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
+                include_fc=include_fc,
+                use_combined_linear=use_combined_linear,
+                use_flash_attention=use_flash_attention,
             )
 
             self.down_blocks.append(down_block)
@@ -799,6 +832,9 @@ class SPADEDiffusionModelUNet(nn.Module):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
+            include_fc=include_fc,
+            use_combined_linear=use_combined_linear,
+            use_flash_attention=use_flash_attention,
         )
 
         # up
@@ -834,6 +870,7 @@ class SPADEDiffusionModelUNet(nn.Module):
                 upcast_attention=upcast_attention,
                 label_nc=label_nc,
                 spade_intermediate_channels=spade_intermediate_channels,
+                use_flash_attention=use_flash_attention,
             )
 
             self.up_blocks.append(up_block)
