@@ -98,7 +98,7 @@ class TestWriteFileMapping(unittest.TestCase):
         # multiple processes
         multi_transform = create_transform(self.temp_dir, multi_mapping_file)
         multi_dataset = Dataset(data=data, transform=multi_transform)
-        multi_loader = DataLoader(multi_dataset, batch_size=2, num_workers=2, shuffle=True)
+        multi_loader = DataLoader(multi_dataset, batch_size=4, num_workers=3, shuffle=True)
         for _ in multi_loader:
             pass
 

@@ -536,7 +536,6 @@ class WriteFileMapping(Transform):
 
     def __init__(self, mapping_file_path: Path | str = "mapping.json"):
         self.mapping_file_path = Path(mapping_file_path)
-        self.lock = FileLock(str(self.mapping_file_path) + ".lock")
 
     def __call__(self, img: MetaTensor):
         """
@@ -552,7 +551,9 @@ class WriteFileMapping(Transform):
         output_path = img.meta[MetaKeys.SAVED_TO]
         log_data = {"input": input_path, "output": output_path}
 
-        with self.lock:
+        lock = FileLock(str(self.mapping_file_path) + ".lock")
+
+        with lock:
             try:
                 with self.mapping_file_path.open("r") as f:
                     existing_log_data = json.load(f)
