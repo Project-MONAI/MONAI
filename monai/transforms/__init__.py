@@ -688,6 +688,7 @@ from .utils import (
     weighted_patch_samples,
     zero_margins,
 )
+from .utils_morphological_ops import dilate, erode
 from .utils_pytorch_numpy_unification import (
     allclose,
     any_np_pt,

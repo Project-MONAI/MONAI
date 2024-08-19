@@ -99,6 +99,7 @@ jobs:
       name: Install itk pre-release (Linux only)
       run: |
         python -m pip install --pre -U itk
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
     - name: Install the dependencies
       run: |
         python -m pip install --user --upgrade pip wheel
@@ -150,7 +151,7 @@ jobs:
     - name: Install dependencies
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
-        python -m pip install --user --upgrade pip setuptools wheel twine
+        python -m pip install --user --upgrade pip setuptools wheel twine packaging
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
