@@ -183,10 +183,6 @@ def _get_ngc_private_bundle_url(model_name: str, version: str, repo: str) -> str
     return f"{_get_ngc_private_base_url(repo)}/{model_name.lower()}/versions/{version}/zip"
 
 
-def _get_ngc_private_bundle_url(model_name: str, version: str, repo: str) -> str:
-    return f"https://api.ngc.nvidia.com/v2/{repo}/models/{model_name.lower()}/versions/{version}/zip"
-
-
 def _get_monaihosting_bundle_url(model_name: str, version: str) -> str:
     return f"{MONAI_HOSTING_BASE_URL}/{model_name.lower()}/versions/{version}/files/{model_name}_v{version}.zip"
 
