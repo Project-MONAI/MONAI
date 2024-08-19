@@ -46,8 +46,14 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import MetaKeys
-from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    MetaKeys,
+    OptionalImportError,
+    convert_to_dst_type,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
@@ -523,10 +529,11 @@ class WriteFileMapping(Transform):
     """
     Writes a JSON file that logs the mapping between input image paths and their corresponding output paths.
     This class uses FileLock to ensure safe writing to the JSON file in a multiprocess environment.
-    
+
     Args:
         mapping_file_path (Path or str): Path to the JSON file where the mappings will be saved.
     """
+
     def __init__(self, mapping_file_path: Path | str = "mapping.json"):
         self.mapping_file_path = Path(mapping_file_path)
         self.lock = FileLock(str(self.mapping_file_path) + ".lock")
@@ -537,22 +544,24 @@ class WriteFileMapping(Transform):
             img (MetaTensor): The input image with metadata.
         """
         if MetaKeys.SAVED_TO not in img.meta:
-            raise KeyError("Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True.")
-        
+            raise KeyError(
+                "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True."
+            )
+
         input_path = img.meta[Key.FILENAME_OR_OBJ]
         output_path = img.meta[MetaKeys.SAVED_TO]
         log_data = {"input": input_path, "output": output_path}
-        
+
         with self.lock:
             try:
                 with self.mapping_file_path.open("r") as f:
                     existing_log_data = json.load(f)
             except (FileNotFoundError, json.JSONDecodeError):
                 existing_log_data = []
-            
+
             existing_log_data.append(log_data)
-            
+
             with self.mapping_file_path.open("w") as f:
                 json.dump(existing_log_data, f, indent=4)
-        
+
         return img

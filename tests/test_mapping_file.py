@@ -22,8 +22,8 @@ import unittest
 import numpy as np
 from parameterized import parameterized
 
-from monai.data import Dataset, DataLoader
-from monai.transforms import Compose, LoadImage, WriteFileMapping, SaveImage
+from monai.data import DataLoader, Dataset
+from monai.transforms import Compose, LoadImage, SaveImage, WriteFileMapping
 from monai.utils import optional_import
 
 nib, has_nib = optional_import("nibabel")
@@ -78,40 +78,42 @@ class TestWriteFileMapping(unittest.TestCase):
             cause_exception = cm.exception.__cause__
             self.assertIsInstance(cause_exception, KeyError)
             self.assertIn(
-                "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True.", str(cause_exception)
+                "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True.",
+                str(cause_exception),
             )
 
     def test_multiprocess_mapping_file(self):
         num_images = 50
-        
+
         single_mapping_file = os.path.join(self.temp_dir, "single_mapping.json")
         multi_mapping_file = os.path.join(self.temp_dir, "multi_mapping.json")
-    
+
         data = [create_input_file(self.temp_dir, f"test_image_{i}") for i in range(num_images)]
-    
+
         # single process
         single_transform = create_transform(self.temp_dir, single_mapping_file)
         single_dataset = Dataset(data=data, transform=single_transform)
         single_loader = DataLoader(single_dataset, batch_size=1, num_workers=0, shuffle=True)
         for _ in single_loader:
             pass
-    
+
         # multiple processes
         multi_transform = create_transform(self.temp_dir, multi_mapping_file)
         multi_dataset = Dataset(data=data, transform=multi_transform)
         multi_loader = DataLoader(multi_dataset, batch_size=2, num_workers=2, shuffle=True)
         for _ in multi_loader:
             pass
-    
+
         with open(single_mapping_file) as f:
             single_mapping_data = json.load(f)
         with open(multi_mapping_file) as f:
             multi_mapping_data = json.load(f)
-    
-        single_set = set((entry['input'], entry['output']) for entry in single_mapping_data)
-        multi_set = set((entry['input'], entry['output']) for entry in multi_mapping_data)
-    
+
+        single_set = set((entry["input"], entry["output"]) for entry in single_mapping_data)
+        multi_set = set((entry["input"], entry["output"]) for entry in multi_mapping_data)
+
         self.assertEqual(single_set, multi_set)
+
 
 if __name__ == "__main__":
     unittest.main()
