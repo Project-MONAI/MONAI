@@ -13,10 +13,8 @@ from __future__ import annotations
 
 import json
 import os
-import random
 import shutil
 import tempfile
-import time
 import unittest
 
 import numpy as np
@@ -109,8 +107,8 @@ class TestWriteFileMapping(unittest.TestCase):
         with open(multi_mapping_file) as f:
             multi_mapping_data = json.load(f)
 
-        single_set = set((entry["input"], entry["output"]) for entry in single_mapping_data)
-        multi_set = set((entry["input"], entry["output"]) for entry in multi_mapping_data)
+        single_set = {(entry["input"], entry["output"]) for entry in single_mapping_data}
+        multi_set = {(entry["input"], entry["output"]) for entry in multi_mapping_data}
 
         self.assertEqual(single_set, multi_set)
 
