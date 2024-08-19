@@ -18,11 +18,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.utils import (
-    convert_points_to_disc,
-    keep_merge_components_with_points,
-    sample_points_from_label,
-)
+from monai.transforms.utils import convert_points_to_disc, keep_merge_components_with_points, sample_points_from_label
 from monai.utils import min_version
 from monai.utils.module import optional_import
 from tests.utils import skip_if_no_cuda, skip_if_quick
@@ -110,7 +106,7 @@ class TestConvertPointsToDisc(unittest.TestCase):
 
 
 @skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
-class TestGetLargestConnectedComponentMaskPoint(unittest.TestCase):
+class TestKeepMergeComponentsWithPoints(unittest.TestCase):
 
     @skip_if_quick
     @skip_if_no_cuda

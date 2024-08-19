@@ -1250,10 +1250,10 @@ def keep_merge_components_with_points(
     outs[outs > 1] = 1
     return convert_to_dst_type(outs, dst=img_pos, dtype=outs.dtype)[0]
 
+
 def keep_components_with_positive_points(
-        img: NdarrayTensor,
-        point_coords: NdarrayTensor,
-        point_labels: NdarrayTensor) -> NdarrayTensor:
+    img: torch.Tensor, point_coords: torch.Tensor, point_labels: torch.Tensor
+) -> torch.Tensor:
     """
     Keep connected regions that include the positive points. Used for point-only inference postprocessing to remove
     regions without positive points.
@@ -1262,6 +1262,8 @@ def keep_components_with_positive_points(
         point_coords: [B, N, 3]. Point click coordinates
         point_labels: [B, N]. Point click labels.
     """
+    if not has_measure:
+        raise RuntimeError("skimage.measure required.")
     outs = torch.zeros_like(img)
     for c in range(len(point_coords)):
         if not ((point_labels[c] == 3).any() or (point_labels[c] == 1).any()):
@@ -1270,7 +1272,7 @@ def keep_components_with_positive_points(
         coords = point_coords[c, point_labels[c] == 3].tolist() + point_coords[c, point_labels[c] == 1].tolist()
         not_nan_mask = ~torch.isnan(img[0, c])
         img_ = torch.nan_to_num(img[0, c] > 0, 0)
-        img_, *_ = convert_data_type(img_, np.ndarray)
+        img_, *_ = convert_data_type(img_, np.ndarray)  # type: ignore
         label = measure.label
         features = label(img_, connectivity=3)
         pos_mask = torch.from_numpy(img_).to(img.device) > 0
@@ -1290,7 +1292,6 @@ def keep_components_with_positive_points(
         fill_in = img[0, c][torch.logical_and(~outs[0, c], not_nan_mask)].mean()
         img[0, c][torch.logical_and(pos_mask, ~outs[0, c])] = fill_in
     return img
-
 
 
 def convert_points_to_disc(

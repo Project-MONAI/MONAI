@@ -12,19 +12,15 @@
 from __future__ import annotations
 
 import unittest
+from unittest.case import skipUnless
 
 import torch
 from parameterized import parameterized
 
-from monai.apps.vista3d.transforms import (
-    VistaPostTransform,
-    VistaPreTransform
-)
+from monai.apps.vista3d.transforms import VistaPostTransform, VistaPreTransform
 from monai.utils import min_version
 from monai.utils.module import optional_import
 
-cp, has_cp = optional_import("cupy")
-cucim_skimage, has_cucim = optional_import("cucim.skimage")
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -32,67 +28,66 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 TEST_VISTA_PRETRANSFORM = [
     [
-        {"label_prompt":[1], "points": [[0,0,0]], "point_labels": [1]},
-        {"label_prompt":[1], "points": [[0,0,0]], "point_labels": [3]},
+        {"label_prompt": [1], "points": [[0, 0, 0]], "point_labels": [1]},
+        {"label_prompt": [1], "points": [[0, 0, 0]], "point_labels": [3]},
     ],
     [
-        {"label_prompt":[2], "points": [[0,0,0]], "point_labels": [0]},
-        {"label_prompt":[2], "points": [[0,0,0]], "point_labels": [2]},
+        {"label_prompt": [2], "points": [[0, 0, 0]], "point_labels": [0]},
+        {"label_prompt": [2], "points": [[0, 0, 0]], "point_labels": [2]},
     ],
     [
-        {"label_prompt":[3], "points": [[0,0,0]], "point_labels": [0]},
-        {"label_prompt":[4,5], "points": [[0,0,0]], "point_labels": [0]},
+        {"label_prompt": [3], "points": [[0, 0, 0]], "point_labels": [0]},
+        {"label_prompt": [4, 5], "points": [[0, 0, 0]], "point_labels": [0]},
     ],
     [
-        {"label_prompt":[6], "points": [[0,0,0]], "point_labels": [0]},
-        {"label_prompt":[7,8], "points": [[0,0,0]], "point_labels": [0]},
-    ]
+        {"label_prompt": [6], "points": [[0, 0, 0]], "point_labels": [0]},
+        {"label_prompt": [7, 8], "points": [[0, 0, 0]], "point_labels": [0]},
+    ],
 ]
 
 
-pred1 = torch.zeros([2,64,64,64])
-pred1[0,:10,:10,:10] = 1
-pred1[1,20:30,20:30,20:30] = 1
-output1 = torch.zeros([1,64,64,64])
-output1[:,:10,:10,:10] = 2
-output1[:,20:30,20:30,20:30] = 3
+pred1 = torch.zeros([2, 64, 64, 64])
+pred1[0, :10, :10, :10] = 1
+pred1[1, 20:30, 20:30, 20:30] = 1
+output1 = torch.zeros([1, 64, 64, 64])
+output1[:, :10, :10, :10] = 2
+output1[:, 20:30, 20:30, 20:30] = 3
 
 # -1 is needed since pred should be before sigmoid.
-pred2 = torch.zeros([1,64,64,64]) - 1
-pred2[:,:10,:10,:10] = 1
-pred2[:,20:30,20:30,20:30] = 1
-output2 = torch.zeros([1,64,64,64])
-output2[:,20:30,20:30,20:30] = 1
+pred2 = torch.zeros([1, 64, 64, 64]) - 1
+pred2[:, :10, :10, :10] = 1
+pred2[:, 20:30, 20:30, 20:30] = 1
+output2 = torch.zeros([1, 64, 64, 64])
+output2[:, 20:30, 20:30, 20:30] = 1
 
 TEST_VISTA_POSTTRANSFORM = [
+    [{"pred": pred1, "label_prompt": torch.tensor([2, 3]).to(device)}, output1],
     [
-        {"pred":pred1, "label_prompt":torch.tensor([2,3])},
-        output1
+        {
+            "pred": pred2,
+            "points": torch.tensor([[25, 25, 25]]).to(device),
+            "point_labels": torch.tensor([1]).to(device),
+        },
+        output2,
     ],
-    [
-        {"pred":pred2, "points": torch.tensor([[25,25,25]]), "point_labels": torch.tensor([1])},
-        output2
-    ]
 ]
 
 
 class TestVistaPreTransform(unittest.TestCase):
     @parameterized.expand(TEST_VISTA_PRETRANSFORM)
     def test_result(self, input_data, expected):
-        transform = VistaPreTransform(
-            keys="image",
-            subclass = {"3": [4, 5], "6": [7,8]},
-            special_index = [1, 2]
-        )
+        transform = VistaPreTransform(keys="image", subclass={"3": [4, 5], "6": [7, 8]}, special_index=[1, 2])
         result = transform(input_data)
         self.assertEqual(result, expected)
 
+
+@skipUnless(has_measure, "skimage.measure required")
 class TestVistaPostTransform(unittest.TestCase):
     @parameterized.expand(TEST_VISTA_POSTTRANSFORM)
     def test_result(self, input_data, expected):
         transform = VistaPostTransform(keys="pred")
         result = transform(input_data)
-        self.assertEqual((result['pred'] == expected).all(), True)
+        self.assertEqual((result["pred"] == expected).all(), True)
 
 
 if __name__ == "__main__":

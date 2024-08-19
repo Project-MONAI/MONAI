@@ -43,7 +43,7 @@ TEST_CASES = [
             "roi_size": [32, 32, 32],
             "point_coords": torch.tensor([[[1, 2, 3], [1, 2, 3]]], device=device),
             "point_labels": torch.tensor([[1, 0]], device=device),
-            "class_vector": torch.tensor([1], device=device)
+            "class_vector": torch.tensor([1], device=device),
         },
     ],
     [
@@ -54,9 +54,9 @@ TEST_CASES = [
             "point_coords": torch.tensor([[[1, 2, 3], [1, 2, 3]]], device=device),
             "point_labels": torch.tensor([[1, 0]], device=device),
             "class_vector": torch.tensor([1], device=device),
-            "point_start": 1
+            "point_start": 1,
         },
-    ]
+    ],
 ]
 
 

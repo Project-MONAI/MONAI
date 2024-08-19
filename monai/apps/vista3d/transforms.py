@@ -16,10 +16,7 @@ from typing import Sequence
 import numpy as np
 import torch
 
-from collections.abc import Hashable, Mapping
-
 from monai.config import DtypeLike, KeysCollection
-from monai.config.type_definitions import NdarrayOrTensor
 from monai.transforms import MapLabelValue
 from monai.transforms.transform import MapTransform
 from monai.transforms.utils import keep_components_with_positive_points
@@ -64,11 +61,14 @@ class VistaPreTransform(MapTransform):
         subclass: dict | None = None,
     ) -> None:
         """
-        Pre-transform for Vista3d. It performs two functionalities:
-            1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels),
-            convert point labels from 0,1 to 2,3.
+        Pre-transform for Vista3d.
+        
+        It performs two functionalities:
+            1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels), 
+                convert point labels from 0,1 to 2,3.
             2. If label prompt is within the keys in subclass, convert the label prompt to its subclasses defined by subclass[key].
-            e.g. "lung" label is converted to ["left lung", "right lung"]
+                e.g. "lung" label is converted to ["left lung", "right lung"]
+
         Args:
             keys: keys of the corresponding items to be transformed. Not used by the transform but kept here for formatting.
             allow_missing_keys: don't raise exception if key is missing.
@@ -109,9 +109,12 @@ class VistaPreTransform(MapTransform):
 
         return data
 
+
 class VistaPostTransform(MapTransform):
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
+        Post-transform for Vista3d.
+
         Args:
             keys: keys of the corresponding items to be transformed.
             dataset_transforms: a dictionary specifies the transform for corresponding dataset:
@@ -122,7 +125,7 @@ class VistaPostTransform(MapTransform):
         """
         super().__init__(keys, allow_missing_keys)
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data):
         for keys in self.keys:
             if keys in data:
                 pred = data[keys]
