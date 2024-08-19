@@ -40,8 +40,8 @@ def point_based_window_inferer(
     **kwargs: Any,
 ) -> torch.Tensor:
     """
-    Point-based window inferer that takes an input image, a set of points, and a model, and returns a segmented image. 
-    The inferer algorithm crops the input image into patches that centered at the point sets, which is followed by 
+    Point-based window inferer that takes an input image, a set of points, and a model, and returns a segmented image.
+    The inferer algorithm crops the input image into patches that centered at the point sets, which is followed by
     patch inference and average output stitching, and finally returns the segmented mask.
 
     Args:
@@ -53,7 +53,7 @@ def point_based_window_inferer(
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
         predictor: the model. For vista3D, the output is [B, 1, H, W, D] which needs to be transposed to [1, B, H, W, D].
-            Add transpose=True in kwargs for vista3d. 
+            Add transpose=True in kwargs for vista3d.
         point_coords: [B, N, 3]. Point coordinates for B foreground objects, each has N points.
         point_labels: [B, N]. Point labels. 0/1 means negative/positive points for regular supported or zero-shot classes.
             2/3 means negative/positive points for special supported classes (e.g. tumor, vessel).
