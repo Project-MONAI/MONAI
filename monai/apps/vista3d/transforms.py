@@ -15,6 +15,7 @@ from typing import Sequence
 
 import numpy as np
 import torch
+import warnings
 
 from monai.config import DtypeLike, KeysCollection
 from monai.transforms import MapLabelValue
@@ -22,6 +23,7 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utils import keep_components_with_positive_points
 from monai.utils import look_up_option
 
+__all__ = ["VistaPreTransform", "VistaPostTransformd", "RelabelD"]
 
 def _get_name_to_index_mapping(labels_dict: dict | None) -> dict:
     """get the label name to index mapping"""
@@ -65,7 +67,7 @@ class VistaPreTransform(MapTransform):
 
         It performs two functionalities:
             1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels),
-                convert point labels from 0,1 to 2,3.
+                convert point labels from 0 (negative), 1 (positive) to special 2 (negative),3 (positive).
             2. If label prompt is within the keys in subclass, convert the label prompt to its subclasses defined by subclass[key].
                 e.g. "lung" label is converted to ["left lung", "right lung"]
 
@@ -73,7 +75,7 @@ class VistaPreTransform(MapTransform):
             keys: keys of the corresponding items to be transformed. Not used by the transform but kept here for formatting.
             allow_missing_keys: don't raise exception if key is missing.
             special_index: the class index that need to be handled differently. If label_prompt is within special index,
-                the point label will be converted from 0,1 to 2, 3 for negative/positive points.
+                the point label will be converted from 0, 1 to 2, 3 for negative/positive points.
             subclass: if label_prompt is in subclass keys, the label_prompt will be converted to the subclasses defined in the dict.
         """
         super().__init__(keys, allow_missing_keys)
@@ -105,12 +107,12 @@ class VistaPreTransform(MapTransform):
                     point_labels = point_labels.tolist()
                 data["point_labels"] = point_labels
         except Exception:
-            pass
+            warnings.warn("VistaPreTransform failed to transform label prompt or point labels.")
 
         return data
 
 
-class VistaPostTransform(MapTransform):
+class VistaPostTransformd(MapTransform):
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
         Post-transform for Vista3d.

@@ -35,11 +35,14 @@ def point_based_window_inferer(
     prompt_class: torch.Tensor | None = None,
     prev_mask: torch.Tensor | MetaTensor | None = None,
     point_start: int = 0,
+    center_only: bool = True,
+    margin: int = 5,
     **kwargs: Any,
 ) -> torch.Tensor:
     """
-    Point based window inferer, crop a patch centered at the point, and perform inference.
-    Different patches are combined with gaussian weighted weights.
+    Point-based window inferer that takes an input image, a set of points, and a model, and returns a segmented image. 
+    The inferer algorithm crops the input image into patches that centered at the point sets, which is followed by 
+    patch inference and average output stitching, and finally returns the segmented mask.
 
     Args:
         inputs: [1CHWD], input image to be processed.
@@ -49,15 +52,20 @@ def point_based_window_inferer(
             corresponding components of img size. For example, `roi_size=(32, -1)` will be adapted
             to `(32, 64)` if the second spatial dimension size of img is `64`.
         sw_batch_size: the batch size to run window slices.
-        predictor: partial(infer_wrapper, model). infer_wrapper transpose the model output.
-            The model output is [B, 1, H, W, D] which needs to be transposed to [1, B, H, W, D].
-        point_coords: [B, N, 3]
-        point_labels: [B, N]
+        predictor: the model. For vista3D, the output is [B, 1, H, W, D] which needs to be transposed to [1, B, H, W, D].
+            Add transpose=True in kwargs for vista3d. 
+        point_coords: [B, N, 3]. Point coordinates for B foreground objects, each has N points.
+        point_labels: [B, N]. Point labels. 0/1 means negative/positive points for regular supported or zero-shot classes.
+            2/3 means negative/positive points for special supported classes (e.g. tumor, vessel).
         class_vector: [B]. Used for class-head automatic segmentation. Can be None value.
         prompt_class: [B]. The same as class_vector representing the point class and inform point head about
             supported class or zeroshot, not used for automatic segmentation. If None, point head is default
             to supported class segmentation.
         prev_mask: [1, B, H, W, D]. The value is before sigmoid.
+        point_start: only use points starting from this number. All points before this number is used to generate
+            prev_mask. This is used to avoid re-calculating the points in previous iterations if given prev_mask.
+        center_only: for each point, only crop the patch centered at this point. If false, crop 3 patches for each point.
+        margin: if center_only is false, this value is the distance between point to the patch boundary.
     Returns:
         stitched_output: [1, B, H, W, D]. The value is before sigmoid.
     Notice: The function only supports SINGLE OBJECT INFERENCE with B=1.
@@ -68,11 +76,10 @@ def point_based_window_inferer(
     point_coords = point_coords + torch.tensor([pad[-2], pad[-4], pad[-6]]).to(point_coords.device)
     prev_mask = _pad_previous_mask(copy.deepcopy(prev_mask), roi_size)[0] if prev_mask is not None else None
     stitched_output = None
-    center_only = True
     for p in point_coords[0][point_start:]:
-        lx_, rx_ = _get_window_idx(p[0], roi_size[0], image.shape[-3], center_only=center_only, margin=5)
-        ly_, ry_ = _get_window_idx(p[1], roi_size[1], image.shape[-2], center_only=center_only, margin=5)
-        lz_, rz_ = _get_window_idx(p[2], roi_size[2], image.shape[-1], center_only=center_only, margin=5)
+        lx_, rx_ = _get_window_idx(p[0], roi_size[0], image.shape[-3], center_only=center_only, margin=margin)
+        ly_, ry_ = _get_window_idx(p[1], roi_size[1], image.shape[-2], center_only=center_only, margin=margin)
+        lz_, rz_ = _get_window_idx(p[2], roi_size[2], image.shape[-1], center_only=center_only, margin=margin)
         for i in range(len(lx_)):
             for j in range(len(ly_)):
                 for k in range(len(lz_)):
