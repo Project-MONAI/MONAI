@@ -62,9 +62,9 @@ class VistaPreTransform(MapTransform):
     ) -> None:
         """
         Pre-transform for Vista3d.
-        
+
         It performs two functionalities:
-            1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels), 
+            1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels),
                 convert point labels from 0,1 to 2,3.
             2. If label prompt is within the keys in subclass, convert the label prompt to its subclasses defined by subclass[key].
                 e.g. "lung" label is converted to ["left lung", "right lung"]
