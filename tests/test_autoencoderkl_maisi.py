@@ -16,16 +16,13 @@ import unittest
 import torch
 from parameterized import parameterized
 
+from monai.apps.generation.maisi.networks.autoencoderkl_maisi import AutoencoderKlMaisi
 from monai.networks import eval_mode
 from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion
 
 tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 _, has_einops = optional_import("einops")
-_, has_generative = optional_import("generative")
-
-if has_generative:
-    from monai.apps.generation.maisi.networks.autoencoderkl_maisi import AutoencoderKlMaisi
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -79,7 +76,6 @@ else:
     CASES = CASES_NO_ATTENTION
 
 
-@unittest.skipUnless(has_generative, "monai-generative required")
 class TestAutoencoderKlMaisi(unittest.TestCase):
 
     @parameterized.expand(CASES)
