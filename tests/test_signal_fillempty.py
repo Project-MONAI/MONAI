@@ -30,7 +30,7 @@ class TestSignalFillEmptyNumpy(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = np.load(TEST_SIGNAL)
-        sig[:, 123] = np.NAN
+        sig[:, 123] = np.nan
         fillempty = SignalFillEmpty(replacement=0.0)
         fillemptysignal = fillempty(sig)
         self.assertTrue(not np.isnan(fillemptysignal).any())
@@ -42,7 +42,7 @@ class TestSignalFillEmptyTorch(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = convert_to_tensor(np.load(TEST_SIGNAL))
-        sig[:, 123] = convert_to_tensor(np.NAN)
+        sig[:, 123] = convert_to_tensor(np.nan)
         fillempty = SignalFillEmpty(replacement=0.0)
         fillemptysignal = fillempty(sig)
         self.assertTrue(not torch.isnan(fillemptysignal).any())
