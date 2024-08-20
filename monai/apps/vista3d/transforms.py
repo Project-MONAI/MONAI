@@ -70,8 +70,9 @@ class VistaPreTransformd(MapTransform):
             1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels),
                 convert point labels from 0 (negative), 1 (positive) to special 2 (negative),3 (positive).
             2. If label prompt is within the keys in subclass, convert the label prompt to its subclasses defined by subclass[key].
-                e.g. "lung" label is converted to ["left lung", "right lung"]
-
+                e.g. "lung" label is converted to ["left lung", "right lung"].
+        The `label_prompt` is a list of int values of length [B] and `point_labels` is a list of length B, where each element is a int values of length [B, N].
+         
         Args:
             keys: keys of the corresponding items to be transformed. Not used by the transform but kept here for formatting.
             allow_missing_keys: don't raise exception if key is missing.
@@ -108,6 +109,9 @@ class VistaPreTransformd(MapTransform):
                     point_labels = point_labels.tolist()
                 data["point_labels"] = point_labels
         except Exception:
+            # There is specific requirements for `label_prompt` and `point_labels`. 
+            # If B > 1 or `label_prompt` is in subclass_keys, `point_labels` must be None. 
+            # Those formatting errors should be captured later.  
             warnings.warn("VistaPreTransformd failed to transform label prompt or point labels.")
 
         return data
@@ -116,7 +120,11 @@ class VistaPreTransformd(MapTransform):
 class VistaPostTransformd(MapTransform):
     def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False) -> None:
         """
-        Post-transform for Vista3d.
+        Post-transform for Vista3d. It converts the model output logits into final segmentation masks.
+        If `label_prompt` is None, the output will be thresholded to be sequential indexes [0,1,2,...],
+        else the indexes will be [0, label_prompt[0], label_prompt[1], ...].
+        If `label_prompt` is None while `points` are provided, the model will perform postprocess to remove
+        regions that does not contain positive points. 
 
         Args:
             keys: keys of the corresponding items to be transformed.

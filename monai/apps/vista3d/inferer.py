@@ -40,8 +40,8 @@ def point_based_window_inferer(
     **kwargs: Any,
 ) -> torch.Tensor:
     """
-    Point-based window inferer that takes an input image, a set of points, and a model, and returns a segmented image.
-    The inferer algorithm crops the input image into patches that centered at the point sets, which is followed by
+    Point-based window inferer that takes an input image, a set of points, and a model, and returns a segmented image. 
+    The inferer algorithm crops the input image into patches that centered at the point sets, which is followed by 
     patch inference and average output stitching, and finally returns the segmented mask.
 
     Args:
@@ -61,7 +61,7 @@ def point_based_window_inferer(
         prompt_class: [B]. The same as class_vector representing the point class and inform point head about
             supported class or zeroshot, not used for automatic segmentation. If None, point head is default
             to supported class segmentation.
-        prev_mask: [1, B, H, W, D]. The value is before sigmoid.
+        prev_mask: [1, B, H, W, D]. The value is before sigmoid. An optional tensor of previously segmented masks.
         point_start: only use points starting from this number. All points before this number is used to generate
             prev_mask. This is used to avoid re-calculating the points in previous iterations if given prev_mask.
         center_only: for each point, only crop the patch centered at this point. If false, crop 3 patches for each point.
