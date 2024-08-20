@@ -180,13 +180,11 @@ class Relabeld(MapTransform):
         Args:
             keys: keys of the corresponding items to be transformed.
             label_mappings: a dictionary specifies how local dataset class indices are mapped to the
-                global class indices, format:
-                key: dataset name.
-                value: list of (local label, global label) pairs. This list of local -> global label mappings
-                    will be applied to each input `data[keys]`. If `data[dataset_key]` is not in `label_mappings`,
-                    label_mappings['default']` will be used. if `label_mappings[data[dataset_key]]` is None,
-                    no relabeling will be performed.
-                set `label_mappings={}` to completely skip this transform.
+                global class indices. The dictionary keys are dataset names and the values are lists of
+                list of (local label, global label) pairs. This list of local -> global label mappings
+                will be applied to each input `data[keys]`. If `data[dataset_key]` is not in `label_mappings`,
+                label_mappings['default']` will be used. if `label_mappings[data[dataset_key]]` is None,
+                no relabeling will be performed. Please set `label_mappings={}` to completely skip this transform.
             dtype: convert the output data to dtype, default to float32.
             dataset_key: key to get the dataset name from the data dictionary, default to "dataset_name".
             allow_missing_keys: don't raise exception if key is missing.
