@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Invertd, Resize, Resized
+from monai.utils import convert_to_dst_type
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import (
     TEST_NDARRAYS_ALL,
@@ -158,6 +159,29 @@ class TestResized(NumpyImageTestCase2D):
         test_input_dict = {"img1": test_input_1, "img2": test_input_2}
         assert_allclose(rescaler_1(test_input_1), rescaler_dict(test_input_dict)["img1"])
         assert_allclose(rescaler_2(test_input_2), rescaler_dict(test_input_dict)["img2"])
+
+    @parameterized.expand(
+        [
+            ((32, -1), "all", [[[12, 6], [18, 9], [24, 8]]]),
+            ((32, 32, 32), "all", [[[12, 6, 32], [18, 9, 0], [24, 8, 18]]]),
+            ((128, 64), "all", [[[12, 6], [18, 9], [24, 64]]]),  # already in a good shape
+            (32, "longest", [[[12, 6], [18, 9], [24, 8]]]),
+        ]
+    )
+    def test_point(self, spatial_size, size_mode, data):
+        init_param = {"keys": "point", "spatial_size": spatial_size, "dtype": np.int64, "size_mode": size_mode}
+        resize = Resized(**init_param)
+        if spatial_size == (32, -1):
+            spatial_size = (32, 64)
+        elif spatial_size == 32:
+            spatial_size = (32, 16)
+        refer_shape = (128, 64) if len(spatial_size) == 2 else (128, 64, 64)
+        data = MetaTensor(data, meta={"kind": "point", "refer_meta": {"spatial_shape": refer_shape}})
+        expected = [data[0][..., i] * (spatial_size[i] / refer_shape[i]) for i in range(len(refer_shape))]
+        expected, *_ = convert_to_dst_type(torch.stack(expected, dim=1).unsqueeze(0), data)
+        out = resize({"point": data})
+        assert_allclose(out["point"], expected, type_test="tensor")
+        test_local_inversion(resize, out, {"point": data}, "point")
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ from torch import Tensor
 import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose
@@ -2507,6 +2508,19 @@ def distance_transform_edt(
         return None
     device = img.device if isinstance(img, torch.Tensor) else None
     return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]
+
+
+def get_input_shape(data):
+    if isinstance(data, MetaTensor):
+        if data.meta.get("refer_meta", None) is not None:
+            refer_shape = data.meta["refer_meta"].get("spatial_shape", None)
+            if refer_shape is not None:
+                input_shape = refer_shape
+        else:
+            input_shape = data.peek_pending_shape()
+    else:
+        input_shape = data.shape[1:]
+    return input_shape
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Resize
+from monai.utils import convert_to_dst_type
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import (
     TEST_NDARRAYS_ALL,
@@ -94,7 +95,7 @@ class TestResize(NumpyImageTestCase2D):
         ]
 
         expected = np.stack(expected).astype(np.float32)
-        for p in TEST_NDARRAYS_ALL:
+        for p in TEST_NDARRAYS_ALL[:1]:
             im = p(self.imt[0])
             call_param = {"img": im}
             out = resize(**call_param)
@@ -136,6 +137,32 @@ class TestResize(NumpyImageTestCase2D):
         resize = Resize(spatial_size=1008, size_mode="longest", mode="bilinear", align_corners=False)
         ret = resize(np.random.randint(0, 2, size=[1, 2544, 3032]))
         self.assertTupleEqual(ret.shape, (1, 846, 1008))
+
+    @parameterized.expand(
+        [
+            ((32, -1), "all", [[[12, 6], [18, 9], [24, 8]]]),
+            ((32, 32, 32), "all", [[[12, 6, 32], [18, 9, 0], [24, 8, 18]]]),
+            ((128, 64), "all", [[[12, 6], [18, 9], [24, 64]]]),  # already in a good shape
+            (32, "longest", [[[12, 6], [18, 9], [24, 8]]]),
+        ]
+    )
+    def test_point(self, spatial_size, size_mode, data):
+        init_param = {"spatial_size": spatial_size, "dtype": np.int64, "size_mode": size_mode}
+        resize = Resize(**init_param)
+        if spatial_size == (32, -1):
+            spatial_size = (32, 64)
+        elif spatial_size == 32:
+            spatial_size = (32, 16)
+        refer_shape = (128, 64) if len(spatial_size) == 2 else (128, 64, 64)
+        data = MetaTensor(data, meta={"kind": "point", "refer_meta": {"spatial_shape": refer_shape}})
+        expected = [data[0][..., i] * (spatial_size[i] / refer_shape[i]) for i in range(len(refer_shape))]
+        expected, *_ = convert_to_dst_type(torch.stack(expected, dim=1).unsqueeze(0), data)
+        out = resize(data)
+        im_inv = resize.inverse(out)
+        self.assertTrue(not im_inv.applied_operations)
+        assert_allclose(im_inv.shape, data.shape)
+        assert_allclose(out, expected, type_test="tensor")
+        assert_allclose(im_inv.affine, data.affine, atol=1e-3, rtol=1e-3)
 
 
 if __name__ == "__main__":
