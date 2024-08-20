@@ -78,7 +78,7 @@ class VistaPreTransformd(MapTransform):
             special_index: the class index that need to be handled differently. If label_prompt is within special index,
                 the point label will be converted from 0, 1 to 2, 3 for negative/positive points.
             subclass: if label_prompt is in subclass keys, the label_prompt will be converted to the subclasses defined in the dict.
-            
+
         """
         super().__init__(keys, allow_missing_keys)
         self.special_index = special_index
