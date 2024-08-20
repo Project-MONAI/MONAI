@@ -40,8 +40,8 @@ def point_based_window_inferer(
     **kwargs: Any,
 ) -> torch.Tensor:
     """
-    Point-based window inferer that takes an input image, a set of points, and a model, and returns a segmented image. 
-    The inferer algorithm crops the input image into patches that centered at the point sets, which is followed by 
+    Point-based window inferer that takes an input image, a set of points, and a model, and returns a segmented image.
+    The inferer algorithm crops the input image into patches that centered at the point sets, which is followed by
     patch inference and average output stitching, and finally returns the segmented mask.
 
     Args:
