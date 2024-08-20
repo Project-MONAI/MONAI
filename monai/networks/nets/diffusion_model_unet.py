@@ -1850,6 +1850,16 @@ class DiffusionModelUNet(nn.Module):
             new_state_dict[f"{block}.attn.out_proj.weight"] = old_state_dict.pop(f"{block}.proj_attn.weight")
             new_state_dict[f"{block}.attn.out_proj.bias"] = old_state_dict.pop(f"{block}.proj_attn.bias")
 
+        # fix the cross attention blocks
+        cross_attention_blocks = [
+            k.replace(".out_proj.weight", "")
+            for k in new_state_dict
+            if "out_proj.weight" in k and "transformer_blocks" in k
+        ]
+        for block in cross_attention_blocks:
+            new_state_dict[f"{block}.out_proj.weight"] = old_state_dict.pop(f"{block}.to_out.0.weight")
+            new_state_dict[f"{block}.out_proj.bias"] = old_state_dict.pop(f"{block}.to_out.0.bias")
+
         # fix the upsample conv blocks which were renamed postconv
         for k in new_state_dict:
             if "postconv" in k:
