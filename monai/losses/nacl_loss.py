@@ -95,11 +95,11 @@ class NACLLoss(_Loss):
         rmask: torch.Tensor
 
         if self.dim == 2:
-            oh_labels = F.one_hot(mask.to(torch.int64), num_classes=self.nc).contiguous().permute(0, 3, 1, 2).float()
+            oh_labels = F.one_hot(mask.to(torch.int64), num_classes=self.nc).permute(0, 3, 1, 2).contiguous().float()
             rmask = self.svls_layer(oh_labels)
 
         if self.dim == 3:
-            oh_labels = F.one_hot(mask.to(torch.int64), num_classes=self.nc).contiguous().permute(0, 4, 1, 2, 3).float()
+            oh_labels = F.one_hot(mask.to(torch.int64), num_classes=self.nc).permute(0, 4, 1, 2, 3).contiguous().float()
             rmask = self.svls_layer(oh_labels)
 
         return rmask
