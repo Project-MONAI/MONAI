@@ -86,7 +86,7 @@ def switch_endianness(data, new="<"):
         if new not in ("<", ">"):
             raise NotImplementedError(f"Not implemented option new={new}.")
         if current_ != new:
-            data = data.byteswap().newbyteorder(new)
+            data = data.byteswap().view(data.dtype.newbyteorder(new))
     elif isinstance(data, tuple):
         data = tuple(switch_endianness(x, new) for x in data)
     elif isinstance(data, list):

@@ -24,7 +24,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install setuptools
       run: |
-        python -m pip install --user --upgrade setuptools wheel
+        python -m pip install --user --upgrade setuptools wheel packaging
     - name: Build and test source archive and wheel file
       run: |
         find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
@@ -104,7 +104,7 @@ jobs:
         run: |
           find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
           git describe
-          python -m pip install --user --upgrade setuptools wheel
+          python -m pip install --user --upgrade setuptools wheel packaging
           python setup.py build
           cat build/lib/monai/_version.py
       - name: Upload version
