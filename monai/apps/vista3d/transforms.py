@@ -65,20 +65,20 @@ class VistaPreTransformd(MapTransform):
     ) -> None:
         """
         Pre-transform for Vista3d.
-
         It performs two functionalities:
             1. If label prompt shows the points belong to special class (defined by special index, e.g. tumors, vessels),
                 convert point labels from 0 (negative), 1 (positive) to special 2 (negative),3 (positive).
             2. If label prompt is within the keys in subclass, convert the label prompt to its subclasses defined by subclass[key].
                 e.g. "lung" label is converted to ["left lung", "right lung"].
         The `label_prompt` is a list of int values of length [B] and `point_labels` is a list of length B, where each element is a int values of length [B, N].
-         
+
         Args:
             keys: keys of the corresponding items to be transformed. Not used by the transform but kept here for formatting.
             allow_missing_keys: don't raise exception if key is missing.
             special_index: the class index that need to be handled differently. If label_prompt is within special index,
                 the point label will be converted from 0, 1 to 2, 3 for negative/positive points.
             subclass: if label_prompt is in subclass keys, the label_prompt will be converted to the subclasses defined in the dict.
+            
         """
         super().__init__(keys, allow_missing_keys)
         self.special_index = special_index
