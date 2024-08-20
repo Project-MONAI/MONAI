@@ -608,6 +608,7 @@ def convert_to_onnx(
     atol: float = 0.0,
     use_trace: bool = True,
     do_constant_folding: bool = True,
+    constant_size_threshold: int = 16 * 1024 * 1024 * 1024,
     dynamo=False,
     **kwargs,
 ):
@@ -636,6 +637,7 @@ def convert_to_onnx(
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
         do_constant_folding: passed to onnx.export(). If True, extra polygraphy folding pass is done.
+        constant_size_threshold: passed to polygrapy conatant forling, default = 16M
         dynamo: passed to onnx.export(). [When dynamo export API is finalized]
         kwargs: if use_trace=True: additional arguments to pass to torch.onnx.export()
             else: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
@@ -661,7 +663,7 @@ def convert_to_onnx(
                 del kwargs["example_outputs"]
             mode_to_export = torch.jit.script(model, **kwargs)
 
-        if torch.is_tensor(inputs):
+        if not isinstance(inputs, tuple):
             inputs = (inputs,)
 
         if filename is None:
@@ -687,9 +689,8 @@ def convert_to_onnx(
             onnx_model = onnx.load(filename)
 
     if do_constant_folding and polygraphy_imported:
-        from polygraphy.backend.onnx import fold_constants
-
-        fold_constants(onnx_model)
+        from polygraphy.backend.onnx.loader import fold_constants
+        fold_constants(onnx_model, size_threshold=constant_size_threshold)
 
     if verify:
         if device is None:

@@ -443,6 +443,12 @@ class TrtWrappper:
                                                                        enabled_precisions=enabled_precisions,
                                                                        **export_args)
         else:
+            if self.export_method == 'onnx_dynamo':
+                dynamo = True
+                import torch_onnx
+                torch_onnx.patch_torch()
+            else:
+                dynamo = False
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 onnx_path = Path(tmpdir) / 'model.onnx'
@@ -453,7 +459,7 @@ class TrtWrappper:
                     filename=str(onnx_path),
                     input_names=self.input_names,
                     output_names=self.output_names,
-                    dynamo=self.export_method == 'onnx_dynamo',
+                    dynamo=dynamo,
                     **export_args,
                 )
                 LOGGER.info("Export to ONNX successful.")
