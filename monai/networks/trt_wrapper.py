@@ -40,7 +40,6 @@ trt, trt_imported = optional_import("tensorrt")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 cudart, _ = optional_import("cuda.cudart")
 
-LOGGER = get_logger("trt_wrapper")
 
 lock_sm = threading.Lock()
 
@@ -104,12 +103,13 @@ class TRTEngine:
 
     """
 
-    def __init__(self, engine_path):
+    def __init__(self, engine_path, logger=None):
         """
         Loads serialized engine, creates execution context and activates it
         """
         self.engine_path = engine_path
-        LOGGER.info(f"Loading TensorRT engine: {self.engine_path}")
+        self.logger = logger or get_logger("trt_wrapper")
+        self.logger.info(f"Loading TensorRT engine: {self.engine_path}")
         self.engine = engine_from_bytes(bytes_from_path(self.engine_path))
         self.tensors = OrderedDict()
         self.cuda_graph_instance = None  # cuda graph
@@ -208,7 +208,7 @@ class TRTEngine:
                 self.context.execute_async_v3(stream)
                 graph = cuassert(cudart.cudaStreamEndCapture(stream))
                 self.cuda_graph_instance = cuassert(cudart.cudaGraphInstantiate(graph, 0))
-                LOGGER.info("CUDA Graph captured!")
+                self.logger.info("CUDA Graph captured!")
         else:
             noerror = self.context.execute_async_v3(stream)
             cuassert(cudart.cudaStreamSynchronize(stream))
@@ -241,6 +241,7 @@ class TrtWrappper:
         use_cuda_graph=False,
         timestamp=None,
         fallback=False,
+        logger=None,
     ):
         """
         Initialization method:
@@ -277,6 +278,8 @@ class TrtWrappper:
         self.fallback = fallback
         self.disabled = False
 
+        self.logger = logger or get_logger("trt_wrapper")
+
         # Normally we read input_names from forward() but can be overridden
         if input_names is None:
             argspec = inspect.getfullargspec(model.forward)
@@ -312,10 +315,10 @@ class TrtWrappper:
         Loads TRT plan from disk and activates its execution context.
         """
         try:
-            self.engine = TRTEngine(self.engine_path)
+            self.engine = TRTEngine(self.engine_path, self.logger)
             self.input_names = self.engine.input_names
         except Exception as e:
-            LOGGER.debug(f"Exception while loading the engine:\n{e}")
+            self.logger.debug(f"Exception while loading the engine:\n{e}")
 
     def forward(self, model, argv, kwargs):
         """
@@ -343,7 +346,7 @@ class TrtWrappper:
                     self._load_engine()
             except Exception as e:
                 if self.fallback:
-                    LOGGER.info(f"Failed to build engine: {e}")
+                    self.logger.info(f"Failed to build engine: {e}")
                     self.disabled = True
                 else:
                     raise e
@@ -373,7 +376,7 @@ class TrtWrappper:
                     return ret
         except Exception as e:
             if model is not None:
-                LOGGER.info(f"Exception: {e}\nFalling back to Pytorch ...")
+                self.logger.info(f"Exception: {e}\nFalling back to Pytorch ...")
             else:
                 raise e
         return self.old_forward(model, *argv, **kwargs)
@@ -400,7 +403,7 @@ class TrtWrappper:
         build_args["fp16"] = self.precision == "fp16"
         build_args["bf16"] = self.precision == "bf16"
 
-        LOGGER.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
+        self.logger.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
         network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
         return engine_bytes_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
 
@@ -452,7 +455,7 @@ class TrtWrappper:
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 onnx_path = Path(tmpdir) / 'model.onnx'
-                LOGGER.info(f"Exporting to {onnx_path}, export args: {export_args}")
+                self.logger.info(f"Exporting to {onnx_path}, export args: {export_args}")
                 convert_to_onnx(
                     model,
                     input_example,
@@ -462,7 +465,7 @@ class TrtWrappper:
                     dynamo=dynamo,
                     **export_args,
                 )
-                LOGGER.info("Export to ONNX successful.")
+                self.logger.info("Export to ONNX successful.")
                 engine_bytes = self._onnx_to_trt(str(onnx_path))
 
         open(self.engine_path, 'wb').write(engine_bytes)
@@ -476,7 +479,7 @@ def trt_forward(self, *argv, **kwargs):
     return self._trt_wrapper.forward(self, argv, kwargs)
 
 
-def trt_wrap(model, path, args=None, submodule=None):
+def trt_wrap(model, path, args=None, submodule=None, logger=None):
     """
     Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
     Args:
@@ -515,7 +518,7 @@ def trt_wrap(model, path, args=None, submodule=None):
             parent, submodule = find_sub(model, submodule)
             model = getattr(parent, submodule)
 
-        wrapper = TrtWrappper(model, path, **args)
+        wrapper = TrtWrappper(model, path, logger=logger, **args)
         model._trt_wrapper = wrapper
         model.forward = MethodType(trt_forward, model)
     return orig_model

@@ -29,7 +29,8 @@ class TrtHandler:
     TrtHandler acts as an Ignite handler to apply TRT acceleration to the model.
     Usage example::
         handler = TrtHandler(model=model, path="/test/checkpoint.pt", args={"precision": "fp16"})
-        handler(trainer)
+        handler.attach(engine)
+        engine.run()
 
     Args:
         path: the file path of checkpoint, it should be a PyTorch `pth` file.
@@ -68,5 +69,5 @@ class TrtHandler:
         """
         if self.enabled:
             for submodule in self.submodules:
-                trt_wrap(self.model, self.path, args=self.args, submodule=submodule)
+                trt_wrap(self.model, self.path, args=self.args, submodule=submodule, logger=self.logger)
                 self.logger.info(f"Created TRT wrapper for {self.path}.{submodule}")
