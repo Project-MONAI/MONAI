@@ -70,7 +70,7 @@ class VistaPreTransformd(MapTransform):
                 convert point labels from 0 (negative), 1 (positive) to special 2 (negative),3 (positive).
             2. If label prompt is within the keys in subclass, convert the label prompt to its subclasses defined by subclass[key].
                 e.g. "lung" label is converted to ["left lung", "right lung"].
-            The `label_prompt` is a list of int values of length [B] and `point_labels` is a list of length B, 
+            The `label_prompt` is a list of int values of length [B] and `point_labels` is a list of length B,
             where each element is a int values of length [B, N].
 
         Args:
