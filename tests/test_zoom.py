@@ -28,6 +28,8 @@ from tests.utils import (
     assert_allclose,
     test_local_inversion,
 )
+from monai.utils.enums import KindKeys
+
 
 VALID_CASES = [
     (1.5, "nearest", True),
@@ -115,6 +117,28 @@ class TestZoom(NumpyImageTestCase2D):
             zoomed = zoom_fn(test_data)
             expected = p([[[0.0, 0.0, 0.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 1.0, 1.0, 0.0], [0.0, 0.0, 0.0, 0.0]]])
             assert_allclose(zoomed, expected, type_test=False)
+
+    def test_pure_geometry_2d(self):
+        zoom_fn = Zoom(2)
+        geom = torch.tensor([[[0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = zoom_fn(geom)
+        expected = torch.tensor([[[0, 0, 1], [0.5, 0, 1], [0, 0.5, 1], [0.5, 0.5, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
+
+    def test_pure_geometry_3d(self):
+        zoom_fn = Zoom(2)
+        geom = torch.tensor([[[0, 0, 0, 1], [0, 0, 1, 1], [0, 1, 0, 1], [0, 1, 1, 1],
+                              [1, 0, 0, 1], [1, 0, 1, 1], [1, 1, 0, 1], [1, 1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = zoom_fn(geom)
+        expected = torch.tensor([[[0, 0, 0, 1], [0, 0, 0.5, 1], [0, 0.5, 0, 1], [0, 0.5, 0.5, 1],
+                                  [0.5, 0, 0, 1], [0.5, 0, 0.5, 1], [0.5, 0.5, 0, 1], [0.5, 0.5, 0.5, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
 
 
 if __name__ == "__main__":

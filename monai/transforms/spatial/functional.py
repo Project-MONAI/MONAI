@@ -31,9 +31,11 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
+from monai.transforms.lazy.functional import apply_to_geometry
 from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
+    KindKeys,
     LazyAttr,
     TraceKeys,
     convert_to_dst_type,
@@ -229,7 +231,42 @@ def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> tor
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def flip(img, sp_axes, lazy, transform_info):
+# def flip(img, sp_axes, lazy, transform_info):
+#     """
+#     Functional implementation of flip.
+#     This function operates eagerly or lazily according to
+#     ``lazy`` (default ``False``).
+
+#     Args:
+#         img: data to be changed, assuming `img` is channel-first.
+#         sp_axes: spatial axes along which to flip over.
+#             If None, will flip over all of the axes of the input array.
+#             If axis is negative it counts from the last to the first axis.
+#             If axis is a tuple of ints, flipping is performed on all of the axes
+#             specified in the tuple.
+#         lazy: a flag that indicates whether the operation should be performed lazily or not
+#         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+#     """
+#     sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+#     sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
+#     extra_info = {"axes": sp_axes}  # track the spatial axes
+#     axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
+#     rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+#     # axes include the channel dim
+#     xform = torch.eye(int(rank) + 1, dtype=torch.double)
+#     for axis in axes:
+#         sp = axis - 1
+#         xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
+#     meta_info = TraceableTransform.track_transform_meta(
+#         img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
+#     )
+#     out = _maybe_new_metatensor(img)
+#     if lazy:
+#         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+#     out = torch.flip(out, axes)
+#     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+def flip_impl(img, sp_axes, lazy, transform_info):
     """
     Functional implementation of flip.
     This function operates eagerly or lazily according to
@@ -254,10 +291,17 @@ def flip(img, sp_axes, lazy, transform_info):
     xform = torch.eye(int(rank) + 1, dtype=torch.double)
     for axis in axes:
         sp = axis - 1
-        xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
+        xform[sp, sp] = xform[sp, sp] * -1
+        if not isinstance(img, MetaTensor) or img.kind == KindKeys.PIXEL:
+            xform[sp, -1] = sp_size[sp] - 1
     meta_info = TraceableTransform.track_transform_meta(
         img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
     )
+    return axes, meta_info
+
+
+def flip_raster(img, sp_axes, lazy, transform_info):
+    axes, meta_info = flip_impl(img, sp_axes, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -265,7 +309,101 @@ def flip(img, sp_axes, lazy, transform_info):
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def resize(
+def flip_geom(img, sp_axes, lazy, transform_info):
+    _, meta_info = flip_impl(img, sp_axes, lazy, transform_info)
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip(image, sp_axes, lazy, transform_info):
+    """
+    Flip the tensor / MetaTensor according to `sp_axes`.
+    """
+
+    if isinstance(image, MetaTensor) and image.kind == KindKeys.POINT:
+        return flip_geom(image, sp_axes, lazy, transform_info)
+    else:
+        return flip_raster(image, sp_axes, lazy, transform_info)
+
+
+# def resize(
+#     img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+# ):
+#     """
+#     Functional implementation of resize.
+#     This function operates eagerly or lazily according to
+#     ``lazy`` (default ``False``).
+
+#     Args:
+#         img: data to be changed, assuming `img` is channel-first.
+#         out_size: expected shape of spatial dimensions after resize operation.
+#         mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+#             ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+#             The interpolation mode.
+#             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+#         align_corners: This only has an effect when mode is
+#             'linear', 'bilinear', 'bicubic' or 'trilinear'.
+#         dtype: data type for resampling computation. If None, use the data type of input data.
+#         input_ndim: number of spatial dimensions.
+#         anti_aliasing: whether to apply a Gaussian filter to smooth the image prior
+#             to downsampling. It is crucial to filter when downsampling
+#             the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+#         anti_aliasing_sigma: {float, tuple of floats}, optional
+#             Standard deviation for Gaussian filtering used when anti-aliasing.
+#         lazy: a flag that indicates whether the operation should be performed lazily or not
+#         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+#     """
+#     img = convert_to_tensor(img, track_meta=get_track_meta())
+#     orig_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+#     extra_info = {
+#         "mode": mode,
+#         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+#         "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+#         "new_dim": len(orig_size) - input_ndim,
+#     }
+#     meta_info = TraceableTransform.track_transform_meta(
+#         img,
+#         sp_size=out_size,
+#         affine=scale_affine(orig_size, out_size),
+#         extra_info=extra_info,
+#         orig_size=orig_size,
+#         transform_info=transform_info,
+#         lazy=lazy,
+#     )
+#     if lazy:
+#         if anti_aliasing and lazy:
+#             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
+#         out = _maybe_new_metatensor(img)
+#         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+#     if tuple(convert_to_numpy(orig_size)) == out_size:
+#         out = _maybe_new_metatensor(img, dtype=torch.float32)
+#         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+#     out = _maybe_new_metatensor(img)
+#     img_ = convert_to_tensor(out, dtype=dtype, track_meta=False)  # convert to a regular tensor
+#     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
+#         factors = torch.div(torch.Tensor(list(img_.shape[1:])), torch.Tensor(out_size))
+#         if anti_aliasing_sigma is None:
+#             # if sigma is not given, use the default sigma in skimage.transform.resize
+#             anti_aliasing_sigma = torch.maximum(torch.zeros(factors.shape), (factors - 1) / 2).tolist()
+#         else:
+#             # if sigma is given, use the given value for downsampling axis
+#             anti_aliasing_sigma = list(ensure_tuple_rep(anti_aliasing_sigma, len(out_size)))
+#             for axis in range(len(out_size)):
+#                 anti_aliasing_sigma[axis] = anti_aliasing_sigma[axis] * int(factors[axis] > 1)
+#         anti_aliasing_filter = GaussianSmooth(sigma=anti_aliasing_sigma)
+#         img_ = convert_to_tensor(anti_aliasing_filter(img_), track_meta=False)
+#     _, _m, _, _ = resolves_modes(mode, torch_interpolate_spatial_nd=len(img_.shape) - 1)
+#     resized = torch.nn.functional.interpolate(
+#         input=img_.unsqueeze(0), size=out_size, mode=_m, align_corners=align_corners
+#     )
+#     out, *_ = convert_to_dst_type(resized.squeeze(0), out, dtype=torch.float32)
+#     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def resize_impl(
     img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
 ):
     """
@@ -300,23 +438,36 @@ def resize(
         "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
         "new_dim": len(orig_size) - input_ndim,
     }
+    affine = scale_affine(orig_size, out_size)
     meta_info = TraceableTransform.track_transform_meta(
         img,
         sp_size=out_size,
-        affine=scale_affine(orig_size, out_size),
+        affine=affine,
         extra_info=extra_info,
         orig_size=orig_size,
         transform_info=transform_info,
         lazy=lazy,
+    )
+
+    return affine, meta_info, orig_size
+
+
+def resize_raster(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
+    _, meta_info, orig_size = resize_impl(
+        img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
     )
     if lazy:
         if anti_aliasing and lazy:
             warnings.warn("anti-aliasing is not compatible with lazy evaluation.")
         out = _maybe_new_metatensor(img)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+
     if tuple(convert_to_numpy(orig_size)) == out_size:
         out = _maybe_new_metatensor(img, dtype=torch.float32)
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
     out = _maybe_new_metatensor(img)
     img_ = convert_to_tensor(out, dtype=dtype, track_meta=False)  # convert to a regular tensor
     if anti_aliasing and any(x < y for x, y in zip(out_size, img_.shape[1:])):
@@ -339,7 +490,129 @@ def resize(
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def resize_geom(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
+    _1, meta_info, _2 = resize_impl(
+        img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+    )
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def resize(
+    img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+):
+    """
+    Functional implementation of resize.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        out_size: expected shape of spatial dimensions after resize operation.
+        mode: {``"nearest"``, ``"nearest-exact"``, ``"linear"``,
+            ``"bilinear"``, ``"bicubic"``, ``"trilinear"``, ``"area"``}
+            The interpolation mode.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.interpolate.html
+        align_corners: This only has an effect when mode is
+            'linear', 'bilinear', 'bicubic' or 'trilinear'.
+        dtype: data type for resampling computation. If None, use the data type of input data.
+        input_ndim: number of spatial dimensions.
+        anti_aliasing: whether to apply a Gaussian filter to smooth the image prior
+            to downsampling. It is crucial to filter when downsampling
+            the image to avoid aliasing artifacts. See also ``skimage.transform.resize``
+        anti_aliasing_sigma: {float, tuple of floats}, optional
+            Standard deviation for Gaussian filtering used when anti-aliasing.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        return resize_geom(
+            img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+        )
+    else:
+        return resize_raster(
+            img, out_size, mode, align_corners, dtype, input_ndim, anti_aliasing, anti_aliasing_sigma, lazy, transform_info
+        )
+
+
+# def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+#     """
+#     Functional implementation of rotate.
+#     This function operates eagerly or lazily according to
+#     ``lazy`` (default ``False``).
+
+#     Args:
+#         img: data to be changed, assuming `img` is channel-first.
+#         angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
+#         output_shape: output shape of the rotated data.
+#         mode: {``"bilinear"``, ``"nearest"``}
+#             Interpolation mode to calculate output values.
+#             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#         padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+#             Padding mode for outside grid values.
+#             See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#         align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+#         dtype: data type for resampling computation.
+#             If None, use the data type of input data. To be compatible with other modules,
+#             the output data type is always ``float32``.
+#         lazy: a flag that indicates whether the operation should be performed lazily or not
+#         transform_info: a dictionary with the relevant information pertaining to an applied transform.
+
+#     """
+
+#     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
+#     input_ndim = len(im_shape)
+#     if input_ndim not in (2, 3):
+#         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
+#     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
+#     transform = create_rotate(input_ndim, _angle)
+#     if output_shape is None:
+#         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
+#         corners = transform[:-1, :-1] @ corners  # type: ignore
+#         output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
+#     else:
+#         output_shape = np.asarray(output_shape, dtype=int)
+#     shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
+#     shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
+#     transform = shift @ transform @ shift_1
+#     extra_info = {
+#         "rot_mat": transform,
+#         "mode": mode,
+#         "padding_mode": padding_mode,
+#         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
+#         "dtype": str(dtype)[6:],  # dtype as string; remove "torch": torch.float32 -> float32
+#     }
+#     meta_info = TraceableTransform.track_transform_meta(
+#         img,
+#         sp_size=output_shape,
+#         affine=transform,
+#         extra_info=extra_info,
+#         orig_size=im_shape,
+#         transform_info=transform_info,
+#         lazy=lazy,
+#     )
+#     out = _maybe_new_metatensor(img)
+#     if lazy:
+#         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+#     _, _m, _p, _ = resolves_modes(mode, padding_mode)
+#     xform = AffineTransform(
+#         normalized=False, mode=_m, padding_mode=_p, align_corners=align_corners, reverse_indexing=True
+#     )
+#     img_t = out.to(dtype)
+#     transform_t, *_ = convert_to_dst_type(transform, img_t)
+#     output: torch.Tensor = xform(img_t.unsqueeze(0), transform_t, spatial_size=tuple(int(i) for i in output_shape))
+#     output = output.float().squeeze(0)
+#     out, *_ = convert_to_dst_type(output, dst=out, dtype=torch.float32)
+#     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of rotate.
     This function operates eagerly or lazily according to
@@ -365,7 +638,11 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     """
 
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    input_ndim = len(im_shape)
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        input_ndim = img.shape[-1] - 1
+    else:
+        input_ndim = len(img.shape) - 1
+
     if input_ndim not in (2, 3):
         raise ValueError(f"Unsupported image dimension: {input_ndim}, available options are [2, 3].")
     _angle = ensure_tuple_rep(angle, 1 if input_ndim == 2 else 3)
@@ -376,9 +653,13 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
         output_shape = np.asarray(np.ptp(corners, axis=1) + 0.5, dtype=int)
     else:
         output_shape = np.asarray(output_shape, dtype=int)
-    shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
-    shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
-    transform = shift @ transform @ shift_1
+    # TODO: this is needed for the raster case but not for geometry
+    if not isinstance(img, MetaTensor) or img.kind == KindKeys.PIXEL:
+        shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())
+        shift_1 = create_translate(input_ndim, (-(np.asarray(output_shape, dtype=int) - 1) / 2).tolist())
+        transform = shift @ transform @ shift_1
+    else:
+        transform = transform
     extra_info = {
         "rot_mat": transform,
         "mode": mode,
@@ -395,6 +676,14 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
         transform_info=transform_info,
         lazy=lazy,
     )
+    return transform, meta_info, output_shape
+
+
+def rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Raster-specific rotation functionality
+    """
+    transform, meta_info, output_shape = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -410,7 +699,48 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
-def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+def rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Geometry-specific rotation functionality
+    """
+    _1, meta_info, _2 = rotate_impl(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Functional implementation of rotate.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        angle: Rotation angle(s) in radians. should a float for 2D, three floats for 3D.
+        output_shape: output shape of the rotated data.
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        dtype: data type for resampling computation.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``float32``.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        return rotate_geom(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    else:
+        return rotate_raster(img, angle, output_shape, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+
+
+def zoom_impl(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
     """
     Functional implementation of zoom.
     This function operates eagerly or lazily according to
@@ -438,7 +768,13 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
     """
     im_shape = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
     output_size = [int(math.floor(float(i) * z)) for i, z in zip(im_shape, scale_factor)]
-    xform = scale_affine(im_shape, output_size)
+    if not isinstance(img, MetaTensor) or img.kind == KindKeys.PIXEL:
+        xform = scale_affine(im_shape, output_size)
+    else:
+        spatial_dims = im_shape[1] - 1
+        old_shape = [1 for _ in range(spatial_dims)]
+
+        xform = scale_affine(old_shape, scale_factor, False)
     extra_info = {
         "mode": mode,
         "align_corners": align_corners if align_corners is not None else TraceKeys.NONE,
@@ -468,6 +804,14 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         transform_info=transform_info,
         lazy=lazy,
     )
+    return xform, meta_info, output_size
+
+
+def zoom_raster(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Raster-specific zoom functionality
+    """
+    transform, meta_info, output_size = zoom_impl(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
@@ -492,6 +836,51 @@ def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype,
         out.applied_operations[-1]["extra_info"]["do_padcrop"] = True
         out.applied_operations[-1]["extra_info"]["padcrop"] = padcrop_xform
     return out
+
+
+def zoom_geom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Geometry-specific zoom functionality
+    """
+    transform, meta_info, output_size = zoom_impl(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+    return out
+
+
+def zoom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info):
+    """
+    Functional implementation of zoom.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        img: data to be changed, assuming `img` is channel-first.
+        scale_factor: The zoom factor along the spatial axes.
+            If a float, zoom is the same for each spatial axis.
+            If a sequence, zoom should contain one value for each spatial axis.
+        keep_size: Whether keep original size (padding/slicing if needed).
+        mode: {``"bilinear"``, ``"nearest"``}
+            Interpolation mode to calculate output values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        padding_mode: {``"zeros"``, ``"border"``, ``"reflection"``}
+            Padding mode for outside grid values.
+            See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        align_corners: See also: https://pytorch.org/docs/stable/generated/torch.nn.functional.grid_sample.html
+        dtype: data type for resampling computation.
+            If None, use the data type of input data. To be compatible with other modules,
+            the output data type is always ``float32``.
+        lazy: a flag that indicates whether the operation should be performed lazily or not
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    if isinstance(img, MetaTensor) and img.kind == KindKeys.POINT:
+        return zoom_geom(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
+    else:
+        return zoom_raster(img, scale_factor, keep_size, mode, padding_mode, align_corners, dtype, lazy, transform_info)
 
 
 def rotate90(img, axes, k, lazy, transform_info):

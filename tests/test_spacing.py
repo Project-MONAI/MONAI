@@ -22,7 +22,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
-from monai.utils import fall_back_tuple
+from monai.utils import fall_back_tuple, KindKeys
 from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
@@ -377,6 +377,16 @@ class TestSpacingCase(unittest.TestCase):
         tr(img)
         assert_allclose(tr.pixdim, [1.0, 1.0, 1.0], type_test=False)
 
+
+    def test_pure_geometry_2d(self):
+        spacing_fn = Spacing([1, 1])
+        geom = torch.tensor([[[0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1]]], dtype=torch.float32)
+        geom = MetaTensor(geom, requires_grad=False)
+        geom.kind = KindKeys.POINT
+        actual = spacing_fn(geom)
+        expected = torch.tensor([[[0, 0, 1], [0, 1, 1], [1, 0, 1], [1, 1, 1]]], dtype=torch.float32)
+        # also test inversion
+        self.assertTrue(torch.allclose(actual.data, expected.data))
 
 if __name__ == "__main__":
     unittest.main()

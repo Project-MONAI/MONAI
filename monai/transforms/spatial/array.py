@@ -44,6 +44,7 @@ from monai.transforms.spatial.functional import (
 )
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import LazyTransform, Randomizable, RandomizableTransform, Transform
+from monai.transforms.utility.functional import traced_no_op
 from monai.transforms.utils import (
     create_control_grid,
     create_grid,
@@ -54,6 +55,7 @@ from monai.transforms.utils import (
     map_spatial_axes,
     resolves_modes,
     scale_affine,
+    spatial_dims_from_tensorlike,
 )
 from monai.transforms.utils_pytorch_numpy_unification import argsort, argwhere, linalg_inv, moveaxis
 from monai.utils import (
@@ -72,7 +74,7 @@ from monai.utils import (
     issequenceiterable,
     optional_import,
 )
-from monai.utils.enums import GridPatchSort, PatchKeys, TraceKeys, TransformBackends
+from monai.utils.enums import GridPatchSort, KindKeys, PatchKeys, TraceKeys, TransformBackends
 from monai.utils.misc import ImageMetaKey as Key
 from monai.utils.module import look_up_option
 from monai.utils.type_conversion import convert_data_type, get_equivalent_dtype, get_torch_dtype_from_string
@@ -482,6 +484,12 @@ class Spacing(InvertibleTransform, LazyTransform):
             data tensor or MetaTensor (resampled into `self.pixdim`).
 
         """
+        lazy_ = self.lazy if lazy is None else lazy
+        if isinstance(data_array, MetaTensor) and data_array.kind == KindKeys.POINT:
+            warnings.warn("Spacing transform is not applied to point data.")
+            data_array = traced_no_op(data_array, lazy_, self.get_transform_info())
+            return data_array
+
         original_spatial_shape = (
             data_array.peek_pending_shape() if isinstance(data_array, MetaTensor) else data_array.shape[1:]
         )
@@ -521,7 +529,6 @@ class Spacing(InvertibleTransform, LazyTransform):
         new_affine[:sr, -1] = offset[:sr]
 
         actual_shape = list(output_shape) if output_spatial_shape is None else output_spatial_shape
-        lazy_ = self.lazy if lazy is None else lazy
         data_array = self.sp_resample(
             data_array,
             dst_affine=torch.as_tensor(new_affine),
@@ -1089,7 +1096,8 @@ class Zoom(InvertibleTransform, LazyTransform):
                 during initialization for this call. Defaults to None.
         """
         img = convert_to_tensor(img, track_meta=get_track_meta())
-        _zoom = ensure_tuple_rep(self.zoom, img.ndim - 1)  # match the spatial image dim
+        spatial_dims = spatial_dims_from_tensorlike(img)
+        _zoom = ensure_tuple_rep(self.zoom, spatial_dims)  # match the spatial image dim
         _mode = self.mode if mode is None else mode
         _padding_mode = padding_mode or self.padding_mode
         _align_corners = self.align_corners if align_corners is None else align_corners

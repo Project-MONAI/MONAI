@@ -16,7 +16,7 @@ import unittest
 import numpy as np
 import torch
 
-from monai.transforms.lazy.functional import apply_pending
+from monai.transforms.lazy.functional import apply_pending, apply_to_geometry
 from monai.transforms.utils import create_rotate
 from monai.utils import LazyAttr, convert_to_tensor
 from tests.utils import get_arange_img
@@ -70,6 +70,23 @@ class TestApply(unittest.TestCase):
     def test_apply_single_transform_metatensor_override(self):
         for case in self.SINGLE_TRANSFORM_CASES:
             self._test_apply_metatensor_impl(*case, True)
+
+
+class TestApplyToGeometry(unittest.TestCase):
+
+    def test_apply_to_geometry_2d(self):
+        t = torch.as_tensor([[0, 0, 1], [0, 1, 1], [1, 1, 1], [1, 0, 1]], dtype=torch.float32)
+        rot45 = torch.as_tensor(create_rotate(2, np.pi / 4))
+        actual = apply_to_geometry(t, transform=rot45)
+        print(actual)
+
+    def test_apply_to_geometry_3d(self):
+        t = torch.as_tensor(
+            [[0, 0, 0, 1], [0, 0, 1, 1], [0, 1, 1, 1], [0, 1, 0, 1], [1, 1, 0, 1], [1, 1, 1, 1], [0, 0, 1, 1], [0, 0, 0, 1]],
+            dtype=torch.float32)
+        rot45 = torch.as_tensor(create_rotate(3, np.pi / 4))
+        actual = apply_to_geometry(t, transform=rot45)
+        print(actual)
 
 
 if __name__ == "__main__":
