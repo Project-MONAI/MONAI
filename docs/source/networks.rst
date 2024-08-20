@@ -481,6 +481,11 @@ Nets
 .. autoclass:: SegResNetDS
   :members:
 
+`SegResNetDS2`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS2
+  :members:
+
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
@@ -554,6 +559,11 @@ Nets
 `UNETR`
 ~~~~~~~
 .. autoclass:: UNETR
+    :members:
+
+`VISTA3D`
+~~~~~~~~~
+.. autoclass:: VISTA3D
     :members:
 
 `SwinUNETR`

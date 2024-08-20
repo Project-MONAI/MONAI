@@ -373,7 +373,7 @@ def rotate(img, angle, output_shape, mode, padding_mode, align_corners, dtype, l
     if output_shape is None:
         corners = np.asarray(np.meshgrid(*[(0, dim) for dim in im_shape], indexing="ij")).reshape((len(im_shape), -1))
         corners = transform[:-1, :-1] @ corners  # type: ignore
-        output_shape = np.asarray(corners.ptp(axis=1) + 0.5, dtype=int)
+        output_shape = np.asarray(np.ptp(corners, axis=1) + 0.5, dtype=int)
     else:
         output_shape = np.asarray(output_shape, dtype=int)
     shift = create_translate(input_ndim, ((np.array(im_shape) - 1) / 2).tolist())

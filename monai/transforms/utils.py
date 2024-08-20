@@ -1274,10 +1274,10 @@ def convert_points_to_disc(
     coords = unsqueeze_left(torch.stack((coord_rows, coord_cols, coord_z), dim=0), 6)
     coords = coords.repeat(point.shape[0], 2, 1, 1, 1, 1)
     for b, n in np.ndindex(*point.shape[:2]):
-        point_bn = unsqueeze_right(point[b, n], 6)
+        point_bn = unsqueeze_right(point[b, n], 4)
         if point_label[b, n] > -1:
             channel = 0 if (point_label[b, n] == 0 or point_label[b, n] == 2) else 1
-            pow_diff = torch.pow(coords[b, channel] - point_bn[b, n], 2)
+            pow_diff = torch.pow(coords[b, channel] - point_bn, 2)
             if disc:
                 masks[b, channel] += pow_diff.sum(0) < radius**2
             else:
