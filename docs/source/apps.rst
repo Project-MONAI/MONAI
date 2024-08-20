@@ -254,9 +254,11 @@ FastMRIReader
 .. autofunction:: point_based_window_inferer
 
 .. automodule:: monai.apps.vista3d.transforms
-.. autoclass:: VistaPreTransform
+.. autoclass:: VistaPreTransformd
     :members:
-.. autoclass:: VistaPostTransform
+.. autoclass:: VistaPostTransformd
+    :members:
+.. autoclass:: Relabeld
     :members:
 
 `Auto3DSeg`

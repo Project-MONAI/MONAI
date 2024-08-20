@@ -11,11 +11,11 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Sequence
 
 import numpy as np
 import torch
-import warnings
 
 from monai.config import DtypeLike, KeysCollection
 from monai.transforms import MapLabelValue
@@ -23,7 +23,8 @@ from monai.transforms.transform import MapTransform
 from monai.transforms.utils import keep_components_with_positive_points
 from monai.utils import look_up_option
 
-__all__ = ["VistaPreTransform", "VistaPostTransformd", "RelabelD"]
+__all__ = ["VistaPreTransformd", "VistaPostTransformd", "Relabeld"]
+
 
 def _get_name_to_index_mapping(labels_dict: dict | None) -> dict:
     """get the label name to index mapping"""
@@ -53,7 +54,7 @@ def _convert_name_to_index(name_to_index_mapping: dict, label_prompt: list | Non
     return label_prompt
 
 
-class VistaPreTransform(MapTransform):
+class VistaPreTransformd(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,
@@ -107,7 +108,7 @@ class VistaPreTransform(MapTransform):
                     point_labels = point_labels.tolist()
                 data["point_labels"] = point_labels
         except Exception:
-            warnings.warn("VistaPreTransform failed to transform label prompt or point labels.")
+            warnings.warn("VistaPreTransformd failed to transform label prompt or point labels.")
 
         return data
 
@@ -160,7 +161,7 @@ class VistaPostTransformd(MapTransform):
         return data
 
 
-class RelabelD(MapTransform):
+class Relabeld(MapTransform):
     def __init__(
         self,
         keys: KeysCollection,

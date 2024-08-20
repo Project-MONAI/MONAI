@@ -17,7 +17,7 @@ from unittest.case import skipUnless
 import torch
 from parameterized import parameterized
 
-from monai.apps.vista3d.transforms import VistaPostTransform, VistaPreTransform
+from monai.apps.vista3d.transforms import VistaPostTransformd, VistaPreTransformd
 from monai.utils import min_version
 from monai.utils.module import optional_import
 
@@ -73,19 +73,19 @@ TEST_VISTA_POSTTRANSFORM = [
 ]
 
 
-class TestVistaPreTransform(unittest.TestCase):
+class TestVistaPreTransformd(unittest.TestCase):
     @parameterized.expand(TEST_VISTA_PRETRANSFORM)
     def test_result(self, input_data, expected):
-        transform = VistaPreTransform(keys="image", subclass={"3": [4, 5], "6": [7, 8]}, special_index=[1, 2])
+        transform = VistaPreTransformd(keys="image", subclass={"3": [4, 5], "6": [7, 8]}, special_index=[1, 2])
         result = transform(input_data)
         self.assertEqual(result, expected)
 
 
 @skipUnless(has_measure, "skimage.measure required")
-class TestVistaPostTransform(unittest.TestCase):
+class TestVistaPostTransformd(unittest.TestCase):
     @parameterized.expand(TEST_VISTA_POSTTRANSFORM)
     def test_result(self, input_data, expected):
-        transform = VistaPostTransform(keys="pred")
+        transform = VistaPostTransformd(keys="pred")
         result = transform(input_data)
         self.assertEqual((result["pred"] == expected).all(), True)
 
