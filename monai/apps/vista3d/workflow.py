@@ -12,10 +12,8 @@
 import copy
 import random
 
-import monai
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch import Tensor
 from collections.abc import Callable, Sequence
 
@@ -36,7 +34,7 @@ def get_point_label(id):
         return 2, 3
     else:
         return 0, 1
-    
+
 def generate_prompt_pairs(
     labels: Tensor,
     label_set: Sequence[int] | None = None,
@@ -49,7 +47,7 @@ def generate_prompt_pairs(
     drop_point_prob: float = 0.2,
     point_sampler: Callable | None = None
 ):
-    """ Sample training pairs for VISTA3D training. 
+    """ Sample training pairs for VISTA3D training.
     Args:
         labels: [1, 1, H, W, D], ground truth labels.
         label_set: the label list for the specific dataset.
@@ -66,9 +64,9 @@ def generate_prompt_pairs(
         label_prompt: [B, 1]. The classes used for training automatic segmentation
         point: [B, N, 3]. The corresponding points for each class. Note that background label prompt
             requires matching point as well ([0,0,0] is used).
-        point_label: [B, N]. The corresponding point labels for each point (negative or positive). 
-            -1 is used for padding the background label prompt and will be ignored. 
-        prompt_class: [B, 1], exactly the same with label_prompt for label indexing for training loss. 
+        point_label: [B, N]. The corresponding point labels for each point (negative or positive).
+            -1 is used for padding the background label prompt and will be ignored.
+        prompt_class: [B, 1], exactly the same with label_prompt for label indexing for training loss.
             label_prompt can be None, and prompt_class is used to identify point classess.
     """
     # class label number
@@ -80,7 +78,7 @@ def generate_prompt_pairs(
         unique_labels = list(set(unique_labels) - (set(unique_labels) - set(label_set)))
     else:
         unique_labels = list(
-            set(unique_labels) - (set(unique_labels) - set(label_set)) - set([0])
+            set(unique_labels) - (set(unique_labels) - set(label_set)) - {0}
         )
     background_labels = list(set(label_set) - set(unique_labels))
     # during training, balance background and foreground prompts
@@ -143,7 +141,7 @@ def generate_prompt_pairs(
             )  # -1 not a point
     if len(unique_labels) == 0 and len(background_labels) == 0:
         # if max_backprompt is 0 and len(unique_labels), there is no effective prompt and the iteration must
-        # be skipped. Handle this in trainer. 
+        # be skipped. Handle this in trainer.
         label_prompt, point, point_label, prompt_class = None, None, None, None
     else:
         label_prompt = torch.tensor(unique_labels + background_labels).unsqueeze(-1).to(device).long()
