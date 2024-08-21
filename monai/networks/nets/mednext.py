@@ -15,10 +15,33 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import torch
 import torch.nn as nn
 
-from monai.networks.blocks import MedNeXtBlock, MedNeXtDownBlock, MedNeXtUpBlock, OutBlock
+from monai.networks.blocks.mednext_block import MedNeXtBlock, MedNeXtDownBlock, MedNeXtOutBlock, MedNeXtUpBlock
+
+__all__ = [
+    "MedNeXt",
+    "MedNeXtSmall",
+    "MedNeXtBase",
+    "MedNeXtMedium",
+    "MedNeXtLarge",
+    "MedNext",
+    "MedNextS",
+    "MedNeXtS",
+    "MedNextSmall",
+    "MedNextB",
+    "MedNeXtB",
+    "MedNextBase",
+    "MedNextM",
+    "MedNeXtM",
+    "MedNextMedium",
+    "MedNextL",
+    "MedNeXtL",
+    "MedNextLarge",
+]
 
 
 class MedNeXt(nn.Module):
@@ -30,13 +53,12 @@ class MedNeXt(nn.Module):
         init_filters: number of output channels for initial convolution layer. Defaults to 32.
         in_channels: number of input channels for the network. Defaults to 1.
         out_channels: number of output channels for the network. Defaults to 2.
-        enc_exp_r: expansion ratio for encoder blocks. Defaults to 2.
-        dec_exp_r: expansion ratio for decoder blocks. Defaults to 2.
-        bottlenec_exp_r: expansion ratio for bottleneck blocks. Defaults to 2.
+        encoder_expansion_ratio: expansion ratio for encoder blocks. Defaults to 2.
+        decoder_expansion_ratio: expansion ratio for decoder blocks. Defaults to 2.
+        bottleneck_expansion_ratio: expansion ratio for bottleneck blocks. Defaults to 2.
         kernel_size: kernel size for convolutions. Defaults to 7.
         deep_supervision: whether to use deep supervision. Defaults to False.
-        do_res: whether to use residual connections. Defaults to False.
-        do_res_up_down: whether to use residual connections in up and down blocks. Defaults to False.
+        use_residual_connection: whether to use residual connections in standard, down and up blocks. Defaults to False.
         blocks_down: number of blocks in each encoder stage. Defaults to [2, 2, 2, 2].
         blocks_bottleneck: number of blocks in bottleneck stage. Defaults to 2.
         blocks_up: number of blocks in each decoder stage. Defaults to [2, 2, 2, 2].
@@ -50,16 +72,15 @@ class MedNeXt(nn.Module):
         init_filters: int = 32,
         in_channels: int = 1,
         out_channels: int = 2,
-        enc_exp_r: int = 2,
-        dec_exp_r: int = 2,
-        bottlenec_exp_r: int = 2,
+        encoder_expansion_ratio: int = 2,
+        decoder_expansion_ratio: int = 2,
+        bottleneck_expansion_ratio: int = 2,
         kernel_size: int = 7,
         deep_supervision: bool = False,
-        do_res: bool = False,
-        do_res_up_down: bool = False,
-        blocks_down: list = [2, 2, 2, 2],
+        use_residual_connection: bool = False,
+        blocks_down: Sequence[int] = (2, 2, 2, 2),
         blocks_bottleneck: int = 2,
-        blocks_up: list = [2, 2, 2, 2],
+        blocks_up: Sequence[int] = (2, 2, 2, 2),
         norm_type: str = "group",
         grn: bool = False,
     ):
@@ -80,11 +101,11 @@ class MedNeXt(nn.Module):
         spatial_dims_str = f"{spatial_dims}d"
         enc_kernel_size = dec_kernel_size = kernel_size
 
-        if isinstance(enc_exp_r, int):
-            enc_exp_r = [enc_exp_r] * len(blocks_down)
+        if isinstance(encoder_expansion_ratio, int):
+            encoder_expansion_ratio = [encoder_expansion_ratio] * len(blocks_down)
 
-        if isinstance(dec_exp_r, int):
-            dec_exp_r = [dec_exp_r] * len(blocks_up)
+        if isinstance(decoder_expansion_ratio, int):
+            decoder_expansion_ratio = [decoder_expansion_ratio] * len(blocks_up)
 
         conv = nn.Conv2d if spatial_dims_str == "2d" else nn.Conv3d
 
@@ -100,9 +121,9 @@ class MedNeXt(nn.Module):
                         MedNeXtBlock(
                             in_channels=init_filters * (2**i),
                             out_channels=init_filters * (2**i),
-                            exp_r=enc_exp_r[i],
+                            expansion_ratio=encoder_expansion_ratio[i],
                             kernel_size=enc_kernel_size,
-                            do_res=do_res,
+                            use_residual_connection=use_residual_connection,
                             norm_type=norm_type,
                             dim=spatial_dims_str,
                             grn=grn,
@@ -116,9 +137,9 @@ class MedNeXt(nn.Module):
                 MedNeXtDownBlock(
                     in_channels=init_filters * (2**i),
                     out_channels=init_filters * (2 ** (i + 1)),
-                    exp_r=enc_exp_r[i],
+                    expansion_ratio=encoder_expansion_ratio[i],
                     kernel_size=enc_kernel_size,
-                    do_res=do_res_up_down,
+                    use_residual_connection=use_residual_connection,
                     norm_type=norm_type,
                     dim=spatial_dims_str,
                 )
@@ -132,9 +153,9 @@ class MedNeXt(nn.Module):
                 MedNeXtBlock(
                     in_channels=init_filters * (2 ** len(blocks_down)),
                     out_channels=init_filters * (2 ** len(blocks_down)),
-                    exp_r=bottlenec_exp_r,
+                    expansion_ratio=bottleneck_expansion_ratio,
                     kernel_size=dec_kernel_size,
-                    do_res=do_res,
+                    use_residual_connection=use_residual_connection,
                     norm_type=norm_type,
                     dim=spatial_dims_str,
                     grn=grn,
@@ -150,9 +171,9 @@ class MedNeXt(nn.Module):
                 MedNeXtUpBlock(
                     in_channels=init_filters * (2 ** (len(blocks_up) - i)),
                     out_channels=init_filters * (2 ** (len(blocks_up) - i - 1)),
-                    exp_r=dec_exp_r[i],
+                    expansion_ratio=decoder_expansion_ratio[i],
                     kernel_size=dec_kernel_size,
-                    do_res=do_res_up_down,
+                    use_residual_connection=use_residual_connection,
                     norm_type=norm_type,
                     dim=spatial_dims_str,
                     grn=grn,
@@ -165,9 +186,9 @@ class MedNeXt(nn.Module):
                         MedNeXtBlock(
                             in_channels=init_filters * (2 ** (len(blocks_up) - i - 1)),
                             out_channels=init_filters * (2 ** (len(blocks_up) - i - 1)),
-                            exp_r=dec_exp_r[i],
+                            expansion_ratio=decoder_expansion_ratio[i],
                             kernel_size=dec_kernel_size,
-                            do_res=do_res,
+                            use_residual_connection=use_residual_connection,
                             norm_type=norm_type,
                             dim=spatial_dims_str,
                             grn=grn,
@@ -180,11 +201,11 @@ class MedNeXt(nn.Module):
         self.up_blocks = nn.ModuleList(up_blocks)
         self.dec_stages = nn.ModuleList(dec_stages)
 
-        self.out_0 = OutBlock(in_channels=init_filters, n_classes=out_channels, dim=spatial_dims_str)
+        self.out_0 = MedNeXtOutBlock(in_channels=init_filters, n_classes=out_channels, dim=spatial_dims_str)
 
         if deep_supervision:
             out_blocks = [
-                OutBlock(in_channels=init_filters * (2**i), n_classes=out_channels, dim=spatial_dims_str)
+                MedNeXtOutBlock(in_channels=init_filters * (2**i), n_classes=out_channels, dim=spatial_dims_str)
                 for i in range(1, len(blocks_up) + 1)
             ]
 
@@ -242,3 +263,131 @@ class MedNeXt(nn.Module):
             return (x, *ds_outputs[::-1])
         else:
             return x
+
+
+# Define the MedNeXt variants as reported in 10.48550/arXiv.2303.09975
+class MedNeXtSmall(MedNeXt):
+    """MedNeXt Small (S) configuration"""
+
+    def __init__(
+        self,
+        spatial_dims: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        kernel_size: int = 3,
+        deep_supervision: bool = False,
+    ):
+        super().__init__(
+            spatial_dims=spatial_dims,
+            init_filters=32,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            encoder_expansion_ratio=2,
+            decoder_expansion_ratio=2,
+            bottleneck_expansion_ratio=2,
+            kernel_size=kernel_size,
+            deep_supervision=deep_supervision,
+            use_residual_connection=True,
+            blocks_down=(2, 2, 2, 2),
+            blocks_bottleneck=2,
+            blocks_up=(2, 2, 2, 2),
+            norm_type="group",
+            grn=False,
+        )
+
+
+class MedNeXtBase(MedNeXt):
+    """MedNeXt Base (B) configuration"""
+
+    def __init__(
+        self,
+        spatial_dims: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        kernel_size: int = 3,
+        deep_supervision: bool = False,
+    ):
+        super().__init__(
+            spatial_dims=spatial_dims,
+            init_filters=32,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            encoder_expansion_ratio=(2, 3, 4, 4),
+            decoder_expansion_ratio=(4, 4, 3, 2),
+            bottleneck_expansion_ratio=4,
+            kernel_size=kernel_size,
+            deep_supervision=deep_supervision,
+            use_residual_connection=True,
+            blocks_down=(2, 2, 2, 2),
+            blocks_bottleneck=2,
+            blocks_up=(2, 2, 2, 2),
+            norm_type="group",
+            grn=False,
+        )
+
+
+class MedNeXtMedium(MedNeXt):
+    """MedNeXt Medium (M)"""
+
+    def __init__(
+        self,
+        spatial_dims: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        kernel_size: int = 3,
+        deep_supervision: bool = False,
+    ):
+        super().__init__(
+            spatial_dims=spatial_dims,
+            init_filters=32,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            encoder_expansion_ratio=(2, 3, 4, 4),
+            decoder_expansion_ratio=(4, 4, 3, 2),
+            bottleneck_expansion_ratio=4,
+            kernel_size=kernel_size,
+            deep_supervision=deep_supervision,
+            use_residual_connection=True,
+            blocks_down=(3, 4, 4, 4),
+            blocks_bottleneck=4,
+            blocks_up=(4, 4, 4, 3),
+            norm_type="group",
+            grn=False,
+        )
+
+
+class MedNeXtLarge(MedNeXt):
+    """MedNeXt Large (L)"""
+
+    def __init__(
+        self,
+        spatial_dims: int = 3,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        kernel_size: int = 3,
+        deep_supervision: bool = False,
+    ):
+        super().__init__(
+            spatial_dims=spatial_dims,
+            init_filters=32,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            encoder_expansion_ratio=(3, 4, 8, 8),
+            decoder_expansion_ratio=(8, 8, 4, 3),
+            bottleneck_expansion_ratio=8,
+            kernel_size=kernel_size,
+            deep_supervision=deep_supervision,
+            use_residual_connection=True,
+            blocks_down=(3, 4, 8, 8),
+            blocks_bottleneck=8,
+            blocks_up=(8, 8, 4, 3),
+            norm_type="group",
+            grn=False,
+        )
+
+
+MedNext = MedNeXt
+MedNextS = MedNeXtS = MedNextSmall = MedNeXtSmall
+MedNextB = MedNeXtB = MedNextBase = MedNeXtBase
+MedNextM = MedNeXtM = MedNextMedium = MedNeXtMedium
+MedNextL = MedNeXtL = MedNextLarge = MedNeXtLarge

@@ -27,19 +27,17 @@ for spatial_dims in range(2, 4):
     for init_filters in [8, 16]:
         for deep_supervision in [False, True]:
             for do_res in [False, True]:
-                for do_res_up_down in [False, True]:
-                    test_case = [
-                        {
-                            "spatial_dims": spatial_dims,
-                            "init_filters": init_filters,
-                            "deep_supervision": deep_supervision,
-                            "do_res": do_res,
-                            "do_res_up_down": do_res_up_down,
-                        },
-                        (2, 1, *([16] * spatial_dims)),
-                        (2, 2, *([16] * spatial_dims)),
-                    ]
-                    TEST_CASE_MEDNEXT.append(test_case)
+                test_case = [
+                    {
+                        "spatial_dims": spatial_dims,
+                        "init_filters": init_filters,
+                        "deep_supervision": deep_supervision,
+                        "use_residual_connection": do_res,
+                    },
+                    (2, 1, *([16] * spatial_dims)),
+                    (2, 2, *([16] * spatial_dims)),
+                ]
+                TEST_CASE_MEDNEXT.append(test_case)
 
 TEST_CASE_MEDNEXT_2 = []
 for spatial_dims in range(2, 4):
