@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.utils_pytorch_numpy_unification import min, max, mode, percentile
+from monai.transforms.utils_pytorch_numpy_unification import max, min, mode, percentile
 from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
 
