@@ -1746,9 +1746,9 @@ class CoordinateTransform(InvertibleTransform, Transform):
     def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: DtypeLike | torch.dtype):
         data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
 
-        homogeneous = concatenate((data_[0], torch.ones((data_[0].shape[0], 1))), axis=1)
-        transformed_homogeneous = torch.matmul(affine, homogeneous.T)
-        transformed_coordinates = transformed_homogeneous[:-1].T.unsqueeze(0)  # unsqueeze to add channel dim back
+        homogeneous = concatenate((data_, torch.ones((data_.shape[0], data_.shape[1], 1))), axis=2)
+        transformed_homogeneous = torch.matmul(affine, homogeneous.transpose(1, 2))
+        transformed_coordinates = transformed_homogeneous[:, :-1, :].transpose(1, 2)  # unsqueeze to add channel dim back
         out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
 
         return out
@@ -1758,7 +1758,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
         Transform coordinates using an affine transformation matrix.
 
         Args:
-            data: The input coordinates, assume to be in shape (1, N, 3 or 4).
+            data: The input coordinates, assume to be in shape (C, N, 3 or 4).
             image_to_world_affine: A 3x3 or 4x4 affine transformation matrix.
 
         Returns:
@@ -1791,11 +1791,11 @@ class CoordinateTransform(InvertibleTransform, Transform):
     def __call__(self, data: torch.Tensor, affine: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            data: The input coordinates, assume to be in shape (1, N, 3 or 4).
+            data: The input coordinates, assume to be in shape (C, N, 3 or 4).
             image_to_world_affine: A 3x3 or 4x4 affine transformation matrix.
         """
-        if data.ndim != 3 or data.shape[0] != 1 or data.shape[-1] not in (3, 4):
-            raise ValueError(f"data should be in shape (1, N, 3 or 4), got {data.shape}.")
+        if data.ndim != 3 or data.shape[-1] not in (3, 4):
+            raise ValueError(f"data should be in shape (C, N, 3 or 4), got {data.shape}.")
         if affine.ndim not in (2, 3) or affine.shape[-2:] not in ((3, 3), (4, 4)):
             raise ValueError(f"image_to_world_affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
         out, meta_info = self.transform_coordinates(data, affine)
