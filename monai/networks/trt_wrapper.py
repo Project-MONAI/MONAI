@@ -475,12 +475,12 @@ def trt_wrap(model, ckpt_path, args=None, submodule=None, logger=None):
     """
     Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
     Args:
-      model: passed to TrtWrappper().
+      model: module to patch with TrtWrappper().
       ckpt_path: path to associated checkpoint, or just basename for .plan
       args: dict : unpacked and passed to TrtWrappper().
-      submodule : Hierarchical id of submodule to convert, e.g. 'image_decoder.decoder'
-                  If None, TrtWrappper is applied to the whole model and returned.
-                  Otherwise, submodule is replaced in-place with TrtWrappper.
+      submodule : Hierarchical id(s) of submodule to patch, e.g. ['image_decoder.decoder']
+                  If None, TrtWrappper patch is applied to the whole model.
+                  Otherwise, submodule (or list of) is being patched.
     Returns:
       Always returns same model passed in as argument. This is for ease of use in configs.
     """
@@ -497,7 +497,6 @@ def trt_wrap(model, ckpt_path, args=None, submodule=None, logger=None):
     default_args.update(args or {})
     args = default_args
 
-    orig_model = model
     if trt_imported and polygraphy_imported and torch.cuda.is_available():
         # if "path" filename point to existing file (e.g. checkpoint)
         # it's also treated as dependency
@@ -507,22 +506,27 @@ def trt_wrap(model, ckpt_path, args=None, submodule=None, logger=None):
                 timestamp = max(args['timestamp'], timestamp)
             args['timestamp'] = timestamp
 
-        if submodule:
-            def find_sub(parent, submodule):
-                idx = submodule.find(".")
-                # if there is "." in name, call recursively
-                if idx != -1:
-                    parent_name = submodule[:idx]
-                    parent = getattr(parent, parent_name)
-                    submodule = submodule[idx + 1 :]
-                    return find_sub(parent, submodule)
-                return parent, submodule
+        def wrap(model, path):
+            wrapper = TrtWrappper(model, path + ".plan", logger=logger, **args)
+            model._trt_wrapper = wrapper
+            model.forward = MethodType(trt_forward, model)
 
-            ckpt_path = ckpt_path + '.' + submodule
-            parent, submodule = find_sub(model, submodule)
-            model = getattr(parent, submodule)
+        def find_sub(parent, submodule):
+            idx = submodule.find(".")
+            # if there is "." in name, call recursively
+            if idx != -1:
+                parent_name = submodule[:idx]
+                parent = getattr(parent, parent_name)
+                submodule = submodule[idx + 1 :]
+                return find_sub(parent, submodule)
+            return parent, submodule
 
-        wrapper = TrtWrappper(model, ckpt_path + ".plan", logger=logger, **args)
-        model._trt_wrapper = wrapper
-        model.forward = MethodType(trt_forward, model)
-    return orig_model
+        if submodule is not None:
+            if isinstance(submodule, str):
+                submodule = [submodule]
+            for s in submodule:
+                parent, submodule = find_sub(model, s)
+                wrap(getattr(parent, submodule), ckpt_path + '.' + s)
+        else:
+            wrap(model, ckpt_path)
+    return model
