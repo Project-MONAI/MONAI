@@ -14,6 +14,7 @@ from __future__ import annotations
 import copy
 import random
 from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -48,6 +49,7 @@ def sample_prompt_pairs(
     drop_label_prob: float = 0.2,
     drop_point_prob: float = 0.2,
     point_sampler: Callable | None = None,
+    **point_sampler_kwargs: Any,
 ) -> tuple[Tensor | None, Tensor | None, Tensor | None, Tensor | None]:
     """
     Sample training pairs for VISTA3D training.
@@ -63,6 +65,7 @@ def sample_prompt_pairs(
         drop_label_prob: probability to drop label prompt.
         drop_point_prob: probability to drop point prompt.
         point_sampler: sampler to augment masks with supervoxel.
+        point_sampler_kwargs: arguments for point_sampler.
 
     Returns:
         label_prompt: [B, 1]. The classes used for training automatic segmentation.
@@ -135,7 +138,7 @@ def sample_prompt_pairs(
             _point.append(torch.zeros(num_p + num_n, 3).to(device))  # all 0
             _point_label.append(torch.zeros(num_p + num_n).to(device) - 1)  # -1 not a point
     else:
-        _point, _point_label = point_sampler(unique_labels, Np=max_point, Nn=0)
+        _point, _point_label = point_sampler(unique_labels, **point_sampler_kwargs)
         for _ in background_labels:
             # pad the background labels
             _point.append(torch.zeros(len(_point_label[0]), 3).to(device))  # all 0
