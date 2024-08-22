@@ -1778,7 +1778,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
             _affine = affine_inv
             # consider the affine transformation already applied to the data in the world space
             if applied_affine is not None:
-                _affine = linalg_inv(applied_affine) @ _affine
+                _affine = _affine @ linalg_inv(applied_affine)
         else:
             _affine = affine
         out = self.apply_affine_to_points(data, _affine, self.dtype)
