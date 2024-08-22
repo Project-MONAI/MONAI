@@ -66,7 +66,7 @@ from monai.utils import (
 )
 from monai.utils.enums import CoordinateTransformMode, TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype, get_dtype_string
+from monai.utils.type_conversion import convert_to_dst_type, get_dtype_string, get_equivalent_dtype
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -1740,7 +1740,6 @@ class CoordinateTransform(InvertibleTransform, Transform):
         self.dtype = dtype
         self.mode = mode
         self.affine_lps_to_ras = affine_lps_to_ras
-
 
     @staticmethod
     def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: DtypeLike | torch.dtype):
