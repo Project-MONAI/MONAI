@@ -261,6 +261,9 @@ FastMRIReader
 .. autoclass:: Relabeld
     :members:
 
+.. automodule:: monai.apps.vista3d.sampler
+.. autofunction:: sample_prompt_pairs
+
 `Auto3DSeg`
 -----------
 .. automodule:: monai.apps.auto3dseg

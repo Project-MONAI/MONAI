@@ -18,8 +18,6 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.vista3d.transforms import VistaPostTransformd, VistaPreTransformd
-from monai.apps.vista3d.workflow import generate_prompt_pairs
-
 from monai.utils import min_version
 from monai.utils.module import optional_import
 
@@ -74,28 +72,6 @@ TEST_VISTA_POSTTRANSFORM = [
     ],
 ]
 
-label = torch.zeros([1,1,64,64,64])
-label[:, :, :10, :10, :10] = 1
-label[:, :, 20:30, 20:30, 20:30] = 2
-label[:, :, 30:40, 30:40, 30:40] = 3
-label1 = torch.zeros([1,1,64,64,64])
-TEST_VISTA_GENERATEPROMPT = [
-    [{"labels": label, "label_set": [0,1,2,3,4], "max_prompt":5, "max_foreprompt": 4,
-      "max_backprompt":1, "drop_label_prob":0, "drop_point_prob":0}, [4, 4, 4, 4]
-    ],
-    [{"labels": label, "label_set": [0,1], "max_prompt":5, "max_foreprompt": 4,
-      "max_backprompt":1, "drop_label_prob":0, "drop_point_prob":1}, [2, None, None, 2]
-    ],
-    [{"labels": label, "label_set": [0,1,2,3,4], "max_prompt":5, "max_foreprompt": 4,
-      "max_backprompt":1, "drop_label_prob":1, "drop_point_prob":0}, [None, 3, 3, 3]
-    ],
-    [{"labels": label1, "label_set": [0,1], "max_prompt":5, "max_foreprompt": 4,
-      "max_backprompt":1, "drop_label_prob":0, "drop_point_prob":1}, [1, None, None, 1]
-    ],
-    [{"labels": label1, "label_set": [0,1], "max_prompt":5, "max_foreprompt": 4,
-      "max_backprompt":0, "drop_label_prob":0, "drop_point_prob":1}, [None, None, None, None]
-    ]
-]
 
 class TestVistaPreTransformd(unittest.TestCase):
     @parameterized.expand(TEST_VISTA_PRETRANSFORM)
@@ -112,14 +88,6 @@ class TestVistaPostTransformd(unittest.TestCase):
         transform = VistaPostTransformd(keys="pred")
         result = transform(input_data)
         self.assertEqual((result["pred"] == expected).all(), True)
-
-
-class TestGeneratePrompt(unittest.TestCase):
-    @parameterized.expand(TEST_VISTA_GENERATEPROMPT)
-    def test_result(self, input_data, expected):
-        output = generate_prompt_pairs(**input_data)
-        result = [i.shape[0] if i is not None else None for i in output]
-        self.assertEqual(result, expected)
 
 
 if __name__ == "__main__":

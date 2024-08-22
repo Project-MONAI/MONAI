@@ -9,15 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import copy
 import random
+from collections.abc import Callable, Sequence
 
 import numpy as np
 import torch
 from torch import Tensor
-from collections.abc import Callable, Sequence
 
-__all__ = ["generate_prompt_pairs"]
+__all__ = ["sample_prompt_pairs"]
 
 ENABLE_SPECIAL = True
 SPECIAL_INDEX = (23, 24, 25, 26, 27, 57, 128)
@@ -28,16 +30,16 @@ MERGE_LIST = {
 }
 
 
-def get_point_label(id):
-    # [B, N]
+def _get_point_label(id: int) -> tuple[int, int]:
     if id in SPECIAL_INDEX and ENABLE_SPECIAL:
         return 2, 3
     else:
         return 0, 1
 
-def generate_prompt_pairs(
+
+def sample_prompt_pairs(
     labels: Tensor,
-    label_set: Sequence[int] | None = None,
+    label_set: Sequence[int],
     max_prompt: int | None = None,
     max_foreprompt: int | None = None,
     max_backprompt: int = 1,
@@ -45,9 +47,11 @@ def generate_prompt_pairs(
     include_background: bool = False,
     drop_label_prob: float = 0.2,
     drop_point_prob: float = 0.2,
-    point_sampler: Callable | None = None
-):
-    """ Sample training pairs for VISTA3D training.
+    point_sampler: Callable | None = None,
+) -> tuple[Tensor | None, Tensor | None, Tensor | None, Tensor | None]:
+    """
+    Sample training pairs for VISTA3D training.
+
     Args:
         labels: [1, 1, H, W, D], ground truth labels.
         label_set: the label list for the specific dataset.
@@ -55,31 +59,30 @@ def generate_prompt_pairs(
         max_foreprompt: int, max number of prompt from foreground.
         max_backprompt: int, max number of prompt from background.
         max_point: maximum number of points for each object.
-        include_background: if include label=0 into training prompt. May casue issue in partial label
-            trainig.
-        drop_label_prob: probablity to drop label prompt.
-        drop_point_prob: probablity to drop point prompt.
+        include_background: if include label=0 into training prompt. May cause issue in partial label training.
+        drop_label_prob: probability to drop label prompt.
+        drop_point_prob: probability to drop point prompt.
         point_sampler: sampler to augment masks with supervoxel.
+
     Returns:
-        label_prompt: [B, 1]. The classes used for training automatic segmentation
-        point: [B, N, 3]. The corresponding points for each class. Note that background label prompt
-            requires matching point as well ([0,0,0] is used).
+        label_prompt: [B, 1]. The classes used for training automatic segmentation.
+        point: [B, N, 3]. The corresponding points for each class.
+        Note that background label prompt requires matching point as well ([0,0,0] is used).
         point_label: [B, N]. The corresponding point labels for each point (negative or positive).
-            -1 is used for padding the background label prompt and will be ignored.
+        -1 is used for padding the background label prompt and will be ignored.
         prompt_class: [B, 1], exactly the same with label_prompt for label indexing for training loss.
-            label_prompt can be None, and prompt_class is used to identify point classess.
+        label_prompt can be None, and prompt_class is used to identify point classes.
     """
     # class label number
-    assert labels.shape[0] == 1, "only support batch size 1"
+    if not labels.shape[0] == 1:
+        raise ValueError("only support batch size 1")
     labels = labels[0, 0]
     device = labels.device
     unique_labels = labels.unique().cpu().numpy().tolist()
     if include_background:
         unique_labels = list(set(unique_labels) - (set(unique_labels) - set(label_set)))
     else:
-        unique_labels = list(
-            set(unique_labels) - (set(unique_labels) - set(label_set)) - {0}
-        )
+        unique_labels = list(set(unique_labels) - (set(unique_labels) - set(label_set)) - {0})
     background_labels = list(set(label_set) - set(unique_labels))
     # during training, balance background and foreground prompts
     if max_backprompt is not None:
@@ -98,9 +101,7 @@ def generate_prompt_pairs(
                 unique_labels = random.sample(unique_labels, max_prompt)
                 background_labels = []
             else:
-                background_labels = random.sample(
-                    background_labels, max_prompt - len(unique_labels)
-                )
+                background_labels = random.sample(background_labels, max_prompt - len(unique_labels))
     _point = []
     _point_label = []
     # if use regular sampling
@@ -108,7 +109,7 @@ def generate_prompt_pairs(
         num_p = min(max_point, int(np.abs(random.gauss(mu=0, sigma=max_point // 2))) + 1)
         num_n = min(max_point, int(np.abs(random.gauss(mu=0, sigma=max_point // 2))))
         for id in unique_labels:
-            neg_id, pos_id = get_point_label(id)
+            neg_id, pos_id = _get_point_label(id)
             plabels = labels == int(id)
             nlabels = ~plabels
             plabelpoints = torch.nonzero(plabels)
@@ -119,26 +120,26 @@ def generate_prompt_pairs(
             num_na = min(len(nlabelpoints), num_n)
             _point.append(
                 torch.stack(
-                    random.choices(plabelpoints, k=num_pa) + random.choices(nlabelpoints, k=num_na)
+                    random.choices(plabelpoints, k=num_pa)
+                    + random.choices(nlabelpoints, k=num_na)
                     + [torch.tensor([0, 0, 0], device=device)] * (num_p + num_n - num_pa - num_na)
                 )
             )
             _point_label.append(
-                torch.tensor([pos_id] * num_pa + [neg_id] * num_na + [-1] * (num_p + num_n - num_pa - num_na)
-                ).to(device)
+                torch.tensor([pos_id] * num_pa + [neg_id] * num_na + [-1] * (num_p + num_n - num_pa - num_na)).to(
+                    device
+                )
             )
-        for id in background_labels:
+        for _ in background_labels:
             # pad the background labels
             _point.append(torch.zeros(num_p + num_n, 3).to(device))  # all 0
             _point_label.append(torch.zeros(num_p + num_n).to(device) - 1)  # -1 not a point
     else:
         _point, _point_label = point_sampler(unique_labels, Np=max_point, Nn=0)
-        for id in background_labels:
+        for _ in background_labels:
             # pad the background labels
             _point.append(torch.zeros(len(_point_label[0]), 3).to(device))  # all 0
-            _point_label.append(
-                torch.zeros(len(_point_label[0])).to(device) - 1
-            )  # -1 not a point
+            _point_label.append(torch.zeros(len(_point_label[0])).to(device) - 1)  # -1 not a point
     if len(unique_labels) == 0 and len(background_labels) == 0:
         # if max_backprompt is 0 and len(unique_labels), there is no effective prompt and the iteration must
         # be skipped. Handle this in trainer.
@@ -148,15 +149,15 @@ def generate_prompt_pairs(
         point = torch.stack(_point)
         point_label = torch.stack(_point_label)
         prompt_class = copy.deepcopy(label_prompt)
-    if random.uniform(0, 1) < drop_label_prob and len(unique_labels) > 0:
-        label_prompt = None
-        # If label prompt is dropped, there is no need to pad with points with label -1.
-        pad = len(background_labels)
-        point = point[: len(point) - pad]
-        point_label = point_label[: len(point_label) - pad]
-        prompt_class = prompt_class[: len(prompt_class) - pad]
-    else:
-        if random.uniform(0, 1) < drop_point_prob:
-            point = None
-            point_label = None
+        if random.uniform(0, 1) < drop_label_prob and len(unique_labels) > 0:
+            label_prompt = None
+            # If label prompt is dropped, there is no need to pad with points with label -1.
+            pad = len(background_labels)
+            point = point[: len(point) - pad]  # type: ignore
+            point_label = point_label[: len(point_label) - pad]
+            prompt_class = prompt_class[: len(prompt_class) - pad]
+        else:
+            if random.uniform(0, 1) < drop_point_prob:
+                point = None
+                point_label = None
     return label_prompt, point, point_label, prompt_class
