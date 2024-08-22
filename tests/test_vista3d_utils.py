@@ -53,6 +53,32 @@ for radius in [1, 2]:
                 expected_shape,
             ]
         )
+        image_size = (16, 32, 64)
+        point = torch.tensor([[[8,16,42], [2,8,21]]])
+        point_label = torch.tensor([[1, 0]])
+        expected_shape = (point.shape[0], 2, *image_size)
+        TEST_CONVERT_POINTS_TO_DISC.append(
+            [
+                {"image_size": image_size, "point": point, "point_label": point_label, "radius": radius, "disc": disc},
+                expected_shape,
+            ]
+        )
+
+TEST_CONVERT_POINTS_TO_DISC_VALUE = []
+image_size = (16, 32, 64)
+point = torch.tensor([[[8,16,42], [2,8,21]]])
+point_label = torch.tensor([[1, 0]])
+expected_shape = (point.shape[0], 2, *image_size)
+for radius in [5, 10]:
+    for disc in [True, False]:
+        TEST_CONVERT_POINTS_TO_DISC_VALUE.append(
+            [
+                {"image_size": image_size, "point": point, "point_label": point_label, "radius": radius, "disc": disc},
+                [point, point_label]
+            ]
+        )
+
+
 
 TEST_LCC_MASK_POINT_TORCH = []
 for bs in [1, 2]:
@@ -104,6 +130,13 @@ class TestConvertPointsToDisc(unittest.TestCase):
         result = convert_points_to_disc(**input_data)
         self.assertEqual(result.shape, expected_shape)
 
+    @parameterized.expand(TEST_CONVERT_POINTS_TO_DISC_VALUE)
+    def test_value(self, input_data, points):
+        result = convert_points_to_disc(**input_data)
+        point, point_label = points
+        for i in range(point.shape[0]):
+            for j in range(point.shape[1]):
+                self.assertEqual(result[i, point_label[i,j], point[i,j][0], point[i,j][1], point[i,j][2]], True)
 
 @skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
 class TestKeepMergeComponentsWithPoints(unittest.TestCase):

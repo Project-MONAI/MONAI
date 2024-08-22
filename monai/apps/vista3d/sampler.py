@@ -56,12 +56,18 @@ def sample_prompt_pairs(
 
     Args:
         labels: [1, 1, H, W, D], ground truth labels.
-        label_set: the label list for the specific dataset.
+        label_set: the label list for the specific dataset. Note if 0 is included in label_set,
+            it will be added into automatic branch training. Recommend removing 0 from label_set
+            for multi-partially-labeled-dataset training, and adding 0 for finetuning specific dataset. 
+            The reason is region with 0 in one partially labeled dataset may contain foregrounds in 
+            another dataset.
         max_prompt: int, max number of total prompt, including foreground and background.
         max_foreprompt: int, max number of prompt from foreground.
         max_backprompt: int, max number of prompt from background.
         max_point: maximum number of points for each object.
-        include_background: if include label=0 into training prompt. May cause issue in partial label training.
+        include_background: if include 0 into training prompt. If included, background 0 is treated
+            the same as foreground. Always be False for multi-partial-dataset training. If needed, 
+            can be true for finetuning specific dataset, . 
         drop_label_prob: probability to drop label prompt.
         drop_point_prob: probability to drop point prompt.
         point_sampler: sampler to augment masks with supervoxel.

@@ -140,6 +140,8 @@ class VistaPostTransformd(MapTransform):
         super().__init__(keys, allow_missing_keys)
 
     def __call__(self, data):
+        """ data["label_prompt"] should not contain 0
+        """
         for keys in self.keys:
             if keys in data:
                 pred = data[keys]

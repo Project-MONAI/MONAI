@@ -1314,7 +1314,7 @@ def convert_points_to_disc(
     _array = [
         torch.arange(start=0, end=image_size[i], step=1, dtype=torch.float32, device=point.device) for i in range(3)
     ]
-    coord_rows, coord_cols, coord_z = torch.meshgrid(_array[2], _array[1], _array[0])
+    coord_rows, coord_cols, coord_z = torch.meshgrid(_array[0], _array[1], _array[2])
     # [1, 3, h, w, d] -> [b, 2, 3, h, w, d]
     coords = unsqueeze_left(torch.stack((coord_rows, coord_cols, coord_z), dim=0), 6)
     coords = coords.repeat(point.shape[0], 2, 1, 1, 1, 1)
