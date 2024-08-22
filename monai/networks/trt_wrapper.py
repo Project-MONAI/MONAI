@@ -103,14 +103,14 @@ class TRTEngine:
 
     """
 
-    def __init__(self, engine_path, logger=None):
+    def __init__(self, plan_path, logger=None):
         """
         Loads serialized engine, creates execution context and activates it
         """
-        self.engine_path = engine_path
+        self.plan_path = plan_path
         self.logger = logger or get_logger("trt_wrapper")
-        self.logger.info(f"Loading TensorRT engine: {self.engine_path}")
-        self.engine = engine_from_bytes(bytes_from_path(self.engine_path))
+        self.logger.info(f"Loading TensorRT engine: {self.plan_path}")
+        self.engine = engine_from_bytes(bytes_from_path(self.plan_path))
         self.tensors = OrderedDict()
         self.cuda_graph_instance = None  # cuda graph
         self.context = self.engine.create_execution_context()
@@ -229,8 +229,8 @@ class TrtWrappper:
     def __init__(
         self,
         model,
-        path,
-        precision="tf32",
+        plan_path,
+        precision="fp16",
         export_method="onnx",
         input_names=None,
         output_names=None,
@@ -249,7 +249,7 @@ class TrtWrappper:
          Saves its arguments for lazy TRT build on first forward() call
         Args:
             model: Model to "wrap".
-            path : Path where to save persistent serialized TRT engine.
+            plan_path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
             export_method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
             input_names: Optional list of input names to use for export.
@@ -265,7 +265,7 @@ class TrtWrappper:
             timestamp: Optional timestamp to rebuild TRT engine (e.g. if config file changes).
             fallback: Allow to fall back to Pytorch when TRT inference fails (e.g, shapes exceed max profile).
         """
-        self.path = path
+        self.plan_path = plan_path
         self.precision = precision
         self.export_method = export_method
         self.output_names = output_names or []
@@ -290,18 +290,10 @@ class TrtWrappper:
         # Force engine rebuild if older than the timestamp
         if (
             timestamp is not None
-            and os.path.exists(self.engine_path)
-            and os.path.getmtime(self.engine_path) < timestamp
+            and os.path.exists(self.plan_path)
+            and os.path.getmtime(self.plan_path) < timestamp
         ):
-            os.remove(self.engine_path)
-
-    """
-    Auxiliary getters/setters
-    """
-
-    @property
-    def engine_path(self):
-        return self.path + ".plan"
+            os.remove(self.plan_path)
 
     def _inputs_to_dict(self, input_example):
         trt_inputs = {}
@@ -315,7 +307,7 @@ class TrtWrappper:
         Loads TRT plan from disk and activates its execution context.
         """
         try:
-            self.engine = TRTEngine(self.engine_path, self.logger)
+            self.engine = TRTEngine(self.plan_path, self.logger)
             self.input_names = self.engine.input_names
         except Exception as e:
             self.logger.debug(f"Exception while loading the engine:\n{e}")
@@ -383,7 +375,7 @@ class TrtWrappper:
 
     def _onnx_to_trt(self, onnx_path):
         """
-        Builds TRT engine from ONNX file at onnx_path and saves to self.trt_path
+        Builds TRT engine from ONNX file at onnx_path and saves to self.plan_path
         """
 
         profiles = []
@@ -403,7 +395,7 @@ class TrtWrappper:
         build_args["fp16"] = self.precision == "fp16"
         build_args["bf16"] = self.precision == "bf16"
 
-        self.logger.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
+        self.logger.info(f"Building TensorRT engine for {onnx_path}: {self.plan_path}")
         network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
         return engine_bytes_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
 
@@ -468,7 +460,7 @@ class TrtWrappper:
                 self.logger.info("Export to ONNX successful.")
                 engine_bytes = self._onnx_to_trt(str(onnx_path))
 
-        open(self.engine_path, 'wb').write(engine_bytes)
+        open(self.plan_path, 'wb').write(engine_bytes)
 
 
 def trt_forward(self, *argv, **kwargs):
@@ -479,11 +471,12 @@ def trt_forward(self, *argv, **kwargs):
     return self._trt_wrapper.forward(self, argv, kwargs)
 
 
-def trt_wrap(model, path, args=None, submodule=None, logger=None):
+def trt_wrap(model, ckpt_path, args=None, submodule=None, logger=None):
     """
     Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
     Args:
-      model, path: passed to TrtWrappper().
+      model: passed to TrtWrappper().
+      ckpt_path: path to associated checkpoint, or just basename for .plan
       args: dict : unpacked and passed to TrtWrappper().
       submodule : Hierarchical id of submodule to convert, e.g. 'image_decoder.decoder'
                   If None, TrtWrappper is applied to the whole model and returned.
@@ -491,14 +484,25 @@ def trt_wrap(model, path, args=None, submodule=None, logger=None):
     Returns:
       Always returns same model passed in as argument. This is for ease of use in configs.
     """
-    if args is None:
-        args = {}
+
+    default_args = {
+        "export_method": "onnx",
+        "precision": "fp16",
+        "build_args": {
+            "builder_optimization_level": 5,
+            "precision_constraints": "obey"
+        }
+    }
+
+    default_args.update(args or {})
+    args = default_args
+
     orig_model = model
     if trt_imported and polygraphy_imported and torch.cuda.is_available():
         # if "path" filename point to existing file (e.g. checkpoint)
         # it's also treated as dependency
-        if os.path.exists(path):
-            timestamp = os.path.getmtime(path)
+        if os.path.exists(ckpt_path):
+            timestamp = os.path.getmtime(ckpt_path)
             if 'timestamp' in args:
                 timestamp = max(args['timestamp'], timestamp)
             args['timestamp'] = timestamp
@@ -514,11 +518,11 @@ def trt_wrap(model, path, args=None, submodule=None, logger=None):
                     return find_sub(parent, submodule)
                 return parent, submodule
 
-            path = path + '.' + submodule
+            ckpt_path = ckpt_path + '.' + submodule
             parent, submodule = find_sub(model, submodule)
             model = getattr(parent, submodule)
 
-        wrapper = TrtWrappper(model, path, logger=logger, **args)
+        wrapper = TrtWrappper(model, ckpt_path + ".plan", logger=logger, **args)
         model._trt_wrapper = wrapper
         model.forward = MethodType(trt_forward, model)
     return orig_model

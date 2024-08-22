@@ -320,8 +320,8 @@ class SwinUNETR(nn.Module):
             )
 
     def forward(self, x_in):
-        # if not torch.jit.is_scripting() and not torch.jit.is_tracing():
-        #    self._check_input_size(x_in.shape[2:])
+        if not torch.jit.is_scripting() and not torch.jit.is_tracing():
+            self._check_input_size(x_in.shape[2:])
         hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)
         enc1 = self.encoder2(hidden_states_out[0])
