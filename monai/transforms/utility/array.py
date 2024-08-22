@@ -1786,6 +1786,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
         extra_info = {
             "mode": self.mode,
             "dtype": get_dtype_string(self.dtype),
+            "image_affine": original_affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
         xform = original_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_affine)
@@ -1815,6 +1816,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
         # Create inverse transform
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         mode_ = transform[TraceKeys.EXTRA_INFO]["mode"]
+        affine = transform[TraceKeys.EXTRA_INFO]["image_affine"]
         affine_lps_to_ras = transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
         mode = (
             CoordinateTransformMode.WORLD_TO_IMAGE
@@ -1824,6 +1826,6 @@ class CoordinateTransform(InvertibleTransform, Transform):
         inverse_transform = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
         # Apply inverse
         with inverse_transform.trace_transform(False):
-            data = inverse_transform(data)
+            data = inverse_transform(data, affine)
 
         return data
