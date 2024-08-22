@@ -1754,7 +1754,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
 
         return out
 
-    def transform_coordinates(self, data: torch.Tensor, image_to_world_affine: torch.Tensor):
+    def transform_coordinates(self, data: torch.Tensor, image_to_world_affine: torch.Tensor | None = None):
         """
         Transform coordinates using an affine transformation matrix.
 
@@ -1767,19 +1767,26 @@ class CoordinateTransform(InvertibleTransform, Transform):
         """
         data = convert_to_tensor(data, track_meta=get_track_meta())
 
+        image_to_world_affine = data.affine if image_to_world_affine is None else image_to_world_affine
         original_image_to_world_affine = image_to_world_affine
-        if self.affine_lps_to_ras:  # RAS affine
+        if self.affine_lps_to_ras:
             image_to_world_affine = orientation_ras_lps(image_to_world_affine)
 
         world_to_image_affine = linalg_inv(image_to_world_affine)
-        _affine = world_to_image_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else image_to_world_affine
 
+        if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE:
+            _affine = world_to_image_affine
+            applied_affine = data.affine if isinstance(data, MetaTensor) else None
+            # consider the affine transformation already applied to the data in the world space
+            if applied_affine is not None:
+                _affine = linalg_inv(applied_affine) @ _affine
+        else:
+            _affine = image_to_world_affine
         out = self.apply_affine_to_points(data, _affine, self.dtype)
 
         extra_info = {
             "mode": self.mode,
             "dtype": get_dtype_string(self.dtype),
-            "image_affine": image_to_world_affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
         xform = original_image_to_world_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_image_to_world_affine)
@@ -1805,10 +1812,9 @@ class CoordinateTransform(InvertibleTransform, Transform):
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
         # Create inverse transform
-        affine = transform[TraceKeys.EXTRA_INFO]["image_affine"]
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
         mode_ = transform[TraceKeys.EXTRA_INFO]["mode"]
-        affine_lps_to_ras = not transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
+        affine_lps_to_ras = transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
         mode = (
             CoordinateTransformMode.WORLD_TO_IMAGE
             if mode_ == CoordinateTransformMode.IMAGE_TO_WORLD
@@ -1817,6 +1823,6 @@ class CoordinateTransform(InvertibleTransform, Transform):
         inverse_transform = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
         # Apply inverse
         with inverse_transform.trace_transform(False):
-            data = inverse_transform(data, affine=affine)
+            data = inverse_transform(data)
 
         return data
