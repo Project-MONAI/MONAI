@@ -1754,34 +1754,34 @@ class CoordinateTransform(InvertibleTransform, Transform):
 
         return out
 
-    def transform_coordinates(self, data: torch.Tensor, image_to_world_affine: torch.Tensor | None = None):
+    def transform_coordinates(self, data: torch.Tensor, affine: torch.Tensor | None = None):
         """
         Transform coordinates using an affine transformation matrix.
 
         Args:
             data: The input coordinates, assume to be in shape (C, N, 2 or 3).
-            image_to_world_affine: A 3x3 or 4x4 affine transformation matrix.
+            affine: A 3x3 or 4x4 affine transformation matrix.
 
         Returns:
             Transformed coordinates.
         """
         data = convert_to_tensor(data, track_meta=get_track_meta())
+        applied_affine = data.affine if isinstance(data, MetaTensor) else None
 
-        image_to_world_affine = data.affine if image_to_world_affine is None else image_to_world_affine
-        original_image_to_world_affine = image_to_world_affine
+        affine = applied_affine if affine is None else affine
+        original_affine = affine
         if self.affine_lps_to_ras:
-            image_to_world_affine = orientation_ras_lps(image_to_world_affine)
+            affine = orientation_ras_lps(affine)
 
-        world_to_image_affine = linalg_inv(image_to_world_affine)
+        affine_inv = linalg_inv(affine)
 
         if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE:
-            _affine = world_to_image_affine
-            applied_affine = data.affine if isinstance(data, MetaTensor) else None
+            _affine = affine_inv
             # consider the affine transformation already applied to the data in the world space
             if applied_affine is not None:
                 _affine = linalg_inv(applied_affine) @ _affine
         else:
-            _affine = image_to_world_affine
+            _affine = affine
         out = self.apply_affine_to_points(data, _affine, self.dtype)
 
         extra_info = {
@@ -1789,7 +1789,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
             "dtype": get_dtype_string(self.dtype),
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
-        xform = original_image_to_world_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_image_to_world_affine)
+        xform = original_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_affine)
         meta_info = TraceableTransform.track_transform_meta(
             data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
         )
@@ -1806,7 +1806,9 @@ class CoordinateTransform(InvertibleTransform, Transform):
             raise ValueError(f"data should be in shape (C, N, 2 or 3), got {data.shape}.")
         if affine is not None and (affine.ndim not in (2, 3) or affine.shape[-2:] not in ((3, 3), (4, 4))):
             raise ValueError(f"affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
+
         out, meta_info = self.transform_coordinates(data, affine)
+
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
