@@ -17,7 +17,7 @@ from parameterized import parameterized
 from monai.data import MetaTensor
 from monai.utils import set_determinism
 from monai.utils.enums import CoordinateTransformMode
-from monai.transforms.utility.array import CoordinateTransform, CoordinateTransformMode
+from monai.transforms.utility.array import CoordinateTransform
 
 set_determinism(seed=0)
 
