@@ -17,7 +17,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.utils_pytorch_numpy_unification import mode, percentile
+from monai.transforms.utils_pytorch_numpy_unification import mode, percentile, min
 from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
 
@@ -26,6 +26,11 @@ for p in TEST_NDARRAYS:
     TEST_MODE.append([p(np.array([1, 2, 3, 4, 4, 5])), p(4), False])
     TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4.1), False])
     TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4), True])
+
+TEST_MIN = []
+for p in TEST_NDARRAYS:
+    TEST_MIN.append([p(np.array([1, 2, 3, 4, 4, 5])), {}, p(1)])
+    TEST_MIN.append([p(np.array([[3.1, 4.1, 4.1, 5.1], [3, 5, 4.1, 5]])), {"dim": 1}, p([3.1, 3. ])])
 
 
 class TestPytorchNumpyUnification(unittest.TestCase):
@@ -73,6 +78,11 @@ class TestPytorchNumpyUnification(unittest.TestCase):
     def test_mode(self, array, expected, to_long):
         res = mode(array, to_long=to_long)
         assert_allclose(res, expected)
+    
+    @parameterized.expand(TEST_MIN)
+    def test_min(self, array, input_params, expected):
+        res = min(array, **input_params)
+        assert_allclose(res, expected, type_test=False)
 
 
 if __name__ == "__main__":

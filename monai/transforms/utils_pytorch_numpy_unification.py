@@ -546,6 +546,8 @@ def min(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTe
         else:
             ret = torch.min(x, int(dim), **kwargs)  # type: ignore
 
+    if isinstance(ret, tuple):
+        return ret.values
     return ret
 
 
