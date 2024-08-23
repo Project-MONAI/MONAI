@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from .trt_compile import trt_compile
 from .utils import (
     add_casts_around_norms,
     convert_to_onnx,
@@ -33,5 +34,3 @@ from .utils import (
     to_norm_affine,
     train_mode,
 )
-
-from .trt_compile import trt_compile

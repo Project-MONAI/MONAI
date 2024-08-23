@@ -22,9 +22,7 @@ from monai.utils import optional_import
 from tests.utils import skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 trt_compile, has_trt = optional_import(
-    "monai.networks",
-    name="trt_compile",
-    descriptor="TRT compile is not available - check your installation!",
+    "monai.networks", name="trt_compile", descriptor="TRT compile is not available - check your installation!"
 )
 
 TEST_CASE_1 = ["fp32"]
@@ -61,13 +59,11 @@ class TestTRTCompile(unittest.TestCase):
             input_example = torch.randn(1, 1, 96, 96, 96).cuda()
             output_example = model(input_example)
             args: dict = {"builder_optimization_level": 1}
-            trt_compile(model,
-                        f"{tmpdir}/test_trt_compile",
-                        args={"precision": precision,
-                              "build_args": args,
-                              "dynamic_batchsize": [1, 4, 8]
-                              }
-                        )
+            trt_compile(
+                model,
+                f"{tmpdir}/test_trt_compile",
+                args={"precision": precision, "build_args": args, "dynamic_batchsize": [1, 4, 8]},
+            )
             self.assertIsNone(model._trt_wrapper.engine)
             trt_output = model(input_example)
             # Check that lazy TRT build succeeded

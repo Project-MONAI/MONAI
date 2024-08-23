@@ -690,6 +690,7 @@ def convert_to_onnx(
 
     if do_constant_folding and polygraphy_imported:
         from polygraphy.backend.onnx.loader import fold_constants
+
         fold_constants(onnx_model, size_threshold=constant_size_threshold)
 
     if verify:

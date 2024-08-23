@@ -38,14 +38,7 @@ class TrtHandler:
         submodule : Hierarchical ids of submodules to convert, e.g. 'image_decoder.decoder'
     """
 
-    def __init__(
-        self,
-        model,
-        path,
-        args=None,
-        submodule=None,
-        enabled=True
-    ):
+    def __init__(self, model, path, args=None, submodule=None, enabled=True):
         self.model = model
         self.path = path
         self.args = args

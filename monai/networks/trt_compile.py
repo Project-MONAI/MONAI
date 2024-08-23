@@ -13,13 +13,13 @@ from __future__ import annotations
 
 import inspect
 import os
-from pathlib import Path
 import tempfile
 import threading
 from collections import OrderedDict
+from pathlib import Path
+from types import MethodType
 
 import torch
-from types import MethodType
 
 from monai.apps.utils import get_logger
 from monai.networks.utils import add_casts_around_norms, convert_to_onnx, convert_to_torchscript
@@ -31,8 +31,8 @@ if polygraphy_imported:
     from polygraphy.backend.trt import (
         CreateConfig,
         Profile,
-        engine_from_bytes,
         engine_bytes_from_network,
+        engine_from_bytes,
         network_from_onnx_path,
     )
 
@@ -288,11 +288,7 @@ class TrtWrappper:
         self.old_forward = model.forward
 
         # Force engine rebuild if older than the timestamp
-        if (
-            timestamp is not None
-            and os.path.exists(self.plan_path)
-            and os.path.getmtime(self.plan_path) < timestamp
-        ):
+        if timestamp is not None and os.path.exists(self.plan_path) and os.path.getmtime(self.plan_path) < timestamp:
             os.remove(self.plan_path)
 
     def _inputs_to_dict(self, input_example):
@@ -427,7 +423,7 @@ class TrtWrappper:
             export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
 
         add_casts_around_norms(model)
-        if self.method == 'torch_trt':
+        if self.method == "torch_trt":
             enabled_precisions = [torch.float32]
             if self.precision == "fp16":
                 enabled_precisions.append(torch.float16)
@@ -435,22 +431,25 @@ class TrtWrappper:
                 enabled_precisions.append(torch.bfloat16)
             inputs = list(input_example.values())
             ir_model = convert_to_torchscript(model, inputs=inputs, use_trace=True)
-            engine_bytes = torch_tensorrt.convert_method_to_trt_engine(ir_model,
-                                                                       'forward',
-                                                                       inputs=inputs,
-                                                                       ir='torchscript',
-                                                                       enabled_precisions=enabled_precisions,
-                                                                       **export_args)
+            engine_bytes = torch_tensorrt.convert_method_to_trt_engine(
+                ir_model,
+                "forward",
+                inputs=inputs,
+                ir="torchscript",
+                enabled_precisions=enabled_precisions,
+                **export_args,
+            )
         else:
-            if self.method == 'onnx_dynamo':
+            if self.method == "onnx_dynamo":
                 dynamo = True
                 import torch_onnx
+
                 torch_onnx.patch_torch()
             else:
                 dynamo = False
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
-                onnx_path = Path(tmpdir) / 'model.onnx'
+                onnx_path = Path(tmpdir) / "model.onnx"
                 self.logger.info(f"Exporting to {onnx_path}, export args: {export_args}")
                 convert_to_onnx(
                     model,
@@ -464,7 +463,7 @@ class TrtWrappper:
                 self.logger.info("Export to ONNX successful.")
                 engine_bytes = self._onnx_to_trt(str(onnx_path))
 
-        open(self.plan_path, 'wb').write(engine_bytes)
+        open(self.plan_path, "wb").write(engine_bytes)
 
 
 def trt_forward(self, *argv, **kwargs):
@@ -492,10 +491,7 @@ def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
     default_args = {
         "method": "onnx",
         "precision": "fp16",
-        "build_args": {
-            "builder_optimization_level": 5,
-            "precision_constraints": "obey"
-        }
+        "build_args": {"builder_optimization_level": 5, "precision_constraints": "obey"},
     }
 
     default_args.update(args or {})
@@ -506,9 +502,9 @@ def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
         # it's also treated as dependency
         if os.path.exists(ckpt_path):
             timestamp = os.path.getmtime(ckpt_path)
-            if 'timestamp' in args:
-                timestamp = max(args['timestamp'], timestamp)
-            args['timestamp'] = timestamp
+            if "timestamp" in args:
+                timestamp = max(args["timestamp"], timestamp)
+            args["timestamp"] = timestamp
 
         def wrap(model, path):
             wrapper = TrtWrappper(model, path + ".plan", logger=logger, **args)
@@ -530,7 +526,7 @@ def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
                 submodule = [submodule]
             for s in submodule:
                 parent, submodule = find_sub(model, s)
-                wrap(getattr(parent, submodule), ckpt_path + '.' + s)
+                wrap(getattr(parent, submodule), ckpt_path + "." + s)
         else:
             wrap(model, ckpt_path)
     return model
