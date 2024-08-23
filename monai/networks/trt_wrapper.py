@@ -22,7 +22,7 @@ import torch
 from types import MethodType
 
 from monai.apps.utils import get_logger
-from monai.networks.utils import add_casts_around_norms, convert_to_onnx
+from monai.networks.utils import add_casts_around_norms, convert_to_onnx, convert_to_torchscript
 from monai.utils.module import optional_import
 
 polygraphy, polygraphy_imported = optional_import("polygraphy")
@@ -433,8 +433,12 @@ class TrtWrappper:
                 enabled_precisions.append(torch.float16)
             elif self.precision == "bf16":
                 enabled_precisions.append(torch.bfloat16)
+            inputs=list(input_example.values())
+            ir_model = convert_to_torchscript(model, inputs=inputs, use_trace=True)
             engine_bytes = torch_tensorrt.convert_method_to_trt_engine(model,
-                                                                       input_example,
+                                                                       'forward',
+                                                                       inputs=inputs,
+                                                                       ir='torchscript',
                                                                        enabled_precisions=enabled_precisions,
                                                                        **export_args)
         else:

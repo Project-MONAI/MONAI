@@ -11,7 +11,8 @@
 
 # To build with a different base image
 # please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:24.03-py3
+# ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:24.03-py3
+ARG PYTORCH_IMAGE=gitlab-master.nvidia.com:5005/dl/dgx/pytorch:24.08-py3-stage
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
@@ -23,16 +24,6 @@ RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
       export DISABLE_NUMCODECS_AVX2=true && \
       pip install numcodecs; \
     fi
-
-ARG TRT_URL=http://cuda-repo.nvidia.com/release-candidates/Libraries/TensorRT/v10.3/10.3.0.25-4abf3f29/12.5-r555/Ubuntu22_04-x64-manylinux_2_17/deb/
-
-RUN rm -fr /tmp/trt && mkdir -p /tmp/trt && cd /tmp/trt && \
-    curl ${TRT_URL} -o index.html && \
-    for package in $(grep -o '[^ >"]*\.deb' index.html | uniq); do wget -nv ${TRT_URL}${package} & done && wait \
-    && rm -f *-dev_* tensorrt_10* *-samples* \
-    && dpkg -i *.deb \
-    && apt-get --fix-broken install -y \
-    && rm -rf index.html *.deb
 
 WORKDIR /opt/monai
 
