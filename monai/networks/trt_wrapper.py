@@ -18,6 +18,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 from types import MethodType
+from typing import Union, List, Dict, Any
 
 import torch
 
@@ -59,8 +60,9 @@ def trt_to_torch_dtype_dict():
 
 def get_dynamic_axes(profiles):
     """
-    Given [[min,opt,max],...] list of profile dimensions,
-    this method calculates dynamic_axes to use in onnx.export()
+    This method calculates dynamic_axes to use in onnx.export().
+    Args:
+       profiles: [[min,opt,max],...] list of profile dimensions
     """
     dynamic_axes: dict[str, list[int]] = {}
     if not profiles:
@@ -79,7 +81,9 @@ def get_dynamic_axes(profiles):
 
 def cuassert(cuda_ret):
     """
-    Error reporting method for CUDA calls
+    Error reporting method for CUDA calls.
+    Args:
+     cuda_ret: CUDA return code.
     """
     err = cuda_ret[0]
     if err != 0:
@@ -106,6 +110,9 @@ class TRTEngine:
     def __init__(self, plan_path, logger=None):
         """
         Loads serialized engine, creates execution context and activates it
+        Args:
+          plan_path: path to serialized TRT engine.
+          logger: optional logger object
         """
         self.plan_path = plan_path
         self.logger = logger or get_logger("trt_compile")
@@ -131,6 +138,8 @@ class TRTEngine:
     def allocate_buffers(self, device):
         """
         Allocates outputs to run TRT engine
+        Args:
+            device: GPU device to allocate memory on
         """
         ctx = self.context
 
@@ -141,20 +150,12 @@ class TRTEngine:
                 self.tensors[binding] = t
                 ctx.set_tensor_address(binding, t.data_ptr())
 
-    @staticmethod
-    def check_shape(shape, profile):
-        shape = list(shape)
-        minlist = profile[0]
-        maxlist = profile[2]
-        good = True
-        for i, s in enumerate(shape):
-            if s < minlist[i] or s > maxlist[i]:
-                good = False
-        return good
-
     def set_inputs(self, feed_dict, stream):
         """
         Sets input bindings for TRT engine according to feed_dict
+        Args:
+           feed_dict: a dictionary [str->Tensor]
+           stream: CUDA stream to use
         """
         e = self.engine
         ctx = self.context
@@ -166,10 +167,6 @@ class TRTEngine:
                 if t is not None:
                     t = t.contiguous()
                     shape = t.shape
-                    # TODO: port to new TRT10 API
-                    # mincurmax = list(e.get_profile_shape(self.cur_profile, binding))
-                    # if not self.check_shape(shape, mincurmax):
-                    #    raise ShapeError(f"Input shape to be set is outside the bounds: {binding} -> {shape}")
                     ctx.set_input_shape(binding, shape)
                     ctx.set_tensor_address(binding, t.data_ptr())
 
@@ -190,7 +187,9 @@ class TRTEngine:
     def infer(self, stream, use_cuda_graph=False):
         """
         Runs TRT engine.
-        Note use_cuda_graph requires all inputs to be the same GPU memory between calls.
+        Args:
+            stream: CUDA stream to run on
+            use_cuda_graph: use CUDA graph. Note: requires all inputs to be the same GPU memory between calls.
         """
         if use_cuda_graph:
             if self.cuda_graph_instance is not None:
@@ -474,12 +473,19 @@ def trt_forward(self, *argv, **kwargs):
     return self._trt_wrapper.forward(self, argv, kwargs)
 
 
-def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
+def trt_compile(
+        model: torch.nn.Module,
+        base_path: str,
+        args: Dict[str, Any] | None = None,
+        submodule: Union[str, List[str]] | None = None,
+        logger: Any | None = None) -> torch.nn.Module:
     """
     Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
     Args:
       model: module to patch with TrtWrappper().
-      ckpt_path: path to associated checkpoint, or just basename for .plan
+      base_path: TRT plan(s) saved to "base_path[.submodule].plan" path.
+                 If base_path points to existing file (e.g. associated checkpoint),
+                 that file also becomes dependency - its mtime is added to args["timestamp"].
       args: dict : unpacked and passed to TrtWrappper().
       submodule : Hierarchical id(s) of submodule to patch, e.g. ['image_decoder.decoder']
                   If None, TrtWrappper patch is applied to the whole model.
@@ -488,7 +494,7 @@ def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
       Always returns same model passed in as argument. This is for ease of use in configs.
     """
 
-    default_args = {
+    default_args: Dict[str, Any] = {
         "method": "onnx",
         "precision": "fp16",
         "build_args": {"builder_optimization_level": 5, "precision_constraints": "obey"},
@@ -500,10 +506,10 @@ def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
     if trt_imported and polygraphy_imported and torch.cuda.is_available():
         # if "path" filename point to existing file (e.g. checkpoint)
         # it's also treated as dependency
-        if os.path.exists(ckpt_path):
-            timestamp = os.path.getmtime(ckpt_path)
+        if os.path.exists(base_path):
+            timestamp = int(os.path.getmtime(base_path))
             if "timestamp" in args:
-                timestamp = max(args["timestamp"], timestamp)
+                timestamp = max(int(args["timestamp"]), timestamp)
             args["timestamp"] = timestamp
 
         def wrap(model, path):
@@ -526,7 +532,7 @@ def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
                 submodule = [submodule]
             for s in submodule:
                 parent, submodule = find_sub(model, s)
-                wrap(getattr(parent, submodule), ckpt_path + "." + s)
+                wrap(getattr(parent, s), base_path + "." + s)
         else:
-            wrap(model, ckpt_path)
+            wrap(model, base_path)
     return model

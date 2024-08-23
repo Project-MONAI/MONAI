@@ -28,21 +28,21 @@ class TrtHandler:
     """
     TrtHandler acts as an Ignite handler to apply TRT acceleration to the model.
     Usage example::
-        handler = TrtHandler(model=model, path="/test/checkpoint.pt", args={"precision": "fp16"})
+        handler = TrtHandler(model=model, base_path="/test/checkpoint.pt", args={"precision": "fp16"})
         handler.attach(engine)
         engine.run()
-
-    Args:
-        path: the file path of checkpoint, it should be a PyTorch `pth` file.
-        args: passed to trt_compile().
-        submodule : Hierarchical ids of submodules to convert, e.g. 'image_decoder.decoder'
     """
 
-    def __init__(self, model, path, args=None, submodule=None, enabled=True):
+    def __init__(self, model, base_path, args=None, submodule=None):
+        """
+        Args:
+            base_path: TRT path basename. TRT plan(s) saved to "base_path[.submodule].plan"
+            args: passed to trt_compile(). See trt_compile() for details.
+            submodule : Hierarchical ids of submodules to convert, e.g. 'image_decoder.decoder'
+        """
         self.model = model
-        self.path = path
+        self.base_path = base_path
         self.args = args
-        self.enabled = enabled
         self.submodule = submodule
 
     def attach(self, engine: Engine) -> None:
@@ -58,5 +58,4 @@ class TrtHandler:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        if self.enabled:
-            trt_compile(self.model, self.path, args=self.args, submodule=self.submodule, logger=self.logger)
+        trt_compile(self.model, self.base_path, args=self.args, submodule=self.submodule, logger=self.logger)
