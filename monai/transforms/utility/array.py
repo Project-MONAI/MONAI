@@ -1727,12 +1727,12 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
             Typically, the affine matrix is derived from the image, while the points are in world coordinates.
             If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
-        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true: 
-            1) The image is read by `ITKReader`, 
-            2) The `ITKReader` has `affine_lps_to_ras=True`, 
+        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true:
+            1) The image is read by `ITKReader`,
+            2) The `ITKReader` has `affine_lps_to_ras=True`,
             3) The data is in world coordinates.
-            This ensures the correct application of the affine transformation between LPS (left-posterior-superior) 
-            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine 
+            This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
+            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
             matrix are in the same coordinate system.
     """
 
@@ -1811,7 +1811,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         """
         Args:
             data: The input coordinates, assume to be in shape (C, N, 2 or 3).
-            affine: A 3x3 or 4x4 affine transformation matrix, this argument will take precedence over ``self.affine``. 
+            affine: A 3x3 or 4x4 affine transformation matrix, this argument will take precedence over ``self.affine``.
         """
         if data.ndim != 3 or data.shape[-1] not in (2, 3):
             raise ValueError(f"data should be in shape (C, N, 2 or 3), got {data.shape}.")
