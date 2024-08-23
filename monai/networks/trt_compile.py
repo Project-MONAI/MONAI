@@ -108,7 +108,7 @@ class TRTEngine:
         Loads serialized engine, creates execution context and activates it
         """
         self.plan_path = plan_path
-        self.logger = logger or get_logger("trt_wrapper")
+        self.logger = logger or get_logger("trt_compile")
         self.logger.info(f"Loading TensorRT engine: {self.plan_path}")
         self.engine = engine_from_bytes(bytes_from_path(self.plan_path))
         self.tensors = OrderedDict()
@@ -231,7 +231,7 @@ class TrtWrappper:
         model,
         plan_path,
         precision="fp16",
-        export_method="onnx",
+        method="onnx",
         input_names=None,
         output_names=None,
         export_args=None,
@@ -251,7 +251,7 @@ class TrtWrappper:
             model: Model to "wrap".
             plan_path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
-            export_method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
+            method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
             input_names: Optional list of input names to use for export.
             output_names: Optional list of output names to use for export.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
@@ -267,7 +267,7 @@ class TrtWrappper:
         """
         self.plan_path = plan_path
         self.precision = precision
-        self.export_method = export_method
+        self.method = method
         self.output_names = output_names or []
         self.profiles = input_profiles or []
         self.dynamic_batchsize = dynamic_batchsize
@@ -278,7 +278,7 @@ class TrtWrappper:
         self.fallback = fallback
         self.disabled = False
 
-        self.logger = logger or get_logger("trt_wrapper")
+        self.logger = logger or get_logger("trt_compile")
 
         # Normally we read input_names from forward() but can be overridden
         if input_names is None:
@@ -427,22 +427,22 @@ class TrtWrappper:
             export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
 
         add_casts_around_norms(model)
-        if self.export_method == 'torch_trt':
+        if self.method == 'torch_trt':
             enabled_precisions = [torch.float32]
             if self.precision == "fp16":
                 enabled_precisions.append(torch.float16)
             elif self.precision == "bf16":
                 enabled_precisions.append(torch.bfloat16)
-            inputs=list(input_example.values())
+            inputs = list(input_example.values())
             ir_model = convert_to_torchscript(model, inputs=inputs, use_trace=True)
-            engine_bytes = torch_tensorrt.convert_method_to_trt_engine(model,
+            engine_bytes = torch_tensorrt.convert_method_to_trt_engine(ir_model,
                                                                        'forward',
                                                                        inputs=inputs,
                                                                        ir='torchscript',
                                                                        enabled_precisions=enabled_precisions,
                                                                        **export_args)
         else:
-            if self.export_method == 'onnx_dynamo':
+            if self.method == 'onnx_dynamo':
                 dynamo = True
                 import torch_onnx
                 torch_onnx.patch_torch()
@@ -475,7 +475,7 @@ def trt_forward(self, *argv, **kwargs):
     return self._trt_wrapper.forward(self, argv, kwargs)
 
 
-def trt_wrap(model, ckpt_path, args=None, submodule=None, logger=None):
+def trt_compile(model, ckpt_path, args=None, submodule=None, logger=None):
     """
     Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
     Args:
@@ -490,7 +490,7 @@ def trt_wrap(model, ckpt_path, args=None, submodule=None, logger=None):
     """
 
     default_args = {
-        "export_method": "onnx",
+        "method": "onnx",
         "precision": "fp16",
         "build_args": {
             "builder_optimization_level": 5,

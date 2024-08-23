@@ -21,10 +21,10 @@ from monai.networks.nets import UNet
 from monai.utils import optional_import
 from tests.utils import skip_if_no_cuda, skip_if_quick, skip_if_windows
 
-trt_wrap, has_trtwrapper = optional_import(
+trt_compile, has_trt = optional_import(
     "monai.networks",
-    name="trt_wrap",
-    descriptor="TRT wrapper is not available - check your installation!",
+    name="trt_compile",
+    descriptor="TRT compile is not available - check your installation!",
 )
 
 TEST_CASE_1 = ["fp32"]
@@ -34,7 +34,7 @@ TEST_CASE_2 = ["fp16"]
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
-class TestTRTWrapper(unittest.TestCase):
+class TestTRTCompile(unittest.TestCase):
 
     def setUp(self):
         self.gpu_device = torch.cuda.current_device()
@@ -45,7 +45,7 @@ class TestTRTWrapper(unittest.TestCase):
             torch.cuda.set_device(self.gpu_device)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    @unittest.skipUnless(has_trtwrapper, "TensorRT wrapper is required for convert!")
+    @unittest.skipUnless(has_trt, "TensorRT compile wrapper is required for convert!")
     def test_value(self, precision):
         model = UNet(
             spatial_dims=3,
@@ -61,13 +61,13 @@ class TestTRTWrapper(unittest.TestCase):
             input_example = torch.randn(1, 1, 96, 96, 96).cuda()
             output_example = model(input_example)
             args: dict = {"builder_optimization_level": 1}
-            trt_wrap(model,
-                     f"{tmpdir}/test_wrapper",
-                     args={"precision": precision,
-                           "build_args": args,
-                           "dynamic_batchsize": [1, 4, 8]
-                           }
-                     )
+            trt_compile(model,
+                        f"{tmpdir}/test_trt_compile",
+                        args={"precision": precision,
+                              "build_args": args,
+                              "dynamic_batchsize": [1, 4, 8]
+                              }
+                        )
             self.assertIsNone(model._trt_wrapper.engine)
             trt_output = model(input_example)
             # Check that lazy TRT build succeeded

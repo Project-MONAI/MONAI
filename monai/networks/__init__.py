@@ -34,4 +34,4 @@ from .utils import (
     train_mode,
 )
 
-from .trt_wrapper import trt_wrap
+from .trt_compile import trt_compile

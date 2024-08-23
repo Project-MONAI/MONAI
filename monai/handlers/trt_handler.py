@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
-from monai.networks import trt_wrap
+from monai.networks import trt_compile
 from monai.utils import min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -34,10 +34,8 @@ class TrtHandler:
 
     Args:
         path: the file path of checkpoint, it should be a PyTorch `pth` file.
-        args: dict : unpacked and passed to TrtWrapper().
-        submodules : Hierarchical ids of submodules to convert, e.g. 'image_decoder.decoder'
-                    If None, TrtWrapper is applied to the whole model and returned.
-                    Otherwise, submodules are replaced in-place with TrtWrappers.
+        args: passed to trt_compile().
+        submodule : Hierarchical ids of submodules to convert, e.g. 'image_decoder.decoder'
     """
 
     def __init__(
@@ -45,14 +43,14 @@ class TrtHandler:
         model,
         path,
         args=None,
-        submodules=None,
+        submodule=None,
         enabled=True
     ):
         self.model = model
         self.path = path
         self.args = args
         self.enabled = enabled
-        self.submodules = submodules or [""]
+        self.submodule = submodule
 
     def attach(self, engine: Engine) -> None:
         """
@@ -68,6 +66,4 @@ class TrtHandler:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         if self.enabled:
-            for submodule in self.submodules:
-                trt_wrap(self.model, self.path, args=self.args, submodule=submodule, logger=self.logger)
-                self.logger.info(f"Created TRT wrapper for {self.path}.{submodule}")
+            trt_compile(self.model, self.path, args=self.args, submodule=self.submodule, logger=self.logger)
