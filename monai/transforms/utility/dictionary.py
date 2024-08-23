@@ -36,11 +36,11 @@ from monai.transforms.transform import MapTransform, Randomizable, RandomizableT
 from monai.transforms.utility.array import (
     AddCoordinateChannels,
     AddExtremePointsChannel,
+    ApplyTransformToPoints,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
-    ApplyTransformToPoints,
     CuCIM,
     DataStats,
     EnsureChannelFirst,
@@ -1780,7 +1780,9 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         self.affine = affine
         if self.refer_key is None and self.affine is None:
             warnings.warn("No reference data or affine matrix is provided, will use the affine derived from the data.")
-        self.converter = ApplyTransformToPoints(dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
+        self.converter = ApplyTransformToPoints(
+            dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
+        )
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]):
         d = dict(data)

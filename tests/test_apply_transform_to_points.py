@@ -12,11 +12,13 @@
 from __future__ import annotations
 
 import unittest
+
 import torch
 from parameterized import parameterized
+
 from monai.data import MetaTensor
-from monai.utils import set_determinism
 from monai.transforms.utility.array import ApplyTransformToPoints
+from monai.utils import set_determinism
 
 set_determinism(seed=0)
 
@@ -26,8 +28,8 @@ POINT_2D_WORLD = torch.tensor([[[2, 2], [2, 4], [4, 6]]])
 POINT_2D_IMAGE = torch.tensor([[[1, 1], [1, 2], [2, 3]]])
 POINT_2D_IMAGE_RAS = torch.tensor([[[-1, -1], [-1, -2], [-2, -3]]])
 POINT_3D_WORLD = torch.tensor([[[2, 4, 6], [8, 10, 12]], [[14, 16, 18], [20, 22, 24]]])
-POINT_3D_IMAGE = torch.tensor([[[-8,  8,  6], [-2, 14, 12]], [[4, 20, 18], [10, 26, 24]]])
-POINT_3D_IMAGE_RAS = torch.tensor([[[-12,  0,  6], [-18, -6, 12]], [[-24, -12, 18], [-30, -18, 24]]])
+POINT_3D_IMAGE = torch.tensor([[[-8, 8, 6], [-2, 14, 12]], [[4, 20, 18], [10, 26, 24]]])
+POINT_3D_IMAGE_RAS = torch.tensor([[[-12, 0, 6], [-18, -6, 12]], [[-24, -12, 18], [-30, -18, 24]]])
 
 TEST_CASES = [
     [
@@ -89,33 +91,19 @@ TEST_CASES = [
 ]
 
 TEST_CASES_WRONG = [
-    [
-        POINT_2D_WORLD,
-        True,
-        None,
-    ],
-    [
-        POINT_2D_WORLD.unsqueeze(0),
-        False,
-        None,
-    ],
-    [
-        POINT_3D_WORLD[..., 0:1],
-        False,
-        None,
-    ],
-    [
-        POINT_3D_WORLD,
-        False,
-        torch.tensor([[[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]]])
-    ],
+    [POINT_2D_WORLD, True, None],
+    [POINT_2D_WORLD.unsqueeze(0), False, None],
+    [POINT_3D_WORLD[..., 0:1], False, None],
+    [POINT_3D_WORLD, False, torch.tensor([[[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]]])],
 ]
 
 
 class TestCoordinateTransform(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_transform_coordinates(self, image, points, affine, invert_affine, affine_lps_to_ras, expected_output):
-        transform = ApplyTransformToPoints(dtype=torch.int64, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
+        transform = ApplyTransformToPoints(
+            dtype=torch.int64, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
+        )
         affine = image.affine if image is not None else None
         output = transform(points, affine)
         self.assertTrue(torch.allclose(output, expected_output))

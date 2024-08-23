@@ -1830,7 +1830,9 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         invert_affine = not transform[TraceKeys.EXTRA_INFO]["invert_affine"]
         affine = transform[TraceKeys.EXTRA_INFO]["image_affine"]
         affine_lps_to_ras = transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
-        inverse_transform = ApplyTransformToPoints(dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
+        inverse_transform = ApplyTransformToPoints(
+            dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
+        )
         # Apply inverse
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data, affine)
