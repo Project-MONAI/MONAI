@@ -663,8 +663,10 @@ def convert_to_onnx(
                 del kwargs["example_outputs"]
             mode_to_export = torch.jit.script(model, **kwargs)
 
-        if not isinstance(inputs, tuple):
-            inputs = (inputs,)
+        if torch.is_tensor(inputs) or isinstance(inputs, dict):
+            onnx_inputs = (inputs,)
+        else:
+            onnx_inputs = tuple(inputs)
 
         if filename is None:
             f = io.BytesIO()
@@ -673,7 +675,7 @@ def convert_to_onnx(
 
         torch.onnx.export(
             mode_to_export,
-            inputs,
+            onnx_inputs,
             f=f,
             input_names=input_names,
             output_names=output_names,

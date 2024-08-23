@@ -367,7 +367,7 @@ class TrtWrappper:
                 self.logger.info(f"Exception: {e}\nFalling back to Pytorch ...")
             else:
                 raise e
-        return self.old_forward(model, *argv, **kwargs)
+        return self.old_forward(*argv, **kwargs)
 
     def _onnx_to_trt(self, onnx_path):
         """
