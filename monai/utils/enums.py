@@ -771,8 +771,3 @@ class OrderingTransformations(StrEnum):
     ROTATE_90 = "rotate_90"
     TRANSPOSE = "transpose"
     REFLECT = "reflect"
-
-
-class CoordinateTransformMode(StrEnum):
-    IMAGE_TO_WORLD = "image_to_world"
-    WORLD_TO_IMAGE = "world_to_image"

@@ -64,7 +64,7 @@ from monai.utils import (
     min_version,
     optional_import,
 )
-from monai.utils.enums import CoordinateTransformMode, TransformBackends
+from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_to_dst_type, get_dtype_string, get_equivalent_dtype
 
@@ -1717,28 +1717,35 @@ class RandImageFilter(RandomizableTransform):
         return img
 
 
-class CoordinateTransform(InvertibleTransform, Transform):
+class ApplyTransformToPoints(InvertibleTransform, Transform):
     """
     Transform points between image coordinates and world coordinates.
 
     Args:
         dtype: The desired data type for the output.
-        mode: Specifies the direction of transformation. This should be an instance of
-            :py:class:`CoordinateTransformMode` enum, with either 'IMAGE_TO_WORLD' or 'WORLD_TO_IMAGE' as the value.
-        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if: 1) The image is read by ITKReader,
-            and 2) The ITKReader has `affine_lps_to_ras=True`, and 3) The data is in world coordinates.
-            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS
-            (right-anterior-superior) coordinate systems is correctly applied.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. Typically, this matrix originates from the image.
+        invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
+            Typically, the affine matrix is derived from the image, while the points are in world coordinates.
+            If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
+        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true: 
+            1) The image is read by `ITKReader`, 
+            2) The `ITKReader` has `affine_lps_to_ras=True`, 
+            3) The data is in world coordinates.
+            This ensures the correct application of the affine transformation between LPS (left-posterior-superior) 
+            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine 
+            matrix are in the same coordinate system.
     """
 
     def __init__(
         self,
         dtype: DtypeLike | torch.dtype = torch.float64,
-        mode=CoordinateTransformMode.IMAGE_TO_WORLD,
+        affine: torch.Tensor | None = None,
+        invert_affine: bool = True,
         affine_lps_to_ras: bool = False,
     ) -> None:
         self.dtype = dtype
-        self.mode = mode
+        self.affine = affine
+        self.invert_affine = invert_affine
         self.affine_lps_to_ras = affine_lps_to_ras
 
     @staticmethod
@@ -1767,6 +1774,9 @@ class CoordinateTransform(InvertibleTransform, Transform):
         data = convert_to_tensor(data, track_meta=get_track_meta())
         applied_affine = data.affine if isinstance(data, MetaTensor) else None
 
+        if affine is None and self.invert_affine:
+            raise ValueError("affine must be provided when invert_affine is True.")
+
         affine = applied_affine if affine is None else affine
         original_affine = affine
         if self.affine_lps_to_ras:
@@ -1774,7 +1784,7 @@ class CoordinateTransform(InvertibleTransform, Transform):
 
         affine_inv = linalg_inv(affine)
 
-        if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE:
+        if self.invert_affine:
             _affine = affine_inv
             # consider the affine transformation already applied to the data in the world space
             if applied_affine is not None:
@@ -1784,12 +1794,12 @@ class CoordinateTransform(InvertibleTransform, Transform):
         out = self.apply_affine_to_points(data, _affine, self.dtype)
 
         extra_info = {
-            "mode": self.mode,
+            "invert_affine": self.invert_affine,
             "dtype": get_dtype_string(self.dtype),
             "image_affine": original_affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
-        xform = original_affine if self.mode == CoordinateTransformMode.WORLD_TO_IMAGE else linalg_inv(original_affine)
+        xform = original_affine if self.invert_affine else linalg_inv(original_affine)
         meta_info = TraceableTransform.track_transform_meta(
             data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
         )
@@ -1800,10 +1810,11 @@ class CoordinateTransform(InvertibleTransform, Transform):
         """
         Args:
             data: The input coordinates, assume to be in shape (C, N, 2 or 3).
-            affine: A 3x3 or 4x4 affine transformation matrix.
+            affine: A 3x3 or 4x4 affine transformation matrix, this argument will take precedence over ``self.affine``. 
         """
         if data.ndim != 3 or data.shape[-1] not in (2, 3):
             raise ValueError(f"data should be in shape (C, N, 2 or 3), got {data.shape}.")
+        affine = self.affine if affine is None else affine
         if affine is not None and (affine.ndim not in (2, 3) or affine.shape[-2:] not in ((3, 3), (4, 4))):
             raise ValueError(f"affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
 
@@ -1815,15 +1826,10 @@ class CoordinateTransform(InvertibleTransform, Transform):
         transform = self.pop_transform(data)
         # Create inverse transform
         dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
-        mode_ = transform[TraceKeys.EXTRA_INFO]["mode"]
+        invert_affine = not transform[TraceKeys.EXTRA_INFO]["invert_affine"]
         affine = transform[TraceKeys.EXTRA_INFO]["image_affine"]
         affine_lps_to_ras = transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
-        mode = (
-            CoordinateTransformMode.WORLD_TO_IMAGE
-            if mode_ == CoordinateTransformMode.IMAGE_TO_WORLD
-            else CoordinateTransformMode.IMAGE_TO_WORLD
-        )
-        inverse_transform = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
+        inverse_transform = ApplyTransformToPoints(dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
         # Apply inverse
         with inverse_transform.trace_transform(False):
             data = inverse_transform(data, affine)

@@ -40,7 +40,7 @@ from monai.transforms.utility.array import (
     CastToType,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
-    CoordinateTransform,
+    ApplyTransformToPoints,
     CuCIM,
     DataStats,
     EnsureChannelFirst,
@@ -68,7 +68,7 @@ from monai.transforms.utility.array import (
 from monai.transforms.utils import extreme_points_to_image, get_extreme_points
 from monai.transforms.utils_pytorch_numpy_unification import concatenate
 from monai.utils import ensure_tuple, ensure_tuple_rep
-from monai.utils.enums import CoordinateTransformMode, PostFix, TraceKeys, TransformBackends
+from monai.utils.enums import PostFix, TraceKeys, TransformBackends
 from monai.utils.type_conversion import convert_to_dst_type
 
 __all__ = [
@@ -1742,42 +1742,53 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
         return d
 
 
-class CoordinateTransformd(MapTransform, InvertibleTransform):
+class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     """
-    Dictionary-based wrapper of :py:class:`monai.transforms.CoordinateTransform`.
+    Dictionary-based wrapper of :py:class:`monai.transforms.ApplyTransformToPoints`.
 
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
         refer_key: the key of the reference item used for transformation.
         dtype: The desired data type for the output.
-        mode: Specifies the direction of transformation. This should be an instance of
-            :py:class:`CoordinateTransformMode` enum, with either 'IMAGE_TO_WORLD' or 'WORLD_TO_IMAGE' as the value.
-        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if: 1) The image is read by ITKReader,
-            and 2) The ITKReader has `affine_lps_to_ras=True`, and 3) The data is in world coordinates.
-            This ensures that the affine transformation between LPS (left-posterior-superior) and RAS
-            (right-anterior-superior) coordinate systems is correctly applied.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. Typically, this matrix originates from the image.
+        invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
+            Typically, the affine matrix is derived from the image, while the points are in world coordinates.
+            If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
+        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true: 
+            1) The image is read by `ITKReader`, 
+            2) The `ITKReader` has `affine_lps_to_ras=True`, 
+            3) The data is in world coordinates.
+            This ensures the correct application of the affine transformation between LPS (left-posterior-superior) 
+            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine 
+            matrix are in the same coordinate system.
         allow_missing_keys: Don't raise exception if key is missing.
     """
 
     def __init__(
         self,
         keys: KeysCollection,
-        refer_key: str,
+        refer_key: str | None = None,
         dtype: DtypeLike | torch.dtype = torch.float64,
-        mode: str = CoordinateTransformMode.IMAGE_TO_WORLD,
+        affine: torch.Tensor | None = None,
+        invert_affine: bool = True,
         affine_lps_to_ras: bool = False,
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.refer_key = refer_key
-        self.converter = CoordinateTransform(dtype=dtype, mode=mode, affine_lps_to_ras=affine_lps_to_ras)
+        self.affine = affine
+        if self.refer_key is None and self.affine is None:
+            warnings.warn("No reference data or affine matrix is provided, the transformation will be identity.")
+        self.converter = ApplyTransformToPoints(dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]):
         d = dict(data)
-        refer_data = d[self.refer_key]
+        refer_data = d[self.refer_key] if self.refer_key is not None else None
         if isinstance(refer_data, MetaTensor):
             affine = refer_data.affine
+        elif self.affine is not None:
+            affine = self.affine
         else:
             affine = MetaTensor.get_default_affine()
             warnings.warn("No affine found in the reference data, use default affine.")
