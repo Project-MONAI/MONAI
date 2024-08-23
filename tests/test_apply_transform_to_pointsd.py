@@ -16,7 +16,7 @@ import torch
 from parameterized import parameterized
 from monai.data import MetaTensor
 from monai.utils import set_determinism
-from monai.transforms.utility.array import ApplyTransformToPoints
+from monai.transforms.utility.dictionary import ApplyTransformToPointsd
 
 set_determinism(seed=0)
 
@@ -115,18 +115,20 @@ TEST_CASES_WRONG = [
 class TestCoordinateTransform(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_transform_coordinates(self, image, points, affine, invert_affine, affine_lps_to_ras, expected_output):
-        transform = ApplyTransformToPoints(dtype=torch.int64, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
-        affine = image.affine if image is not None else None
-        output = transform(points, affine)
-        self.assertTrue(torch.allclose(output, expected_output))
+        data = {"image": image, "point": points}
+        refer_key = "image" if image is not None else image
+        transform = ApplyTransformToPointsd(keys="point", refer_key=refer_key, dtype=torch.int64, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
+        output = transform(data)
+
+        self.assertTrue(torch.allclose(output["point"], expected_output))
         invert_out = transform.inverse(output)
-        self.assertTrue(torch.allclose(invert_out, points))
+        self.assertTrue(torch.allclose(invert_out["point"], points))
 
     @parameterized.expand(TEST_CASES_WRONG)
     def test_wrong_input(self, input, invert_affine, affine):
-        transform = ApplyTransformToPoints(dtype=torch.int64, invert_affine=invert_affine)
+        transform = ApplyTransformToPointsd(keys="point", dtype=torch.int64, invert_affine=invert_affine, affine=affine)
         with self.assertRaises(ValueError):
-            transform(input, affine)
+            transform({"point": input})
 
 
 if __name__ == "__main__":

@@ -1778,6 +1778,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             raise ValueError("affine must be provided when invert_affine is True.")
 
         affine = applied_affine if affine is None else affine
+        affine = convert_data_type(affine, dtype=torch.float64)[0]  # always convert to float64 for affine
         original_affine = affine
         if self.affine_lps_to_ras:
             affine = orientation_ras_lps(affine)
@@ -1815,7 +1816,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         if data.ndim != 3 or data.shape[-1] not in (2, 3):
             raise ValueError(f"data should be in shape (C, N, 2 or 3), got {data.shape}.")
         affine = self.affine if affine is None else affine
-        if affine is not None and (affine.ndim not in (2, 3) or affine.shape[-2:] not in ((3, 3), (4, 4))):
+        if affine is not None and affine.shape not in ((3, 3), (4, 4)):
             raise ValueError(f"affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
 
         out, meta_info = self.transform_coordinates(data, affine)

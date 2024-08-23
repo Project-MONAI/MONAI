@@ -1779,7 +1779,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         self.refer_key = refer_key
         self.affine = affine
         if self.refer_key is None and self.affine is None:
-            warnings.warn("No reference data or affine matrix is provided, the transformation will be identity.")
+            warnings.warn("No reference data or affine matrix is provided, will use the affine derived from the data.")
         self.converter = ApplyTransformToPoints(dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras)
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]):
@@ -1787,11 +1787,9 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         refer_data = d[self.refer_key] if self.refer_key is not None else None
         if isinstance(refer_data, MetaTensor):
             affine = refer_data.affine
-        elif self.affine is not None:
-            affine = self.affine
         else:
-            affine = MetaTensor.get_default_affine()
-            warnings.warn("No affine found in the reference data, use default affine.")
+            warnings.warn("No reference affine find in the refer key, will use the affine derived from the data.")
+            affine = self.affine
         for key in self.key_iterator(d):
             coords = d[key]
             d[key] = self.converter(coords, affine)
