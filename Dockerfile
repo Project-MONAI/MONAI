@@ -11,8 +11,7 @@
 
 # To build with a different base image
 # please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
-# ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:24.03-py3
-ARG PYTORCH_IMAGE=gitlab-master.nvidia.com:5005/dl/dgx/pytorch:24.08-py3-stage
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:24.07-py3
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
