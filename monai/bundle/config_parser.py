@@ -424,7 +424,20 @@ class ConfigParser:
             files = files.split(",")
         for i in ensure_tuple(files):
             for k, v in (cls.load_config_file(i, **kwargs)).items():
-                parser[k] = v
+                if k.startswith("+"):
+                    id = k[1:]
+                    if id in parser and v is not None:
+                        if isinstance(v, dict) and isinstance(parser[id], dict):
+                            parser[id].update(v)
+                        elif isinstance(v, list) and isinstance(parser[id], list):
+                            parser[id].extend(v)
+                        else:
+                            raise ValueError(
+                                ValueError(f"config must be dict or list for key `{k}`, but got {type(v)}: {v}.")
+                            )
+                else:
+                    parser[k] = v
+
         return parser.get()  # type: ignore
 
     @classmethod

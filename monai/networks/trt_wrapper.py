@@ -18,7 +18,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 from types import MethodType
-from typing import Union, List, Dict, Any
+from typing import Any, Dict, List, Union
 
 import torch
 
@@ -267,7 +267,7 @@ class TrtWrappper:
         self.plan_path = plan_path
         self.precision = precision
         self.method = method
-        self.return_dict = (output_names is not None)
+        self.return_dict = output_names is not None
         self.output_names = output_names or []
         self.profiles = input_profiles or []
         self.dynamic_batchsize = dynamic_batchsize
@@ -452,7 +452,9 @@ class TrtWrappper:
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 onnx_path = Path(tmpdir) / "model.onnx"
-                self.logger.info(f"Exporting to {onnx_path}:\n\toutput_names={self.output_names}\n\texport args: {export_args}")
+                self.logger.info(
+                    f"Exporting to {onnx_path}:\n\toutput_names={self.output_names}\n\texport args: {export_args}"
+                )
                 convert_to_onnx(
                     model,
                     input_example,
@@ -477,11 +479,12 @@ def trt_forward(self, *argv, **kwargs):
 
 
 def trt_compile(
-        model: torch.nn.Module,
-        base_path: str,
-        args: Dict[str, Any] | None = None,
-        submodule: Union[str, List[str]] | None = None,
-        logger: Any | None = None) -> torch.nn.Module:
+    model: torch.nn.Module,
+    base_path: str,
+    args: Dict[str, Any] | None = None,
+    submodule: Union[str, List[str]] | None = None,
+    logger: Any | None = None,
+) -> torch.nn.Module:
     """
     Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
     Args:
@@ -534,8 +537,8 @@ def trt_compile(
             if isinstance(submodule, str):
                 submodule = [submodule]
             for s in submodule:
-                parent, submodule = find_sub(model, s)
-                wrap(getattr(parent, s), base_path + "." + s)
+                parent, sub = find_sub(model, s)
+                wrap(getattr(parent, sub), base_path + "." + s)
         else:
             wrap(model, base_path)
     return model
