@@ -31,7 +31,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps, to_affine_nd
+from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
     EllipticalFilter,
@@ -50,6 +50,7 @@ from monai.transforms.utils import (
     get_extreme_points,
     map_binary_to_indices,
     map_classes_to_indices,
+    apply_affine_to_points,
 )
 from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, linalg_inv, moveaxis, unravel_indices
 from monai.utils import (
@@ -1748,18 +1749,6 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         self.invert_affine = invert_affine
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    @staticmethod
-    def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: DtypeLike | torch.dtype):
-        data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
-        affine = to_affine_nd(data_.shape[-1], affine)
-
-        homogeneous = concatenate((data_, torch.ones((data_.shape[0], data_.shape[1], 1))), axis=2)
-        transformed_homogeneous = torch.matmul(homogeneous, affine.T)
-        transformed_coordinates = transformed_homogeneous[:, :, :-1]
-        out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
-
-        return out
-
     def transform_coordinates(self, data: torch.Tensor, affine: torch.Tensor | None = None):
         """
         Transform coordinates using an affine transformation matrix.
@@ -1783,16 +1772,13 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         if self.affine_lps_to_ras:
             affine = orientation_ras_lps(affine)
 
-        affine_inv = linalg_inv(affine)
-
+        _affine = affine
         if self.invert_affine:
-            _affine = affine_inv
+            _affine = linalg_inv(affine)
             # consider the affine transformation already applied to the data in the world space
             if applied_affine is not None:
                 _affine = _affine @ linalg_inv(applied_affine)
-        else:
-            _affine = affine
-        out = self.apply_affine_to_points(data, _affine, self.dtype)
+        out = apply_affine_to_points(data, _affine, self.dtype)
 
         extra_info = {
             "invert_affine": self.invert_affine,
