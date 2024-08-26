@@ -267,6 +267,7 @@ class TrtWrappper:
         self.plan_path = plan_path
         self.precision = precision
         self.method = method
+        self.return_dict = (output_names is not None)
         self.output_names = output_names or []
         self.profiles = input_profiles or []
         self.dynamic_batchsize = dynamic_batchsize
@@ -357,11 +358,10 @@ class TrtWrappper:
                     stream.wait_stream(torch.cuda.current_stream())
                     ret = self.engine.infer(stream.cuda_stream, use_cuda_graph=self.use_cuda_graph)
                     # if output_names is not None, return dictionary
-                    if self.output_names is None:
+                    if not self.return_dict:
                         ret = list(ret.values())
                         if len(ret) == 1:
                             ret = ret[0]
-
                     return ret
         except Exception as e:
             if model is not None:
