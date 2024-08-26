@@ -1754,8 +1754,8 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         affine = to_affine_nd(data_.shape[-1], affine)
 
         homogeneous = concatenate((data_, torch.ones((data_.shape[0], data_.shape[1], 1))), axis=2)
-        transformed_homogeneous = torch.matmul(affine, homogeneous.transpose(1, 2))
-        transformed_coordinates = transformed_homogeneous[:, :-1, :].transpose(1, 2)
+        transformed_homogeneous = torch.matmul(homogeneous, affine.T)
+        transformed_coordinates = transformed_homogeneous[:, :, :-1]
         out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
 
         return out
