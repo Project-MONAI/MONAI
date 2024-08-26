@@ -210,6 +210,7 @@ def run_testsuit():
         "test_perceptual_loss",
         "test_ultrasound_confidence_map_transform",
         "test_vista3d_utils",
+        "test_vista3d_transforms",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
