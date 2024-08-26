@@ -65,6 +65,7 @@ class CumulativeAverage:
         if self.val is None:
             return 0
 
+        val: NdarrayOrTensor
         val = self.val.clone()
         val[~torch.isfinite(val)] = 0
 
@@ -96,6 +97,7 @@ class CumulativeAverage:
             dist.all_reduce(sum)
             dist.all_reduce(count)
 
+        val: NdarrayOrTensor
         val = torch.where(count > 0, sum / count, sum)
 
         if to_numpy:

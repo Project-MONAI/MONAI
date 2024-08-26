@@ -23,7 +23,7 @@ TEST_CASE_Vitautoenc = []
 for in_channels in [1, 4]:
     for img_size in [64, 96, 128]:
         for patch_size in [16]:
-            for pos_embed in ["conv", "perceptron"]:
+            for proj_type in ["conv", "perceptron"]:
                 for nd in [2, 3]:
                     test_case = [
                         {
@@ -34,7 +34,7 @@ for in_channels in [1, 4]:
                             "mlp_dim": 3072,
                             "num_layers": 4,
                             "num_heads": 12,
-                            "pos_embed": pos_embed,
+                            "proj_type": proj_type,
                             "dropout_rate": 0.6,
                             "spatial_dims": nd,
                         },
@@ -54,7 +54,7 @@ TEST_CASE_Vitautoenc.append(
             "mlp_dim": 3072,
             "num_layers": 4,
             "num_heads": 12,
-            "pos_embed": "conv",
+            "proj_type": "conv",
             "dropout_rate": 0.6,
             "spatial_dims": 3,
         },
@@ -93,7 +93,7 @@ class TestVitAutoenc(unittest.TestCase):
         ]
     )
     def test_ill_arg(
-        self, in_channels, img_size, patch_size, hidden_size, mlp_dim, num_layers, num_heads, pos_embed, dropout_rate
+        self, in_channels, img_size, patch_size, hidden_size, mlp_dim, num_layers, num_heads, proj_type, dropout_rate
     ):
         with self.assertRaises(ValueError):
             ViTAutoEnc(
@@ -104,7 +104,7 @@ class TestVitAutoenc(unittest.TestCase):
                 mlp_dim=mlp_dim,
                 num_layers=num_layers,
                 num_heads=num_heads,
-                pos_embed=pos_embed,
+                proj_type=proj_type,
                 dropout_rate=dropout_rate,
             )
 

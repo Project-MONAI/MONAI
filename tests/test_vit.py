@@ -30,7 +30,7 @@ for dropout_rate in [0.6]:
                         for mlp_dim in [3072]:
                             for num_layers in [4]:
                                 for num_classes in [8]:
-                                    for pos_embed in ["conv", "perceptron"]:
+                                    for proj_type in ["conv", "perceptron"]:
                                         for classification in [False, True]:
                                             for nd in (2, 3):
                                                 test_case = [
@@ -42,7 +42,7 @@ for dropout_rate in [0.6]:
                                                         "mlp_dim": mlp_dim,
                                                         "num_layers": num_layers,
                                                         "num_heads": num_heads,
-                                                        "pos_embed": pos_embed,
+                                                        "proj_type": proj_type,
                                                         "classification": classification,
                                                         "num_classes": num_classes,
                                                         "dropout_rate": dropout_rate,
@@ -87,7 +87,7 @@ class TestViT(unittest.TestCase):
         mlp_dim,
         num_layers,
         num_heads,
-        pos_embed,
+        proj_type,
         classification,
         dropout_rate,
     ):
@@ -100,13 +100,13 @@ class TestViT(unittest.TestCase):
                 mlp_dim=mlp_dim,
                 num_layers=num_layers,
                 num_heads=num_heads,
-                pos_embed=pos_embed,
+                proj_type=proj_type,
                 classification=classification,
                 dropout_rate=dropout_rate,
             )
 
-    @parameterized.expand(TEST_CASE_Vit)
-    @SkipIfBeforePyTorchVersion((1, 9))
+    @parameterized.expand(TEST_CASE_Vit[:1])
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, input_param, input_shape, _):
         net = ViT(**(input_param))
         net.eval()

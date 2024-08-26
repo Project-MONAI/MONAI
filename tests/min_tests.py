@@ -154,6 +154,7 @@ def run_testsuit():
         "test_plot_2d_or_3d_image",
         "test_png_rw",
         "test_prepare_batch_default",
+        "test_prepare_batch_diffusion",
         "test_prepare_batch_extra_input",
         "test_prepare_batch_hovernet",
         "test_rand_grid_patch",
@@ -208,6 +209,8 @@ def run_testsuit():
         "test_zarr_avg_merger",
         "test_perceptual_loss",
         "test_ultrasound_confidence_map_transform",
+        "test_vista3d_utils",
+        "test_vista3d_transforms",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
