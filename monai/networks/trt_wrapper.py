@@ -251,8 +251,8 @@ class TrtWrappper:
             plan_path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
             method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
-            input_names: Optional list of input names to use for export.
-            output_names: Optional list of output names to use for export.
+            input_names: Optional list of input names. If None, will be read from the function signature.
+            output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
             build_args: Optional args to pass to TRT builder. See polygraphy.Config for details.
             input_profiles: Optional list of profiles for TRT builder and ONNX export.
@@ -356,10 +356,12 @@ class TrtWrappper:
                     # Need this to synchronize with Torch stream
                     stream.wait_stream(torch.cuda.current_stream())
                     ret = self.engine.infer(stream.cuda_stream, use_cuda_graph=self.use_cuda_graph)
-                    ret = list(ret.values())
+                    # if output_names is not None, return dictionary
+                    if self.output_names is None:
+                        ret = list(ret.values())
+                        if len(ret) == 1:
+                            ret = ret[0]
 
-                    if len(ret) == 1:
-                        ret = ret[0]
                     return ret
         except Exception as e:
             if model is not None:
@@ -422,6 +424,7 @@ class TrtWrappper:
             export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
 
         add_casts_around_norms(model)
+
         if self.method == "torch_trt":
             enabled_precisions = [torch.float32]
             if self.precision == "fp16":
@@ -449,7 +452,7 @@ class TrtWrappper:
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 onnx_path = Path(tmpdir) / "model.onnx"
-                self.logger.info(f"Exporting to {onnx_path}, export args: {export_args}")
+                self.logger.info(f"Exporting to {onnx_path}:\n\toutput_names={self.output_names}\n\texport args: {export_args}")
                 convert_to_onnx(
                     model,
                     input_example,
@@ -486,7 +489,7 @@ def trt_compile(
       base_path: TRT plan(s) saved to "base_path[.submodule].plan" path.
                  If base_path points to existing file (e.g. associated checkpoint),
                  that file also becomes dependency - its mtime is added to args["timestamp"].
-      args: dict : unpacked and passed to TrtWrappper().
+      args: dict : unpacked and passed to TrtWrappper() - see TrtWrapper above for details.
       submodule : Hierarchical id(s) of submodule to patch, e.g. ['image_decoder.decoder']
                   If None, TrtWrappper patch is applied to the whole model.
                   Otherwise, submodule (or list of) is being patched.
