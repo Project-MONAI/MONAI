@@ -36,6 +36,7 @@ from monai.transforms.utils_morphological_ops import erode
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
     ascontiguousarray,
+    concatenate,
     cumsum,
     isfinite,
     nonzero,
@@ -45,7 +46,6 @@ from monai.transforms.utils_pytorch_numpy_unification import (
     unique,
     unravel_index,
     where,
-    concatenate
 )
 from monai.utils import (
     GridSampleMode,

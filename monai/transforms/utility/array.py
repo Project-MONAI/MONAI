@@ -46,11 +46,11 @@ from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
+    apply_affine_to_points,
     extreme_points_to_image,
     get_extreme_points,
     map_binary_to_indices,
     map_classes_to_indices,
-    apply_affine_to_points,
 )
 from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, linalg_inv, moveaxis, unravel_indices
 from monai.utils import (
