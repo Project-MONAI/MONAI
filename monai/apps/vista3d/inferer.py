@@ -72,6 +72,8 @@ def point_based_window_inferer(
     """
     if not point_coords.shape[0] == 1:
         raise ValueError("Only supports single object point click.")
+    if not len(inputs.shape) == 5:
+        raise ValueError("Input image should be 5D.")
     image, pad = _pad_previous_mask(copy.deepcopy(inputs), roi_size)
     point_coords = point_coords + torch.tensor([pad[-2], pad[-4], pad[-6]]).to(point_coords.device)
     prev_mask = _pad_previous_mask(copy.deepcopy(prev_mask), roi_size)[0] if prev_mask is not None else None
