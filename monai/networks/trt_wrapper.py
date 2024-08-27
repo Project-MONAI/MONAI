@@ -486,7 +486,7 @@ def trt_compile(
     logger: Any | None = None,
 ) -> torch.nn.Module:
     """
-    Instruments model or submodule with TrtWrappper and reppaces forward() with a hook.
+    Instruments model or submodule with TrtWrappper and replaces its forward() with TRT hook.
     Args:
       model: module to patch with TrtWrappper().
       base_path: TRT plan(s) saved to "base_path[.submodule].plan" path.

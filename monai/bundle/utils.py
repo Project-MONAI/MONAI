@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 import zipfile
 from typing import Any
 
@@ -35,7 +36,7 @@ ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "::"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
-MERGE_KEY = "+"  # start of a macro of a config
+MERGE_KEY = "+"  # prefix indicating merge instead of override in case of multiple configs.
 
 _conf_values = get_config_values()
 
@@ -249,8 +250,12 @@ def merge_kv(args: dict | Any, k: str, v: Any) -> None:
     Update the `args` dict-like object with the key/value pair `k` and `v`.
     """
     if k.startswith(MERGE_KEY):
+        """
+        Both values associated with `+`-prefixed key pair must be of `dict` or `list` type.
+        `dict` values will be merged, `list` values - concatenated.
+        """
         id = k[1:]
-        if id in args and v is not None:
+        if id in args:
             if isinstance(v, dict) and isinstance(args[id], dict):
                 args[id].update(v)
             elif isinstance(v, list) and isinstance(args[id], list):
@@ -258,6 +263,7 @@ def merge_kv(args: dict | Any, k: str, v: Any) -> None:
             else:
                 raise ValueError(ValueError(f"config must be dict or list for key `{k}`, but got {type(v)}: {v}."))
         else:
+            warnings.warn(f"Can't merge entry ['{k}'], '{id}' is not in target dict - copying instead.")
             args[id] = v
     else:
         args[k] = v
