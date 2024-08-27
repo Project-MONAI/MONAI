@@ -1726,8 +1726,8 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         dtype: The desired data type for the output.
         affine: A 3x3 or 4x4 affine transformation matrix applied to points. Typically, this matrix originates from the image.
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
-            Typically, the affine matrix is derived from the image, while the points are in world coordinates.
-            If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
+            Typically, the affine matrix is derived from an image and represents its location in world space, while the points are in world coordinates.
+            A value of ``True`` represents transforming these world space coordinates to the image's coordinate space, and ``False`` the inverse of this operation.
         affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true:
             1) The image is read by `ITKReader`,
             2) The `ITKReader` has `affine_lps_to_ras=True`,
