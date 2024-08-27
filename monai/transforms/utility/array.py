@@ -1757,7 +1757,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         self.invert_affine = invert_affine
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def transform_coordinates(self, data: torch.Tensor, affine: torch.Tensor | None = None):
+    def transform_coordinates(self, data: torch.Tensor, affine: torch.Tensor | None = None) -> tuple[torch.Tensor, dict]:
         """
         Transform coordinates using an affine transformation matrix.
 
@@ -1778,11 +1778,11 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
 
         affine = applied_affine if affine is None else affine
         affine = convert_data_type(affine, dtype=torch.float64)[0]  # always convert to float64 for affine
-        original_affine = affine
+        original_affine: torch.Tensor = affine
         if self.affine_lps_to_ras:
             affine = orientation_ras_lps(affine)
 
-        _affine = affine
+        _affine: torch.Tensor = affine
         if self.invert_affine:
             _affine = linalg_inv(affine)
             # consider the affine transformation already applied to the data in the world space
@@ -1796,14 +1796,14 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             "image_affine": original_affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
-        xform = original_affine if self.invert_affine else linalg_inv(original_affine)
+        xform: torch.Tensor = original_affine if self.invert_affine else linalg_inv(original_affine)
         meta_info = TraceableTransform.track_transform_meta(
             data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
         )
 
         return out, meta_info
 
-    def __call__(self, data: torch.Tensor, affine: torch.Tensor | None = None) -> torch.Tensor:
+    def __call__(self, data: torch.Tensor, affine: torch.Tensor | None = None):
         """
         Args:
             data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),

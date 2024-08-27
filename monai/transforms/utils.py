@@ -2523,7 +2523,7 @@ def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: Dtyp
     data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
     affine = to_affine_nd(data_.shape[-1], affine)
 
-    homogeneous = concatenate((data_, torch.ones((data_.shape[0], data_.shape[1], 1))), axis=2)
+    homogeneous: torch.Tensor = concatenate((data_, torch.ones((data_.shape[0], data_.shape[1], 1))), axis=2)  # type: ignore
     transformed_homogeneous = torch.matmul(homogeneous, affine.T)
     transformed_coordinates = transformed_homogeneous[:, :, :-1]
     out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
