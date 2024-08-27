@@ -17,15 +17,14 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
-from collections.abc import Hashable, Mapping, Sequence
+from collections.abc import Hashable, Mapping
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
-from filelock import FileLock
 
 import monai
-from monai.config import DtypeLike, KeysCollection, NdarrayOrTensor, PathLike
+from monai.config import DtypeLike, KeysCollection, NdarrayOrTensor
 from monai.data import image_writer
 from monai.data.image_reader import ImageReader
 from monai.transforms.io.array import LoadImage, SaveImage, WriteFileMapping

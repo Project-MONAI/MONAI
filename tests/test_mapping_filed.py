@@ -97,7 +97,7 @@ class TestWriteFileMappingd(unittest.TestCase):
 
             self.assertTrue(os.path.exists(self.mapping_file_path))
 
-            with open(self.mapping_file_path, "r") as f:
+            with open(self.mapping_file_path) as f:
                 mapping_data = json.load(f)
 
             self.assertEqual(len(mapping_data), len(write_keys))
