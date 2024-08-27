@@ -247,6 +247,8 @@ from .io.dictionary import (
     SaveImageD,
     SaveImageDict,
     WriteFileMappingd,
+    WriteFileMappingD,
+    WriteFileMappingDict,
 )
 from .lazy.array import ApplyPending
 from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
