@@ -1757,7 +1757,9 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         self.invert_affine = invert_affine
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def transform_coordinates(self, data: torch.Tensor, affine: torch.Tensor | None = None) -> tuple[torch.Tensor, dict]:
+    def transform_coordinates(
+        self, data: torch.Tensor, affine: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, dict]:
         """
         Transform coordinates using an affine transformation matrix.
 
