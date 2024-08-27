@@ -1744,7 +1744,8 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
 class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ApplyTransformToPoints`.
-    The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels and N denotes the number of points.
+    The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+    where C represents the number of channels and N denotes the number of points.
 
     Args:
         keys: keys of the corresponding items to be transformed.

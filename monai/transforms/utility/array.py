@@ -1721,15 +1721,18 @@ class RandImageFilter(RandomizableTransform):
 class ApplyTransformToPoints(InvertibleTransform, Transform):
     """
     Transform points between image coordinates and world coordinates.
-    The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels and N denotes the number of points.
+    The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels
+    and N denotes the number of points.
 
     Args:
         dtype: The desired data type for the output.
-        affine: A 3x3 or 4x4 affine transformation matrix applied to points. Typically, this matrix originates from the image.
-            The matrix is always converted to float64 for computation, which can be computationally expensive when applied to a large number of points.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. Typically, this matrix originates
+            from the image. The matrix is always converted to float64 for computation, which can be computationally
+            expensive when applied to a large number of points.
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
-            Typically, the affine matrix is derived from an image and represents its location in world space, while the points are in world coordinates.
-            A value of ``True`` represents transforming these world space coordinates to the image's coordinate space, and ``False`` the inverse of this operation.
+            Typically, the affine matrix is derived from an image and represents its location in world space,
+            while the points are in world coordinates. A value of ``True`` represents transforming these
+            world space coordinates to the image's coordinate space, and ``False`` the inverse of this operation.
         affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true:
             1) The image is read by `ITKReader`,
             2) The `ITKReader` has `affine_lps_to_ras=True`,
@@ -1756,8 +1759,9 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         Transform coordinates using an affine transformation matrix.
 
         Args:
-            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels and N denotes the number of points.
-            affine: A 3x3 or 4x4 affine transformation matrix. The matrix is always converted to float64 for computation,
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
+            affine: 3x3 or 4x4 affine transformation matrix. The matrix is always converted to float64 for computation,
                 which can be computationally expensive when applied to a large number of points.
 
         Returns:
@@ -1799,7 +1803,8 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
     def __call__(self, data: torch.Tensor, affine: torch.Tensor | None = None) -> torch.Tensor:
         """
         Args:
-            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels and N denotes the number of points.
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
             affine: A 3x3 or 4x4 affine transformation matrix, this argument will take precedence over ``self.affine``.
         """
         if data.ndim != 3 or data.shape[-1] not in (2, 3):
