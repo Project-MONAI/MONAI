@@ -72,14 +72,7 @@ TEST_CASES = [
         False,
         POINT_3D_IMAGE,
     ],
-    [
-        "affine",
-        POINT_3D_WORLD,
-        None,
-        True,
-        False,
-        POINT_3D_IMAGE,
-    ],
+    ["affine", POINT_3D_WORLD, None, True, False, POINT_3D_IMAGE],
     [
         MetaTensor(DATA_3D, affine=torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])),
         MetaTensor(POINT_3D_IMAGE, affine=torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])),
@@ -109,7 +102,11 @@ TEST_CASES_WRONG = [
 class TestCoordinateTransform(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_transform_coordinates(self, image, points, affine, invert_affine, affine_lps_to_ras, expected_output):
-        data = {"image": image, "point": points, "affine": torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])}
+        data = {
+            "image": image,
+            "point": points,
+            "affine": torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]]),
+        }
         refer_key = "image" if (image is not None and image != "affine") else image
         transform = ApplyTransformToPointsd(
             keys="point",
