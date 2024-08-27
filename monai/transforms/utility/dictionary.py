@@ -1750,7 +1750,8 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        refer_key: the key of the reference item used for transformation.
+        refer_key: The key of the reference item used for transformation.
+            It can directly refer to an affine or an image from which the affine can be derived.
         dtype: The desired data type for the output.
         affine: A 3x3 or 4x4 affine transformation matrix applied to points. Typically, this matrix originates from the image.
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
@@ -1778,8 +1779,6 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.refer_key = refer_key
-        if self.refer_key is None and self.affine is None:
-            warnings.warn("No reference data or affine matrix is provided, will use the affine derived from the data.")
         self.converter = ApplyTransformToPoints(
             dtype=dtype, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
         )
@@ -1787,7 +1786,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     def __call__(self, data: Mapping[Hashable, torch.Tensor]):
         d = dict(data)
         refer_data = d[self.refer_key] if self.refer_key is not None else None
-        affine = getattr(refer_data, "affine", None)
+        affine = getattr(refer_data, "affine", refer_data)
         for key in self.key_iterator(d):
             coords = d[key]
             d[key] = self.converter(coords, affine)
