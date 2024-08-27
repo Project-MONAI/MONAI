@@ -41,3 +41,4 @@ onnxruntime; python_version <= '3.10'
 zarr
 huggingface_hub
 pyamg>=5.0.0
+packaging
