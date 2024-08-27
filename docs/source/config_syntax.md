@@ -16,7 +16,7 @@ Content:
   - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
   - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
   - [`_target_` (`_disabled_`, `_desc_`, `_requires_`, `_mode_`) to instantiate a Python object](#instantiate-a-python-object)
-  - [`+` to alter semantics of merging config keys from multiple configuration files](#multiple-config-files) 
+  - [`+` to alter semantics of merging config keys from multiple configuration files](#multiple-config-files)
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
 
@@ -187,16 +187,16 @@ Both values associated with `+`-prefixed key pair must be of `dict` or `list` ty
 Here's an example. In this case, "amp" value will be overridden by json2 config, and "imports" list will be merged: 
 ```json1
 {
-    "amp": True 
+    "amp": True
     "imports": [
-	"$import torch"	
+	"$import torch"
     ],
 }
 ```
 
 ```json2
 {
-    "amp": False 
+    "amp": False
     "+imports": [
 	"$from monai.networks import trt_compile"
     ],
