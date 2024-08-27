@@ -1753,7 +1753,12 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         refer_key: The key of the reference item used for transformation.
             It can directly refer to an affine or an image from which the affine can be derived.
         dtype: The desired data type for the output.
-        affine: A 3x3 or 4x4 affine transformation matrix applied to points. Typically, this matrix originates from the image.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. This matrix typically originates
+            from the image. For 2D points, a 3x3 matrix can be provided, avoiding the need to add an unnecessary
+            Z dimension. While a 4x4 matrix is required for 3D transformations, it's important to note that when
+            applying a 4x4 matrix to 2D points, the additional dimensions are handled accordingly.
+            The matrix is always converted to float64 for computation, which can be computationally
+            expensive when applied to a large number of points.
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
             Typically, the affine matrix is derived from the image, while the points are in world coordinates.
             If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
