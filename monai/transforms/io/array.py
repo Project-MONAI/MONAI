@@ -537,18 +537,21 @@ class WriteFileMapping(Transform):
     def __init__(self, mapping_file_path: Path | str = "mapping.json"):
         self.mapping_file_path = Path(mapping_file_path)
 
-    def __call__(self, img: MetaTensor):
+    def __call__(self, img: MetaTensor | torch.Tensor | np.ndarray):
         """
         Args:
             img (MetaTensor): The input image with metadata.
         """
-        if MetaKeys.SAVED_TO not in img.meta:
+        if isinstance(img, MetaTensor):
+            meta_data = img.meta
+
+        if MetaKeys.SAVED_TO not in meta_data:
             raise KeyError(
                 "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True."
             )
 
-        input_path = img.meta[Key.FILENAME_OR_OBJ]
-        output_path = img.meta[MetaKeys.SAVED_TO]
+        input_path = meta_data[Key.FILENAME_OR_OBJ]
+        output_path = meta_data[MetaKeys.SAVED_TO]
         log_data = {"input": input_path, "output": output_path}
 
         lock = FileLock(str(self.mapping_file_path) + ".lock")

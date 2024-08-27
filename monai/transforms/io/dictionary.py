@@ -348,3 +348,4 @@ class WriteFileMappingd(MapTransform):
 
 LoadImageD = LoadImageDict = LoadImaged
 SaveImageD = SaveImageDict = SaveImaged
+WriteFileMappingD = WriteFileMappingDict = WriteFileMappingd
