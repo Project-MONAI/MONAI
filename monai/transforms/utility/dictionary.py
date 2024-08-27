@@ -1745,6 +1745,7 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
 class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ApplyTransformToPoints`.
+    The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels and N denotes the number of points.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -1777,21 +1778,16 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.refer_key = refer_key
-        self.affine = affine
         if self.refer_key is None and self.affine is None:
             warnings.warn("No reference data or affine matrix is provided, will use the affine derived from the data.")
         self.converter = ApplyTransformToPoints(
-            dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
+            dtype=dtype, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
         )
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]):
         d = dict(data)
         refer_data = d[self.refer_key] if self.refer_key is not None else None
-        if isinstance(refer_data, MetaTensor):
-            affine = refer_data.affine
-        else:
-            warnings.warn("No reference affine find in the refer key, will use the affine derived from the data.")
-            affine = self.affine
+        affine = getattr(refer_data, "affine", None)
         for key in self.key_iterator(d):
             coords = d[key]
             d[key] = self.converter(coords, affine)
