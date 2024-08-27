@@ -537,10 +537,10 @@ class WriteFileMapping(Transform):
     def __init__(self, mapping_file_path: Path | str = "mapping.json"):
         self.mapping_file_path = Path(mapping_file_path)
 
-    def __call__(self, img: MetaTensor | torch.Tensor | np.ndarray):
+    def __call__(self, img: NdarrayOrTensor):
         """
         Args:
-            img (MetaTensor): The input image with metadata.
+            img: The input image with metadata.
         """
         if isinstance(img, MetaTensor):
             meta_data = img.meta
