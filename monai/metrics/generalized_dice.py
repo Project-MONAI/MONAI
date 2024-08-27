@@ -48,8 +48,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         "reduction",
         old_default=MetricReduction.MEAN_BATCH,
         new_default=MetricReduction.MEAN,
-        since="1.4.0",
-        replaced="1.4.0",
+        since="1.3.3",
+        replaced="1.3.3",
         msg_suffix="Old versions computed `mean` when `mean_batch` was provided due to bug in reduction",
     )
     def __init__(
@@ -89,7 +89,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
 
     @deprecated_arg(
         "reduction",
-        since="1.4.0",
+        since="1.3.3",
         removed="1.7.0",
         msg_suffix="Reduction will be ignored. Set reduction during init. as gen.dice needs it during compute",
     )
