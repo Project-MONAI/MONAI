@@ -1761,7 +1761,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             Transformed coordinates.
         """
         data = convert_to_tensor(data, track_meta=get_track_meta())
-        applied_affine = data.affine if isinstance(data, MetaTensor) else None
+        applied_affine = getattr(data, "affine", None)
 
         if affine is None and self.invert_affine:
             raise ValueError("affine must be provided when invert_affine is True.")
