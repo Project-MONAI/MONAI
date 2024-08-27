@@ -555,7 +555,7 @@ IO
     :special-members: __call__
 
 `WriteFileMapping`
-""""""""""""
+""""""""""""""""""
 .. autoclass:: WriteFileMapping
     :members:
     :special-members: __call__
@@ -1649,7 +1649,7 @@ IO (Dict)
     :special-members: __call__
 
 `WriteFileMappingd`
-""""""""""""
+"""""""""""""""""""
 .. autoclass:: WriteFileMappingd
     :members:
     :special-members: __call__
