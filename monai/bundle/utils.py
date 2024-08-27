@@ -21,12 +21,21 @@ from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
 
-__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
+__all__ = [
+    "ID_REF_KEY",
+    "ID_SEP_KEY",
+    "EXPR_KEY",
+    "MACRO_KEY",
+    "MERGE_KEY",
+    "DEFAULT_MLFLOW_SETTINGS",
+    "DEFAULT_EXP_MGMT_SETTINGS",
+]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
 ID_SEP_KEY = "::"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
+MERGE_KEY = "+"  # start of a macro of a config
 
 _conf_values = get_config_values()
 
@@ -233,3 +242,22 @@ def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any
             parser.read_config(f=cdata)
 
     return parser
+
+
+def merge_kv(args: dict | Any, k: str, v: Any) -> None:
+    """
+    Update the `args` dict-like object with the key/value pair `k` and `v`.
+    """
+    if k.startswith(MERGE_KEY):
+        id = k[1:]
+        if id in args and v is not None:
+            if isinstance(v, dict) and isinstance(args[id], dict):
+                args[id].update(v)
+            elif isinstance(v, list) and isinstance(args[id], list):
+                args[id].extend(v)
+            else:
+                raise ValueError(ValueError(f"config must be dict or list for key `{k}`, but got {type(v)}: {v}."))
+        else:
+            args[id] = v
+    else:
+        args[k] = v

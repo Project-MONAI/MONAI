@@ -16,6 +16,7 @@ Content:
   - [`$` to evaluate as Python expressions](#to-evaluate-as-python-expressions)
   - [`%` to textually replace configuration elements](#to-textually-replace-configuration-elements)
   - [`_target_` (`_disabled_`, `_desc_`, `_requires_`, `_mode_`) to instantiate a Python object](#instantiate-a-python-object)
+  - [`+` to alter semantics of merging config keys from multiple configuration files](#multiple-config-files) 
 - [The command line interface](#the-command-line-interface)
 - [Recommendations](#recommendations)
 
@@ -174,6 +175,31 @@ _Description:_ `_requires_`, `_disabled_`, `_desc_`, and `_mode_` are optional k
     it with additional arguments later.
   - `"debug"` -- execute with debug prompt and return the return value of ``pdb.runcall(_target_, **kwargs)``,
     see also [`pdb.runcall`](https://docs.python.org/3/library/pdb.html#pdb.runcall).
+
+## Multiple config files
+
+_Description:_ Multiple config files may be specified on the command line.
+The content of those config files is being merged. When same keys are specifiled in more than one config file,
+the value associated with the key is being overridden, in the order config files are specified.
+If the desired behaviour is to merge values from both files, the key in second config file should be prefixed with '-'.
+Here's an example. In this case, "amp" value will be overridden by json2 config, and "imports" list will me merged: 
+```json1
+{
+    "amp": True 
+    "imports": [
+	"$import torch"	
+    ],
+}
+```
+
+```json2
+{
+    "amp": False 
+    "+imports": [
+	"$from monai.networks import trt_compile"	
+    ],
+}
+```
 
 ## The command line interface
 
