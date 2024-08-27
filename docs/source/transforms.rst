@@ -553,7 +553,7 @@ IO
 .. autoclass:: SaveImage
     :members:
     :special-members: __call__
-    
+
 `WriteFileMapping`
 """"""""""""
 .. autoclass:: WriteFileMapping
@@ -1647,7 +1647,7 @@ IO (Dict)
 .. autoclass:: SaveImaged
     :members:
     :special-members: __call__
-    
+
 `WriteFileMappingd`
 """"""""""""
 .. autoclass:: WriteFileMappingd
