@@ -1739,7 +1739,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
 
     def __init__(
         self,
-        dtype: DtypeLike | torch.dtype = torch.float64,
+        dtype: DtypeLike | torch.dtype | None = None,
         affine: torch.Tensor | None = None,
         invert_affine: bool = True,
         affine_lps_to_ras: bool = False,
