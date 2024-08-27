@@ -35,8 +35,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         include_background: Whether to include the background class (assumed to be in channel 0) in the
             score computation. Defaults to True.
         reduction: Define mode of reduction to the metrics. Available reduction modes:
-            {``"none"``, ``"mean_batch"``, ``"sum_batch"``, ``"mean"`, ``"sum"`}. Defaults to ``"mean"``.
-            If "none", will not do reduction.
+           {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         weight_type: {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to transform
             ground truth volume into a weight factor. Defaults to ``"square"``.
 
@@ -46,8 +46,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
 
     @deprecated_arg_default(
         "reduction",
-        MetricReduction.MEAN_BATCH,
-        MetricReduction.MEAN,
+        old_default=MetricReduction.MEAN_BATCH,
+        new_default=MetricReduction.MEAN,
         since="1.4.0",
         replaced="1.4.0",
         msg_suffix="Old versions computed `mean` when `mean_batch` was provided due to bug in reduction",
@@ -55,7 +55,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: str = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         weight_type: Weight | str = Weight.SQUARE,
     ) -> None:
         super().__init__()
@@ -69,9 +69,9 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         Computes the Generalized Dice Score and returns a tensor with its per image values.
 
         Args:
-            y_pred: Binarized segmentation model output. It must be in one-hot format and in the NCHW[D] format,
+            y_pred (torch.Tensor): Binarized segmentation model output. It must be in one-hot format and in the NCHW[D] format,
                 where N is the batch dimension, C is the channel dimension, and the remaining are the spatial dimensions.
-            y: Binarized ground-truth. It must be in one-hot format and have the same shape as `y_pred`.
+            y (torch.Tensor): Binarized ground-truth. It must be in one-hot format and have the same shape as `y_pred`.
 
         Returns:
             torch.Tensor: Generalized Dice Score averaged across batch and class
@@ -124,15 +124,15 @@ def compute_generalized_dice(
     Computes the Generalized Dice Score and returns a tensor with its per image values.
 
     Args:
-        y_pred: Binarized segmentation model output. It should be binarized, in one-hot format
+        y_pred (torch.Tensor): Binarized segmentation model output. It should be binarized, in one-hot format
             and in the NCHW[D] format, where N is the batch dimension, C is the channel dimension, and the
             remaining are the spatial dimensions.
-        y: Binarized ground-truth. It should be binarized, in one-hot format and have the same shape as `y_pred`.
+        y (torch.Tensor): Binarized ground-truth. It should be binarized, in one-hot format and have the same shape as `y_pred`.
         include_background: Whether to include score computation on the first channel of the
             predicted output. Defaults to True.
-        weight_type: {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to
+        weight_type (Union[Weight, str], optional): {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to
             transform ground truth volume into a weight factor. Defaults to ``"square"``.
-        sum_over_labels: Whether to sum the numerator and denominator across all labels before the final computation.
+        sum_over_labels (bool): Whether to sum the numerator and denominator across all labels before the final computation.
 
     Returns:
         torch.Tensor: Per batch and per class Generalized Dice Score, i.e., with the shape [batch_size, num_classes].
