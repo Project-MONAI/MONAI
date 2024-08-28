@@ -1215,9 +1215,10 @@ Utility
 .. autoclass:: RandImageFilter
     :members:
     :special-members: __call__
+
 `ApplyTransformToPoints`
 """"""""""""""""""""""""
-.. autoclass:: ApplyTransformToPointsd
+.. autoclass:: ApplyTransformToPoints
     :members:
     :special-members: __call__
 
@@ -2269,6 +2270,7 @@ Utility (Dict)
 .. autoclass:: RandImageFilterd
     :members:
     :special-members: __call__
+
 `ApplyTransformToPointsd`
 """""""""""""""""""""""""
 .. autoclass:: ApplyTransformToPointsd
