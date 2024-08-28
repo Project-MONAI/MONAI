@@ -336,11 +336,11 @@ class VISTA3D(nn.Module):
     def forward(
         self,
         input_images: torch.Tensor,
+        patch_coords: Sequence[slice] | None = None,
         point_coords: torch.Tensor | None = None,
         point_labels: torch.Tensor | None = None,
         class_vector: torch.Tensor | None = None,
         prompt_class: torch.Tensor | None = None,
-        patch_coords: Sequence[slice] | None = None,
         labels: torch.Tensor | None = None,
         label_set: Sequence[int] | None = None,
         prev_mask: torch.Tensor | None = None,
@@ -421,7 +421,10 @@ class VISTA3D(nn.Module):
                     point_coords, point_labels = None, None
 
         if point_coords is None and class_vector is None:
-            return self.NINF_VALUE + torch.zeros([bs, 1, *image_size], device=device)
+            logits = self.NINF_VALUE + torch.zeros([bs, 1, *image_size], device=device)
+            if transpose:
+                logits = logits.transpose(1, 0)
+            return logits
 
         if self.image_embeddings is not None and kwargs.get("keep_cache", False) and class_vector is None:
             out, out_auto = self.image_embeddings, None
