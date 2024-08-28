@@ -20,9 +20,6 @@ import numpy as np
 import torch
 from torch import Tensor
 
-__all__ = ["sample_prompt_pairs"]
-
-
 ENABLE_SPECIAL = True
 SPECIAL_INDEX = (23, 24, 25, 26, 27, 57, 128)
 MERGE_LIST = {
@@ -30,6 +27,8 @@ MERGE_LIST = {
     4: [24],  # pancreatic tumor merge into pancreas
     132: [57],  # overlap with trachea merge into airway
 }
+
+__all__ = ["sample_prompt_pairs"]
 
 
 def _get_point_label(id: int) -> tuple[int, int]:
@@ -83,6 +82,7 @@ def sample_prompt_pairs(
         prompt_class: [B, 1], exactly the same with label_prompt for label indexing for training loss.
             label_prompt can be None, and prompt_class is used to identify point classes.
     """
+
     # class label number
     if not labels.shape[0] == 1:
         raise ValueError("only support batch size 1")
