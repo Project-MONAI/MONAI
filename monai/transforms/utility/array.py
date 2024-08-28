@@ -1790,7 +1790,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             # consider the affine transformation already applied to the data in the world space
             if applied_affine is not None:
                 _affine = _affine @ linalg_inv(applied_affine)
-        out = apply_affine_to_points(data, _affine, self.dtype)
+        out = apply_affine_to_points(data, _affine, dtype=self.dtype)
 
         extra_info = {
             "invert_affine": self.invert_affine,
