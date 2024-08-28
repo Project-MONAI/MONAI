@@ -37,11 +37,11 @@ def create_input_file(temp_dir, name):
     return input_file
 
 
-TEST_CASE_1 = [["seg"], ["seg"]]
-TEST_CASE_2 = [["seg"], ["image"]]
-TEST_CASE_3 = [["image"], ["seg"]]
-TEST_CASE_4 = [["image", "seg"], ["seg"]]
-TEST_CASE_5 = [["seg"], ["image", "seg"]]
+# Test cases that should succeed
+SUCCESS_CASES = [(["seg"], ["seg"]), (["image", "seg"], ["seg"])]
+
+# Test cases that should fail
+FAILURE_CASES = [(["seg"], ["image"]), (["image"], ["seg"]), (["seg"], ["image", "seg"])]
 
 
 @unittest.skipUnless(has_nib, "nibabel required")
@@ -57,9 +57,7 @@ class TestWriteFileMappingd(unittest.TestCase):
         if os.path.exists(self.mapping_file_path):
             os.remove(self.mapping_file_path)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
-    def test_mapping_filed(self, save_keys, write_keys):
-
+    def run_test(self, save_keys, write_keys):
         name = "test_image"
         input_file = create_input_file(self.temp_dir, name)
         output_file = os.path.join(self.output_dir, name, name + "_seg.nii.gz")
@@ -86,32 +84,38 @@ class TestWriteFileMappingd(unittest.TestCase):
         model = UNet(spatial_dims=3, in_channels=1, out_channels=2, channels=(16, 32), strides=(2,)).to(device)
         model.eval()
 
-        try:
-            with torch.no_grad():
-                for batch_data in dataloader:
-                    test_inputs = batch_data["image"].to(device)
-                    roi_size = (64, 64, 64)
-                    sw_batch_size = 2
-                    batch_data["seg"] = sliding_window_inference(test_inputs, roi_size, sw_batch_size, model)
-                    batch_data = [post_transforms(i) for i in decollate_batch(batch_data)]
+        with torch.no_grad():
+            for batch_data in dataloader:
+                test_inputs = batch_data["image"].to(device)
+                roi_size = (64, 64, 64)
+                sw_batch_size = 2
+                batch_data["seg"] = sliding_window_inference(test_inputs, roi_size, sw_batch_size, model)
+                batch_data = [post_transforms(i) for i in decollate_batch(batch_data)]
 
-            self.assertTrue(os.path.exists(self.mapping_file_path))
+        return input_file, output_file
 
-            with open(self.mapping_file_path) as f:
-                mapping_data = json.load(f)
+    @parameterized.expand(SUCCESS_CASES)
+    def test_successful_mapping_filed(self, save_keys, write_keys):
+        input_file, output_file = self.run_test(save_keys, write_keys)
+        self.assertTrue(os.path.exists(self.mapping_file_path))
+        with open(self.mapping_file_path) as f:
+            mapping_data = json.load(f)
+        self.assertEqual(len(mapping_data), len(write_keys))
+        for entry in mapping_data:
+            self.assertEqual(entry["input"], input_file)
+            self.assertEqual(entry["output"], output_file)
 
-            self.assertEqual(len(mapping_data), len(write_keys))
-            for entry in mapping_data:
-                self.assertEqual(entry["input"], input_file)
-                self.assertEqual(entry["output"], output_file)
+    @parameterized.expand(FAILURE_CASES)
+    def test_failure_mapping_filed(self, save_keys, write_keys):
+        with self.assertRaises(RuntimeError) as cm:
+            self.run_test(save_keys, write_keys)
 
-        except RuntimeError as cm:
-            cause_exception = cm.__cause__
-            self.assertIsInstance(cause_exception, KeyError)
-            self.assertIn(
-                "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True.",
-                str(cause_exception),
-            )
+        cause_exception = cm.exception.__cause__
+        self.assertIsInstance(cause_exception, KeyError)
+        self.assertIn(
+            "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True.",
+            str(cause_exception),
+        )
 
 
 if __name__ == "__main__":

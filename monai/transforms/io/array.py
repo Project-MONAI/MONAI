@@ -58,7 +58,7 @@ from monai.utils import (
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 nrrd, _ = optional_import("nrrd")
-FileLock, _ = optional_import("filelock", name="FileLock")
+FileLock, has_filelock = optional_import("filelock", name="FileLock")
 
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
@@ -554,18 +554,19 @@ class WriteFileMapping(Transform):
         output_path = meta_data[MetaKeys.SAVED_TO]
         log_data = {"input": input_path, "output": output_path}
 
-        lock = FileLock(str(self.mapping_file_path) + ".lock")
-
-        with lock:
-            try:
-                with self.mapping_file_path.open("r") as f:
-                    existing_log_data = json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError):
-                existing_log_data = []
-
-            existing_log_data.append(log_data)
-
-            with self.mapping_file_path.open("w") as f:
-                json.dump(existing_log_data, f, indent=4)
-
+        if has_filelock:
+            with FileLock(str(self.mapping_file_path) + ".lock"):
+                self._write_to_file(log_data)
+        else:
+            self._write_to_file(log_data)
         return img
+
+    def _write_to_file(self, log_data):
+        try:
+            with self.mapping_file_path.open("r") as f:
+                existing_log_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            existing_log_data = []
+        existing_log_data.append(log_data)
+        with self.mapping_file_path.open("w") as f:
+            json.dump(existing_log_data, f, indent=4)
