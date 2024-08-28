@@ -1744,7 +1744,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
             and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
             matrix are in the same coordinate system.
-    
+
     Use Cases:
         - Transforming points between world space and image space, and vice versa.
         - Automatically handling inverse transformations between image space and world space.
