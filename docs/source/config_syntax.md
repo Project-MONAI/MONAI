@@ -187,7 +187,7 @@ Both values associated with `+`-prefixed key pair must be of `dict` or `list` ty
 Here's an example. In this case, "amp" value will be overridden by json2 config, and "imports" list will be merged:
 ```json
 {
-    "amp": True
+    "amp": "$True"
     "imports": [
 	"$import torch"
     ],
@@ -196,7 +196,7 @@ Here's an example. In this case, "amp" value will be overridden by json2 config,
 
 ```json
 {
-    "amp": False
+    "amp": "$False"
     "+imports": [
 	"$from monai.networks import trt_compile"
     ],
