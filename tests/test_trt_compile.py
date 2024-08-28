@@ -15,7 +15,6 @@ import tempfile
 import unittest
 
 import torch
-from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import TrtHandler
@@ -46,6 +45,8 @@ class TestTRTCompile(unittest.TestCase):
 
     @unittest.skipUnless(has_trt, "TensorRT compile wrapper is required for convert!")
     def test_handler(self):
+        from ignite.engine import Engine
+
         net1 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
         data1 = net1.state_dict()
         data1["0.weight"] = torch.tensor([0.1])
