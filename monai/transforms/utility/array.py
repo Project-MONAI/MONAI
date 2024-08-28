@@ -1738,10 +1738,8 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             Typically, the affine matrix is derived from an image and represents its location in world space,
             while the points are in world coordinates. A value of ``True`` represents transforming these
             world space coordinates to the image's coordinate space, and ``False`` the inverse of this operation.
-        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true:
-            1) The image is read by `ITKReader`,
-            2) The `ITKReader` has `affine_lps_to_ras=True`,
-            3) The data is in world coordinates.
+        affine_lps_to_ras: Defaults to ``False``. Set to `True` if your point data is in the RAS coordinate system
+            or you're using `ITKReader` with `affine_lps_to_ras=True`.
             This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
             and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
             matrix are in the same coordinate system.

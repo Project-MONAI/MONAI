@@ -1767,10 +1767,8 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
             Typically, the affine matrix is derived from the image, while the points are in world coordinates.
             If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
-        affine_lps_to_ras: Defaults to ``False``. Set this to ``True`` if all of the following are true:
-            1) The image is read by `ITKReader`,
-            2) The `ITKReader` has `affine_lps_to_ras=True`,
-            3) The data is in world coordinates.
+        affine_lps_to_ras: Defaults to ``False``. Set to `True` if your point data is in the RAS coordinate system
+            or you're using `ITKReader` with `affine_lps_to_ras=True`.
             This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
             and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
             matrix are in the same coordinate system.
