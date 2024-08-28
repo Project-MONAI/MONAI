@@ -74,16 +74,16 @@ def sample_prompt_pairs(
 
     Returns:
         tuple:
-            - label_prompt (Tensor | None): Tensor of shape [B, 1] containing the classes used for 
+            - label_prompt (Tensor | None): Tensor of shape [B, 1] containing the classes used for
               training automatic segmentation.
-            - point (Tensor | None): Tensor of shape [B, N, 3] representing the corresponding points 
-              for each class. Note that background label prompts require matching points as well 
+            - point (Tensor | None): Tensor of shape [B, N, 3] representing the corresponding points
+              for each class. Note that background label prompts require matching points as well
               (e.g., [0, 0, 0] is used).
-            - point_label (Tensor | None): Tensor of shape [B, N] representing the corresponding point 
-              labels for each point (negative or positive). -1 is used for padding the background 
+            - point_label (Tensor | None): Tensor of shape [B, N] representing the corresponding point
+              labels for each point (negative or positive). -1 is used for padding the background
               label prompt and will be ignored.
-            - prompt_class (Tensor | None): Tensor of shape [B, 1], exactly the same as label_prompt 
-              for label indexing during training. If label_prompt is None, prompt_class is used to 
+            - prompt_class (Tensor | None): Tensor of shape [B, 1], exactly the same as label_prompt
+              for label indexing during training. If label_prompt is None, prompt_class is used to
               identify point classes.
 
     """
