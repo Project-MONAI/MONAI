@@ -170,7 +170,7 @@ TEST_CASE_10 = [
     {"img": np.array([[0, 1], [1, 2]])},
     "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\n"
-    "Meta info: None\n"
+    "Meta info: '(input is not a MetaTensor)'\n"
     "Additional info: 1.0\n",
 ]
 
