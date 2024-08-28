@@ -493,6 +493,7 @@ from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTr
 from .utility.array import (
     AddCoordinateChannels,
     AddExtremePointsChannel,
+    ApplyTransformToPoints,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -524,7 +525,6 @@ from .utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
-    ApplyTransformToPoints,
 )
 from .utility.dictionary import (
     AddCoordinateChannelsd,
@@ -533,6 +533,9 @@ from .utility.dictionary import (
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
+    ApplyTransformToPointsd,
+    ApplyTransformToPointsD,
+    ApplyTransformToPointsDict,
     AsChannelLastd,
     AsChannelLastD,
     AsChannelLastDict,
@@ -641,9 +644,6 @@ from .utility.dictionary import (
     Transposed,
     TransposeD,
     TransposeDict,
-    ApplyTransformToPointsd,
-    ApplyTransformToPointsD,
-    ApplyTransformToPointsDict,
 )
 from .utils import (
     Fourier,
