@@ -182,9 +182,10 @@ _Description:_ Multiple config files may be specified on the command line.
 The content of those config files is being merged. When same keys are specifiled in more than one config file,
 the value associated with the key is being overridden, in the order config files are specified.
 If the desired behaviour is to merge values from both files, the key in second config file should be prefixed with `+`.
-Both values associated with `+`-prefixed key pair must be of `dict` or `list` type.
-`dict` values will be merged via update(), `list` values - concatenated.
-Here's an example. In this case, "amp" value will be overridden by json2 config, and "imports" list will be merged:
+The value types for the merged contents must match and be both of `dict` or both of `list` type.
+`dict` values will be merged via update(), `list` values - concatenated via extend().
+Here's an example. In this case, "amp" value will be overridden by json2 config, and "imports" lists will be merged.
+An error would be thrown if the value type in `"+imports"` is not `list`:
 ```json
 {
     "amp": "$True"
