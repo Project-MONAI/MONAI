@@ -638,7 +638,6 @@ def convert_to_onnx(
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
         do_constant_folding: passed to onnx.export(). If True, extra polygraphy folding pass is done.
         constant_size_threshold: passed to polygrapy conatant forling, default = 16M
-        dynamo: passed to onnx.export(). [When dynamo export API is finalized]
         kwargs: if use_trace=True: additional arguments to pass to torch.onnx.export()
             else: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
@@ -682,7 +681,6 @@ def convert_to_onnx(
             dynamic_axes=dynamic_axes,
             opset_version=opset_version,
             do_constant_folding=do_constant_folding,
-            # dynamo=dynamo,
             **torch_versioned_kwargs,
         )
         if filename is None:

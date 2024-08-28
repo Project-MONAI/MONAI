@@ -251,6 +251,9 @@ class TrtCompiler:
             plan_path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
             method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
+                    Default is 'onnx' (torch.onnx.export()->TRT). This is the most stable and efficient option.
+                    'onnx_dynamo' is using experimental 'dynamo' export() option, it may not work with AMP.
+                    'torch_trt' may not work correctly for nets with multiple inputs or dynamic batch size.
             input_names: Optional list of input names. If None, will be read from the function signature.
             output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
@@ -443,12 +446,11 @@ class TrtCompiler:
             )
         else:
             if self.method == "onnx_dynamo":
-                dynamo = True
                 import torch_onnx
 
                 torch_onnx.patch_torch()
-            else:
-                dynamo = False
+                export_args["dynamo"] = True
+
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 onnx_path = Path(tmpdir) / "model.onnx"
@@ -461,7 +463,6 @@ class TrtCompiler:
                     filename=str(onnx_path),
                     input_names=self.input_names,
                     output_names=self.output_names,
-                    dynamo=dynamo,
                     **export_args,
                 )
                 self.logger.info("Export to ONNX successful.")
