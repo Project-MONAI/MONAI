@@ -1750,7 +1750,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         - Transforming points between world space and image space, and vice versa.
         - Automatically handling inverse transformations between image space and world space.
         - If points have an existing affine transformation, the class computes and
-        applies the required delta affine transformation.
+          applies the required delta affine transformation.
 
     """
 
