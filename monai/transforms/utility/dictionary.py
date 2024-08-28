@@ -1746,6 +1746,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     Dictionary-based wrapper of :py:class:`monai.transforms.ApplyTransformToPoints`.
     The input coordinates are assumed to be in the shape (C, N, 2 or 3),
     where C represents the number of channels and N denotes the number of points.
+    The output has the same shape as the input.
 
     Args:
         keys: keys of the corresponding items to be transformed.
@@ -1759,6 +1760,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
             applying a 4x4 matrix to 2D points, the additional dimensions are handled accordingly.
             The matrix is always converted to float64 for computation, which can be computationally
             expensive when applied to a large number of points.
+            If None, will try to use the affine matrix from the refer data.
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
             Typically, the affine matrix is derived from the image, while the points are in world coordinates.
             If you want to align the points with the image, set this to ``True``. Otherwise, set it to ``False``.
@@ -1790,7 +1792,13 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]):
         d = dict(data)
-        refer_data = d[self.refer_key] if self.refer_key is not None else None
+        if self.refer_key is not None:
+            if self.refer_key in d:
+                refer_data = d[self.refer_key]
+            else:
+                raise KeyError(f"The refer_key '{self.refer_key}' is not found in the data.")
+        else:
+            refer_data = None
         affine = getattr(refer_data, "affine", refer_data)
         for key in self.key_iterator(d):
             coords = d[key]

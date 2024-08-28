@@ -1722,7 +1722,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
     """
     Transform points between image coordinates and world coordinates.
     The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels
-    and N denotes the number of points.
+    and N denotes the number of points. It will return a tensor with the same shape as the input.
 
     Args:
         dtype: The desired data type for the output.
@@ -1732,6 +1732,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             applying a 4x4 matrix to 2D points, the additional dimensions are handled accordingly.
             The matrix is always converted to float64 for computation, which can be computationally
             expensive when applied to a large number of points.
+            If None, will try to use the affine matrix from the input data.
         invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
             Typically, the affine matrix is derived from an image and represents its location in world space,
             while the points are in world coordinates. A value of ``True`` represents transforming these
@@ -1743,6 +1744,13 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
             and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
             matrix are in the same coordinate system.
+    
+    Use Cases:
+        - Transforming points between world space and image space, and vice versa.
+        - Automatically handling inverse transformations between image space and world space.
+        - If points have an existing affine transformation, the class computes and
+        applies the required delta affine transformation.
+
     """
 
     def __init__(
@@ -1773,6 +1781,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             Transformed coordinates.
         """
         data = convert_to_tensor(data, track_meta=get_track_meta())
+        # applied_affine is the affine transformation matrix that has already been applied to the point data
         applied_affine = getattr(data, "affine", None)
 
         if affine is None and self.invert_affine:
@@ -1784,18 +1793,20 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         if self.affine_lps_to_ras:
             affine = orientation_ras_lps(affine)
 
+        # the final affine transformation matrix that will be applied to the point data
         _affine: torch.Tensor = affine
         if self.invert_affine:
             _affine = linalg_inv(affine)
-            # consider the affine transformation already applied to the data in the world space
             if applied_affine is not None:
+                # consider the affine transformation already applied to the data in the world space
+                # and compute delta affine
                 _affine = _affine @ linalg_inv(applied_affine)
         out = apply_affine_to_points(data, _affine, self.dtype)
 
         extra_info = {
             "invert_affine": self.invert_affine,
             "dtype": get_dtype_string(self.dtype),
-            "image_affine": original_affine,
+            "image_affine": original_affine,  # record for inverse operation
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
         xform: torch.Tensor = original_affine if self.invert_affine else linalg_inv(original_affine)
