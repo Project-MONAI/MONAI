@@ -667,6 +667,12 @@ Post-processing
     :members:
     :special-members: __call__
 
+`Invert`
+"""""""""
+.. autoclass:: Invert
+    :members:
+    :special-members: __call__
+
 Regularization
 ^^^^^^^^^^^^^^
 
@@ -2302,6 +2308,9 @@ Utilities
     :members:
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
+    :members:
+
+.. automodule:: monai.transforms.utils_morphological_ops
     :members:
 
 By Categories

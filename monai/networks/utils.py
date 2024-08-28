@@ -42,6 +42,7 @@ __all__ = [
     "predict_segmentation",
     "normalize_transform",
     "to_norm_affine",
+    "CastTempType",
     "normal_init",
     "icnr_init",
     "pixelshuffle",
@@ -821,7 +822,7 @@ def _onnx_trt_compile(
     output_names = [] if not output_names else output_names
 
     # set up the TensorRT builder
-    torch_tensorrt.set_device(device)
+    torch.cuda.set_device(device)
     logger = trt.Logger(trt.Logger.WARNING)
     builder = trt.Builder(logger)
     network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
@@ -930,7 +931,7 @@ def convert_to_trt(
         warnings.warn(f"The dynamic batch range sequence should have 3 elements, but got {dynamic_batchsize} elements.")
 
     device = device if device else 0
-    target_device = torch.device(f"cuda:{device}") if device else torch.device("cuda:0")
+    target_device = torch.device(f"cuda:{device}")
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
@@ -985,7 +986,7 @@ def convert_to_trt(
                     ir_model,
                     inputs=input_placeholder,
                     enabled_precisions=convert_precision,
-                    device=target_device,
+                    device=torch_tensorrt.Device(f"cuda:{device}"),
                     ir="torchscript",
                     **kwargs,
                 )
@@ -1167,3 +1168,24 @@ def freeze_layers(model: nn.Module, freeze_vars=None, exclude_vars=None):
                 warnings.warn(f"The exclude_vars includes {param}, but requires_grad is False, change it to True.")
 
     logger.info(f"{len(frozen_keys)} of {len(src_dict)} variables frozen.")
+
+
+class CastTempType(nn.Module):
+    """
+    Cast the input tensor to a temporary type before applying the submodule, and then cast it back to the initial type.
+    """
+
+    def __init__(self, initial_type, temporary_type, submodule):
+        super().__init__()
+        self.initial_type = initial_type
+        self.temporary_type = temporary_type
+        self.submodule = submodule
+
+    def forward(self, x):
+        dtype = x.dtype
+        if dtype == self.initial_type:
+            x = x.to(self.temporary_type)
+        x = self.submodule(x)
+        if dtype == self.initial_type:
+            x = x.to(self.initial_type)
+        return x

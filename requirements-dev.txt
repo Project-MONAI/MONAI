@@ -2,7 +2,7 @@
 -r requirements-min.txt
 pytorch-ignite==0.4.11
 gdown>=4.7.3
-scipy>=1.7.1
+scipy>=1.12.0; python_version >= '3.9'
 itk>=5.2
 nibabel
 pillow!=8.3.0  # https://github.com/python-pillow/Pillow/issues/5571
@@ -21,7 +21,7 @@ black>=22.12
 isort>=5.1
 ruff
 pytype>=2020.6.1; platform_system != "Windows"
-types-pkg_resources
+types-setuptools
 mypy>=1.5.0
 ninja
 torchvision
@@ -57,3 +57,5 @@ zarr
 lpips==0.1.4
 nvidia-ml-py
 huggingface_hub
+pyamg>=5.0.0
+git+https://github.com/facebookresearch/segment-anything.git@6fdee8f2727f4506cfbbe553e23b895e27956588

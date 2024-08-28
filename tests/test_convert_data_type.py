@@ -73,6 +73,7 @@ UNSUPPORTED_TYPES = {np.dtype("uint16"): torch.int32, np.dtype("uint32"): torch.
 
 
 class TestTensor(torch.Tensor):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
     pass
 
 
