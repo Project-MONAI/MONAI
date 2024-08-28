@@ -269,11 +269,9 @@ def update_docstring(code_path, transform_name):
 
 
 def pre_process_data(data, ndim, is_map, is_post):
-    """If transform requires 2D data, then convert to 2D"""
+    """If transform requires 2D data, then convert to 2D by selecting the middle of the last dimension."""
     if ndim == 2:
-        for k in keys:
-            data[k] = data[k][..., data[k].shape[-1] // 2]
-
+        data = {k: v[..., v.shape[-1] // 2] for k, v in data.items()}
     if is_map:
         return data
     return data[CommonKeys.LABEL] if is_post else data[CommonKeys.IMAGE]
