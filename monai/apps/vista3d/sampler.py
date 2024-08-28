@@ -37,7 +37,6 @@ def _get_point_label(id: int) -> tuple[int, int]:
     else:
         return 0, 1
 
-
 def sample_prompt_pairs(
     labels: Tensor,
     label_set: Sequence[int],
