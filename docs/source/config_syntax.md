@@ -185,7 +185,7 @@ If the desired behaviour is to merge values from both files, the key in second c
 Both values associated with `+`-prefixed key pair must be of `dict` or `list` type.
 `dict` values will be merged via update(), `list` values - concatenated.
 Here's an example. In this case, "amp" value will be overridden by json2 config, and "imports" list will be merged:
-```json1
+```json
 {
     "amp": True
     "imports": [
