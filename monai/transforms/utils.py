@@ -2516,7 +2516,8 @@ def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: Dtyp
     apply affine transformation to a set of points.
 
     Args:
-        data: input data to apply affine transformation, should be a tensor of shape (C, N, 2 or 3).
+        data: input data to apply affine transformation, should be a tensor of shape (C, N, 2 or 3),
+            where C represents the number of channels and N denotes the number of points.
         affine: affine matrix to be applied, should be a tensor of shape (3, 3) or (4, 4).
         dtype: output data dtype.
     """
