@@ -181,6 +181,9 @@ __all__ = [
     "ClassesToIndicesd",
     "ClassesToIndicesD",
     "ClassesToIndicesDict",
+    "ApplyTransformToPointsd",
+    "ApplyTransformToPointsD",
+    "ApplyTransformToPointsDict",
 ]
 
 DEFAULT_POST_FIX = PostFix.meta()
@@ -1852,3 +1855,4 @@ CuCIMD = CuCIMDict = CuCIMd
 RandCuCIMD = RandCuCIMDict = RandCuCIMd
 AddCoordinateChannelsD = AddCoordinateChannelsDict = AddCoordinateChannelsd
 FlattenSubKeysD = FlattenSubKeysDict = FlattenSubKeysd
+ApplyTransformToPointsD = ApplyTransformToPointsDict = ApplyTransformToPointsd

@@ -524,6 +524,7 @@ from .utility.array import (
     TorchVision,
     ToTensor,
     Transpose,
+    ApplyTransformToPoints,
 )
 from .utility.dictionary import (
     AddCoordinateChannelsd,
@@ -640,6 +641,9 @@ from .utility.dictionary import (
     Transposed,
     TransposeD,
     TransposeDict,
+    ApplyTransformToPointsd,
+    ApplyTransformToPointsD,
+    ApplyTransformToPointsDict,
 )
 from .utils import (
     Fourier,

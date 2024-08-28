@@ -107,6 +107,7 @@ __all__ = [
     "ToCupy",
     "ImageFilter",
     "RandImageFilter",
+    "ApplyTransformToPoints",
 ]
 
 
