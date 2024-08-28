@@ -15,8 +15,10 @@ import tempfile
 import unittest
 
 import torch
+from ignite.engine import Engine, Events
 from parameterized import parameterized
 
+from monai.handlers import TrtHandler
 from monai.networks.nets import UNet
 from monai.utils import optional_import
 from tests.utils import skip_if_no_cuda, skip_if_quick, skip_if_windows
@@ -42,6 +44,21 @@ class TestTRTCompile(unittest.TestCase):
         if current_device != self.gpu_device:
             torch.cuda.set_device(self.gpu_device)
 
+    @unittest.skipUnless(has_trt, "TensorRT compile wrapper is required for convert!")
+    def test_handler(self):
+        net1 = torch.nn.Sequential(*[torch.nn.PReLU(), torch.nn.PReLU()])
+        data1 = net1.state_dict()
+        data1["0.weight"] = torch.tensor([0.1])
+        data1["1.weight"] = torch.tensor([0.2])
+        net1.load_state_dict(data1)
+        net1.cuda()
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            engine = Engine(lambda e, b: None)
+            TrtHandler(net1, tempdir + "/trt_handler").attach(engine)
+            engine.run([0] * 8, max_epochs=1)
+            self.assertIsNotNone(net1._trt_compiler)
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @unittest.skipUnless(has_trt, "TensorRT compile wrapper is required for convert!")
     def test_value(self, precision):
@@ -64,10 +81,10 @@ class TestTRTCompile(unittest.TestCase):
                 f"{tmpdir}/test_trt_compile",
                 args={"precision": precision, "build_args": args, "dynamic_batchsize": [1, 4, 8]},
             )
-            self.assertIsNone(model._trt_wrapper.engine)
+            self.assertIsNone(model._trt_compiler.engine)
             trt_output = model(input_example)
             # Check that lazy TRT build succeeded
-            self.assertIsNotNone(model._trt_wrapper.engine)
+            self.assertIsNotNone(model._trt_compiler.engine)
             torch.testing.assert_close(trt_output, output_example, rtol=0.01, atol=0.01)
 
 

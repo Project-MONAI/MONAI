@@ -217,9 +217,9 @@ class TRTEngine:
         return self.tensors
 
 
-class TrtWrappper:
+class TrtCompiler:
     """
-    This wrapper implements:
+    This class implements:
       - TRT lazy persistent export
       - Running TRT with optional fallback to Torch
         (for TRT engines with limited profiles)
@@ -411,7 +411,7 @@ class TrtWrappper:
         dbs = self.dynamic_batchsize
         if dbs:
             if len(self.profiles) > 0:
-                raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TrtWrappper!")
+                raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TrtCompiler!")
             if len(dbs) != 3:
                 raise ValueError("dynamic_batchsize has to have len ==3 ")
             profiles = {}
@@ -473,9 +473,9 @@ class TrtWrappper:
 def trt_forward(self, *argv, **kwargs):
     """
     Patch function to replace original model's forward() with.
-    Redirects to TrtWrappper.forward()
+    Redirects to TrtCompiler.forward()
     """
-    return self._trt_wrapper.forward(self, argv, kwargs)
+    return self._trt_compiler.forward(self, argv, kwargs)
 
 
 def trt_compile(
@@ -486,15 +486,15 @@ def trt_compile(
     logger: Any | None = None,
 ) -> torch.nn.Module:
     """
-    Instruments model or submodule with TrtWrappper and replaces its forward() with TRT hook.
+    Instruments model or submodule with TrtCompiler and replaces its forward() with TRT hook.
     Args:
-      model: module to patch with TrtWrappper().
+      model: module to patch with TrtCompiler().
       base_path: TRT plan(s) saved to "base_path[.submodule].plan" path.
                  If base_path points to existing file (e.g. associated checkpoint),
                  that file also becomes dependency - its mtime is added to args["timestamp"].
-      args: dict : unpacked and passed to TrtWrappper() - see TrtWrapper above for details.
+      args: dict : unpacked and passed to TrtCompiler() - see TrtCompiler above for details.
       submodule : Hierarchical id(s) of submodule to patch, e.g. ['image_decoder.decoder']
-                  If None, TrtWrappper patch is applied to the whole model.
+                  If None, TrtCompiler patch is applied to the whole model.
                   Otherwise, submodule (or list of) is being patched.
     Returns:
       Always returns same model passed in as argument. This is for ease of use in configs.
@@ -519,8 +519,8 @@ def trt_compile(
             args["timestamp"] = timestamp
 
         def wrap(model, path):
-            wrapper = TrtWrappper(model, path + ".plan", logger=logger, **args)
-            model._trt_wrapper = wrapper
+            wrapper = TrtCompiler(model, path + ".plan", logger=logger, **args)
+            model._trt_compiler = wrapper
             model.forward = MethodType(trt_forward, model)
 
         def find_sub(parent, submodule):
