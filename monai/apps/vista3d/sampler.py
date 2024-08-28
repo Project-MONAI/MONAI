@@ -80,7 +80,7 @@ def sample_prompt_pairs(
         point_label: [B, N]. The corresponding point labels for each point (negative or positive).
             -1 is used for padding the background label prompt and will be ignored.
         prompt_class: [B, 1], exactly the same with label_prompt for label indexing for training loss.
-        label_prompt can be None, and prompt_class is used to identify point classes.
+            label_prompt can be None, and prompt_class is used to identify point classes.
     """
 
     # class label number
