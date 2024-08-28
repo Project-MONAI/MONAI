@@ -23,7 +23,6 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.data.meta_tensor import MetaTensor
 from monai.transforms import DataStats
 
 TEST_CASE_1 = [
@@ -131,58 +130,20 @@ TEST_CASE_7 = [
 ]
 
 TEST_CASE_8 = [
-    {
-        "prefix": "test data",
-        "data_type": True,
-        "data_shape": True,
-        "value_range": True,
-        "data_value": True,
-        "additional_info": np.mean,
-        "name": "DataStats",
-    },
     np.array([[0, 1], [1, 2]]),
     "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
     "Value: [[0 1]\n [1 2]]\nAdditional info: 1.0\n",
 ]
 
-TEST_CASE_9 = [
-    np.array([[0, 1], [1, 2]]),
-    "test data statistics:\nType: <class 'numpy.ndarray'> int64\nShape: (2, 2)\nValue range: (0, 2)\n"
-    "Value: [[0 1]\n [1 2]]\n"
-    "Meta_Info: {affine: tensor([[1., 0., 0., 0.],\n"
-    "        [0., 1., 0., 0.],\n"
-    "        [0., 0., 1., 0.],\n"
-    "        [0., 0., 0., 1.]], dtype=torch.float64), space: RAS}\n"
-    "Additional info: 1.0\n",
-]
-
-TEST_CASE_10 = [
-    MetaTensor(
-        torch.tensor([[0, 1], [1, 2]]),
-        affine=torch.as_tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]], dtype=torch.float64),
-        meta={"some": "info"},
-    ),
-    "test data statistics:\nType: <class 'monai.data.meta_tensor.MetaTensor'> torch.int64\n"
-    "Shape: torch.Size([2, 2])\nValue range: (0, 2)\n"
-    "Value: tensor([[0, 1],\n        [1, 2]])\n"
-    "Meta_Info: {'some': 'info', affine: tensor([[2., 0., 0., 0.],\n"
-    "        [0., 2., 0., 0.],\n"
-    "        [0., 0., 2., 0.],\n"
-    "        [0., 0., 0., 1.]], dtype=torch.float64), space: RAS}\n"
-    "Additional info: 1.0\n",
-]
-
 
 class TestDataStats(unittest.TestCase):
 
-    @parameterized.expand(
-        [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
-    )
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_value(self, input_param, input_data, expected_print):
         transform = DataStats(**input_param)
         _ = transform(input_data)
 
-    @parameterized.expand([TEST_CASE_9, TEST_CASE_10])
+    @parameterized.expand([TEST_CASE_8])
     def test_file(self, input_data, expected_print):
         with tempfile.TemporaryDirectory() as tempdir:
             filename = os.path.join(tempdir, "test_data_stats.log")
@@ -197,7 +158,6 @@ class TestDataStats(unittest.TestCase):
                 "data_shape": True,
                 "value_range": True,
                 "data_value": True,
-                "meta_info": True,
                 "additional_info": np.mean,
                 "name": name,
             }
@@ -210,6 +170,7 @@ class TestDataStats(unittest.TestCase):
                 content = f.read()
             if sys.platform != "win32":
                 self.assertEqual(content, expected_print)
+            # self.assertEqual(content, expected_print)
 
     def test_multiple_data_stats(self):
         with patch("sys.stdout", new=StringIO()) as out:

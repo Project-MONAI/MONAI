@@ -730,7 +730,8 @@ class DataStats(Transform):
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
         if self.meta_info if meta_info is None else meta_info:
-            lines.append(f"Meta_Info: {MetaTensor(img).meta.__repr__()}")
+            metadata = getattr(img, "meta", "(input is not a MetaTensor)")
+            lines.append(f"Meta info: {repr(metadata)}")
         additional_info = self.additional_info if additional_info is None else additional_info
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
