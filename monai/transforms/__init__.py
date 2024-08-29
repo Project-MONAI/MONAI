@@ -503,6 +503,7 @@ from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTr
 from .utility.array import (
     AddCoordinateChannels,
     AddExtremePointsChannel,
+    ApplyTransformToPoints,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -542,6 +543,9 @@ from .utility.dictionary import (
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
+    ApplyTransformToPointsd,
+    ApplyTransformToPointsD,
+    ApplyTransformToPointsDict,
     AsChannelLastd,
     AsChannelLastD,
     AsChannelLastDict,

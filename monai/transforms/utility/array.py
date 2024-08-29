@@ -31,7 +31,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import is_no_channel, no_collation
+from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
     EllipticalFilter,
@@ -42,16 +42,17 @@ from monai.networks.layers.simplelayers import (
     SharpenFilter,
     median_filter,
 )
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
+    apply_affine_to_points,
     extreme_points_to_image,
     get_extreme_points,
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, linalg_inv, moveaxis, unravel_indices
 from monai.utils import (
     MetaKeys,
     TraceKeys,
@@ -66,7 +67,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
+from monai.utils.type_conversion import convert_to_dst_type, get_dtype_string, get_equivalent_dtype
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -106,6 +107,7 @@ __all__ = [
     "ToCupy",
     "ImageFilter",
     "RandImageFilter",
+    "ApplyTransformToPoints",
 ]
 
 
@@ -1715,3 +1717,133 @@ class RandImageFilter(RandomizableTransform):
         if self._do_transform:
             img = self.filter(img)
         return img
+
+
+class ApplyTransformToPoints(InvertibleTransform, Transform):
+    """
+    Transform points between image coordinates and world coordinates.
+    The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels
+    and N denotes the number of points. It will return a tensor with the same shape as the input.
+
+    Args:
+        dtype: The desired data type for the output.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. This matrix typically originates
+            from the image. For 2D points, a 3x3 matrix can be provided, avoiding the need to add an unnecessary
+            Z dimension. While a 4x4 matrix is required for 3D transformations, it's important to note that when
+            applying a 4x4 matrix to 2D points, the additional dimensions are handled accordingly.
+            The matrix is always converted to float64 for computation, which can be computationally
+            expensive when applied to a large number of points.
+            If None, will try to use the affine matrix from the input data.
+        invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
+            Typically, the affine matrix is derived from an image and represents its location in world space,
+            while the points are in world coordinates. A value of ``True`` represents transforming these
+            world space coordinates to the image's coordinate space, and ``False`` the inverse of this operation.
+        affine_lps_to_ras: Defaults to ``False``. Set to `True` if your point data is in the RAS coordinate system
+            or you're using `ITKReader` with `affine_lps_to_ras=True`.
+            This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
+            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
+            matrix are in the same coordinate system.
+
+    Use Cases:
+        - Transforming points between world space and image space, and vice versa.
+        - Automatically handling inverse transformations between image space and world space.
+        - If points have an existing affine transformation, the class computes and
+          applies the required delta affine transformation.
+
+    """
+
+    def __init__(
+        self,
+        dtype: DtypeLike | torch.dtype | None = None,
+        affine: torch.Tensor | None = None,
+        invert_affine: bool = True,
+        affine_lps_to_ras: bool = False,
+    ) -> None:
+        self.dtype = dtype
+        self.affine = affine
+        self.invert_affine = invert_affine
+        self.affine_lps_to_ras = affine_lps_to_ras
+
+    def transform_coordinates(
+        self, data: torch.Tensor, affine: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, dict]:
+        """
+        Transform coordinates using an affine transformation matrix.
+
+        Args:
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
+            affine: 3x3 or 4x4 affine transformation matrix. The matrix is always converted to float64 for computation,
+                which can be computationally expensive when applied to a large number of points.
+
+        Returns:
+            Transformed coordinates.
+        """
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        # applied_affine is the affine transformation matrix that has already been applied to the point data
+        applied_affine = getattr(data, "affine", None)
+
+        if affine is None and self.invert_affine:
+            raise ValueError("affine must be provided when invert_affine is True.")
+
+        affine = applied_affine if affine is None else affine
+        affine = convert_data_type(affine, dtype=torch.float64)[0]  # always convert to float64 for affine
+        original_affine: torch.Tensor = affine
+        if self.affine_lps_to_ras:
+            affine = orientation_ras_lps(affine)
+
+        # the final affine transformation matrix that will be applied to the point data
+        _affine: torch.Tensor = affine
+        if self.invert_affine:
+            _affine = linalg_inv(affine)
+            if applied_affine is not None:
+                # consider the affine transformation already applied to the data in the world space
+                # and compute delta affine
+                _affine = _affine @ linalg_inv(applied_affine)
+        out = apply_affine_to_points(data, _affine, dtype=self.dtype)
+
+        extra_info = {
+            "invert_affine": self.invert_affine,
+            "dtype": get_dtype_string(self.dtype),
+            "image_affine": original_affine,  # record for inverse operation
+            "affine_lps_to_ras": self.affine_lps_to_ras,
+        }
+        xform: torch.Tensor = original_affine if self.invert_affine else linalg_inv(original_affine)
+        meta_info = TraceableTransform.track_transform_meta(
+            data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
+        )
+
+        return out, meta_info
+
+    def __call__(self, data: torch.Tensor, affine: torch.Tensor | None = None):
+        """
+        Args:
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
+            affine: A 3x3 or 4x4 affine transformation matrix, this argument will take precedence over ``self.affine``.
+        """
+        if data.ndim != 3 or data.shape[-1] not in (2, 3):
+            raise ValueError(f"data should be in shape (C, N, 2 or 3), got {data.shape}.")
+        affine = self.affine if affine is None else affine
+        if affine is not None and affine.shape not in ((3, 3), (4, 4)):
+            raise ValueError(f"affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
+
+        out, meta_info = self.transform_coordinates(data, affine)
+
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        # Create inverse transform
+        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
+        invert_affine = not transform[TraceKeys.EXTRA_INFO]["invert_affine"]
+        affine = transform[TraceKeys.EXTRA_INFO]["image_affine"]
+        affine_lps_to_ras = transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
+        inverse_transform = ApplyTransformToPoints(
+            dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
+        )
+        # Apply inverse
+        with inverse_transform.trace_transform(False):
+            data = inverse_transform(data, affine)
+
+        return data
