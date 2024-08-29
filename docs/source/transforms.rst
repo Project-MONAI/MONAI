@@ -1216,6 +1216,12 @@ Utility
     :members:
     :special-members: __call__
 
+`ApplyTransformToPoints`
+""""""""""""""""""""""""
+.. autoclass:: ApplyTransformToPoints
+    :members:
+    :special-members: __call__
+
 Dictionary Transforms
 ---------------------
 
@@ -2262,6 +2268,12 @@ Utility (Dict)
 `RandImageFilterd`
 """"""""""""""""""
 .. autoclass:: RandImageFilterd
+    :members:
+    :special-members: __call__
+
+`ApplyTransformToPointsd`
+"""""""""""""""""""""""""
+.. autoclass:: ApplyTransformToPointsd
     :members:
     :special-members: __call__
 
