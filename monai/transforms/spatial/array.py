@@ -3586,4 +3586,3 @@ class ConvertPointsToBoxes(Transform):
         data = convert_to_tensor(data, track_meta=get_track_meta())
         box = convert_points_to_box(data)
         return convert_to_dst_type(box, data)[0]
-
