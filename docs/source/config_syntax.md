@@ -184,23 +184,36 @@ the value associated with the key is being overridden, in the order config files
 If the desired behaviour is to merge values from both files, the key in second config file should be prefixed with `+`.
 The value types for the merged contents must match and be both of `dict` or both of `list` type.
 `dict` values will be merged via update(), `list` values - concatenated via extend().
-Here's an example. In this case, "amp" value will be overridden by json2 config, and "imports" lists will be merged.
-An error would be thrown if the value type in `"+imports"` is not `list`:
+Here's an example. In this case, "amp" value will be overridden by extra_config.json.
+`imports` and `preprocessing#transforms` lists will be merged. An error would be thrown if the value type in `"+imports"` is not `list`:
+
+config.json:
 ```json
 {
     "amp": "$True"
     "imports": [
 	"$import torch"
     ],
+    "preprocessing": {
+        "_target_": "Compose",
+        "transforms": [
+	  "$@t1",
+	  "$@t2"
+        ]	  
+    },
 }
 ```
 
+extra_config.json:
 ```json
 {
     "amp": "$False"
     "+imports": [
 	"$from monai.networks import trt_compile"
     ],
+    "+preprocessing#transforms": [
+        "$@t3"
+    ]
 }
 ```
 

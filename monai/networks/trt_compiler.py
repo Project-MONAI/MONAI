@@ -250,10 +250,9 @@ class TrtCompiler:
             model: Model to "wrap".
             plan_path : Path where to save persistent serialized TRT engine.
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
-            method: One of 'onnx'|'onnx_dynamo'|'torch_trt'.
+            method: One of 'onnx'|'torch_trt'.
                     Default is 'onnx' (torch.onnx.export()->TRT). This is the most stable and efficient option.
-                    'onnx_dynamo' is using experimental 'dynamo' export() option, it may not work with AMP.
-                    'torch_trt' may not work correctly for nets with multiple inputs or dynamic batch size.
+                    'torch_trt' may not work for nets with multiple inputs or dynamic batch size. AMP must be off for it.
             input_names: Optional list of input names. If None, will be read from the function signature.
             output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
@@ -445,12 +444,6 @@ class TrtCompiler:
                 **export_args,
             )
         else:
-            if self.method == "onnx_dynamo":
-                import torch_onnx
-
-                torch_onnx.patch_torch()
-                export_args["dynamo"] = True
-
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 onnx_path = Path(tmpdir) / "model.onnx"
@@ -487,16 +480,18 @@ def trt_compile(
     logger: Any | None = None,
 ) -> torch.nn.Module:
     """
-    Instruments model or submodule with TrtCompiler and replaces its forward() with TRT hook.
+    Instruments model or submodule(s) with TrtCompiler and replaces its forward() with TRT hook.
     Args:
-      model: module to patch with TrtCompiler().
-      base_path: TRT plan(s) saved to "base_path[.submodule].plan" path.
-                 If base_path points to existing file (e.g. associated checkpoint),
-                 that file also becomes dependency - its mtime is added to args["timestamp"].
-      args: dict : unpacked and passed to TrtCompiler() - see TrtCompiler above for details.
-      submodule : Hierarchical id(s) of submodule to patch, e.g. ['image_decoder.decoder']
+      model: module to patch with TrtCompiler object.
+      base_path: TRT plan(s) saved to f"{base_path}[.{submodule}].plan" path.
+                 dirname(base_path) must exist, base_path does not have to.
+                 If base_path does point to existing file (e.g. associated checkpoint),
+                 that file becomes a dependency - its mtime is added to args["timestamp"].
+      args: Optional dict : unpacked and passed to TrtCompiler() - see TrtCompiler above for details.
+      submodule: Optional hierarchical id(s) of submodule to patch, e.g. ['image_decoder.decoder']
                   If None, TrtCompiler patch is applied to the whole model.
                   Otherwise, submodule (or list of) is being patched.
+      logger: Optional logger for diagnostics.
     Returns:
       Always returns same model passed in as argument. This is for ease of use in configs.
     """
@@ -542,4 +537,8 @@ def trt_compile(
                 wrap(getattr(parent, sub), base_path + "." + s)
         else:
             wrap(model, base_path)
+    else:
+        logger = logger or get_logger("trt_compile")
+        logger.warning("TensorRT and/or polygraphy packages are not available! trt_compile() has no effect.")
+
     return model
