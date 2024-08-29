@@ -238,8 +238,18 @@ from .intensity.dictionary import (
 )
 from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
-from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
-from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
+from .io.array import SUPPORTED_READERS, LoadImage, SaveImage, WriteFileMapping
+from .io.dictionary import (
+    LoadImaged,
+    LoadImageD,
+    LoadImageDict,
+    SaveImaged,
+    SaveImageD,
+    SaveImageDict,
+    WriteFileMappingd,
+    WriteFileMappingD,
+    WriteFileMappingDict,
+)
 from .lazy.array import ApplyPending
 from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
 from .lazy.functional import apply_pending
