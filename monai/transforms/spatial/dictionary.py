@@ -35,6 +35,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
     ConvertBoxToPoints,
+    ConvertPointsToBoxes,
     Flip,
     GridDistortion,
     GridPatch,
@@ -2627,6 +2628,13 @@ class ConvertBoxToPointsd(MapTransform):
         mode: str | BoxMode | type[BoxMode] | None = StandardMode,
         allow_missing_keys: bool = False,
     ):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            point_key: key to store the point data.
+            mode: the mode of the input boxes. Defaults to StandardMode.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
         super().__init__(keys, allow_missing_keys)
         self.point_key = point_key
         self.converter = ConvertBoxToPoints(mode=mode)
@@ -2635,6 +2643,28 @@ class ConvertBoxToPointsd(MapTransform):
         d = dict(data)
         for key in self.key_iterator(d):
             data[self.point_key] = self.converter(d[key])
+        return data
+
+
+class ConvertPointsToBoxesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertPointsToBoxes`.
+    """
+    def __init__(self, keys: KeysCollection, box_key="box", allow_missing_keys: bool = False):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            box_key: key to store the box data.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.box_key = box_key
+        self.converter = ConvertPointsToBoxes()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            data[self.box_key] = self.converter(d[key])
         return data
 
 

@@ -36,6 +36,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
     affine_func,
     convert_box_to_points,
+    convert_points_to_box,
     flip,
     orientation,
     resize,
@@ -3556,15 +3557,33 @@ class ConvertBoxToPoints(Transform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, mode: str | BoxMode | type[BoxMode] | None = StandardMode) -> None:
+    def __init__(self, mode: str | BoxMode | type[BoxMode] | None = None) -> None:
         """
         Args:
             mode: the mode of the box, can be a string, a BoxMode instance or a BoxMode class. Defaults to StandardMode.
         """
         super().__init__()
-        self.mode = mode
+        self.mode = StandardMode if mode is None else mode
 
     def __call__(self, data: Any):
         data = convert_to_tensor(data, track_meta=get_track_meta())
         points = convert_box_to_points(data, mode=self.mode)
         return convert_to_dst_type(points, data)[0]
+
+
+class ConvertPointsToBoxes(Transform):
+    """
+    Convert points to boxes.
+    The return box will be in the shape of (N, 6) for 3D or (N, 4) for 2D.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def __call__(self, data: Any):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        box = convert_points_to_box(data)
+        return convert_to_dst_type(box, data)[0]
+
