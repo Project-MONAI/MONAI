@@ -25,6 +25,7 @@ import torch
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
@@ -34,6 +35,7 @@ from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCro
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
     affine_func,
+    convert_box_to_points,
     flip,
     orientation,
     resize,
@@ -3544,3 +3546,25 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         else:
             return img
+
+
+class ConvertBoxToPoints(Transform):
+    """
+    Convert boxes to points. It can automatically convert the boxes to the points based on the box mode.
+    The return points will be in the shape of (N, 4, 2) or (N, 8, 3) based on the box mode.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, mode: str | BoxMode | type[BoxMode] | None = StandardMode) -> None:
+        """
+        Args:
+            mode: the mode of the box, can be a string, a BoxMode instance or a BoxMode class. Defaults to StandardMode.
+        """
+        super().__init__()
+        self.mode = mode
+
+    def __call__(self, data: Any):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        points = convert_box_to_points(data, mode=self.mode)
+        return convert_to_dst_type(points, data)[0]

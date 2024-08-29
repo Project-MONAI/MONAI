@@ -26,6 +26,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -33,6 +34,7 @@ from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
+    ConvertBoxToPoints,
     Flip,
     GridDistortion,
     GridPatch,
@@ -2609,6 +2611,31 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
             else:
                 d[key] = convert_to_tensor(d[key], track_meta=get_track_meta(), dtype=torch.float32)
         return d
+
+
+class ConvertBoxToPointsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertBoxToPoints`.
+    """
+
+    backend = ConvertBoxToPoints.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        point_key="points",
+        mode: str | BoxMode | type[BoxMode] | None = StandardMode,
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.point_key = point_key
+        self.converter = ConvertBoxToPoints(mode=mode)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            data[self.point_key] = self.converter(d[key])
+        return data
 
 
 SpatialResampleD = SpatialResampleDict = SpatialResampled
