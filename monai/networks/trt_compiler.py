@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Union
 import torch
 
 from monai.apps.utils import get_logger
-from monai.networks.utils import add_casts_around_norms, convert_to_onnx, convert_to_torchscript
+from monai.networks.utils import add_casts_around_norms, convert_to_onnx, convert_to_torchscript, get_profile_shapes
 from monai.utils.module import optional_import
 
 polygraphy, polygraphy_imported = optional_import("polygraphy")
@@ -252,7 +252,7 @@ class TrtCompiler:
             precision: TRT builder precision o engine model. Should be 'fp32'|'tf32'|'fp16'|'bf16'.
             method: One of 'onnx'|'torch_trt'.
                     Default is 'onnx' (torch.onnx.export()->TRT). This is the most stable and efficient option.
-                    'torch_trt' may not work for nets with multiple inputs or dynamic batch size. AMP must be off for it.
+                    'torch_trt' may not work for some nets. Also AMP must be turned off for it to work.
             input_names: Optional list of input names. If None, will be read from the function signature.
             output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
@@ -266,6 +266,14 @@ class TrtCompiler:
             timestamp: Optional timestamp to rebuild TRT engine (e.g. if config file changes).
             fallback: Allow to fall back to Pytorch when TRT inference fails (e.g, shapes exceed max profile).
         """
+
+        method_vals = ["onnx", "torch_trt"]
+        if method not in method_vals:
+            raise ValueError(f"trt_compile(): 'method' should be one of {method_vals}, got: {method}.")
+        precision_vals = ["fp32", "tf32", "fp16", "bf16"]
+        if precision not in precision_vals:
+            raise ValueError(f"trt_compile(): 'precision' should be one of {precision_vals}, got: {precision}.")
+
         self.plan_path = plan_path
         self.precision = precision
         self.method = method
@@ -321,10 +329,6 @@ class TrtCompiler:
         Returns: Passing through wrapped module's forward() return value(s)
 
         """
-        if len(argv) > 0:
-            kwargs.update(self._inputs_to_dict(argv))
-            argv = ()
-
         if self.engine is None and not self.disabled:
             # Restore original forward for export
             new_forward = model.forward
@@ -332,7 +336,11 @@ class TrtCompiler:
             try:
                 self._load_engine()
                 if self.engine is None:
-                    self._build_and_save(model, kwargs)
+                    build_args = kwargs.copy()
+                    if len(argv) > 0:
+                        build_args.update(self._inputs_to_dict(argv))
+                    self._build_and_save(model, build_args)
+                    # This will reassign input_names from the engine
                     self._load_engine()
             except Exception as e:
                 if self.fallback:
@@ -349,6 +357,10 @@ class TrtCompiler:
             model.forward = new_forward
         # Run the engine
         try:
+            if len(argv) > 0:
+                kwargs.update(self._inputs_to_dict(argv))
+                argv = ()
+
             if self.engine is not None:
                 # forward_trt is not thread safe as we do not use per-thread execution contexts
                 with lock_sm:
@@ -410,20 +422,6 @@ class TrtCompiler:
             return
 
         export_args = self.export_args
-        dbs = self.dynamic_batchsize
-        if dbs:
-            if len(self.profiles) > 0:
-                raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TrtCompiler!")
-            if len(dbs) != 3:
-                raise ValueError("dynamic_batchsize has to have len ==3 ")
-            profiles = {}
-            for id, val in input_example.items():
-                sh = val.shape[1:]
-                profiles[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
-            self.profiles = [profiles]
-
-        if len(self.profiles) > 0:
-            export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
 
         add_casts_around_norms(model)
 
@@ -435,15 +433,38 @@ class TrtCompiler:
                 enabled_precisions.append(torch.bfloat16)
             inputs = list(input_example.values())
             ir_model = convert_to_torchscript(model, inputs=inputs, use_trace=True)
+
+            def get_torch_trt_input(input_shape, dynamic_batchsize):
+                min_input_shape, opt_input_shape, max_input_shape = get_profile_shapes(input_shape, dynamic_batchsize)
+                return torch_tensorrt.Input(
+                    min_shape=min_input_shape, opt_shape=opt_input_shape, max_shape=max_input_shape
+                )
+
+            tt_inputs = [get_torch_trt_input(i.shape, self.dynamic_batchsize) for i in inputs]
             engine_bytes = torch_tensorrt.convert_method_to_trt_engine(
                 ir_model,
                 "forward",
-                inputs=inputs,
+                inputs=tt_inputs,
                 ir="torchscript",
                 enabled_precisions=enabled_precisions,
                 **export_args,
             )
         else:
+            dbs = self.dynamic_batchsize
+            if dbs:
+                if len(self.profiles) > 0:
+                    raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TrtCompiler!")
+                if len(dbs) != 3:
+                    raise ValueError("dynamic_batchsize has to have len ==3 ")
+                profiles = {}
+                for id, val in input_example.items():
+                    sh = val.shape[1:]
+                    profiles[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
+                self.profiles = [profiles]
+
+            if len(self.profiles) > 0:
+                export_args.update({"dynamic_axes": get_dynamic_axes(self.profiles)})
+
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 onnx_path = Path(tmpdir) / "model.onnx"

@@ -37,6 +37,7 @@ onnx, _ = optional_import("onnx")
 onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
+torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
 __all__ = [
     "one_hot",
@@ -62,11 +63,32 @@ __all__ = [
     "look_up_named_module",
     "set_named_module",
     "has_nvfuser_instance_norm",
+    "get_profile_shapes",
 ]
 
 logger = get_logger(module_name=__name__)
 
 _has_nvfuser = None
+
+
+def get_profile_shapes(input_shape: Sequence[int], dynamic_batchsize: Sequence[int] | None):
+    """
+    Given a sample input shape, calculate min/opt/max shapes according to dynamic_batchsize.
+    """
+
+    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
+        scale_shape = [*input_shape]
+        scale_shape[0] = scale_num
+        return scale_shape
+
+    # Use the dynamic batchsize range to generate the min, opt and max model input shape
+    if dynamic_batchsize:
+        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
+        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
+        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
+    else:
+        min_input_shape = opt_input_shape = max_input_shape = input_shape
+    return min_input_shape, opt_input_shape, max_input_shape
 
 
 def has_nvfuser_instance_norm():
@@ -827,7 +849,6 @@ def _onnx_trt_compile(
 
     """
     trt, _ = optional_import("tensorrt", "8.5.3")
-    torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
     input_shapes = (min_shape, opt_shape, max_shape)
     # default to an empty list to fit the `torch_tensorrt.ts.embed_engine_in_new_module` function.
@@ -929,8 +950,6 @@ def convert_to_trt(
             to compile model, for more details: https://pytorch.org/TensorRT/py_api/torch_tensorrt.html#torch-tensorrt-py.
     """
 
-    torch_tensorrt, _ = optional_import("torch_tensorrt", version="1.4.0")
-
     if not torch.cuda.is_available():
         raise Exception("Cannot find any GPU devices.")
 
@@ -948,21 +967,9 @@ def convert_to_trt(
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
-    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
-        scale_shape = [*input_shape]
-        scale_shape[0] *= scale_num
-        return scale_shape
-
-    # Use the dynamic batchsize range to generate the min, opt and max model input shape
-    if dynamic_batchsize:
-        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
-        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
-        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
-    else:
-        min_input_shape = opt_input_shape = max_input_shape = input_shape
-
     # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
+    min_input_shape, opt_input_shape, max_input_shape = get_profile_shapes(input_shape, dynamic_batchsize)
 
     if use_onnx:
         # set the batch dim as dynamic
@@ -971,7 +978,6 @@ def convert_to_trt(
         ir_model = convert_to_onnx(
             model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
         )
-
         # convert the model through the ONNX-TensorRT way
         trt_model = _onnx_trt_compile(
             ir_model,

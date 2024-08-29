@@ -33,6 +33,7 @@ TEST_CASE_2 = ["fp16"]
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
+@unittest.skipUnless(has_trt, "TensorRT compile wrapper is required for convert!")
 class TestTRTCompile(unittest.TestCase):
 
     def setUp(self):
@@ -43,7 +44,6 @@ class TestTRTCompile(unittest.TestCase):
         if current_device != self.gpu_device:
             torch.cuda.set_device(self.gpu_device)
 
-    @unittest.skipUnless(has_trt, "TensorRT compile wrapper is required for convert!")
     def test_handler(self):
         from ignite.engine import Engine
 
@@ -56,12 +56,15 @@ class TestTRTCompile(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             engine = Engine(lambda e, b: None)
-            TrtHandler(net1, tempdir + "/trt_handler").attach(engine)
+            args = {"method": "torch_trt"}
+            TrtHandler(net1, tempdir + "/trt_handler", args=args).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             self.assertIsNotNone(net1._trt_compiler)
+            self.assertIsNone(net1._trt_compiler.engine)
+            net1.forward(torch.tensor([[0.0, 1.0], [1.0, 2.0]], device="cuda"))
+            self.assertIsNotNone(net1._trt_compiler.engine)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    @unittest.skipUnless(has_trt, "TensorRT compile wrapper is required for convert!")
     def test_value(self, precision):
         model = UNet(
             spatial_dims=3,
@@ -74,7 +77,7 @@ class TestTRTCompile(unittest.TestCase):
         ).cuda()
         with torch.no_grad(), tempfile.TemporaryDirectory() as tmpdir:
             model.eval()
-            input_example = torch.randn(1, 1, 96, 96, 96).cuda()
+            input_example = torch.randn(2, 1, 96, 96, 96).cuda()
             output_example = model(input_example)
             args: dict = {"builder_optimization_level": 1}
             trt_compile(
