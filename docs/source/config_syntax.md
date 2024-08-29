@@ -199,7 +199,7 @@ config.json:
         "transforms": [
 	  "$@t1",
 	  "$@t2"
-        ]	  
+        ]
     },
 }
 ```
