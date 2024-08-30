@@ -51,6 +51,7 @@ class BilateralFilter(torch.autograd.Function):
         ctx.cs = color_sigma
         ctx.fa = fast_approx
         output_data = _C.bilateral_filter(input, spatial_sigma, color_sigma, fast_approx)
+        torch.cuda.synchronize()
         return output_data
 
     @staticmethod
@@ -140,6 +141,7 @@ class TrainableBilateralFilterFunction(torch.autograd.Function):
             do_dsig_z,
         )
 
+        torch.cuda.synchronize()
         return output_tensor
 
     @staticmethod
@@ -301,7 +303,7 @@ class TrainableJointBilateralFilterFunction(torch.autograd.Function):
             do_dsig_z,
             guidance_img,
         )
-
+        torch.cuda.synchronize()
         return output_tensor
 
     @staticmethod
