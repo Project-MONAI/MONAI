@@ -49,8 +49,6 @@ def get_norm_layer(name: tuple | str, spatial_dims: int | None = 1, channels: in
         kw_args["num_features"] = channels
     if has_option(norm_type, "num_channels") and "num_channels" not in kw_args:
         kw_args["num_channels"] = channels
-    if has_option(norm_type, "normalized_shape") and "normalized_shape" not in kw_args:
-        kw_args["normalized_shape"] = channels
     return norm_type(**kw_args)
 
 
