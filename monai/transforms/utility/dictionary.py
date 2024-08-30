@@ -1716,7 +1716,7 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
             Don't raise exception if key is missing.
 
     Note:
-        - This transform does not scale output image values automatically to match the range of the input. 
+        - This transform does not scale output image values automatically to match the range of the input.
           The output should be scaled by later transforms to match the input if this is desired.
     """
 
