@@ -1715,8 +1715,8 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
         allow_missing_keys:
             Don't raise exception if key is missing.
 
-    Note: 
-        - This method does not scale the image automatically. The user will need to manually scale 
+    Note:
+        - This method does not scale the image automatically. The user will need to manually scale
           the image back to its proper size after RandImageFilterd transforms.
     """
 
