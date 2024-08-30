@@ -554,6 +554,12 @@ IO
     :members:
     :special-members: __call__
 
+`WriteFileMapping`
+""""""""""""""""""
+.. autoclass:: WriteFileMapping
+    :members:
+    :special-members: __call__
+
 
 NVIDIA Tool Extension (NVTX)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1639,6 +1645,12 @@ IO (Dict)
 `SaveImaged`
 """"""""""""
 .. autoclass:: SaveImaged
+    :members:
+    :special-members: __call__
+
+`WriteFileMappingd`
+"""""""""""""""""""
+.. autoclass:: WriteFileMappingd
     :members:
     :special-members: __call__
 
