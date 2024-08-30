@@ -2585,6 +2585,7 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
         self, seed: int | None = None, state: np.random.RandomState | None = None
     ) -> RandSimulateLowResolutiond:
         super().set_random_state(seed, state)
+        self.sim_lowres_tfm.set_random_state(seed, state)
         return self
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
