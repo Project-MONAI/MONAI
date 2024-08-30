@@ -20,8 +20,6 @@ import numpy as np
 import torch
 from torch import Tensor
 
-__all__ = ["sample_prompt_pairs"]
-
 ENABLE_SPECIAL = True
 SPECIAL_INDEX = (23, 24, 25, 26, 27, 57, 128)
 MERGE_LIST = {
@@ -29,6 +27,8 @@ MERGE_LIST = {
     4: [24],  # pancreatic tumor merge into pancreas
     132: [57],  # overlap with trachea merge into airway
 }
+
+__all__ = ["sample_prompt_pairs"]
 
 
 def _get_point_label(id: int) -> tuple[int, int]:
@@ -58,29 +58,35 @@ def sample_prompt_pairs(
         labels: [1, 1, H, W, D], ground truth labels.
         label_set: the label list for the specific dataset. Note if 0 is included in label_set,
             it will be added into automatic branch training. Recommend removing 0 from label_set
-            for multi-partially-labeled-dataset training, and adding 0 for finetuning specific dataset. 
-            The reason is region with 0 in one partially labeled dataset may contain foregrounds in 
-            another dataset. 
+            for multi-partially-labeled-dataset training, and adding 0 for finetuning specific dataset.
+            The reason is region with 0 in one partially labeled dataset may contain foregrounds in
+            another dataset.
         max_prompt: int, max number of total prompt, including foreground and background.
         max_foreprompt: int, max number of prompt from foreground.
         max_backprompt: int, max number of prompt from background.
         max_point: maximum number of points for each object.
         include_background: if include 0 into training prompt. If included, background 0 is treated
-            the same as foreground and points will be sampled. Can be true only if user want to segment 
-            background 0 with point clicks, otherwise always be false. 
+            the same as foreground and points will be sampled. Can be true only if user want to segment
+            background 0 with point clicks, otherwise always be false.
         drop_label_prob: probability to drop label prompt.
         drop_point_prob: probability to drop point prompt.
         point_sampler: sampler to augment masks with supervoxel.
         point_sampler_kwargs: arguments for point_sampler.
 
     Returns:
-        label_prompt: [B, 1]. The classes used for training automatic segmentation.
-        point: [B, N, 3]. The corresponding points for each class.
-            Note that background label prompt requires matching point as well ([0,0,0] is used).
-        point_label: [B, N]. The corresponding point labels for each point (negative or positive).
-            -1 is used for padding the background label prompt and will be ignored.
-        prompt_class: [B, 1], exactly the same with label_prompt for label indexing for training loss.
-        label_prompt can be None, and prompt_class is used to identify point classes.
+        tuple:
+            - label_prompt (Tensor | None): Tensor of shape [B, 1] containing the classes used for
+              training automatic segmentation.
+            - point (Tensor | None): Tensor of shape [B, N, 3] representing the corresponding points
+              for each class. Note that background label prompts require matching points as well
+              (e.g., [0, 0, 0] is used).
+            - point_label (Tensor | None): Tensor of shape [B, N] representing the corresponding point
+              labels for each point (negative or positive). -1 is used for padding the background
+              label prompt and will be ignored.
+            - prompt_class (Tensor | None): Tensor of shape [B, 1], exactly the same as label_prompt
+              for label indexing during training. If label_prompt is None, prompt_class is used to
+              identify point classes.
+
     """
 
     # class label number
