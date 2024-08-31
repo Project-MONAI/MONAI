@@ -44,9 +44,9 @@ jobs:
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
             base: "nvcr.io/nvidia/pytorch:23.08-py3"
           - environment: PT210+CUDA121DOCKER
-            # 24.03: 2.3.0a0+40ec155e58.nv24.3
+            # 24.08: 2.3.0a0+40ec155e58.nv24.3
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
-            base: "nvcr.io/nvidia/pytorch:24.03-py3"
+            base: "nvcr.io/nvidia/pytorch:24.08-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
