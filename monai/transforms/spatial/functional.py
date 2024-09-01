@@ -33,7 +33,7 @@ from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
-from monai.transforms.utils_pytorch_numpy_unification import allclose, concatenate, max, min, stack
+from monai.transforms.utils_pytorch_numpy_unification import allclose, concatenate, stack
 from monai.utils import (
     LazyAttr,
     TraceKeys,
@@ -671,6 +671,7 @@ def convert_points_to_box(points):
         points: Points representing the corners of the bounding box. Shape (N, 8, 3) for the 8 corners of
             a 3D cuboid or (N, 4, 2) for the 4 corners of a 2D rectangle.
     """
+    from monai.transforms.utils_pytorch_numpy_unification import min, max
     mins = min(points, dim=1)
     maxs = max(points, dim=1)
     # Concatenate the min and max values to get the bounding boxes
