@@ -1718,6 +1718,10 @@ class RandImageFilterd(MapTransform, RandomizableTransform):
             Probability the transform is applied to the data
         allow_missing_keys:
             Don't raise exception if key is missing.
+
+    Note:
+        - This transform does not scale output image values automatically to match the range of the input.
+          The output should be scaled by later transforms to match the input if this is desired.
     """
 
     backend = ImageFilter.backend

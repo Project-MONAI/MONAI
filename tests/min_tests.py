@@ -186,6 +186,7 @@ def run_testsuit():
         "test_torchvisiond",
         "test_transchex",
         "test_transformerblock",
+        "test_trt_compile",
         "test_unetr",
         "test_unetr_block",
         "test_vit",

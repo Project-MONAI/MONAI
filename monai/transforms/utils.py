@@ -2514,6 +2514,7 @@ def distance_transform_edt(
                 block_params=block_params,
                 float64_distances=float64_distances,
             )
+        torch.cuda.synchronize()
     else:
         if not has_ndimage:
             raise RuntimeError("scipy.ndimage required if cupy is not available")
@@ -2547,7 +2548,7 @@ def distance_transform_edt(
 
     r_vals = []
     if return_distances and distances_original is None:
-        r_vals.append(distances)
+        r_vals.append(distances_ if use_cp else distances)
     if return_indices and indices_original is None:
         r_vals.append(indices)
     if not r_vals:
