@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.data.box_utils import CornerCornerModeTypeB, convert_box_to_standard_mode
+from monai.data.box_utils import convert_box_to_standard_mode
 from monai.transforms.spatial.array import ConvertBoxToPoints, ConvertPointsToBoxes
 from tests.utils import assert_allclose
 
