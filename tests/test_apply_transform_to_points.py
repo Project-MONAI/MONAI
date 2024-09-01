@@ -30,10 +30,12 @@ POINT_2D_IMAGE_RAS = torch.tensor([[[-1, -1], [-1, -2], [-2, -3]]])
 POINT_3D_WORLD = torch.tensor([[[2, 4, 6], [8, 10, 12]], [[14, 16, 18], [20, 22, 24]]])
 POINT_3D_IMAGE = torch.tensor([[[-8, 8, 6], [-2, 14, 12]], [[4, 20, 18], [10, 26, 24]]])
 POINT_3D_IMAGE_RAS = torch.tensor([[[-12, 0, 6], [-18, -6, 12]], [[-24, -12, 18], [-30, -18, 24]]])
+AFFINE_1 = torch.tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+AFFINE_2 = torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 TEST_CASES = [
     [
-        MetaTensor(DATA_2D, affine=torch.tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])),
+        MetaTensor(DATA_2D, affine=AFFINE_1),
         POINT_2D_WORLD,
         None,
         True,
@@ -42,7 +44,7 @@ TEST_CASES = [
     ],
     [
         None,
-        MetaTensor(POINT_2D_IMAGE, affine=torch.tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])),
+        MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1),
         None,
         False,
         False,
@@ -50,14 +52,14 @@ TEST_CASES = [
     ],
     [
         None,
-        MetaTensor(POINT_2D_IMAGE, affine=torch.tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])),
-        torch.tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+        MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1),
+        AFFINE_1,
         False,
         False,
         POINT_2D_WORLD,
     ],
     [
-        MetaTensor(DATA_2D, affine=torch.tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])),
+        MetaTensor(DATA_2D, affine=AFFINE_1),
         POINT_2D_WORLD,
         None,
         True,
@@ -65,7 +67,7 @@ TEST_CASES = [
         POINT_2D_IMAGE_RAS,
     ],
     [
-        MetaTensor(DATA_3D, affine=torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])),
+        MetaTensor(DATA_3D, affine=AFFINE_2),
         POINT_3D_WORLD,
         None,
         True,
@@ -73,15 +75,15 @@ TEST_CASES = [
         POINT_3D_IMAGE,
     ],
     [
-        MetaTensor(DATA_3D, affine=torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])),
-        MetaTensor(POINT_3D_IMAGE, affine=torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])),
+        MetaTensor(DATA_3D, affine=AFFINE_2),
+        MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2),
         None,
         False,
         False,
         POINT_3D_WORLD,
     ],
     [
-        MetaTensor(DATA_3D, affine=torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])),
+        MetaTensor(DATA_3D, affine=AFFINE_2),
         POINT_3D_WORLD,
         None,
         True,

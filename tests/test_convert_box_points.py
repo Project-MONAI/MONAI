@@ -20,7 +20,6 @@ from monai.data.box_utils import CornerCornerModeTypeB, convert_box_to_standard_
 from monai.transforms.spatial.array import ConvertBoxToPoints, ConvertPointsToBoxes
 from tests.utils import assert_allclose
 
-
 TEST_CASE_POINTS_2D = [
     [
         torch.tensor([[10, 20, 30, 40], [50, 60, 70, 80]]),
@@ -97,6 +96,7 @@ TEST_CASE_POINTS_3D = [
 ]
 
 TEST_CASES = TEST_CASE_POINTS_2D + TEST_CASE_POINTS_3D
+
 
 class TestConvertBoxToPoints(unittest.TestCase):
 
