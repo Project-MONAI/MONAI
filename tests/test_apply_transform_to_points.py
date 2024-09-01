@@ -34,62 +34,13 @@ AFFINE_1 = torch.tensor([[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]
 AFFINE_2 = torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 TEST_CASES = [
-    [
-        MetaTensor(DATA_2D, affine=AFFINE_1),
-        POINT_2D_WORLD,
-        None,
-        True,
-        False,
-        POINT_2D_IMAGE,
-    ],
-    [
-        None,
-        MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1),
-        None,
-        False,
-        False,
-        POINT_2D_WORLD,
-    ],
-    [
-        None,
-        MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1),
-        AFFINE_1,
-        False,
-        False,
-        POINT_2D_WORLD,
-    ],
-    [
-        MetaTensor(DATA_2D, affine=AFFINE_1),
-        POINT_2D_WORLD,
-        None,
-        True,
-        True,
-        POINT_2D_IMAGE_RAS,
-    ],
-    [
-        MetaTensor(DATA_3D, affine=AFFINE_2),
-        POINT_3D_WORLD,
-        None,
-        True,
-        False,
-        POINT_3D_IMAGE,
-    ],
-    [
-        MetaTensor(DATA_3D, affine=AFFINE_2),
-        MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2),
-        None,
-        False,
-        False,
-        POINT_3D_WORLD,
-    ],
-    [
-        MetaTensor(DATA_3D, affine=AFFINE_2),
-        POINT_3D_WORLD,
-        None,
-        True,
-        True,
-        POINT_3D_IMAGE_RAS,
-    ],
+    [MetaTensor(DATA_2D, affine=AFFINE_1), POINT_2D_WORLD, None, True, False, POINT_2D_IMAGE],
+    [None, MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), None, False, False, POINT_2D_WORLD],
+    [None, MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), AFFINE_1, False, False, POINT_2D_WORLD],
+    [MetaTensor(DATA_2D, affine=AFFINE_1), POINT_2D_WORLD, None, True, True, POINT_2D_IMAGE_RAS],
+    [MetaTensor(DATA_3D, affine=AFFINE_2), POINT_3D_WORLD, None, True, False, POINT_3D_IMAGE],
+    [MetaTensor(DATA_3D, affine=AFFINE_2), MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2), None, False, False, POINT_3D_WORLD],
+    [MetaTensor(DATA_3D, affine=AFFINE_2), POINT_3D_WORLD, None, True, True, POINT_3D_IMAGE_RAS],
 ]
 
 TEST_CASES_WRONG = [
