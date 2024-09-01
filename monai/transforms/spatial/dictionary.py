@@ -2650,6 +2650,7 @@ class ConvertPointsToBoxesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertPointsToBoxes`.
     """
+
     def __init__(self, keys: KeysCollection, box_key="box", allow_missing_keys: bool = False):
         """
         Args:

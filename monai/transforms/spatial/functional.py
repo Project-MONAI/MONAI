@@ -33,7 +33,7 @@ from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
-from monai.transforms.utils_pytorch_numpy_unification import allclose, concatenate, stack, min, max
+from monai.transforms.utils_pytorch_numpy_unification import allclose, concatenate, max, min, stack
 from monai.utils import (
     LazyAttr,
     TraceKeys,
@@ -615,12 +615,12 @@ def affine_func(
 
 def convert_box_to_points(bbox, mode):
     """
-    Convert bounding box to points.
+    Converts an axis-aligned bounding box to points.
 
     Args:
         mode: The mode specifying how to interpret the bounding box.
-        bbox: Bounding box in the form of [x1, y1, x2, y2] for 2D or [x1, y1, z1, x2, y2, z2] for 3D.
-            Return shape will be (N, 4) for 2D or (N, 6) for 3D.
+        bbox: Bounding boxes of the shape (N, C) for N boxes. C is [x1, y1, x2, y2] for 2D or [x1, y1, z1, x2, y2, z2]
+            for 3D for each box. Return shape will be (N, 4, 2) for 2D or (N, 8, 3) for 3D.
 
     Returns:
         sequence of points representing the corners of the bounding box.
@@ -665,10 +665,11 @@ def convert_box_to_points(bbox, mode):
 
 def convert_points_to_box(points):
     """
-    Convert points to bounding box.
+    Converts points to an axis-aligned bounding box.
 
     Args:
-        points: Points representing the corners of the bounding box. Shape (N, 8, 3) or (N, 4, 2).
+        points: Points representing the corners of the bounding box. Shape (N, 8, 3) for the 8 corners of
+            a 3D cuboid or (N, 4, 2) for the 4 corners of a 2D rectangle.
     """
     mins = min(points, dim=1)
     maxs = max(points, dim=1)

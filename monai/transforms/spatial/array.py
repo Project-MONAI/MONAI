@@ -3551,8 +3551,9 @@ class RandSimulateLowResolution(RandomizableTransform):
 
 class ConvertBoxToPoints(Transform):
     """
-    Convert boxes to points. It can automatically convert the boxes to the points based on the box mode.
-    The return points will be in the shape of (N, 4, 2) or (N, 8, 3) based on the box mode.
+    Converts an axis-aligned bounding box to points. It can automatically convert the boxes to the points based on the box mode.
+    Bounding boxes of the shape (N, C) for N boxes. C is [x1, y1, x2, y2] for 2D or [x1, y1, z1, x2, y2, z2] for 3D for each box.
+    Return shape will be (N, 4, 2) for 2D or (N, 8, 3) for 3D.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -3573,8 +3574,9 @@ class ConvertBoxToPoints(Transform):
 
 class ConvertPointsToBoxes(Transform):
     """
-    Convert points to boxes.
-    The return box will be in the shape of (N, 6) for 3D or (N, 4) for 2D.
+    Converts points to an axis-aligned bounding box.
+    Points representing the corners of the bounding box. Shape (N, 8, 3) for the 8 corners of a 3D cuboid or
+    (N, 4, 2) for the 4 corners of a 2D rectangle.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
