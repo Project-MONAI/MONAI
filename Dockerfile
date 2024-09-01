@@ -56,4 +56,5 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
 ENV PATH=${PATH}:/opt/tools
+ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
 WORKDIR /opt/monai

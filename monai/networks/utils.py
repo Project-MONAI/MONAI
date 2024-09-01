@@ -36,6 +36,8 @@ from monai.utils.type_conversion import convert_to_dst_type, convert_to_tensor
 onnx, _ = optional_import("onnx")
 onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
+polygraphy, polygraphy_imported = optional_import("polygraphy")
+torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
 __all__ = [
     "one_hot",
@@ -61,11 +63,32 @@ __all__ = [
     "look_up_named_module",
     "set_named_module",
     "has_nvfuser_instance_norm",
+    "get_profile_shapes",
 ]
 
 logger = get_logger(module_name=__name__)
 
 _has_nvfuser = None
+
+
+def get_profile_shapes(input_shape: Sequence[int], dynamic_batchsize: Sequence[int] | None):
+    """
+    Given a sample input shape, calculate min/opt/max shapes according to dynamic_batchsize.
+    """
+
+    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
+        scale_shape = [*input_shape]
+        scale_shape[0] = scale_num
+        return scale_shape
+
+    # Use the dynamic batchsize range to generate the min, opt and max model input shape
+    if dynamic_batchsize:
+        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
+        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
+        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
+    else:
+        min_input_shape = opt_input_shape = max_input_shape = input_shape
+    return min_input_shape, opt_input_shape, max_input_shape
 
 
 def has_nvfuser_instance_norm():
@@ -606,6 +629,9 @@ def convert_to_onnx(
     rtol: float = 1e-4,
     atol: float = 0.0,
     use_trace: bool = True,
+    do_constant_folding: bool = True,
+    constant_size_threshold: int = 16 * 1024 * 1024 * 1024,
+    dynamo=False,
     **kwargs,
 ):
     """
@@ -632,7 +658,10 @@ def convert_to_onnx(
         rtol: the relative tolerance when comparing the outputs of PyTorch model and TorchScript model.
         atol: the absolute tolerance when comparing the outputs of PyTorch model and TorchScript model.
         use_trace: whether to use `torch.jit.trace` to export the torchscript model.
-        kwargs: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
+        do_constant_folding: passed to onnx.export(). If True, extra polygraphy folding pass is done.
+        constant_size_threshold: passed to polygrapy conatant forling, default = 16M
+        kwargs: if use_trace=True: additional arguments to pass to torch.onnx.export()
+            else: other arguments except `obj` for `torch.jit.script()` to convert model, for more details:
             https://pytorch.org/docs/master/generated/torch.jit.script.html.
 
     """
@@ -642,6 +671,7 @@ def convert_to_onnx(
         if use_trace:
             # let torch.onnx.export to trace the model.
             mode_to_export = model
+            torch_versioned_kwargs = kwargs
         else:
             if not pytorch_after(1, 10):
                 if "example_outputs" not in kwargs:
@@ -654,31 +684,36 @@ def convert_to_onnx(
                 del kwargs["example_outputs"]
             mode_to_export = torch.jit.script(model, **kwargs)
 
+        if torch.is_tensor(inputs) or isinstance(inputs, dict):
+            onnx_inputs = (inputs,)
+        else:
+            onnx_inputs = tuple(inputs)
+
         if filename is None:
             f = io.BytesIO()
-            torch.onnx.export(
-                mode_to_export,
-                tuple(inputs),
-                f=f,
-                input_names=input_names,
-                output_names=output_names,
-                dynamic_axes=dynamic_axes,
-                opset_version=opset_version,
-                **torch_versioned_kwargs,
-            )
+        else:
+            f = filename
+
+        torch.onnx.export(
+            mode_to_export,
+            onnx_inputs,
+            f=f,
+            input_names=input_names,
+            output_names=output_names,
+            dynamic_axes=dynamic_axes,
+            opset_version=opset_version,
+            do_constant_folding=do_constant_folding,
+            **torch_versioned_kwargs,
+        )
+        if filename is None:
             onnx_model = onnx.load_model_from_string(f.getvalue())
         else:
-            torch.onnx.export(
-                mode_to_export,
-                tuple(inputs),
-                f=filename,
-                input_names=input_names,
-                output_names=output_names,
-                dynamic_axes=dynamic_axes,
-                opset_version=opset_version,
-                **torch_versioned_kwargs,
-            )
             onnx_model = onnx.load(filename)
+
+    if do_constant_folding and polygraphy_imported:
+        from polygraphy.backend.onnx.loader import fold_constants
+
+        fold_constants(onnx_model, size_threshold=constant_size_threshold)
 
     if verify:
         if device is None:
@@ -814,7 +849,6 @@ def _onnx_trt_compile(
 
     """
     trt, _ = optional_import("tensorrt", "8.5.3")
-    torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
     input_shapes = (min_shape, opt_shape, max_shape)
     # default to an empty list to fit the `torch_tensorrt.ts.embed_engine_in_new_module` function.
@@ -916,8 +950,6 @@ def convert_to_trt(
             to compile model, for more details: https://pytorch.org/TensorRT/py_api/torch_tensorrt.html#torch-tensorrt-py.
     """
 
-    torch_tensorrt, _ = optional_import("torch_tensorrt", version="1.4.0")
-
     if not torch.cuda.is_available():
         raise Exception("Cannot find any GPU devices.")
 
@@ -935,23 +967,9 @@ def convert_to_trt(
     convert_precision = torch.float32 if precision == "fp32" else torch.half
     inputs = [torch.rand(ensure_tuple(input_shape)).to(target_device)]
 
-    def scale_batch_size(input_shape: Sequence[int], scale_num: int):
-        scale_shape = [*input_shape]
-        scale_shape[0] *= scale_num
-        return scale_shape
-
-    # Use the dynamic batchsize range to generate the min, opt and max model input shape
-    if dynamic_batchsize:
-        min_input_shape = scale_batch_size(input_shape, dynamic_batchsize[0])
-        opt_input_shape = scale_batch_size(input_shape, dynamic_batchsize[1])
-        max_input_shape = scale_batch_size(input_shape, dynamic_batchsize[2])
-    else:
-        min_input_shape = opt_input_shape = max_input_shape = input_shape
-
     # convert the torch model to a TorchScript model on target device
     model = model.eval().to(target_device)
-    ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
-    ir_model.eval()
+    min_input_shape, opt_input_shape, max_input_shape = get_profile_shapes(input_shape, dynamic_batchsize)
 
     if use_onnx:
         # set the batch dim as dynamic
@@ -960,7 +978,6 @@ def convert_to_trt(
         ir_model = convert_to_onnx(
             model, inputs, onnx_input_names, onnx_output_names, use_trace=use_trace, dynamic_axes=dynamic_axes
         )
-
         # convert the model through the ONNX-TensorRT way
         trt_model = _onnx_trt_compile(
             ir_model,
@@ -973,6 +990,8 @@ def convert_to_trt(
             output_names=onnx_output_names,
         )
     else:
+        ir_model = convert_to_torchscript(model, device=target_device, inputs=inputs, use_trace=use_trace)
+        ir_model.eval()
         # convert the model through the Torch-TensorRT way
         ir_model.to(target_device)
         with torch.no_grad():
@@ -1189,3 +1208,168 @@ class CastTempType(nn.Module):
         if dtype == self.initial_type:
             x = x.to(self.initial_type)
         return x
+
+
+def cast_tensor(x, from_dtype=torch.float16, to_dtype=torch.float32):
+    """
+    Utility function to cast a single tensor from from_dtype to to_dtype
+    """
+    return x.to(dtype=to_dtype) if x.dtype == from_dtype else x
+
+
+def cast_all(x, from_dtype=torch.float16, to_dtype=torch.float32):
+    """
+    Utility function to cast all tensors in a tuple from from_dtype to to_dtype
+    """
+    if isinstance(x, torch.Tensor):
+        return cast_tensor(x, from_dtype=from_dtype, to_dtype=to_dtype)
+    else:
+        if isinstance(x, dict):
+            new_dict = {}
+            for k in x.keys():
+                new_dict[k] = cast_all(x[k], from_dtype=from_dtype, to_dtype=to_dtype)
+            return new_dict
+        elif isinstance(x, tuple):
+            return tuple(cast_all(y, from_dtype=from_dtype, to_dtype=to_dtype) for y in x)
+
+
+class CastToFloat(torch.nn.Module):
+    """
+    Class used to add autocast protection for ONNX export
+    for forward methods with single return vaue
+    """
+
+    def __init__(self, mod):
+        super().__init__()
+        self.mod = mod
+
+    def forward(self, x):
+        dtype = x.dtype
+        with torch.amp.autocast("cuda", enabled=False):
+            ret = self.mod.forward(x.to(torch.float32)).to(dtype)
+        return ret
+
+
+class CastToFloatAll(torch.nn.Module):
+    """
+    Class used to add autocast protection for ONNX export
+    for forward methods with multiple return values
+    """
+
+    def __init__(self, mod):
+        super().__init__()
+        self.mod = mod
+
+    def forward(self, *args):
+        from_dtype = args[0].dtype
+        with torch.amp.autocast("cuda", enabled=False):
+            ret = self.mod.forward(*cast_all(args, from_dtype=from_dtype, to_dtype=torch.float32))
+        return cast_all(ret, from_dtype=torch.float32, to_dtype=from_dtype)
+
+
+def wrap_module(base_t: type[nn.Module], dest_t: type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
+    """
+    Generic function generator to replace base_t module with dest_t wrapper.
+    Args:
+        base_t : module type to replace
+        dest_t : destination module type
+    Returns:
+        swap function to replace base_t module with dest_t
+    """
+
+    def expansion_fn(mod: nn.Module) -> nn.Module | None:
+        out = dest_t(mod)
+        return out
+
+    return expansion_fn
+
+
+def simple_replace(base_t: type[nn.Module], dest_t: type[nn.Module]) -> Callable[[nn.Module], nn.Module | None]:
+    """
+    Generic function generator to replace base_t module with dest_t.
+    base_t and dest_t should have same atrributes. No weights are copied.
+    Args:
+        base_t : module type to replace
+        dest_t : destination module type
+    Returns:
+        swap function to replace base_t module with dest_t
+    """
+
+    def expansion_fn(mod: nn.Module) -> nn.Module | None:
+        if not isinstance(mod, base_t):
+            return None
+        args = [getattr(mod, name, None) for name in mod.__constants__]
+        out = dest_t(*args)
+        return out
+
+    return expansion_fn
+
+
+def _swap_modules(model: nn.Module, mapping: dict[str, nn.Module]) -> nn.Module:
+    """
+    This function swaps nested modules as specified by "dot paths" in mod with a desired replacement. This allows
+    for swapping nested modules through arbitrary levels if children
+
+    NOTE: This occurs in place, if you want to preserve model then make sure to copy it first.
+
+    """
+    for path, new_mod in mapping.items():
+        expanded_path = path.split(".")
+        parent_mod = model
+        for sub_path in expanded_path[:-1]:
+            submod = parent_mod._modules[sub_path]
+            if submod is None:
+                break
+            else:
+                parent_mod = submod
+        parent_mod._modules[expanded_path[-1]] = new_mod
+
+    return model
+
+
+def replace_modules_by_type(
+    model: nn.Module, expansions: dict[str, Callable[[nn.Module], nn.Module | None]]
+) -> nn.Module:
+    """
+    Top-level function to replace modules in model, specified by class name with a desired replacement.
+    NOTE: This occurs in place, if you want to preserve model then make sure to copy it first.
+    Args:
+        model : top level module
+        expansions : replacement dictionary: module class name -> replacement function generator
+    Returns:
+        model, possibly modified in-place
+    """
+    mapping: dict[str, nn.Module] = {}
+    for name, m in model.named_modules():
+        m_type = type(m).__name__
+        if m_type in expansions:
+            # print (f"Found {m_type} in expansions ...")
+            swapped = expansions[m_type](m)
+            if swapped:
+                mapping[name] = swapped
+
+    print(f"Swapped {len(mapping)} modules")
+    _swap_modules(model, mapping)
+    return model
+
+
+def add_casts_around_norms(model: nn.Module) -> nn.Module:
+    """
+    Top-level function to add cast wrappers around modules known to cause issues for FP16/autocast ONNX export
+    NOTE: This occurs in place, if you want to preserve model then make sure to copy it first.
+    Args:
+        model : top level module
+    Returns:
+        model, possibly modified in-place
+    """
+    print("Adding casts around norms...")
+    cast_replacements = {
+        "BatchNorm1d": wrap_module(nn.BatchNorm1d, CastToFloat),
+        "BatchNorm2d": wrap_module(nn.BatchNorm2d, CastToFloat),
+        "BatchNorm3d": wrap_module(nn.BatchNorm2d, CastToFloat),
+        "LayerNorm": wrap_module(nn.LayerNorm, CastToFloat),
+        "InstanceNorm1d": wrap_module(nn.InstanceNorm1d, CastToFloat),
+        "InstanceNorm3d": wrap_module(nn.InstanceNorm3d, CastToFloat),
+    }
+    replace_modules_by_type(model, cast_replacements)
+    return model
