@@ -671,7 +671,8 @@ def convert_points_to_box(points):
         points: Points representing the corners of the bounding box. Shape (N, 8, 3) for the 8 corners of
             a 3D cuboid or (N, 4, 2) for the 4 corners of a 2D rectangle.
     """
-    from monai.transforms.utils_pytorch_numpy_unification import min, max
+    from monai.transforms.utils_pytorch_numpy_unification import max, min
+
     mins = min(points, dim=1)
     maxs = max(points, dim=1)
     # Concatenate the min and max values to get the bounding boxes

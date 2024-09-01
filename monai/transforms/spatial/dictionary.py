@@ -2693,3 +2693,5 @@ GridSplitD = GridSplitDict = GridSplitd
 GridPatchD = GridPatchDict = GridPatchd
 RandGridPatchD = RandGridPatchDict = RandGridPatchd
 RandSimulateLowResolutionD = RandSimulateLowResolutionDict = RandSimulateLowResolutiond
+ConvertBoxToPointsD = ConvertBoxToPointsDict = ConvertBoxToPointsd
+ConvertPointsToBoxesD = ConvertPointsToBoxesDict = ConvertPointsToBoxesd

@@ -976,6 +976,18 @@ Spatial
     :members:
     :special-members: __call__
 
+`ConvertBoxToPoints`
+""""""""""""""""""""
+.. autoclass:: ConvertBoxToPoints
+    :members:
+    :special-members: __call__
+
+`ConvertPointsToBoxes`
+""""""""""""""""""""""
+.. autoclass:: ConvertPointsToBoxes
+    :members:
+    :special-members: __call__
+
 
 Smooth Field
 ^^^^^^^^^^^^
@@ -1976,6 +1988,18 @@ Spatial (Dict)
 `RandSimulateLowResolutiond`
 """"""""""""""""""""""""""""
 .. autoclass:: RandSimulateLowResolutiond
+    :members:
+    :special-members: __call__
+
+`ConvertBoxToPointsd`
+"""""""""""""""""""""
+.. autoclass:: ConvertBoxToPointsd
+    :members:
+    :special-members: __call__
+
+`ConvertPointsToBoxesd`
+"""""""""""""""""""""""
+.. autoclass:: ConvertPointsToBoxesd
     :members:
     :special-members: __call__
 
