@@ -27,6 +27,7 @@ from torch import Tensor
 import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.utils import to_affine_nd
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
 from monai.transforms.compose import Compose
@@ -35,6 +36,7 @@ from monai.transforms.utils_morphological_ops import erode
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
     ascontiguousarray,
+    concatenate,
     cumsum,
     isfinite,
     nonzero,
@@ -2553,6 +2555,27 @@ def distance_transform_edt(
         return None
     device = img.device if isinstance(img, torch.Tensor) else None
     return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]
+
+
+def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: DtypeLike | torch.dtype | None = None):
+    """
+    apply affine transformation to a set of points.
+
+    Args:
+        data: input data to apply affine transformation, should be a tensor of shape (C, N, 2 or 3),
+            where C represents the number of channels and N denotes the number of points.
+        affine: affine matrix to be applied, should be a tensor of shape (3, 3) or (4, 4).
+        dtype: output data dtype.
+    """
+    data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
+    affine = to_affine_nd(data_.shape[-1], affine)
+
+    homogeneous: torch.Tensor = concatenate((data_, torch.ones((data_.shape[0], data_.shape[1], 1))), axis=2)  # type: ignore
+    transformed_homogeneous = torch.matmul(homogeneous, affine.T)
+    transformed_coordinates = transformed_homogeneous[:, :, :-1]
+    out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
+
+    return out
 
 
 if __name__ == "__main__":
