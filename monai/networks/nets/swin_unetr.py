@@ -320,7 +320,7 @@ class SwinUNETR(nn.Module):
             )
 
     def forward(self, x_in):
-        if not torch.jit.is_scripting():
+        if not torch.jit.is_scripting() and not torch.jit.is_tracing():
             self._check_input_size(x_in.shape[2:])
         hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)
@@ -1046,14 +1046,14 @@ class SwinTransformer(nn.Module):
 
     def proj_out(self, x, normalize=False):
         if normalize:
-            x_shape = x.size()
+            x_shape = x.shape
+            # Force trace() to generate a constant by casting to int
+            ch = int(x_shape[1])
             if len(x_shape) == 5:
-                n, ch, d, h, w = x_shape
                 x = rearrange(x, "n c d h w -> n d h w c")
                 x = F.layer_norm(x, [ch])
                 x = rearrange(x, "n d h w c -> n c d h w")
             elif len(x_shape) == 4:
-                n, ch, h, w = x_shape
                 x = rearrange(x, "n c h w -> n h w c")
                 x = F.layer_norm(x, [ch])
                 x = rearrange(x, "n h w c -> n c h w")
