@@ -364,9 +364,9 @@ class VISTA3D(nn.Module):
                 the points are for zero-shot or supported class. When class_vector and point_coords are both
                 provided, prompt_class is the same as class_vector. For prompt_class[b] > 512, point_coords[b]
                 will be considered novel class.
-            patch_coords: a list of sequence of the python slice objects representing the patch coordinates during sliding window 
+            patch_coords: a list of sequence of the python slice objects representing the patch coordinates during sliding window
                 inference. This value is passed from sliding_window_inferer. This is an indicator for training phase or validation phase.
-                Notice for sliding window batch size > 1 (only supported by automatic segmentation), patch_coords will inlcude 
+                Notice for sliding window batch size > 1 (only supported by automatic segmentation), patch_coords will inlcude
                 coordinates of multiple patches. If point prompts are included, the batch size can only be one and all the
                 functions using patch_coords will by default use patch_coords[0].
             labels: [1, 1, H, W, D], the groundtruth label tensor, only used for point-only evaluation
