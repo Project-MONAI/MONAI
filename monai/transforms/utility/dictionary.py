@@ -1758,8 +1758,9 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     Args:
         keys: keys of the corresponding items to be transformed.
             See also: monai.transforms.MapTransform
-        refer_key: The key of the reference item used for transformation.
-            It can directly refer to an affine or an image from which the affine can be derived.
+        refer_keys: The key of the reference item used for transformation.
+            It can directly refer to an affine or an image from which the affine can be derived. It can also be a
+            sequence of keys.
         dtype: The desired data type for the output.
         affine: A 3x3 or 4x4 affine transformation matrix applied to points. This matrix typically originates
             from the image. For 2D points, a 3x3 matrix can be provided, avoiding the need to add an unnecessary
@@ -1782,7 +1783,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
     def __init__(
         self,
         keys: KeysCollection,
-        refer_key: str | None = None,
+        refer_keys: KeysCollection | None = None,
         dtype: DtypeLike | torch.dtype = torch.float64,
         affine: torch.Tensor | None = None,
         invert_affine: bool = True,
@@ -1790,23 +1791,25 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.refer_key = refer_key
+        self.refer_keys = ensure_tuple_rep(None, len(self.keys)) if refer_keys is None else ensure_tuple(refer_keys)
+        if len(self.keys) != len(self.refer_keys):
+            raise ValueError("refer_keys should have the same length as keys.")
         self.converter = ApplyTransformToPoints(
             dtype=dtype, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
         )
 
     def __call__(self, data: Mapping[Hashable, torch.Tensor]):
         d = dict(data)
-        if self.refer_key is not None:
-            if self.refer_key in d:
-                refer_data = d[self.refer_key]
-            else:
-                raise KeyError(f"The refer_key '{self.refer_key}' is not found in the data.")
-        else:
-            refer_data = None
-        affine = getattr(refer_data, "affine", refer_data)
-        for key in self.key_iterator(d):
+        for key, refer_key in self.key_iterator(d, self.refer_keys):
             coords = d[key]
+            if refer_key is not None:
+                if refer_key in d:
+                    refer_data = d[refer_key]
+                else:
+                    raise KeyError(f"The refer_key '{refer_key}' is not found in the data.")
+            else:
+                refer_data = None
+            affine = getattr(refer_data, "affine", refer_data)
             d[key] = self.converter(coords, affine)
         return d
 

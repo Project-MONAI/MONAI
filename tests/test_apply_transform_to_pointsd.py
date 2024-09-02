@@ -107,10 +107,10 @@ class TestCoordinateTransform(unittest.TestCase):
             "point": points,
             "affine": torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]]),
         }
-        refer_key = "image" if (image is not None and image != "affine") else image
+        refer_keys = "image" if (image is not None and image != "affine") else image
         transform = ApplyTransformToPointsd(
             keys="point",
-            refer_key=refer_key,
+            refer_keys=refer_keys,
             dtype=torch.int64,
             affine=affine,
             invert_affine=invert_affine,
