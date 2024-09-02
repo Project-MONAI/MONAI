@@ -26,6 +26,7 @@ import torch
 
 from monai.config import DtypeLike, KeysCollection, SequenceStr
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.networks.layers.simplelayers import GaussianFilter
@@ -33,6 +34,8 @@ from monai.transforms.croppad.array import CenterSpatialCrop
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.array import (
     Affine,
+    ConvertBoxToPoints,
+    ConvertPointsToBoxes,
     Flip,
     GridDistortion,
     GridPatch,
@@ -2611,6 +2614,61 @@ class RandSimulateLowResolutiond(RandomizableTransform, MapTransform):
         return d
 
 
+class ConvertBoxToPointsd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertBoxToPoints`.
+    """
+
+    backend = ConvertBoxToPoints.backend
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        point_key="points",
+        mode: str | BoxMode | type[BoxMode] | None = StandardMode,
+        allow_missing_keys: bool = False,
+    ):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            point_key: key to store the point data.
+            mode: the mode of the input boxes. Defaults to StandardMode.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.point_key = point_key
+        self.converter = ConvertBoxToPoints(mode=mode)
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            data[self.point_key] = self.converter(d[key])
+        return data
+
+
+class ConvertPointsToBoxesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertPointsToBoxes`.
+    """
+
+    def __init__(self, keys: KeysCollection, box_key="box", allow_missing_keys: bool = False):
+        """
+        Args:
+            keys: keys of the corresponding items to be transformed.
+            box_key: key to store the box data.
+            allow_missing_keys: don't raise exception if key is missing.
+        """
+        super().__init__(keys, allow_missing_keys)
+        self.box_key = box_key
+        self.converter = ConvertPointsToBoxes()
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            data[self.box_key] = self.converter(d[key])
+        return data
+
+
 SpatialResampleD = SpatialResampleDict = SpatialResampled
 ResampleToMatchD = ResampleToMatchDict = ResampleToMatchd
 SpacingD = SpacingDict = Spacingd
@@ -2635,3 +2693,5 @@ GridSplitD = GridSplitDict = GridSplitd
 GridPatchD = GridPatchDict = GridPatchd
 RandGridPatchD = RandGridPatchDict = RandGridPatchd
 RandSimulateLowResolutionD = RandSimulateLowResolutionDict = RandSimulateLowResolutiond
+ConvertBoxToPointsD = ConvertBoxToPointsDict = ConvertBoxToPointsd
+ConvertPointsToBoxesD = ConvertPointsToBoxesDict = ConvertPointsToBoxesd
