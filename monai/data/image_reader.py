@@ -34,6 +34,9 @@ from monai.data.utils import (
 )
 from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
 
+# workaround for https://github.com/Project-MONAI/MONAI/issues/8061
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="nptyping")
+
 if TYPE_CHECKING:
     import itk
     import nibabel as nib
