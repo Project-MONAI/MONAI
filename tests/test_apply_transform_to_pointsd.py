@@ -144,12 +144,7 @@ class TestCoordinateTransform(unittest.TestCase):
     def test_transform_coordinates_sequences(
         self, image, points, affine, invert_affine, affine_lps_to_ras, refer_keys, expected_output
     ):
-        data = {
-            "image_1": image[0],
-            "image_2": image[1],
-            "point_1": points[0],
-            "point_2": points[1],
-        }
+        data = {"image_1": image[0], "image_2": image[1], "point_1": points[0], "point_2": points[1]}
         keys = ["point_1", "point_2"]
         transform = ApplyTransformToPointsd(
             keys=keys,
