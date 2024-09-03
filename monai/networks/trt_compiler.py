@@ -342,6 +342,7 @@ class TrtCompiler:
                     self._build_and_save(model, build_args)
                     # This will reassign input_names from the engine
                     self._load_engine()
+                    assert self.engine is not None
             except Exception as e:
                 if self.fallback:
                     self.logger.info(f"Failed to build engine: {e}")
@@ -504,6 +505,7 @@ def trt_compile(
 ) -> torch.nn.Module:
     """
     Instruments model or submodule(s) with TrtCompiler and replaces its forward() with TRT hook.
+    Note: TRT 10.3 is recommended for best performance. Some nets may even fail to work with TRT 8.x
     Args:
       model: module to patch with TrtCompiler object.
       base_path: TRT plan(s) saved to f"{base_path}[.{submodule}].plan" path.
