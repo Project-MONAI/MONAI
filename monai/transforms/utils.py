@@ -1659,7 +1659,9 @@ class Fourier:
         return ascontiguousarray(k) if as_contiguous else k
 
     @staticmethod
-    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: int | None = None, as_contiguous: bool = False) -> NdarrayOrTensor:
+    def inv_shift_fourier(
+        k: NdarrayOrTensor, spatial_dims: int, n_dims: int | None = None, as_contiguous: bool = False
+    ) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
