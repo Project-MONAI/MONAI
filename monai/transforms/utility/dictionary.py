@@ -1760,7 +1760,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
             See also: monai.transforms.MapTransform
         refer_keys: The key of the reference item used for transformation.
             It can directly refer to an affine or an image from which the affine can be derived. It can also be a
-            sequence of keys.
+            sequence of keys, in which case each refers to the affine applied to the matching points in `keys`.
         dtype: The desired data type for the output.
         affine: A 3x3 or 4x4 affine transformation matrix applied to points. This matrix typically originates
             from the image. For 2D points, a 3x3 matrix can be provided, avoiding the need to add an unnecessary
