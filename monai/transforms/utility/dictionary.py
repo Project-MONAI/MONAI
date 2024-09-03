@@ -1802,14 +1802,15 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         d = dict(data)
         for key, refer_key in self.key_iterator(d, self.refer_keys):
             coords = d[key]
+            affine = None  # represents using affine given in constructor
             if refer_key is not None:
                 if refer_key in d:
                     refer_data = d[refer_key]
                 else:
                     raise KeyError(f"The refer_key '{refer_key}' is not found in the data.")
-            else:
-                refer_data = None
-            affine = getattr(refer_data, "affine", refer_data)
+                    
+                # use the "affine" member of refer_data, or refer_data itself, as the affine matrix
+                affine = getattr(refer_data, "affine", refer_data)
             d[key] = self.converter(coords, affine)
         return d
 
