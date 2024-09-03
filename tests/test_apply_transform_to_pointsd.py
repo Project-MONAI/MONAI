@@ -37,6 +37,7 @@ TEST_CASES = [
     [MetaTensor(DATA_2D, affine=AFFINE_1), POINT_2D_WORLD, None, True, False, POINT_2D_IMAGE],  # use image affine
     [None, MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), None, False, False, POINT_2D_WORLD],  # use point affine
     [None, MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), AFFINE_1, False, False, POINT_2D_WORLD],  # use input affine
+    [None, POINT_2D_WORLD, AFFINE_1, True, False, POINT_2D_IMAGE],  # use input affine
     [
         MetaTensor(DATA_2D, affine=AFFINE_1),
         POINT_2D_WORLD,
@@ -86,6 +87,15 @@ TEST_CASES_SEQUENCE = [
         None,
         [POINT_2D_WORLD, POINT_3D_WORLD],
     ],  # use point affine
+    [
+        (None, None),
+        [POINT_2D_WORLD, POINT_2D_WORLD],
+        AFFINE_1,
+        True,
+        False,
+        None,
+        [POINT_2D_IMAGE, POINT_2D_IMAGE],
+    ],  # use input affine
     [
         (MetaTensor(DATA_2D, affine=AFFINE_1), MetaTensor(DATA_3D, affine=AFFINE_2)),
         [MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2)],
@@ -139,7 +149,6 @@ class TestCoordinateTransform(unittest.TestCase):
             "image_2": image[1],
             "point_1": points[0],
             "point_2": points[1],
-            "affine": torch.tensor([[1, 0, 0, 10], [0, 1, 0, -4], [0, 0, 1, 0], [0, 0, 0, 1]]),
         }
         keys = ["point_1", "point_2"]
         transform = ApplyTransformToPointsd(
