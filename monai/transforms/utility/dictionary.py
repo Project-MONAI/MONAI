@@ -1791,9 +1791,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
         allow_missing_keys: bool = False,
     ):
         MapTransform.__init__(self, keys, allow_missing_keys)
-        self.refer_keys = ensure_tuple_rep(None, len(self.keys)) if refer_keys is None else ensure_tuple(refer_keys)
-        if len(self.keys) != len(self.refer_keys):
-            raise ValueError("refer_keys should have the same length as keys.")
+        self.refer_keys = ensure_tuple_rep(refer_keys, len(self.keys))
         self.converter = ApplyTransformToPoints(
             dtype=dtype, affine=affine, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
         )
