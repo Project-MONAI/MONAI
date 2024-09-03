@@ -37,19 +37,64 @@ TEST_CASES = [
     [MetaTensor(DATA_2D, affine=AFFINE_1), POINT_2D_WORLD, None, True, False, POINT_2D_IMAGE],  # use image affine
     [None, MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), None, False, False, POINT_2D_WORLD],  # use point affine
     [None, MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), AFFINE_1, False, False, POINT_2D_WORLD],  # use input affine
-    [MetaTensor(DATA_2D, affine=AFFINE_1), POINT_2D_WORLD, None, True, True, POINT_2D_IMAGE_RAS],  # test affine_lps_to_ras
+    [
+        MetaTensor(DATA_2D, affine=AFFINE_1),
+        POINT_2D_WORLD,
+        None,
+        True,
+        True,
+        POINT_2D_IMAGE_RAS,
+    ],  # test affine_lps_to_ras
     [MetaTensor(DATA_3D, affine=AFFINE_2), POINT_3D_WORLD, None, True, False, POINT_3D_IMAGE],
     ["affine", POINT_3D_WORLD, None, True, False, POINT_3D_IMAGE],  # use refer_data itself
-    [MetaTensor(DATA_3D, affine=AFFINE_2), MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2), None, False, False, POINT_3D_WORLD],
+    [
+        MetaTensor(DATA_3D, affine=AFFINE_2),
+        MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2),
+        None,
+        False,
+        False,
+        POINT_3D_WORLD,
+    ],
     [MetaTensor(DATA_3D, affine=AFFINE_2), POINT_3D_WORLD, None, True, True, POINT_3D_IMAGE_RAS],
     [MetaTensor(DATA_3D, affine=AFFINE_2), POINT_3D_WORLD, None, True, True, POINT_3D_IMAGE_RAS],
 ]
 TEST_CASES_SEQUENCE = [
-    [(MetaTensor(DATA_2D, affine=AFFINE_1), MetaTensor(DATA_3D, affine=AFFINE_2)), [POINT_2D_WORLD, POINT_3D_WORLD], None, True, False, ["image_1", "image_2"], [POINT_2D_IMAGE, POINT_3D_IMAGE]],  # use image affine
-    [(MetaTensor(DATA_2D, affine=AFFINE_1), MetaTensor(DATA_3D, affine=AFFINE_2)), [POINT_2D_WORLD, POINT_3D_WORLD], None, True, True, ["image_1", "image_2"], [POINT_2D_IMAGE_RAS, POINT_3D_IMAGE_RAS]],  # test affine_lps_to_ras
-    [(None, None), [MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2)], None, False, False, None, [POINT_2D_WORLD, POINT_3D_WORLD]],  # use point affine
-    [(MetaTensor(DATA_2D, affine=AFFINE_1), MetaTensor(DATA_3D, affine=AFFINE_2)), [MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2)], None, False, False, ["image_1", "image_2"], [POINT_2D_WORLD, POINT_3D_WORLD]],
-
+    [
+        (MetaTensor(DATA_2D, affine=AFFINE_1), MetaTensor(DATA_3D, affine=AFFINE_2)),
+        [POINT_2D_WORLD, POINT_3D_WORLD],
+        None,
+        True,
+        False,
+        ["image_1", "image_2"],
+        [POINT_2D_IMAGE, POINT_3D_IMAGE],
+    ],  # use image affine
+    [
+        (MetaTensor(DATA_2D, affine=AFFINE_1), MetaTensor(DATA_3D, affine=AFFINE_2)),
+        [POINT_2D_WORLD, POINT_3D_WORLD],
+        None,
+        True,
+        True,
+        ["image_1", "image_2"],
+        [POINT_2D_IMAGE_RAS, POINT_3D_IMAGE_RAS],
+    ],  # test affine_lps_to_ras
+    [
+        (None, None),
+        [MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2)],
+        None,
+        False,
+        False,
+        None,
+        [POINT_2D_WORLD, POINT_3D_WORLD],
+    ],  # use point affine
+    [
+        (MetaTensor(DATA_2D, affine=AFFINE_1), MetaTensor(DATA_3D, affine=AFFINE_2)),
+        [MetaTensor(POINT_2D_IMAGE, affine=AFFINE_1), MetaTensor(POINT_3D_IMAGE, affine=AFFINE_2)],
+        None,
+        False,
+        False,
+        ["image_1", "image_2"],
+        [POINT_2D_WORLD, POINT_3D_WORLD],
+    ],
 ]
 
 TEST_CASES_WRONG = [
@@ -86,7 +131,9 @@ class TestCoordinateTransform(unittest.TestCase):
         self.assertTrue(torch.allclose(invert_out["point"], points))
 
     @parameterized.expand(TEST_CASES_SEQUENCE)
-    def test_transform_coordinates_sequences(self, image, points, affine, invert_affine, affine_lps_to_ras, refer_keys, expected_output):
+    def test_transform_coordinates_sequences(
+        self, image, points, affine, invert_affine, affine_lps_to_ras, refer_keys, expected_output
+    ):
         data = {
             "image_1": image[0],
             "image_2": image[1],
@@ -114,14 +161,18 @@ class TestCoordinateTransform(unittest.TestCase):
     def test_wrong_input(self, input, invert_affine, affine, refer_keys):
         if refer_keys == []:
             with self.assertRaises(ValueError):
-                ApplyTransformToPointsd(keys="point", dtype=torch.int64, invert_affine=invert_affine, affine=affine, refer_keys=refer_keys)
+                ApplyTransformToPointsd(
+                    keys="point", dtype=torch.int64, invert_affine=invert_affine, affine=affine, refer_keys=refer_keys
+                )
         else:
-            transform = ApplyTransformToPointsd(keys="point", dtype=torch.int64, invert_affine=invert_affine, affine=affine, refer_keys=refer_keys)
+            transform = ApplyTransformToPointsd(
+                keys="point", dtype=torch.int64, invert_affine=invert_affine, affine=affine, refer_keys=refer_keys
+            )
             data = {"point": input}
             if refer_keys == "image":
                 with self.assertRaises(KeyError):
                     transform(data)
-            else:      
+            else:
                 with self.assertRaises(ValueError):
                     transform(data)
 
