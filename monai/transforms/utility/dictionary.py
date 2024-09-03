@@ -1808,7 +1808,7 @@ class ApplyTransformToPointsd(MapTransform, InvertibleTransform):
                     refer_data = d[refer_key]
                 else:
                     raise KeyError(f"The refer_key '{refer_key}' is not found in the data.")
-                    
+
                 # use the "affine" member of refer_data, or refer_data itself, as the affine matrix
                 affine = getattr(refer_data, "affine", refer_data)
             d[key] = self.converter(coords, affine)
