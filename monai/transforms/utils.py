@@ -1633,7 +1633,7 @@ class Fourier:
     """
 
     @staticmethod
-    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int) -> NdarrayOrTensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, as_contiguous: bool = False) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1641,6 +1641,7 @@ class Fourier:
         Args:
             x: Image to transform.
             spatial_dims: Number of spatial dimensions.
+            as_contiguous: Whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
 
         Returns
             k: K-space data.
@@ -1649,16 +1650,16 @@ class Fourier:
         k: NdarrayOrTensor
         if isinstance(x, torch.Tensor):
             if hasattr(torch.fft, "fftshift"):  # `fftshift` is new in torch 1.8.0
-                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims).contiguous()
+                k = torch.fft.fftshift(torch.fft.fftn(x, dim=dims), dim=dims)
             else:
                 # if using old PyTorch, will convert to numpy array and return
-                k = np.ascontiguousarray(np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims))
+                k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
         else:
-            k = np.ascontiguousarray(np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims))
-        return k
+            k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
+        return ascontiguousarray(k) if as_contiguous else k
 
     @staticmethod
-    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: int | None = None) -> NdarrayOrTensor:
+    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: int | None = None, as_contiguous: bool = False) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1666,6 +1667,7 @@ class Fourier:
         Args:
             k: K-space data.
             spatial_dims: Number of spatial dimensions.
+            as_contiguous: Whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
 
         Returns:
             x: Tensor in image space.
@@ -1674,13 +1676,13 @@ class Fourier:
         out: NdarrayOrTensor
         if isinstance(k, torch.Tensor):
             if hasattr(torch.fft, "ifftshift"):  # `ifftshift` is new in torch 1.8.0
-                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real.contiguous()
+                out = torch.fft.ifftn(torch.fft.ifftshift(k, dim=dims), dim=dims, norm="backward").real
             else:
                 # if using old PyTorch, will convert to numpy array and return
-                out = np.ascontiguousarray(np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real)
+                out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
         else:
-            out = np.ascontiguousarray(np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real)
-        return out
+            out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
+        return ascontiguousarray(out) if as_contiguous else out
 
 
 def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Hashable | None = None) -> int:
