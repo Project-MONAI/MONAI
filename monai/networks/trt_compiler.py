@@ -403,8 +403,10 @@ class TrtCompiler:
 
         build_args = self.build_args.copy()
         build_args["tf32"] = self.precision != "fp32"
-        build_args["fp16"] = self.precision == "fp16"
-        build_args["bf16"] = self.precision == "bf16"
+        if self.precision == "fp16":
+            build_args["fp16"] = True
+        elif self.precision == "bf16":
+            build_args["bf16"] = True
 
         self.logger.info(f"Building TensorRT engine for {onnx_path}: {self.plan_path}")
         network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
