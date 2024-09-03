@@ -24,6 +24,7 @@ import torch
 import monai
 from monai.config import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import get_boxmode
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, compute_shape_offset, to_affine_nd
@@ -32,7 +33,7 @@ from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
-from monai.transforms.utils_pytorch_numpy_unification import allclose
+from monai.transforms.utils_pytorch_numpy_unification import allclose, concatenate, stack
 from monai.utils import (
     LazyAttr,
     TraceKeys,
@@ -610,3 +611,71 @@ def affine_func(
         out = _maybe_new_metatensor(img, dtype=torch.float32, device=resampler.device)
     out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     return out if image_only else (out, affine)
+
+
+def convert_box_to_points(bbox, mode):
+    """
+    Converts an axis-aligned bounding box to points.
+
+    Args:
+        mode: The mode specifying how to interpret the bounding box.
+        bbox: Bounding boxes of the shape (N, C) for N boxes. C is [x1, y1, x2, y2] for 2D or [x1, y1, z1, x2, y2, z2]
+            for 3D for each box. Return shape will be (N, 4, 2) for 2D or (N, 8, 3) for 3D.
+
+    Returns:
+        sequence of points representing the corners of the bounding box.
+    """
+
+    mode = get_boxmode(mode)
+
+    points_list = []
+    for _num in range(bbox.shape[0]):
+        corners = mode.boxes_to_corners(bbox[_num : _num + 1])
+        if len(corners) == 4:
+            points_list.append(
+                concatenate(
+                    [
+                        concatenate([corners[0], corners[1]], axis=1),
+                        concatenate([corners[2], corners[1]], axis=1),
+                        concatenate([corners[2], corners[3]], axis=1),
+                        concatenate([corners[0], corners[3]], axis=1),
+                    ],
+                    axis=0,
+                )
+            )
+        else:
+            points_list.append(
+                concatenate(
+                    [
+                        concatenate([corners[0], corners[1], corners[2]], axis=1),
+                        concatenate([corners[3], corners[1], corners[2]], axis=1),
+                        concatenate([corners[3], corners[4], corners[2]], axis=1),
+                        concatenate([corners[0], corners[4], corners[2]], axis=1),
+                        concatenate([corners[0], corners[1], corners[5]], axis=1),
+                        concatenate([corners[3], corners[1], corners[5]], axis=1),
+                        concatenate([corners[3], corners[4], corners[5]], axis=1),
+                        concatenate([corners[0], corners[4], corners[5]], axis=1),
+                    ],
+                    axis=0,
+                )
+            )
+
+    return stack(points_list, dim=0)
+
+
+def convert_points_to_box(points):
+    """
+    Converts points to an axis-aligned bounding box.
+
+    Args:
+        points: Points representing the corners of the bounding box. Shape (N, 8, 3) for the 8 corners of
+            a 3D cuboid or (N, 4, 2) for the 4 corners of a 2D rectangle.
+    """
+    from monai.transforms.utils_pytorch_numpy_unification import max, min
+
+    mins = min(points, dim=1)
+    maxs = max(points, dim=1)
+    # Concatenate the min and max values to get the bounding boxes
+    bboxes = concatenate([mins, maxs], axis=1)
+
+    return bboxes
