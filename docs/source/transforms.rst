@@ -554,6 +554,12 @@ IO
     :members:
     :special-members: __call__
 
+`WriteFileMapping`
+""""""""""""""""""
+.. autoclass:: WriteFileMapping
+    :members:
+    :special-members: __call__
+
 
 NVIDIA Tool Extension (NVTX)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -970,6 +976,18 @@ Spatial
     :members:
     :special-members: __call__
 
+`ConvertBoxToPoints`
+""""""""""""""""""""
+.. autoclass:: ConvertBoxToPoints
+    :members:
+    :special-members: __call__
+
+`ConvertPointsToBoxes`
+""""""""""""""""""""""
+.. autoclass:: ConvertPointsToBoxes
+    :members:
+    :special-members: __call__
+
 
 Smooth Field
 ^^^^^^^^^^^^
@@ -1213,6 +1231,12 @@ Utility
 `RandImageFilter`
 """""""""""""""""
 .. autoclass:: RandImageFilter
+    :members:
+    :special-members: __call__
+
+`ApplyTransformToPoints`
+""""""""""""""""""""""""
+.. autoclass:: ApplyTransformToPoints
     :members:
     :special-members: __call__
 
@@ -1642,6 +1666,12 @@ IO (Dict)
     :members:
     :special-members: __call__
 
+`WriteFileMappingd`
+"""""""""""""""""""
+.. autoclass:: WriteFileMappingd
+    :members:
+    :special-members: __call__
+
 Post-processing (Dict)
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1961,6 +1991,18 @@ Spatial (Dict)
     :members:
     :special-members: __call__
 
+`ConvertBoxToPointsd`
+"""""""""""""""""""""
+.. autoclass:: ConvertBoxToPointsd
+    :members:
+    :special-members: __call__
+
+`ConvertPointsToBoxesd`
+"""""""""""""""""""""""
+.. autoclass:: ConvertPointsToBoxesd
+    :members:
+    :special-members: __call__
+
 
 Smooth Field (Dict)
 ^^^^^^^^^^^^^^^^^^^
@@ -2265,6 +2307,12 @@ Utility (Dict)
     :members:
     :special-members: __call__
 
+`ApplyTransformToPointsd`
+"""""""""""""""""""""""""
+.. autoclass:: ApplyTransformToPointsd
+    :members:
+    :special-members: __call__
+
 
 MetaTensor
 ^^^^^^^^^^
@@ -2308,6 +2356,9 @@ Utilities
     :members:
 
 .. automodule:: monai.transforms.utils_pytorch_numpy_unification
+    :members:
+
+.. automodule:: monai.transforms.utils_morphological_ops
     :members:
 
 By Categories

@@ -18,6 +18,7 @@ import re
 import warnings
 import zipfile
 from collections.abc import Mapping, Sequence
+from functools import partial
 from pathlib import Path
 from pydoc import locate
 from shutil import copyfile
@@ -31,7 +32,7 @@ from monai._version import get_versions
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
@@ -104,7 +105,7 @@ def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kw
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
             args_[k] = update_kwargs(args_[k], ignore_none, **v)
         else:
-            args_[k] = v
+            merge_kv(args_, k, v)
     return args_
 
 
@@ -217,10 +218,15 @@ def _remove_ngc_prefix(name: str, prefix: str = "monai_") -> str:
 
 
 def _download_from_ngc(
-    download_path: Path, filename: str, version: str, remove_prefix: str | None, progress: bool
+    download_path: Path,
+    filename: str,
+    version: str,
+    prefix: str = "monai_",
+    remove_prefix: str | None = "monai_",
+    progress: bool = True,
 ) -> None:
     # ensure prefix is contained
-    filename = _add_ngc_prefix(filename)
+    filename = _add_ngc_prefix(filename, prefix=prefix)
     url = _get_ngc_bundle_url(model_name=filename, version=version)
     filepath = download_path / f"{filename}_v{version}.zip"
     if remove_prefix:
@@ -231,10 +237,16 @@ def _download_from_ngc(
 
 
 def _download_from_ngc_private(
-    download_path: Path, filename: str, version: str, remove_prefix: str | None, repo: str, headers: dict | None = None
+    download_path: Path,
+    filename: str,
+    version: str,
+    repo: str,
+    prefix: str = "monai_",
+    remove_prefix: str | None = "monai_",
+    headers: dict | None = None,
 ) -> None:
     # ensure prefix is contained
-    filename = _add_ngc_prefix(filename)
+    filename = _add_ngc_prefix(filename, prefix=prefix)
     request_url = _get_ngc_private_bundle_url(model_name=filename, version=version, repo=repo)
     if has_requests:
         headers = {} if headers is None else headers
@@ -491,7 +503,7 @@ def download(
         url: url to download the data. If not `None`, data will be downloaded directly
             and `source` will not be checked.
             If `name` is `None`, filename is determined by `monai.apps.utils._basename(url)`.
-        remove_prefix: This argument is used when `source` is "ngc". Currently, all ngc bundles
+        remove_prefix: This argument is used when `source` is "ngc" or "ngc_private". Currently, all ngc bundles
             have the ``monai_`` prefix, which is not existing in their model zoo contrasts. In order to
             maintain the consistency between these two sources, remove prefix is necessary.
             Therefore, if specified, downloaded folder name will remove the prefix.
@@ -1243,6 +1255,7 @@ def verify_net_in_out(
 
 def _export(
     converter: Callable,
+    saver: Callable,
     parser: ConfigParser,
     net_id: str,
     filepath: str,
@@ -1257,6 +1270,8 @@ def _export(
     Args:
         converter: a callable object that takes a torch.nn.module and kwargs as input and
             converts the module to another type.
+        saver: a callable object that accepts the converted model to save, a filepath to save to, meta values
+            (extracted from the parser), and a dictionary of extra JSON files (name -> contents) as input.
         parser: a ConfigParser of the bundle to be converted.
         net_id: ID name of the network component in the parser, it must be `torch.nn.Module`.
         filepath: filepath to export, if filename has no extension, it becomes `.ts`.
@@ -1296,14 +1311,9 @@ def _export(
     # add .json extension to all extra files which are always encoded as JSON
     extra_files = {k + ".json": v for k, v in extra_files.items()}
 
-    save_net_with_metadata(
-        jit_obj=net,
-        filename_prefix_or_stream=filepath,
-        include_config_vals=False,
-        append_timestamp=False,
-        meta_values=parser.get().pop("_meta_", None),
-        more_extra_files=extra_files,
-    )
+    meta_values = parser.get().pop("_meta_", None)
+    saver(net, filepath, meta_values=meta_values, more_extra_files=extra_files)
+
     logger.info(f"exported to file: {filepath}.")
 
 
@@ -1402,17 +1412,23 @@ def onnx_export(
         input_shape_ = _get_fake_input_shape(parser=parser)
 
     inputs_ = [torch.rand(input_shape_)]
-    net = parser.get_parsed_content(net_id_)
-    if has_ignite:
-        # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
-        Checkpoint.load_objects(to_load={key_in_ckpt_: net}, checkpoint=ckpt_file_)
-    else:
-        ckpt = torch.load(ckpt_file_)
-        copy_model_state(dst=net, src=ckpt if key_in_ckpt_ == "" else ckpt[key_in_ckpt_])
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
-    onnx_model = convert_to_onnx(model=net, **converter_kwargs_)
-    onnx.save(onnx_model, filepath_)
+
+    def save_onnx(onnx_obj: Any, filename_prefix_or_stream: str, **kwargs: Any) -> None:
+        onnx.save(onnx_obj, filename_prefix_or_stream)
+
+    _export(
+        convert_to_onnx,
+        save_onnx,
+        parser,
+        net_id=net_id_,
+        filepath=filepath_,
+        ckpt_file=ckpt_file_,
+        config_file=config_file_,
+        key_in_ckpt=key_in_ckpt_,
+        **converter_kwargs_,
+    )
 
 
 def ckpt_export(
@@ -1533,8 +1549,12 @@ def ckpt_export(
 
     converter_kwargs_.update({"inputs": inputs_, "use_trace": use_trace_})
     # Use the given converter to convert a model and save with metadata, config content
+
+    save_ts = partial(save_net_with_metadata, include_config_vals=False, append_timestamp=False)
+
     _export(
         convert_to_torchscript,
+        save_ts,
         parser,
         net_id=net_id_,
         filepath=filepath_,
@@ -1704,8 +1724,11 @@ def trt_export(
     }
     converter_kwargs_.update(trt_api_parameters)
 
+    save_ts = partial(save_net_with_metadata, include_config_vals=False, append_timestamp=False)
+
     _export(
         convert_to_trt,
+        save_ts,
         parser,
         net_id=net_id_,
         filepath=filepath_,

@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import SegResNetDS
+from monai.networks.nets import SegResNetDS, SegResNetDS2
 from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -71,7 +71,7 @@ TEST_CASE_SEGRESNET_DS3 = [
 ]
 
 
-class TestResNetDS(unittest.TestCase):
+class TestSegResNetDS(unittest.TestCase):
 
     @parameterized.expand(TEST_CASE_SEGRESNET_DS)
     def test_shape(self, input_param, input_shape, expected_shape):
@@ -80,46 +80,70 @@ class TestResNetDS(unittest.TestCase):
             result = net(torch.randn(input_shape).to(device))
             self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
+    @parameterized.expand(TEST_CASE_SEGRESNET_DS)
+    def test_shape_ds2(self, input_param, input_shape, expected_shape):
+        net = SegResNetDS2(**input_param).to(device)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape).to(device), with_label=False)
+            self.assertEqual(result[0].shape, expected_shape, msg=str(input_param))
+            self.assertTrue(result[1] == [])
+
+            result = net(torch.randn(input_shape).to(device), with_point=False)
+            self.assertEqual(result[1].shape, expected_shape, msg=str(input_param))
+            self.assertTrue(result[0] == [])
+
     @parameterized.expand(TEST_CASE_SEGRESNET_DS2)
     def test_shape2(self, input_param, input_shape, expected_shape):
         dsdepth = input_param.get("dsdepth", 1)
-        net = SegResNetDS(**input_param).to(device)
+        for net in [SegResNetDS, SegResNetDS2]:
+            net = net(**input_param).to(device)
+            net.train()
+            if isinstance(net, SegResNetDS2):
+                result = net(torch.randn(input_shape).to(device), with_label=False)[0]
+            else:
+                result = net(torch.randn(input_shape).to(device))
+            if dsdepth > 1:
+                assert isinstance(result, list)
+                self.assertEqual(dsdepth, len(result))
+                for i in range(dsdepth):
+                    self.assertEqual(
+                        result[i].shape,
+                        expected_shape[:2] + tuple(e // (2**i) for e in expected_shape[2:]),
+                        msg=str(input_param),
+                    )
+            else:
+                assert isinstance(result, torch.Tensor)
+                self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
-        net.train()
-        result = net(torch.randn(input_shape).to(device))
-        if dsdepth > 1:
-            assert isinstance(result, list)
-            self.assertEqual(dsdepth, len(result))
-            for i in range(dsdepth):
-                self.assertEqual(
-                    result[i].shape,
-                    expected_shape[:2] + tuple(e // (2**i) for e in expected_shape[2:]),
-                    msg=str(input_param),
-                )
-        else:
-            assert isinstance(result, torch.Tensor)
-            self.assertEqual(result.shape, expected_shape, msg=str(input_param))
-
-        net.eval()
-        result = net(torch.randn(input_shape).to(device))
-        assert isinstance(result, torch.Tensor)
-        self.assertEqual(result.shape, expected_shape, msg=str(input_param))
+            if not isinstance(net, SegResNetDS2):
+                # eval mode of SegResNetDS2 has same output as training mode
+                # so only test eval mode for SegResNetDS
+                net.eval()
+                result = net(torch.randn(input_shape).to(device))
+                assert isinstance(result, torch.Tensor)
+                self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
     @parameterized.expand(TEST_CASE_SEGRESNET_DS3)
     def test_shape3(self, input_param, input_shape, expected_shapes):
         dsdepth = input_param.get("dsdepth", 1)
-        net = SegResNetDS(**input_param).to(device)
-
-        net.train()
-        result = net(torch.randn(input_shape).to(device))
-        assert isinstance(result, list)
-        self.assertEqual(dsdepth, len(result))
-        for i in range(dsdepth):
-            self.assertEqual(result[i].shape, expected_shapes[i], msg=str(input_param))
+        for net in [SegResNetDS, SegResNetDS2]:
+            net = net(**input_param).to(device)
+            net.train()
+            if isinstance(net, SegResNetDS2):
+                result = net(torch.randn(input_shape).to(device), with_point=False)[1]
+            else:
+                result = net(torch.randn(input_shape).to(device))
+            assert isinstance(result, list)
+            self.assertEqual(dsdepth, len(result))
+            for i in range(dsdepth):
+                self.assertEqual(result[i].shape, expected_shapes[i], msg=str(input_param))
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
             SegResNetDS(spatial_dims=4)
+
+        with self.assertRaises(ValueError):
+            SegResNetDS2(spatial_dims=4)
 
     @SkipIfBeforePyTorchVersion((1, 10))
     def test_script(self):

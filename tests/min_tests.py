@@ -186,6 +186,7 @@ def run_testsuit():
         "test_torchvisiond",
         "test_transchex",
         "test_transformerblock",
+        "test_trt_compile",
         "test_unetr",
         "test_unetr_block",
         "test_vit",
@@ -209,6 +210,8 @@ def run_testsuit():
         "test_zarr_avg_merger",
         "test_perceptual_loss",
         "test_ultrasound_confidence_map_transform",
+        "test_vista3d_utils",
+        "test_vista3d_transforms",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 
