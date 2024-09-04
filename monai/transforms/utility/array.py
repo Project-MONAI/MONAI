@@ -1764,9 +1764,7 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         self.invert_affine = invert_affine
         self.affine_lps_to_ras = affine_lps_to_ras
 
-    def _compute_final_affine(
-        self, data: torch.Tensor, affine: torch.Tensor, applied_affine: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_final_affine(self, affine: torch.Tensor, applied_affine: torch.Tensor | None = None) -> torch.Tensor:
         """
         Compute the final affine transformation matrix to apply to the point data.
 
@@ -1809,10 +1807,12 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         if affine is None and self.invert_affine:
             raise ValueError("affine must be provided when invert_affine is True.")
         # applied_affine is the affine transformation matrix that has already been applied to the point data
-        applied_affine = getattr(data, "affine", None)
+        applied_affine: torch.Tensor | None = getattr(data, "affine", None)
         affine = applied_affine if affine is None else affine
+        if affine is None:
+            raise ValueError("affine must be provided if data does not have an affine matrix.")
 
-        final_affine = self._compute_final_affine(data, affine, applied_affine)
+        final_affine = self._compute_final_affine(affine, applied_affine)
         out = apply_affine_to_points(data, final_affine, dtype=self.dtype)
 
         extra_info = {
