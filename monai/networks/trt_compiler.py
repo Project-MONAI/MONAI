@@ -342,6 +342,7 @@ class TrtCompiler:
                     self._build_and_save(model, build_args)
                     # This will reassign input_names from the engine
                     self._load_engine()
+                    assert self.engine is not None
             except Exception as e:
                 if self.fallback:
                     self.logger.info(f"Failed to build engine: {e}")
@@ -403,8 +404,10 @@ class TrtCompiler:
 
         build_args = self.build_args.copy()
         build_args["tf32"] = self.precision != "fp32"
-        build_args["fp16"] = self.precision == "fp16"
-        build_args["bf16"] = self.precision == "bf16"
+        if self.precision == "fp16":
+            build_args["fp16"] = True
+        elif self.precision == "bf16":
+            build_args["bf16"] = True
 
         self.logger.info(f"Building TensorRT engine for {onnx_path}: {self.plan_path}")
         network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
@@ -502,6 +505,7 @@ def trt_compile(
 ) -> torch.nn.Module:
     """
     Instruments model or submodule(s) with TrtCompiler and replaces its forward() with TRT hook.
+    Note: TRT 10.3 is recommended for best performance. Some nets may even fail to work with TRT 8.x
     Args:
       model: module to patch with TrtCompiler object.
       base_path: TRT plan(s) saved to f"{base_path}[.{submodule}].plan" path.
