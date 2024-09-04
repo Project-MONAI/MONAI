@@ -100,7 +100,7 @@ def point_based_window_inferer(
                         point_labels=point_labels,
                         class_vector=class_vector,
                         prompt_class=prompt_class,
-                        patch_coords=unravel_slice,
+                        patch_coords=[unravel_slice],
                         prev_mask=prev_mask,
                         **kwargs,
                     )
