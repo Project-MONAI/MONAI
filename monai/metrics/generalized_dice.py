@@ -55,7 +55,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
     def __init__(
         self,
         include_background: bool = True,
-        reduction: MetricReduction | str = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
         weight_type: Weight | str = Weight.SQUARE,
     ) -> None:
         super().__init__()
