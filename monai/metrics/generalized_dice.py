@@ -62,7 +62,12 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         self.include_background = include_background
         self.reduction = look_up_option(reduction, MetricReduction)
         self.weight_type = look_up_option(weight_type, Weight)
-        self.sum_over_classes = self.reduction == MetricReduction.SUM or self.reduction == MetricReduction.MEAN
+        self.sum_over_classes = self.reduction in {
+            MetricReduction.SUM,
+            MetricReduction.MEAN,
+            MetricReduction.MEAN_CHANNEL,
+            MetricReduction.SUM_CHANNEL,
+        }
 
     def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """

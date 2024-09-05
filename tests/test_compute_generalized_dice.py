@@ -32,7 +32,7 @@ TEST_CASE_1 = [  # y (1, 1, 2, 2), y_pred (1, 1, 2, 2), expected out (1, 1)
 ]
 
 # remove background
-TEST_CASE_2 = [  # y (2, 3, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no background)
+TEST_CASE_2 = [  # y (2, 3, 2, 2), y_pred (2, 3, 2, 2), expected out (2) (no background) with GeneralizedDiceScore
     {
         "y_pred": torch.tensor(
             [
@@ -47,8 +47,9 @@ TEST_CASE_2 = [  # y (2, 3, 2, 2), y_pred (2, 3, 2, 2), expected out (2, 2) (no 
             ]
         ),
         "include_background": False,
+        "reduction": "mean_batch",
     },
-    [0.416667],
+    [0.583333, 0.333333],
 ]
 
 # should return 0 for both cases
@@ -129,6 +130,25 @@ TEST_CASE_9 = [
     [[1.0000, 1.0000], [1.0000, 1.0000]],
 ]
 
+TEST_CASE_10 = [  # y (2, 3, 2, 2) y_pred (2, 3, 2, 2) expected out (2)
+    {"include_background": True, "reduction": "mean_channel"},
+    {
+        "y_pred": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 0.0]], [[0.0, 1.0], [0.0, 0.0]], [[0.0, 1.0], [1.0, 1.0]]],
+                [[[1.0, 0.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 1.0]], [[0.0, 1.0], [1.0, 0.0]]],
+            ]
+        ),
+        "y": torch.tensor(
+            [
+                [[[1.0, 1.0], [1.0, 1.0]], [[0.0, 0.0], [0.0, 0.0]], [[0.0, 0.0], [0.0, 0.0]]],
+                [[[0.0, 0.0], [0.0, 1.0]], [[1.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 0.0]]],
+            ]
+        ),
+    },
+    [0.545455, 0.545455],
+]
+
 
 class TestComputeGeneralizedDiceScore(unittest.TestCase):
 
@@ -162,7 +182,7 @@ class TestComputeGeneralizedDiceScore(unittest.TestCase):
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
 
     # Aggregation tests
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
+    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_10])
     def test_nans_class(self, params, input_data, expected_value):
         generalized_dice_score = GeneralizedDiceScore(**params)
         generalized_dice_score(**input_data)
