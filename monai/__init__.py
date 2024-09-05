@@ -18,6 +18,8 @@ from ._version import get_versions
 
 
 old_showwarning = warnings.showwarning
+
+
 def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
     filename1 = "ignite/handlers/checkpoint.py"
     filename2 = "modelopt/torch/quantization/tensor_quant.py"
