@@ -18,10 +18,9 @@ from ._version import get_versions
 
 
 def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
-    message1 = "`TorchScript` support for functional optimizers is deprecated and will be removed"
-    message2 = "`torch.library.impl_abstract` was renamed to `torch.library.register_fake`."
-
-    if message1 in str(message) or message2 in str(message):
+    filename1 = "ignite/handlers/checkpoint.py"
+    filename2 = "modelopt/torch/quantization/tensor_quant.py"
+    if filename1 in filename or filename2 in filename:
         return
     warnings.showwarning(message, category, filename, lineno, file, line)
 
