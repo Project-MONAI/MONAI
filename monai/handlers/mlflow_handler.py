@@ -25,7 +25,7 @@ from monai.apps.utils import get_logger
 from monai.config import IgniteInfo
 from monai.utils import CommonKeys, ensure_tuple, min_version, optional_import
 
-# workaround for https://github.com/Project-MONAI/MONAI/issues/8061
+# workaround for https://github.com/Project-MONAI/MONAI/issues/8060
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="mlflow")
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
