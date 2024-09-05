@@ -50,7 +50,10 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         new_default=MetricReduction.MEAN,
         since="1.4.0",
         replaced="1.5.0",
-        msg_suffix="Old versions computed `mean` when `mean_batch` was provided due to bug in reduction， If you want to retain the old behavior (calculating the mean), please explicitly set the parameter to 'mean'.",
+        msg_suffix=(
+            "Old versions computed `mean` when `mean_batch` was provided due to bug in reduction， "
+            "If you want to retain the old behavior (calculating the mean), please explicitly set the parameter to 'mean'."
+        ),
     )
     def __init__(
         self,
