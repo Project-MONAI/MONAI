@@ -399,6 +399,9 @@ def optional_import(
     else:
         actual_cmd = f"import {module}"
     try:
+        # workaround for https://github.com/Project-MONAI/MONAI/issues/8060
+        warnings.filterwarnings("ignore", module="pydantic")
+        warnings.filterwarnings("ignore", category=ResourceWarning)
         pkg = __import__(module)  # top level module
         the_module = import_module(module)
         if not allow_namespace_pkg:

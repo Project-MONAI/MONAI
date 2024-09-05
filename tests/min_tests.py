@@ -212,7 +212,7 @@ def run_testsuit():
         "test_ultrasound_confidence_map_transform",
         "test_vista3d_utils",
         "test_vista3d_transforms",
-        "test_matshow3d"
+        "test_matshow3d",
     ]
     assert sorted(exclude_cases) == sorted(set(exclude_cases)), f"Duplicated items in {exclude_cases}"
 

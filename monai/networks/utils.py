@@ -37,6 +37,9 @@ onnx, _ = optional_import("onnx")
 onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
+
+# workaround for https://github.com/Project-MONAI/MONAI/issues/8060
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="torch_tensorrt")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
 __all__ = [

@@ -13,9 +13,19 @@ from __future__ import annotations
 
 import os
 import sys
-
+import warnings
 from ._version import get_versions
 
+
+def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
+    message1 = "`TorchScript` support for functional optimizers is deprecated and will be removed in a future PyTorch release. Consider using the `torch.compile` optimizer instead."
+    message2 = "`torch.library.impl_abstract` was renamed to `torch.library.register_fake`. Please use that instead; we will remove `torch.library.impl_abstract` in a future version of PyTorch."
+    if message1 or message2 in message:
+        return
+    warnings.showwarning(message, category, filename, lineno, file, line)
+
+
+warnings.showwarning = custom_warning_handler
 PY_REQUIRED_MAJOR = 3
 PY_REQUIRED_MINOR = 9
 
