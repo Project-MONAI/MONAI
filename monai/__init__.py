@@ -17,12 +17,13 @@ import warnings
 from ._version import get_versions
 
 
+old_showwarning = warnings.showwarning
 def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
     filename1 = "ignite/handlers/checkpoint.py"
     filename2 = "modelopt/torch/quantization/tensor_quant.py"
     if filename1 in filename or filename2 in filename:
         return
-    warnings.showwarning(message, category, filename, lineno, file, line)
+    old_showwarning(message, category, filename, lineno, file, line)
 
 
 warnings.showwarning = custom_warning_handler
