@@ -30,7 +30,7 @@ def custom_warning_handler(message, category, filename, lineno, file=None, line=
 
 class DeprecatedTypesWarningFilter(logging.Filter):
     def filter(self, record):
-        deprecated_aliases = [
+        message_bodies_to_ignore = [
             "np.bool8",
             "np.object0",
             "np.int0",
@@ -44,20 +44,18 @@ class DeprecatedTypesWarningFilter(logging.Filter):
             "pkg_resources",
             "Implicitly cleaning up",
         ]
-        for alias in deprecated_aliases:
-            if alias in record.getMessage():
+        for message in message_bodies_to_ignore:
+            if message in record.getMessage():
                 return False
         return True
 
 
 # workaround for https://github.com/Project-MONAI/MONAI/issues/8060
+#TODO: remove this workaround after upstream fixed the warning
 # Set the custom warning handler to filter warning
 warnings.showwarning = custom_warning_handler
-# Get the logger for warnings
-logger = logging.getLogger("py.warnings")
-# Create and add the filter to the logger
-filter = DeprecatedTypesWarningFilter()
-logger.addFilter(filter)
+# Get the logger for warnings and add the filter to the logger
+logging.getLogger("py.warnings").addFilter(DeprecatedTypesWarningFilter())
 
 
 PY_REQUIRED_MAJOR = 3
