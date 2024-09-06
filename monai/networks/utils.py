@@ -39,7 +39,6 @@ onnxruntime, _ = optional_import("onnxruntime")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0")
 
-
 __all__ = [
     "one_hot",
     "predict_segmentation",
