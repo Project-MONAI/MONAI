@@ -22,13 +22,11 @@ old_showwarning = warnings.showwarning
 
 
 def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
-    ignore_files = [
-        "ignite/handlers/checkpoint",
-        "modelopt/torch/quantization/tensor_quant",
-    ]
+    ignore_files = ["ignite/handlers/checkpoint", "modelopt/torch/quantization/tensor_quant"]
     if any(ignore in filename for ignore in ignore_files):
         return
     old_showwarning(message, category, filename, lineno, file, line)
+
 
 class DeprecatedTypesWarningFilter(logging.Filter):
     def filter(self, record):
@@ -44,12 +42,13 @@ class DeprecatedTypesWarningFilter(logging.Filter):
             "@root_validator",
             "class-based `config`",
             "pkg_resources",
-            "Implicitly cleaning up"
-            ]
+            "Implicitly cleaning up",
+        ]
         for alias in deprecated_aliases:
             if alias in record.getMessage():
                 return False
         return True
+
 
 # workaround for https://github.com/Project-MONAI/MONAI/issues/8060
 # Set the custom warning handler to filter warning
