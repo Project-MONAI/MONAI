@@ -182,7 +182,7 @@ def compute_generalized_dice(
         b[infs] = 0
         b[infs] = torch.max(b)
 
-    # Compute the weighted numerator and denominator, summing along the class axis when sum_over_labels is True
+    # Compute the weighted numerator and denominator, summing along the class axis when sum_over_classes is True
     if sum_over_classes:
         numer = 2.0 * (intersection * w).sum(dim=1, keepdim=True)
         denom = (denominator * w).sum(dim=1, keepdim=True)
