@@ -35,7 +35,7 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         include_background: Whether to include the background class (assumed to be in channel 0) in the
             score computation. Defaults to True.
         reduction: Define mode of reduction to the metrics. Available reduction modes:
-           {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
+            {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
         weight_type: {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to transform
             ground truth volume into a weight factor. Defaults to ``"square"``.
