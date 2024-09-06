@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import sys
+import logging
 import warnings
 from ._version import get_versions
 
@@ -24,19 +25,42 @@ def custom_warning_handler(message, category, filename, lineno, file=None, line=
     ignore_files = [
         "ignite/handlers/checkpoint",
         "modelopt/torch/quantization/tensor_quant",
-        "nptyping/typing_",
-        "pydantic/_internal/_config",
-        "tempfile",
-        "mlflow/gateway",
-        "mlflow/utils",
     ]
     if any(ignore in filename for ignore in ignore_files):
         return
     old_showwarning(message, category, filename, lineno, file, line)
 
+class DeprecatedTypesWarningFilter(logging.Filter):
+    def filter(self, record):
+        deprecated_aliases = [
+            "np.bool8",
+            "np.object0",
+            "np.int0",
+            "np.uint0",
+            "np.void0",
+            "np.str0",
+            "np.bytes0",
+            "@validator",
+            "@root_validator",
+            "class-based `config`",
+            "pkg_resources",
+            "Implicitly cleaning up"
+            ]
+        for alias in deprecated_aliases:
+            if alias in record.getMessage():
+                return False
+        return True
 
 # workaround for https://github.com/Project-MONAI/MONAI/issues/8060
+# Set the custom warning handler to filter warning
 warnings.showwarning = custom_warning_handler
+# Get the logger for warnings
+logger = logging.getLogger("py.warnings")
+# Create and add the filter to the logger
+filter = DeprecatedTypesWarningFilter()
+logger.addFilter(filter)
+
+
 PY_REQUIRED_MAJOR = 3
 PY_REQUIRED_MINOR = 9
 

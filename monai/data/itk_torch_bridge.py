@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
     has_itk = True
 else:
-    itk, has_itk = optional_import("itk", reset_warning=True)
+    itk, has_itk = optional_import("itk")
 
 __all__ = [
     "itk_image_to_metatensor",
