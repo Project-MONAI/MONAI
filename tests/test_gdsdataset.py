@@ -23,7 +23,7 @@ from parameterized import parameterized
 from monai.data import GDSDataset, json_hashing
 from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd, Transform
 from monai.utils import optional_import
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils import TEST_NDARRAYS, assert_allclose, skip_if_no_cuda
 
 _, has_cp = optional_import("cupy")
 nib, has_nib = optional_import("nibabel")
@@ -70,9 +70,9 @@ class _InplaceXform(Transform):
         return data
 
 
+@skip_if_no_cuda
 @unittest.skipUnless(has_cp, "Requires CuPy library.")
-@unittest.skipUnless(has_nib, "Requires nibabel package.")
-@unittest.skipUnless(has_kvikio_numpy, "Requires scikit-image library.")
+@unittest.skipUnless(has_cp and has_kvikio_numpy, "Requires CuPy and kvikio library.")
 class TestDataset(unittest.TestCase):
 
     def test_cache(self):
@@ -131,6 +131,7 @@ class TestDataset(unittest.TestCase):
                 self.assertEqual(ds[0].dtype, DTYPES[_dtype])
                 self.assertEqual(ds1[0].dtype, DTYPES[_dtype])
 
+    @unittest.skipUnless(has_nib, "Requires nibabel package.")
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, transform, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))

@@ -13,8 +13,50 @@ from __future__ import annotations
 
 import os
 import sys
-
+import logging
+import warnings
 from ._version import get_versions
+
+
+old_showwarning = warnings.showwarning
+
+
+def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
+    ignore_files = ["ignite/handlers/checkpoint", "modelopt/torch/quantization/tensor_quant"]
+    if any(ignore in filename for ignore in ignore_files):
+        return
+    old_showwarning(message, category, filename, lineno, file, line)
+
+
+class DeprecatedTypesWarningFilter(logging.Filter):
+    def filter(self, record):
+        message_bodies_to_ignore = [
+            "np.bool8",
+            "np.object0",
+            "np.int0",
+            "np.uint0",
+            "np.void0",
+            "np.str0",
+            "np.bytes0",
+            "@validator",
+            "@root_validator",
+            "class-based `config`",
+            "pkg_resources",
+            "Implicitly cleaning up",
+        ]
+        for message in message_bodies_to_ignore:
+            if message in record.getMessage():
+                return False
+        return True
+
+
+# workaround for https://github.com/Project-MONAI/MONAI/issues/8060
+# TODO: remove this workaround after upstream fixed the warning
+# Set the custom warning handler to filter warning
+warnings.showwarning = custom_warning_handler
+# Get the logger for warnings and add the filter to the logger
+logging.getLogger("py.warnings").addFilter(DeprecatedTypesWarningFilter())
+
 
 PY_REQUIRED_MAJOR = 3
 PY_REQUIRED_MINOR = 9
