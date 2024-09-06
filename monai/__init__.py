@@ -21,13 +21,19 @@ old_showwarning = warnings.showwarning
 
 
 def custom_warning_handler(message, category, filename, lineno, file=None, line=None):
-    filename1 = "ignite/handlers/checkpoint.py"
-    filename2 = "modelopt/torch/quantization/tensor_quant.py"
-    if filename1 in filename or filename2 in filename:
+    ignore_files = [
+        "ignite/handlers/checkpoint",
+        "modelopt/torch/quantization/tensor_quant",
+        "nptyping/typing_",
+        "pydantic/_internal/_config",
+        "tempfile",
+    ]
+    if any(ignore in filename for ignore in ignore_files):
         return
     old_showwarning(message, category, filename, lineno, file, line)
 
 
+# workaround for https://github.com/Project-MONAI/MONAI/issues/8060
 warnings.showwarning = custom_warning_handler
 PY_REQUIRED_MAJOR = 3
 PY_REQUIRED_MINOR = 9
