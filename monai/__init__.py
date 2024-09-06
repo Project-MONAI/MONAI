@@ -51,7 +51,7 @@ class DeprecatedTypesWarningFilter(logging.Filter):
 
 
 # workaround for https://github.com/Project-MONAI/MONAI/issues/8060
-#TODO: remove this workaround after upstream fixed the warning
+# TODO: remove this workaround after upstream fixed the warning
 # Set the custom warning handler to filter warning
 warnings.showwarning = custom_warning_handler
 # Get the logger for warnings and add the filter to the logger
