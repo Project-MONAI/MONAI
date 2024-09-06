@@ -364,7 +364,8 @@ def optional_import(
             a base class, or a decorator, the exceptions should raise accordingly. The current supported values
             are "default" (call once to raise), "decorator" (call the constructor and the second call to raise),
             and anything else will return a lazy class that can be used as a base class (call the constructor to raise).
-        reset_warning: whether to reset the warnings.showwarning to the original function during the import.
+        reset_warning: whether to reset the warnings.showwarning and warnings.formatwarning to
+            the original function during the import.
 
     Returns:
         The imported module and a boolean flag indicating whether the import is successful.
@@ -403,9 +404,11 @@ def optional_import(
     try:
         if reset_warning:
             old_showwarning = warnings.showwarning
+            old_formatwarning = warnings.formatwarning
         pkg = __import__(module)  # top level module
         if reset_warning:
             warnings.showwarning = old_showwarning
+            warnings.formatwarning = old_formatwarning
         the_module = import_module(module)
         if not allow_namespace_pkg:
             is_namespace = getattr(the_module, "__file__", None) is None and hasattr(the_module, "__path__")

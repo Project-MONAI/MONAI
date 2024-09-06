@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     import nibabel as nib
     from PIL import Image as PILImage
 else:
-    itk, _ = optional_import("itk", allow_namespace_pkg=True)
+    itk, _ = optional_import("itk", allow_namespace_pkg=True, reset_warning=True)
     nib, _ = optional_import("nibabel")
     PILImage, _ = optional_import("PIL.Image")
 

@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
     has_nrrd = has_itk = has_nib = has_pil = has_pydicom = True
 else:
-    itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
+    itk, has_itk = optional_import("itk", allow_namespace_pkg=True, reset_warning=True)
     nib, has_nib = optional_import("nibabel")
     Nifti1Image, _ = optional_import("nibabel.nifti1", name="Nifti1Image")
     PILImage, has_pil = optional_import("PIL.Image")

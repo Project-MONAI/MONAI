@@ -27,6 +27,8 @@ def custom_warning_handler(message, category, filename, lineno, file=None, line=
         "nptyping/typing_",
         "pydantic/_internal/_config",
         "tempfile",
+        "mlflow/gateway",
+        "mlflow/utils",
     ]
     if any(ignore in filename for ignore in ignore_files):
         return
