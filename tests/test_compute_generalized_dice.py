@@ -133,7 +133,8 @@ TEST_CASE_9 = [  # y (2, 3, 2, 2) y_pred (2, 3, 2, 2) expected out (2) with Gene
 ]
 
 
-TEST_CASE_10 = [  # y (2, 3, 2, 2) y_pred (2, 3, 2, 2) expected out (2, 3) with compute_generalized_dice and (3) with GeneralizedDiceScore "mean_batch"
+TEST_CASE_10 = [  # y (2, 3, 2, 2) y_pred (2, 3, 2, 2) expected out (2, 3) with compute_generalized_dice
+    # and (3) with GeneralizedDiceScore "mean_batch"
     {
         "y_pred": torch.tensor(
             [
@@ -152,7 +153,8 @@ TEST_CASE_10 = [  # y (2, 3, 2, 2) y_pred (2, 3, 2, 2) expected out (2, 3) with 
     [[0.857143, 0.0, 0.0], [0.5, 0.4, 0.666667]],
 ]
 
-TEST_CASE_11 = [  # y (2, 3, 2, 2) y_pred (2, 3, 2, 2) expected out (2, 1) with compute_generalized_dice (summed over classes) and (2) with GeneralizedDiceScore "mean_channel"
+TEST_CASE_11 = [  # y (2, 3, 2, 2) y_pred (2, 3, 2, 2) expected out (2, 1) with compute_generalized_dice (summed over classes)
+    # and (2) with GeneralizedDiceScore "mean_channel"
     {
         "y_pred": torch.tensor(
             [
