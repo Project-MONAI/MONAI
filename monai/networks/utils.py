@@ -37,7 +37,6 @@ onnx, _ = optional_import("onnx")
 onnxreference, _ = optional_import("onnx.reference")
 onnxruntime, _ = optional_import("onnxruntime")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
-
 torch_tensorrt, _ = optional_import("torch_tensorrt", "1.4.0", reset_warning=True)
 
 
