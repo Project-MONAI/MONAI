@@ -255,6 +255,7 @@ def _download_from_ngc_private(
     else:
         raise ValueError("NGC API requires requests package. Please install it.")
 
+    os.makedirs(download_path, exist_ok=True)
     zip_path = download_path / f"{filename}_v{version}.zip"
     with open(zip_path, "wb") as f:
         f.write(response.content)
