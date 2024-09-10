@@ -32,7 +32,7 @@ from monai._version import get_versions
 from monai.apps.utils import _basename, download_url, extractall, get_logger
 from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA
+from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
 from monai.config import IgniteInfo, PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
@@ -105,7 +105,7 @@ def update_kwargs(args: str | dict | None = None, ignore_none: bool = True, **kw
         if isinstance(v, dict) and isinstance(args_.get(k), dict):
             args_[k] = update_kwargs(args_[k], ignore_none, **v)
         else:
-            args_[k] = v
+            merge_kv(args_, k, v)
     return args_
 
 
@@ -255,6 +255,7 @@ def _download_from_ngc_private(
     else:
         raise ValueError("NGC API requires requests package. Please install it.")
 
+    os.makedirs(download_path, exist_ok=True)
     zip_path = download_path / f"{filename}_v{version}.zip"
     with open(zip_path, "wb") as f:
         f.write(response.content)

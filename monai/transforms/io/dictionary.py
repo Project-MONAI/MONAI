@@ -17,16 +17,17 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
+from collections.abc import Hashable, Mapping
 from pathlib import Path
 from typing import Callable
 
 import numpy as np
 
 import monai
-from monai.config import DtypeLike, KeysCollection
+from monai.config import DtypeLike, KeysCollection, NdarrayOrTensor
 from monai.data import image_writer
 from monai.data.image_reader import ImageReader
-from monai.transforms.io.array import LoadImage, SaveImage
+from monai.transforms.io.array import LoadImage, SaveImage, WriteFileMapping
 from monai.transforms.transform import MapTransform, Transform
 from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep
 from monai.utils.enums import PostFix
@@ -320,5 +321,31 @@ class SaveImaged(MapTransform):
         return d
 
 
+class WriteFileMappingd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.WriteFileMapping`.
+
+    Args:
+          keys: keys of the corresponding items to be transformed.
+              See also: :py:class:`monai.transforms.compose.MapTransform`
+          mapping_file_path: Path to the JSON file where the mappings will be saved.
+              Defaults to "mapping.json".
+          allow_missing_keys: don't raise exception if key is missing.
+    """
+
+    def __init__(
+        self, keys: KeysCollection, mapping_file_path: Path | str = "mapping.json", allow_missing_keys: bool = False
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.mapping = WriteFileMapping(mapping_file_path)
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.mapping(d[key])
+        return d
+
+
 LoadImageD = LoadImageDict = LoadImaged
 SaveImageD = SaveImageDict = SaveImaged
+WriteFileMappingD = WriteFileMappingDict = WriteFileMappingd
