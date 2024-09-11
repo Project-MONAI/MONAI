@@ -18,7 +18,6 @@ import torch.nn as nn
 
 from monai.networks.blocks.patchembedding import PatchEmbeddingBlock
 from monai.networks.blocks.transformerblock import TransformerBlock
-from monai.utils import deprecated_arg
 
 __all__ = ["ViT"]
 
@@ -31,9 +30,6 @@ class ViT(nn.Module):
     ViT supports Torchscript but only works for Pytorch after 1.8.
     """
 
-    @deprecated_arg(
-        name="pos_embed", since="1.2", removed="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead."
-    )
     def __init__(
         self,
         in_channels: int,
@@ -43,7 +39,6 @@ class ViT(nn.Module):
         mlp_dim: int = 3072,
         num_layers: int = 12,
         num_heads: int = 12,
-        pos_embed: str = "conv",
         proj_type: str = "conv",
         pos_embed_type: str = "learnable",
         classification: bool = False,
@@ -74,9 +69,6 @@ class ViT(nn.Module):
                 Set to other values to remove this function.
             qkv_bias (bool, optional): apply bias to the qkv linear layer in self attention block. Defaults to False.
             save_attn (bool, optional): to make accessible the attention in self attention block. Defaults to False.
-
-        .. deprecated:: 1.4
-            ``pos_embed`` is deprecated in favor of ``proj_type``.
 
         Examples::
 
