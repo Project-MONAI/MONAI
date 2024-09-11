@@ -16,7 +16,6 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
-from monai.utils import deprecated
 from monai.utils.module import min_version, optional_import
 
 __all__ = [
