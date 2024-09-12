@@ -11,19 +11,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-import torch.distributed as dist
-import threading
-import logging.config
-import configparser 
-
 import ast
+import configparser
 import json
+import logging.config
 import os
 import re
+import threading
 import warnings
 import zipfile
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from pydoc import locate
@@ -32,6 +30,7 @@ from textwrap import dedent
 from typing import Any, Callable
 
 import torch
+import torch.distributed as dist
 from torch.cuda import is_available
 
 from monai._version import get_versions
