@@ -10,7 +10,12 @@
 # limitations under the License.
 
 from __future__ import annotations
-from io import StringIO
+
+from datetime import datetime
+import torch.distributed as dist
+import threading
+import logging.config
+import configparser 
 
 import ast
 import json
@@ -115,17 +120,61 @@ def _pop_args(src: dict, *args: Any, **kwargs: Any) -> tuple:
     """
     return tuple([src.pop(i) for i in args] + [src.pop(k, v) for k, v in kwargs.items()])
 
+def _log_input_summary(tag: str, args: dict, log_all_ranks: bool = False) -> None:
+    """
+    Logs the input summary of a MONAI bundle script to the console and a local log file.
+    Each rank's logs are tagged with their rank number and saved to individual log files.
+    Reads the base log path from the logging.conf file and creates a separate log file for each rank.
+    Add log_all_ranks as a parameter to determine whether to log all ranks or only rank 0.
+    """
+    is_distributed = dist.is_available() and dist.is_initialized() 
+    rank = dist.get_rank() if is_distributed else 0  
 
-def _log_input_summary(tag: str, args: dict) -> None:
-    log_buffer = StringIO()
+    if not log_all_ranks and rank != 0:
+        return 
 
-    log_buffer.write(f"--- input summary of monai.bundle.scripts.{tag} ---\n")
-    for name, val in args.items():
-        log_buffer.write(f"> {name}: {pprint_edges(val, PPRINT_CONFIG_N)}\n")
-    log_buffer.write("---\n\n")
+    log_lock = threading.Lock()
 
-    logger.info(log_buffer.getvalue())
+    with log_lock:
+      config_file = 'logging.conf'
+      config = configparser.ConfigParser()
+      config.read(config_file)
 
+      if config.has_option('handler_fileHandler', 'args'):
+          base_log_dir = config.get('handler_fileHandler', 'args').strip("()").split(",")[0].strip().strip("'")
+      else:
+          base_log_dir = 'logs/'
+
+      if not os.path.exists(base_log_dir):
+          os.makedirs(base_log_dir)
+
+      log_file_path = os.path.join(base_log_dir, f'rank_{rank}_logfile.log')
+      logger = logging.getLogger(f"rank_{rank}_logger")
+      logger.setLevel(logging.INFO)
+
+      if not logger.hasHandlers():
+          file_handler = logging.FileHandler(log_file_path, mode='a')
+          formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+          file_handler.setFormatter(formatter)
+          logger.addHandler(file_handler)
+
+          console_handler = logging.StreamHandler()
+          console_handler.setFormatter(formatter)
+          logger.addHandler(console_handler)
+
+      logger = logging.LoggerAdapter(logger, {'rank': rank})
+
+      formatted_args = {name: ", ".join(map(str, val)) if isinstance(val, (list, tuple, dict)) else val
+                      for name, val in args.items()}
+
+      logger.info(f"--- Input summary of monai.bundle.scripts.{tag} ---")
+
+      for name, formatted_val in formatted_args.items():
+        logger.info(f"> {name}: {formatted_val}")
+
+      logger.info(f"---\n\n")
+      timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+      logger.info(f"Log written at {timestamp}")
 
 def _get_var_names(expr: str) -> list[str]:
     """
