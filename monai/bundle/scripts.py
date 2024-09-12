@@ -15,7 +15,7 @@ from datetime import datetime
 import torch.distributed as dist
 import threading
 import logging.config
-import configparser 
+import configparser
 
 import ast
 import json
@@ -57,7 +57,6 @@ from monai.utils import (
     get_equivalent_dtype,
     min_version,
     optional_import,
-    pprint_edges,
 )
 
 validate, _ = optional_import("jsonschema", name="validate")
@@ -132,11 +131,11 @@ def _log_input_summary(tag: str, args: dict, log_all_ranks: bool = False) -> Non
     Reads the base log path from the logging.conf file and creates a separate log file for each rank.
     Add log_all_ranks as a parameter to determine whether to log all ranks or only rank 0.
     """
-    is_distributed = dist.is_available() and dist.is_initialized() 
-    rank = dist.get_rank() if is_distributed else 0  
+    is_distributed = dist.is_available() and dist.is_initialized()
+    rank = dist.get_rank() if is_distributed else 0
 
     if not log_all_ranks and rank != 0:
-        return 
+        return
 
     log_lock = threading.Lock()
 
@@ -177,7 +176,7 @@ def _log_input_summary(tag: str, args: dict, log_all_ranks: bool = False) -> Non
       for name, formatted_val in formatted_args.items():
         logger.info(f"> {name}: {formatted_val}")
 
-      logger.info(f"---\n\n")
+      logger.info("---\n\n")
       timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
       logger.info(f"Log written at {timestamp}")
 
