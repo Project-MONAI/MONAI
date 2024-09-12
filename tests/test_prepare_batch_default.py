@@ -21,6 +21,7 @@ from tests.utils import assert_allclose
 
 
 class TestNet(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def forward(self, x: torch.Tensor):
         return x

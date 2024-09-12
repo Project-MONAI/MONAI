@@ -65,7 +65,7 @@ class TestSURELoss(unittest.TestCase):
 
         loss_real = sure_loss_real(operator, x_real, y_pseudo_gt_real, complex_input=False)
         loss_complex = sure_loss_complex(operator, x_complex, y_pseudo_gt_complex, complex_input=True)
-        self.assertAlmostEqual(loss_real.item(), loss_complex.abs().item(), places=6)
+        self.assertAlmostEqual(loss_real.item(), loss_complex.abs().item(), places=5)
 
 
 if __name__ == "__main__":

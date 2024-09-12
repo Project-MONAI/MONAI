@@ -475,7 +475,7 @@ class DistCall:
             if self.verbose:
                 os.environ["NCCL_DEBUG"] = "INFO"
                 os.environ["NCCL_DEBUG_SUBSYS"] = "ALL"
-            os.environ["NCCL_BLOCKING_WAIT"] = str(1)
+            os.environ["TORCH_NCCL_BLOCKING_WAIT"] = str(1)
             os.environ["OMP_NUM_THREADS"] = str(1)
             os.environ["WORLD_SIZE"] = str(self.nproc_per_node * self.nnodes)
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)

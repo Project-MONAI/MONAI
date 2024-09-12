@@ -4,6 +4,7 @@ requires = [
   "setuptools",
   "torch>=1.9",
   "ninja",
+  "packaging"
 ]
 
 [tool.black]
@@ -38,7 +39,6 @@ exclude = "monai/bundle/__main__.py"
 
 [tool.ruff]
 line-length = 133
-lint.ignore-init-module-imports = true
 lint.ignore = ["F401", "E741"]
 
 [tool.pytype]

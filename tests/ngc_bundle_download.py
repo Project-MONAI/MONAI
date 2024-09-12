@@ -127,7 +127,7 @@ class TestAllDownloadingMMAR(unittest.TestCase):
                 in_channels=1,
                 img_size=(96, 96, 96),
                 patch_size=(16, 16, 16),
-                pos_embed="conv",
+                proj_type="conv",
                 hidden_size=768,
                 mlp_dim=3072,
             )
