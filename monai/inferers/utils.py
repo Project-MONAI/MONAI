@@ -300,6 +300,7 @@ def sliding_window_inference(
 
     # remove padding if image_size smaller than roi_size
     if any(pad_size):
+        kwargs.update({"pad_size": pad_size})
         for ss, output_i in enumerate(output_image_list):
             zoom_scale = [_shape_d / _roi_size_d for _shape_d, _roi_size_d in zip(output_i.shape[2:], roi_size)]
             final_slicing: list[slice] = []

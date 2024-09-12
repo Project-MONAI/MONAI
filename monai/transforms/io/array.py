@@ -15,6 +15,7 @@ A collection of "vanilla" transforms for IO functions.
 from __future__ import annotations
 
 import inspect
+import json
 import logging
 import sys
 import traceback
@@ -45,11 +46,19 @@ from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
 from monai.utils import GridSamplePadMode
 from monai.utils import ImageMetaKey as Key
-from monai.utils import OptionalImportError, convert_to_dst_type, ensure_tuple, look_up_option, optional_import
+from monai.utils import (
+    MetaKeys,
+    OptionalImportError,
+    convert_to_dst_type,
+    ensure_tuple,
+    look_up_option,
+    optional_import,
+)
 
 nib, _ = optional_import("nibabel")
 Image, _ = optional_import("PIL.Image")
 nrrd, _ = optional_import("nrrd")
+FileLock, has_filelock = optional_import("filelock", name="FileLock")
 
 __all__ = ["LoadImage", "SaveImage", "SUPPORTED_READERS"]
 
@@ -86,7 +95,7 @@ def switch_endianness(data, new="<"):
         if new not in ("<", ">"):
             raise NotImplementedError(f"Not implemented option new={new}.")
         if current_ != new:
-            data = data.byteswap().newbyteorder(new)
+            data = data.byteswap().view(data.dtype.newbyteorder(new))
     elif isinstance(data, tuple):
         data = tuple(switch_endianness(x, new) for x in data)
     elif isinstance(data, list):
@@ -307,11 +316,11 @@ class SaveImage(Transform):
 
     Args:
         output_dir: output image directory.
-        Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_postfix: a string appended to all output file names, default to `trans`.
-        Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_ext: output file extension name.
-        Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
+            Handled by ``folder_layout`` instead, if ``folder_layout`` is not ``None``.
         output_dtype: data type (if not None) for saving data. Defaults to ``np.float32``.
         resample: whether to resample image (if needed) before saving the data array,
             based on the ``"spatial_shape"`` (and ``"original_affine"``) from metadata.
@@ -505,7 +514,7 @@ class SaveImage(Transform):
             else:
                 self._data_index += 1
                 if self.savepath_in_metadict and meta_data is not None:
-                    meta_data["saved_to"] = filename
+                    meta_data[MetaKeys.SAVED_TO] = filename
                 return img
         msg = "\n".join([f"{e}" for e in err])
         raise RuntimeError(
@@ -514,3 +523,50 @@ class SaveImage(Transform):
             "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
             f"   The current registered writers for {self.output_ext}: {self.writers}.\n{msg}"
         )
+
+
+class WriteFileMapping(Transform):
+    """
+    Writes a JSON file that logs the mapping between input image paths and their corresponding output paths.
+    This class uses FileLock to ensure safe writing to the JSON file in a multiprocess environment.
+
+    Args:
+        mapping_file_path (Path or str): Path to the JSON file where the mappings will be saved.
+    """
+
+    def __init__(self, mapping_file_path: Path | str = "mapping.json"):
+        self.mapping_file_path = Path(mapping_file_path)
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: The input image with metadata.
+        """
+        if isinstance(img, MetaTensor):
+            meta_data = img.meta
+
+        if MetaKeys.SAVED_TO not in meta_data:
+            raise KeyError(
+                "Missing 'saved_to' key in metadata. Check SaveImage argument 'savepath_in_metadict' is True."
+            )
+
+        input_path = meta_data[Key.FILENAME_OR_OBJ]
+        output_path = meta_data[MetaKeys.SAVED_TO]
+        log_data = {"input": input_path, "output": output_path}
+
+        if has_filelock:
+            with FileLock(str(self.mapping_file_path) + ".lock"):
+                self._write_to_file(log_data)
+        else:
+            self._write_to_file(log_data)
+        return img
+
+    def _write_to_file(self, log_data):
+        try:
+            with self.mapping_file_path.open("r") as f:
+                existing_log_data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            existing_log_data = []
+        existing_log_data.append(log_data)
+        with self.mapping_file_path.open("w") as f:
+            json.dump(existing_log_data, f, indent=4)
