@@ -238,8 +238,18 @@ from .intensity.dictionary import (
 )
 from .inverse import InvertibleTransform, TraceableTransform
 from .inverse_batch_transform import BatchInverseTransform, Decollated, DecollateD, DecollateDict
-from .io.array import SUPPORTED_READERS, LoadImage, SaveImage
-from .io.dictionary import LoadImaged, LoadImageD, LoadImageDict, SaveImaged, SaveImageD, SaveImageDict
+from .io.array import SUPPORTED_READERS, LoadImage, SaveImage, WriteFileMapping
+from .io.dictionary import (
+    LoadImaged,
+    LoadImageD,
+    LoadImageDict,
+    SaveImaged,
+    SaveImageD,
+    SaveImageDict,
+    WriteFileMappingd,
+    WriteFileMappingD,
+    WriteFileMappingDict,
+)
 from .lazy.array import ApplyPending
 from .lazy.dictionary import ApplyPendingd, ApplyPendingD, ApplyPendingDict
 from .lazy.functional import apply_pending
@@ -386,6 +396,8 @@ from .smooth_field.dictionary import (
 from .spatial.array import (
     Affine,
     AffineGrid,
+    ConvertBoxToPoints,
+    ConvertPointsToBoxes,
     Flip,
     GridDistortion,
     GridPatch,
@@ -417,6 +429,12 @@ from .spatial.dictionary import (
     Affined,
     AffineD,
     AffineDict,
+    ConvertBoxToPointsd,
+    ConvertBoxToPointsD,
+    ConvertBoxToPointsDict,
+    ConvertPointsToBoxesd,
+    ConvertPointsToBoxesD,
+    ConvertPointsToBoxesDict,
     Flipd,
     FlipD,
     FlipDict,
@@ -493,6 +511,7 @@ from .transform import LazyTransform, MapTransform, Randomizable, RandomizableTr
 from .utility.array import (
     AddCoordinateChannels,
     AddExtremePointsChannel,
+    ApplyTransformToPoints,
     AsChannelLast,
     CastToType,
     ClassesToIndices,
@@ -532,6 +551,9 @@ from .utility.dictionary import (
     AddExtremePointsChanneld,
     AddExtremePointsChannelD,
     AddExtremePointsChannelDict,
+    ApplyTransformToPointsd,
+    ApplyTransformToPointsD,
+    ApplyTransformToPointsDict,
     AsChannelLastd,
     AsChannelLastD,
     AsChannelLastDict,

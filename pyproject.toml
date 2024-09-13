@@ -4,6 +4,7 @@ requires = [
   "setuptools",
   "torch>=1.9",
   "ninja",
+  "packaging"
 ]
 
 [tool.black]
