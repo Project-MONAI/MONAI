@@ -89,7 +89,7 @@ TEST_CASE_9 = [
 TEST_CASE_10 = [
     ["network.json", "test_output.pt", "test_input.pt", "large_files.yaml"],
     "test_bundle",
-    "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.2.zip",
+    "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.3.zip",
     {"model.pt": "27952767e2e154e3b0ee65defc5aed38", "model.ts": "97746870fe591f69ac09827175b00675"},
 ]
 
