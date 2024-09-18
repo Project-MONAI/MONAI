@@ -230,6 +230,16 @@ class Average(StrEnum):
     NONE = "none"
 
 
+class MultiOutput(StrEnum):
+    """
+    See also: :py:func:`monai.metrics.r2_score.compute_r2_score`
+    """
+
+    RAW = "raw_values"
+    UNIFORM = "uniform_average"
+    VARIANCE = "variance_weighted"
+
+
 class MetricReduction(StrEnum):
     """
     See also: :py:func:`monai.metrics.utils.do_metric_reduction`
