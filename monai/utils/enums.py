@@ -16,7 +16,6 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 from monai.config import IgniteInfo
-from monai.utils import deprecated
 from monai.utils.module import min_version, optional_import
 
 __all__ = [
@@ -56,7 +55,6 @@ __all__ = [
     "DataStatsKeys",
     "ImageStatsKeys",
     "LabelStatsKeys",
-    "AlgoEnsembleKeys",
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
@@ -613,17 +611,6 @@ class LabelStatsKeys(StrEnum):
     LABEL = "label"
     LABEL_SHAPE = "shape"
     LABEL_NCOMP = "ncomponents"
-
-
-@deprecated(since="1.2", removed="1.4", msg_suffix="please use `AlgoKeys` instead.")
-class AlgoEnsembleKeys(StrEnum):
-    """
-    Default keys for Mixed Ensemble
-    """
-
-    ID = "identifier"
-    ALGO = "infer_algo"
-    SCORE = "best_metric"
 
 
 class HoVerNetMode(StrEnum):
