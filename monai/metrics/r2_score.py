@@ -29,19 +29,21 @@ class R2Metric(CumulativeIterationMetric):
     r"""Computes :math:`R^{2}` score (coefficient of determination):
 
     .. math::
-        \operatorname {R^{2}}\left(Y, \hat{Y}\right) = 1 - \frac {\sum _{i=1}^{n}\left(y_i-\hat{y_i} \right)^{2}}{\sum _{i=1}^{n}\left(y_i-\bar{y} \right)^{2}},
+        \operatorname {R^{2}}\left(Y, \hat{Y}\right) = 1 - \frac {\sum _{i=1}^{n}\left(y_i-\hat{y_i} \right)^{2}}
+        {\sum _{i=1}^{n}\left(y_i-\bar{y} \right)^{2}},
 
     where :math:`\bar{y}` is the mean of observed :math:`y` ; or adjusted :math:`R^{2}` score:
 
     .. math::
-        \operatorname {\bar{R}^{2}} = 1 - (1-R^{2}) \frac {n-1}{n-p-1}, 
+        \operatorname {\bar{R}^{2}} = 1 - (1-R^{2}) \frac {n-1}{n-p-1},
 
     where :math:`p` is the number of independant variables used for the regression.
 
     More info: https://en.wikipedia.org/wiki/Coefficient_of_determination
 
     Input `y_pred` is compared with ground truth `y`.
-    `y_pred` and `y` are expected to be 1D (single-output regression) or 2D (multi-output regression) real-valued tensors of same shape.
+    `y_pred` and `y` are expected to be 1D (single-output regression) or 2D (multi-output regression) real-valued
+    tensors of same shape.
 
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
@@ -52,9 +54,9 @@ class R2Metric(CumulativeIterationMetric):
 
             - ``"raw_values"``: the scores for each output are returned.
             - ``"uniform_average"``: the scores of all outputs are averaged with uniform weight.
-            - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances of 
+            - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances of
               each individual output.
-        p: non-negative integer. 
+        p: non-negative integer.
             Number of independent variables used for regression. ``p`` is used to compute adjusted :math:`R^{2}` score.
             Defaults to 0 (standard :math:`R^{2}` score).
 
@@ -102,14 +104,14 @@ def _check_r2_params(multi_output, p) -> tuple[MultiOutput, int]:
     multi_output = look_up_option(multi_output, MultiOutput)
     if not isinstance(p, int) or p < 0:
         raise ValueError(f"`p` must be an integer larger or equal to 0, got {p}.")
-    
+
     return multi_output, p
 
 
 def _calculate(y_pred: np.ndarray, y: np.ndarray, p: int) -> float:
     num_obs = len(y)
     rss = np.sum((y_pred - y) ** 2)
-    tss = np.sum(y ** 2) - np.sum(y) ** 2 / num_obs
+    tss = np.sum(y**2) - np.sum(y) ** 2 / num_obs
     r2 = 1 - (rss / tss)
     r2_adjusted = 1 - (1 - r2) * (num_obs - 1) / (num_obs - p - 1)
 
@@ -132,7 +134,7 @@ def compute_r2_score(
 
             - ``"raw_values"``: the scores for each output are returned.
             - ``"uniform_average"``: the scores of all outputs are averaged with uniform weight.
-            - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances 
+            - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances
               each individual output.
         p: non-negative integer.
             Number of independent variables used for regression. ``p`` is used to compute adjusted :math:`R^{2}` score.
@@ -156,14 +158,9 @@ def compute_r2_score(
     y_pred = y_pred.cpu().numpy()
 
     if n < 2:
-        raise ValueError(
-            "There is no enough data for computing. Needs at least two samples to calculate r2 score."
-        )
+        raise ValueError("There is no enough data for computing. Needs at least two samples to calculate r2 score.")
     if p >= n - 1:
-        raise ValueError(
-            "`p` must be smaller than n_samples - 1, "
-            f"got p={p}, n_samples={n}.",
-        )
+        raise ValueError("`p` must be smaller than n_samples - 1, " f"got p={p}, n_samples={n}.")
 
     if dim == 2 and y_pred.shape[1] == 1:
         y_pred = np.squeeze(y_pred, axis=-1)

@@ -38,7 +38,11 @@ class DistributedR2Score(DistTestCase):
                 torch.tensor([0.99, 2.1], device=device),
                 torch.tensor([-0.1, 0.0], device=device),
             ]
-            y = [torch.tensor([2.7, -0.1], device=device), torch.tensor([1.58, 2.0], device=device), torch.tensor([-1.0, -0.1], device=device)]
+            y = [
+                torch.tensor([2.7, -0.1], device=device),
+                torch.tensor([1.58, 2.0], device=device),
+                torch.tensor([-1.0, -0.1], device=device),
+            ]
 
         r2_score.update([y_pred, y])
 

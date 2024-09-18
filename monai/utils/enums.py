@@ -30,6 +30,7 @@ __all__ = [
     "NdimageMode",
     "GridSamplePadMode",
     "Average",
+    "MultiOutput",
     "MetricReduction",
     "LossReduction",
     "DiceCEReduction",

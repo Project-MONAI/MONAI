@@ -29,9 +29,9 @@ class R2Score(IgniteMetricHandler):
 
             - ``"raw_values"``: the scores for each output are returned.
             - ``"uniform_average"``: the scores of all outputs are averaged with uniform weight.
-            - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances 
+            - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances
               of each individual output.
-        p: non-negative integer. 
+        p: non-negative integer.
             Number of independent variables used for regression. ``p`` is used to compute adjusted :math:`R^{2}` score.
             Defaults to 0 (standard :math:`R^{2}` score).
         output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
@@ -46,6 +46,11 @@ class R2Score(IgniteMetricHandler):
 
     """
 
-    def __init__(self, multi_output: MultiOutput | str = MultiOutput.UNIFORM, p: int = 0, output_transform: Callable = lambda x: x) -> None:
+    def __init__(
+        self,
+        multi_output: MultiOutput | str = MultiOutput.UNIFORM,
+        p: int = 0,
+        output_transform: Callable = lambda x: x,
+    ) -> None:
         metric_fn = R2Metric(multi_output=multi_output, p=p)
         super().__init__(metric_fn=metric_fn, output_transform=output_transform, save_details=False)
