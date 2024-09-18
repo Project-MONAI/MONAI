@@ -179,4 +179,6 @@ def compute_r2_score(
     if multi_output == MultiOutput.VARIANCE:
         weights = np.var(y, axis=1)
         return np.average(r2_values, weights=weights)  # type: ignore[no-any-return]
-    raise ValueError(f'Unsupported multi_output: {multi_output}, available options are ["raw_values", "uniform_average", "variance_weighted"].')
+    raise ValueError(
+        f'Unsupported multi_output: {multi_output}, available options are ["raw_values", "uniform_average", "variance_weighted"].'
+    )
