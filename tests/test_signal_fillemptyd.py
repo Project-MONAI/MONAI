@@ -30,7 +30,7 @@ class TestSignalFillEmptyNumpy(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmptyd(replacement=0.0), SignalFillEmptyd)
         sig = np.load(TEST_SIGNAL)
-        sig[:, 123] = np.NAN
+        sig[:, 123] = np.nan
         data = {}
         data["signal"] = sig
         fillempty = SignalFillEmptyd(keys=("signal",), replacement=0.0)
@@ -46,7 +46,7 @@ class TestSignalFillEmptyTorch(unittest.TestCase):
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmptyd(replacement=0.0), SignalFillEmptyd)
         sig = convert_to_tensor(np.load(TEST_SIGNAL))
-        sig[:, 123] = convert_to_tensor(np.NAN)
+        sig[:, 123] = convert_to_tensor(np.nan)
         data = {}
         data["signal"] = sig
         fillempty = SignalFillEmptyd(keys=("signal",), replacement=0.0)
