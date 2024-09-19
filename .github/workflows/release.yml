@@ -78,12 +78,13 @@ jobs:
         rm dist/monai*.tar.gz
         ls -al dist/
 
-    - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
-      name: Publish to Test PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.TEST_PYPI }}
-        repository-url: https://test.pypi.org/legacy/
+    # remove publishing to Test PyPI as it is moved to blossom
+    # - if: matrix.python-version == '3.9' && startsWith(github.ref, 'refs/tags/')
+    #   name: Publish to Test PyPI
+    #   uses: pypa/gh-action-pypi-publish@release/v1
+    #   with:
+    #     password: ${{ secrets.TEST_PYPI }}
+    #     repository-url: https://test.pypi.org/legacy/
 
   versioning:
     # compute versioning file from python setup.py
