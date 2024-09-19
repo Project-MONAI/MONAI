@@ -339,6 +339,7 @@ def convert_to_dst_type(
     wrap_sequence: bool = False,
     device: None | str | torch.device = None,
     safe: bool = False,
+    structure_only: bool = False, 
 ) -> tuple[NdarrayTensor, type, torch.device | None]:
     """
     Convert source data to the same data type and device as the destination data.
@@ -355,12 +356,18 @@ def convert_to_dst_type(
         device: target device to put the converted Tensor data. If unspecified, `dst.device` will be used if possible.
         safe: if `True`, then do safe dtype convert when intensity overflow. default to `False`.
             E.g., `[256, -12]` -> `[array(0), array(244)]`. If `True`, then `[256, -12]` -> `[array(255), array(0)]`.
+        structure_only: if `True`, only convert the data structure without changing the data type. default to `False`.
 
     See Also:
         :func:`convert_data_type`
     """
 
     device = dst.device if device is None and isinstance(dst, torch.Tensor) else device
+
+    # If structure_only is True, keep the dtype of src without changing its data type.
+    if structure_only:
+        dtype = getattr(src, "dtype", dtype)  # Use the data type of src
+
     if dtype is None:
         dtype = getattr(dst, "dtype", None)  # sequence has no dtype
 

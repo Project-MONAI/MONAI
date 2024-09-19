@@ -579,7 +579,7 @@ def weighted_patch_samples(
     if not v[-1] or not isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)
+        r, *_ = convert_to_dst_type(r_state.random(n_samples), v, structure_only=True)
         idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode

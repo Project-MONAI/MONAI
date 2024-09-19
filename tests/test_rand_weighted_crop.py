@@ -90,6 +90,21 @@ for p in TEST_NDARRAYS_ALL:
                 [[63, 37], [31, 43], [66, 20]],
             ]
         )
+        im = SEG1_2D
+        weight_map = np.zeros_like(im, dtype=np.int32)  
+        weight_map[0, 30, 20] = 3
+        weight_map[0, 45, 44] = 1
+        weight_map[0, 60, 50] = 2
+        TESTS.append(
+            [
+                "int w 2d", 
+                dict(spatial_size=(10, 12), num_samples=3),  
+                p(im), 
+                q(weight_map), 
+                (1, 10, 12),  
+                [[60, 50], [30, 20], [45, 44]],  
+            ]
+        )
         im = SEG1_3D
         weight = np.zeros_like(im)
         weight[0, 5, 30, 17] = 1.1
@@ -147,6 +162,21 @@ for p in TEST_NDARRAYS_ALL:
                 q(weight),
                 (1, 64, 48, 80),
                 [[32, 24, 40], [32, 24, 40], [32, 24, 40]],
+            ]
+        )
+        im = SEG1_3D
+        weight_map = np.zeros_like(im, dtype=np.int32)  
+        weight_map[0, 6, 22, 19] = 4
+        weight_map[0, 8, 40, 31] = 2
+        weight_map[0, 13, 20, 24] = 3
+        TESTS.append(
+            [
+                "int w 3d", 
+                dict(spatial_size=(8, 10, 12), num_samples=3),  
+                p(im), 
+                q(weight_map), 
+                (1, 8, 10, 12),  
+                [[13, 20, 24], [6, 22, 19], [8, 40, 31]],  
             ]
         )
 
