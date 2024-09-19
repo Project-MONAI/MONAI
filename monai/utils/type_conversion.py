@@ -347,7 +347,7 @@ def convert_to_dst_type(
     wrap_sequence: bool = False,
     device: None | str | torch.device = None,
     safe: bool = False,
-    structure_only: bool = False, 
+    structure_only: bool = False,
 ) -> tuple[NdarrayTensor, type, torch.device | None]:
     """
     Convert source data to the same data type and device as the destination data.
