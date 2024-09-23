@@ -23,6 +23,7 @@ import zipfile
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from functools import partial
+from logging import LoggerAdapter
 from pathlib import Path
 from pydoc import locate
 from shutil import copyfile
@@ -160,7 +161,7 @@ def _log_input_summary(tag: str, args: dict, log_all_ranks: bool = False) -> Non
             console_handler.setFormatter(formatter)
             logger.addHandler(console_handler)
 
-        logger = logging.LoggerAdapter(logger, {"rank": rank})
+        logger: LoggerAdapter = logging.LoggerAdapter(logger, {"rank": rank})
 
         formatted_args = {
             name: ", ".join(map(str, val)) if isinstance(val, (list, tuple, dict)) else val
