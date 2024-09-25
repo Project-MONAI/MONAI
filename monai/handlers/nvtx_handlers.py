@@ -16,8 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from monai.utils import IgniteInfo
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import IgniteInfo, ensure_tuple, min_version, optional_import
 
 _nvtx, _ = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 if TYPE_CHECKING:

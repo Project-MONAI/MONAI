@@ -13,9 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from monai.utils import IgniteInfo
 from monai.data import SmartCacheDataset
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:

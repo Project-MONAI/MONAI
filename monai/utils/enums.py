@@ -60,7 +60,7 @@ __all__ = [
     "BundleProperty",
     "BundlePropertyConfig",
     "AlgoKeys",
-    "IgniteInfo"
+    "IgniteInfo",
 ]
 
 

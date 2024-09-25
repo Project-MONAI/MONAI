@@ -17,8 +17,7 @@ from typing import TYPE_CHECKING, Any
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
-from monai.utils import IgniteInfo
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import IgniteInfo, ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:

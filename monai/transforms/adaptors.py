@@ -125,7 +125,6 @@ from __future__ import annotations
 
 from typing import Callable
 
-
 __all__ = ["adaptor", "apply_alias", "to_kwargs", "FunctionSignature"]
 
 

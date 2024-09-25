@@ -22,8 +22,7 @@ import torch
 from torch.utils.data import Dataset
 
 from monai.apps.utils import get_logger
-from monai.utils import IgniteInfo
-from monai.utils import CommonKeys, ensure_tuple, min_version, optional_import
+from monai.utils import CommonKeys, IgniteInfo, ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")

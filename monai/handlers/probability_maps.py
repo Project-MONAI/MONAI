@@ -20,7 +20,7 @@ import numpy as np
 from monai.config import DtypeLike
 from monai.data.folder_layout import FolderLayout
 from monai.utils import ProbMapKeys, min_version, optional_import
-from monai.utils.enums import IgniteInfo, CommonKeys
+from monai.utils.enums import CommonKeys, IgniteInfo
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:

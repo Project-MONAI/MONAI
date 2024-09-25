@@ -94,7 +94,7 @@ excludes = "|".join(
     ]
 )
 
-from . import (
+from . import (  # noqa: E402
     apps,
     auto3dseg,
     bundle,
