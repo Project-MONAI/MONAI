@@ -125,12 +125,10 @@ from __future__ import annotations
 
 from typing import Callable
 
-from monai.utils import export as _monai_export
 
 __all__ = ["adaptor", "apply_alias", "to_kwargs", "FunctionSignature"]
 
 
-@_monai_export("monai.transforms")
 def adaptor(function, outputs, inputs=None):
 
     def must_be_types_or_none(variable_name, variable, types):
@@ -215,7 +213,6 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
-@_monai_export("monai.transforms")
 def apply_alias(fn, name_map):
 
     def _inner(data):
@@ -236,7 +233,6 @@ def apply_alias(fn, name_map):
     return _inner
 
 
-@_monai_export("monai.transforms")
 def to_kwargs(fn):
 
     def _inner(data):
