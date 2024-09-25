@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import unittest
 
-import torch
 import numpy as np
+import torch
 
 from monai.transforms.intensity.array import ScaleIntensityRangePercentiles
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
