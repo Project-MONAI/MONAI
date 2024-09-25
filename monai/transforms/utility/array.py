@@ -1072,7 +1072,7 @@ class ConvertToMultiChannelBasedOnBratsClasses(Transform):
         # merge labels 1 (tumor non-enh) and 4 (tumor enh) and 2 (large edema) to WT
         # label 4 is ET
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
-    
+
 
 class ConvertToMultiChannelBasedOnBrats23Classes(Transform):
     """
@@ -1093,8 +1093,8 @@ class ConvertToMultiChannelBasedOnBrats23Classes(Transform):
         result = [(img == 1) | (img == 3), (img == 1) | (img == 3) | (img == 2), img == 3]  # -> tc, wt, et
         # merge labels 1 (ncr) and 3 (et) and 2 (ed) to WT
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
-    
-    
+
+
 class ConvertToMultiChannelBasedOnBrats23ClassesNoReg(Transform):
     """
     Convert labels to multi channels based on brats23 classes:
@@ -1114,7 +1114,7 @@ class ConvertToMultiChannelBasedOnBrats23ClassesNoReg(Transform):
         result = [(img == 1), (img == 2), (img == 3)]
 
         return torch.stack(result, dim=0) if isinstance(img, torch.Tensor) else np.stack(result, axis=0)
-    
+
 
 class AddExtremePointsChannel(Randomizable, Transform):
     """

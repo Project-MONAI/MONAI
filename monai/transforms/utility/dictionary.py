@@ -1313,8 +1313,8 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
-    
-    
+
+
 class ConvertToMultiChannelBasedOnBrats23Classesd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBrats23Classes`.
@@ -1337,8 +1337,8 @@ class ConvertToMultiChannelBasedOnBrats23Classesd(MapTransform):
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
-    
-    
+
+
 class ConvertToMultiChannelBasedOnBrats23ClassesNoRegd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
