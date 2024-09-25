@@ -153,3 +153,4 @@ from .type_conversion import (
     get_numpy_dtype_from_string,
     get_torch_dtype_from_string,
 )
+from .hub_mixin import MonaiHubMixin
