@@ -22,7 +22,7 @@ import torch
 from torch.utils.data import Dataset
 
 from monai.apps.utils import get_logger
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.utils import CommonKeys, ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")

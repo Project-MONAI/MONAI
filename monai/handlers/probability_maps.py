@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from monai.config import DtypeLike, IgniteInfo
+from monai.config import DtypeLike
 from monai.data.folder_layout import FolderLayout
 from monai.utils import ProbMapKeys, min_version, optional_import
-from monai.utils.enums import CommonKeys
+from monai.utils.enums import IgniteInfo, CommonKeys
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:

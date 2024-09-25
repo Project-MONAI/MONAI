@@ -34,7 +34,8 @@ from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
-from monai.config import IgniteInfo, PathLike
+from monai.utils import IgniteInfo
+from monai.config import PathLike
 from monai.data import load_net_with_metadata, save_net_with_metadata
 from monai.networks import (
     convert_to_onnx,

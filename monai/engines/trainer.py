@@ -18,7 +18,7 @@ import torch
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.data import MetaTensor
 from monai.engines.utils import IterationEvents, default_make_latent, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow

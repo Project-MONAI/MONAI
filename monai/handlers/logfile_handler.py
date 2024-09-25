@@ -15,7 +15,7 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.utils import min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")

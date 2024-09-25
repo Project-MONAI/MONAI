@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 import torch
 from torch.utils.data import DataLoader
 
-from monai.config import IgniteInfo, KeysCollection
+from monai.utils import IgniteInfo
+from monai.config import KeysCollection
 from monai.data import MetaTensor
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.engines.workflow import Workflow

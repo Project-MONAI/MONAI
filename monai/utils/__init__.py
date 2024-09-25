@@ -65,6 +65,7 @@ from .enums import (
     UpsampleMode,
     Weight,
     WSIPatchKeys,
+    IgniteInfo
 )
 from .jupyter_utils import StatusMembers, ThreadContainer
 from .misc import (

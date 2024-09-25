@@ -19,7 +19,7 @@ import torch
 from ignite.engine import Engine
 from parameterized import parameterized
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.data import Dataset
 from monai.handlers import GarbageCollector
 from monai.utils import min_version, optional_import

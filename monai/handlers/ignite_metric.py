@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.metrics import CumulativeIterationMetric, LossMetric
 from monai.utils import MetricReduction, min_version, optional_import
 

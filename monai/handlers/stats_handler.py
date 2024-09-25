@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 from monai.apps import get_logger
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")

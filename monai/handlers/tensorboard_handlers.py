@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.utils import is_scalar, min_version, optional_import
 from monai.visualize import plot_2d_or_3d_image
 

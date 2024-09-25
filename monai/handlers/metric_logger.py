@@ -17,7 +17,7 @@ from enum import Enum
 from threading import RLock
 from typing import TYPE_CHECKING, Any
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.utils import min_version, optional_import
 from monai.utils.enums import CommonKeys
 

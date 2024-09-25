@@ -20,7 +20,7 @@ import torch.distributed as dist
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.engines.utils import IterationEvents, default_metric_cmp_fn, default_prepare_batch
 from monai.transforms import Decollated
 from monai.utils import ensure_tuple, is_scalar, min_version, optional_import

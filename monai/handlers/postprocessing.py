@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.engines.utils import IterationEvents, engine_apply_transform
 from monai.utils import min_version, optional_import
 

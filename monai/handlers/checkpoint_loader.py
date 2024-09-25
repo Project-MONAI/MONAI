@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.networks.utils import copy_model_state
 from monai.utils import min_version, optional_import
 

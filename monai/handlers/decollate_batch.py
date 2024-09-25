@@ -13,7 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo, KeysCollection
+from monai.utils import IgniteInfo
+from monai.config import KeysCollection
 from monai.engines.utils import IterationEvents
 from monai.transforms import Decollated
 from monai.utils import min_version, optional_import
