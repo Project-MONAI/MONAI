@@ -63,6 +63,7 @@ TEST_CASE2 = [
     },
 ]
 
+
 @SkipIfNoModule("h5py")
 class TestMRIUtils(unittest.TestCase):
 
