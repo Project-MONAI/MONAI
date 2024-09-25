@@ -40,6 +40,8 @@ from monai.transforms.utility.array import (
     CastToType,
     ClassesToIndices,
     ConvertToMultiChannelBasedOnBratsClasses,
+    ConvertToMultiChannelBasedOnBrats23Classes,
+    ConvertToMultiChannelBasedOnBrats23ClassesNoReg,
     CuCIM,
     DataStats,
     EnsureChannelFirst,
@@ -89,6 +91,12 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClassesD",
     "ConvertToMultiChannelBasedOnBratsClassesDict",
     "ConvertToMultiChannelBasedOnBratsClassesd",
+    "ConvertToMultiChannelBasedOnBrats23ClassesD",
+    "ConvertToMultiChannelBasedOnBrats23ClassesDict",
+    "ConvertToMultiChannelBasedOnBrats23Classesd",
+    "ConvertToMultiChannelBasedOnBrats23NoRegClassesD",
+    "ConvertToMultiChannelBasedOnBrats23NoRegClassesDict",
+    "ConvertToMultiChannelBasedOnBrats23NoRegClassesd",
     "CopyItemsD",
     "CopyItemsDict",
     "CopyItemsd",
@@ -1305,6 +1313,53 @@ class ConvertToMultiChannelBasedOnBratsClassesd(MapTransform):
         for key in self.key_iterator(d):
             d[key] = self.converter(d[key])
         return d
+    
+    
+class ConvertToMultiChannelBasedOnBrats23Classesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBrats23Classes`.
+    Convert labels to multi channels based on brats23 classes:
+    label 1 is the necrotic and non-enhancing tumor core
+    label 2 is the peritumoral edema
+    label 3 is the GD-enhancing tumor
+    The possible classes are TC (Tumor core), WT (Whole tumor)
+    and ET (Enhancing tumor).
+    """
+
+    backend = ConvertToMultiChannelBasedOnBrats23Classes.backend
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ConvertToMultiChannelBasedOnBrats23Classes()
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
+    
+    
+class ConvertToMultiChannelBasedOnBrats23ClassesNoRegd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ConvertToMultiChannelBasedOnBratsClasses`.
+    Convert labels to multi channels based on brats23 classes:
+    label 1 is the necrotic and non-enhancing tumor core
+    label 2 is the peritumoral edema
+    label 4 is the GD-enhancing tumor
+    In this case, labels are converted to multi channels. No regions are involved.
+    """
+
+    backend = ConvertToMultiChannelBasedOnBrats23ClassesNoReg.backend
+
+    def __init__(self, keys: KeysCollection, allow_missing_keys: bool = False):
+        super().__init__(keys, allow_missing_keys)
+        self.converter = ConvertToMultiChannelBasedOnBrats23ClassesNoReg()
+
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.converter(d[key])
+        return d
 
 
 class AddExtremePointsChanneld(Randomizable, MapTransform):
@@ -1869,6 +1924,12 @@ FgBgToIndicesD = FgBgToIndicesDict = FgBgToIndicesd
 ClassesToIndicesD = ClassesToIndicesDict = ClassesToIndicesd
 ConvertToMultiChannelBasedOnBratsClassesD = ConvertToMultiChannelBasedOnBratsClassesDict = (
     ConvertToMultiChannelBasedOnBratsClassesd
+)
+ConvertToMultiChannelBasedOnBrats23ClassesD = ConvertToMultiChannelBasedOnBrats23ClassesDict = (
+    ConvertToMultiChannelBasedOnBrats23Classesd
+)
+ConvertToMultiChannelBasedOnBrats23ClassesNoRegD = ConvertToMultiChannelBasedOnBrats23ClassesNoRegDict = (
+    ConvertToMultiChannelBasedOnBrats23ClassesNoRegd
 )
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
 TorchVisionD = TorchVisionDict = TorchVisiond
