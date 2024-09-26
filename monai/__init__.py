@@ -79,20 +79,6 @@ if sys.version_info.major != PY_REQUIRED_MAJOR or sys.version_info.minor < PY_RE
         category=RuntimeWarning,
     )
 
-# handlers_* have some external decorators the users may not have installed
-# *.so files and folder "_C" may not exist when the cpp extensions are not compiled
-excludes = "|".join(
-    [
-        "(^(monai.handlers))",
-        "(^(monai.bundle))",
-        "(^(monai.fl))",
-        "((\\.so)$)",
-        "(^(monai._C))",
-        "(.*(__main__)$)",
-        "(.*(video_dataset)$)",
-        "(.*(nnunet).*$)",
-    ]
-)
 
 from . import (  # noqa: E402
     apps,
