@@ -1411,7 +1411,7 @@ class ScaleIntensityRangePercentiles(Transform):
         else:
             img_t = self._normalize(img=img_t)
 
-        return convert_to_dst_type(img_t, dst=img)[0]
+        return convert_to_dst_type(img_t, dst=img, dtype=self.dtype)[0]
 
 
 class MaskIntensity(Transform):
