@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.nets import MedNeXt
+from monai.networks.nets import MedNeXt, MedNeXtL, MedNeXtM, MedNeXtS
 from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -55,6 +55,18 @@ for spatial_dims in range(2, 4):
             ]
             TEST_CASE_MEDNEXT_2.append(test_case)
 
+TEST_CASE_MEDNEXT_VARIANTS = []
+for model in [MedNeXtS, MedNeXtM, MedNeXtL]:
+    for spatial_dims in range(2, 4):
+        for out_channels in [1, 2]:
+            test_case = [
+                model,
+                {"spatial_dims": spatial_dims, "in_channels": 1, "out_channels": out_channels},
+                (2, 1, *([16] * spatial_dims)),
+                (2, out_channels, *([16] * spatial_dims)),
+            ]
+            TEST_CASE_MEDNEXT_VARIANTS.append(test_case)
+
 
 class TestMedNeXt(unittest.TestCase):
 
@@ -90,6 +102,21 @@ class TestMedNeXt(unittest.TestCase):
     def test_ill_arg(self):
         with self.assertRaises(AssertionError):
             MedNeXt(spatial_dims=4)
+
+    @parameterized.expand(TEST_CASE_MEDNEXT_VARIANTS)
+    def test_mednext_variants(self, model, input_param, input_shape, expected_shape):
+        net = model(**input_param).to(device)
+
+        net.train()
+        result = net(torch.randn(input_shape).to(device))
+        assert isinstance(result, torch.Tensor)
+        self.assertEqual(result.shape, expected_shape, msg=str(input_param))
+
+        net.eval()
+        with torch.no_grad():
+            result = net(torch.randn(input_shape).to(device))
+        assert isinstance(result, torch.Tensor)
+        self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
 
 if __name__ == "__main__":

@@ -266,128 +266,89 @@ class MedNeXt(nn.Module):
 
 
 # Define the MedNeXt variants as reported in 10.48550/arXiv.2303.09975
-class MedNeXtSmall(MedNeXt):
-    """MedNeXt Small (S) configuration"""
+def create_mednext(
+    variant: str,
+    spatial_dims: int = 3,
+    in_channels: int = 1,
+    out_channels: int = 2,
+    kernel_size: int = 3,
+    deep_supervision: bool = False,
+) -> MedNeXt:
+    """
+    Factory method to create MedNeXt variants.
 
-    def __init__(
-        self,
-        spatial_dims: int = 3,
-        in_channels: int = 1,
-        out_channels: int = 2,
-        kernel_size: int = 3,
-        deep_supervision: bool = False,
-    ):
-        super().__init__(
-            spatial_dims=spatial_dims,
-            init_filters=32,
-            in_channels=in_channels,
-            out_channels=out_channels,
+    Args:
+        variant (str): The MedNeXt variant to create ('S', 'B', 'M', or 'L').
+        spatial_dims (int): Number of spatial dimensions. Defaults to 3.
+        in_channels (int): Number of input channels. Defaults to 1.
+        out_channels (int): Number of output channels. Defaults to 2.
+        kernel_size (int): Kernel size for convolutions. Defaults to 3.
+        deep_supervision (bool): Whether to use deep supervision. Defaults to False.
+
+    Returns:
+        MedNeXt: The specified MedNeXt variant.
+
+    Raises:
+        ValueError: If an invalid variant is specified.
+    """
+    common_args = {
+        "spatial_dims": spatial_dims,
+        "in_channels": in_channels,
+        "out_channels": out_channels,
+        "kernel_size": kernel_size,
+        "deep_supervision": deep_supervision,
+        "use_residual_connection": True,
+        "norm_type": "group",
+        "grn": False,
+        "init_filters": 32,
+    }
+
+    if variant.upper() == "S":
+        return MedNeXt(
             encoder_expansion_ratio=2,
             decoder_expansion_ratio=2,
             bottleneck_expansion_ratio=2,
-            kernel_size=kernel_size,
-            deep_supervision=deep_supervision,
-            use_residual_connection=True,
             blocks_down=(2, 2, 2, 2),
             blocks_bottleneck=2,
             blocks_up=(2, 2, 2, 2),
-            norm_type="group",
-            grn=False,
+            **common_args,
         )
-
-
-class MedNeXtBase(MedNeXt):
-    """MedNeXt Base (B) configuration"""
-
-    def __init__(
-        self,
-        spatial_dims: int = 3,
-        in_channels: int = 1,
-        out_channels: int = 2,
-        kernel_size: int = 3,
-        deep_supervision: bool = False,
-    ):
-        super().__init__(
-            spatial_dims=spatial_dims,
-            init_filters=32,
-            in_channels=in_channels,
-            out_channels=out_channels,
+    elif variant.upper() == "B":
+        return MedNeXt(
             encoder_expansion_ratio=(2, 3, 4, 4),
             decoder_expansion_ratio=(4, 4, 3, 2),
             bottleneck_expansion_ratio=4,
-            kernel_size=kernel_size,
-            deep_supervision=deep_supervision,
-            use_residual_connection=True,
             blocks_down=(2, 2, 2, 2),
             blocks_bottleneck=2,
             blocks_up=(2, 2, 2, 2),
-            norm_type="group",
-            grn=False,
+            **common_args,
         )
-
-
-class MedNeXtMedium(MedNeXt):
-    """MedNeXt Medium (M)"""
-
-    def __init__(
-        self,
-        spatial_dims: int = 3,
-        in_channels: int = 1,
-        out_channels: int = 2,
-        kernel_size: int = 3,
-        deep_supervision: bool = False,
-    ):
-        super().__init__(
-            spatial_dims=spatial_dims,
-            init_filters=32,
-            in_channels=in_channels,
-            out_channels=out_channels,
+    elif variant.upper() == "M":
+        return MedNeXt(
             encoder_expansion_ratio=(2, 3, 4, 4),
             decoder_expansion_ratio=(4, 4, 3, 2),
             bottleneck_expansion_ratio=4,
-            kernel_size=kernel_size,
-            deep_supervision=deep_supervision,
-            use_residual_connection=True,
             blocks_down=(3, 4, 4, 4),
             blocks_bottleneck=4,
             blocks_up=(4, 4, 4, 3),
-            norm_type="group",
-            grn=False,
+            **common_args,
         )
-
-
-class MedNeXtLarge(MedNeXt):
-    """MedNeXt Large (L)"""
-
-    def __init__(
-        self,
-        spatial_dims: int = 3,
-        in_channels: int = 1,
-        out_channels: int = 2,
-        kernel_size: int = 3,
-        deep_supervision: bool = False,
-    ):
-        super().__init__(
-            spatial_dims=spatial_dims,
-            init_filters=32,
-            in_channels=in_channels,
-            out_channels=out_channels,
+    elif variant.upper() == "L":
+        return MedNeXt(
             encoder_expansion_ratio=(3, 4, 8, 8),
             decoder_expansion_ratio=(8, 8, 4, 3),
             bottleneck_expansion_ratio=8,
-            kernel_size=kernel_size,
-            deep_supervision=deep_supervision,
-            use_residual_connection=True,
             blocks_down=(3, 4, 8, 8),
             blocks_bottleneck=8,
             blocks_up=(8, 8, 4, 3),
-            norm_type="group",
-            grn=False,
+            **common_args,
         )
+    else:
+        raise ValueError(f"Invalid MedNeXt variant: {variant}")
 
 
 MedNext = MedNeXt
-MedNextS = MedNeXtS = MedNextSmall = MedNeXtSmall
-MedNextB = MedNeXtB = MedNextBase = MedNeXtBase
-MedNextM = MedNeXtM = MedNextMedium = MedNeXtMedium
-MedNextL = MedNeXtL = MedNextLarge = MedNeXtLarge
+MedNextS = MedNeXtS = MedNextSmall = MedNeXtSmall = lambda **kwargs: create_mednext("S", **kwargs)
+MedNextB = MedNeXtB = MedNextBase = MedNeXtBase = lambda **kwargs: create_mednext("B", **kwargs)
+MedNextM = MedNeXtM = MedNextMedium = MedNeXtMedium = lambda **kwargs: create_mednext("M", **kwargs)
+MedNextL = MedNeXtL = MedNextLarge = MedNeXtLarge = lambda **kwargs: create_mednext("L", **kwargs)
