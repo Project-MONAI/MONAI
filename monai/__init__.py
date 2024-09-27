@@ -80,24 +80,28 @@ if sys.version_info.major != PY_REQUIRED_MAJOR or sys.version_info.minor < PY_RE
     )
 
 
-from . import (  # noqa: E402
-    apps,
-    auto3dseg,
-    bundle,
-    config,
-    data,
-    engines,
-    fl,
-    handlers,
-    inferers,
-    losses,
-    metrics,
-    networks,
-    optimizers,
-    transforms,
-    utils,
-    visualize,
+from .utils.module import load_submodules  # noqa: E402
+
+# handlers_* have some external decorators the users may not have installed
+# *.so files and folder "_C" may not exist when the cpp extensions are not compiled
+excludes = "|".join(
+    [
+        "(^(monai.handlers))",
+        "(^(monai.bundle))",
+        "(^(monai.fl))",
+        "((\\.so)$)",
+        "(^(monai._C))",
+        "(.*(__main__)$)",
+        "(.*(video_dataset)$)",
+        "(.*(nnunet).*$)",
+    ]
 )
+
+# load directory modules only, skip loading individual files
+load_submodules(sys.modules[__name__], False, exclude_pattern=excludes)
+
+# load all modules, this will trigger all export decorations
+load_submodules(sys.modules[__name__], True, exclude_pattern=excludes)
 
 __all__ = [
     "apps",
