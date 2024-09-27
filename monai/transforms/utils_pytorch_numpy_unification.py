@@ -480,7 +480,7 @@ def max(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTe
         else:
             ret = torch.max(x, int(dim), **kwargs)  # type: ignore
 
-    return ret
+    return ret[0] if isinstance(ret, tuple) else ret
 
 
 def mean(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTensor:
@@ -546,7 +546,7 @@ def min(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTe
         else:
             ret = torch.min(x, int(dim), **kwargs)  # type: ignore
 
-    return ret
+    return ret[0] if isinstance(ret, tuple) else ret
 
 
 def std(x: NdarrayTensor, dim: int | tuple | None = None, unbiased: bool = False) -> NdarrayTensor:

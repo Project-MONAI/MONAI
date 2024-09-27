@@ -24,7 +24,7 @@ from torch.nn.modules.loss import _Loss
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.networks import one_hot
-from monai.utils import DiceCEReduction, LossReduction, Weight, deprecated_arg, look_up_option, pytorch_after
+from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option, pytorch_after
 
 
 class DiceLoss(_Loss):
@@ -646,9 +646,6 @@ class DiceCELoss(_Loss):
 
     """
 
-    @deprecated_arg(
-        "ce_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead."
-    )
     def __init__(
         self,
         include_background: bool = True,
@@ -662,10 +659,10 @@ class DiceCELoss(_Loss):
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
-        ce_weight: torch.Tensor | None = None,
         weight: torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_ce: float = 1.0,
+        label_smoothing: float = 0.0,
     ) -> None:
         """
         Args:
@@ -704,11 +701,13 @@ class DiceCELoss(_Loss):
                 Defaults to 1.0.
             lambda_ce: the trade-off weight value for cross entropy loss. The value should be no less than 0.0.
                 Defaults to 1.0.
+            label_smoothing: a value in [0, 1] range. If > 0, the labels are smoothed
+                by the given factor to reduce overfitting.
+                Defaults to 0.0.
 
         """
         super().__init__()
         reduction = look_up_option(reduction, DiceCEReduction).value
-        weight = ce_weight if ce_weight is not None else weight
         dice_weight: torch.Tensor | None
         if weight is not None and not include_background:
             dice_weight = weight[1:]
@@ -728,7 +727,12 @@ class DiceCELoss(_Loss):
             batch=batch,
             weight=dice_weight,
         )
-        self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction)
+        if pytorch_after(1, 10):
+            self.cross_entropy = nn.CrossEntropyLoss(
+                weight=weight, reduction=reduction, label_smoothing=label_smoothing
+            )
+        else:
+            self.cross_entropy = nn.CrossEntropyLoss(weight=weight, reduction=reduction)
         self.binary_cross_entropy = nn.BCEWithLogitsLoss(pos_weight=weight, reduction=reduction)
         if lambda_dice < 0.0:
             raise ValueError("lambda_dice should be no less than 0.0.")
@@ -816,9 +820,6 @@ class DiceFocalLoss(_Loss):
 
     """
 
-    @deprecated_arg(
-        "focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead."
-    )
     def __init__(
         self,
         include_background: bool = True,
@@ -833,7 +834,6 @@ class DiceFocalLoss(_Loss):
         smooth_dr: float = 1e-5,
         batch: bool = False,
         gamma: float = 2.0,
-        focal_weight: Sequence[float] | float | int | torch.Tensor | None = None,
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_dice: float = 1.0,
         lambda_focal: float = 1.0,
@@ -876,7 +876,6 @@ class DiceFocalLoss(_Loss):
                 [0, 1]. Defaults to None.
         """
         super().__init__()
-        weight = focal_weight if focal_weight is not None else weight
         self.dice = DiceLoss(
             include_background=include_background,
             to_onehot_y=False,
@@ -985,9 +984,6 @@ class GeneralizedDiceFocalLoss(_Loss):
         ValueError: if either `lambda_gdl` or `lambda_focal` is less than 0.
     """
 
-    @deprecated_arg(
-        "focal_weight", since="1.2", removed="1.4", new_name="weight", msg_suffix="please use `weight` instead."
-    )
     def __init__(
         self,
         include_background: bool = True,
@@ -1001,7 +997,6 @@ class GeneralizedDiceFocalLoss(_Loss):
         smooth_dr: float = 1e-5,
         batch: bool = False,
         gamma: float = 2.0,
-        focal_weight: Sequence[float] | float | int | torch.Tensor | None = None,
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
         lambda_gdl: float = 1.0,
         lambda_focal: float = 1.0,
@@ -1019,7 +1014,6 @@ class GeneralizedDiceFocalLoss(_Loss):
             smooth_dr=smooth_dr,
             batch=batch,
         )
-        weight = focal_weight if focal_weight is not None else weight
         self.focal = FocalLoss(
             include_background=include_background,
             to_onehot_y=to_onehot_y,

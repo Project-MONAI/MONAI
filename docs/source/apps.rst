@@ -248,6 +248,22 @@ FastMRIReader
 ~~~~~~~~~~~~~
 .. autofunction:: monai.apps.reconstruction.complex_utils.complex_conj
 
+`Vista3d`
+---------
+.. automodule:: monai.apps.vista3d.inferer
+.. autofunction:: point_based_window_inferer
+
+.. automodule:: monai.apps.vista3d.transforms
+.. autoclass:: VistaPreTransformd
+    :members:
+.. autoclass:: VistaPostTransformd
+    :members:
+.. autoclass:: Relabeld
+    :members:
+
+.. automodule:: monai.apps.vista3d.sampler
+.. autofunction:: sample_prompt_pairs
+
 `Auto3DSeg`
 -----------
 .. automodule:: monai.apps.auto3dseg
@@ -261,11 +277,3 @@ FastMRIReader
 
 .. autoclass:: monai.apps.nnunet.nnUNetV2Runner
   :members:
-
-`Generative AI`
----------------
-
-`MAISI Utilities`
-~~~~~~~~~~~~~~~~~
-.. automodule:: monai.apps.generation.maisi.utils.morphological_ops
-    :members:

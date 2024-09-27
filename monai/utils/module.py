@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import enum
 import functools
-import importlib.util
 import os
 import pdb
 import re
@@ -44,13 +43,11 @@ __all__ = [
     "InvalidPyTorchVersionError",
     "OptionalImportError",
     "exact_version",
-    "export",
     "damerau_levenshtein_distance",
     "look_up_option",
     "min_version",
     "optional_import",
     "require_pkg",
-    "load_submodules",
     "instantiate",
     "get_full_type_name",
     "get_package_version",
@@ -173,28 +170,6 @@ def damerau_levenshtein_distance(s1: str, s2: str) -> int:
     return d[string_1_length - 1, string_2_length - 1]
 
 
-def export(modname):
-    """
-    Make the decorated object a member of the named module. This will also add the object under its aliases if it has
-    a `__aliases__` member, thus this decorator should be before the `alias` decorator to pick up those names. Alias
-    names which conflict with package names or existing members will be ignored.
-    """
-
-    def _inner(obj):
-        mod = import_module(modname)
-        if not hasattr(mod, obj.__name__):
-            setattr(mod, obj.__name__, obj)
-
-            # add the aliases for `obj` to the target module
-            for alias in getattr(obj, "__aliases__", ()):
-                if not hasattr(mod, alias):
-                    setattr(mod, alias, obj)
-
-        return obj
-
-    return _inner
-
-
 def load_submodules(
     basemod: ModuleType, load_all: bool = True, exclude_pattern: str = "(.*[tT]est.*)|(_.*)"
 ) -> tuple[list[ModuleType], list[str]]:
@@ -209,10 +184,11 @@ def load_submodules(
     ):
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
+                mod = import_module(name)
                 mod_spec = importer.find_spec(name)  # type: ignore
                 if mod_spec and mod_spec.loader:
-                    mod = importlib.util.module_from_spec(mod_spec)
-                    mod_spec.loader.exec_module(mod)
+                    loader = mod_spec.loader
+                    loader.exec_module(mod)
                     submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
@@ -564,7 +540,7 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging.Version")
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
@@ -591,7 +567,8 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging.Version")
+
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
@@ -629,7 +606,7 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
         if current_ver_string is None:
             _env_var = os.environ.get("PYTORCH_VER", "")
             current_ver_string = _env_var if _env_var else torch.__version__
-        ver, has_ver = optional_import("pkg_resources", name="parse_version")
+        ver, has_ver = optional_import("packaging.version", name="parse")
         if has_ver:
             return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")  # type: ignore
         parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)

@@ -24,7 +24,7 @@ from typing import overload
 import torch
 import torch.distributed as dist
 
-from monai.config import IgniteInfo
+from monai.utils.enums import IgniteInfo
 from monai.utils.module import min_version, optional_import
 
 idist, has_ignite = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")

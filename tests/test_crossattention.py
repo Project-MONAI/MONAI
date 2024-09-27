@@ -22,7 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.crossattention import CrossAttentionBlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose
 
 einops, has_einops = optional_import("einops")
 
@@ -165,6 +165,21 @@ class TestResBlock(unittest.TestCase):
         )
         matrix_acess_blk(torch.randn(input_shape))
         assert matrix_acess_blk.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
+
+    @parameterized.expand([[True], [False]])
+    @skipUnless(has_einops, "Requires einops")
+    @SkipIfBeforePyTorchVersion((2, 0))
+    def test_flash_attention(self, causal):
+        input_param = {"hidden_size": 128, "num_heads": 1, "causal": causal, "sequence_length": 16 if causal else None}
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        block_w_flash_attention = CrossAttentionBlock(**input_param, use_flash_attention=True).to(device)
+        block_wo_flash_attention = CrossAttentionBlock(**input_param, use_flash_attention=False).to(device)
+        block_wo_flash_attention.load_state_dict(block_w_flash_attention.state_dict())
+        test_data = torch.randn(1, 16, 128).to(device)
+
+        out_1 = block_w_flash_attention(test_data)
+        out_2 = block_wo_flash_attention(test_data)
+        assert_allclose(out_1, out_2, atol=1e-4)
 
 
 if __name__ == "__main__":

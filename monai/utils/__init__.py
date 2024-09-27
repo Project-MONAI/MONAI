@@ -11,8 +11,6 @@
 
 from __future__ import annotations
 
-# have to explicitly bring these in here to resolve circular import issues
-from .aliases import alias, resolve_name
 from .component_store import ComponentStore
 from .decorators import MethodReplacer, RestartGenerator
 from .deprecate_utils import DeprecatedError, deprecated, deprecated_arg, deprecated_arg_default
@@ -40,6 +38,7 @@ from .enums import (
     GridSamplePadMode,
     HoVerNetBranch,
     HoVerNetMode,
+    IgniteInfo,
     InterpolateMode,
     JITMetadataKeys,
     LazyAttr,
@@ -109,7 +108,6 @@ from .module import (
     allow_missing_reference,
     damerau_levenshtein_distance,
     exact_version,
-    export,
     get_full_type_name,
     get_package_version,
     get_torch_version_tuple,
@@ -148,7 +146,10 @@ from .type_conversion import (
     dtype_numpy_to_torch,
     dtype_torch_to_numpy,
     get_dtype,
+    get_dtype_string,
     get_equivalent_dtype,
     get_numpy_dtype_from_string,
     get_torch_dtype_from_string,
 )
+
+# have to explicitly bring these in here to resolve circular import issues

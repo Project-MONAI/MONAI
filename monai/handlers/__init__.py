@@ -20,7 +20,7 @@ from .decollate_batch import DecollateBatch
 from .earlystop_handler import EarlyStopHandler
 from .garbage_collector import GarbageCollector
 from .hausdorff_distance import HausdorffDistance
-from .ignite_metric import IgniteMetric, IgniteMetricHandler
+from .ignite_metric import IgniteMetricHandler
 from .logfile_handler import LogfileHandler
 from .lr_schedule_handler import LrScheduleHandler
 from .mean_dice import MeanDice
@@ -40,5 +40,6 @@ from .smartcache_handler import SmartCacheHandler
 from .stats_handler import StatsHandler
 from .surface_distance import SurfaceDistance
 from .tensorboard_handlers import TensorBoardHandler, TensorBoardImageHandler, TensorBoardStatsHandler
+from .trt_handler import TrtHandler
 from .utils import from_engine, ignore_data, stopping_fn_from_loss, stopping_fn_from_metric, write_metrics_reports
 from .validation_handler import ValidationHandler
