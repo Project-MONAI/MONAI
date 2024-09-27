@@ -43,7 +43,7 @@ Key features of the model include:
 - A robust deep learning algorithm utilizing transformers
 - Generalist model as compared to specialist models
 - Supports a wide variety of datasets and file formats
-- Capable of handling multiple imaging modalities 
+- Capable of handling multiple imaging modalities
 - Multi-GPU and multinode training support
 
 A tutorial demonstrating how to train a cell segmentation model using the MONAI framework and the Segment Anything Model (SAM) on the Cellpose dataset can be found in the [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/vista_2d).
