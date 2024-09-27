@@ -21,6 +21,13 @@ import torch.nn as nn
 all = ["MedNeXtBlock", "MedNeXtDownBlock", "MedNeXtUpBlock", "MedNeXtOutBlock"]
 
 
+def get_conv_layer(spatial_dim: int = 3, transpose: bool = False):
+    if spatial_dim == 2:
+        return nn.ConvTranspose2d if transpose else nn.Conv2d
+    else:  # spatial_dim == 3
+        return nn.ConvTranspose3d if transpose else nn.Conv3d
+
+
 class MedNeXtBlock(nn.Module):
 
     def __init__(
@@ -39,18 +46,9 @@ class MedNeXtBlock(nn.Module):
 
         self.do_res = use_residual_connection
 
-        assert dim in ["2d", "3d"]
         self.dim = dim
-        if self.dim == "2d":
-            conv = nn.Conv2d
-            normalized_shape = [in_channels, kernel_size, kernel_size]
-            grn_parameter_shape = (1, 1)
-        elif self.dim == "3d":
-            conv = nn.Conv3d
-            normalized_shape = [in_channels, kernel_size, kernel_size, kernel_size]
-            grn_parameter_shape = (1, 1, 1)
-        else:
-            raise ValueError("dim must be either '2d' or '3d'")
+        conv = get_conv_layer(spatial_dim=2 if dim == "2d" else 3)
+        grn_parameter_shape = (1,) * (2 if dim == "2d" else 3)
         # First convolution layer with DepthWise Convolutions
         self.conv1 = conv(
             in_channels=in_channels,
@@ -63,9 +61,11 @@ class MedNeXtBlock(nn.Module):
 
         # Normalization Layer. GroupNorm is used by default.
         if norm_type == "group":
-            self.norm = nn.GroupNorm(num_groups=in_channels, num_channels=in_channels)
+            self.norm = nn.GroupNorm(num_groups=in_channels, num_channels=in_channels)  # type: ignore
         elif norm_type == "layer":
-            self.norm = nn.LayerNorm(normalized_shape=normalized_shape)
+            self.norm = nn.LayerNorm(
+                normalized_shape=[in_channels] + [kernel_size] * (2 if dim == "2d" else 3)  # type: ignore
+            )
         # Second convolution (Expansion) layer with Conv3D 1x1x1
         self.conv2 = conv(
             in_channels=in_channels, out_channels=expansion_ratio * in_channels, kernel_size=1, stride=1, padding=0
@@ -131,10 +131,7 @@ class MedNeXtDownBlock(MedNeXtBlock):
             grn=grn,
         )
 
-        if dim == "2d":
-            conv = nn.Conv2d
-        else:
-            conv = nn.Conv3d
+        conv = get_conv_layer(spatial_dim=2 if dim == "2d" else 3)
         self.resample_do_res = use_residual_connection
         if use_residual_connection:
             self.res_conv = conv(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=2)
@@ -186,10 +183,7 @@ class MedNeXtUpBlock(MedNeXtBlock):
         self.resample_do_res = use_residual_connection
 
         self.dim = dim
-        if dim == "2d":
-            conv = nn.ConvTranspose2d
-        else:
-            conv = nn.ConvTranspose3d
+        conv = get_conv_layer(spatial_dim=2 if dim == "2d" else 3, transpose=True)
         if use_residual_connection:
             self.res_conv = conv(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=2)
 
@@ -228,10 +222,7 @@ class MedNeXtOutBlock(nn.Module):
     def __init__(self, in_channels, n_classes, dim):
         super().__init__()
 
-        if dim == "2d":
-            conv = nn.ConvTranspose2d
-        else:
-            conv = nn.ConvTranspose3d
+        conv = get_conv_layer(spatial_dim=2 if dim == "2d" else 3, transpose=True)
         self.conv_out = conv(in_channels, n_classes, kernel_size=1)
 
     def forward(self, x):

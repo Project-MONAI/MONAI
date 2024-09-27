@@ -59,7 +59,7 @@ for model in [MedNeXtS, MedNeXtM, MedNeXtL]:
     for spatial_dims in range(2, 4):
         for out_channels in [1, 2]:
             test_case = [
-                model,
+                model,  # type: ignore
                 {"spatial_dims": spatial_dims, "in_channels": 1, "out_channels": out_channels},
                 (2, 1, *([16] * spatial_dims)),
                 (2, out_channels, *([16] * spatial_dims)),

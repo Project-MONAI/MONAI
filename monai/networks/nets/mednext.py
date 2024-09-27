@@ -72,8 +72,8 @@ class MedNeXt(nn.Module):
         init_filters: int = 32,
         in_channels: int = 1,
         out_channels: int = 2,
-        encoder_expansion_ratio: int = 2,
-        decoder_expansion_ratio: int = 2,
+        encoder_expansion_ratio: Sequence[int] | int = 2,
+        decoder_expansion_ratio: Sequence[int] | int = 2,
         bottleneck_expansion_ratio: int = 2,
         kernel_size: int = 7,
         deep_supervision: bool = False,
@@ -212,7 +212,7 @@ class MedNeXt(nn.Module):
             out_blocks.reverse()
             self.out_blocks = nn.ModuleList(out_blocks)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor | list[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> torch.Tensor | Sequence[torch.Tensor]:
         """
         Forward pass of the MedNeXt model.
 
@@ -227,7 +227,7 @@ class MedNeXt(nn.Module):
             x (torch.Tensor): Input tensor.
 
         Returns:
-            torch.Tensor or list[torch.Tensor]: Output tensor(s).
+            torch.Tensor or Sequence[torch.Tensor]: Output tensor(s).
         """
         # Apply stem convolution
         x = self.stem(x)
@@ -311,7 +311,7 @@ def create_mednext(
             blocks_down=(2, 2, 2, 2),
             blocks_bottleneck=2,
             blocks_up=(2, 2, 2, 2),
-            **common_args,
+            **common_args,  # type: ignore
         )
     elif variant.upper() == "B":
         return MedNeXt(
@@ -321,7 +321,7 @@ def create_mednext(
             blocks_down=(2, 2, 2, 2),
             blocks_bottleneck=2,
             blocks_up=(2, 2, 2, 2),
-            **common_args,
+            **common_args,  # type: ignore
         )
     elif variant.upper() == "M":
         return MedNeXt(
@@ -331,7 +331,7 @@ def create_mednext(
             blocks_down=(3, 4, 4, 4),
             blocks_bottleneck=4,
             blocks_up=(4, 4, 4, 3),
-            **common_args,
+            **common_args,  # type: ignore
         )
     elif variant.upper() == "L":
         return MedNeXt(
@@ -341,7 +341,7 @@ def create_mednext(
             blocks_down=(3, 4, 8, 8),
             blocks_bottleneck=8,
             blocks_up=(8, 8, 4, 3),
-            **common_args,
+            **common_args,  # type: ignore
         )
     else:
         raise ValueError(f"Invalid MedNeXt variant: {variant}")
