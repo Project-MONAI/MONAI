@@ -112,6 +112,7 @@ from .module import (
     get_package_version,
     get_torch_version_tuple,
     instantiate,
+    load_submodules,
     look_up_option,
     min_version,
     optional_import,
