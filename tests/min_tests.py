@@ -232,6 +232,12 @@ def run_testsuit():
 
 
 if __name__ == "__main__":
+    # testing import submodules
+    from monai.utils.module import load_submodules
+
+    _, err_mod = load_submodules(sys.modules["monai"], True)
+    assert not err_mod, f"err_mod={err_mod} not empty"
+
     # testing all modules
     test_runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
     result = test_runner.run(run_testsuit())
