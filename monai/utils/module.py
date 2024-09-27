@@ -16,15 +16,13 @@ import functools
 import os
 import pdb
 import re
-import sys
 import warnings
 from collections.abc import Callable, Collection, Hashable, Mapping
 from functools import partial, wraps
 from importlib import import_module
-from pkgutil import walk_packages
 from pydoc import locate
 from re import match
-from types import FunctionType, ModuleType
+from types import FunctionType
 from typing import Any, Iterable, cast
 
 import torch
@@ -43,13 +41,11 @@ __all__ = [
     "InvalidPyTorchVersionError",
     "OptionalImportError",
     "exact_version",
-    "export",
     "damerau_levenshtein_distance",
     "look_up_option",
     "min_version",
     "optional_import",
     "require_pkg",
-    "load_submodules",
     "instantiate",
     "get_full_type_name",
     "get_package_version",
@@ -170,60 +166,6 @@ def damerau_levenshtein_distance(s1: str, s2: str) -> int:
                 d[(i, j)] = min(d[(i, j)], d[i - 2, j - 2] + cost)  # transposition
 
     return d[string_1_length - 1, string_2_length - 1]
-
-
-def export(modname):
-    """
-    Make the decorated object a member of the named module. This will also add the object under its aliases if it has
-    a `__aliases__` member, thus this decorator should be before the `alias` decorator to pick up those names. Alias
-    names which conflict with package names or existing members will be ignored.
-    """
-
-    def _inner(obj):
-        mod = import_module(modname)
-        if not hasattr(mod, obj.__name__):
-            setattr(mod, obj.__name__, obj)
-
-            # add the aliases for `obj` to the target module
-            for alias in getattr(obj, "__aliases__", ()):
-                if not hasattr(mod, alias):
-                    setattr(mod, alias, obj)
-
-        return obj
-
-    return _inner
-
-
-def load_submodules(
-    basemod: ModuleType, load_all: bool = True, exclude_pattern: str = "(.*[tT]est.*)|(_.*)"
-) -> tuple[list[ModuleType], list[str]]:
-    """
-    Traverse the source of the module structure starting with module `basemod`, loading all packages plus all files if
-    `load_all` is True, excluding anything whose name matches `exclude_pattern`.
-    """
-    submodules = []
-    err_mod: list[str] = []
-    for importer, name, is_pkg in walk_packages(
-        basemod.__path__, prefix=basemod.__name__ + ".", onerror=err_mod.append
-    ):
-        if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
-            try:
-                mod = import_module(name)
-                mod_spec = importer.find_spec(name)  # type: ignore
-                if mod_spec and mod_spec.loader:
-                    loader = mod_spec.loader
-                    loader.exec_module(mod)
-                    submodules.append(mod)
-            except OptionalImportError:
-                pass  # could not import the optional deps., they are ignored
-            except ImportError as e:
-                msg = (
-                    "\nMultiple versions of MONAI may have been installed?\n"
-                    "Please see the installation guide: https://docs.monai.io/en/stable/installation.html\n"
-                )  # issue project-monai/monai#5193
-                raise type(e)(f"{e}\n{msg}").with_traceback(e.__traceback__) from e  # raise with modified message
-
-    return submodules, err_mod
 
 
 def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:

@@ -43,7 +43,7 @@ from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
-from monai.utils.module import export, look_up_option
+from monai.utils.module import look_up_option
 
 __all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
 
@@ -409,7 +409,6 @@ class _DecoderBranch(nn.ModuleList):
         return x
 
 
-@export("monai.networks.nets")
 class HoVerNet(nn.Module):
     """HoVerNet model
 
