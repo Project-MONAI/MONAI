@@ -262,7 +262,7 @@ def print_debug_info(file: TextIO = sys.stdout) -> None:
     print_gpu_info(file)
 
 
-@deprecated(since=1.4, removed=1.6, msg_suffix="Please use `monai.utils.enums.IgniteInfo` instead.")
+@deprecated(since="1.4.0", removed="1.6.0", msg_suffix="Please use `monai.utils.enums.IgniteInfo` instead.")
 class IgniteInfo:
     """Deprecated Import of IgniteInfo enum, which was moved to `monai.utils.enums.IgniteInfo`."""
 
