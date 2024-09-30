@@ -24,7 +24,7 @@ import torch
 
 import monai
 from monai.utils.deprecate_utils import deprecated
-from monai.utils.enums import IgniteInfo as NewIgniteInfo
+from monai.utils.enums import IgniteInfo as _IgniteInfo
 from monai.utils.module import OptionalImportError, get_package_version, optional_import
 
 try:
@@ -264,11 +264,9 @@ def print_debug_info(file: TextIO = sys.stdout) -> None:
 
 @deprecated(since=1.4, removed=1.6, msg_suffix="Please use `monai.utils.enums.IgniteInfo` instead.")
 class IgniteInfo:
-    """
-    IgniteInfo enum is moved to `monai.utils.enums.IgniteInfo`.
-    """
+    """Deprecated Import of IgniteInfo enum, which was moved to `monai.utils.enums.IgniteInfo`."""
 
-    OPT_IMPORT_VERSION = NewIgniteInfo.OPT_IMPORT_VERSION
+    OPT_IMPORT_VERSION = _IgniteInfo.OPT_IMPORT_VERSION
 
 
 if __name__ == "__main__":

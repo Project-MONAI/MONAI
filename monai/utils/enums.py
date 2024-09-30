@@ -727,7 +727,7 @@ class IgniteInfo(StrEnum):
 
     """
 
-    OPT_IMPORT_VERSION = "0.4.4"
+    OPT_IMPORT_VERSION = "0.4.11"
 
 
 if TYPE_CHECKING:
