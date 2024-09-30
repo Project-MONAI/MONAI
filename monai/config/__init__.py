@@ -14,6 +14,7 @@ from __future__ import annotations
 from .deviceconfig import (
     USE_COMPILED,
     USE_META_DICT,
+    IgniteInfo,
     get_config_values,
     get_gpu_info,
     get_optional_config_values,

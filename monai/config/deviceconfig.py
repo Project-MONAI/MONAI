@@ -23,6 +23,8 @@ import numpy as np
 import torch
 
 import monai
+from monai.utils.deprecate_utils import deprecated
+from monai.utils.enums import IgniteInfo as _IgniteInfo
 from monai.utils.module import OptionalImportError, get_package_version, optional_import
 
 try:
@@ -45,6 +47,7 @@ __all__ = [
     "print_debug_info",
     "USE_COMPILED",
     "USE_META_DICT",
+    "IgniteInfo",
 ]
 
 
@@ -258,6 +261,13 @@ def print_debug_info(file: TextIO = sys.stdout) -> None:
     print("Printing GPU config...")
     print("================================", file=file, flush=True)
     print_gpu_info(file)
+
+
+@deprecated(since="1.4.0", removed="1.6.0", msg_suffix="Please use `monai.utils.enums.IgniteInfo` instead.")
+class IgniteInfo:
+    """Deprecated Import of IgniteInfo enum, which was moved to `monai.utils.enums.IgniteInfo`."""
+
+    OPT_IMPORT_VERSION = _IgniteInfo.OPT_IMPORT_VERSION
 
 
 if __name__ == "__main__":
