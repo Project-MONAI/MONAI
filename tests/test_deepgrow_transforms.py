@@ -328,8 +328,8 @@ RESULT[4:8, 4:8, 4:8] = np.array(
 )
 
 RESTORE_LABEL_TEST_CASE_2 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"}, 
-    DATA_11, 
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"},
+    DATA_11,
     RESULT
 ]
 
@@ -348,13 +348,13 @@ for layer in range(5, 10):
 
 RESTORE_LABEL_TEST_CASE_3 = [
     {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_crop": False},
-    DATA_11, 
+    DATA_11,
     RESTORE_LABEL_TEST_CASE_3_RESULT,
 ]
 
 RESTORE_LABEL_TEST_CASE_4 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_resize": False, "restore_spacing": False, "restore_slicing": False, "restore_crop": False}, 
-    DATA_11, 
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_resize": False, "restore_spacing": False, "restore_slicing": False, "restore_crop": False},
+    DATA_11,
     np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]),
 ]
 
