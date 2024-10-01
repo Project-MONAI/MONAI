@@ -819,6 +819,10 @@ class RestoreLabeld(MapTransform):
         original_shape_key: str = "foreground_original_shape",
         cropped_shape_key: str = "foreground_cropped_shape",
         allow_missing_keys: bool = False,
+        restore_resize: bool = True,
+        restore_crop: bool = True,
+        restore_spacing: bool = True,
+        restore_slicing: bool = True,
     ) -> None:
         super().__init__(keys, allow_missing_keys)
         self.ref_image = ref_image
@@ -833,6 +837,10 @@ class RestoreLabeld(MapTransform):
         self.end_coord_key = end_coord_key
         self.original_shape_key = original_shape_key
         self.cropped_shape_key = cropped_shape_key
+        self.restore_resize = restore_resize
+        self.restore_crop = restore_crop
+        self.restore_spacing = restore_spacing
+        self.restore_slicing = restore_slicing
 
     def __call__(self, data: Any) -> dict:
         d = dict(data)
@@ -842,38 +850,45 @@ class RestoreLabeld(MapTransform):
             image = d[key]
 
             # Undo Resize
-            current_shape = image.shape
-            cropped_shape = meta_dict[self.cropped_shape_key]
-            if np.any(np.not_equal(current_shape, cropped_shape)):
-                resizer = Resize(spatial_size=cropped_shape[1:], mode=mode)
-                image = resizer(image, mode=mode, align_corners=align_corners)
+            if self.restore_resize:
+                current_shape = image.shape
+                cropped_shape = meta_dict[self.cropped_shape_key]
+                if np.any(np.not_equal(current_shape, cropped_shape)):
+                    resizer = Resize(spatial_size=cropped_shape[1:], mode=mode)
+                    image = resizer(image, mode=mode, align_corners=align_corners)
 
             # Undo Crop
-            original_shape = meta_dict[self.original_shape_key]
-            result = np.zeros(original_shape, dtype=np.float32)
-            box_start = meta_dict[self.start_coord_key]
-            box_end = meta_dict[self.end_coord_key]
+            if self.restore_crop:
+                original_shape = meta_dict[self.original_shape_key]
+                result = np.zeros(original_shape, dtype=np.float32)
+                box_start = meta_dict[self.start_coord_key]
+                box_end = meta_dict[self.end_coord_key]
 
-            spatial_dims = min(len(box_start), len(image.shape[1:]))
-            slices = tuple(
-                [slice(None)] + [slice(s, e) for s, e in zip(box_start[:spatial_dims], box_end[:spatial_dims])]
-            )
-            result[slices] = image
+                spatial_dims = min(len(box_start), len(image.shape[1:]))
+                slices = tuple(
+                    [slice(None)] + [slice(s, e) for s, e in zip(box_start[:spatial_dims], box_end[:spatial_dims])]
+                )
+                result[slices] = image
+            else:
+                result = image
 
             # Undo Spacing
-            current_size = result.shape[1:]
-            # change spatial_shape from HWD to DHW
-            spatial_shape = list(np.roll(meta_dict["spatial_shape"], 1))
-            spatial_size = spatial_shape[-len(current_size) :]
+            if self.restore_spacing:
+                current_size = result.shape[1:]
+                # change spatial_shape from HWD to DHW
+                spatial_shape = list(np.roll(meta_dict["spatial_shape"], 1))
+                spatial_size = spatial_shape[-len(current_size) :]
 
-            if np.any(np.not_equal(current_size, spatial_size)):
-                resizer = Resize(spatial_size=spatial_size, mode=mode)
-                result = resizer(result, mode=mode, align_corners=align_corners)  # type: ignore
+                if np.any(np.not_equal(current_size, spatial_size)):
+                    resizer = Resize(spatial_size=spatial_size, mode=mode)
+                    result = resizer(result, mode=mode, align_corners=align_corners)  # type: ignore
 
             # Undo Slicing
             slice_idx = meta_dict.get("slice_idx")
             final_result: NdarrayOrTensor
-            if slice_idx is None or self.slice_only:
+            if self.restore_slicing == False:
+                final_result = result
+            elif slice_idx is None or self.slice_only:
                 final_result = result if len(result.shape) <= 3 else result[0]
             else:
                 slice_idx = meta_dict["slice_idx"][0]

@@ -312,7 +312,7 @@ RESIZE_GUIDANCE_TEST_CASE_1 = [
 ]
 
 RESTORE_LABEL_TEST_CASE_1 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"},
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_resize": True, "restore_crop": True, "restore_spacing": True, "restore_slicing": True},
     DATA_10,
     np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]),
 ]
@@ -327,7 +327,36 @@ RESULT[4:8, 4:8, 4:8] = np.array(
     ]
 )
 
-RESTORE_LABEL_TEST_CASE_2 = [{"keys": ["pred"], "ref_image": "image", "mode": "nearest"}, DATA_11, RESULT]
+RESTORE_LABEL_TEST_CASE_2 = [
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"}, 
+    DATA_11, 
+    RESULT
+]
+
+RESTORE_LABEL_TEST_CASE_3_RESULT = np.zeros((10, 20, 20))
+for layer in range(5):
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 0:10, 0:10] = 1
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 0:10, 10:20] = 2
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 10:20, 0:10] = 3
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 10:20, 10:20] = 4
+
+for layer in range(5, 10):
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 0:10, 0:10] = 5
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 0:10, 10:20] = 6
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 10:20, 0:10] = 7
+    RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 10:20, 10:20] = 8
+
+RESTORE_LABEL_TEST_CASE_3 = [
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_crop": False},
+    DATA_11, 
+    RESTORE_LABEL_TEST_CASE_3_RESULT,
+]
+
+RESTORE_LABEL_TEST_CASE_4 = [
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_resize": False, "restore_spacing": False, "restore_slicing": False, "restore_crop": False}, 
+    DATA_11, 
+    np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]),
+]
 
 FETCH_2D_SLICE_TEST_CASE_1 = [
     {"keys": ["image"], "guidance": "guidance"},
@@ -445,7 +474,7 @@ class TestResizeGuidanced(unittest.TestCase):
 
 class TestRestoreLabeld(unittest.TestCase):
 
-    @parameterized.expand([RESTORE_LABEL_TEST_CASE_1, RESTORE_LABEL_TEST_CASE_2])
+    @parameterized.expand([RESTORE_LABEL_TEST_CASE_1, RESTORE_LABEL_TEST_CASE_2, RESTORE_LABEL_TEST_CASE_3, RESTORE_LABEL_TEST_CASE_4])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = RestoreLabeld(**arguments)(input_data)
         np.testing.assert_allclose(result["pred"], expected_result)
