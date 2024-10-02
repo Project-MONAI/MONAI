@@ -886,7 +886,7 @@ class RestoreLabeld(MapTransform):
             # Undo Slicing
             slice_idx = meta_dict.get("slice_idx")
             final_result: NdarrayOrTensor
-            if self.restore_slicing == False:
+            if not self.restore_slicing:  # do nothing if restore slicing isn't requested
                 final_result = result
             elif slice_idx is None or self.slice_only:
                 final_result = result if len(result.shape) <= 3 else result[0]
