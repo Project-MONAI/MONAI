@@ -312,7 +312,7 @@ RESIZE_GUIDANCE_TEST_CASE_1 = [
 ]
 
 RESTORE_LABEL_TEST_CASE_1 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_resize": True, "restore_crop": True, "restore_spacing": True, "restore_slicing": True},
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"},
     DATA_10,
     np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]),
 ]
