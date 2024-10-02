@@ -803,6 +803,14 @@ class RestoreLabeld(MapTransform):
         original_shape_key: key that records original shape for foreground.
         cropped_shape_key: key that records cropped shape for foreground.
         allow_missing_keys: don't raise exception if key is missing.
+        restore_resizing: used to enable or disable resizing restoration, default is True.
+            If True, the transform will resize the items back to its original shape using metadata information.
+        restore_cropping: used to enable or disable cropping restoration, default is True.
+            If True, the transform will restore the items to its uncropped size using the stored coordinates of the original bounding box.
+        restore_spacing: used to enable or disable spacing restoration, default is True.
+            If True, the transform will use metadata to resample the items back to the spacing it had before being altered.
+        restore_slicing: used to enable or disable slicing restoration, default is True.
+            If True, the transform will reassemble the full volume by restoring the slices to their original positions.
     """
 
     def __init__(
@@ -819,8 +827,8 @@ class RestoreLabeld(MapTransform):
         original_shape_key: str = "foreground_original_shape",
         cropped_shape_key: str = "foreground_cropped_shape",
         allow_missing_keys: bool = False,
-        restore_resize: bool = True,
-        restore_crop: bool = True,
+        restore_resizing: bool = True,
+        restore_cropping: bool = True,
         restore_spacing: bool = True,
         restore_slicing: bool = True,
     ) -> None:
@@ -837,8 +845,8 @@ class RestoreLabeld(MapTransform):
         self.end_coord_key = end_coord_key
         self.original_shape_key = original_shape_key
         self.cropped_shape_key = cropped_shape_key
-        self.restore_resize = restore_resize
-        self.restore_crop = restore_crop
+        self.restore_resizing = restore_resizing
+        self.restore_cropping = restore_cropping
         self.restore_spacing = restore_spacing
         self.restore_slicing = restore_slicing
 
@@ -850,7 +858,7 @@ class RestoreLabeld(MapTransform):
             image = d[key]
 
             # Undo Resize
-            if self.restore_resize:
+            if self.restore_resizing:
                 current_shape = image.shape
                 cropped_shape = meta_dict[self.cropped_shape_key]
                 if np.any(np.not_equal(current_shape, cropped_shape)):
@@ -858,7 +866,7 @@ class RestoreLabeld(MapTransform):
                     image = resizer(image, mode=mode, align_corners=align_corners)
 
             # Undo Crop
-            if self.restore_crop:
+            if self.restore_cropping:
                 original_shape = meta_dict[self.original_shape_key]
                 result = np.zeros(original_shape, dtype=np.float32)
                 box_start = meta_dict[self.start_coord_key]
