@@ -327,11 +327,7 @@ RESULT[4:8, 4:8, 4:8] = np.array(
     ]
 )
 
-RESTORE_LABEL_TEST_CASE_2 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest"},
-    DATA_11,
-    RESULT
-]
+RESTORE_LABEL_TEST_CASE_2 = [{"keys": ["pred"], "ref_image": "image", "mode": "nearest"}, DATA_11, RESULT]
 
 RESTORE_LABEL_TEST_CASE_3_RESULT = np.zeros((10, 20, 20))
 for layer in range(5):
@@ -347,13 +343,21 @@ for layer in range(5, 10):
     RESTORE_LABEL_TEST_CASE_3_RESULT[layer, 10:20, 10:20] = 8
 
 RESTORE_LABEL_TEST_CASE_3 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_crop": False},
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_cropping": False},
     DATA_11,
     RESTORE_LABEL_TEST_CASE_3_RESULT,
 ]
 
 RESTORE_LABEL_TEST_CASE_4 = [
-    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_resize": False, "restore_spacing": False, "restore_slicing": False, "restore_crop": False},
+    {
+        "keys": ["pred"],
+        "ref_image": "image",
+        "mode": "nearest",
+        "restore_resizing": False,
+        "restore_cropping": False,
+        "restore_spacing": False,
+        "restore_slicing": False,
+    },
     DATA_11,
     np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]),
 ]
@@ -474,7 +478,9 @@ class TestResizeGuidanced(unittest.TestCase):
 
 class TestRestoreLabeld(unittest.TestCase):
 
-    @parameterized.expand([RESTORE_LABEL_TEST_CASE_1, RESTORE_LABEL_TEST_CASE_2, RESTORE_LABEL_TEST_CASE_3, RESTORE_LABEL_TEST_CASE_4])
+    @parameterized.expand(
+        [RESTORE_LABEL_TEST_CASE_1, RESTORE_LABEL_TEST_CASE_2, RESTORE_LABEL_TEST_CASE_3, RESTORE_LABEL_TEST_CASE_4]
+    )
     def test_correct_results(self, arguments, input_data, expected_result):
         result = RestoreLabeld(**arguments)(input_data)
         np.testing.assert_allclose(result["pred"], expected_result)
