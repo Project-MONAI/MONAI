@@ -804,11 +804,11 @@ class RestoreLabeld(MapTransform):
         cropped_shape_key: key that records cropped shape for foreground.
         allow_missing_keys: don't raise exception if key is missing.
         restore_resizing: used to enable or disable resizing restoration, default is True.
-            If True, the transform will resize the items back to its original shape using metadata information.
+            If True, the transform will resize the items back to its original shape.
         restore_cropping: used to enable or disable cropping restoration, default is True.
-            If True, the transform will restore the items to its uncropped size using the stored coordinates of the original bounding box.
+            If True, the transform will restore the items to its uncropped size.
         restore_spacing: used to enable or disable spacing restoration, default is True.
-            If True, the transform will use metadata to resample the items back to the spacing it had before being altered.
+            If True, the transform will resample the items back to the spacing it had before being altered.
         restore_slicing: used to enable or disable slicing restoration, default is True.
             If True, the transform will reassemble the full volume by restoring the slices to their original positions.
     """
