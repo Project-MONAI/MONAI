@@ -14,6 +14,7 @@ from __future__ import annotations
 import unittest
 
 import numpy as np
+import torch
 
 from monai.transforms.intensity.array import ScaleIntensityRangePercentiles
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
@@ -34,6 +35,7 @@ class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):
         scaler = ScaleIntensityRangePercentiles(lower=lower, upper=upper, b_min=b_min, b_max=b_max, dtype=np.uint8)
         for p in TEST_NDARRAYS:
             result = scaler(p(img))
+            self.assertEqual(result.dtype, torch.uint8)
             assert_allclose(result, p(expected), type_test="tensor", rtol=1e-4)
 
     def test_relative_scaling(self):

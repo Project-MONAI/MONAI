@@ -656,6 +656,7 @@ class DataStats(Transform):
         data_shape: bool = True,
         value_range: bool = True,
         data_value: bool = False,
+        meta_info: bool = False,
         additional_info: Callable | None = None,
         name: str = "DataStats",
     ) -> None:
@@ -667,6 +668,7 @@ class DataStats(Transform):
             value_range: whether to show the value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            meta_info: whether to show the data of MetaTensor.
             additional_info: user can define callable function to extract additional info from input data.
             name: identifier of `logging.logger` to use, defaulting to "DataStats".
 
@@ -681,6 +683,7 @@ class DataStats(Transform):
         self.data_shape = data_shape
         self.value_range = value_range
         self.data_value = data_value
+        self.meta_info = meta_info
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
@@ -707,6 +710,7 @@ class DataStats(Transform):
         data_shape: bool | None = None,
         value_range: bool | None = None,
         data_value: bool | None = None,
+        meta_info: bool | None = None,
         additional_info: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
@@ -727,6 +731,9 @@ class DataStats(Transform):
                 lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
+        if self.meta_info if meta_info is None else meta_info:
+            metadata = getattr(img, "meta", "(input is not a MetaTensor)")
+            lines.append(f"Meta info: {repr(metadata)}")
         additional_info = self.additional_info if additional_info is None else additional_info
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
@@ -1764,6 +1771,30 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
         self.invert_affine = invert_affine
         self.affine_lps_to_ras = affine_lps_to_ras
 
+    def _compute_final_affine(self, affine: torch.Tensor, applied_affine: torch.Tensor | None = None) -> torch.Tensor:
+        """
+        Compute the final affine transformation matrix to apply to the point data.
+
+        Args:
+            data: Input coordinates assumed to be in the shape (C, N, 2 or 3).
+            affine: 3x3 or 4x4 affine transformation matrix.
+
+        Returns:
+            Final affine transformation matrix.
+        """
+
+        affine = convert_data_type(affine, dtype=torch.float64)[0]
+
+        if self.affine_lps_to_ras:
+            affine = orientation_ras_lps(affine)
+
+        if self.invert_affine:
+            affine = linalg_inv(affine)
+            if applied_affine is not None:
+                affine = affine @ applied_affine
+
+        return affine
+
     def transform_coordinates(
         self, data: torch.Tensor, affine: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, dict]:
@@ -1780,35 +1811,25 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
             Transformed coordinates.
         """
         data = convert_to_tensor(data, track_meta=get_track_meta())
-        # applied_affine is the affine transformation matrix that has already been applied to the point data
-        applied_affine = getattr(data, "affine", None)
-
         if affine is None and self.invert_affine:
             raise ValueError("affine must be provided when invert_affine is True.")
-
+        # applied_affine is the affine transformation matrix that has already been applied to the point data
+        applied_affine: torch.Tensor | None = getattr(data, "affine", None)
         affine = applied_affine if affine is None else affine
-        affine = convert_data_type(affine, dtype=torch.float64)[0]  # always convert to float64 for affine
-        original_affine: torch.Tensor = affine
-        if self.affine_lps_to_ras:
-            affine = orientation_ras_lps(affine)
+        if affine is None:
+            raise ValueError("affine must be provided if data does not have an affine matrix.")
 
-        # the final affine transformation matrix that will be applied to the point data
-        _affine: torch.Tensor = affine
-        if self.invert_affine:
-            _affine = linalg_inv(affine)
-            if applied_affine is not None:
-                # consider the affine transformation already applied to the data in the world space
-                # and compute delta affine
-                _affine = _affine @ linalg_inv(applied_affine)
-        out = apply_affine_to_points(data, _affine, dtype=self.dtype)
+        final_affine = self._compute_final_affine(affine, applied_affine)
+        out = apply_affine_to_points(data, final_affine, dtype=self.dtype)
 
         extra_info = {
             "invert_affine": self.invert_affine,
             "dtype": get_dtype_string(self.dtype),
-            "image_affine": original_affine,  # record for inverse operation
+            "image_affine": affine,
             "affine_lps_to_ras": self.affine_lps_to_ras,
         }
-        xform: torch.Tensor = original_affine if self.invert_affine else linalg_inv(original_affine)
+
+        xform = orientation_ras_lps(linalg_inv(final_affine)) if self.affine_lps_to_ras else linalg_inv(final_affine)
         meta_info = TraceableTransform.track_transform_meta(
             data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
         )
@@ -1834,16 +1855,12 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
 
     def inverse(self, data: torch.Tensor) -> torch.Tensor:
         transform = self.pop_transform(data)
-        # Create inverse transform
-        dtype = transform[TraceKeys.EXTRA_INFO]["dtype"]
-        invert_affine = not transform[TraceKeys.EXTRA_INFO]["invert_affine"]
-        affine = transform[TraceKeys.EXTRA_INFO]["image_affine"]
-        affine_lps_to_ras = transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"]
         inverse_transform = ApplyTransformToPoints(
-            dtype=dtype, invert_affine=invert_affine, affine_lps_to_ras=affine_lps_to_ras
+            dtype=transform[TraceKeys.EXTRA_INFO]["dtype"],
+            invert_affine=not transform[TraceKeys.EXTRA_INFO]["invert_affine"],
+            affine_lps_to_ras=transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"],
         )
-        # Apply inverse
         with inverse_transform.trace_transform(False):
-            data = inverse_transform(data, affine)
+            data = inverse_transform(data, transform[TraceKeys.EXTRA_INFO]["image_affine"])
 
         return data

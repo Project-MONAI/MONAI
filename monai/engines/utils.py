@@ -18,9 +18,8 @@ from typing import TYPE_CHECKING, Any, Mapping, cast
 import torch
 import torch.nn as nn
 
-from monai.config import IgniteInfo
 from monai.transforms import apply_transform
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import IgniteInfo, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys, GanKeys
 
 if TYPE_CHECKING:

@@ -34,9 +34,6 @@ from monai.data.utils import (
 )
 from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
 
-# workaround for https://github.com/Project-MONAI/MONAI/issues/8061
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="nptyping")
-
 if TYPE_CHECKING:
     import itk
     import nibabel as nib
@@ -1362,7 +1359,7 @@ class NrrdReader(ImageReader):
         x, y = direction.shape
         affine_diam = min(x, y) + 1
         affine: np.ndarray = np.eye(affine_diam)
-        affine[:x, :y] = direction
+        affine[:x, :y] = direction.T
         affine[: (affine_diam - 1), -1] = origin  # len origin is always affine_diam - 1
         return affine
 

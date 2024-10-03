@@ -26,7 +26,7 @@ from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
 from monai.config import PathLike
-from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, deprecated_arg_default, ensure_tuple
+from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -43,7 +43,7 @@ class BundleWorkflow(ABC):
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
+            default to `train` for train workflow.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
@@ -274,7 +274,6 @@ class ConfigWorkflow(BundleWorkflow):
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
     )
-    @deprecated_arg_default("workflow_type", None, "train", since="1.2", replaced="1.4")
     def __init__(
         self,
         config_file: str | Sequence[str],
@@ -284,7 +283,7 @@ class ConfigWorkflow(BundleWorkflow):
         run_id: str = "run",
         final_id: str = "finalize",
         tracking: str | dict | None = None,
-        workflow_type: str | None = None,
+        workflow_type: str | None = "train",
         workflow: str | None = None,
         properties_path: PathLike | None = None,
         **override: Any,
