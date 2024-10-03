@@ -29,6 +29,19 @@ def get_conv_layer(spatial_dim: int = 3, transpose: bool = False):
 
 
 class MedNeXtBlock(nn.Module):
+    """
+    MedNeXtBlock class for the MedNeXt model.
+
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        expansion_ratio (int): Expansion ratio for the block. Defaults to 4.
+        kernel_size (int): Kernel size for convolutions. Defaults to 7.
+        use_residual_connection (int): Whether to use residual connection. Defaults to True.
+        norm_type (str): Type of normalization to use. Defaults to "group".
+        dim (str): Dimension of the input. Can be "2d" or "3d". Defaults to "3d".
+        global_resp_norm (bool): Whether to use global response normalization. Defaults to False.
+    """
 
     def __init__(
         self,
@@ -39,7 +52,7 @@ class MedNeXtBlock(nn.Module):
         use_residual_connection: int = True,
         norm_type: str = "group",
         dim="3d",
-        grn=False,
+        global_resp_norm=False,
     ):
 
         super().__init__()
@@ -48,7 +61,7 @@ class MedNeXtBlock(nn.Module):
 
         self.dim = dim
         conv = get_conv_layer(spatial_dim=2 if dim == "2d" else 3)
-        grn_parameter_shape = (1,) * (2 if dim == "2d" else 3)
+        global_resp_norm_param_shape = (1,) * (2 if dim == "2d" else 3)
         # First convolution layer with DepthWise Convolutions
         self.conv1 = conv(
             in_channels=in_channels,
@@ -79,19 +92,27 @@ class MedNeXtBlock(nn.Module):
             in_channels=expansion_ratio * in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0
         )
 
-        self.grn = grn
-        if self.grn:
-            grn_parameter_shape = (1, expansion_ratio * in_channels) + grn_parameter_shape
-            self.grn_beta = nn.Parameter(torch.zeros(grn_parameter_shape), requires_grad=True)
-            self.grn_gamma = nn.Parameter(torch.zeros(grn_parameter_shape), requires_grad=True)
+        self.global_resp_norm = global_resp_norm
+        if self.global_resp_norm:
+            global_resp_norm_param_shape = (1, expansion_ratio * in_channels) + global_resp_norm_param_shape
+            self.global_resp_beta = nn.Parameter(torch.zeros(global_resp_norm_param_shape), requires_grad=True)
+            self.global_resp_gamma = nn.Parameter(torch.zeros(global_resp_norm_param_shape), requires_grad=True)
 
     def forward(self, x):
+        """
+        Forward pass of the MedNeXtBlock.
 
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         x1 = x
         x1 = self.conv1(x1)
         x1 = self.act(self.conv2(self.norm(x1)))
 
-        if self.grn:
+        if self.global_resp_norm:
             # gamma, beta: learnable affine transform parameters
             # X: input of shape (N,C,H,W,D)
             if self.dim == "2d":
@@ -99,7 +120,7 @@ class MedNeXtBlock(nn.Module):
             else:
                 gx = torch.norm(x1, p=2, dim=(-3, -2, -1), keepdim=True)
             nx = gx / (gx.mean(dim=1, keepdim=True) + 1e-6)
-            x1 = self.grn_gamma * (x1 * nx) + self.grn_beta + x1
+            x1 = self.global_resp_gamma * (x1 * nx) + self.global_resp_beta + x1
         x1 = self.conv3(x1)
         if self.do_res:
             x1 = x + x1
@@ -107,6 +128,19 @@ class MedNeXtBlock(nn.Module):
 
 
 class MedNeXtDownBlock(MedNeXtBlock):
+    """
+    MedNeXtDownBlock class for downsampling in the MedNeXt model.
+
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        expansion_ratio (int): Expansion ratio for the block. Defaults to 4.
+        kernel_size (int): Kernel size for convolutions. Defaults to 7.
+        use_residual_connection (bool): Whether to use residual connection. Defaults to False.
+        norm_type (str): Type of normalization to use. Defaults to "group".
+        dim (str): Dimension of the input. Can be "2d" or "3d". Defaults to "3d".
+        global_resp_norm (bool): Whether to use global response normalization. Defaults to False.
+    """
 
     def __init__(
         self,
@@ -117,7 +151,7 @@ class MedNeXtDownBlock(MedNeXtBlock):
         use_residual_connection: bool = False,
         norm_type: str = "group",
         dim: str = "3d",
-        grn: bool = False,
+        global_resp_norm: bool = False,
     ):
 
         super().__init__(
@@ -128,7 +162,7 @@ class MedNeXtDownBlock(MedNeXtBlock):
             use_residual_connection=False,
             norm_type=norm_type,
             dim=dim,
-            grn=grn,
+            global_resp_norm=global_resp_norm,
         )
 
         conv = get_conv_layer(spatial_dim=2 if dim == "2d" else 3)
@@ -146,7 +180,15 @@ class MedNeXtDownBlock(MedNeXtBlock):
         )
 
     def forward(self, x):
+        """
+        Forward pass of the MedNeXtDownBlock.
 
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         x1 = super().forward(x)
 
         if self.resample_do_res:
@@ -157,6 +199,19 @@ class MedNeXtDownBlock(MedNeXtBlock):
 
 
 class MedNeXtUpBlock(MedNeXtBlock):
+    """
+    MedNeXtUpBlock class for upsampling in the MedNeXt model.
+
+    Args:
+        in_channels (int): Number of input channels.
+        out_channels (int): Number of output channels.
+        expansion_ratio (int): Expansion ratio for the block. Defaults to 4.
+        kernel_size (int): Kernel size for convolutions. Defaults to 7.
+        use_residual_connection (bool): Whether to use residual connection. Defaults to False.
+        norm_type (str): Type of normalization to use. Defaults to "group".
+        dim (str): Dimension of the input. Can be "2d" or "3d". Defaults to "3d".
+        global_resp_norm (bool): Whether to use global response normalization. Defaults to False.
+    """
 
     def __init__(
         self,
@@ -167,7 +222,7 @@ class MedNeXtUpBlock(MedNeXtBlock):
         use_residual_connection: bool = False,
         norm_type: str = "group",
         dim: str = "3d",
-        grn: bool = False,
+        global_resp_norm: bool = False,
     ):
         super().__init__(
             in_channels,
@@ -177,7 +232,7 @@ class MedNeXtUpBlock(MedNeXtBlock):
             use_residual_connection=False,
             norm_type=norm_type,
             dim=dim,
-            grn=grn,
+            global_resp_norm=global_resp_norm,
         )
 
         self.resample_do_res = use_residual_connection
@@ -197,7 +252,15 @@ class MedNeXtUpBlock(MedNeXtBlock):
         )
 
     def forward(self, x):
+        """
+        Forward pass of the MedNeXtUpBlock.
 
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         x1 = super().forward(x)
         # Asymmetry but necessary to match shape
 
@@ -218,6 +281,14 @@ class MedNeXtUpBlock(MedNeXtBlock):
 
 
 class MedNeXtOutBlock(nn.Module):
+    """
+    MedNeXtOutBlock class for the output block in the MedNeXt model.
+
+    Args:
+        in_channels (int): Number of input channels.
+        n_classes (int): Number of output classes.
+        dim (str): Dimension of the input. Can be "2d" or "3d".
+    """
 
     def __init__(self, in_channels, n_classes, dim):
         super().__init__()
@@ -226,4 +297,13 @@ class MedNeXtOutBlock(nn.Module):
         self.conv_out = conv(in_channels, n_classes, kernel_size=1)
 
     def forward(self, x):
+        """
+        Forward pass of the MedNeXtOutBlock.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor.
+        """
         return self.conv_out(x)

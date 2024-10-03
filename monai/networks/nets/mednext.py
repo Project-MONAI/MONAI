@@ -63,7 +63,7 @@ class MedNeXt(nn.Module):
         blocks_bottleneck: number of blocks in bottleneck stage. Defaults to 2.
         blocks_up: number of blocks in each decoder stage. Defaults to [2, 2, 2, 2].
         norm_type: type of normalization layer. Defaults to 'group'.
-        grn: whether to use Global Response Normalization (GRN). Defaults to False.
+        global_resp_norm: whether to use Global Response Normalization. Defaults to False. Refer: https://arxiv.org/abs/2301.00808
     """
 
     def __init__(
@@ -82,7 +82,7 @@ class MedNeXt(nn.Module):
         blocks_bottleneck: int = 2,
         blocks_up: Sequence[int] = (2, 2, 2, 2),
         norm_type: str = "group",
-        grn: bool = False,
+        global_resp_norm: bool = False,
     ):
         """
         Initialize the MedNeXt model.
@@ -126,7 +126,7 @@ class MedNeXt(nn.Module):
                             use_residual_connection=use_residual_connection,
                             norm_type=norm_type,
                             dim=spatial_dims_str,
-                            grn=grn,
+                            global_resp_norm=global_resp_norm,
                         )
                         for _ in range(num_blocks)
                     ]
@@ -158,7 +158,7 @@ class MedNeXt(nn.Module):
                     use_residual_connection=use_residual_connection,
                     norm_type=norm_type,
                     dim=spatial_dims_str,
-                    grn=grn,
+                    global_resp_norm=global_resp_norm,
                 )
                 for _ in range(blocks_bottleneck)
             ]
@@ -176,7 +176,7 @@ class MedNeXt(nn.Module):
                     use_residual_connection=use_residual_connection,
                     norm_type=norm_type,
                     dim=spatial_dims_str,
-                    grn=grn,
+                    global_resp_norm=global_resp_norm,
                 )
             )
 
@@ -191,7 +191,7 @@ class MedNeXt(nn.Module):
                             use_residual_connection=use_residual_connection,
                             norm_type=norm_type,
                             dim=spatial_dims_str,
-                            grn=grn,
+                            global_resp_norm=global_resp_norm,
                         )
                         for _ in range(num_blocks)
                     ]
@@ -299,7 +299,7 @@ def create_mednext(
         "deep_supervision": deep_supervision,
         "use_residual_connection": True,
         "norm_type": "group",
-        "grn": False,
+        "global_resp_norm": False,
         "init_filters": 32,
     }
 
