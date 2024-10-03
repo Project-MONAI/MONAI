@@ -631,7 +631,6 @@ def convert_to_onnx(
     use_trace: bool = True,
     do_constant_folding: bool = True,
     constant_size_threshold: int = 16 * 1024 * 1024 * 1024,
-    dynamo=False,
     **kwargs,
 ):
     """
@@ -672,6 +671,9 @@ def convert_to_onnx(
             # let torch.onnx.export to trace the model.
             mode_to_export = model
             torch_versioned_kwargs = kwargs
+            if "dynamo" in kwargs:
+                torch_versioned_kwargs["verify"] = verify
+                verify = False
         else:
             if not pytorch_after(1, 10):
                 if "example_outputs" not in kwargs:
@@ -693,7 +695,7 @@ def convert_to_onnx(
             f = io.BytesIO()
         else:
             f = filename
-
+        print(f"torch_versioned_kwargs={torch_versioned_kwargs}")
         torch.onnx.export(
             mode_to_export,
             onnx_inputs,
@@ -716,6 +718,9 @@ def convert_to_onnx(
         fold_constants(onnx_model, size_threshold=constant_size_threshold)
 
     if verify:
+        if isinstance(inputs, dict):
+            inputs = list(inputs.values())
+
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
