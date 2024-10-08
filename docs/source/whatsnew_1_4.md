@@ -20,8 +20,6 @@ And it contains the following features:
 - A foundation Diffusion model that can generate large CT volumes up to 512 × 512 × 768 size, with flexible volume size and voxel size
 - A ControlNet to generate image/mask pairs that can improve downstream tasks, with controllable organ/tumor size
 
-
-
 ## VISTA-3D: state-of-the-art 3D Latent Diffusion Model
 
 ![vista-3d](../images/vista3d.png)
@@ -49,7 +47,6 @@ Key features of the model include:
 - Multi-GPU and multinode training support
 
 A tutorial demonstrating how to train a cell segmentation model using the MONAI framework on the Cellpose dataset can be found in the [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/vista_2d).
-
 
 ## Integrating MONAI Generative into MONAI Core
 
