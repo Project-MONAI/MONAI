@@ -362,20 +362,10 @@ RESTORE_LABEL_TEST_CASE_3 = [
 
 RESTORE_LABEL_TEST_CASE_4_RESULT = np.zeros((4, 8, 8))
 RESTORE_LABEL_TEST_CASE_4_RESULT[1, 2:6, 2:6] = np.array(
-    [
-        [10., 10., 20., 20.],
-        [10., 10., 20., 20.],
-        [30., 30., 40., 40.],
-        [30., 30., 40., 40.]
-    ]
+    [[10.0, 10.0, 20.0, 20.0], [10.0, 10.0, 20.0, 20.0], [30.0, 30.0, 40.0, 40.0], [30.0, 30.0, 40.0, 40.0]]
 )
 RESTORE_LABEL_TEST_CASE_4_RESULT[2, 2:6, 2:6] = np.array(
-    [
-        [50., 50., 60., 60.],
-        [50., 50., 60., 60.],
-        [70., 70., 80., 80.],
-        [70., 70., 80., 80.]
-    ]
+    [[50.0, 50.0, 60.0, 60.0], [50.0, 50.0, 60.0, 60.0], [70.0, 70.0, 80.0, 80.0], [70.0, 70.0, 80.0, 80.0]]
 )
 
 RESTORE_LABEL_TEST_CASE_4 = [
@@ -385,18 +375,8 @@ RESTORE_LABEL_TEST_CASE_4 = [
 ]
 
 RESTORE_LABEL_TEST_CASE_5_RESULT = np.zeros((4, 4, 4))
-RESTORE_LABEL_TEST_CASE_5_RESULT[1, 1:3, 1:3] = np.array(
-    [
-        [10., 20.],
-        [30., 40.]
-    ]
-)
-RESTORE_LABEL_TEST_CASE_5_RESULT[2, 1:3, 1:3] = np.array(
-    [
-        [50., 60.],
-        [70., 80.]
-    ]
-)
+RESTORE_LABEL_TEST_CASE_5_RESULT[1, 1:3, 1:3] = np.array([[10.0, 20.0], [30.0, 40.0]])
+RESTORE_LABEL_TEST_CASE_5_RESULT[2, 1:3, 1:3] = np.array([[50.0, 60.0], [70.0, 80.0]])
 
 RESTORE_LABEL_TEST_CASE_5 = [
     {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_spacing": False},
@@ -406,20 +386,10 @@ RESTORE_LABEL_TEST_CASE_5 = [
 
 RESTORE_LABEL_TEST_CASE_6_RESULT = np.zeros((1, 4, 8, 8))
 RESTORE_LABEL_TEST_CASE_6_RESULT[-1, 1, 2:6, 2:6] = np.array(
-    [
-        [10., 10., 20., 20.],
-        [10., 10., 20., 20.],
-        [30., 30., 40., 40.],
-        [30., 30., 40., 40.]
-    ]
+    [[10.0, 10.0, 20.0, 20.0], [10.0, 10.0, 20.0, 20.0], [30.0, 30.0, 40.0, 40.0], [30.0, 30.0, 40.0, 40.0]]
 )
 RESTORE_LABEL_TEST_CASE_6_RESULT[-1, 2, 2:6, 2:6] = np.array(
-    [
-        [50., 50., 60., 60.],
-        [50., 50., 60., 60.],
-        [70., 70., 80., 80.],
-        [70., 70., 80., 80.]
-    ]
+    [[50.0, 50.0, 60.0, 60.0], [50.0, 50.0, 60.0, 60.0], [70.0, 70.0, 80.0, 80.0], [70.0, 70.0, 80.0, 80.0]]
 )
 
 RESTORE_LABEL_TEST_CASE_6 = [
@@ -566,7 +536,7 @@ class TestRestoreLabeld(unittest.TestCase):
             RESTORE_LABEL_TEST_CASE_4,
             RESTORE_LABEL_TEST_CASE_5,
             RESTORE_LABEL_TEST_CASE_6,
-            RESTORE_LABEL_TEST_CASE_7
+            RESTORE_LABEL_TEST_CASE_7,
         ]
     )
     def test_correct_results(self, arguments, input_data, expected_result):
