@@ -671,7 +671,7 @@ def convert_to_onnx(
             # let torch.onnx.export to trace the model.
             mode_to_export = model
             torch_versioned_kwargs = kwargs
-            if "dynamo" in kwargs:
+            if "dynamo" in kwargs and kwargs["dynamo"] and verify:
                 torch_versioned_kwargs["verify"] = verify
                 verify = False
         else:
