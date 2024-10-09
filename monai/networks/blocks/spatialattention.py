@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks import SABlock
-from monai.utils import optional_import
 
 
 
@@ -70,7 +69,7 @@ class SpatialAttentionBlock(nn.Module):
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
         )
-        
+
     def forward(self, x: torch.Tensor):
         residual = x
         shape = x.shape
