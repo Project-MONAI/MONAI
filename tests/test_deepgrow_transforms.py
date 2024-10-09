@@ -560,12 +560,12 @@ class TestRestoreLabeld(unittest.TestCase):
 
     @parameterized.expand(
         [
-            RESTORE_LABEL_TEST_CASE_1, 
-            RESTORE_LABEL_TEST_CASE_2, 
-            RESTORE_LABEL_TEST_CASE_3, 
-            RESTORE_LABEL_TEST_CASE_4, 
-            RESTORE_LABEL_TEST_CASE_5, 
-            RESTORE_LABEL_TEST_CASE_6, 
+            RESTORE_LABEL_TEST_CASE_1,
+            RESTORE_LABEL_TEST_CASE_2,
+            RESTORE_LABEL_TEST_CASE_3,
+            RESTORE_LABEL_TEST_CASE_4,
+            RESTORE_LABEL_TEST_CASE_5,
+            RESTORE_LABEL_TEST_CASE_6,
             RESTORE_LABEL_TEST_CASE_7
         ]
     )
