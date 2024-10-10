@@ -134,7 +134,9 @@ class TRTEngine:
                 self.output_names.append(binding)
                 dtype = dtype_dict[self.engine.get_tensor_dtype(binding)]
                 self.dtypes.append(dtype)
-        self.logger.info(f"Loaded TensorRT engine: {self.plan_path}.\nInputs: {self.input_names}\nOutputs: {self.output_names}")
+        self.logger.info(
+            f"Loaded TensorRT engine: {self.plan_path}.\nInputs: {self.input_names}\nOutputs: {self.output_names}"
+        )
 
     def allocate_buffers(self, device):
         """
@@ -219,6 +221,7 @@ class TRTEngine:
 
         return self.tensors
 
+
 def remove_non_tensors(input_example, remove_constants=True):
     #
     # TODO : see if we can instantiate wrappers to handle non-default non-tensors
@@ -237,6 +240,7 @@ def remove_non_tensors(input_example, remove_constants=True):
         # print(f"Removing non-tensor input: {key})")
         input_example.pop(key)
     return non_tensors
+
 
 class TrtCompiler:
     """
@@ -309,7 +313,7 @@ class TrtCompiler:
         self.use_cuda_graph = use_cuda_graph
         self.fallback = fallback
         self.disabled = False
-        
+
         self.logger = logger or get_logger("trt_compile")
         self.argspec = inspect.getfullargspec(model.forward)
         # Normally we read input_names from forward() but can be overridden
@@ -317,9 +321,9 @@ class TrtCompiler:
             input_names = self.argspec.args[1:]
         self.defaults = {}
         for i in range(len(self.argspec.defaults)):
-            d = self.argspec.defaults[-i-1]
+            d = self.argspec.defaults[-i - 1]
             if d is not None:
-                self.defaults[self.argspec.args[-i-1]] = torch.tensor(d).cuda()
+                self.defaults[self.argspec.args[-i - 1]] = torch.tensor(d).cuda()
 
         self.input_names = input_names
         self.old_forward = model.forward
@@ -451,7 +455,7 @@ class TrtCompiler:
         Args:
              input_example: passed to onnx.export()
         """
-        
+
         if self.engine is not None:
             return
 
@@ -500,7 +504,7 @@ class TrtCompiler:
                 self.profiles = [profiles]
 
             dynamic_axes = get_dynamic_axes(self.profiles)
-            
+
             if len(self.profiles) > 0:
                 export_args.update({"dynamic_axes": dynamic_axes})
 
