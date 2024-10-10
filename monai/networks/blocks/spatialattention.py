@@ -20,7 +20,6 @@ from monai.networks.blocks import SABlock
 from monai.utils import optional_import
 
 
-
 class SpatialAttentionBlock(nn.Module):
     """Perform spatial self-attention on the input tensor.
 
@@ -70,13 +69,13 @@ class SpatialAttentionBlock(nn.Module):
             use_combined_linear=use_combined_linear,
             use_flash_attention=use_flash_attention,
         )
-        
+
     def forward(self, x: torch.Tensor):
         residual = x
         shape = x.shape
         x = self.norm(x)
-        x = x.reshape(*shape[:2], -1).transpose(1,2)  # "b c h w d -> b (h w d) c"
+        x = x.reshape(*shape[:2], -1).transpose(1, 2)  # "b c h w d -> b (h w d) c"
         x = self.attn(x)
-        x = x.transpose(1,2).reshape(shape) # "b (h w d) c -> b c h w d"
+        x = x.transpose(1, 2).reshape(shape)  # "b (h w d) c -> b c h w d"
         x = x + residual
         return x
