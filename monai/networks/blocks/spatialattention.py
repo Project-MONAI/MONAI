@@ -75,9 +75,8 @@ class SpatialAttentionBlock(nn.Module):
         residual = x
         shape = x.shape
         x = self.norm(x)
-        x = x.reshape(shape[0], shape[1], -1).transpose(1,2)
+        x = x.reshape(*shape[:2], -1).transpose(1,2)  # "b c h w d -> b (h w d) c"
         x = self.attn(x)
-        x = x.transpose(1,2)
-        x = x.reshape(shape)
+        x = x.transpose(1,2).reshape(shape) # "b (h w d) c -> b c h w d"
         x = x + residual
         return x

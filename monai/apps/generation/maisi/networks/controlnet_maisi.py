@@ -119,7 +119,7 @@ class ControlNetMaisi(ControlNet):
         down_block_res_samples = [h * conditioning_scale for h in down_block_res_samples]
         mid_block_res_sample *= conditioning_scale
 
-        return down_block_res_samples, mid_block_res_sample
+        return [*down_block_res_samples, mid_block_res_sample]
 
     def _prepare_time_and_class_embedding(self, x, timesteps, class_labels):
         # 1. time

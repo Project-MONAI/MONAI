@@ -164,7 +164,8 @@ class TRTEngine:
         last_profile = self.cur_profile
 
         def try_set_inputs():
-            for binding, t in feed_dict.items():
+            for binding in self.input_names:
+                t = feed_dict[binding]
                 if t is not None:
                     t = t.contiguous()
                     shape = t.shape
@@ -218,17 +219,24 @@ class TRTEngine:
 
         return self.tensors
 
-def remove_non_tensors(input_example):
+def remove_non_tensors(input_example, remove_constants=True):
     #
     # TODO : see if we can instantiate wrappers to handle non-default non-tensors
     #
     non_tensors = {}
     for k, v in input_example.items():
-        if not torch.is_tensor(v):
-            # print(f"Removing non-tensor input: {k} ({type(v)})")
+        if v is None:
             non_tensors[k] = v
+        elif not torch.is_tensor(v):
+            if remove_constants:
+                non_tensors[k] = v
+            else:
+                input_example[k] = torch.tensor(v)
+
     for key in non_tensors.keys():
+        # print(f"Removing non-tensor input: {key})")
         input_example.pop(key)
+    return non_tensors
 
 class TrtCompiler:
     """
@@ -303,11 +311,16 @@ class TrtCompiler:
         self.disabled = False
         
         self.logger = logger or get_logger("trt_compile")
-
+        self.argspec = inspect.getfullargspec(model.forward)
         # Normally we read input_names from forward() but can be overridden
         if input_names is None:
-            argspec = inspect.getfullargspec(model.forward)
-            input_names = argspec.args[1:]
+            input_names = self.argspec.args[1:]
+        self.defaults = {}
+        for i in range(len(self.argspec.defaults)):
+            d = self.argspec.defaults[-i-1]
+            if d is not None:
+                self.defaults[self.argspec.args[-i-1]] = torch.tensor(d).cuda()
+
         self.input_names = input_names
         self.old_forward = model.forward
 
@@ -376,15 +389,16 @@ class TrtCompiler:
         # Run the engine
         try:
             if self.engine is not None:
+                args = self.defaults
+                args.update(kwargs)
                 if len(argv) > 0:
-                    kwargs.update(self._inputs_to_dict(argv))
-                    argv = ()
-                remove_non_tensors(kwargs)
+                    args.update(self._inputs_to_dict(argv))
+                remove_non_tensors(args, remove_constants=False)
                 # forward_trt is not thread safe as we do not use per-thread execution contexts
                 with lock_sm:
                     device = torch.cuda.current_device()
                     stream = torch.cuda.Stream(device=device)
-                    self.engine.set_inputs(kwargs, stream.cuda_stream)
+                    self.engine.set_inputs(args, stream.cuda_stream)
                     self.engine.allocate_buffers(device=device)
                     # Need this to synchronize with Torch stream
                     stream.wait_stream(torch.cuda.current_stream())
