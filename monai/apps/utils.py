@@ -54,20 +54,27 @@ def get_logger(
     """
     Get a `module_name` logger with the specified format and date format.
     By default, the logger will print to `stdout` at the INFO level.
-    If `module_name` is `None`, return the root logger.
-    `fmt` and `datafmt` are passed to a `logging.Formatter` object
+    - If `module_name` is None, the root logger is returned.
+    - `fmt` and `datefmt` are passed to `logging.Formatter` for formatting.
     (https://docs.python.org/3/library/logging.html#formatter-objects).
-    `logger_handler` can be used to add an additional handler.
+    - If `logger_handler` is provided, it will be added to the logger.
     """
-    adds_stdout_handler = module_name is not None and module_name not in logging.root.manager.loggerDict
+    # Retrieve or create a logger for the module
     logger = logging.getLogger(module_name)
-    logger.propagate = False
     logger.setLevel(logging.INFO)
-    if adds_stdout_handler:  # don't add multiple stdout or add to the root
-        handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+    
+    # Check if stdout handler should be added (avoid adding multiple times)
+    if module_name and module_name not in logging.root.manager.loggerDict:
+        if fmt is not None or datefmt is not None:
+            stdout_handler = next(
+                (h for h in logging.root.handlers if isinstance(h, logging.StreamHandler)), None
+            )
+            if stdout_handler:
+                # Set the formatter if StreamHandler exists
+                formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+                stdout_handler.setFormatter(formatter)
+    
+    # Add custom handler if provided
     if logger_handler is not None:
         logger.addHandler(logger_handler)
     return logger
