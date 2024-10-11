@@ -4,6 +4,7 @@
 - VISTA-3D: interactive foundation model for segmenting and anotating human anatomies
 - VISTA-2D: cell segmentation pipeline
 - Integrating MONAI Generative into MONAI core
+- Lazy TensorRT export via `trt_compile`
 - Geometric Data Support
 
 
@@ -53,6 +54,14 @@ A tutorial demonstrating how to train a cell segmentation model using the MONAI 
 Key modules originally developed in the [MONAI GenerativeModels](https://github.com/Project-MONAI/GenerativeModels) have been integrated into the core MONAI codebase. This integration ensures consistent maintenance and streamlined release of essential components for generative AI. In this version, all utilities, networks, diffusion schedulers, inferers, and engines have been migrated to the Core.
 
 Additionally, several tutorials have been ported and are available within [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/generation)
+
+## Lazy TensorRT export via `trt_compile`
+This release expands TensorRT optimization options for MONAI bundles with `trt_compile` API.
+Existing `trt_export` API requires user to run a separate export script to prepare TensorRT engine-based TorchScript model.
+`trt_compile` builds and saves a TensorRT engine first time the bundle is being run and provides limited dependency support.
+It also allows partial TensorRT export where only a certain submodule is being optimized, which improves usability.
+A few bundles in the MONAI model zoo, like the new [VISTA-3D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista3d)
+and [VISTA-1D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista2d) bundles, already come with `trt_inference.json` config files that use `trt_compile`.
 
 ## Geometric Data Support
 
