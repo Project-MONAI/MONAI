@@ -33,6 +33,7 @@ __all__ = [
     "get_equivalent_dtype",
     "convert_data_type",
     "get_dtype",
+    "get_dtype_string",
     "convert_to_cupy",
     "convert_to_numpy",
     "convert_to_tensor",
@@ -100,6 +101,13 @@ def get_dtype(data: Any) -> DtypeLike | torch.dtype:
         return get_dtype(data[0])
     # objects like float don't have dtype, so return their type
     return type(data)
+
+
+def get_dtype_string(dtype: DtypeLike | torch.dtype) -> str:
+    """Get a string representation of the dtype."""
+    if isinstance(dtype, torch.dtype):
+        return str(dtype)[6:]
+    return str(dtype)[3:]
 
 
 def convert_to_tensor(

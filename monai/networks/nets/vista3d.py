@@ -23,7 +23,7 @@ import monai
 from monai.networks.blocks import MLPBlock, UnetrBasicBlock
 from monai.networks.nets import SegResNetDS2
 from monai.transforms.utils import convert_points_to_disc
-from monai.transforms.utils import get_largest_connected_component_mask_point as lcc
+from monai.transforms.utils import keep_merge_components_with_points as lcc
 from monai.transforms.utils import sample_points_from_label
 from monai.utils import optional_import, unsqueeze_left, unsqueeze_right
 
@@ -77,6 +77,35 @@ class VISTA3D(nn.Module):
         self.point_freeze = False
         self.NINF_VALUE = -9999
         self.PINF_VALUE = 9999
+
+    def update_slidingwindow_padding(
+        self,
+        pad_size: list | None,
+        labels: torch.Tensor | None,
+        prev_mask: torch.Tensor | None,
+        point_coords: torch.Tensor | None,
+    ):
+        """
+        Image has been padded by sliding window inferer.
+        The related padding need to be performed outside of slidingwindow inferer.
+
+        Args:
+            pad_size: padding size passed from sliding window inferer.
+            labels: image label ground truth.
+            prev_mask: previous segmentation mask.
+            point_coords: point click coordinates.
+        """
+        if pad_size is None:
+            return labels, prev_mask, point_coords
+        if labels is not None:
+            labels = F.pad(labels, pad=pad_size, mode="constant", value=0)
+        if prev_mask is not None:
+            prev_mask = F.pad(prev_mask, pad=pad_size, mode="constant", value=0)
+        if point_coords is not None:
+            point_coords = point_coords + torch.tensor(
+                [pad_size[-2], pad_size[-4], pad_size[-6]], device=point_coords.device
+            )
+        return labels, prev_mask, point_coords
 
     def get_foreground_class_count(self, class_vector: torch.Tensor | None, point_coords: torch.Tensor | None) -> int:
         """Get number of foreground classes based on class and point prompt."""
@@ -307,16 +336,17 @@ class VISTA3D(nn.Module):
     def forward(
         self,
         input_images: torch.Tensor,
+        patch_coords: list[Sequence[slice]] | None = None,
         point_coords: torch.Tensor | None = None,
         point_labels: torch.Tensor | None = None,
         class_vector: torch.Tensor | None = None,
         prompt_class: torch.Tensor | None = None,
-        patch_coords: Sequence[slice] | None = None,
         labels: torch.Tensor | None = None,
         label_set: Sequence[int] | None = None,
         prev_mask: torch.Tensor | None = None,
         radius: int | None = None,
         val_point_sampler: Callable | None = None,
+        transpose: bool = False,
         **kwargs,
     ):
         """
@@ -329,13 +359,17 @@ class VISTA3D(nn.Module):
             point_coords: [B, N, 3]
             point_labels: [B, N], -1 represents padding. 0/1 means negative/positive points for regular class.
                 2/3 means negative/postive ponits for special supported class like tumor.
-            class_vector: [B, 1], the global class index
+            class_vector: [B, 1], the global class index.
             prompt_class: [B, 1], the global class index. This value is associated with point_coords to identify if
                 the points are for zero-shot or supported class. When class_vector and point_coords are both
                 provided, prompt_class is the same as class_vector. For prompt_class[b] > 512, point_coords[b]
                 will be considered novel class.
-            patch_coords: a sequence of the python slice objects representing the patch coordinates during sliding window inference.
-                This value is passed from sliding_window_inferer. This is an indicator for training phase or validation phase.
+            patch_coords: a list of sequence of the python slice objects representing the patch coordinates during sliding window
+                inference. This value is passed from sliding_window_inferer.
+                This is an indicator for training phase or validation phase.
+                Notice for sliding window batch size > 1 (only supported by automatic segmentation), patch_coords will inlcude
+                coordinates of multiple patches. If point prompts are included, the batch size can only be one and all the
+                functions using patch_coords will by default use patch_coords[0].
             labels: [1, 1, H, W, D], the groundtruth label tensor, only used for point-only evaluation
             label_set: the label index matching the indexes in labels. If labels are mapped to global index using RelabelID,
                 this label_set should be global mapped index. If labels are not mapped to global index, e.g. in zero-shot
@@ -346,8 +380,12 @@ class VISTA3D(nn.Module):
             radius: single float value controling the gaussian blur when combining point and auto results.
                 The gaussian combine is not used in VISTA3D training but might be useful for finetuning purposes.
             val_point_sampler: function used to sample points from labels. This is only used for point-only evaluation.
-
+            transpose: bool. If true, the output will be transposed to be [1, B, H, W, D]. Required to be true if calling from
+                sliding window inferer/point inferer.
         """
+        labels, prev_mask, point_coords = self.update_slidingwindow_padding(
+            kwargs.get("pad_size", None), labels, prev_mask, point_coords
+        )
         image_size = input_images.shape[-3:]
         device = input_images.device
         if point_coords is None and class_vector is None:
@@ -361,14 +399,14 @@ class VISTA3D(nn.Module):
                 if val_point_sampler is None:
                     # TODO: think about how to refactor this part.
                     val_point_sampler = self.sample_points_patch_val
-                point_coords, point_labels, prompt_class = val_point_sampler(labels, patch_coords, label_set)
+                point_coords, point_labels, prompt_class = val_point_sampler(labels, patch_coords[0], label_set)
                 if prompt_class[0].item() == 0:  # type: ignore
                     point_labels[0] = -1  # type: ignore
                 labels, prev_mask = None, None
             elif point_coords is not None:
                 # If not performing patch-based point only validation, use user provided click points for inference.
                 # the point clicks is in original image space, convert it to current patch-coordinate space.
-                point_coords, point_labels = self.update_point_to_patch(patch_coords, point_coords, point_labels)  # type: ignore
+                point_coords, point_labels = self.update_point_to_patch(patch_coords[0], point_coords, point_labels)  # type: ignore
 
         if point_coords is not None and point_labels is not None:
             # remove points that used for padding purposes (point_label = -1)
@@ -387,7 +425,10 @@ class VISTA3D(nn.Module):
                     point_coords, point_labels = None, None
 
         if point_coords is None and class_vector is None:
-            return self.NINF_VALUE + torch.zeros([bs, 1, *image_size], device=device)
+            logits = self.NINF_VALUE + torch.zeros([bs, 1, *image_size], device=device)
+            if transpose:
+                logits = logits.transpose(1, 0)
+            return logits
 
         if self.image_embeddings is not None and kwargs.get("keep_cache", False) and class_vector is None:
             out, out_auto = self.image_embeddings, None
@@ -418,15 +459,16 @@ class VISTA3D(nn.Module):
             logits[mapping_index] = self.point_head(out, point_coords, point_labels, class_vector=prompt_class)
             if prev_mask is not None and patch_coords is not None:
                 logits = self.connected_components_combine(
-                    prev_mask[patch_coords].transpose(1, 0).to(logits.device),
+                    prev_mask[patch_coords[0]].transpose(1, 0).to(logits.device),
                     logits[mapping_index],
                     point_coords,  # type: ignore
                     point_labels,  # type: ignore
                     mapping_index,
                 )
-
         if kwargs.get("keep_cache", False) and class_vector is None:
             self.image_embeddings = out.detach()
+        if transpose:
+            logits = logits.transpose(1, 0)
         return logits
 
 

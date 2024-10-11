@@ -42,3 +42,4 @@ zarr
 huggingface_hub
 pyamg>=5.0.0
 packaging
+polygraphy

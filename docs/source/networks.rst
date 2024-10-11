@@ -735,13 +735,8 @@ Nets
 .. autoclass:: VoxelMorphUNet
    :members:
 
-.. autoclass:: voxelmorphunet
-   :members:
-
 .. autoclass:: VoxelMorph
    :members:
-
-.. autoclass:: voxelmorph
 
 Utilities
 ---------
