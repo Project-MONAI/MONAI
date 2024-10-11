@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from monai.config import IgniteInfo
 from monai.data import CSVSaver, decollate_batch
+from monai.utils import IgniteInfo
 from monai.utils import ImageMetaKey as Key
 from monai.utils import evenly_divisible_all_gather, min_version, optional_import, string_list_all_gather
 

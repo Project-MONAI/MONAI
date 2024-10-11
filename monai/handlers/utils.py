@@ -19,8 +19,8 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo, KeysCollection, PathLike
-from monai.utils import ensure_tuple, look_up_option, min_version, optional_import
+from monai.config import KeysCollection, PathLike
+from monai.utils import IgniteInfo, ensure_tuple, look_up_option, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:

@@ -14,8 +14,7 @@ from __future__ import annotations
 import gc
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, Events

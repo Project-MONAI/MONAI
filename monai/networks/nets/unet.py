@@ -20,13 +20,10 @@ import torch.nn as nn
 from monai.networks.blocks.convolutions import Convolution, ResidualUnit
 from monai.networks.layers.factories import Act, Norm
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import alias, export
 
 __all__ = ["UNet", "Unet"]
 
 
-@export("monai.networks.nets")
-@alias("Unet")
 class UNet(nn.Module):
     """
     Enhanced version of UNet which has residual units implemented with the ResidualUnit class.
