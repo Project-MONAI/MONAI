@@ -679,19 +679,22 @@ class MeanEnsemble(Ensemble, Transform):
         self.weights = torch.as_tensor(weights, dtype=torch.float) if weights is not None else None
 
     def __call__(self, img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
-        img_ = self.get_stacked_torch(img)
-        if self.weights is not None:
-            self.weights = self.weights.to(img_.device)
-            shape = tuple(self.weights.shape)
-            for _ in range(img_.ndimension() - self.weights.ndimension()):
-                shape += (1,)
-            weights = self.weights.reshape(*shape)
+        out_pt = None
+        total_weight = 0.0
+        
+        for i, pred in enumerate(img):
+            pred = torch.as_tensor(pred)
+            if out_pt is None:
+                out_pt = torch.zeros_like(pred)
 
-            img_ = img_ * weights / weights.mean(dim=0, keepdim=True)
+            if self.weights is not None:
+                weight = self.weights[i].to(pred.device)
+            
+            out_pt += pred * weight
+            total_weight += weight
 
-        out_pt = torch.mean(img_, dim=0)
-        return self.post_convert(out_pt, img)
-
+        out_pt /= total_weight
+        return post_convert(out_pt, img)
 
 class VoteEnsemble(Ensemble, Transform):
     """
