@@ -694,7 +694,8 @@ class MeanEnsemble(Ensemble, Transform):
             total_weight += weight
 
         out_pt /= total_weight
-        return post_convert(out_pt, img)
+        return self.post_convert(out_pt, img)
+
 
 class VoteEnsemble(Ensemble, Transform):
     """
