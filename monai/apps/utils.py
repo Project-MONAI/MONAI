@@ -62,18 +62,16 @@ def get_logger(
     # Retrieve or create a logger for the module
     logger = logging.getLogger(module_name)
     logger.setLevel(logging.INFO)
-    
+
     # Check if stdout handler should be added (avoid adding multiple times)
     if module_name and module_name not in logging.root.manager.loggerDict:
         if fmt is not None or datefmt is not None:
-            stdout_handler = next(
-                (h for h in logging.root.handlers if isinstance(h, logging.StreamHandler)), None
-            )
+            stdout_handler = next((h for h in logging.root.handlers if isinstance(h, logging.StreamHandler)), None)
             if stdout_handler:
                 # Set the formatter if StreamHandler exists
                 formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
                 stdout_handler.setFormatter(formatter)
-    
+
     # Add custom handler if provided
     if logger_handler is not None:
         logger.addHandler(logger_handler)
