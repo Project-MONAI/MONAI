@@ -681,7 +681,7 @@ class MeanEnsemble(Ensemble, Transform):
     def __call__(self, img: Sequence[NdarrayOrTensor] | NdarrayOrTensor) -> NdarrayOrTensor:
         out_pt = None
         total_weight = 0.0
-        
+
         for i, pred in enumerate(img):
             pred = torch.as_tensor(pred)
             if out_pt is None:
@@ -689,7 +689,7 @@ class MeanEnsemble(Ensemble, Transform):
 
             if self.weights is not None:
                 weight = self.weights[i].to(pred.device)
-            
+
             out_pt += pred * weight
             total_weight += weight
 
