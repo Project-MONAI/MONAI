@@ -45,7 +45,9 @@ class TestBundleWorkflow(unittest.TestCase):
         self.expected_shape = (128, 128, 128)
         test_image = np.random.rand(*self.expected_shape)
         self.filename = os.path.join(self.data_dir, "image.nii")
+        self.filename1 = os.path.join(self.data_dir, "image1.nii")
         nib.save(nib.Nifti1Image(test_image, np.eye(4)), self.filename)
+        nib.save(nib.Nifti1Image(test_image, np.eye(4)), self.filename1)
 
     def tearDown(self):
         shutil.rmtree(self.data_dir)
@@ -114,6 +116,35 @@ class TestBundleWorkflow(unittest.TestCase):
         )
         self._test_inferer(inferer)
         self.assertEqual(inferer.workflow_type, None)
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    def test_realtime_inference_config(self, config_file):
+        override = {
+            "network": "$@network_def.to(@device)",
+            "dataset#_target_": "Dataset",
+            "dataset#data": [{"image": None}],
+            "dataloader#num_workers": 0,
+            "postprocessing#transforms#2#output_postfix": "seg",
+            "output_dir": self.data_dir,
+        }
+        # test standard MONAI model-zoo config workflow
+        inferer = ConfigWorkflow(
+            workflow_type="infer",
+            config_file=config_file,
+            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            **override,
+        )
+
+        inferer.initialize()
+        inferer.dataset.data[0]["image"] = self.filename
+        inferer.run()
+        self.assertTrue(os.path.exists(os.path.join(self.data_dir, "image", "image_seg.nii.gz")))
+        # bundle is instantiated and idle on GPU, just change the input for next inference
+        inferer.dataset.data[0]["image"] = self.filename1
+        inferer.run()
+        self.assertTrue(os.path.exists(os.path.join(self.data_dir, "image1", "image1_seg.nii.gz")))
+
+        inferer.finalize()
 
     @parameterized.expand([TEST_CASE_3])
     def test_train_config(self, config_file):

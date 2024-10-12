@@ -393,8 +393,15 @@ class ConfigWorkflow(BundleWorkflow):
             ret.extend(wrong_props)
         return ret
 
-    def _run_expr(self, id: str, **kwargs: dict) -> Any:
-        return self.parser.get_parsed_content(id, **kwargs) if id in self.parser else None
+    def _run_expr(self, id: str, **kwargs: dict) -> list[Any]:
+        ret = []
+        if id in self.parser:
+            # suppose all the expressions are in a list, run and reset the expressions
+            for i in range(len(self.parser[id])):
+                sub_id = f"{id}{ID_SEP_KEY}{i}"
+                ret.append(self.parser.get_parsed_content(sub_id, **kwargs))
+                self.parser.ref_resolver.remove_resolved_content(sub_id)
+        return ret
 
     def _get_prop_id(self, name: str, property: dict) -> Any:
         prop_id = property[BundlePropertyConfig.ID]
