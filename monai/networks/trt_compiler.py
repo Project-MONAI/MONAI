@@ -241,6 +241,18 @@ def remove_non_tensors(input_example, remove_constants=True):
         input_example.pop(key)
     return non_tensors
 
+def unroll_input(input_names, input_example):
+    # Simulate list/tuple unrolling during ONNX export
+    unrolled_input={}
+    for name in input_names:
+        val = input_example[name]
+        if val is not None:
+            if isinstance(val, list | tuple):
+                for i in range(len(val)):
+                    unrolled_input[f"{name}_{i}"] = val[i]
+            else:
+                unrolled_input[name] = val
+    return unrolled_input
 
 class TrtCompiler:
     """
@@ -320,10 +332,12 @@ class TrtCompiler:
         if input_names is None:
             input_names = self.argspec.args[1:]
         self.defaults = {}
-        for i in range(len(self.argspec.defaults)):
-            d = self.argspec.defaults[-i - 1]
-            if d is not None:
-                self.defaults[self.argspec.args[-i - 1]] = torch.tensor(d).cuda()
+        if self.argspec.defaults is not None:
+            for i in range(len(self.argspec.defaults)):
+                d = self.argspec.defaults[-i - 1]
+                if d is not None:
+                    d = torch.tensor(d).cuda()
+                self.defaults[self.argspec.args[-i - 1]] = d
 
         self.input_names = input_names
         self.old_forward = model.forward
@@ -345,8 +359,7 @@ class TrtCompiler:
         """
         try:
             self.engine = TRTEngine(self.plan_path, self.logger)
-            self.input_names = self.engine.input_names
-            self.logger.info(f"Engine loaded, inputs:{self.input_names}")
+            self.logger.info(f"Engine loaded, inputs:{self.engine.input_names}")
         except Exception as e:
             self.logger.info(f"Exception while loading the engine:\n{e}")
 
@@ -361,6 +374,11 @@ class TrtCompiler:
         Returns: Passing through wrapped module's forward() return value(s)
 
         """
+        args = self.defaults
+        args.update(kwargs)
+        if len(argv) > 0:
+            args.update(self._inputs_to_dict(argv))
+
         if self.engine is None and not self.disabled:
             # Restore original forward for export
             new_forward = model.forward
@@ -368,9 +386,7 @@ class TrtCompiler:
             try:
                 self._load_engine()
                 if self.engine is None:
-                    build_args = kwargs.copy()
-                    if len(argv) > 0:
-                        build_args.update(self._inputs_to_dict(argv))
+                    build_args = args.copy()
                     with torch.no_grad():
                         self._build_and_save(model, build_args)
                         # This will reassign input_names from the engine
@@ -393,16 +409,11 @@ class TrtCompiler:
         # Run the engine
         try:
             if self.engine is not None:
-                args = self.defaults
-                args.update(kwargs)
-                if len(argv) > 0:
-                    args.update(self._inputs_to_dict(argv))
-                remove_non_tensors(args, remove_constants=False)
                 # forward_trt is not thread safe as we do not use per-thread execution contexts
                 with lock_sm:
                     device = torch.cuda.current_device()
                     stream = torch.cuda.Stream(device=device)
-                    self.engine.set_inputs(args, stream.cuda_stream)
+                    self.engine.set_inputs(unroll_input(self.input_names, args), stream.cuda_stream)
                     self.engine.allocate_buffers(device=device)
                     # Need this to synchronize with Torch stream
                     stream.wait_stream(torch.cuda.current_stream())
@@ -448,7 +459,7 @@ class TrtCompiler:
         network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
         return engine_bytes_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
 
-    def _build_and_save(self, model, input_example):
+    def _build_and_save(self, model, input_example): 
         """
         If TRT engine is not ready, exports model to ONNX,
         builds TRT engine and saves serialized TRT engine to the disk.
@@ -461,7 +472,7 @@ class TrtCompiler:
 
         export_args = self.export_args
 
-        remove_non_tensors(input_example)
+        # remove_non_tensors(input_example)
 
         engine_bytes = None
         add_casts_around_norms(model)
@@ -514,11 +525,12 @@ class TrtCompiler:
                 self.logger.info(
                     f"Exporting to {onnx_path}:\ninputs={list(input_example.keys())}\toutput_names={self.output_names}\n\texport args: {export_args}"
                 )
+                input_names = list(unroll_input(self.input_names, input_example).keys())
                 convert_to_onnx(
                     model,
                     input_example,
                     filename=onnx_path,
-                    input_names=self.input_names,
+                    input_names=input_names,
                     output_names=self.output_names,
                     **export_args,
                 )
