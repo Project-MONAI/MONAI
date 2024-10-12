@@ -53,14 +53,15 @@ Metrics
 
 `Mean Dice`
 -----------
-.. autofunction:: compute_meandice
-
 .. autoclass:: DiceMetric
+    :members:
+
+.. autoclass:: DiceHelper
     :members:
 
 `Mean IoU`
 ----------
-.. autofunction:: compute_meaniou
+.. autofunction:: compute_iou
 
 .. autoclass:: MeanIoU
     :members:
@@ -140,10 +141,40 @@ Metrics
 -------------------------------------
 .. autoclass:: monai.metrics.regression.SSIMMetric
 
+`Multi-scale structural similarity index measure`
+-------------------------------------------------
+.. autoclass:: MultiScaleSSIMMetric
+
+`Fréchet Inception Distance`
+------------------------------
+.. autofunction:: compute_frechet_distance
+
+.. autoclass:: FIDMetric
+    :members:
+
+`Maximum Mean Discrepancy`
+------------------------------
+.. autofunction:: compute_mmd
+
+.. autoclass:: MMDMetric
+    :members:
+
 `Cumulative average`
 --------------------
 .. autoclass:: CumulativeAverage
     :members:
+
+`Metrics reloaded binary`
+-------------------------
+.. autoclass:: MetricsReloadedBinary
+    :members:
+
+`Metrics reloaded categorical`
+------------------------------
+.. autoclass:: MetricsReloadedCategorical
+    :members:
+
+
 
 Utilities
 ---------

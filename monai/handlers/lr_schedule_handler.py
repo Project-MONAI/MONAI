@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from torch.optim.lr_scheduler import ReduceLROnPlateau, _LRScheduler
 
-from monai.config import IgniteInfo
-from monai.utils import ensure_tuple, min_version, optional_import
+from monai.utils import IgniteInfo, ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -33,9 +35,9 @@ class LrScheduleHandler:
 
     def __init__(
         self,
-        lr_scheduler: Union[_LRScheduler, ReduceLROnPlateau],
+        lr_scheduler: _LRScheduler | ReduceLROnPlateau,
         print_lr: bool = True,
-        name: Optional[str] = None,
+        name: str | None = None,
         epoch_level: bool = True,
         step_transform: Callable[[Engine], Any] = lambda engine: (),
     ) -> None:

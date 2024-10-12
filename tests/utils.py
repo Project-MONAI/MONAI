@@ -9,6 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+import argparse
 import copy
 import datetime
 import functools
@@ -28,7 +31,7 @@ import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
 from subprocess import PIPE, Popen
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -41,13 +44,15 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data import create_test_image_2d, create_test_image_3d
 from monai.data.meta_tensor import MetaTensor, get_track_meta
-from monai.networks import convert_to_torchscript
+from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
-from monai.utils.module import pytorch_after, version_leq
+from monai.utils.misc import MONAIEnvVars
+from monai.utils.module import pytorch_after
+from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
 
 nib, _ = optional_import("nibabel")
-http_error, has_requests = optional_import("requests", name="HTTPError")
+http_error, has_req = optional_import("requests", name="HTTPError")
 
 quick_test_var = "QUICKTEST"
 _tf32_enabled = None
@@ -62,6 +67,16 @@ def testing_data_config(*keys):
             for k, v in _config.items():
                 _test_data_config[k] = v
     return reduce(operator.getitem, keys, _test_data_config)
+
+
+def get_testing_algo_template_path():
+    """
+    a local folder to the testing algorithm template or a url to the compressed template file.
+    Default to None, which effectively uses bundle_gen's ``default_algo_zip`` path.
+
+    https://github.com/Project-MONAI/MONAI/blob/1.1.0/monai/apps/auto3dseg/bundle_gen.py#L380-L381
+    """
+    return MONAIEnvVars.testing_algo_template()
 
 
 def clone(data: NdarrayTensor) -> NdarrayTensor:
@@ -80,7 +95,7 @@ def clone(data: NdarrayTensor) -> NdarrayTensor:
 def assert_allclose(
     actual: NdarrayOrTensor,
     desired: NdarrayOrTensor,
-    type_test: Union[bool, str] = True,
+    type_test: bool | str = True,
     device_test: bool = False,
     *args,
     **kwargs,
@@ -124,7 +139,7 @@ def assert_allclose(
 def skip_if_downloading_fails():
     try:
         yield
-    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_requests else () as e:
+    except (ContentTooShortError, HTTPError, ConnectionError) + (http_error,) if has_req else () as e:  # noqa: B030
         raise unittest.SkipTest(f"error while downloading: {e}") from e
     except ssl.SSLError as ssl_e:
         if "decryption failed" in str(ssl_e):
@@ -140,6 +155,8 @@ def skip_if_downloading_fails():
                 "md5 check",
                 "limit",  # HTTP Error 503: Egress is over the account limit
                 "authenticate",
+                "timed out",  # urlopen error [Errno 110] Connection timed out
+                "HTTPError",  # HTTPError: 429 Client Error: Too Many Requests for huggingface hub
             )
         ):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -158,19 +175,14 @@ def test_is_quick():
 
 def is_tf32_env():
     """
-    The environment variable NVIDIA_TF32_OVERRIDE=0 will override any defaults
-    or programmatic configuration of NVIDIA libraries, and consequently,
-    cuBLAS will not accelerate FP32 computations with TF32 tensor cores.
+    When we may be using TF32 mode, check the precision of matrix operation.
+    If the checking result is greater than the threshold 0.001,
+    set _tf32_enabled=True (and relax _rtol for tests).
     """
     global _tf32_enabled
     if _tf32_enabled is None:
         _tf32_enabled = False
-        if (
-            torch.cuda.is_available()
-            and not version_leq(f"{torch.version.cuda}", "10.100")
-            and os.environ.get("NVIDIA_TF32_OVERRIDE", "1") != "0"
-            and torch.cuda.device_count() > 0  # at least 11.0
-        ):
+        if torch.cuda.is_available() and (detect_default_tf32() or torch.backends.cuda.matmul.allow_tf32):
             try:
                 # with TF32 enabled, the speed is ~8x faster, but the precision has ~2 digits less in the result
                 g_gpu = torch.Generator(device="cuda")
@@ -307,7 +319,9 @@ def has_cupy():
 HAS_CUPY = has_cupy()
 
 
-def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False):
+def make_nifti_image(
+    array: NdarrayOrTensor, affine=None, dir=None, fname=None, suffix=".nii.gz", verbose=False, dtype=float
+):
     """
     Create a temporary nifti image on the disk and return the image name.
     User is responsible for deleting the temporary file when done with it.
@@ -318,7 +332,7 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, 
         affine, *_ = convert_data_type(affine, np.ndarray)
     if affine is None:
         affine = np.eye(4)
-    test_image = nib.Nifti1Image(array, affine)
+    test_image = nib.Nifti1Image(array.astype(dtype), affine)  # type: ignore
 
     # if dir not given, create random. Else, make sure it exists.
     if dir is None:
@@ -339,7 +353,7 @@ def make_nifti_image(array: NdarrayOrTensor, affine=None, dir=None, fname=None, 
     return fname
 
 
-def make_rand_affine(ndim: int = 3, random_state: Optional[np.random.RandomState] = None):
+def make_rand_affine(ndim: int = 3, random_state: np.random.RandomState | None = None):
     """Create random affine transformation (with values == -1, 0 or 1)."""
     rs = np.random.random.__self__ if random_state is None else random_state  # type: ignore
 
@@ -401,13 +415,13 @@ class DistCall:
         nnodes: int = 1,
         nproc_per_node: int = 1,
         master_addr: str = "localhost",
-        master_port: Optional[int] = None,
-        node_rank: Optional[int] = None,
+        master_port: int | None = None,
+        node_rank: int | None = None,
         timeout=60,
         init_method=None,
-        backend: Optional[str] = None,
-        daemon: Optional[bool] = None,
-        method: Optional[str] = "spawn",
+        backend: str | None = None,
+        daemon: bool | None = None,
+        method: str | None = "spawn",
         verbose: bool = False,
     ):
         """
@@ -461,7 +475,7 @@ class DistCall:
             if self.verbose:
                 os.environ["NCCL_DEBUG"] = "INFO"
                 os.environ["NCCL_DEBUG_SUBSYS"] = "ALL"
-            os.environ["NCCL_BLOCKING_WAIT"] = str(1)
+            os.environ["TORCH_NCCL_BLOCKING_WAIT"] = str(1)
             os.environ["OMP_NUM_THREADS"] = str(1)
             os.environ["WORLD_SIZE"] = str(self.nproc_per_node * self.nnodes)
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
@@ -537,8 +551,8 @@ class TimedCall:
     def __init__(
         self,
         seconds: float = 60.0,
-        daemon: Optional[bool] = None,
-        method: Optional[str] = "spawn",
+        daemon: bool | None = None,
+        method: str | None = "spawn",
         force_quit: bool = True,
         skip_timing=False,
     ):
@@ -571,7 +585,6 @@ class TimedCall:
             results.put(e)
 
     def __call__(self, obj):
-
         if self.skip_timing:
             return obj
 
@@ -665,6 +678,7 @@ class NumpyImageTestCase2D(unittest.TestCase):
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
+
     def setUp(self):
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -695,6 +709,7 @@ class NumpyImageTestCase3D(unittest.TestCase):
 
 
 class TorchImageTestCase3D(NumpyImageTestCase3D):
+
     def setUp(self):
         NumpyImageTestCase3D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -712,21 +727,40 @@ def test_script_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
     """
     # TODO: would be nice to use GPU if available, but it currently causes CI failures.
     device = "cpu"
-    try:
-        with tempfile.TemporaryDirectory() as tempdir:
-            convert_to_torchscript(
-                model=net,
-                filename_or_obj=os.path.join(tempdir, "model.ts"),
-                verify=True,
-                inputs=inputs,
-                device=device,
-                rtol=rtol,
-                atol=atol,
-            )
-    except (RuntimeError, AttributeError):
-        if sys.version_info.major == 3 and sys.version_info.minor == 11:
-            warnings.warn("skipping py 3.11")
-            return
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_torchscript(
+            model=net,
+            filename_or_obj=os.path.join(tempdir, "model.ts"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            rtol=rtol,
+            atol=atol,
+        )
+
+
+def test_onnx_save(net, *inputs, device=None, rtol=1e-4, atol=0.0):
+    """
+    Test the ability to save `net` in ONNX format, reload it and validate with runtime.
+    The value `inputs` is forward-passed through the `net` without gradient accumulation
+    to do onnx export and PyTorch inference.
+    PyTorch model inference is performed with CUDA if available, else CPU.
+    Saved ONNX model is validated with onnxruntime, if available, else ONNX native implementation.
+    """
+    # TODO: would be nice to use GPU if available, but it currently causes CI failures.
+    device = "cpu"
+    _, has_onnxruntime = optional_import("onnxruntime")
+    with tempfile.TemporaryDirectory() as tempdir:
+        convert_to_onnx(
+            model=net,
+            filename=os.path.join(tempdir, "model.onnx"),
+            verify=True,
+            inputs=inputs,
+            device=device,
+            use_ort=has_onnxruntime,
+            rtol=rtol,
+            atol=atol,
+        )
 
 
 def download_url_or_skip_test(*args, **kwargs):
@@ -742,6 +776,7 @@ def query_memory(n=2):
     bash_string = "nvidia-smi --query-gpu=power.draw,temperature.gpu,memory.used --format=csv,noheader,nounits"
 
     try:
+        print(f"query memory with n={n}")
         p1 = Popen(bash_string.split(), stdout=PIPE)
         output, error = p1.communicate()
         free_memory = [x.split(",") for x in output.decode("utf-8").split("\n")[:-1]]
@@ -774,13 +809,24 @@ def command_line_tests(cmd, copy_env=True):
     try:
         normal_out = subprocess.run(cmd, env=test_env, check=True, capture_output=True)
         print(repr(normal_out).replace("\\n", "\n").replace("\\t", "\t"))
+        return repr(normal_out)
     except subprocess.CalledProcessError as e:
         output = repr(e.stdout).replace("\\n", "\n").replace("\\t", "\t")
         errors = repr(e.stderr).replace("\\n", "\n").replace("\\t", "\t")
         raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}") from e
 
 
-TEST_TORCH_TENSORS: Tuple = (torch.as_tensor,)
+def equal_state_dict(st_1, st_2):
+    """
+    assert equal state_dict (for the shared keys between st_1 and st_2).
+    """
+    for key_st_1, val_st_1 in st_1.items():
+        if key_st_1 in st_2:
+            val_st_2 = st_2.get(key_st_1)
+            assert_allclose(val_st_1, val_st_2)
+
+
+TEST_TORCH_TENSORS: tuple = (torch.as_tensor,)
 if torch.cuda.is_available():
     gpu_tensor: Callable = partial(torch.as_tensor, device="cuda")
     TEST_TORCH_TENSORS = TEST_TORCH_TENSORS + (gpu_tensor,)
@@ -789,9 +835,9 @@ DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-TEST_NDARRAYS_NO_META_TENSOR: Tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
-TEST_NDARRAYS: Tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
-TEST_TORCH_AND_META_TENSORS: Tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS
+TEST_NDARRAYS: tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 
@@ -800,5 +846,8 @@ if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
 if __name__ == "__main__":
-    print("\n", query_memory(), sep="\n")  # print to stdout
+    parser = argparse.ArgumentParser(prog="util")
+    parser.add_argument("-c", "--count", default=2, help="max number of gpus")
+    args = parser.parse_args()
+    print("\n", query_memory(int(args.count)), sep="\n")  # print to stdout
     sys.exit(0)

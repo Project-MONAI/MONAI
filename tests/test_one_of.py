@@ -9,12 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
 import numpy as np
+import torch
 from parameterized import parameterized
 
+import monai.transforms.intensity.array as ia
+import monai.transforms.spatial.array as sa
+import monai.transforms.spatial.dictionary as sd
 from monai.data import MetaTensor
 from monai.transforms import (
     InvertibleTransform,
@@ -25,7 +31,6 @@ from monai.transforms import (
     RandShiftIntensityd,
     Resize,
     Resized,
-    TraceableTransform,
     Transform,
 )
 from monai.transforms.compose import Compose
@@ -34,31 +39,37 @@ from monai.utils.enums import TraceKeys
 
 
 class X(Transform):
+
     def __call__(self, x):
         return x
 
 
 class Y(Transform):
+
     def __call__(self, x):
         return x
 
 
 class A(Transform):
+
     def __call__(self, x):
         return x + 1
 
 
 class B(Transform):
+
     def __call__(self, x):
         return x + 2
 
 
 class C(Transform):
+
     def __call__(self, x):
         return x + 3
 
 
 class MapBase(MapTransform):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn, self.inv_fn = None, None
@@ -71,12 +82,14 @@ class MapBase(MapTransform):
 
 
 class NonInv(MapBase):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x * 2
 
 
 class Inv(MapBase, InvertibleTransform):
+
     def __call__(self, data):
         d = deepcopy(dict(data))
         for key in self.key_iterator(d):
@@ -93,6 +106,7 @@ class Inv(MapBase, InvertibleTransform):
 
 
 class InvA(Inv):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x + 1
@@ -100,6 +114,7 @@ class InvA(Inv):
 
 
 class InvB(Inv):
+
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x + 100
@@ -118,6 +133,7 @@ TEST_INVERSES = [
 
 
 class TestOneOf(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_normalize_weights(self, transforms, input_weights, expected_weights):
         tr = OneOf(transforms, input_weights)
@@ -154,16 +170,12 @@ class TestOneOf(unittest.TestCase):
 
     @parameterized.expand(TEST_INVERSES)
     def test_inverse(self, transform, invertible, use_metatensor):
-        data = {k: (i + 1) * 10.0 if not use_metatensor else MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
+        data = {k: MetaTensor((i + 1) * 10.0) for i, k in enumerate(KEYS)}
         fwd_data = transform(data)
 
         if invertible:
             for k in KEYS:
-                t = (
-                    fwd_data[TraceableTransform.trace_key(k)][-1]
-                    if not use_metatensor
-                    else fwd_data[k].applied_operations[-1]
-                )
+                t = fwd_data[k].applied_operations[-1]
                 # make sure the OneOf index was stored
                 self.assertEqual(t[TraceKeys.CLASS_NAME], OneOf.__name__)
                 # make sure index exists and is in bounds
@@ -174,12 +186,6 @@ class TestOneOf(unittest.TestCase):
 
         if invertible:
             for k in KEYS:
-                # check transform was removed
-                if not use_metatensor:
-                    self.assertTrue(
-                        len(fwd_inv_data[TraceableTransform.trace_key(k)])
-                        < len(fwd_data[TraceableTransform.trace_key(k)])
-                    )
                 # check data is same as original (and different from forward)
                 self.assertEqual(fwd_inv_data[k], data[k])
                 self.assertNotEqual(fwd_inv_data[k], fwd_data[k])
@@ -234,6 +240,43 @@ class TestOneOf(unittest.TestCase):
         self.assertAlmostEqual(counts[0] / 10000, 0.25, delta=1.0)
         self.assertAlmostEqual(counts[1] / 10000, 0.50, delta=1.0)
         self.assertAlmostEqual(counts[2] / 10000, 0.25, delta=1.0)
+
+
+TEST_ONEOF_EXTENDED_TEST_CASES = [
+    [None, tuple()],
+    [None, (sa.Rotate(np.pi / 8),)],
+    [None, (sa.Flip(0), sa.Flip(1), sa.Rotate90(1), sa.Zoom(0.8), ia.NormalizeIntensity())],
+    [("a",), (sd.Rotated(("a",), np.pi / 8),)],
+]
+
+
+class TestOneOfAPITests(unittest.TestCase):
+
+    @staticmethod
+    def data_from_keys(keys):
+        if keys is None:
+            data = torch.unsqueeze(torch.tensor(np.arange(12 * 16).reshape(12, 16)), dim=0)
+        else:
+            data = {}
+            for i_k, k in enumerate(keys):
+                data[k] = torch.unsqueeze(torch.tensor(np.arange(12 * 16)).reshape(12, 16) + i_k * 192, dim=0)
+        return data
+
+    @parameterized.expand(TEST_ONEOF_EXTENDED_TEST_CASES)
+    def test_execute_change_start_end(self, keys, pipeline):
+        data = self.data_from_keys(keys)
+
+        c = OneOf(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+        with self.assertRaises(ValueError):
+            c(data, start=1)
+
+        c = OneOf(deepcopy(pipeline))
+        with self.assertRaises(ValueError):
+            c(data, end=1)
+        with self.assertRaises(ValueError):
+            c(data, end=1)
 
 
 if __name__ == "__main__":

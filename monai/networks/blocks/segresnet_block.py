@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple, Union
+from __future__ import annotations
 
 import torch.nn as nn
 
@@ -22,14 +22,13 @@ from monai.utils import InterpolateMode, UpsampleMode
 def get_conv_layer(
     spatial_dims: int, in_channels: int, out_channels: int, kernel_size: int = 3, stride: int = 1, bias: bool = False
 ):
-
     return Convolution(
         spatial_dims, in_channels, out_channels, strides=stride, kernel_size=kernel_size, bias=bias, conv_only=True
     )
 
 
 def get_upsample_layer(
-    spatial_dims: int, in_channels: int, upsample_mode: Union[UpsampleMode, str] = "nontrainable", scale_factor: int = 2
+    spatial_dims: int, in_channels: int, upsample_mode: UpsampleMode | str = "nontrainable", scale_factor: int = 2
 ):
     return UpSample(
         spatial_dims=spatial_dims,
@@ -53,9 +52,9 @@ class ResBlock(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        norm: Union[Tuple, str],
+        norm: tuple | str,
         kernel_size: int = 3,
-        act: Union[Tuple, str] = ("RELU", {"inplace": True}),
+        act: tuple | str = ("RELU", {"inplace": True}),
     ) -> None:
         """
         Args:
@@ -74,11 +73,14 @@ class ResBlock(nn.Module):
         self.norm1 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.norm2 = get_norm_layer(name=norm, spatial_dims=spatial_dims, channels=in_channels)
         self.act = get_act_layer(act)
-        self.conv1 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
-        self.conv2 = get_conv_layer(spatial_dims, in_channels=in_channels, out_channels=in_channels)
+        self.conv1 = get_conv_layer(
+            spatial_dims, in_channels=in_channels, out_channels=in_channels, kernel_size=kernel_size
+        )
+        self.conv2 = get_conv_layer(
+            spatial_dims, in_channels=in_channels, out_channels=in_channels, kernel_size=kernel_size
+        )
 
     def forward(self, x):
-
         identity = x
 
         x = self.norm1(x)

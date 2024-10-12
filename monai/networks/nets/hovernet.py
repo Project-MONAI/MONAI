@@ -27,11 +27,13 @@
 # }
 # =========================================================================
 
+from __future__ import annotations
+
 import os
 import re
 import warnings
 from collections import OrderedDict
-from typing import Callable, Dict, List, Optional, Sequence, Type, Union
+from collections.abc import Callable, Sequence
 
 import torch
 import torch.nn as nn
@@ -41,20 +43,21 @@ from monai.networks.blocks import UpSample
 from monai.networks.layers.factories import Conv, Dropout
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils.enums import HoVerNetBranch, HoVerNetMode, InterpolateMode, UpsampleMode
-from monai.utils.module import export, look_up_option
+from monai.utils.module import look_up_option
 
 __all__ = ["HoVerNet", "Hovernet", "HoVernet", "HoVerNet"]
 
 
 class _DenseLayerDecoder(nn.Module):
+
     def __init__(
         self,
         num_features: int,
         in_channels: int,
         out_channels: int,
         dropout_prob: float = 0.0,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
         kernel_size: int = 3,
         padding: int = 0,
     ) -> None:
@@ -90,7 +93,6 @@ class _DenseLayerDecoder(nn.Module):
             self.layers.add_module("dropout", dropout_type(dropout_prob))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         x1 = self.layers(x)
         if x1.shape[-1] != x.shape[-1]:
             trim = (x.shape[-1] - x1.shape[-1]) // 2
@@ -102,6 +104,7 @@ class _DenseLayerDecoder(nn.Module):
 
 
 class _DecoderBlock(nn.Sequential):
+
     def __init__(
         self,
         layers: int,
@@ -109,8 +112,8 @@ class _DecoderBlock(nn.Sequential):
         in_channels: int,
         out_channels: int,
         dropout_prob: float = 0.0,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
         kernel_size: int = 3,
         same_padding: bool = False,
     ) -> None:
@@ -158,14 +161,15 @@ class _DecoderBlock(nn.Sequential):
 
 
 class _DenseLayer(nn.Sequential):
+
     def __init__(
         self,
         num_features: int,
         in_channels: int,
         out_channels: int,
         dropout_prob: float = 0.0,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
         drop_first_norm_relu: int = 0,
         kernel_size: int = 3,
     ) -> None:
@@ -218,8 +222,9 @@ class _DenseLayer(nn.Sequential):
 
 
 class _Transition(nn.Sequential):
+
     def __init__(
-        self, in_channels: int, act: Union[str, tuple] = ("relu", {"inplace": True}), norm: Union[str, tuple] = "batch"
+        self, in_channels: int, act: str | tuple = ("relu", {"inplace": True}), norm: str | tuple = "batch"
     ) -> None:
         """
         Args:
@@ -234,6 +239,7 @@ class _Transition(nn.Sequential):
 
 
 class _ResidualBlock(nn.Module):
+
     def __init__(
         self,
         layers: int,
@@ -241,8 +247,8 @@ class _ResidualBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         dropout_prob: float = 0.0,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
         freeze_dense_layer: bool = False,
         freeze_block: bool = False,
     ) -> None:
@@ -292,7 +298,6 @@ class _ResidualBlock(nn.Module):
             self.requires_grad_(False)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         sc = self.shortcut(x)
 
         if self.shortcut.stride == (2, 2):
@@ -312,11 +317,12 @@ class _ResidualBlock(nn.Module):
 
 
 class _DecoderBranch(nn.ModuleList):
+
     def __init__(
         self,
         decode_config: Sequence[int] = (8, 4),
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
         dropout_prob: float = 0.0,
         out_channels: int = 2,
         kernel_size: int = 3,
@@ -385,8 +391,7 @@ class _DecoderBranch(nn.ModuleList):
             2, scale_factor=2, mode=UpsampleMode.NONTRAINABLE, interp_mode=InterpolateMode.BILINEAR, bias=False
         )
 
-    def forward(self, xin: torch.Tensor, short_cuts: List[torch.Tensor]) -> torch.Tensor:
-
+    def forward(self, xin: torch.Tensor, short_cuts: list[torch.Tensor]) -> torch.Tensor:
         block_number = len(short_cuts) - 1
         x = xin + short_cuts[block_number]
 
@@ -404,7 +409,6 @@ class _DecoderBranch(nn.ModuleList):
         return x
 
 
-@export("monai.networks.nets")
 class HoVerNet(nn.Module):
     """HoVerNet model
 
@@ -415,6 +419,10 @@ class HoVerNet(nn.Module):
 
       https://github.com/vqdang/hover_net
       https://pytorch.org/vision/main/models/generated/torchvision.models.resnet50.html
+
+    This network is non-deterministic since it uses `torch.nn.Upsample` with ``UpsampleMode.NONTRAINABLE`` mode which
+    is implemented with torch.nn.functional.interpolate(). Please check the link below for more details:
+    https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
 
     Args:
         mode: use original implementation (`HoVerNetMODE.ORIGINAL` or "original") or
@@ -440,6 +448,8 @@ class HoVerNet(nn.Module):
         adapt_standard_resnet: if the pretrained weights of the encoder follow the original format (preact-resnet50), this
             value should be `False`. If using the pretrained weights that follow torchvision's standard resnet50 format,
             this value should be `True`.
+        pretrained_state_dict_key: this arg is used when `pretrained_url` is provided and `adapt_standard_resnet` is True.
+            It is used to extract the expected state dict.
         freeze_encoder: whether to freeze the encoder of the network.
     """
 
@@ -448,19 +458,19 @@ class HoVerNet(nn.Module):
 
     def __init__(
         self,
-        mode: Union[HoVerNetMode, str] = HoVerNetMode.FAST,
+        mode: HoVerNetMode | str = HoVerNetMode.FAST,
         in_channels: int = 3,
         np_out_channels: int = 2,
         out_classes: int = 0,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
         decoder_padding: bool = False,
         dropout_prob: float = 0.0,
-        pretrained_url: Optional[str] = None,
+        pretrained_url: str | None = None,
         adapt_standard_resnet: bool = False,
+        pretrained_state_dict_key: str | None = None,
         freeze_encoder: bool = False,
     ) -> None:
-
         super().__init__()
 
         if isinstance(mode, str):
@@ -492,7 +502,7 @@ class HoVerNet(nn.Module):
             _ksize = 5
             _pad = 0
 
-        conv_type: Type[nn.Conv2d] = Conv[Conv.CONV, 2]
+        conv_type: type[nn.Conv2d] = Conv[Conv.CONV, 2]
 
         self.conv0 = nn.Sequential(
             OrderedDict(
@@ -549,7 +559,7 @@ class HoVerNet(nn.Module):
             kernel_size=_ksize, same_padding=decoder_padding, out_channels=np_out_channels
         )
         self.horizontal_vertical = _DecoderBranch(kernel_size=_ksize, same_padding=decoder_padding)
-        self.type_prediction: Optional[_DecoderBranch] = (
+        self.type_prediction: _DecoderBranch | None = (
             _DecoderBranch(out_channels=out_classes, kernel_size=_ksize, same_padding=decoder_padding)
             if out_classes > 0
             else None
@@ -564,13 +574,12 @@ class HoVerNet(nn.Module):
 
         if pretrained_url is not None:
             if adapt_standard_resnet:
-                weights = _remap_standard_resnet_model(pretrained_url)
+                weights = _remap_standard_resnet_model(pretrained_url, state_dict_key=pretrained_state_dict_key)
             else:
                 weights = _remap_preact_resnet_model(pretrained_url)
             _load_pretrained_encoder(self, weights)
 
-    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-
+    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
         if self.mode == HoVerNetMode.ORIGINAL.value:
             if x.shape[-1] != 270 or x.shape[-2] != 270:
                 raise ValueError("Input size should be 270 x 270 when using HoVerNetMode.ORIGINAL")
@@ -600,8 +609,7 @@ class HoVerNet(nn.Module):
         return output
 
 
-def _load_pretrained_encoder(model: nn.Module, state_dict: Union[OrderedDict, Dict]):
-
+def _load_pretrained_encoder(model: nn.Module, state_dict: OrderedDict | dict):
     model_dict = model.state_dict()
     state_dict = {
         k: v for k, v in state_dict.items() if (k in model_dict) and (model_dict[k].shape == state_dict[k].shape)
@@ -609,10 +617,15 @@ def _load_pretrained_encoder(model: nn.Module, state_dict: Union[OrderedDict, Di
 
     model_dict.update(state_dict)
     model.load_state_dict(model_dict)
+    if len(state_dict.keys()) == 0:
+        warnings.warn(
+            "no key will be updated. Please check if 'pretrained_url' or `pretrained_state_dict_key` is correct."
+        )
+    else:
+        print(f"{len(state_dict)} out of {len(model_dict)} keys are updated with pretrained weights.")
 
 
 def _remap_preact_resnet_model(model_url: str):
-
     pattern_conv0 = re.compile(r"^(conv0\.\/)(.+)$")
     pattern_block = re.compile(r"^(d\d+)\.(.+)$")
     pattern_layer = re.compile(r"^(.+\.d\d+)\.units\.(\d+)(.+)$")
@@ -620,7 +633,9 @@ def _remap_preact_resnet_model(model_url: str):
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "preact-resnet50.pth")
     download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None)["desc"]
+    state_dict = torch.load(weights_dir, map_location=None if torch.cuda.is_available() else torch.device("cpu"))[
+        "desc"
+    ]
     for key in list(state_dict.keys()):
         new_key = None
         if pattern_conv0.match(key):
@@ -640,8 +655,7 @@ def _remap_preact_resnet_model(model_url: str):
     return state_dict
 
 
-def _remap_standard_resnet_model(model_url: str):
-
+def _remap_standard_resnet_model(model_url: str, state_dict_key: str | None = None):
     pattern_conv0 = re.compile(r"^conv1\.(.+)$")
     pattern_bn1 = re.compile(r"^bn1\.(.+)$")
     pattern_block = re.compile(r"^layer(\d+)\.(\d+)\.(.+)$")
@@ -654,7 +668,9 @@ def _remap_standard_resnet_model(model_url: str):
     # download the pretrained weights into torch hub's default dir
     weights_dir = os.path.join(torch.hub.get_dir(), "resnet50.pth")
     download_url(model_url, fuzzy=True, filepath=weights_dir, progress=False)
-    state_dict = torch.load(weights_dir, map_location=None)
+    state_dict = torch.load(weights_dir, map_location=None if torch.cuda.is_available() else torch.device("cpu"))
+    if state_dict_key is not None:
+        state_dict = state_dict[state_dict_key]
 
     for key in list(state_dict.keys()):
         new_key = None

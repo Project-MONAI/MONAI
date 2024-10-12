@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -60,14 +62,7 @@ TEST_CASE_RECURSIVE_1 = [
 ]
 TEST_CASE_RECURSIVE_2 = [
     torch.randn(3, 3),
-    Compose(
-        [
-            ToNumpy(),
-            Flip(),
-            OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1], log_stats=True),
-            ToTensor(),
-        ]
-    ),
+    Compose([ToNumpy(), Flip(), OneOf([RandAdjustContrast(prob=0.0), RandFlip(prob=1.0)], weights=[0, 1]), ToTensor()]),
 ]
 TEST_CASE_RECURSIVE_LIST = [
     torch.randn(3, 3),
@@ -77,6 +72,7 @@ TEST_CASE_RECURSIVE_LIST = [
 
 @unittest.skipUnless(has_nvtx, "Required torch._C._nvtx for NVTX Range!")
 class TestNVTXRangeDecorator(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_ARRAY_0, TEST_CASE_ARRAY_1])
     def test_tranform_array(self, input):
         transforms = Compose([Range("random flip")(Flip()), Range()(ToTensor())])
@@ -165,7 +161,6 @@ class TestNVTXRangeDecorator(unittest.TestCase):
         # Check the outputs
         self.assertEqual(transforms.map_items, transforms_range.map_items)
         self.assertEqual(transforms.unpack_items, transforms_range.unpack_items)
-        self.assertEqual(transforms.log_stats, transforms_range.log_stats)
         np.testing.assert_equal(output.numpy(), output_r.numpy())
 
     @parameterized.expand([TEST_CASE_RECURSIVE_LIST])

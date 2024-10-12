@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -45,7 +47,7 @@ class STNBenchmark(nn.Module):
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
         if not self.is_ref:
-            self.xform = AffineTransform(normalized=True, reverse_indexing=reverse_indexing)
+            self.xform = AffineTransform(align_corners=False, normalized=True, reverse_indexing=reverse_indexing)
 
     # Spatial transformer network forward function
     def stn_ref(self, x):
@@ -96,6 +98,7 @@ def compare_2d(is_ref=True, device=None, reverse_indexing=False):
 
 
 class TestSpatialTransformerCore(DistTestCase):
+
     def setUp(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 

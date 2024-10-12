@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -31,6 +33,7 @@ __all__ = ["AffineTransform", "grid_pull", "grid_push", "grid_count", "grid_grad
 
 
 class _GridPull(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, input, grid, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -130,6 +133,7 @@ def grid_pull(
 
 
 class _GridPush(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, input, grid, shape, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -234,6 +238,7 @@ def grid_push(
 
 
 class _GridCount(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, grid, shape, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -333,6 +338,7 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
 
 
 class _GridGrad(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, input, grid, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -431,15 +437,16 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
 
 
 class AffineTransform(nn.Module):
+
     def __init__(
         self,
-        spatial_size: Optional[Union[Sequence[int], int]] = None,
+        spatial_size: Sequence[int] | int | None = None,
         normalized: bool = False,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.ZEROS,
-        align_corners: bool = False,
+        align_corners: bool = True,
         reverse_indexing: bool = True,
-        zero_centered: Optional[bool] = None,
+        zero_centered: bool | None = None,
     ) -> None:
         """
         Apply affine transformations with a batch of affine matrices.
@@ -493,7 +500,7 @@ class AffineTransform(nn.Module):
         self.zero_centered = zero_centered if zero_centered is not None else False
 
     def forward(
-        self, src: torch.Tensor, theta: torch.Tensor, spatial_size: Optional[Union[Sequence[int], int]] = None
+        self, src: torch.Tensor, theta: torch.Tensor, spatial_size: Sequence[int] | int | None = None
     ) -> torch.Tensor:
         """
         ``theta`` must be an affine transformation matrix with shape
@@ -535,6 +542,8 @@ class AffineTransform(nn.Module):
             theta = torch.cat([theta, pad_affine], dim=1)
         if tuple(theta.shape[1:]) not in ((3, 3), (4, 4)):
             raise ValueError(f"theta must be Nx3x3 or Nx4x4, got {theta.shape}.")
+        if not torch.is_floating_point(theta):
+            raise ValueError(f"theta must be floating point data, got {theta.dtype}")
 
         # validate `src`
         if not isinstance(src, torch.Tensor):
@@ -557,7 +566,7 @@ class AffineTransform(nn.Module):
                 affine=theta,
                 src_size=src_size[2:],
                 dst_size=dst_size[2:],
-                align_corners=self.align_corners,
+                align_corners=False,
                 zero_centered=self.zero_centered,
             )
         if self.reverse_indexing:

@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
 
-from monai.config import IgniteInfo
+from typing import TYPE_CHECKING
+
 from monai.engines.evaluator import Evaluator
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -29,7 +30,9 @@ class ValidationHandler:
 
     """
 
-    def __init__(self, interval: int, validator: Optional[Evaluator] = None, epoch_level: bool = True) -> None:
+    def __init__(
+        self, interval: int, validator: Evaluator | None = None, epoch_level: bool = True, exec_at_start: bool = False
+    ) -> None:
         """
         Args:
             interval: do validation every N epochs or every N iterations during training.
@@ -37,6 +40,9 @@ class ValidationHandler:
                 if None, should call `set_validator()` before training.
             epoch_level: execute validation every N epochs or N iterations.
                 `True` is epoch level, `False` is iteration level.
+            exec_at_start: whether to execute a validation first when starting the training.
+                default to `False`. It can be useful especially for some transfer-learning cases
+                to validate the initial model before training.
 
         Raises:
             TypeError: When ``validator`` is not a ``monai.engines.evaluator.Evaluator``.
@@ -47,8 +53,9 @@ class ValidationHandler:
         self.validator = validator
         self.interval = interval
         self.epoch_level = epoch_level
+        self.exec_at_start = exec_at_start
 
-    def set_validator(self, validator: Evaluator):
+    def set_validator(self, validator: Evaluator) -> None:
         """
         Set validator if not setting in the __init__().
         """
@@ -65,6 +72,8 @@ class ValidationHandler:
             engine.add_event_handler(Events.EPOCH_COMPLETED(every=self.interval), self)
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED(every=self.interval), self)
+        if self.exec_at_start:
+            engine.add_event_handler(Events.STARTED, self)
 
     def __call__(self, engine: Engine) -> None:
         """

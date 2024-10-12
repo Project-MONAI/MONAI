@@ -12,8 +12,9 @@
 This script contains utility functions for developing new networks/blocks in PyTorch.
 """
 
+from __future__ import annotations
+
 import math
-from typing import Tuple
 
 from torch import Tensor
 from torch.nn import functional as F
@@ -75,7 +76,7 @@ def reshape_channel_complex_to_last_dim(x: Tensor) -> Tensor:
         raise ValueError(f"only 2D (B,C*2,H,W) and 3D (B,C*2,H,W,D) data are supported but x has shape {x.shape}")
 
 
-def reshape_channel_to_batch_dim(x: Tensor) -> Tuple[Tensor, int]:
+def reshape_channel_to_batch_dim(x: Tensor) -> tuple[Tensor, int]:
     """
     Combines batch and channel dimensions.
 
@@ -125,7 +126,7 @@ def reshape_batch_channel_to_channel_dim(x: Tensor, batch_size: int) -> Tensor:
         raise ValueError(f"only 2D (B*C,1,H,W,2) and 3D (B*C,1,H,W,D,2) data are supported but x has shape {x.shape}")
 
 
-def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+def complex_normalize(x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
     """
     Performs layer mean-std normalization for complex data. Normalization is done for each batch member
     along each part (part refers to real and imaginary parts), separately.
@@ -167,7 +168,7 @@ def complex_normalize(x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
 
 def divisible_pad_t(
     x: Tensor, k: int = 16
-) -> Tuple[Tensor, Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], int, int, int]]:
+) -> tuple[Tensor, tuple[tuple[int, int], tuple[int, int], tuple[int, int], int, int, int]]:
     """
     Pad input to feed into the network (torch script compatible)
 
@@ -228,7 +229,7 @@ def divisible_pad_t(
 
 
 def inverse_divisible_pad_t(
-    x: Tensor, pad_sizes: Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], int, int, int]
+    x: Tensor, pad_sizes: tuple[tuple[int, int], tuple[int, int], tuple[int, int], int, int, int]
 ) -> Tensor:
     """
     De-pad network output to match its original shape
@@ -252,7 +253,7 @@ def inverse_divisible_pad_t(
         raise ValueError(f"only 2D (B,C,H,W) and 3D (B,C,H,W,D) data are supported but x has shape {x.shape}")
 
 
-def floor_ceil(n: float) -> Tuple[int, int]:
+def floor_ceil(n: float) -> tuple[int, int]:
     """
     Returns floor and ceil of the input
 

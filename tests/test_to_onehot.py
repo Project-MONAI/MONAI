@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -42,6 +44,7 @@ TEST_CASE_4 = [  # no channel 0D, batch 3, shape (3)
 
 
 class TestToOneHot(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_shape(self, input_data, expected_shape, expected_result=None):
         result = one_hot(**input_data)

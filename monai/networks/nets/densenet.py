@@ -9,9 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import re
 from collections import OrderedDict
-from typing import Callable, Sequence, Type, Union
+from collections.abc import Callable, Sequence
 
 import torch
 import torch.nn as nn
@@ -40,6 +42,7 @@ __all__ = [
 
 
 class _DenseLayer(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -47,8 +50,8 @@ class _DenseLayer(nn.Module):
         growth_rate: int,
         bn_size: int,
         dropout_prob: float,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
     ) -> None:
         """
         Args:
@@ -86,6 +89,7 @@ class _DenseLayer(nn.Module):
 
 
 class _DenseBlock(nn.Sequential):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -94,8 +98,8 @@ class _DenseBlock(nn.Sequential):
         bn_size: int,
         growth_rate: int,
         dropout_prob: float,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
     ) -> None:
         """
         Args:
@@ -117,13 +121,14 @@ class _DenseBlock(nn.Sequential):
 
 
 class _Transition(nn.Sequential):
+
     def __init__(
         self,
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
     ) -> None:
         """
         Args:
@@ -175,16 +180,15 @@ class DenseNet(nn.Module):
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 24, 16),
         bn_size: int = 4,
-        act: Union[str, tuple] = ("relu", {"inplace": True}),
-        norm: Union[str, tuple] = "batch",
+        act: str | tuple = ("relu", {"inplace": True}),
+        norm: str | tuple = "batch",
         dropout_prob: float = 0.0,
     ) -> None:
-
         super().__init__()
 
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
-        pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
-        avg_pool_type: Type[Union[nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d]] = Pool[
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
+        pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
+        avg_pool_type: type[nn.AdaptiveAvgPool1d | nn.AdaptiveAvgPool2d | nn.AdaptiveAvgPool3d] = Pool[
             Pool.ADAPTIVEAVG, spatial_dims
         ]
 
@@ -294,6 +298,9 @@ class DenseNet121(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 24, 16),
@@ -301,9 +308,17 @@ class DenseNet121(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
-            if kwargs["spatial_dims"] > 2:
+            if spatial_dims > 2:
                 raise NotImplementedError(
                     "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
                     "provide pretrained models for more than two spatial dimensions."
@@ -316,6 +331,9 @@ class DenseNet169(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 32, 32),
@@ -323,9 +341,17 @@ class DenseNet169(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
-            if kwargs["spatial_dims"] > 2:
+            if spatial_dims > 2:
                 raise NotImplementedError(
                     "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
                     "provide pretrained models for more than two spatial dimensions."
@@ -338,6 +364,9 @@ class DenseNet201(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 48, 32),
@@ -345,9 +374,17 @@ class DenseNet201(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
-            if kwargs["spatial_dims"] > 2:
+            if spatial_dims > 2:
                 raise NotImplementedError(
                     "Parameter `spatial_dims` is > 2 ; currently PyTorch Hub does not"
                     "provide pretrained models for more than two spatial dimensions."
@@ -360,6 +397,9 @@ class DenseNet264(DenseNet):
 
     def __init__(
         self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
         init_features: int = 64,
         growth_rate: int = 32,
         block_config: Sequence[int] = (6, 12, 64, 48),
@@ -367,7 +407,15 @@ class DenseNet264(DenseNet):
         progress: bool = True,
         **kwargs,
     ) -> None:
-        super().__init__(init_features=init_features, growth_rate=growth_rate, block_config=block_config, **kwargs)
+        super().__init__(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            init_features=init_features,
+            growth_rate=growth_rate,
+            block_config=block_config,
+            **kwargs,
+        )
         if pretrained:
             raise NotImplementedError("Currently PyTorch Hub does not provide densenet264 pretrained models.")
 

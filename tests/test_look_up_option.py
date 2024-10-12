@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from enum import Enum
 
@@ -42,6 +44,7 @@ TEST_CASES = (
 
 
 class TestLookUpOption(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_look_up(self, input_str, supported, expected):
         output = look_up_option(input_str, supported)
@@ -53,7 +56,7 @@ class TestLookUpOption(unittest.TestCase):
 
     def test_str_enum(self):
         output = look_up_option("C", {"A", "B"}, default=None)
-        self.assertEqual(output, None)
+        self.assertIsNone(output)
         self.assertEqual(list(_CaseStrEnum), ["A", "B"])
         self.assertEqual(_CaseStrEnum.MODE_A, "A")
         self.assertEqual(str(_CaseStrEnum.MODE_A), "A")

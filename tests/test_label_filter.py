@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -56,6 +58,7 @@ INVALID_CASES = [ITEST_CASE_1]
 
 
 class TestLabelFilter(unittest.TestCase):
+
     @parameterized.expand(VALID_TESTS)
     def test_correct_results(self, _, args, input_image, expected):
         converter = LabelFilter(**args)

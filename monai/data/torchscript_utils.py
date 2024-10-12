@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import datetime
 import json
 import os
-from typing import IO, Any, Mapping, Optional, Sequence, Tuple, Union
+from collections.abc import Mapping, Sequence
+from typing import IO, Any
 
 import torch
 
@@ -24,11 +27,11 @@ METADATA_FILENAME = "metadata.json"
 
 def save_net_with_metadata(
     jit_obj: torch.nn.Module,
-    filename_prefix_or_stream: Union[str, IO[Any]],
+    filename_prefix_or_stream: str | IO[Any],
     include_config_vals: bool = True,
     append_timestamp: bool = False,
-    meta_values: Optional[Mapping[str, Any]] = None,
-    more_extra_files: Optional[Mapping[str, bytes]] = None,
+    meta_values: Mapping[str, Any] | None = None,
+    more_extra_files: Mapping[str, bytes] | None = None,
 ) -> None:
     """
     Save the JIT object (script or trace produced object) `jit_obj` to the given file or stream with metadata
@@ -98,10 +101,10 @@ def save_net_with_metadata(
 
 
 def load_net_with_metadata(
-    filename_prefix_or_stream: Union[str, IO[Any]],
-    map_location: Optional[torch.device] = None,
+    filename_prefix_or_stream: str | IO[Any],
+    map_location: torch.device | None = None,
     more_extra_files: Sequence[str] = (),
-) -> Tuple[torch.nn.Module, dict, dict]:
+) -> tuple[torch.nn.Module, dict, dict]:
     """
     Load the module object from the given Torchscript filename or stream, and convert the stored JSON metadata
     back to a dict object. This will produce an empty dict if the metadata file is not present.
@@ -113,7 +116,7 @@ def load_net_with_metadata(
     Returns:
         Triple containing loaded object, metadata dict, and extra files dict containing other file data if present
     """
-    extra_files = {f: "" for f in more_extra_files}
+    extra_files = dict.fromkeys(more_extra_files, "")
     extra_files[METADATA_FILENAME] = ""
 
     jit_obj = torch.jit.load(filename_prefix_or_stream, map_location, extra_files)

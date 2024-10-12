@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from ignite.engine import Engine, Events
@@ -17,7 +19,9 @@ from monai.handlers import EarlyStopHandler
 
 
 class TestHandlerEarlyStop(unittest.TestCase):
+
     def test_early_stop_train_loss(self):
+
         def _train_func(engine, batch):
             return {"loss": 1.5}
 
@@ -31,6 +35,7 @@ class TestHandlerEarlyStop(unittest.TestCase):
         self.assertEqual(trainer.state.epoch, 2)
 
     def test_early_stop_val_metric(self):
+
         def _train_func(engine, batch):
             pass
 

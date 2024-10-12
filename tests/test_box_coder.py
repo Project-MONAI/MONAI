@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -19,6 +21,7 @@ from tests.utils import assert_allclose
 
 
 class TestBoxTransform(unittest.TestCase):
+
     def test_value(self):
         box_coder = BoxCoder(weights=[1, 1, 1, 1, 1, 1])
         test_dtype = [torch.float32, torch.float16]

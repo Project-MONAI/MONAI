@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -222,6 +224,7 @@ TEST_CASES_NORM_F = [
 
 
 class TestGaussian1d(unittest.TestCase):
+
     def test_gaussian(self):
         np.testing.assert_allclose(
             gaussian_1d(0.5, 8),

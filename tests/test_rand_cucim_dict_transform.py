@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -76,6 +78,7 @@ TEST_CASE_RAND_ZOOM_2 = [
 @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
 @unittest.skipUnless(has_cut, "cuCIM transforms are required.")
 class TestRandCuCIMDict(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_COLOR_JITTER_1,

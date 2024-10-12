@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -29,6 +31,7 @@ for type_1 in ("cat", "add", "mul"):
 
 
 class TestSkipConnection(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SkipConnection(submodule=torch.nn.Softmax(dim=1), **input_param)

@@ -44,7 +44,7 @@ training.
 
 With this release, we actively evaluate and enhance the quality and flexibility
 of the MONAI core modules, using the public Kaggle challenge as a testbed. [A
-reimplementation](https://github.com/Project-MONAI/tutorials/tree/master/kaggle/RANZCR/4th_place_solution)
+reimplementation](https://github.com/Project-MONAI/tutorials/tree/main/competitions/kaggle/RANZCR/4th_place_solution)
 of a state-of-the-art solution at [Kaggle RANZCR CLiP - Catheter and Line
 Position
 Challenge](https://www.kaggle.com/c/ranzcr-clip-catheter-line-classification)

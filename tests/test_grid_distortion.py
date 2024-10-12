@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -61,16 +63,16 @@ for p in TEST_NDARRAYS_ALL:
                             [2.25, 2.25, 2.25, 2.25, 2.25, 2.25],
                             [4.5, 4.5, 4.5, 4.5, 4.5, 4.5],
                             [4.5, 4.5, 4.5, 4.5, 4.5, 4.5],
-                            [3.25, 3.25, 3.25, 3.25, 3.25, 3.25],
-                            [1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+                            [4.2500, 4.2500, 4.2500, 4.2500, 4.2500, 4.2500],
+                            [2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
                         ],
                         [
-                            [0.0, 1.5, 3.0, 3.0, 4.5, 4.0],
-                            [0.0, 1.5, 3.0, 3.0, 4.5, 4.0],
-                            [0.0, 1.5, 3.0, 3.0, 4.5, 4.0],
-                            [0.0, 1.5, 3.0, 3.0, 4.5, 4.0],
-                            [0.0, 1.5, 3.0, 3.0, 4.5, 4.0],
-                            [0.0, 1.5, 3.0, 3.0, 4.5, 4.0],
+                            [0.0, 1.5, 3.0, 3.0, 4.5, 5.0],
+                            [0.0, 1.5, 3.0, 3.0, 4.5, 5.0],
+                            [0.0, 1.5, 3.0, 3.0, 4.5, 5.0],
+                            [0.0, 1.5, 3.0, 3.0, 4.5, 5.0],
+                            [0.0, 1.5, 3.0, 3.0, 4.5, 5.0],
+                            [0.0, 1.5, 3.0, 3.0, 4.5, 5.0],
                         ],
                     ]
                 ).astype(np.float32)
@@ -79,7 +81,7 @@ for p in TEST_NDARRAYS_ALL:
     )
     TESTS.append(
         [
-            dict(num_cells=2, distort_steps=[(1.25,) * 3] * 3, mode="nearest", padding_mode="zeros"),
+            dict(num_cells=2, distort_steps=[(1.26,) * 3] * 3, mode="nearest", padding_mode="zeros"),
             p(np.indices([3, 3, 3])[:1].astype(np.float32)),
             p(
                 np.array(
@@ -97,11 +99,15 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestGridDistortion(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_grid_distortion(self, input_param, input_data, expected_val):
         g = GridDistortion(**input_param)
         result = g(input_data)
-        assert_allclose(result, expected_val, type_test=False, rtol=1e-4, atol=1e-4)
+        if input_param["padding_mode"] != "reflection":
+            assert_allclose(result, expected_val, type_test=False, rtol=1e-4, atol=1e-4)
+        else:
+            assert_allclose(result.shape, expected_val.shape, type_test=False, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -32,6 +34,7 @@ for type_1 in ("pad", "project"):
 
 
 class TestChannelPad(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ChannelPad(**input_param)

@@ -121,15 +121,15 @@ Outputs:
 
 """
 
-from typing import Callable
+from __future__ import annotations
 
-from monai.utils import export as _monai_export
+from typing import Callable
 
 __all__ = ["adaptor", "apply_alias", "to_kwargs", "FunctionSignature"]
 
 
-@_monai_export("monai.transforms")
 def adaptor(function, outputs, inputs=None):
+
     def must_be_types_or_none(variable_name, variable, types):
         if variable is not None:
             if not isinstance(variable, types):
@@ -146,7 +146,6 @@ def adaptor(function, outputs, inputs=None):
         return {v: ditems[k] for k, v in input_map.items()}
 
     def _inner(ditems):
-
         sig = FunctionSignature(function)
 
         if sig.found_kwargs:
@@ -213,10 +212,9 @@ def adaptor(function, outputs, inputs=None):
     return _inner
 
 
-@_monai_export("monai.transforms")
 def apply_alias(fn, name_map):
-    def _inner(data):
 
+    def _inner(data):
         # map names
         pre_call = dict(data)
         for _from, _to in name_map.items():
@@ -234,8 +232,8 @@ def apply_alias(fn, name_map):
     return _inner
 
 
-@_monai_export("monai.transforms")
 def to_kwargs(fn):
+
     def _inner(data):
         return fn(**data)
 
@@ -243,6 +241,7 @@ def to_kwargs(fn):
 
 
 class FunctionSignature:
+
     def __init__(self, function: Callable) -> None:
         import inspect
 

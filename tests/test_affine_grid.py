@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -133,6 +135,7 @@ _rtol = 5e-2 if is_tf32_env() else 1e-4
 
 
 class TestAffineGrid(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_affine_grid(self, input_param, input_data, expected_val):
         g = AffineGrid(**input_param)

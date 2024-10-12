@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import unittest
 
@@ -33,6 +35,7 @@ B = 2
 
 
 class PrepareTestInputs:
+
     def __init__(self, inputs):
         self.inputs = {HoVerNetBranch.NP: inputs[1], HoVerNetBranch.HV: inputs[3]}
         self.targets = {HoVerNetBranch.NP: inputs[0], HoVerNetBranch.HV: inputs[2]}
@@ -169,6 +172,7 @@ ILL_CASES = [
 
 
 class TestHoverNetLoss(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, expected_loss):
         loss = HoVerNetLoss()

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from copy import deepcopy
@@ -121,6 +123,7 @@ def _resample_to_affine(itk_obj, ref_obj):
 
 @unittest.skipUnless(has_itk, "Requires itk package.")
 class TestAffineConsistencyITK(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -157,7 +160,7 @@ class TestAffineConsistencyITK(unittest.TestCase):
         diff = np.abs(itk.GetArrayFromImage(ref_2) - itk.GetArrayFromImage(expected))
         avg_diff = np.mean(diff)
 
-        self.assertTrue(avg_diff < atol, f"{xform_cls} avg_diff: {avg_diff}, tol: {atol}")
+        self.assertLess(avg_diff, atol, f"{xform_cls} avg_diff: {avg_diff}, tol: {atol}")
 
     @parameterized.expand(TEST_CASES_DICT)
     def test_linear_consistent_dict(self, xform_cls, input_dict, atol):
@@ -172,7 +175,7 @@ class TestAffineConsistencyITK(unittest.TestCase):
         diff = {k: np.abs(itk.GetArrayFromImage(ref_2[k]) - itk.GetArrayFromImage(expected[k])) for k in keys}
         avg_diff = {k: np.mean(diff[k]) for k in keys}
         for k in keys:
-            self.assertTrue(avg_diff[k] < atol, f"{xform_cls} avg_diff: {avg_diff}, tol: {atol}")
+            self.assertLess(avg_diff[k], atol, f"{xform_cls} avg_diff: {avg_diff}, tol: {atol}")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -45,6 +47,7 @@ for drop_out in [0.4]:
 
 @skip_if_quick
 class TestTranschex(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_TRANSCHEX)
     def test_shape(self, input_param, expected_shape):
         net = Transchex(**input_param)

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -177,6 +179,7 @@ LABEL_CLASS_TEST_CASE_1 = [{"keys": ["label"], "offset": 2}, DATA_GUIDANCE_1, 3]
 
 
 class TestFilterImaged(unittest.TestCase):
+
     @parameterized.expand([FILTER_IMAGE_TEST_CASE_1])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = FilterImaged(**arguments)(input_data)
@@ -184,6 +187,7 @@ class TestFilterImaged(unittest.TestCase):
 
 
 class TestFlattenLabeld(unittest.TestCase):
+
     @parameterized.expand([FLATTEN_LABEL_TEST_CASE_1, FLATTEN_LABEL_TEST_CASE_2, FLATTEN_LABEL_TEST_CASE_3])
     def test_correct_num_labels(self, arguments, input_data, expected_result):
         result = FlattenLabeld(**arguments)(input_data)
@@ -191,6 +195,7 @@ class TestFlattenLabeld(unittest.TestCase):
 
 
 class TestExtractPatchd(unittest.TestCase):
+
     @parameterized.expand([EXTRACT_TEST_CASE_1, EXTRACT_TEST_CASE_2, EXTRACT_TEST_CASE_3])
     def test_correct_patch_size(self, arguments, input_data, expected_shape):
         result = ExtractPatchd(**arguments)(input_data)
@@ -203,6 +208,7 @@ class TestExtractPatchd(unittest.TestCase):
 
 
 class TestSplitLabelsd(unittest.TestCase):
+
     @parameterized.expand([SPLIT_TEST_CASE_1, SPLIT_TEST_CASE_2])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SplitLabeld(**arguments)(input_data)
@@ -210,6 +216,7 @@ class TestSplitLabelsd(unittest.TestCase):
 
 
 class TestGuidanceSignal(unittest.TestCase):
+
     @parameterized.expand([GUIDANCE_TEST_CASE_1, GUIDANCE_TEST_CASE_2])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = AddPointGuidanceSignald(**arguments)(input_data)
@@ -217,6 +224,7 @@ class TestGuidanceSignal(unittest.TestCase):
 
 
 class TestClickSignal(unittest.TestCase):
+
     @parameterized.expand([CLICK_TEST_CASE_1, CLICK_TEST_CASE_2])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = AddClickSignalsd(**arguments)(input_data)
@@ -224,6 +232,7 @@ class TestClickSignal(unittest.TestCase):
 
 
 class TestPostFilterLabel(unittest.TestCase):
+
     @parameterized.expand([LABEL_FILTER_TEST_CASE_1])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = PostFilterLabeld(**arguments)(input_data)
@@ -231,6 +240,7 @@ class TestPostFilterLabel(unittest.TestCase):
 
 
 class TestAddLabelAsGuidance(unittest.TestCase):
+
     @parameterized.expand([LABEL_GUIDANCE_TEST_CASE_1])
     def test_correct_shape(self, arguments, input_data, expected_shape):
         result = AddLabelAsGuidanced(**arguments)(input_data)
@@ -238,6 +248,7 @@ class TestAddLabelAsGuidance(unittest.TestCase):
 
 
 class TestSetLabelClass(unittest.TestCase):
+
     @parameterized.expand([LABEL_CLASS_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SetLabelClassd(**arguments)(input_data)

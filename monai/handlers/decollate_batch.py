@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
 
-from monai.config import IgniteInfo, KeysCollection
+from typing import TYPE_CHECKING
+
+from monai.config import KeysCollection
 from monai.engines.utils import IterationEvents
 from monai.transforms import Decollated
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -51,9 +53,9 @@ class DecollateBatch:
         event: str = "MODEL_COMPLETED",
         detach: bool = True,
         decollate_batch: bool = True,
-        batch_keys: Optional[KeysCollection] = None,
+        batch_keys: KeysCollection | None = None,
         decollate_output: bool = True,
-        output_keys: Optional[KeysCollection] = None,
+        output_keys: KeysCollection | None = None,
         allow_missing_keys: bool = False,
     ):
         event = event.upper()

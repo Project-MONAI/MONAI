@@ -9,43 +9,56 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import itertools
 import random
 import warnings
+from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from contextlib import contextmanager
-from functools import wraps
+from functools import lru_cache, wraps
 from inspect import getmembers, isclass
-from typing import Any, Callable, Hashable, Iterable, List, Mapping, Optional, Sequence, Set, Tuple, Union
+from typing import Any
 
 import numpy as np
 import torch
+from torch import Tensor
 
 import monai
 from monai.config import DtypeLike, IndexSelection
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
+from monai.data.utils import to_affine_nd
 from monai.networks.layers import GaussianFilter
 from monai.networks.utils import meshgrid_ij
-from monai.transforms.compose import Compose, OneOf
+from monai.transforms.compose import Compose
 from monai.transforms.transform import MapTransform, Transform, apply_transform
+from monai.transforms.utils_morphological_ops import erode
 from monai.transforms.utils_pytorch_numpy_unification import (
     any_np_pt,
     ascontiguousarray,
+    concatenate,
     cumsum,
     isfinite,
     nonzero,
     ravel,
     searchsorted,
+    softplus,
     unique,
     unravel_index,
     where,
 )
 from monai.utils import (
     GridSampleMode,
+    GridSamplePadMode,
     InterpolateMode,
+    NdimageMode,
     NumpyPadMode,
     PostFix,
     PytorchPadMode,
+    SplineMode,
     TraceKeys,
+    TraceStatusKeys,
+    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,
@@ -55,16 +68,24 @@ from monai.utils import (
     look_up_option,
     min_version,
     optional_import,
+    pytorch_after,
+    unsqueeze_left,
+    unsqueeze_right,
 )
 from monai.utils.enums import TransformBackends
-from monai.utils.type_conversion import convert_data_type, convert_to_cupy, convert_to_dst_type, convert_to_tensor
+from monai.utils.type_conversion import (
+    convert_data_type,
+    convert_to_cupy,
+    convert_to_dst_type,
+    convert_to_numpy,
+    convert_to_tensor,
+)
 
 measure, has_measure = optional_import("skimage.measure", "0.14.2", min_version)
 morphology, has_morphology = optional_import("skimage.morphology")
-ndimage, _ = optional_import("scipy.ndimage")
+ndimage, has_ndimage = optional_import("scipy.ndimage")
 cp, has_cp = optional_import("cupy")
 cp_ndarray, _ = optional_import("cupy", name="ndarray")
-cucim, has_cucim = optional_import("cucim")
 exposure, has_skimage = optional_import("skimage.exposure")
 
 __all__ = [
@@ -73,6 +94,7 @@ __all__ = [
     "compute_divisible_spatial_size",
     "convert_applied_interp_mode",
     "copypaste_arrays",
+    "check_non_lazy_pending_ops",
     "create_control_grid",
     "create_grid",
     "create_rotate",
@@ -87,11 +109,15 @@ __all__ = [
     "generate_spatial_bounding_box",
     "get_extreme_points",
     "get_largest_connected_component_mask",
+    "keep_merge_components_with_points",
+    "keep_components_with_positive_points",
+    "convert_points_to_disc",
     "remove_small_objects",
     "img_bounds",
     "in_bounds",
     "is_empty",
     "is_positive",
+    "map_and_generate_sampling_centers",
     "map_binary_to_indices",
     "map_classes_to_indices",
     "map_spatial_axes",
@@ -113,7 +139,46 @@ __all__ = [
     "attach_hook",
     "sync_meta_info",
     "reset_ops_id",
+    "resolves_modes",
+    "has_status_keys",
+    "distance_transform_edt",
+    "soft_clip",
 ]
+
+
+def soft_clip(
+    arr: NdarrayOrTensor,
+    sharpness_factor: float = 1.0,
+    minv: NdarrayOrTensor | float | int | None = None,
+    maxv: NdarrayOrTensor | float | int | None = None,
+    dtype: DtypeLike | torch.dtype = np.float32,
+) -> NdarrayOrTensor:
+    """
+    Apply soft clip to the input array or tensor.
+    The intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor)*softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    From https://medium.com/life-at-hopper/clip-it-clip-it-good-1f1bf711b291
+
+    To perform one-sided clipping, set either minv or maxv to None.
+    Args:
+        arr: input array to clip.
+        sharpness_factor: the sharpness of the soft clip function, default to 1.
+        minv: minimum value of target clipped array.
+        maxv: maximum value of target clipped array.
+        dtype: if not None, convert input array to dtype before computation.
+
+    """
+
+    if dtype is not None:
+        arr, *_ = convert_data_type(arr, dtype=dtype)
+
+    v = arr
+    if minv is not None:
+        v = v + softplus(-sharpness_factor * (arr - minv)) / sharpness_factor
+    if maxv is not None:
+        v = v - softplus(sharpness_factor * (arr - maxv)) / sharpness_factor
+
+    return v
 
 
 def rand_choice(prob: float = 0.5) -> bool:
@@ -139,7 +204,7 @@ def in_bounds(x: float, y: float, margin: float, maxx: float, maxy: float) -> bo
     return bool(margin <= x < (maxx - margin) and margin <= y < (maxy - margin))
 
 
-def is_empty(img: Union[np.ndarray, torch.Tensor]) -> bool:
+def is_empty(img: np.ndarray | torch.Tensor) -> bool:
     """
     Returns True if `img` is empty, that is its maximum value is not greater than its minimum.
     """
@@ -165,9 +230,9 @@ def zero_margins(img: np.ndarray, margin: int) -> bool:
 
 def rescale_array(
     arr: NdarrayOrTensor,
-    minv: Optional[float] = 0.0,
-    maxv: Optional[float] = 1.0,
-    dtype: Union[DtypeLike, torch.dtype] = np.float32,
+    minv: float | None = 0.0,
+    maxv: float | None = 1.0,
+    dtype: DtypeLike | torch.dtype = np.float32,
 ) -> NdarrayOrTensor:
     """
     Rescale the values of numpy array `arr` to be from `minv` to `maxv`.
@@ -176,7 +241,7 @@ def rescale_array(
     Args:
         arr: input array to rescale.
         minv: minimum value of target rescaled array.
-        maxv: maxmum value of target rescaled array.
+        maxv: maximum value of target rescaled array.
         dtype: if not None, convert input array to dtype before computation.
 
     """
@@ -195,7 +260,7 @@ def rescale_array(
 
 
 def rescale_instance_array(
-    arr: np.ndarray, minv: Optional[float] = 0.0, maxv: Optional[float] = 1.0, dtype: DtypeLike = np.float32
+    arr: np.ndarray, minv: float | None = 0.0, maxv: float | None = 1.0, dtype: DtypeLike = np.float32
 ) -> np.ndarray:
     """
     Rescale each array slice along the first dimension of `arr` independently.
@@ -216,8 +281,8 @@ def rescale_array_int_max(arr: np.ndarray, dtype: DtypeLike = np.uint16) -> np.n
 
 
 def copypaste_arrays(
-    src_shape, dest_shape, srccenter: Sequence[int], destcenter: Sequence[int], dims: Sequence[Optional[int]]
-) -> Tuple[Tuple[slice, ...], Tuple[slice, ...]]:
+    src_shape, dest_shape, srccenter: Sequence[int], destcenter: Sequence[int], dims: Sequence[int | None]
+) -> tuple[tuple[slice, ...], tuple[slice, ...]]:
     """
     Calculate the slices to copy a sliced area of array in `src_shape` into array in `dest_shape`.
 
@@ -271,7 +336,7 @@ def copypaste_arrays(
     return tuple(srcslices), tuple(destslices)
 
 
-def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: float = 0.0, inplace: bool = True):
+def resize_center(img: np.ndarray, *resize_dims: int | None, fill_value: float = 0.0, inplace: bool = True):
     """
     Resize `img` by cropping or expanding the image from the center. The `resize_dims` values are the output dimensions
     (or None to use original dimension of `img`). If a dimension is smaller than that of `img` then the result will be
@@ -292,9 +357,94 @@ def resize_center(img: np.ndarray, *resize_dims: Optional[int], fill_value: floa
     return img[srcslices]
 
 
+def check_non_lazy_pending_ops(
+    input_array: NdarrayOrTensor, name: None | str = None, raise_error: bool = False
+) -> None:
+    """
+    Check whether the input array has pending operations, raise an error or warn when it has.
+
+    Args:
+        input_array: input array to be checked.
+        name: an optional name to be included in the error message.
+        raise_error: whether to raise an error, default to False, a warning message will be issued instead.
+    """
+    if isinstance(input_array, monai.data.MetaTensor) and input_array.pending_operations:
+        msg = (
+            "The input image is a MetaTensor and has pending operations,\n"
+            f"but the function {name or ''} assumes non-lazy input, result may be incorrect."
+        )
+        if raise_error:
+            raise ValueError(msg)
+        warnings.warn(msg)
+
+
+def map_and_generate_sampling_centers(
+    label: NdarrayOrTensor,
+    spatial_size: Sequence[int] | int,
+    num_samples: int,
+    label_spatial_shape: Sequence[int] | None = None,
+    num_classes: int | None = None,
+    image: NdarrayOrTensor | None = None,
+    image_threshold: float = 0.0,
+    max_samples_per_class: int | None = None,
+    ratios: list[float | int] | None = None,
+    rand_state: np.random.RandomState | None = None,
+    allow_smaller: bool = False,
+    warn: bool = True,
+) -> tuple[tuple]:
+    """
+    Combine "map_classes_to_indices" and "generate_label_classes_crop_centers" functions, return crop center coordinates.
+    This calls `map_classes_to_indices` to get indices from `label`, gets the shape from `label_spatial_shape`
+    is given otherwise from the labels, calls `generate_label_classes_crop_centers`, and returns its results.
+
+    Args:
+        label: use the label data to get the indices of every class.
+        spatial_size: spatial size of the ROIs to be sampled.
+        num_samples: total sample centers to be generated.
+        label_spatial_shape: spatial shape of the original label data to unravel selected centers.
+        indices: sequence of pre-computed foreground indices of every class in 1 dimension.
+        num_classes: number of classes for argmax label, not necessary for One-Hot label.
+        image: if image is not None, only return the indices of every class that are within the valid
+            region of the image (``image > image_threshold``).
+        image_threshold: if enabled `image`, use ``image > image_threshold`` to
+            determine the valid image content area and select class indices only in this area.
+        max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
+            Default is None, no subsampling.
+        ratios: ratios of every class in the label to generate crop centers, including background class.
+            if None, every class will have the same ratio to generate crop centers.
+        rand_state: numpy randomState object to align with other modules.
+        allow_smaller: if `False`, an exception will be raised if the image is smaller than
+            the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
+            match the cropped size (i.e., no cropping in that dimension).
+        warn: if `True` prints a warning if a class is not present in the label.
+    Returns:
+        Tuple of crop centres
+    """
+    if label is None:
+        raise ValueError("label must not be None.")
+    indices = map_classes_to_indices(label, num_classes, image, image_threshold, max_samples_per_class)
+
+    if label_spatial_shape is not None:
+        _shape = label_spatial_shape
+    elif isinstance(label, monai.data.MetaTensor):
+        _shape = label.peek_pending_shape()
+    else:
+        _shape = label.shape[1:]
+
+    if _shape is None:
+        raise ValueError(
+            "label_spatial_shape or label with a known shape must be provided to infer the output spatial shape."
+        )
+    centers = generate_label_classes_crop_centers(
+        spatial_size, num_samples, _shape, indices, ratios, rand_state, allow_smaller, warn
+    )
+
+    return ensure_tuple(centers)
+
+
 def map_binary_to_indices(
-    label: NdarrayOrTensor, image: Optional[NdarrayOrTensor] = None, image_threshold: float = 0.0
-) -> Tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    label: NdarrayOrTensor, image: NdarrayOrTensor | None = None, image_threshold: float = 0.0
+) -> tuple[NdarrayOrTensor, NdarrayOrTensor]:
     """
     Compute the foreground and background of input label data, return the indices after fattening.
     For example:
@@ -308,15 +458,16 @@ def map_binary_to_indices(
         image_threshold: if enabled `image`, use ``image > image_threshold`` to
             determine the valid image content area and select background only in this area.
     """
-
+    check_non_lazy_pending_ops(label, name="map_binary_to_indices")
     # Prepare fg/bg indices
     if label.shape[0] > 1:
         label = label[1:]  # for One-Hot format data, remove the background channel
     label_flat = ravel(any_np_pt(label, 0))  # in case label has multiple dimensions
     fg_indices = nonzero(label_flat)
     if image is not None:
+        check_non_lazy_pending_ops(image, name="map_binary_to_indices")
         img_flat = ravel(any_np_pt(image > image_threshold, 0))
-        img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=img_flat.dtype)
+        img_flat, *_ = convert_to_dst_type(img_flat, label, dtype=bool)
         bg_indices = nonzero(img_flat & ~label_flat)
     else:
         bg_indices = nonzero(~label_flat)
@@ -329,10 +480,11 @@ def map_binary_to_indices(
 
 def map_classes_to_indices(
     label: NdarrayOrTensor,
-    num_classes: Optional[int] = None,
-    image: Optional[NdarrayOrTensor] = None,
+    num_classes: int | None = None,
+    image: NdarrayOrTensor | None = None,
     image_threshold: float = 0.0,
-) -> List[NdarrayOrTensor]:
+    max_samples_per_class: int | None = None,
+) -> list[NdarrayOrTensor]:
     """
     Filter out indices of every class of the input label data, return the indices after fattening.
     It can handle both One-Hot format label and Argmax format label, must provide `num_classes` for
@@ -350,38 +502,53 @@ def map_classes_to_indices(
             region of the image (``image > image_threshold``).
         image_threshold: if enabled `image`, use ``image > image_threshold`` to
             determine the valid image content area and select class indices only in this area.
+        max_samples_per_class: maximum length of indices in each class to reduce memory consumption.
+            Default is None, no subsampling.
 
     """
-    img_flat: Optional[NdarrayOrTensor] = None
+    check_non_lazy_pending_ops(label, name="map_classes_to_indices")
+    img_flat: NdarrayOrTensor | None = None
     if image is not None:
+        check_non_lazy_pending_ops(image, name="map_classes_to_indices")
         img_flat = ravel((image > image_threshold).any(0))
 
-    indices: List[NdarrayOrTensor] = []
     # assuming the first dimension is channel
     channels = len(label)
 
     num_classes_: int = channels
     if channels == 1:
         if num_classes is None:
-            raise ValueError("if not One-Hot format label, must provide the num_classes.")
+            raise ValueError("channels==1 indicates not using One-Hot format label, must provide ``num_classes``.")
         num_classes_ = num_classes
 
+    indices: list[NdarrayOrTensor] = []
     for c in range(num_classes_):
-        label_flat = ravel(any_np_pt(label[c : c + 1] if channels > 1 else label == c, 0))
-        label_flat = img_flat & label_flat if img_flat is not None else label_flat
+        if channels > 1:
+            label_flat = ravel(convert_data_type(label[c], dtype=bool)[0])
+        else:
+            label_flat = ravel(label == c)
+        if img_flat is not None:
+            label_flat = img_flat & label_flat
         # no need to save the indices in GPU, otherwise, still need to move to CPU at runtime when crop by indices
-        cls_indices: NdarrayOrTensor = convert_data_type(nonzero(label_flat), device=torch.device("cpu"))[0]
-        indices.append(cls_indices)
+        output_type = torch.Tensor if isinstance(label, monai.data.MetaTensor) else None
+        cls_indices: NdarrayOrTensor = convert_data_type(
+            nonzero(label_flat), output_type=output_type, device=torch.device("cpu")
+        )[0]
+        if max_samples_per_class and len(cls_indices) > max_samples_per_class and len(cls_indices) > 1:
+            sample_id = np.round(np.linspace(0, len(cls_indices) - 1, max_samples_per_class)).astype(int)
+            indices.append(cls_indices[sample_id])
+        else:
+            indices.append(cls_indices)
 
     return indices
 
 
 def weighted_patch_samples(
-    spatial_size: Union[int, Sequence[int]],
+    spatial_size: int | Sequence[int],
     w: NdarrayOrTensor,
     n_samples: int = 1,
-    r_state: Optional[np.random.RandomState] = None,
-) -> List:
+    r_state: np.random.RandomState | None = None,
+) -> list:
     """
     Computes `n_samples` of random patch sampling locations, given the sampling weight map `w` and patch `spatial_size`.
 
@@ -397,8 +564,9 @@ def weighted_patch_samples(
         a list of `n_samples` N-D integers representing the spatial sampling location of patches.
 
     """
+    check_non_lazy_pending_ops(w, name="weighted_patch_samples")
     if w is None:
-        raise ValueError("w must be an ND array.")
+        raise ValueError("w must be an ND array, got None.")
     if r_state is None:
         r_state = np.random.RandomState()
     img_size = np.asarray(w.shape, dtype=int)
@@ -407,14 +575,15 @@ def weighted_patch_samples(
     s = tuple(slice(w // 2, m - w + w // 2) if m > w else slice(m // 2, m // 2 + 1) for w, m in zip(win_size, img_size))
     v = w[s]  # weight map in the 'valid' mode
     v_size = v.shape
-    v = ravel(v)
+    v = ravel(v)  # always copy
     if (v < 0).any():
         v -= v.min()  # shifting to non-negative
     v = cumsum(v)
     if not v[-1] or not isfinite(v[-1]) or v[-1] < 0:  # uniform sampling
         idx = r_state.randint(0, len(v), size=n_samples)
     else:
-        r, *_ = convert_to_dst_type(r_state.random(n_samples), v)
+        r_samples = r_state.random(n_samples)
+        r, *_ = convert_to_dst_type(r_samples, v, dtype=r_samples.dtype)
         idx = searchsorted(v, r * v[-1], right=True)  # type: ignore
     idx, *_ = convert_to_dst_type(idx, v, dtype=torch.int)  # type: ignore
     # compensate 'valid' mode
@@ -424,11 +593,11 @@ def weighted_patch_samples(
 
 
 def correct_crop_centers(
-    centers: List[int],
-    spatial_size: Union[Sequence[int], int],
+    centers: list[int],
+    spatial_size: Sequence[int] | int,
     label_spatial_shape: Sequence[int],
     allow_smaller: bool = False,
-):
+) -> tuple[Any]:
     """
     Utility to correct the crop center if the crop size and centers are not compatible with the image size.
 
@@ -444,7 +613,10 @@ def correct_crop_centers(
     spatial_size = fall_back_tuple(spatial_size, default=label_spatial_shape)
     if any(np.subtract(label_spatial_shape, spatial_size) < 0):
         if not allow_smaller:
-            raise ValueError("The size of the proposed random crop ROI is larger than the image size.")
+            raise ValueError(
+                "The size of the proposed random crop ROI is larger than the image size, "
+                f"got ROI size {spatial_size} and label image size {label_spatial_shape} respectively."
+            )
         spatial_size = tuple(min(l, s) for l, s in zip(label_spatial_shape, spatial_size))
 
     # Select subregion to assure valid roi
@@ -461,19 +633,19 @@ def correct_crop_centers(
     for c, v_s, v_e in zip(centers, valid_start, valid_end):
         center_i = min(max(c, v_s), v_e - 1)
         valid_centers.append(int(center_i))
-    return valid_centers
+    return ensure_tuple(valid_centers)
 
 
 def generate_pos_neg_label_crop_centers(
-    spatial_size: Union[Sequence[int], int],
+    spatial_size: Sequence[int] | int,
     num_samples: int,
     pos_ratio: float,
     label_spatial_shape: Sequence[int],
     fg_indices: NdarrayOrTensor,
     bg_indices: NdarrayOrTensor,
-    rand_state: Optional[np.random.RandomState] = None,
+    rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
-) -> List[List[int]]:
+) -> tuple[tuple]:
     """
     Generate valid sample locations based on the label with option for specifying foreground ratio
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -519,18 +691,19 @@ def generate_pos_neg_label_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return centers
+    return ensure_tuple(centers)
 
 
 def generate_label_classes_crop_centers(
-    spatial_size: Union[Sequence[int], int],
+    spatial_size: Sequence[int] | int,
     num_samples: int,
     label_spatial_shape: Sequence[int],
     indices: Sequence[NdarrayOrTensor],
-    ratios: Optional[List[Union[float, int]]] = None,
-    rand_state: Optional[np.random.RandomState] = None,
+    ratios: list[float | int] | None = None,
+    rand_state: np.random.RandomState | None = None,
     allow_smaller: bool = False,
-) -> List[List[int]]:
+    warn: bool = True,
+) -> tuple[tuple]:
     """
     Generate valid sample locations based on the specified ratios of label classes.
     Valid: samples sitting entirely within image, expected input shape: [C, H, W, D] or [C, H, W]
@@ -546,23 +719,30 @@ def generate_label_classes_crop_centers(
         allow_smaller: if `False`, an exception will be raised if the image is smaller than
             the requested ROI in any dimension. If `True`, any smaller dimensions will be set to
             match the cropped size (i.e., no cropping in that dimension).
+        warn: if `True` prints a warning if a class is not present in the label.
 
     """
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
 
     if num_samples < 1:
-        raise ValueError("num_samples must be an int number and greater than 0.")
-    ratios_: List[Union[float, int]] = ([1] * len(indices)) if ratios is None else ratios
+        raise ValueError(f"num_samples must be an int number and greater than 0, got {num_samples}.")
+    ratios_: list[float | int] = list(ensure_tuple([1] * len(indices) if ratios is None else ratios))
     if len(ratios_) != len(indices):
-        raise ValueError("random crop ratios must match the number of indices of classes.")
+        raise ValueError(
+            f"random crop ratios must match the number of indices of classes, got {len(ratios_)} and {len(indices)}."
+        )
     if any(i < 0 for i in ratios_):
-        raise ValueError("ratios should not contain negative number.")
+        raise ValueError(f"ratios should not contain negative number, got {ratios_}.")
 
     for i, array in enumerate(indices):
         if len(array) == 0:
-            warnings.warn(f"no available indices of class {i} to crop, set the crop ratio of this class to zero.")
-            ratios_[i] = 0
+            if ratios_[i] != 0:
+                ratios_[i] = 0
+                if warn:
+                    warnings.warn(
+                        f"no available indices of class {i} to crop, setting the crop ratio of this class to zero."
+                    )
 
     centers = []
     classes = rand_state.choice(len(ratios_), size=num_samples, p=np.asarray(ratios_) / np.sum(ratios_))
@@ -574,15 +754,15 @@ def generate_label_classes_crop_centers(
         # shift center to range of valid centers
         centers.append(correct_crop_centers(center, spatial_size, label_spatial_shape, allow_smaller))
 
-    return centers
+    return ensure_tuple(centers)
 
 
 def create_grid(
     spatial_size: Sequence[int],
-    spacing: Optional[Sequence[float]] = None,
+    spacing: Sequence[float] | None = None,
     homogeneous: bool = True,
-    dtype: Union[DtypeLike, torch.dtype] = float,
-    device: Optional[torch.device] = None,
+    dtype: DtypeLike | torch.dtype = float,
+    device: torch.device | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -611,9 +791,9 @@ def create_grid(
 
 def _create_grid_numpy(
     spatial_size: Sequence[int],
-    spacing: Optional[Sequence[float]] = None,
+    spacing: Sequence[float] | None = None,
     homogeneous: bool = True,
-    dtype: Union[DtypeLike, torch.dtype] = float,
+    dtype: DtypeLike | torch.dtype = float,
 ):
     """
     compute a `spatial_size` mesh with the numpy API.
@@ -628,10 +808,10 @@ def _create_grid_numpy(
 
 def _create_grid_torch(
     spatial_size: Sequence[int],
-    spacing: Optional[Sequence[float]] = None,
+    spacing: Sequence[float] | None = None,
     homogeneous: bool = True,
     dtype=torch.float32,
-    device: Optional[torch.device] = None,
+    device: torch.device | None = None,
 ):
     """
     compute a `spatial_size` mesh with the torch API.
@@ -658,7 +838,7 @@ def create_control_grid(
     spacing: Sequence[float],
     homogeneous: bool = True,
     dtype: DtypeLike = float,
-    device: Optional[torch.device] = None,
+    device: torch.device | None = None,
     backend=TransformBackends.NUMPY,
 ):
     """
@@ -680,8 +860,8 @@ def create_control_grid(
 
 def create_rotate(
     spatial_dims: int,
-    radians: Union[Sequence[float], float],
-    device: Optional[torch.device] = None,
+    radians: Sequence[float] | float,
+    device: torch.device | None = None,
     backend: str = TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -718,7 +898,7 @@ def create_rotate(
 
 def _create_rotate(
     spatial_dims: int,
-    radians: Union[Sequence[float], float],
+    radians: Sequence[float] | float,
     sin_func: Callable = np.sin,
     cos_func: Callable = np.cos,
     eye_func: Callable = np.eye,
@@ -765,8 +945,8 @@ def _create_rotate(
 
 def create_shear(
     spatial_dims: int,
-    coefs: Union[Sequence[float], float],
-    device: Optional[torch.device] = None,
+    coefs: Sequence[float] | float,
+    device: torch.device | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -801,7 +981,7 @@ def create_shear(
     raise ValueError(f"backend {backend} is not supported")
 
 
-def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], eye_func=np.eye) -> NdarrayOrTensor:
+def _create_shear(spatial_dims: int, coefs: Sequence[float] | float, eye_func=np.eye) -> NdarrayOrTensor:
     if spatial_dims == 2:
         coefs = ensure_tuple_size(coefs, dim=2, pad_val=0.0)
         out = eye_func(3)
@@ -819,8 +999,8 @@ def _create_shear(spatial_dims: int, coefs: Union[Sequence[float], float], eye_f
 
 def create_scale(
     spatial_dims: int,
-    scaling_factor: Union[Sequence[float], float],
-    device: Optional[torch.device] = None,
+    scaling_factor: Sequence[float] | float,
+    device: torch.device | str | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -844,17 +1024,15 @@ def create_scale(
     raise ValueError(f"backend {backend} is not supported")
 
 
-def _create_scale(
-    spatial_dims: int, scaling_factor: Union[Sequence[float], float], array_func=np.diag
-) -> NdarrayOrTensor:
+def _create_scale(spatial_dims: int, scaling_factor: Sequence[float] | float, array_func=np.diag) -> NdarrayOrTensor:
     scaling_factor = ensure_tuple_size(scaling_factor, dim=spatial_dims, pad_val=1.0)
     return array_func(scaling_factor[:spatial_dims] + (1.0,))  # type: ignore
 
 
 def create_translate(
     spatial_dims: int,
-    shift: Union[Sequence[float], float],
-    device: Optional[torch.device] = None,
+    shift: Sequence[float] | float,
+    device: torch.device | None = None,
     backend=TransformBackends.NUMPY,
 ) -> NdarrayOrTensor:
     """
@@ -867,6 +1045,7 @@ def create_translate(
         backend: APIs to use, ``numpy`` or ``torch``.
     """
     _backend = look_up_option(backend, TransformBackends)
+    spatial_dims = int(spatial_dims)
     if _backend == TransformBackends.NUMPY:
         return _create_translate(spatial_dims=spatial_dims, shift=shift, eye_func=np.eye, array_func=np.asarray)
     if _backend == TransformBackends.TORCH:
@@ -880,7 +1059,7 @@ def create_translate(
 
 
 def _create_translate(
-    spatial_dims: int, shift: Union[Sequence[float], float], eye_func=np.eye, array_func=np.asarray
+    spatial_dims: int, shift: Sequence[float] | float, eye_func=np.eye, array_func=np.asarray
 ) -> NdarrayOrTensor:
     shift = ensure_tuple(shift)
     affine = eye_func(spatial_dims + 1)
@@ -889,13 +1068,14 @@ def _create_translate(
     return array_func(affine)  # type: ignore
 
 
+@deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
 def generate_spatial_bounding_box(
     img: NdarrayOrTensor,
     select_fn: Callable = is_positive,
-    channel_indices: Optional[IndexSelection] = None,
-    margin: Union[Sequence[int], int] = 0,
+    channel_indices: IndexSelection | None = None,
+    margin: Sequence[int] | int = 0,
     allow_smaller: bool = True,
-) -> Tuple[List[int], List[int]]:
+) -> tuple[list[int], list[int]]:
     """
     Generate the spatial bounding box of foreground in the image with start-end positions (inclusive).
     Users can define arbitrary function to select expected foreground from the whole image or specified channels.
@@ -905,7 +1085,6 @@ def generate_spatial_bounding_box(
         [1st_spatial_dim_start, 2nd_spatial_dim_start, ..., Nth_spatial_dim_start],
         [1st_spatial_dim_end, 2nd_spatial_dim_end, ..., Nth_spatial_dim_end]
 
-    If `allow_smaller`, the bounding boxes edges are aligned with the input image edges.
     This function returns [0, 0, ...], [0, 0, ...] if there's no positive intensity.
 
     Args:
@@ -914,9 +1093,12 @@ def generate_spatial_bounding_box(
         channel_indices: if defined, select foreground only on the specified channels
             of image. if None, select foreground on the whole image.
         margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
-        allow_smaller: when computing box size with `margin`, whether allow the image size to be smaller
-            than box size, default to `True`.
+        allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
+                final box edges. If `True`, the bounding boxes edges are aligned with the input image edges, if `False`,
+                the bounding boxes edges are aligned with the final box edges. Default to `True`.
+
     """
+    check_non_lazy_pending_ops(img, name="generate_spatial_bounding_box")
     spatial_size = img.shape[1:]
     data = img[list(ensure_tuple(channel_indices))] if channel_indices is not None else img
     data = select_fn(data).any(0)
@@ -924,7 +1106,7 @@ def generate_spatial_bounding_box(
     margin = ensure_tuple_rep(margin, ndim)
     for m in margin:
         if m < 0:
-            raise ValueError("margin value should not be negative number.")
+            raise ValueError(f"margin value should not be negative number, got {margin}.")
 
     box_start = [0] * ndim
     box_end = [0] * ndim
@@ -952,7 +1134,7 @@ def generate_spatial_bounding_box(
 
 
 def get_largest_connected_component_mask(
-    img: NdarrayTensor, connectivity: Optional[int] = None, num_components: int = 1
+    img: NdarrayTensor, connectivity: int | None = None, num_components: int = 1
 ) -> NdarrayTensor:
     """
     Gets the largest connected component mask of an image.
@@ -967,10 +1149,11 @@ def get_largest_connected_component_mask(
     """
     # use skimage/cucim.skimage and np/cp depending on whether packages are
     # available and input is non-cpu torch.tensor
+    skimage, has_cucim = optional_import("cucim.skimage")
     use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device != torch.device("cpu")
     if use_cp:
         img_ = convert_to_cupy(img.short())  # type: ignore
-        label = cucim.skimage.measure.label
+        label = skimage.measure.label
         lib = cp
     else:
         if not has_measure:
@@ -999,8 +1182,234 @@ def get_largest_connected_component_mask(
     return convert_to_dst_type(out, dst=img, dtype=out.dtype)[0]
 
 
+def keep_merge_components_with_points(
+    img_pos: NdarrayTensor,
+    img_neg: NdarrayTensor,
+    point_coords: NdarrayTensor,
+    point_labels: NdarrayTensor,
+    pos_val: Sequence[int] = (1, 3),
+    neg_val: Sequence[int] = (0, 2),
+    margins: int = 3,
+) -> NdarrayTensor:
+    """
+    Keep connected regions of img_pos and img_neg that include the positive points and
+    negative points separately. The function is used for merging automatic results with interactive
+    results in VISTA3D.
+
+    Args:
+        img_pos: bool type tensor, shape [B, 1, H, W, D], where B means the foreground masks from a single 3D image.
+        img_neg: same format as img_pos but corresponds to negative points.
+        pos_val: positive point label values.
+        neg_val: negative point label values.
+        point_coords: the coordinates of each point, shape [B, N, 3], where N means the number of points.
+        point_labels: the label of each point, shape [B, N].
+        margins: include points outside of the region but within the margin.
+    """
+
+    cucim_skimage, has_cucim = optional_import("cucim.skimage")
+
+    use_cp = has_cp and has_cucim and isinstance(img_pos, torch.Tensor) and img_pos.device != torch.device("cpu")
+    if use_cp:
+        img_pos_ = convert_to_cupy(img_pos.short())  # type: ignore
+        img_neg_ = convert_to_cupy(img_neg.short())  # type: ignore
+        label = cucim_skimage.measure.label
+        lib = cp
+    else:
+        if not has_measure:
+            raise RuntimeError("skimage.measure required.")
+        img_pos_, *_ = convert_data_type(img_pos, np.ndarray)
+        img_neg_, *_ = convert_data_type(img_neg, np.ndarray)
+        # for skimage.measure.label, the input must be bool type
+        if img_pos_.dtype != bool or img_neg_.dtype != bool:
+            raise ValueError("img_pos and img_neg must be bool type.")
+        label = measure.label
+        lib = np
+
+    features_pos, _ = label(img_pos_, connectivity=3, return_num=True)
+    features_neg, _ = label(img_neg_, connectivity=3, return_num=True)
+
+    outs = np.zeros_like(img_pos_)
+    for bs in range(point_coords.shape[0]):
+        for i, p in enumerate(point_coords[bs]):
+            if point_labels[bs, i] in pos_val:
+                features = features_pos
+            elif point_labels[bs, i] in neg_val:
+                features = features_neg
+            else:
+                # if -1 padding point, skip
+                continue
+            for margin in range(margins):
+                if isinstance(p, np.ndarray):
+                    x, y, z = np.round(p).astype(int).tolist()
+                else:
+                    x, y, z = p.float().round().int().tolist()
+                l, r = max(x - margin, 0), min(x + margin + 1, features.shape[-3])
+                t, d = max(y - margin, 0), min(y + margin + 1, features.shape[-2])
+                f, b = max(z - margin, 0), min(z + margin + 1, features.shape[-1])
+                if (features[bs, 0, l:r, t:d, f:b] > 0).any():
+                    index = features[bs, 0, l:r, t:d, f:b].max()
+                    outs[[bs]] += lib.isin(features[[bs]], index)
+                    break
+    outs[outs > 1] = 1
+    return convert_to_dst_type(outs, dst=img_pos, dtype=outs.dtype)[0]
+
+
+def keep_components_with_positive_points(
+    img: torch.Tensor, point_coords: torch.Tensor, point_labels: torch.Tensor
+) -> torch.Tensor:
+    """
+    Keep connected regions that include the positive points. Used for point-only inference postprocessing to remove
+    regions without positive points.
+    Args:
+        img: [1, B, H, W, D]. Output prediction from VISTA3D. Value is before sigmoid and contain NaN value.
+        point_coords: [B, N, 3]. Point click coordinates
+        point_labels: [B, N]. Point click labels.
+    """
+    if not has_measure:
+        raise RuntimeError("skimage.measure required.")
+    outs = torch.zeros_like(img)
+    for c in range(len(point_coords)):
+        if not ((point_labels[c] == 3).any() or (point_labels[c] == 1).any()):
+            # skip if no positive points.
+            continue
+        coords = point_coords[c, point_labels[c] == 3].tolist() + point_coords[c, point_labels[c] == 1].tolist()
+        not_nan_mask = ~torch.isnan(img[0, c])
+        img_ = torch.nan_to_num(img[0, c] > 0, 0)
+        img_, *_ = convert_data_type(img_, np.ndarray)  # type: ignore
+        label = measure.label
+        features = label(img_, connectivity=3)
+        pos_mask = torch.from_numpy(img_).to(img.device) > 0
+        # if num features less than max desired, nothing to do.
+        features = torch.from_numpy(features).to(img.device)
+        # generate a map with all pos points
+        idx = []
+        for p in coords:
+            idx.append(features[round(p[0]), round(p[1]), round(p[2])].item())
+        idx = list(set(idx))
+        for i in idx:
+            if i == 0:
+                continue
+            outs[0, c] += features == i
+        outs = outs > 0
+        # find negative mean value
+        fill_in = img[0, c][torch.logical_and(~outs[0, c], not_nan_mask)].mean()
+        img[0, c][torch.logical_and(pos_mask, ~outs[0, c])] = fill_in
+    return img
+
+
+def convert_points_to_disc(
+    image_size: Sequence[int], point: Tensor, point_label: Tensor, radius: int = 2, disc: bool = False
+):
+    """
+    Convert a 3D point coordinates into image mask. The returned mask has the same spatial
+    size as `image_size` while the batch dimension is the same as 'point' batch dimension.
+    The point is converted to a mask ball with radius defined by `radius`. The output
+    contains two channels each for negative (first channel) and positive points.
+
+    Args:
+        image_size: The output size of the converted mask. It should be a 3D tuple.
+        point: [B, N, 3], 3D point coordinates.
+        point_label: [B, N], 0 or 2 means negative points, 1 or 3 means postive points.
+        radius: disc ball radius size.
+        disc: If true, use regular disc, other use gaussian.
+    """
+    masks = torch.zeros([point.shape[0], 2, image_size[0], image_size[1], image_size[2]], device=point.device)
+    _array = [
+        torch.arange(start=0, end=image_size[i], step=1, dtype=torch.float32, device=point.device) for i in range(3)
+    ]
+    coord_rows, coord_cols, coord_z = torch.meshgrid(_array[0], _array[1], _array[2])
+    # [1, 3, h, w, d] -> [b, 2, 3, h, w, d]
+    coords = unsqueeze_left(torch.stack((coord_rows, coord_cols, coord_z), dim=0), 6)
+    coords = coords.repeat(point.shape[0], 2, 1, 1, 1, 1)
+    for b, n in np.ndindex(*point.shape[:2]):
+        point_bn = unsqueeze_right(point[b, n], 4)
+        if point_label[b, n] > -1:
+            channel = 0 if (point_label[b, n] == 0 or point_label[b, n] == 2) else 1
+            pow_diff = torch.pow(coords[b, channel] - point_bn, 2)
+            if disc:
+                masks[b, channel] += pow_diff.sum(0) < radius**2
+            else:
+                masks[b, channel] += torch.exp(-pow_diff.sum(0) / (2 * radius**2))
+    return masks
+
+
+def sample_points_from_label(
+    labels: Tensor,
+    label_set: Sequence[int],
+    max_ppoint: int = 1,
+    max_npoint: int = 0,
+    device: torch.device | str | None = "cpu",
+    use_center: bool = False,
+):
+    """Sample points from labels.
+
+    Args:
+        labels: [1, 1, H, W, D]
+        label_set: local index, must match values in labels.
+        max_ppoint: maximum positive point samples.
+        max_npoint: maximum negative point samples.
+        device: returned tensor device.
+        use_center: whether to sample points from center.
+
+    Returns:
+        point: point coordinates of [B, N, 3]. B equals to the length of label_set.
+        point_label: [B, N], always 0 for negative, 1 for positive.
+    """
+    if not labels.shape[0] == 1:
+        raise ValueError("labels must have batch size 1.")
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    labels = labels[0, 0]
+    unique_labels = labels.unique().cpu().numpy().tolist()
+    _point = []
+    _point_label = []
+    for id in label_set:
+        if id in unique_labels:
+            plabels = labels == int(id)
+            nlabels = ~plabels
+            _plabels = get_largest_connected_component_mask(erode(plabels.unsqueeze(0).unsqueeze(0))[0, 0])
+            plabelpoints = torch.nonzero(_plabels).to(device)
+            if len(plabelpoints) == 0:
+                plabelpoints = torch.nonzero(plabels).to(device)
+            nlabelpoints = torch.nonzero(nlabels).to(device)
+            num_p = min(len(plabelpoints), max_ppoint)
+            num_n = min(len(nlabelpoints), max_npoint)
+            pad = max_ppoint + max_npoint - num_p - num_n
+            if use_center:
+                pmean = plabelpoints.float().mean(0)
+                pdis = ((plabelpoints - pmean) ** 2).sum(-1)
+                _, sorted_indices_tensor = torch.sort(pdis)
+                sorted_indices = sorted_indices_tensor.cpu().tolist()
+            else:
+                sorted_indices = list(range(len(plabelpoints)))
+                random.shuffle(sorted_indices)
+            _point.append(
+                torch.stack(
+                    [plabelpoints[sorted_indices[i]] for i in range(num_p)]
+                    + random.choices(nlabelpoints, k=num_n)
+                    + [torch.tensor([0, 0, 0], device=device)] * pad
+                )
+            )
+            _point_label.append(torch.tensor([1] * num_p + [0] * num_n + [-1] * pad).to(device))
+        else:
+            # pad the background labels
+            _point.append(torch.zeros(max_ppoint + max_npoint, 3).to(device))
+            _point_label.append(torch.zeros(max_ppoint + max_npoint).to(device) - 1)
+    point = torch.stack(_point)
+    point_label = torch.stack(_point_label)
+
+    return point, point_label
+
+
 def remove_small_objects(
-    img: NdarrayTensor, min_size: int = 64, connectivity: int = 1, independent_channels: bool = True
+    img: NdarrayTensor,
+    min_size: int = 64,
+    connectivity: int = 1,
+    independent_channels: bool = True,
+    by_measure: bool = False,
+    pixdim: Sequence[float] | float | np.ndarray | None = None,
 ) -> NdarrayTensor:
     """
     Use `skimage.morphology.remove_small_objects` to remove small objects from images.
@@ -1017,6 +1426,11 @@ def remove_small_objects(
             connectivity of ``input.ndim`` is used. For more details refer to linked scikit-image
             documentation.
         independent_channels: Whether to consider each channel independently.
+        by_measure: Whether the specified min_size is in number of voxels. if this is True then min_size
+            represents a surface area or volume value of whatever units your image is in (mm^3, cm^2, etc.)
+            default is False.
+        pixdim: the pixdim of the input image. if a single number, this is used for all axes.
+            If a sequence of numbers, the length of the sequence must be equal to the image dimensions.
     """
     # if all equal to one value, no need to call skimage
     if len(unique(img)) == 1:
@@ -1024,6 +1438,23 @@ def remove_small_objects(
 
     if not has_morphology:
         raise RuntimeError("Skimage required.")
+
+    if by_measure:
+        sr = len(img.shape[1:])
+        if isinstance(img, monai.data.MetaTensor):
+            _pixdim = img.pixdim
+        elif pixdim is not None:
+            _pixdim = ensure_tuple_rep(pixdim, sr)
+        else:
+            warnings.warn("`img` is not of type MetaTensor and `pixdim` is None, assuming affine to be identity.")
+            _pixdim = (1.0,) * sr
+        voxel_volume = np.prod(np.array(_pixdim))
+        if voxel_volume == 0:
+            warnings.warn("Invalid `pixdim` value detected, set it to 1. Please verify the pixdim settings.")
+            voxel_volume = 1
+        min_size = np.ceil(min_size / voxel_volume)
+    elif pixdim is not None:
+        warnings.warn("`pixdim` is specified but not in use when computing the volume.")
 
     img_np: np.ndarray
     img_np, *_ = convert_data_type(img, np.ndarray)
@@ -1046,9 +1477,7 @@ def remove_small_objects(
     return out
 
 
-def get_unique_labels(
-    img: NdarrayOrTensor, is_onehot: bool, discard: Optional[Union[int, Iterable[int]]] = None
-) -> Set[int]:
+def get_unique_labels(img: NdarrayOrTensor, is_onehot: bool, discard: int | Iterable[int] | None = None) -> set[int]:
     """Get list of non-background labels in an image.
 
     Args:
@@ -1060,13 +1489,13 @@ def get_unique_labels(
     Returns:
         Set of labels
     """
-    applied_labels: Set[int]
+    applied_labels: set[int]
     n_channels = img.shape[0]
     if is_onehot:
         applied_labels = {i for i, s in enumerate(img) if s.sum() > 0}
     else:
         if n_channels != 1:
-            raise ValueError("If input not one-hotted, should only be 1 channel.")
+            raise ValueError(f"If input not one-hotted, should only be 1 channel, got {n_channels}.")
         applied_labels = set(unique(img).tolist())
     if discard is not None:
         for i in ensure_tuple(discard):
@@ -1075,7 +1504,7 @@ def get_unique_labels(
 
 
 def fill_holes(
-    img_arr: np.ndarray, applied_labels: Optional[Iterable[int]] = None, connectivity: Optional[int] = None
+    img_arr: np.ndarray, applied_labels: Iterable[int] | None = None, connectivity: int | None = None
 ) -> np.ndarray:
     """
     Fill the holes in the provided image.
@@ -1134,8 +1563,8 @@ def fill_holes(
 
 
 def get_extreme_points(
-    img: NdarrayOrTensor, rand_state: Optional[np.random.RandomState] = None, background: int = 0, pert: float = 0.0
-) -> List[Tuple[int, ...]]:
+    img: NdarrayOrTensor, rand_state: np.random.RandomState | None = None, background: int = 0, pert: float = 0.0
+) -> list[tuple[int, ...]]:
     """
     Generate extreme points from an image. These are used to generate initial segmentation
     for annotation models. An optional perturbation can be passed to simulate user clicks.
@@ -1156,6 +1585,7 @@ def get_extreme_points(
     Raises:
         ValueError: When the input image does not have any foreground pixel.
     """
+    check_non_lazy_pending_ops(img, name="get_extreme_points")
     if rand_state is None:
         rand_state = np.random.random.__self__  # type: ignore
     indices = where(img != background)
@@ -1191,9 +1621,9 @@ def get_extreme_points(
 
 
 def extreme_points_to_image(
-    points: List[Tuple[int, ...]],
+    points: list[tuple[int, ...]],
     label: NdarrayOrTensor,
-    sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor] = 0.0,
+    sigma: Sequence[float] | float | Sequence[torch.Tensor] | torch.Tensor = 0.0,
     rescale_min: float = -1.0,
     rescale_max: float = 1.0,
 ) -> torch.Tensor:
@@ -1237,8 +1667,8 @@ def extreme_points_to_image(
 
 
 def map_spatial_axes(
-    img_ndim: int, spatial_axes: Optional[Union[Sequence[int], int]] = None, channel_first: bool = True
-) -> List[int]:
+    img_ndim: int, spatial_axes: Sequence[int] | int | None = None, channel_first: bool = True
+) -> list[int]:
     """
     Utility to map the spatial axes to real axes in channel first/last shape.
     For example:
@@ -1272,7 +1702,7 @@ def map_spatial_axes(
 
 
 @contextmanager
-def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTransform], Tuple[Compose]]):
+def allow_missing_keys_mode(transform: MapTransform | Compose | tuple[MapTransform] | tuple[Compose]):
     """Temporarily set all MapTransforms to not throw an error if keys are missing. After, revert to original states.
 
     Args:
@@ -1321,7 +1751,7 @@ def allow_missing_keys_mode(transform: Union[MapTransform, Compose, Tuple[MapTra
 _interp_modes = list(InterpolateMode) + list(GridSampleMode)
 
 
-def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners: Optional[bool] = None):
+def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners: bool | None = None):
     """
     Recursively change the interpolation mode in the applied operation stacks, default to "nearest".
 
@@ -1340,10 +1770,10 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
     trans_info = dict(trans_info)
     if "mode" in trans_info:
         current_mode = trans_info["mode"]
-        if current_mode[0] in _interp_modes:
-            trans_info["mode"] = [mode for _ in range(len(mode))]
-        elif current_mode in _interp_modes:
+        if isinstance(current_mode, int) or current_mode in _interp_modes:
             trans_info["mode"] = mode
+        elif isinstance(current_mode[0], int) or current_mode[0] in _interp_modes:
+            trans_info["mode"] = [mode for _ in range(len(mode))]
     if "align_corners" in trans_info:
         _align_corners = TraceKeys.NONE if align_corners is None else align_corners
         current_value = trans_info["align_corners"]
@@ -1358,7 +1788,7 @@ def convert_applied_interp_mode(trans_info, mode: str = "nearest", align_corners
 
 
 def reset_ops_id(data):
-    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekys.NONE``."""
+    """find MetaTensors in list or dict `data` and (in-place) set ``TraceKeys.ID`` to ``Tracekeys.NONE``."""
     if isinstance(data, (list, tuple)):
         return [reset_ops_id(d) for d in data]
     if isinstance(data, monai.data.MetaTensor):
@@ -1372,7 +1802,7 @@ def reset_ops_id(data):
     return {k: reset_ops_id(v) for k, v in data.items()}
 
 
-def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequence[int], int]):
+def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Sequence[int] | int):
     """
     Compute the target spatial size which should be divisible by `k`.
 
@@ -1389,11 +1819,11 @@ def compute_divisible_spatial_size(spatial_shape: Sequence[int], k: Union[Sequen
         new_dim = int(np.ceil(dim / k_d) * k_d) if k_d > 0 else dim
         new_size.append(new_dim)
 
-    return new_size
+    return tuple(new_size)
 
 
 def equalize_hist(
-    img: np.ndarray, mask: Optional[np.ndarray] = None, num_bins: int = 256, min: int = 0, max: int = 255
+    img: np.ndarray, mask: np.ndarray | None = None, num_bins: int = 256, min: int = 0, max: int = 255
 ) -> np.ndarray:
     """
     Utility to equalize input image based on the histogram.
@@ -1434,7 +1864,7 @@ class Fourier:
     """
 
     @staticmethod
-    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int) -> NdarrayOrTensor:
+    def shift_fourier(x: NdarrayOrTensor, spatial_dims: int, as_contiguous: bool = False) -> NdarrayOrTensor:
         """
         Applies fourier transform and shifts the zero-frequency component to the
         center of the spectrum. Only the spatial dimensions get transformed.
@@ -1442,6 +1872,7 @@ class Fourier:
         Args:
             x: Image to transform.
             spatial_dims: Number of spatial dimensions.
+            as_contiguous: Whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
 
         Returns
             k: K-space data.
@@ -1456,10 +1887,12 @@ class Fourier:
                 k = np.fft.fftshift(np.fft.fftn(x.cpu().numpy(), axes=dims), axes=dims)
         else:
             k = np.fft.fftshift(np.fft.fftn(x, axes=dims), axes=dims)
-        return k
+        return ascontiguousarray(k) if as_contiguous else k
 
     @staticmethod
-    def inv_shift_fourier(k: NdarrayOrTensor, spatial_dims: int, n_dims: Optional[int] = None) -> NdarrayOrTensor:
+    def inv_shift_fourier(
+        k: NdarrayOrTensor, spatial_dims: int, n_dims: int | None = None, as_contiguous: bool = False
+    ) -> NdarrayOrTensor:
         """
         Applies inverse shift and fourier transform. Only the spatial
         dimensions are transformed.
@@ -1467,6 +1900,7 @@ class Fourier:
         Args:
             k: K-space data.
             spatial_dims: Number of spatial dimensions.
+            as_contiguous: Whether to convert the cached NumPy array or PyTorch tensor to be contiguous.
 
         Returns:
             x: Tensor in image space.
@@ -1481,10 +1915,10 @@ class Fourier:
                 out = np.fft.ifftn(np.fft.ifftshift(k.cpu().numpy(), axes=dims), axes=dims).real
         else:
             out = np.fft.ifftn(np.fft.ifftshift(k, axes=dims), axes=dims).real
-        return out
+        return ascontiguousarray(out) if as_contiguous else out
 
 
-def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Optional[Hashable] = None) -> int:
+def get_number_image_type_conversions(transform: Compose, test_data: Any, key: Hashable | None = None) -> int:
     """
     Get the number of times that the data need to be converted (e.g., numpy to torch).
     Conversions between different devices are also counted (e.g., CPU to GPU).
@@ -1494,6 +1928,7 @@ def get_number_image_type_conversions(transform: Compose, test_data: Any, key: O
         test_data: data to be used to count the number of conversions
         key: if using dictionary transforms, this key will be used to check the number of conversions.
     """
+    from monai.transforms.compose import OneOf
 
     def _get_data(obj, key):
         return obj if key is None else obj[key]
@@ -1545,6 +1980,8 @@ def get_transform_backends():
             not in [
                 "BatchInverseTransform",
                 "Compose",
+                "CuCIM",
+                "CuCIMD",
                 "Decollated",
                 "InvertD",
                 "InvertibleTransform",
@@ -1552,6 +1989,8 @@ def get_transform_backends():
                 "LambdaD",
                 "MapTransform",
                 "OneOf",
+                "RandCuCIM",
+                "RandCuCIMD",
                 "RandomOrder",
                 "PadListDataCollate",
                 "RandLambda",
@@ -1604,10 +2043,10 @@ def print_transform_backends():
     print_color(f"Number transforms allowing both torch and numpy: {n_t_or_np}", Colors.green)
     print_color(f"Number of TorchTransform: {n_t}", Colors.green)
     print_color(f"Number of NumpyTransform: {n_np}", Colors.yellow)
-    print_color(f"Number of uncategorised: {n_uncategorized}", Colors.red)
+    print_color(f"Number of uncategorized: {n_uncategorized}", Colors.red)
 
 
-def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[str]):
+def convert_pad_mode(dst: NdarrayOrTensor, mode: str | None):
     """
     Utility to convert padding mode between numpy array and PyTorch Tensor.
 
@@ -1619,21 +2058,21 @@ def convert_pad_mode(dst: NdarrayOrTensor, mode: Optional[str]):
     if isinstance(dst, torch.Tensor):
         if mode == "wrap":
             mode = "circular"
-        if mode == "edge":
+        elif mode == "edge":
             mode = "replicate"
         return look_up_option(mode, PytorchPadMode)
     if isinstance(dst, np.ndarray):
         if mode == "circular":
             mode = "wrap"
-        if mode == "replicate":
+        elif mode == "replicate":
             mode = "edge"
         return look_up_option(mode, NumpyPadMode)
     raise ValueError(f"unsupported data type: {type(dst)}.")
 
 
 def convert_to_contiguous(
-    data: Union[NdarrayOrTensor, str, bytes, Mapping, Sequence[Any]], **kwargs
-) -> Union[NdarrayOrTensor, Mapping, Sequence[Any]]:
+    data: NdarrayOrTensor | str | bytes | Mapping | Sequence[Any], **kwargs
+) -> NdarrayOrTensor | Mapping | Sequence[Any]:
     """
     Check and ensure the numpy array or PyTorch Tensor in data to be contiguous in memory.
 
@@ -1647,35 +2086,33 @@ def convert_to_contiguous(
         return ascontiguousarray(data, **kwargs)
     elif isinstance(data, Mapping):
         return {k: convert_to_contiguous(v, **kwargs) for k, v in data.items()}
-    elif isinstance(data, Sequence) and not isinstance(data, bytes):
-        return [convert_to_contiguous(i, **kwargs) for i in data]  # type: ignore
+    elif isinstance(data, Sequence):
+        return type(data)(convert_to_contiguous(i, **kwargs) for i in data)  # type: ignore
     else:
         return data
 
 
-def scale_affine(affine, spatial_size, new_spatial_size, centered: bool = True):
+def scale_affine(spatial_size, new_spatial_size, centered: bool = True):
     """
-    Scale the affine matrix according to the new spatial size.
+    Compute the scaling matrix according to the new spatial size
 
     Args:
-        affine: affine matrix to scale.
         spatial_size: original spatial size.
         new_spatial_size: new spatial size.
-        centered: whether the scaling is with respect to
-            the image center (True, default) or corner (False).
+        centered: whether the scaling is with respect to the image center (True, default) or corner (False).
 
     Returns:
-        Scaled affine matrix.
+        the scaling matrix.
 
     """
+    r = max(len(new_spatial_size), len(spatial_size))
     if spatial_size == new_spatial_size:
-        return affine
-    r = len(affine) - 1
-    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)])
+        return np.eye(r + 1)
+    s = np.array([float(o) / float(max(n, 1)) for o, n in zip(spatial_size, new_spatial_size)], dtype=float)
     scale = create_scale(r, s.tolist())
     if centered:
-        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2  # type: ignore
-    return affine @ convert_to_dst_type(scale, affine)[0]
+        scale[:r, -1] = (np.diag(scale)[:r] - 1) / 2.0  # type: ignore
+    return scale
 
 
 def attach_hook(func, hook, mode="pre"):
@@ -1792,6 +2229,358 @@ def squarepulse(sig, duty: float = 0.5):
     mask3 = (~mask1) & (~mask2)
     y[mask3] = -1
     return y
+
+
+def _to_numpy_resample_interp_mode(interp_mode):
+    ret = look_up_option(str(interp_mode), SplineMode, default=None)
+    if ret is not None:
+        return int(ret)
+    _mapping = {
+        InterpolateMode.NEAREST: SplineMode.ZERO,
+        InterpolateMode.NEAREST_EXACT: SplineMode.ZERO,
+        InterpolateMode.LINEAR: SplineMode.ONE,
+        InterpolateMode.BILINEAR: SplineMode.ONE,
+        InterpolateMode.TRILINEAR: SplineMode.ONE,
+        InterpolateMode.BICUBIC: SplineMode.THREE,
+        InterpolateMode.AREA: SplineMode.ZERO,
+    }
+    ret = look_up_option(str(interp_mode), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(interp_mode), list(_mapping) + list(SplineMode))  # for better error msg
+
+
+def _to_torch_resample_interp_mode(interp_mode):
+    ret = look_up_option(str(interp_mode), InterpolateMode, default=None)
+    if ret is not None:
+        return ret
+    _mapping = {
+        SplineMode.ZERO: InterpolateMode.NEAREST_EXACT if pytorch_after(1, 11) else InterpolateMode.NEAREST,
+        SplineMode.ONE: InterpolateMode.LINEAR,
+        SplineMode.THREE: InterpolateMode.BICUBIC,
+    }
+    ret = look_up_option(str(interp_mode), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(interp_mode), list(_mapping) + list(InterpolateMode))
+
+
+def _to_numpy_resample_padding_mode(m):
+    ret = look_up_option(str(m), NdimageMode, default=None)
+    if ret is not None:
+        return ret
+    _mapping = {
+        GridSamplePadMode.ZEROS: NdimageMode.CONSTANT,
+        GridSamplePadMode.BORDER: NdimageMode.NEAREST,
+        GridSamplePadMode.REFLECTION: NdimageMode.REFLECT,
+    }
+    ret = look_up_option(str(m), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(m), list(_mapping) + list(NdimageMode))
+
+
+def _to_torch_resample_padding_mode(m):
+    ret = look_up_option(str(m), GridSamplePadMode, default=None)
+    if ret is not None:
+        return ret
+    _mapping = {
+        NdimageMode.CONSTANT: GridSamplePadMode.ZEROS,
+        NdimageMode.GRID_CONSTANT: GridSamplePadMode.ZEROS,
+        NdimageMode.NEAREST: GridSamplePadMode.BORDER,
+        NdimageMode.REFLECT: GridSamplePadMode.REFLECTION,
+        NdimageMode.WRAP: GridSamplePadMode.REFLECTION,
+        NdimageMode.GRID_WRAP: GridSamplePadMode.REFLECTION,
+        NdimageMode.GRID_MIRROR: GridSamplePadMode.REFLECTION,
+    }
+    ret = look_up_option(str(m), _mapping, default=None)
+    if ret is not None:
+        return ret
+    return look_up_option(str(m), list(_mapping) + list(GridSamplePadMode))
+
+
+@lru_cache(None)
+def resolves_modes(
+    interp_mode: str | None = "constant", padding_mode="zeros", backend=TransformBackends.TORCH, **kwargs
+):
+    """
+    Automatically adjust the resampling interpolation mode and padding mode,
+    so that they are compatible with the corresponding API of the `backend`.
+    Depending on the availability of the backends, when there's no exact
+    equivalent, a similar mode is returned.
+
+    Args:
+        interp_mode: interpolation mode.
+        padding_mode: padding mode.
+        backend: optional backend of `TransformBackends`. If None, the backend will be decided from `interp_mode`.
+        kwargs: additional keyword arguments. currently support ``torch_interpolate_spatial_nd``, to provide
+            additional information to determine ``linear``, ``bilinear`` and ``trilinear``;
+            ``use_compiled`` to use MONAI's precompiled backend (pytorch c++ extensions), default to ``False``.
+    """
+    _interp_mode, _padding_mode, _kwargs = None, None, (kwargs or {}).copy()
+    if backend is None:  # infer backend
+        backend = (
+            TransformBackends.NUMPY
+            if look_up_option(str(interp_mode), SplineMode, default=None) is not None
+            else TransformBackends.TORCH
+        )
+    if backend == TransformBackends.NUMPY:
+        _interp_mode = _to_numpy_resample_interp_mode(interp_mode)
+        _padding_mode = _to_numpy_resample_padding_mode(padding_mode)
+        return backend, _interp_mode, _padding_mode, _kwargs
+    _interp_mode = _to_torch_resample_interp_mode(interp_mode)
+    _padding_mode = _to_torch_resample_padding_mode(padding_mode)
+    if str(_interp_mode).endswith("linear"):
+        nd = _kwargs.pop("torch_interpolate_spatial_nd", 2)
+        if nd == 1:
+            _interp_mode = InterpolateMode.LINEAR
+        elif nd == 3:
+            _interp_mode = InterpolateMode.TRILINEAR
+        else:
+            _interp_mode = InterpolateMode.BILINEAR  # torch grid_sample bilinear is trilinear in 3D
+    if not _kwargs.pop("use_compiled", False):
+        return backend, _interp_mode, _padding_mode, _kwargs
+    _padding_mode = 1 if _padding_mode == "reflection" else _padding_mode
+    if _interp_mode == "bicubic":
+        _interp_mode = 3
+    elif str(_interp_mode).endswith("linear"):
+        _interp_mode = 1
+    else:
+        _interp_mode = GridSampleMode(_interp_mode)
+    return backend, _interp_mode, _padding_mode, _kwargs
+
+
+def check_applied_operations(entry: list | dict, status_key: str, default_message: str = "No message provided"):
+    """
+    Check the operations of a MetaTensor to determine whether there are any statuses
+    Args:
+        entry: a dictionary that may contain TraceKey.STATUS entries, or a list of such dictionaries
+        status_key: the status key to search for. This must be an entry in `TraceStatusKeys`_
+        default_message: The message to provide if no messages are provided for the given status key entry
+
+    Returns:
+        A list of status messages matching the providing status key
+
+    """
+    if isinstance(entry, list):
+        results = list()
+        for sub_entry in entry:
+            results.extend(check_applied_operations(sub_entry, status_key, default_message))
+        return results
+    else:
+        status_key_ = TraceStatusKeys(status_key)
+        if TraceKeys.STATUSES in entry:
+            if status_key_ in entry[TraceKeys.STATUSES]:
+                reason = entry[TraceKeys.STATUSES][status_key_]
+                if reason is None:
+                    return [default_message]
+                return reason if isinstance(reason, list) else [reason]
+        return []
+
+
+def has_status_keys(data: torch.Tensor, status_key: Any, default_message: str = "No message provided"):
+    """
+    Checks whether a given tensor is has a particular status key message on any of its
+    applied operations. If it doesn't, it returns the tuple `(False, None)`. If it does
+    it returns a tuple of True and a list of status messages for that status key.
+
+    Status keys are defined in :class:`TraceStatusKeys<monai.utils.enums.TraceStatusKeys>`.
+
+    This function also accepts:
+
+    * dictionaries of tensors
+    * lists or tuples of tensors
+    * list or tuples of dictionaries of tensors
+
+    In any of the above scenarios, it iterates through the collections and executes itself recursively until it is
+    operating on tensors.
+
+    Args:
+        data: a `torch.Tensor` or `MetaTensor` or collections of torch.Tensor or MetaTensor, as described above
+        status_key: the status key to look for, from `TraceStatusKeys`
+        default_message: a default message to use if the status key entry doesn't have a message set
+
+    Returns:
+        A tuple. The first entry is `False` or `True`. The second entry is the status messages that can be used for the
+        user to help debug their pipelines.
+
+    """
+    status_key_occurrences = list()
+    if isinstance(data, (list, tuple)):
+        for d in data:
+            _, reasons = has_status_keys(d, status_key, default_message)
+            if reasons is not None:
+                status_key_occurrences.extend(reasons)
+    elif isinstance(data, monai.data.MetaTensor):
+        for op in data.applied_operations:
+            status_key_occurrences.extend(check_applied_operations(op, status_key, default_message))
+    elif isinstance(data, dict):
+        for d in data.values():
+            _, reasons = has_status_keys(d, status_key, default_message)
+            if reasons is not None:
+                status_key_occurrences.extend(reasons)
+
+    if len(status_key_occurrences) > 0:
+        return False, status_key_occurrences
+    return True, None
+
+
+def distance_transform_edt(
+    img: NdarrayOrTensor,
+    sampling: None | float | list[float] = None,
+    return_distances: bool = True,
+    return_indices: bool = False,
+    distances: NdarrayOrTensor | None = None,
+    indices: NdarrayOrTensor | None = None,
+    *,
+    block_params: tuple[int, int, int] | None = None,
+    float64_distances: bool = False,
+) -> None | NdarrayOrTensor | tuple[NdarrayOrTensor, NdarrayOrTensor]:
+    """
+    Euclidean distance transform, either GPU based with CuPy / cuCIM or CPU based with scipy.
+    To use the GPU implementation, make sure cuCIM is available and that the data is a `torch.tensor` on a GPU device.
+
+    Note that the results of the libraries can differ, so stick to one if possible.
+    For details, check out the `SciPy`_ and `cuCIM`_ documentation.
+
+    .. _SciPy: https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html
+    .. _cuCIM: https://docs.rapids.ai/api/cucim/nightly/api/#cucim.core.operations.morphology.distance_transform_edt
+
+    Args:
+        img: Input image on which the distance transform shall be run.
+            Has to be a channel first array, must have shape: (num_channels, H, W [,D]).
+            Can be of any type but will be converted into binary: 1 wherever image equates to True, 0 elsewhere.
+            Input gets passed channel-wise to the distance-transform, thus results from this function will differ
+            from directly calling ``distance_transform_edt()`` in CuPy or SciPy.
+        sampling: Spacing of elements along each dimension. If a sequence, must be of length equal to the input rank -1;
+            if a single number, this is used for all axes. If not specified, a grid spacing of unity is implied.
+        return_distances: Whether to calculate the distance transform.
+        return_indices: Whether to calculate the feature transform.
+        distances: An output array to store the calculated distance transform, instead of returning it.
+            `return_distances` must be True.
+        indices: An output array to store the calculated feature transform, instead of returning it. `return_indicies` must be True.
+        block_params: This parameter is specific to cuCIM and does not exist in SciPy. For details, look into `cuCIM`_.
+        float64_distances: This parameter is specific to cuCIM and does not exist in SciPy.
+            If True, use double precision in the distance computation (to match SciPy behavior).
+            Otherwise, single precision will be used for efficiency.
+
+    Returns:
+        distances: The calculated distance transform. Returned only when `return_distances` is True and `distances` is not supplied.
+            It will have the same shape and type as image. For cuCIM: Will have dtype torch.float64 if float64_distances is True,
+            otherwise it will have dtype torch.float32. For SciPy: Will have dtype np.float64.
+        indices: The calculated feature transform. It has an image-shaped array for each dimension of the image.
+            The type will be equal to the type of the image.
+            Returned only when `return_indices` is True and `indices` is not supplied. dtype np.float64.
+
+    """
+    distance_transform_edt, has_cucim = optional_import(
+        "cucim.core.operations.morphology", name="distance_transform_edt"
+    )
+    use_cp = has_cp and has_cucim and isinstance(img, torch.Tensor) and img.device.type == "cuda"
+    if not return_distances and not return_indices:
+        raise RuntimeError("Neither return_distances nor return_indices True")
+
+    if not (img.ndim >= 3 and img.ndim <= 4):
+        raise RuntimeError("Wrong input dimensionality. Use (num_channels, H, W [,D])")
+
+    distances_original, indices_original = distances, indices
+    distances, indices = None, None
+    if use_cp:
+        distances_, indices_ = None, None
+        if return_distances:
+            dtype = torch.float64 if float64_distances else torch.float32
+            if distances is None:
+                distances = torch.zeros_like(img, memory_format=torch.contiguous_format, dtype=dtype)  # type: ignore
+            else:
+                if not isinstance(distances, torch.Tensor) and distances.device != img.device:
+                    raise TypeError("distances must be a torch.Tensor on the same device as img")
+                if not distances.dtype == dtype:
+                    raise TypeError("distances must be a torch.Tensor of dtype float32 or float64")
+            distances_ = convert_to_cupy(distances)
+        if return_indices:
+            dtype = torch.int32
+            if indices is None:
+                indices = torch.zeros((img.dim(),) + img.shape, dtype=dtype)  # type: ignore
+            else:
+                if not isinstance(indices, torch.Tensor) and indices.device != img.device:
+                    raise TypeError("indices must be a torch.Tensor on the same device as img")
+                if not indices.dtype == dtype:
+                    raise TypeError("indices must be a torch.Tensor of dtype int32")
+            indices_ = convert_to_cupy(indices)
+        img_ = convert_to_cupy(img)
+        for channel_idx in range(img_.shape[0]):
+            distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances_[channel_idx] if distances_ is not None else None,
+                indices=indices_[channel_idx] if indices_ is not None else None,
+                block_params=block_params,
+                float64_distances=float64_distances,
+            )
+        torch.cuda.synchronize()
+    else:
+        if not has_ndimage:
+            raise RuntimeError("scipy.ndimage required if cupy is not available")
+        img_ = convert_to_numpy(img)
+        if return_distances:
+            if distances is None:
+                distances = np.zeros_like(img_, dtype=np.float64)
+            else:
+                if not isinstance(distances, np.ndarray):
+                    raise TypeError("distances must be a numpy.ndarray")
+                if not distances.dtype == np.float64:
+                    raise TypeError("distances must be a numpy.ndarray of dtype float64")
+        if return_indices:
+            if indices is None:
+                indices = np.zeros((img_.ndim,) + img_.shape, dtype=np.int32)
+            else:
+                if not isinstance(indices, np.ndarray):
+                    raise TypeError("indices must be a numpy.ndarray")
+                if not indices.dtype == np.int32:
+                    raise TypeError("indices must be a numpy.ndarray of dtype int32")
+
+        for channel_idx in range(img_.shape[0]):
+            ndimage.distance_transform_edt(
+                img_[channel_idx],
+                sampling=sampling,
+                return_distances=return_distances,
+                return_indices=return_indices,
+                distances=distances[channel_idx] if distances is not None else None,
+                indices=indices[channel_idx] if indices is not None else None,
+            )
+
+    r_vals = []
+    if return_distances and distances_original is None:
+        r_vals.append(distances_ if use_cp else distances)
+    if return_indices and indices_original is None:
+        r_vals.append(indices)
+    if not r_vals:
+        return None
+    device = img.device if isinstance(img, torch.Tensor) else None
+    return convert_data_type(r_vals[0] if len(r_vals) == 1 else r_vals, output_type=type(img), device=device)[0]
+
+
+def apply_affine_to_points(data: torch.Tensor, affine: torch.Tensor, dtype: DtypeLike | torch.dtype | None = None):
+    """
+    apply affine transformation to a set of points.
+
+    Args:
+        data: input data to apply affine transformation, should be a tensor of shape (C, N, 2 or 3),
+            where C represents the number of channels and N denotes the number of points.
+        affine: affine matrix to be applied, should be a tensor of shape (3, 3) or (4, 4).
+        dtype: output data dtype.
+    """
+    data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=torch.float64)
+    affine = to_affine_nd(data_.shape[-1], affine)
+
+    homogeneous: torch.Tensor = concatenate((data_, torch.ones((data_.shape[0], data_.shape[1], 1))), axis=2)  # type: ignore
+    transformed_homogeneous = torch.matmul(homogeneous, affine.T)
+    transformed_coordinates = transformed_homogeneous[:, :, :-1]
+    out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
+
+    return out
 
 
 if __name__ == "__main__":

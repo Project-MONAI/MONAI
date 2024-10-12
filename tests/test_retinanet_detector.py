@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import unittest
 
@@ -19,7 +21,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, 
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 
@@ -91,6 +93,7 @@ TEST_CASES_TS = [TEST_CASE_1]
 
 
 class NaiveNetwork(torch.nn.Module):
+
     def __init__(self, spatial_dims, num_classes, **kwargs):
         super().__init__()
         self.spatial_dims = spatial_dims
@@ -110,7 +113,9 @@ class NaiveNetwork(torch.nn.Module):
 
 @SkipIfBeforePyTorchVersion((1, 11))
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
+@skip_if_quick
 class TestRetinaNetDetector(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_retina_detector_resnet_backbone_shape(self, input_param, input_shape):
         returned_layers = [1]
@@ -132,20 +137,21 @@ class TestRetinaNetDetector(unittest.TestCase):
 
         detector.set_atss_matcher()
         detector.set_hard_negative_sampler(10, 0.5)
-        gt_box_start = torch.randint(2, (3, input_param["spatial_dims"])).to(torch.float16)
-        gt_box_end = gt_box_start + torch.randint(1, 10, (3, input_param["spatial_dims"]))
-        one_target = {
-            "boxes": torch.cat((gt_box_start, gt_box_end), dim=1),
-            "labels": torch.randint(input_param["num_classes"], (3,)),
-        }
-        with train_mode(detector):
-            input_data = torch.randn(input_shape)
-            targets = [one_target] * len(input_data)
-            result = detector.forward(input_data, targets)
+        for num_gt_box in [0, 3]:  # test for both empty and non-empty boxes
+            gt_box_start = torch.randint(2, (num_gt_box, input_param["spatial_dims"])).to(torch.float16)
+            gt_box_end = gt_box_start + torch.randint(1, 10, (num_gt_box, input_param["spatial_dims"]))
+            one_target = {
+                "boxes": torch.cat((gt_box_start, gt_box_end), dim=1),
+                "labels": torch.randint(input_param["num_classes"], (num_gt_box,)),
+            }
+            with train_mode(detector):
+                input_data = torch.randn(input_shape)
+                targets = [one_target] * len(input_data)
+                result = detector.forward(input_data, targets)
 
-            input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
-            targets = [one_target] * len(input_data)
-            result = detector.forward(input_data, targets)
+                input_data = [torch.randn(input_shape[1:]) for _ in range(random.randint(1, 9))]
+                targets = [one_target] * len(input_data)
+                result = detector.forward(input_data, targets)
 
     @parameterized.expand(TEST_CASES)
     def test_naive_retina_detector_shape(self, input_param, input_shape):

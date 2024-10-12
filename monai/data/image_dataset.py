@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Callable, Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from typing import Any
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -33,15 +36,15 @@ class ImageDataset(Dataset, Randomizable):
     def __init__(
         self,
         image_files: Sequence[str],
-        seg_files: Optional[Sequence[str]] = None,
-        labels: Optional[Sequence[float]] = None,
-        transform: Optional[Callable] = None,
-        seg_transform: Optional[Callable] = None,
-        label_transform: Optional[Callable] = None,
+        seg_files: Sequence[str] | None = None,
+        labels: Sequence[float] | None = None,
+        transform: Callable | None = None,
+        seg_transform: Callable | None = None,
+        label_transform: Callable | None = None,
         image_only: bool = True,
         transform_with_metadata: bool = False,
         dtype: DtypeLike = np.float32,
-        reader: Optional[Union[ImageReader, str]] = None,
+        reader: ImageReader | str | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -93,7 +96,7 @@ class ImageDataset(Dataset, Randomizable):
     def __len__(self) -> int:
         return len(self.image_files)
 
-    def randomize(self, data: Optional[Any] = None) -> None:
+    def randomize(self, data: Any | None = None) -> None:
         self._seed = self.R.randint(MAX_SEED, dtype="uint32")
 
     def __getitem__(self, index: int):

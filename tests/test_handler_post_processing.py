@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -38,6 +40,7 @@ TEST_CASE_2 = [
 
 
 class TestHandlerPostProcessing(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_compute(self, input_params, decollate, expected):
         data = [

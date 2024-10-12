@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -102,6 +104,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGenerateSpatialBoundingBox(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, input_data, expected_box):
         result = generate_spatial_bounding_box(**input_data)

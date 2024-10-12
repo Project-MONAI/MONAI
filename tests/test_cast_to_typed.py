@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -51,6 +53,7 @@ TESTS_CUPY = [
 
 
 class TestCastToTyped(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_type(self, input_param, input_data, expected_type):
         result = CastToTyped(**input_param)(input_data)

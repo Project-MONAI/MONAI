@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -19,6 +21,7 @@ from monai.visualize import make_animated_gif_summary
 
 
 class TestImg2Tensorboard(unittest.TestCase):
+
     def test_write_gray(self):
         nparr = np.ones(shape=(1, 32, 32, 32), dtype=np.float32)
         summary_object_np = make_animated_gif_summary(

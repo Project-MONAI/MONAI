@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -83,8 +85,16 @@ TEST_CASE_6 = [
     (1, 2, 5),
 ]
 
+TEST_CASE_7 = [
+    "geglu",
+    torch.tensor([[[-10, -8, -6, -4, -2, 0], [0, 2, 4, 6, 8, 10]]], dtype=torch.float32),
+    torch.tensor([[[1.27e-03, 3.64e-01, 0.00e00], [0.00e00, 1.60e01, 4.00e01]]]),
+    (1, 2, 3),
+]
+
 
 class TestActivations(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = Activations(**input_param)(img)
@@ -99,7 +109,7 @@ class TestActivations(unittest.TestCase):
         else:
             _compare(result, out, expected_shape)
 
-    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6])
+    @parameterized.expand([TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_monai_activations_value_shape(self, input_param, img, out, expected_shape):
         act = Act[input_param]()
         result = act(img)

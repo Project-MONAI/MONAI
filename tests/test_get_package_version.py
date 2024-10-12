@@ -9,22 +9,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.utils.module import get_package_version
 
 
 class TestGetVersion(unittest.TestCase):
+
     def test_default(self):
         output = get_package_version("42foobarnoexist")
-        self.assertTrue("UNKNOWN" in output)
+        self.assertIn("UNKNOWN", output)
 
         output = get_package_version("numpy")
-        self.assertFalse("UNKNOWN" in output)
+        self.assertNotIn("UNKNOWN", output)
 
     def test_msg(self):
         output = get_package_version("42foobarnoexist", "test")
-        self.assertTrue("test" in output)
+        self.assertIn("test", output)
 
 
 if __name__ == "__main__":

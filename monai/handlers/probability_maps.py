@@ -9,16 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import threading
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from monai.config import DtypeLike, IgniteInfo
+from monai.config import DtypeLike
 from monai.data.folder_layout import FolderLayout
 from monai.utils import ProbMapKeys, min_version, optional_import
-from monai.utils.enums import CommonKeys
+from monai.utils.enums import CommonKeys, IgniteInfo
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -41,7 +43,7 @@ class ProbMapProducer:
         output_postfix: str = "",
         prob_key: str = "pred",
         dtype: DtypeLike = np.float64,
-        name: Optional[str] = None,
+        name: str | None = None,
     ) -> None:
         """
         Args:
@@ -65,8 +67,8 @@ class ProbMapProducer:
         self._name = name
         self.prob_key = prob_key
         self.dtype = dtype
-        self.prob_map: Dict[str, np.ndarray] = {}
-        self.counter: Dict[str, int] = {}
+        self.prob_map: dict[str, np.ndarray] = {}
+        self.counter: dict[str, int] = {}
         self.num_done_images: int = 0
         self.num_images: int = 0
         self.lock = threading.Lock()
@@ -128,5 +130,5 @@ class ProbMapProducer:
         del self.prob_map[name]
         del self.counter[name]
 
-    def finalize(self, engine: Engine):
+    def finalize(self, engine: Engine) -> None:
         self.logger.info(f"Probability map is created for {self.num_done_images}/{self.num_images} images!")

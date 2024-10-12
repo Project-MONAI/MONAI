@@ -9,23 +9,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate90d
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 
 class TestRotate90d(NumpyImageTestCase2D):
+
     def test_rotate90_default(self):
         key = "test"
         rotate = Rotate90d(keys=key)
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
             set_track_meta(True)
-            rotated = rotate({key: im})
+            call_param = {"data": {key: im}}
+            rotated = rotate(**call_param)
+
+            # test lazy
+            test_resampler_lazy(rotate, rotated, call_param=call_param, output_key=key)
+            rotate.lazy = False
+
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
@@ -36,11 +46,17 @@ class TestRotate90d(NumpyImageTestCase2D):
             set_track_meta(True)
 
     def test_k(self):
-        key = None
+        key = "test"
         rotate = Rotate90d(keys=key, k=2)
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
-            rotated = rotate({key: im})
+            call_param = {"data": {key: im}}
+            rotated = rotate(**call_param)
+
+            # test lazy
+            test_resampler_lazy(rotate, rotated, call_param=call_param, output_key=key)
+            rotate.lazy = False
+
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
@@ -51,7 +67,13 @@ class TestRotate90d(NumpyImageTestCase2D):
         rotate = Rotate90d(keys=key, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
-            rotated = rotate({key: im})
+            call_param = {"data": {key: im}}
+            rotated = rotate(**call_param)
+
+            # test lazy
+            test_resampler_lazy(rotate, rotated, call_param=call_param, output_key=key)
+            rotate.lazy = False
+
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 1, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)
@@ -62,7 +84,13 @@ class TestRotate90d(NumpyImageTestCase2D):
         rotate = Rotate90d(keys=key, k=2, spatial_axes=(0, 1))
         for p in TEST_NDARRAYS_ALL:
             im = p(self.imt[0])
-            rotated = rotate({key: im})
+            call_param = {"data": {key: im}}
+            rotated = rotate(**call_param)
+
+            # test lazy
+            test_resampler_lazy(rotate, rotated, call_param=call_param, output_key=key)
+            rotate.lazy = False
+
             test_local_inversion(rotate, rotated, {key: im}, key)
             expected = [np.rot90(channel, 2, (0, 1)) for channel in self.imt[0]]
             expected = np.stack(expected)

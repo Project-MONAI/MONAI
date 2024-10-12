@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -21,11 +23,13 @@ TEST_ILL_CASES = [[ValueError, []], [ValueError, ()], [TypeError, [[]]]]
 
 
 class MapTest(MapTransform):
+
     def __call__(self, data):
         pass
 
 
 class TestRandomizable(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_keys(self, keys, expected):
         transform = MapTest(keys=keys)

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 from torch.utils.data import Dataset
@@ -42,8 +44,8 @@ class DistributedSampler(_TorchDistributedSampler):
         self,
         dataset: Dataset,
         even_divisible: bool = True,
-        num_replicas: Optional[int] = None,
-        rank: Optional[int] = None,
+        num_replicas: int | None = None,
+        rank: int | None = None,
         shuffle: bool = True,
         **kwargs,
     ):
@@ -79,7 +81,6 @@ class DistributedWeightedRandomSampler(DistributedSampler):
             by default, `world_size` is retrieved from the current distributed group.
         rank: rank of the current process within `num_replicas`. by default,
             `rank` is retrieved from the current distributed group.
-        shuffle: if `True`, sampler will shuffle the indices, default to True.
         kwargs: additional arguments for `DistributedSampler` super class, can be `seed` and `drop_last`.
 
     """
@@ -88,22 +89,15 @@ class DistributedWeightedRandomSampler(DistributedSampler):
         self,
         dataset: Dataset,
         weights: Sequence[float],
-        num_samples_per_rank: Optional[int] = None,
-        generator: Optional[torch.Generator] = None,
+        num_samples_per_rank: int | None = None,
+        generator: torch.Generator | None = None,
         even_divisible: bool = True,
-        num_replicas: Optional[int] = None,
-        rank: Optional[int] = None,
-        shuffle: bool = True,
+        num_replicas: int | None = None,
+        rank: int | None = None,
         **kwargs,
     ):
-        super().__init__(
-            dataset=dataset,
-            even_divisible=even_divisible,
-            num_replicas=num_replicas,
-            rank=rank,
-            shuffle=shuffle,
-            **kwargs,
-        )
+        kwargs.setdefault("shuffle", True)
+        super().__init__(dataset=dataset, even_divisible=even_divisible, num_replicas=num_replicas, rank=rank, **kwargs)
         self.weights = weights
         self.num_samples_per_rank = num_samples_per_rank if num_samples_per_rank is not None else self.num_samples
         self.generator = generator

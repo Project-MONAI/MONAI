@@ -5,12 +5,6 @@
 Engines
 =======
 
-Multi-GPU data parallel
------------------------
-
-.. automodule:: monai.engines.multi_gpu_supervised_trainer
-  :members:
-
 Workflows
 ---------
 
@@ -34,6 +28,11 @@ Workflows
 `GanTrainer`
 ~~~~~~~~~~~~
 .. autoclass:: GanTrainer
+    :members:
+
+`AdversarialTrainer`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: AdversarialTrainer
     :members:
 
 `Evaluator`

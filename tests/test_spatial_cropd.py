@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -62,6 +64,10 @@ class TestSpatialCropd(CropTest):
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_shape, expected_shape, same_area):
         self.crop_test(input_param, input_shape, expected_shape, same_area)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _expected_shape, _same_area):
+        self.crop_test_pending_ops(input_param, input_shape)
 
 
 if __name__ == "__main__":

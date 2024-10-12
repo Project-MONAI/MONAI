@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -21,6 +23,7 @@ from tests.utils import command_line_tests, skip_if_windows
 
 @skip_if_windows
 class TestBundleInit(unittest.TestCase):
+
     def test_bundle(self):
         with tempfile.TemporaryDirectory() as tempdir:
             net = UNet(2, 1, 1, [4, 8], [2])

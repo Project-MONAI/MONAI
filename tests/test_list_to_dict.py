@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -30,6 +32,7 @@ TEST_CASE_5 = [
 
 
 class TestListToDict(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value_shape(self, input, output):
         result = list_to_dict(input)

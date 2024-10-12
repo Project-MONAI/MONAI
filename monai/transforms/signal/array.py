@@ -9,12 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A collection of transforms for signal operations
-https://github.com/Project-MONAI/MONAI/wiki/MONAI_Design
+A collection of transforms for signal operations.
 """
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -26,7 +28,7 @@ from monai.utils import optional_import
 from monai.utils.enums import TransformBackends
 from monai.utils.type_conversion import convert_data_type, convert_to_tensor
 
-shift, has_shift = optional_import("scipy.ndimage.interpolation", name="shift")
+shift, has_shift = optional_import("scipy.ndimage", name="shift")
 iirnotch, has_iirnotch = optional_import("scipy.signal", name="iirnotch")
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", UserWarning)  # project-monai/monai#5204
@@ -57,7 +59,7 @@ class SignalRandShift(RandomizableTransform):
     backend = [TransformBackends.NUMPY, TransformBackends.TORCH]
 
     def __init__(
-        self, mode: Optional[str] = "wrap", filling: Optional[float] = 0.0, boundaries: Sequence[float] = (-1.0, 1.0)
+        self, mode: str | None = "wrap", filling: float | None = 0.0, boundaries: Sequence[float] = (-1.0, 1.0)
     ) -> None:
         """
         Args:
@@ -378,7 +380,7 @@ class SignalFillEmpty(Transform):
         Args:
             signal: signal to be filled
         """
-        signal = torch.nan_to_num(convert_to_tensor(signal), nan=self.replacement)
+        signal = torch.nan_to_num(convert_to_tensor(signal, track_meta=True), nan=self.replacement)
         return signal
 
 
@@ -390,10 +392,7 @@ class SignalRemoveFrequency(Transform):
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
     def __init__(
-        self,
-        frequency: Optional[float] = None,
-        quality_factor: Optional[float] = None,
-        sampling_freq: Optional[float] = None,
+        self, frequency: float | None = None, quality_factor: float | None = None, sampling_freq: float | None = None
     ) -> None:
         """
         Args:

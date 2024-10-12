@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -26,11 +28,14 @@ TEST_CASE_0 = [
 
 
 class TestNet(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def forward(self, x: torch.Tensor):
         return {HoVerNetBranch.NP: torch.tensor([1, 2]), HoVerNetBranch.NC: torch.tensor([4, 4]), HoVerNetBranch.HV: 16}
 
 
 class TestPrepareBatchHoVerNet(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_0])
     def test_content(self, input_args, expected_value):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

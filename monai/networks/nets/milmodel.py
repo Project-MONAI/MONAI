@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Union, cast
+from __future__ import annotations
+
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -54,12 +56,11 @@ class MILModel(nn.Module):
         num_classes: int,
         mil_mode: str = "att",
         pretrained: bool = True,
-        backbone: Optional[Union[str, nn.Module]] = None,
-        backbone_num_features: Optional[int] = None,
+        backbone: str | nn.Module | None = None,
+        backbone_num_features: int | None = None,
         trans_blocks: int = 4,
         trans_dropout: float = 0.0,
     ) -> None:
-
         super().__init__()
 
         if num_classes <= 0:
@@ -70,19 +71,19 @@ class MILModel(nn.Module):
 
         self.mil_mode = mil_mode.lower()
         self.attention = nn.Sequential()
-        self.transformer = None  # type: Optional[nn.Module]
+        self.transformer: nn.Module | None = None
 
         if backbone is None:
-
             net = models.resnet50(pretrained=pretrained)
             nfc = net.fc.in_features  # save the number of final features
             net.fc = torch.nn.Identity()  # remove final linear layer
 
-            self.extra_outputs: Dict[str, torch.Tensor] = {}
+            self.extra_outputs: dict[str, torch.Tensor] = {}
 
             if mil_mode == "att_trans_pyramid":
                 # register hooks to capture outputs of intermediate layers
                 def forward_hook(layer_name):
+
                     def hook(module, input, output):
                         self.extra_outputs[layer_name] = output
 
@@ -94,7 +95,6 @@ class MILModel(nn.Module):
                 net.layer4.register_forward_hook(forward_hook("layer4"))
 
         elif isinstance(backbone, str):
-
             # assume torchvision model string is provided
             torch_model = getattr(models, backbone, None)
             if torch_model is None:
@@ -135,7 +135,6 @@ class MILModel(nn.Module):
             self.attention = nn.Sequential(nn.Linear(nfc, 2048), nn.Tanh(), nn.Linear(2048, 1))
 
         elif self.mil_mode == "att_trans_pyramid":
-
             transformer_list = nn.ModuleList(
                 [
                     nn.TransformerEncoder(
@@ -172,7 +171,6 @@ class MILModel(nn.Module):
         self.net = net
 
     def calc_head(self, x: torch.Tensor) -> torch.Tensor:
-
         sh = x.shape
 
         if self.mil_mode == "mean":
@@ -184,7 +182,6 @@ class MILModel(nn.Module):
             x, _ = torch.max(x, dim=1)
 
         elif self.mil_mode == "att":
-
             a = self.attention(x)
             a = torch.softmax(a, dim=1)
             x = torch.sum(x * a, dim=1)
@@ -192,7 +189,6 @@ class MILModel(nn.Module):
             x = self.myfc(x)
 
         elif self.mil_mode == "att_trans" and self.transformer is not None:
-
             x = x.permute(1, 0, 2)
             x = self.transformer(x)
             x = x.permute(1, 0, 2)
@@ -204,7 +200,6 @@ class MILModel(nn.Module):
             x = self.myfc(x)
 
         elif self.mil_mode == "att_trans_pyramid" and self.transformer is not None:
-
             l1 = torch.mean(self.extra_outputs["layer1"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l2 = torch.mean(self.extra_outputs["layer2"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
             l3 = torch.mean(self.extra_outputs["layer3"], dim=(2, 3)).reshape(sh[0], sh[1], -1).permute(1, 0, 2)
@@ -231,7 +226,6 @@ class MILModel(nn.Module):
         return x
 
     def forward(self, x: torch.Tensor, no_head: bool = False) -> torch.Tensor:
-
         sh = x.shape
         x = x.reshape(sh[0] * sh[1], sh[2], sh[3], sh[4])
 

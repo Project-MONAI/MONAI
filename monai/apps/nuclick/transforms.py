@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
-from typing import Any, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import torch
@@ -22,7 +24,7 @@ from monai.utils import StrEnum, convert_to_numpy, optional_import
 
 measure, _ = optional_import("skimage.measure")
 morphology, _ = optional_import("skimage.morphology")
-distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
 
 
 class NuclickKeys(StrEnum):
@@ -87,7 +89,7 @@ class ExtractPatchd(MapTransform):
         self,
         keys: KeysCollection,
         centroid_key: str = NuclickKeys.CENTROID,
-        patch_size: Union[Tuple[int, int], int] = 128,
+        patch_size: tuple[int, int] | int = 128,
         allow_missing_keys: bool = False,
         **kwargs: Any,
     ):
@@ -144,12 +146,11 @@ class SplitLabeld(MapTransform):
         self,
         keys: KeysCollection,
         others: str = NuclickKeys.OTHERS,
-        mask_value: Optional[str] = NuclickKeys.MASK_VALUE,
+        mask_value: str | None = NuclickKeys.MASK_VALUE,
         min_area: int = 5,
         others_value: int = 0,
         to_binary_mask: bool = True,
     ):
-
         super().__init__(keys, allow_missing_keys=False)
         self.others = others
         self.mask_value = mask_value
@@ -409,10 +410,10 @@ class AddClickSignalsd(MapTransform):
         image: str = NuclickKeys.IMAGE,
         foreground: str = NuclickKeys.FOREGROUND,
         bb_size: int = 128,
-        gaussian=False,
-        sigma=1.0,
+        gaussian: bool = False,
+        sigma: float = 1.0,
         truncated: float = 2.0,
-        add_exclusion_map=True,
+        add_exclusion_map: bool = True,
     ):
         self.image = image
         self.foreground = foreground
@@ -601,7 +602,7 @@ class AddLabelAsGuidanced(MapTransform):
         source: label/source key which gets added as additional guidance channel
     """
 
-    def __init__(self, keys: KeysCollection, source="label") -> None:
+    def __init__(self, keys: KeysCollection, source: str = "label") -> None:
         super().__init__(keys, allow_missing_keys=False)
         self.source = source
 
@@ -627,7 +628,7 @@ class SetLabelClassd(MapTransform):
         offset: offset value to be added to the mask value to determine the final class
     """
 
-    def __init__(self, keys: KeysCollection, offset=-1) -> None:
+    def __init__(self, keys: KeysCollection, offset: int = -1) -> None:
         super().__init__(keys, allow_missing_keys=False)
         self.offset = offset
 

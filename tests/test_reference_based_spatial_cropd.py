@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -44,6 +46,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestTargetBasedSpatialCropd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, args, data, expected_shape):
         cropper = ReferenceBasedSpatialCropd(keys=args["keys"], ref_key=args["ref_key"])

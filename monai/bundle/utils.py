@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import os
+import warnings
 import zipfile
 from typing import Any
 
@@ -19,12 +22,21 @@ from monai.utils import optional_import
 
 yaml, _ = optional_import("yaml")
 
-__all__ = ["ID_REF_KEY", "ID_SEP_KEY", "EXPR_KEY", "MACRO_KEY", "DEFAULT_MLFLOW_SETTINGS", "DEFAULT_EXP_MGMT_SETTINGS"]
+__all__ = [
+    "ID_REF_KEY",
+    "ID_SEP_KEY",
+    "EXPR_KEY",
+    "MACRO_KEY",
+    "MERGE_KEY",
+    "DEFAULT_MLFLOW_SETTINGS",
+    "DEFAULT_EXP_MGMT_SETTINGS",
+]
 
 ID_REF_KEY = "@"  # start of a reference to a ConfigItem
-ID_SEP_KEY = "#"  # separator for the ID of a ConfigItem
+ID_SEP_KEY = "::"  # separator for the ID of a ConfigItem
 EXPR_KEY = "$"  # start of a ConfigExpression
 MACRO_KEY = "%"  # start of a macro of a config
+MERGE_KEY = "+"  # prefix indicating merge instead of override in case of multiple configs.
 
 _conf_values = get_config_values()
 
@@ -34,7 +46,7 @@ DEFAULT_METADATA = {
     "monai_version": _conf_values["MONAI"],
     "pytorch_version": str(_conf_values["Pytorch"]).split("+")[0].split("a")[0],  # 1.9.0a0+df837d0 or 1.13.0+cu117
     "numpy_version": _conf_values["Numpy"],
-    "optional_packages_version": {},
+    "required_packages_version": {},
     "task": "Describe what the network predicts",
     "description": "A longer description of what the network does, use context, inputs, outputs, etc.",
     "authors": "Your Name Here",
@@ -111,7 +123,7 @@ DEFAULT_MLFLOW_SETTINGS = {
         "experiment_name": "monai_experiment",
         "run_name": None,
         # may fill it at runtime
-        "execute_config": None,
+        "save_execute_config": True,
         "is_not_rank0": (
             "$torch.distributed.is_available() \
                 and torch.distributed.is_initialized() and torch.distributed.get_rank() > 0"
@@ -123,7 +135,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
-            "artifacts": "@execute_config",
+            "artifacts": "@save_execute_config",
             "iteration_log": True,
             "epoch_log": True,
             "tag_name": "train_loss",
@@ -146,7 +158,7 @@ DEFAULT_MLFLOW_SETTINGS = {
             "tracking_uri": "@tracking_uri",
             "experiment_name": "@experiment_name",
             "run_name": "@run_name",
-            "artifacts": "@execute_config",
+            "artifacts": "@save_execute_config",
             "iteration_log": False,
             "close_on_complete": True,
         },
@@ -155,8 +167,10 @@ DEFAULT_MLFLOW_SETTINGS = {
 
 DEFAULT_EXP_MGMT_SETTINGS = {"mlflow": DEFAULT_MLFLOW_SETTINGS}  # default experiment management settings
 
+DEPRECATED_ID_MAPPING = {"optional_packages_version": "required_packages_version"}
 
-def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
+
+def load_bundle_config(bundle_path: str, *config_names: str, **load_kw_args: Any) -> Any:
     """
     Load the metadata and nominated configuration files from a MONAI bundle without loading the network itself.
 
@@ -219,6 +233,7 @@ def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
                 raise ValueError(f"Cannot find config file '{full_cname}'")
 
             ardata = archive.read(full_cname)
+            cdata = {}
 
             if full_cname.lower().endswith("json"):
                 cdata = json.loads(ardata, **load_kw_args)
@@ -228,3 +243,27 @@ def load_bundle_config(bundle_path: str, *config_names, **load_kw_args) -> Any:
             parser.read_config(f=cdata)
 
     return parser
+
+
+def merge_kv(args: dict | Any, k: str, v: Any) -> None:
+    """
+    Update the `args` dict-like object with the key/value pair `k` and `v`.
+    """
+    if k.startswith(MERGE_KEY):
+        """
+        Both values associated with `+`-prefixed key pair must be of `dict` or `list` type.
+        `dict` values will be merged, `list` values - concatenated.
+        """
+        id = k[1:]
+        if id in args:
+            if isinstance(v, dict) and isinstance(args[id], dict):
+                args[id].update(v)
+            elif isinstance(v, list) and isinstance(args[id], list):
+                args[id].extend(v)
+            else:
+                raise ValueError(ValueError(f"config must be dict or list for key `{k}`, but got {type(v)}: {v}."))
+        else:
+            warnings.warn(f"Can't merge entry ['{k}'], '{id}' is not in target dict - copying instead.")
+            args[id] = v
+    else:
+        args[k] = v

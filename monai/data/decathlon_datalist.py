@@ -9,11 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import os
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union, overload
+from typing import overload
 
 from monai.config import KeysCollection, PathLike
 from monai.data.utils import partition_dataset, select_cross_validation_folds
@@ -21,13 +24,11 @@ from monai.utils import ensure_tuple
 
 
 @overload
-def _compute_path(base_dir: PathLike, element: PathLike, check_path: bool = False) -> str:
-    ...
+def _compute_path(base_dir: PathLike, element: PathLike, check_path: bool = False) -> str: ...
 
 
 @overload
-def _compute_path(base_dir: PathLike, element: List[PathLike], check_path: bool = False) -> List[str]:
-    ...
+def _compute_path(base_dir: PathLike, element: list[PathLike], check_path: bool = False) -> list[str]: ...
 
 
 def _compute_path(base_dir, element, check_path=False):
@@ -60,7 +61,7 @@ def _compute_path(base_dir, element, check_path=False):
     return element
 
 
-def _append_paths(base_dir: PathLike, is_segmentation: bool, items: List[Dict]) -> List[Dict]:
+def _append_paths(base_dir: PathLike, is_segmentation: bool, items: list[dict]) -> list[dict]:
     """
     Args:
         base_dir: the base directory of the dataset.
@@ -87,8 +88,8 @@ def load_decathlon_datalist(
     data_list_file_path: PathLike,
     is_segmentation: bool = True,
     data_list_key: str = "training",
-    base_dir: Optional[PathLike] = None,
-) -> List[Dict]:
+    base_dir: PathLike | None = None,
+) -> list[dict]:
     """Load image/label paths of decathlon challenge from JSON file
 
     Json file is similar to what you get from http://medicaldecathlon.com/
@@ -132,7 +133,7 @@ def load_decathlon_datalist(
     return _append_paths(base_dir, is_segmentation, expected_data)
 
 
-def load_decathlon_properties(data_property_file_path: PathLike, property_keys: Union[Sequence[str], str]) -> Dict:
+def load_decathlon_properties(data_property_file_path: PathLike, property_keys: Sequence[str] | str) -> dict:
     """Load the properties from the JSON file contains data property with specified `property_keys`.
 
     Args:
@@ -158,7 +159,7 @@ def load_decathlon_properties(data_property_file_path: PathLike, property_keys: 
 
 
 def check_missing_files(
-    datalist: List[Dict], keys: KeysCollection, root_dir: Optional[PathLike] = None, allow_missing_keys: bool = False
+    datalist: list[dict], keys: KeysCollection, root_dir: PathLike | None = None, allow_missing_keys: bool = False
 ):
     """Checks whether some files in the Decathlon datalist are missing.
     It would be helpful to check missing files before a heavy training run.
@@ -196,18 +197,18 @@ def check_missing_files(
 
 
 def create_cross_validation_datalist(
-    datalist: List[Dict],
+    datalist: list[dict],
     nfolds: int,
-    train_folds: Union[Sequence[int], int],
-    val_folds: Union[Sequence[int], int],
+    train_folds: Sequence[int] | int,
+    val_folds: Sequence[int] | int,
     train_key: str = "training",
     val_key: str = "validation",
-    filename: Optional[Union[Path, str]] = None,
+    filename: Path | str | None = None,
     shuffle: bool = True,
     seed: int = 0,
     check_missing: bool = False,
-    keys: Optional[KeysCollection] = None,
-    root_dir: Optional[str] = None,
+    keys: KeysCollection | None = None,
+    root_dir: str | None = None,
     allow_missing_keys: bool = False,
     raise_error: bool = True,
 ):

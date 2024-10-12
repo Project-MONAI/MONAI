@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -26,6 +28,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1]
 
 
 class TestFromEngineHovernet(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_results(self, input, expected):
         output = from_engine_hovernet(keys=["A", "B"], nested_key="C")(input)

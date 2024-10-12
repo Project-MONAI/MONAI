@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -40,6 +42,7 @@ VFC_CASES = [VFC_TEST_CASE_0]
 
 
 class TestFullyConnectedNet(unittest.TestCase):
+
     def setUp(self):
         self.batch_size = 10
         self.inSize = 10

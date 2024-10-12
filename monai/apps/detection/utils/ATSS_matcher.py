@@ -72,9 +72,12 @@ These are the changes compared with nndetection:
 5) add support for float16 cpu
 """
 
+from __future__ import annotations
+
 import logging
 from abc import ABC, abstractmethod
-from typing import Callable, Sequence, Tuple, TypeVar
+from collections.abc import Callable, Sequence
+from typing import TypeVar
 
 import torch
 from torch import Tensor
@@ -103,7 +106,7 @@ class Matcher(ABC):
 
     def __call__(
         self, boxes: torch.Tensor, anchors: torch.Tensor, num_anchors_per_level: Sequence[int], num_anchors_per_loc: int
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute matches for a single image
 
@@ -141,7 +144,7 @@ class Matcher(ABC):
     @abstractmethod
     def compute_matches(
         self, boxes: torch.Tensor, anchors: torch.Tensor, num_anchors_per_level: Sequence[int], num_anchors_per_loc: int
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute matches
 
@@ -161,6 +164,7 @@ class Matcher(ABC):
 
 
 class ATSSMatcher(Matcher):
+
     def __init__(
         self,
         num_candidates: int = 4,
@@ -194,7 +198,7 @@ class ATSSMatcher(Matcher):
 
     def compute_matches(
         self, boxes: torch.Tensor, anchors: torch.Tensor, num_anchors_per_level: Sequence[int], num_anchors_per_loc: int
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute matches according to ATTS for a single image
         Adapted from

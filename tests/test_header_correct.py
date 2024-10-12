@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import nibabel as nib
@@ -18,6 +20,7 @@ from monai.data import correct_nifti_header_if_necessary
 
 
 class TestCorrection(unittest.TestCase):
+
     def test_correct(self):
         test_img = nib.Nifti1Image(np.zeros((1, 2, 3)), np.eye(4))
         test_img.header.set_zooms((100, 100, 100))

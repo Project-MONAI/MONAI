@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -34,17 +36,18 @@ DEFAULT_LAYER_PARAMS_3D = (
 
 
 class HighResBlock(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
         kernels: Sequence[int] = (3, 3),
-        dilation: Union[Sequence[int], int] = 1,
-        norm_type: Union[Tuple, str] = ("batch", {"affine": True}),
-        acti_type: Union[Tuple, str] = ("relu", {"inplace": True}),
+        dilation: Sequence[int] | int = 1,
+        norm_type: tuple | str = ("batch", {"affine": True}),
+        acti_type: tuple | str = ("relu", {"inplace": True}),
         bias: bool = False,
-        channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
+        channel_matching: ChannelMatching | str = ChannelMatching.PAD,
     ) -> None:
         """
         Args:
@@ -138,14 +141,13 @@ class HighResNet(nn.Module):
         spatial_dims: int = 3,
         in_channels: int = 1,
         out_channels: int = 1,
-        norm_type: Union[str, tuple] = ("batch", {"affine": True}),
-        acti_type: Union[str, tuple] = ("relu", {"inplace": True}),
-        dropout_prob: Optional[Union[Tuple, str, float]] = 0.0,
+        norm_type: str | tuple = ("batch", {"affine": True}),
+        acti_type: str | tuple = ("relu", {"inplace": True}),
+        dropout_prob: tuple | str | float | None = 0.0,
         bias: bool = False,
-        layer_params: Sequence[Dict] = DEFAULT_LAYER_PARAMS_3D,
-        channel_matching: Union[ChannelMatching, str] = ChannelMatching.PAD,
+        layer_params: Sequence[dict] = DEFAULT_LAYER_PARAMS_3D,
+        channel_matching: ChannelMatching | str = ChannelMatching.PAD,
     ) -> None:
-
         super().__init__()
         blocks = nn.ModuleList()
 
@@ -166,7 +168,7 @@ class HighResNet(nn.Module):
         )
 
         # residual blocks
-        for (idx, params) in enumerate(layer_params[1:-2]):  # res blocks except the 1st and last two conv layers.
+        for idx, params in enumerate(layer_params[1:-2]):  # res blocks except the 1st and last two conv layers.
             _in_chns, _out_chns = _out_chns, params["n_features"]
             _dilation = 2**idx
             for _ in range(params["repeat"]):

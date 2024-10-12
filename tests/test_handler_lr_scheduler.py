@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
 import re
@@ -23,6 +25,7 @@ from monai.handlers import LrScheduleHandler
 
 
 class TestHandlerLrSchedule(unittest.TestCase):
+
     def test_content(self):
         data = [0] * 8
         test_lr = 0.1

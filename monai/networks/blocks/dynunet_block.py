@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -43,11 +45,11 @@ class UnetResBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        norm_name: tuple | str,
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        dropout: tuple | str | float | None = None,
     ):
         super().__init__()
         self.conv1 = get_conv_layer(
@@ -132,11 +134,11 @@ class UnetBasicBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        norm_name: tuple | str,
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        dropout: tuple | str | float | None = None,
     ):
         super().__init__()
         self.conv1 = get_conv_layer(
@@ -200,12 +202,12 @@ class UnetUpBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[Sequence[int], int],
-        stride: Union[Sequence[int], int],
-        upsample_kernel_size: Union[Sequence[int], int],
-        norm_name: Union[Tuple, str],
-        act_name: Union[Tuple, str] = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        kernel_size: Sequence[int] | int,
+        stride: Sequence[int] | int,
+        upsample_kernel_size: Sequence[int] | int,
+        norm_name: tuple | str,
+        act_name: tuple | str = ("leakyrelu", {"inplace": True, "negative_slope": 0.01}),
+        dropout: tuple | str | float | None = None,
         trans_bias: bool = False,
     ):
         super().__init__()
@@ -243,8 +245,9 @@ class UnetUpBlock(nn.Module):
 
 
 class UnetOutBlock(nn.Module):
+
     def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, dropout: Optional[Union[Tuple, str, float]] = None
+        self, spatial_dims: int, in_channels: int, out_channels: int, dropout: tuple | str | float | None = None
     ):
         super().__init__()
         self.conv = get_conv_layer(
@@ -268,11 +271,11 @@ def get_conv_layer(
     spatial_dims: int,
     in_channels: int,
     out_channels: int,
-    kernel_size: Union[Sequence[int], int] = 3,
-    stride: Union[Sequence[int], int] = 1,
-    act: Optional[Union[Tuple, str]] = Act.PRELU,
-    norm: Optional[Union[Tuple, str]] = Norm.INSTANCE,
-    dropout: Optional[Union[Tuple, str, float]] = None,
+    kernel_size: Sequence[int] | int = 3,
+    stride: Sequence[int] | int = 1,
+    act: tuple | str | None = Act.PRELU,
+    norm: tuple | str | None = Norm.INSTANCE,
+    dropout: tuple | str | float | None = None,
     bias: bool = False,
     conv_only: bool = True,
     is_transposed: bool = False,
@@ -298,10 +301,7 @@ def get_conv_layer(
     )
 
 
-def get_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int]
-) -> Union[Tuple[int, ...], int]:
-
+def get_padding(kernel_size: Sequence[int] | int, stride: Sequence[int] | int) -> tuple[int, ...] | int:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = (kernel_size_np - stride_np + 1) / 2
@@ -313,8 +313,8 @@ def get_padding(
 
 
 def get_output_padding(
-    kernel_size: Union[Sequence[int], int], stride: Union[Sequence[int], int], padding: Union[Sequence[int], int]
-) -> Union[Tuple[int, ...], int]:
+    kernel_size: Sequence[int] | int, stride: Sequence[int] | int, padding: Sequence[int] | int
+) -> tuple[int, ...] | int:
     kernel_size_np = np.atleast_1d(kernel_size)
     stride_np = np.atleast_1d(stride)
     padding_np = np.atleast_1d(padding)

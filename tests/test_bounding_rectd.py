@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -26,6 +28,7 @@ TEST_CASE_3 = [(2, 16, 20, 18), [[0, 16, 0, 20, 0, 18], [0, 16, 0, 20, 0, 18]]]
 
 
 class TestBoundingRectD(unittest.TestCase):
+
     def setUp(self):
         monai.utils.set_determinism(1)
 

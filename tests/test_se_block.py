@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -61,6 +63,7 @@ for type_1 in (
 
 
 class TestSEBlockLayer(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES + TEST_CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SEBlock(**input_param).to(device)

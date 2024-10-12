@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.utils import optional_import
@@ -20,6 +22,7 @@ p, _ = optional_import("monai._C", name="InterpolationType")
 
 @skip_if_no_cpp_extension
 class TestEnumBoundInterp(unittest.TestCase):
+
     def test_bound(self):
         self.assertEqual(str(b.replicate), "BoundType.replicate")
         self.assertEqual(str(b.nearest), "BoundType.replicate")

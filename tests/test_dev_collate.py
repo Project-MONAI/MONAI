@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import unittest
 
@@ -34,6 +36,7 @@ TEST_CASES = [
 
 
 class DevCollateTest(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_dev_collate(self, inputs, msg):
         with self.assertLogs(level=logging.CRITICAL) as log:

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -53,7 +55,7 @@ class VarNetBlock(nn.Module):
         Returns:
             Output of DC block with the same shape as x
         """
-        return torch.where(mask, x - ref_kspace, self.zeros) * self.dc_weight  # type: ignore
+        return torch.where(mask, x - ref_kspace, self.zeros) * self.dc_weight
 
     def forward(self, current_kspace: Tensor, ref_kspace: Tensor, mask: Tensor, sens_maps: Tensor) -> Tensor:
         """

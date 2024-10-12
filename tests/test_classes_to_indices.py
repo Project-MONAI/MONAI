@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -80,6 +82,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestClassesToIndices(unittest.TestCase):
+
     @parameterized.expand(TESTS_CASES)
     def test_value(self, input_args, label, image, expected_indices):
         indices = ClassesToIndices(**input_args)(label, image)

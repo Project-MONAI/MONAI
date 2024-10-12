@@ -9,10 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import pickle
+import types
 import warnings
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, Any, Callable
 
 import numpy as np
 import torch
@@ -40,6 +43,7 @@ __all__ = ["LearningRateFinder"]
 
 
 class DataLoaderIter:
+
     def __init__(self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable) -> None:
         if not isinstance(data_loader, DataLoader):
             raise ValueError(
@@ -68,6 +72,7 @@ class DataLoaderIter:
 
 
 class TrainDataLoaderIter(DataLoaderIter):
+
     def __init__(
         self, data_loader: DataLoader, image_extractor: Callable, label_extractor: Callable, auto_reset: bool = True
     ) -> None:
@@ -181,11 +186,11 @@ class LearningRateFinder:
         model: nn.Module,
         optimizer: Optimizer,
         criterion: torch.nn.Module,
-        device: Optional[Union[str, torch.device]] = None,
+        device: str | torch.device | None = None,
         memory_cache: bool = True,
-        cache_dir: Optional[str] = None,
+        cache_dir: str | None = None,
         amp: bool = False,
-        pickle_module=pickle,
+        pickle_module: types.ModuleType = pickle,
         pickle_protocol: int = DEFAULT_PROTOCOL,
         verbose: bool = True,
     ) -> None:
@@ -222,7 +227,7 @@ class LearningRateFinder:
 
         self.model = model
         self.criterion = criterion
-        self.history: Dict[str, list] = {"lr": [], "loss": []}
+        self.history: dict[str, list] = {"lr": [], "loss": []}
         self.memory_cache = memory_cache
         self.cache_dir = cache_dir
         self.amp = amp
@@ -250,11 +255,11 @@ class LearningRateFinder:
     def range_test(
         self,
         train_loader: DataLoader,
-        val_loader: Optional[DataLoader] = None,
+        val_loader: DataLoader | None = None,
         image_extractor: Callable = default_image_extractor,
         label_extractor: Callable = default_label_extractor,
-        start_lr: Optional[float] = None,
-        end_lr: int = 10,
+        start_lr: float | None = None,
+        end_lr: float = 10.0,
         num_iter: int = 100,
         step_mode: str = "exp",
         smooth_f: float = 0.05,
@@ -311,7 +316,7 @@ class LearningRateFinder:
             raise ValueError("`num_iter` must be larger than 1")
 
         # Initialize the proper learning rate policy
-        lr_schedule: Union[ExponentialLR, LinearLR]
+        lr_schedule: ExponentialLR | LinearLR
         if step_mode.lower() == "exp":
             lr_schedule = ExponentialLR(self.optimizer, end_lr, num_iter)
         elif step_mode.lower() == "linear":
@@ -327,7 +332,7 @@ class LearningRateFinder:
         if val_loader:
             val_iter = ValDataLoaderIter(val_loader, image_extractor, label_extractor)
 
-        trange: Union[partial[tqdm.trange], Type[range]]
+        trange: partial[tqdm.trange] | type[range]
         if self.verbose and has_tqdm:
             trange = partial(tqdm.trange, desc="Computing optimal learning rate")
             tprint = tqdm.tqdm.write
@@ -369,7 +374,7 @@ class LearningRateFinder:
                 print("Resetting model and optimizer")
             self.reset()
 
-    def _set_learning_rate(self, new_lrs: Union[float, list]) -> None:
+    def _set_learning_rate(self, new_lrs: float | list) -> None:
         """Set learning rate(s) for optimizer."""
         if not isinstance(new_lrs, list):
             new_lrs = [new_lrs] * len(self.optimizer.param_groups)
@@ -387,7 +392,9 @@ class LearningRateFinder:
             if "initial_lr" in param_group:
                 raise RuntimeError("Optimizer already has a scheduler attached to it")
 
-    def _train_batch(self, train_iter, accumulation_steps: int, non_blocking_transfer: bool = True) -> float:
+    def _train_batch(
+        self, train_iter: TrainDataLoaderIter, accumulation_steps: int, non_blocking_transfer: bool = True
+    ) -> float:
         self.model.train()
         total_loss = 0
 
@@ -437,7 +444,7 @@ class LearningRateFinder:
 
         return running_loss / len(val_iter.dataset)
 
-    def get_lrs_and_losses(self, skip_start: int = 0, skip_end: int = 0) -> Tuple[list, list]:
+    def get_lrs_and_losses(self, skip_start: int = 0, skip_end: int = 0) -> tuple[list, list]:
         """Get learning rates and their corresponding losses
 
         Args:
@@ -457,9 +464,7 @@ class LearningRateFinder:
 
         return lrs, losses
 
-    def get_steepest_gradient(
-        self, skip_start: int = 0, skip_end: int = 0
-    ) -> Union[Tuple[float, float], Tuple[None, None]]:
+    def get_steepest_gradient(self, skip_start: int = 0, skip_end: int = 0) -> tuple[float, float] | tuple[None, None]:
         """Get learning rate which has steepest gradient and its corresponding loss
 
         Args:
@@ -478,7 +483,14 @@ class LearningRateFinder:
             print("Failed to compute the gradients, there might not be enough points.")
             return None, None
 
-    def plot(self, skip_start: int = 0, skip_end: int = 0, log_lr: bool = True, ax=None, steepest_lr: bool = True):
+    def plot(
+        self,
+        skip_start: int = 0,
+        skip_end: int = 0,
+        log_lr: bool = True,
+        ax: Any | None = None,
+        steepest_lr: bool = True,
+    ) -> Any | None:
         """Plots the learning rate range test.
 
         Args:
@@ -512,7 +524,7 @@ class LearningRateFinder:
         # Plot the LR with steepest gradient
         if steepest_lr:
             lr_at_steepest_grad, loss_at_steepest_grad = self.get_steepest_gradient(skip_start, skip_end)
-            if lr_at_steepest_grad is not None:
+            if lr_at_steepest_grad is not None and loss_at_steepest_grad is not None:
                 ax.scatter(
                     lr_at_steepest_grad,
                     loss_at_steepest_grad,

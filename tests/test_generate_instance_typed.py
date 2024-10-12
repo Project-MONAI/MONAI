@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -39,6 +41,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGenerateInstanceTyped(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE)
     def test_shape(self, in_type, type_pred, seg_pred, bbox, expected):
         test_data = {"type_pred": in_type(type_pred[None]), "seg": in_type(seg_pred[None]), "bbox": bbox, "id": 1}

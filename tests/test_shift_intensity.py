@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -18,6 +20,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestShiftIntensity(NumpyImageTestCase2D):
+
     def test_value(self):
         shifter = ShiftIntensity(offset=1.0)
         result = shifter(self.imt)

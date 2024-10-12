@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.metrics import compute_fp_tp_probs, compute_froc_curve_data, compute_froc_score
+from monai.metrics import compute_fp_tp_probs, compute_fp_tp_probs_nd, compute_froc_curve_data, compute_froc_score
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 TEST_CASE_1 = [
@@ -80,8 +82,36 @@ TEST_CASE_5 = [
     0.75,
 ]
 
+TEST_CASE_ND_1 = [
+    {
+        "probs": torch.tensor([1, 0.6, 0.8]),
+        "coords": torch.tensor([[0, 3], [2, 0], [3, 1]]),
+        "evaluation_mask": np.array([[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]]),
+    },
+    np.array([0.6]),
+    np.array([1, 0, 0.8]),
+    3,
+]
+
+TEST_CASE_ND_2 = [
+    {
+        "probs": torch.tensor([1, 0.6, 0.8]),
+        "coords": torch.tensor([[0, 0, 3], [1, 2, 0], [0, 3, 1]]),
+        "evaluation_mask": np.array(
+            [
+                [[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]],
+                [[0, 0, 1, 1], [2, 2, 0, 0], [0, 3, 3, 0], [0, 3, 3, 3]],
+            ]
+        ),
+    },
+    np.array([0.6]),
+    np.array([1, 0, 0.8]),
+    3,
+]
+
 
 class TestComputeFpTp(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value(self, input_data, expected_fp, expected_tp, expected_num):
         fp_probs, tp_probs, num_tumors = compute_fp_tp_probs(**input_data)
@@ -90,7 +120,18 @@ class TestComputeFpTp(unittest.TestCase):
         np.testing.assert_equal(num_tumors, expected_num)
 
 
+class TestComputeFpTpNd(unittest.TestCase):
+
+    @parameterized.expand([TEST_CASE_ND_1, TEST_CASE_ND_2])
+    def test_value(self, input_data, expected_fp, expected_tp, expected_num):
+        fp_probs, tp_probs, num_tumors = compute_fp_tp_probs_nd(**input_data)
+        np.testing.assert_allclose(fp_probs, expected_fp, rtol=1e-5)
+        np.testing.assert_allclose(tp_probs, expected_tp, rtol=1e-5)
+        np.testing.assert_equal(num_tumors, expected_num)
+
+
 class TestComputeFrocScore(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_data, thresholds, expected_score):
         fps_per_image, total_sensitivity = compute_froc_curve_data(**input_data)

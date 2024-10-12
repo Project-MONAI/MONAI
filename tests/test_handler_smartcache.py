@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import unittest
 
@@ -20,6 +22,7 @@ from monai.handlers import SmartCacheHandler
 
 
 class TestHandlerSmartCache(unittest.TestCase):
+
     def test_content(self):
         data = [0, 1, 2, 3, 4, 5, 6, 7, 8]
         expected = [[0, 1, 2, 3, 4], [1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [3, 4, 5, 6, 7], [4, 5, 6, 7, 8]]

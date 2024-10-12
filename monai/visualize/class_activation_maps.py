@@ -9,8 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Callable, Dict, Optional, Sequence, Union, cast
+from collections.abc import Callable, Sequence
+from typing import cast
 
 import numpy as np
 import torch
@@ -51,8 +54,8 @@ class ModelWithHooks:
 
     def __init__(
         self,
-        nn_module,
-        target_layer_names: Union[str, Sequence[str]],
+        nn_module: nn.Module,
+        target_layer_names: str | Sequence[str],
         register_forward: bool = False,
         register_backward: bool = False,
     ):
@@ -67,10 +70,10 @@ class ModelWithHooks:
         self.model = nn_module
         self.target_layers = ensure_tuple(target_layer_names)
 
-        self.gradients: Dict[str, torch.Tensor] = {}
-        self.activations: Dict[str, torch.Tensor] = {}
-        self.score: Optional[torch.Tensor] = None
-        self.class_idx: Optional[int] = None
+        self.gradients: dict[str, torch.Tensor] = {}
+        self.activations: dict[str, torch.Tensor] = {}
+        self.score: torch.Tensor | None = None
+        self.class_idx: int | None = None
         self.register_backward = register_backward
         self.register_forward = register_forward
 
@@ -93,18 +96,20 @@ class ModelWithHooks:
             warnings.warn(f"Not all target_layers exist in the network module: targets: {self.target_layers}.")
 
     def backward_hook(self, name):
+
         def _hook(_module, _grad_input, grad_output):
             self.gradients[name] = grad_output[0]
 
         return _hook
 
     def forward_hook(self, name):
+
         def _hook(_module, _input, output):
             self.activations[name] = output
 
         return _hook
 
-    def get_layer(self, layer_id: Union[str, Callable]):
+    def get_layer(self, layer_id: str | Callable[[nn.Module], nn.Module]) -> nn.Module:
         """
 
         Args:
@@ -119,7 +124,7 @@ class ModelWithHooks:
         if isinstance(layer_id, str):
             for name, mod in self.model.named_modules():
                 if name == layer_id:
-                    return mod
+                    return cast(nn.Module, mod)
         raise NotImplementedError(f"Could not find {layer_id}.")
 
     def class_score(self, logits: torch.Tensor, class_idx: int) -> torch.Tensor:
@@ -259,7 +264,7 @@ class CAM(CAMBase):
         self,
         nn_module: nn.Module,
         target_layers: str,
-        fc_layers: Union[str, Callable] = "fc",
+        fc_layers: str | Callable = "fc",
         upsampler: Callable = default_upsampler,
         postprocessing: Callable = default_normalizer,
     ) -> None:
@@ -285,7 +290,7 @@ class CAM(CAMBase):
         )
         self.fc_layers = fc_layers
 
-    def compute_map(self, x, class_idx=None, layer_idx=-1, **kwargs):
+    def compute_map(self, x, class_idx=None, layer_idx=-1, **kwargs):  # type: ignore[override]
         logits, acti, _ = self.nn_module(x, **kwargs)
         acti = acti[layer_idx]
         if class_idx is None:
@@ -297,7 +302,7 @@ class CAM(CAMBase):
         output = torch.stack([output[i, b : b + 1] for i, b in enumerate(class_idx)], dim=0)
         return output.reshape(b, 1, *spatial)  # resume the spatial dims on the selected class
 
-    def __call__(self, x, class_idx=None, layer_idx=-1, **kwargs):
+    def __call__(self, x, class_idx=None, layer_idx=-1, **kwargs):  # type: ignore[override]
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -356,7 +361,7 @@ class GradCAM(CAMBase):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):  # type: ignore[override]
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape
@@ -364,7 +369,7 @@ class GradCAM(CAMBase):
         acti_map = (weights * acti).sum(1, keepdim=True)
         return F.relu(acti_map)
 
-    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False, **kwargs):
+    def __call__(self, x, class_idx=None, layer_idx=-1, retain_graph=False, **kwargs):  # type: ignore[override]
         """
         Compute the activation map with upsampling and postprocessing.
 
@@ -396,7 +401,7 @@ class GradCAMpp(GradCAM):
 
     """
 
-    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):
+    def compute_map(self, x, class_idx=None, retain_graph=False, layer_idx=-1, **kwargs):  # type: ignore[override]
         _, acti, grad = self.nn_module(x, class_idx=class_idx, retain_graph=retain_graph, **kwargs)
         acti, grad = acti[layer_idx], grad[layer_idx]
         b, c, *spatial = grad.shape

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -24,6 +26,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestSplitDim(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_correct_shape(self, shape, keepdim, im_type):
         arr = im_type(np.random.rand(*shape))
@@ -38,13 +41,12 @@ class TestSplitDim(unittest.TestCase):
             arr[0, 0, 0, 0] *= 2
             self.assertEqual(arr.flatten()[0], out[0].flatten()[0])
 
-    def test_error(self):
-        """Should fail because splitting along singleton dimension"""
+    def test_singleton(self):
         shape = (2, 1, 8, 7)
         for p in TEST_NDARRAYS:
             arr = p(np.random.rand(*shape))
-            with self.assertRaises(RuntimeError):
-                _ = SplitDim(dim=1)(arr)
+            out = SplitDim(dim=1)(arr)
+            self.assertEqual(out[0].shape, shape)
 
 
 if __name__ == "__main__":

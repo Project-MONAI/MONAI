@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import time
 import unittest
@@ -19,7 +21,7 @@ import torch
 from nibabel.processing import resample_to_output
 from parameterized import parameterized
 
-from monai.transforms import AddChanneld, Compose, LoadImaged, Orientationd, Spacingd
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd
 
 FILES = tuple(
     os.path.join(os.path.dirname(__file__), "testing_data", filename)
@@ -28,10 +30,11 @@ FILES = tuple(
 
 
 class TestLoadSpacingOrientation(unittest.TestCase):
+
     @staticmethod
     def load_image(filename):
         data = {"image": filename}
-        t = Compose([LoadImaged(keys="image"), AddChanneld(keys="image")])
+        t = Compose([LoadImaged(keys="image"), EnsureChannelFirstd(keys="image", channel_dim="no_channel")])
         return t(data)
 
     @parameterized.expand(FILES)
@@ -45,7 +48,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         ref = resample_to_output(anat, (1, 0.2, 1), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
-        self.assertTrue(t2 >= t1)
+        self.assertGreaterEqual(t2, t1)
         np.testing.assert_allclose(res_dict["image"].affine, ref.affine)
         np.testing.assert_allclose(res_dict["image"].shape[1:], ref.shape)
         np.testing.assert_allclose(ref.get_fdata(), res_dict["image"][0], atol=0.05)
@@ -65,7 +68,7 @@ class TestLoadSpacingOrientation(unittest.TestCase):
         ref = resample_to_output(anat, (1, 2, 3), order=1)
         t2 = time.time()
         print(f"time scipy: {t2 - t1}")
-        self.assertTrue(t2 >= t1)
+        self.assertGreaterEqual(t2, t1)
         np.testing.assert_allclose(res_dict["image"].affine, ref.affine)
         if "anatomical" not in filename:
             np.testing.assert_allclose(res_dict["image"].shape[1:], ref.shape)

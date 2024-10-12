@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -163,6 +165,7 @@ ILL_CASES = [
 
 
 class TestUNET(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UNet(**input_param).to(device)

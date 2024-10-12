@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -50,6 +52,7 @@ for p in TEST_NDARRAYS_NO_META_TENSOR:
 
 
 class TestDetailedNormalizeIntensityd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_target_mean_std(self, args, data, normalized_data, normalized_target, mean, std):
         dtype = data[args["keys"][0]].dtype

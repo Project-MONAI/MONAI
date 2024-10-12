@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
@@ -103,20 +106,22 @@ class TestTimeAugmentation:
             mode, mean, std, vvc = tt_aug(test_data)
     """
 
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def __init__(
         self,
         transform: InvertibleTransform,
         batch_size: int,
         num_workers: int = 0,
         inferrer_fn: Callable = _identity,
-        device: Union[str, torch.device] = "cpu",
+        device: str | torch.device = "cpu",
         image_key=CommonKeys.IMAGE,
         orig_key=CommonKeys.LABEL,
         nearest_interp: bool = True,
-        orig_meta_keys: Optional[str] = None,
+        orig_meta_keys: str | None = None,
         meta_key_postfix=DEFAULT_POST_FIX,
         to_tensor: bool = True,
-        output_device: Union[str, torch.device] = "cpu",
+        output_device: str | torch.device = "cpu",
         post_func: Callable = _identity,
         return_full_data: bool = False,
         progress: bool = True,
@@ -163,8 +168,8 @@ class TestTimeAugmentation:
                 )
 
     def __call__(
-        self, data: Dict[str, Any], num_examples: int = 10
-    ) -> Union[Tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor, float], NdarrayOrTensor]:
+        self, data: dict[str, Any], num_examples: int = 10
+    ) -> tuple[NdarrayOrTensor, NdarrayOrTensor, NdarrayOrTensor, float] | NdarrayOrTensor:
         """
         Args:
             data: dictionary data to be processed.
@@ -189,7 +194,7 @@ class TestTimeAugmentation:
         ds = Dataset(data_in, self.transform)
         dl = DataLoader(ds, num_workers=self.num_workers, batch_size=self.batch_size, collate_fn=pad_list_data_collate)
 
-        outs: List = []
+        outs: list = []
 
         for b in tqdm(dl) if has_tqdm and self.progress else dl:
             # do model forward pass

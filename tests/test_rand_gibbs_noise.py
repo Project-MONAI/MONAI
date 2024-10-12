@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -30,6 +32,7 @@ for shape in ((128, 64), (64, 48, 80)):
 
 
 class TestRandGibbsNoise(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
         super().setUp()
@@ -86,6 +89,15 @@ class TestRandGibbsNoise(unittest.TestCase):
         _ = t(deepcopy(im))
         self.assertGreaterEqual(t.sampled_alpha, 0.5)
         self.assertLessEqual(t.sampled_alpha, 0.51)
+
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_single_value(self, im_shape, input_type):
+        im = self.get_data(im_shape, input_type)
+        alpha = 0.01
+        t = RandGibbsNoise(1.0, alpha)
+        _ = t(deepcopy(im))
+        self.assertGreaterEqual(t.sampled_alpha, 0)
+        self.assertLessEqual(t.sampled_alpha, 0.01)
 
 
 if __name__ == "__main__":

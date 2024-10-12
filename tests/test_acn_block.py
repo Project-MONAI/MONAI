@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -27,6 +29,7 @@ TEST_CASES = [
 
 
 class TestACNBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_acn_block(self, input_param, input_shape, expected_shape):
         net = ActiConvNormBlock(**input_param)

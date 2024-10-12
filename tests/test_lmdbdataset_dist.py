@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import shutil
 import tempfile
 import unittest
@@ -21,6 +23,7 @@ from tests.utils import DistCall, DistTestCase, skip_if_windows
 
 
 class _InplaceXform(Transform):
+
     def __call__(self, data):
         if data:
             data[0] = data[0] + np.pi
@@ -31,6 +34,7 @@ class _InplaceXform(Transform):
 
 @skip_if_windows
 class TestMPLMDBDataset(DistTestCase):
+
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
 

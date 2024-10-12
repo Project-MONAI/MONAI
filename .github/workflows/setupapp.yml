@@ -21,20 +21,21 @@ jobs:
   #   - ubuntu 37 38 39 310-pip-
   #   - os-latest-pip (shared)
   coverage-py3:
-    if: github.repository == 'Project-MONAI/MONAI'
+    # if: github.repository == 'Project-MONAI/MONAI'
+    if: ${{ false }}  # disable self-hosted job project-monai/monai#7039
     container:
       image: nvcr.io/nvidia/pytorch:22.04-py3
       options: --gpus all
     runs-on: [self-hosted, linux, x64, integration]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: cache weekly timestamp
       id: pip-cache
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
       if: ${{ startsWith(github.ref, 'refs/heads/dev') }}
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -48,6 +49,10 @@ jobs:
         python -m pip install --upgrade torch torchvision
         python -m pip install -r requirements-dev.txt
     - name: Run unit tests report coverage
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         python -m pip list
         git config --global --add safe.directory /__w/MONAI/MONAI
@@ -67,7 +72,7 @@ jobs:
         if pgrep python; then pkill python; fi
       shell: bash
     - name: Upload coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -76,13 +81,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10']
+        python-version: ['3.9', '3.10', '3.11']
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: cache weekly timestamp
@@ -90,7 +95,7 @@ jobs:
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -99,17 +104,22 @@ jobs:
         key: ${{ runner.os }}-${{ matrix.python-version }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install the dependencies
       run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
-        python -m pip install torch==1.13.1 torchvision==0.14.1
         python -m pip install -r requirements-dev.txt
     - name: Run quick tests CPU ubuntu
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         python -m pip list
         python -c 'import torch; print(torch.__version__); print(torch.rand(5,3))'
-        BUILD_MONAI=1 ./runtests.sh --build --quick --unittests --disttests
+        BUILD_MONAI=0 ./runtests.sh --build --quick --unittests
+        BUILD_MONAI=1 ./runtests.sh --build --quick --min
         coverage xml --ignore-errors
     - name: Upload coverage
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         fail_ci_if_error: false
         files: ./coverage.xml
@@ -117,16 +127,16 @@ jobs:
   install:  # pip install from github url, the default branch is dev
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
         echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -144,11 +154,12 @@ jobs:
     - name: Install the default branch with build (dev branch only)
       if: github.ref == 'refs/heads/dev'
       run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         BUILD_MONAI=1 pip install git+https://github.com/Project-MONAI/MONAI#egg=MONAI
         python -c 'import monai; monai.config.print_config()'
     - name: Get the test cases (dev branch only)
       if: github.ref == 'refs/heads/dev'
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         ref: dev
     - name: Quick test installed (dev branch only)

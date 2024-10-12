@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -38,14 +40,15 @@ TEST_CASE_8 = [
         "dimension": 4,
         "space": "left-posterior-superior",
         "sizes": [3, 4, 4, 1],
-        "space directions": [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
-        "space origin": [0.0, 0.0, 0.0],
+        "space directions": [[0.7, 0.0, 0.0], [0.0, 0.0, -0.8], [0.0, 0.9, 0.0]],
+        "space origin": [1.0, 5.0, 20.0],
     },
 ]
 
 
 @skipUnless(has_nrrd, "nrrd required")
 class TestNrrdReader(unittest.TestCase):
+
     def test_verify_suffix(self):
         reader = NrrdReader()
         self.assertFalse(reader.verify_suffix("test_image.nrd"))
@@ -107,6 +110,10 @@ class TestNrrdReader(unittest.TestCase):
         np.testing.assert_allclose(image_array, test_image)
         self.assertIsInstance(image_header, dict)
         self.assertTupleEqual(tuple(image_header["spatial_shape"]), expected_shape)
+        np.testing.assert_allclose(
+            image_header["affine"],
+            np.array([[-0.7, 0.0, 0.0, -1.0], [0.0, 0.0, -0.9, -5.0], [0.0, -0.8, 0.0, 20.0], [0.0, 0.0, 0.0, 1.0]]),
+        )
 
     @parameterized.expand([TEST_CASE_8])
     def test_read_with_header_index_order_c(self, data_shape, filename, expected_shape, dtype, reference_header):

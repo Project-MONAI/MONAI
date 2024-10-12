@@ -9,11 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 import string
 import unittest
 from copy import deepcopy
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -41,6 +42,7 @@ def rand_string(min_len=5, max_len=10):
 
 @unittest.skipIf(config.USE_META_DICT, "skipping not metatensor")
 class TestToFromMetaTensord(unittest.TestCase):
+
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
@@ -67,7 +69,7 @@ class TestToFromMetaTensord(unittest.TestCase):
         shape: bool = True,
         vals: bool = True,
         ids: bool = True,
-        device: Optional[Union[str, torch.device]] = None,
+        device: str | torch.device | None = None,
         meta: bool = True,
         check_ids: bool = False,
         **kwargs,

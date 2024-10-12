@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -18,6 +20,7 @@ from monai.networks.layers import apply_filter
 
 
 class ApplyFilterTestCase(unittest.TestCase):
+
     def test_1d(self):
         a = torch.tensor([[list(range(10))]], dtype=torch.float)
         out = apply_filter(a, torch.tensor([-1, 0, 1]), stride=1)

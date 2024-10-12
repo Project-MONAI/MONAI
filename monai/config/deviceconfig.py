@@ -9,16 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+import getpass
 import os
 import platform
 import re
 import sys
 from collections import OrderedDict
+from typing import TextIO
 
 import numpy as np
 import torch
 
 import monai
+from monai.utils.deprecate_utils import deprecated
+from monai.utils.enums import IgniteInfo as _IgniteInfo
 from monai.utils.module import OptionalImportError, get_package_version, optional_import
 
 try:
@@ -65,8 +71,10 @@ def get_optional_config_values():
     output = OrderedDict()
 
     output["Pytorch Ignite"] = get_package_version("ignite")
+    output["ITK"] = get_package_version("itk")
     output["Nibabel"] = get_package_version("nibabel")
     output["scikit-image"] = get_package_version("skimage")
+    output["scipy"] = get_package_version("scipy")
     output["Pillow"] = get_package_version("PIL")
     output["Tensorboard"] = get_package_version("tensorboard")
     output["gdown"] = get_package_version("gdown")
@@ -79,6 +87,7 @@ def get_optional_config_values():
     output["transformers"] = get_package_version("transformers")
     output["mlflow"] = get_package_version("mlflow")
     output["pynrrd"] = get_package_version("nrrd")
+    output["clearml"] = get_package_version("clearml")
 
     return output
 
@@ -94,8 +103,9 @@ def print_config(file=sys.stdout):
         print(f"{k} version: {v}", file=file, flush=True)
     print(f"MONAI flags: HAS_EXT = {HAS_EXT}, USE_COMPILED = {USE_COMPILED}, USE_META_DICT = {USE_META_DICT}")
     print(f"MONAI rev id: {monai.__revision_id__}")
-    print(f"MONAI __file__: {monai.__file__}")
-
+    username = getpass.getuser()
+    masked_file_path = re.sub(username, "<username>", monai.__file__)
+    print(f"MONAI __file__: {masked_file_path}", file=file, flush=True)
     print("\nOptional dependencies:", file=file, flush=True)
     for k, v in get_optional_config_values().items():
         print(f"{k} version: {v}", file=file, flush=True)
@@ -173,7 +183,7 @@ def get_system_info() -> OrderedDict:
     return output
 
 
-def print_system_info(file=sys.stdout) -> None:
+def print_system_info(file: TextIO = sys.stdout) -> None:
     """
     Print system info to `file`. Requires the optional library, `psutil`.
 
@@ -188,7 +198,6 @@ def print_system_info(file=sys.stdout) -> None:
 
 
 def get_gpu_info() -> OrderedDict:
-
     output: OrderedDict = OrderedDict()
 
     num_gpus = torch.cuda.device_count()
@@ -200,6 +209,8 @@ def get_gpu_info() -> OrderedDict:
         _dict_append(output, "CUDA version", lambda: torch.version.cuda)
     cudnn_ver = torch.backends.cudnn.version()
     _dict_append(output, "cuDNN enabled", lambda: bool(cudnn_ver))
+    _dict_append(output, "NVIDIA_TF32_OVERRIDE", os.environ.get("NVIDIA_TF32_OVERRIDE"))
+    _dict_append(output, "TORCH_ALLOW_TF32_CUBLAS_OVERRIDE", os.environ.get("TORCH_ALLOW_TF32_CUBLAS_OVERRIDE"))
 
     if cudnn_ver:
         _dict_append(output, "cuDNN version", lambda: cudnn_ver)
@@ -210,17 +221,17 @@ def get_gpu_info() -> OrderedDict:
 
     for gpu in range(num_gpus):
         gpu_info = torch.cuda.get_device_properties(gpu)
-        _dict_append(output, f"GPU {gpu} Name", lambda: gpu_info.name)
-        _dict_append(output, f"GPU {gpu} Is integrated", lambda: bool(gpu_info.is_integrated))
-        _dict_append(output, f"GPU {gpu} Is multi GPU board", lambda: bool(gpu_info.is_multi_gpu_board))
-        _dict_append(output, f"GPU {gpu} Multi processor count", lambda: gpu_info.multi_processor_count)
-        _dict_append(output, f"GPU {gpu} Total memory (GB)", lambda: round(gpu_info.total_memory / 1024**3, 1))
-        _dict_append(output, f"GPU {gpu} CUDA capability (maj.min)", lambda: f"{gpu_info.major}.{gpu_info.minor}")
+        _dict_append(output, f"GPU {gpu} Name", gpu_info.name)
+        _dict_append(output, f"GPU {gpu} Is integrated", bool(gpu_info.is_integrated))
+        _dict_append(output, f"GPU {gpu} Is multi GPU board", bool(gpu_info.is_multi_gpu_board))
+        _dict_append(output, f"GPU {gpu} Multi processor count", gpu_info.multi_processor_count)
+        _dict_append(output, f"GPU {gpu} Total memory (GB)", round(gpu_info.total_memory / 1024**3, 1))
+        _dict_append(output, f"GPU {gpu} CUDA capability (maj.min)", f"{gpu_info.major}.{gpu_info.minor}")
 
     return output
 
 
-def print_gpu_info(file=sys.stdout) -> None:
+def print_gpu_info(file: TextIO = sys.stdout) -> None:
     """
     Print GPU info to `file`.
 
@@ -231,7 +242,7 @@ def print_gpu_info(file=sys.stdout) -> None:
         print(f"{k}: {v}", file=file, flush=True)
 
 
-def print_debug_info(file=sys.stdout) -> None:
+def print_debug_info(file: TextIO = sys.stdout) -> None:
     """
     Print config (installed dependencies, etc.) and system info for debugging.
 
@@ -252,13 +263,11 @@ def print_debug_info(file=sys.stdout) -> None:
     print_gpu_info(file)
 
 
+@deprecated(since="1.4.0", removed="1.6.0", msg_suffix="Please use `monai.utils.enums.IgniteInfo` instead.")
 class IgniteInfo:
-    """
-    Config information of the PyTorch ignite package.
+    """Deprecated Import of IgniteInfo enum, which was moved to `monai.utils.enums.IgniteInfo`."""
 
-    """
-
-    OPT_IMPORT_VERSION = "0.4.4"
+    OPT_IMPORT_VERSION = _IgniteInfo.OPT_IMPORT_VERSION
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -44,6 +46,7 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 class TestGenerateInstanceContourd(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE)
     def test_shape(self, in_type, test_data, min_num_points, offset, expected):
         inst_bbox = get_bbox(test_data[None])

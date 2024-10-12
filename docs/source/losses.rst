@@ -73,12 +73,42 @@ Segmentation Losses
 .. autoclass:: ContrastiveLoss
     :members:
 
+`BarlowTwinsLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: BarlowTwinsLoss
+    :members:
+
+`HausdorffDTLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: HausdorffDTLoss
+    :members:
+
+`SoftclDiceLoss`
+~~~~~~~~~~~~~~~~
+.. autoclass:: SoftclDiceLoss
+    :members:
+
+`SoftDiceclDiceLoss`
+~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: SoftDiceclDiceLoss
+    :members:
+
+`NACLLoss`
+~~~~~~~~~~
+.. autoclass:: NACLLoss
+    :members:
+
 Registration Losses
 -------------------
 
 `BendingEnergyLoss`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: BendingEnergyLoss
+    :members:
+
+`DiffusionLoss`
+~~~~~~~~~~~~~~~
+.. autoclass:: DiffusionLoss
     :members:
 
 `LocalNormalizedCrossCorrelationLoss`
@@ -99,6 +129,26 @@ Reconstruction Losses
 .. autoclass:: monai.losses.ssim_loss.SSIMLoss
     :members:
 
+`PatchAdversarialLoss`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: PatchAdversarialLoss
+    :members:
+
+`PerceptualLoss`
+~~~~~~~~~~~~~~~~~
+.. autoclass:: PerceptualLoss
+    :members:
+
+`JukeboxLoss`
+~~~~~~~~~~~~~~
+.. autoclass:: JukeboxLoss
+    :members:
+
+`SURELoss`
+~~~~~~~~~~
+.. autoclass:: SURELoss
+    :members:
+
 
 Loss Wrappers
 -------------
@@ -111,4 +161,9 @@ Loss Wrappers
 `MaskedLoss`
 ~~~~~~~~~~~~
 .. autoclass:: MaskedLoss
+    :members:
+
+`DeepSupervisionLoss`
+~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: DeepSupervisionLoss
     :members:

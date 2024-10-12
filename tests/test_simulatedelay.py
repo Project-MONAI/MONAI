@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import time
 import unittest
 
@@ -20,6 +22,7 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestSimulateDelay(NumpyImageTestCase2D):
+
     @parameterized.expand([(0.45,), (1,)])
     def test_value(self, delay_test_time: float):
         resize = SimulateDelay(delay_time=delay_test_time)

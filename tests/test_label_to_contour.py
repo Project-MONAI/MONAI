@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -140,6 +142,7 @@ def gen_fixed_img(array_type):
 
 
 class TestContour(unittest.TestCase):
+
     def test_contour(self):
         input_param = {"kernel_type": "Laplace"}
 

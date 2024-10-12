@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.utils.misc import str2bool
 
 
 class TestStr2Bool(unittest.TestCase):
+
     def test_str_2_bool(self):
         for i in ("yes", "true", "t", "y", "1", True):
             self.assertTrue(str2bool(i))

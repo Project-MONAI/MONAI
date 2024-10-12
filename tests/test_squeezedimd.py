@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -78,6 +80,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestSqueezeDim(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, test_data, expected_shape):
         result = SqueezeDimd(**input_param)(test_data)

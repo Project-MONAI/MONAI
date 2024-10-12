@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import os
 import tempfile
@@ -18,6 +20,7 @@ from monai.data import Dataset, DatasetFunc, load_decathlon_datalist, partition_
 
 
 class TestDatasetFunc(unittest.TestCase):
+
     def test_seg_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             # prepare test datalist file

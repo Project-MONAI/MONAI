@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Union
 
 import torch
 from torch.nn.modules.loss import _Loss
@@ -37,7 +38,7 @@ class AsymmetricFocalTverskyLoss(_Loss):
         delta: float = 0.7,
         gamma: float = 0.75,
         epsilon: float = 1e-7,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
     ) -> None:
         """
         Args:
@@ -101,7 +102,7 @@ class AsymmetricFocalLoss(_Loss):
         delta: float = 0.7,
         gamma: float = 2,
         epsilon: float = 1e-7,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
     ):
         """
         Args:
@@ -160,7 +161,7 @@ class AsymmetricUnifiedFocalLoss(_Loss):
         weight: float = 0.5,
         gamma: float = 0.5,
         delta: float = 0.7,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
     ):
         """
         Args:

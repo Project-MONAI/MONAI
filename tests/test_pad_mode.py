@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -21,6 +23,7 @@ from tests.utils import SkipIfBeforePyTorchVersion
 
 @SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestPadMode(unittest.TestCase):
+
     def test_pad(self):
         expected_shapes = {3: (1, 15, 10), 4: (1, 10, 6, 7)}
         for t in (float, int, np.uint8, np.int16, np.float32, bool):

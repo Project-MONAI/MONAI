@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -37,6 +39,7 @@ TEST_CASES = os.path.join(os.path.dirname(__file__), "testing_data", "transform_
 
 @unittest.skipUnless(has_nib, "Requires nibabel package.")
 class TestMetaTensorIntegration(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

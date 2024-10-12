@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -42,6 +44,7 @@ for interp_s in SplineMode if not USE_COMPILED else []:  # type: ignore
 
 @SkipIfBeforePyTorchVersion((1, 9, 1))
 class TestResampleBackends(unittest.TestCase):
+
     @parameterized.expand(TEST_IDENTITY)
     def test_resample_identity(self, input_param, im_type, interp, padding, input_shape):
         """test resampling of an identity grid with padding 2, im_type, interp, padding, input_shape"""

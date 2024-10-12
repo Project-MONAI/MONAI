@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
@@ -44,6 +46,7 @@ for track_meta in (False, True):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImaged(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, input_param, expected_shape):
         test_image = nib.Nifti1Image(np.random.rand(128, 128, 128), np.eye(4))
@@ -92,6 +95,7 @@ class TestLoadImaged(unittest.TestCase):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestConsistency(unittest.TestCase):
+
     def _cmp(self, filename, ch_shape, reader_1, reader_2, outname, ext):
         data_dict = {"img": filename}
         keys = data_dict.keys()
@@ -153,6 +157,7 @@ class TestConsistency(unittest.TestCase):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestLoadImagedMeta(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
@@ -185,7 +190,7 @@ class TestLoadImagedMeta(unittest.TestCase):
                 self.assertTrue(hasattr(r, "affine"))
                 self.assertIsInstance(r.affine, torch.Tensor)
                 self.assertEqual(r.meta["space"], "RAS")
-                self.assertTrue("qform_code" not in r.meta)
+                self.assertNotIn("qform_code", r.meta)
             else:
                 self.assertIsInstance(r, torch.Tensor)
                 self.assertNotIsInstance(r, MetaTensor)

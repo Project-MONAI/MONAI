@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import inspect
 import os
@@ -19,6 +21,7 @@ import monai
 
 
 class TestAllImport(unittest.TestCase):
+
     def test_public_api(self):
         """
         This is to check "monai.__all__" should be consistent with

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -21,6 +23,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedConfusionMatrix(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         self._compute()

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.data import CacheDataset, DataLoader, create_test_image_2d
@@ -16,6 +18,7 @@ from monai.transforms import Compose, RandAffined, Spacingd
 
 
 class TestTransformsWCacheDatasetAndPersistentWorkers(unittest.TestCase):
+
     def test_duplicate_transforms(self):
         data = [{"img": create_test_image_2d(128, 128, num_seg_classes=1, channel_dim=0)[0]} for _ in range(2)]
 

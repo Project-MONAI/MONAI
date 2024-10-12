@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import os
 import tempfile
@@ -26,6 +28,7 @@ TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "metadata
 
 @skip_if_windows
 class TestVerifyMetaData(unittest.TestCase):
+
     def setUp(self):
         self.config = testing_data_config("configs", "test_meta_file")
         download_url_or_skip_test(

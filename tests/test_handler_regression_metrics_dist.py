@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -55,6 +57,7 @@ SPATIAL_DIM = 3
 
 
 class DistributedMeanSquaredError(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)
@@ -101,6 +104,7 @@ class DistributedMeanSquaredError(DistTestCase):
 
 
 class DistributedMeanAbsoluteError(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)
@@ -147,6 +151,7 @@ class DistributedMeanAbsoluteError(DistTestCase):
 
 
 class DistributedRootMeanSquaredError(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)
@@ -193,6 +198,7 @@ class DistributedRootMeanSquaredError(DistTestCase):
 
 
 class DistributedPeakSignalToNoiseRatio(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)

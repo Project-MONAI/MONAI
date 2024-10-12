@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -98,6 +100,7 @@ TEST_CASE_10 = [
 
 
 class TestComputeROCAUC(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_1,

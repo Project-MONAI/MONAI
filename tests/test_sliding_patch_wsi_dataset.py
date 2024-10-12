@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from unittest import skipUnless
@@ -30,10 +32,9 @@ imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-FILE_KEY = "wsi_img"
+FILE_KEY = "wsi_generic_tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-base_name, extension = os.path.basename(f"{FILE_URL}"), ".tiff"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + base_name + extension)
+FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
 
 FILE_PATH_SMALL_0 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_wsi_inference_0.tiff")
 FILE_PATH_SMALL_1 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_wsi_inference_1.tiff")
@@ -212,6 +213,7 @@ def setUpModule():
 
 
 class SlidingPatchWSIDatasetTests:
+
     class Tests(unittest.TestCase):
         backend = None
 
@@ -251,6 +253,7 @@ class SlidingPatchWSIDatasetTests:
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -258,6 +261,7 @@ class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestSlidingPatchWSIDatasetOpenSlide(SlidingPatchWSIDatasetTests.Tests):
+
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"

@@ -9,12 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 from parameterized import parameterized
 
-from monai.transforms import RandSpatialCrop
+from monai.data.meta_tensor import MetaTensor
+from monai.transforms import RandScaleCrop, RandSpatialCrop
+from monai.transforms.lazy.functional import apply_pending
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
@@ -22,6 +26,7 @@ TEST_SHAPES = [
     [{"roi_size": [3, 3, -1], "random_center": True}, (3, 3, 3, 4), (3, 3, 3, 4)],
     [{"roi_size": [3, 3, 3], "random_center": True}, (3, 3, 3, 3), (3, 3, 3, 3)],
     [{"roi_size": [3, 3, 3], "random_center": False}, (3, 3, 3, 3), (3, 3, 3, 3)],
+    [{"roi_size": [3, 3, 2], "random_center": False, "random_size": False}, (3, 3, 3, 3), (3, 3, 3, 2)],
 ]
 
 TEST_VALUES = [
@@ -39,6 +44,15 @@ TEST_RANDOM_SHAPES = [
     ],
     [{"roi_size": 3, "max_roi_size": 4, "random_center": True, "random_size": True}, (1, 4, 5, 6), (1, 3, 4, 3)],
 ]
+
+func1 = {RandSpatialCrop: {"roi_size": [8, 7, -1], "random_center": True, "random_size": False}}
+func2 = {RandScaleCrop: {"roi_scale": [0.5, 0.6, -1.0], "random_center": True, "random_size": True}}
+func3 = {RandScaleCrop: {"roi_scale": [1.0, 0.5, -1.0], "random_center": False, "random_size": False}}
+
+TESTS_COMBINE = []
+TESTS_COMBINE.append([[func1, func2, func3], (3, 10, 10, 8)])
+TESTS_COMBINE.append([[func1, func2], (3, 8, 8, 4)])
+TESTS_COMBINE.append([[func2, func2], (3, 8, 8, 4)])
 
 
 class TestRandSpatialCrop(CropTest):
@@ -64,8 +78,29 @@ class TestRandSpatialCrop(CropTest):
                 cropper = RandSpatialCrop(**input_param)
                 cropper.set_random_state(seed=123)
                 input_data = im_type(np.random.randint(0, 2, input_shape))
-                result = cropper(input_data)
-                self.assertTupleEqual(result.shape, expected_shape)
+                expected = cropper(input_data)
+                self.assertTupleEqual(expected.shape, expected_shape)
+
+                # lazy
+                # reset random seed to ensure the same results
+                cropper.set_random_state(seed=123)
+                cropper.lazy = True
+                pending_result = cropper(input_data)
+                self.assertIsInstance(pending_result, MetaTensor)
+                assert_allclose(pending_result.peek_pending_affine(), expected.affine)
+                assert_allclose(pending_result.peek_pending_shape(), expected.shape[1:])
+                # only support nearest
+                result = apply_pending(pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
+                # compare
+                assert_allclose(result, expected, rtol=1e-5)
+
+    @parameterized.expand(TEST_SHAPES)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.crop_test_pending_ops(input_param, input_shape)
+
+    @parameterized.expand(TESTS_COMBINE)
+    def test_combine_ops(self, funcs, input_shape):
+        self.crop_test_combine_ops(funcs, input_shape)
 
 
 if __name__ == "__main__":

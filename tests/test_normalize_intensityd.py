@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -49,6 +51,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestNormalizeIntensityd(NumpyImageTestCase2D):
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_image_normalize_intensityd(self, im_type):
         key = "img"

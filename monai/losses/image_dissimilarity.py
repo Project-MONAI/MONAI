@@ -8,7 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Tuple, Union
+
+from __future__ import annotations
 
 import torch
 from torch.nn import functional as F
@@ -65,7 +66,7 @@ class LocalNormalizedCrossCorrelationLoss(_Loss):
         spatial_dims: int = 3,
         kernel_size: int = 3,
         kernel_type: str = "rectangular",
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 0.0,
         smooth_dr: float = 1e-5,
     ) -> None:
@@ -175,7 +176,7 @@ class GlobalMutualInformationLoss(_Loss):
         kernel_type: str = "gaussian",
         num_bins: int = 23,
         sigma_ratio: float = 0.5,
-        reduction: Union[LossReduction, str] = LossReduction.MEAN,
+        reduction: LossReduction | str = LossReduction.MEAN,
         smooth_nr: float = 1e-7,
         smooth_dr: float = 1e-7,
     ) -> None:
@@ -221,7 +222,7 @@ class GlobalMutualInformationLoss(_Loss):
 
     def parzen_windowing(
         self, pred: torch.Tensor, target: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         if self.kernel_type == "gaussian":
             pred_weight, pred_probability = self.parzen_windowing_gaussian(pred)
             target_weight, target_probability = self.parzen_windowing_gaussian(target)
@@ -234,7 +235,7 @@ class GlobalMutualInformationLoss(_Loss):
             raise ValueError
         return pred_weight, pred_probability, target_weight, target_probability
 
-    def parzen_windowing_b_spline(self, img: torch.Tensor, order: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def parzen_windowing_b_spline(self, img: torch.Tensor, order: int) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Parzen windowing with b-spline kernel (adapted from ITK)
 
@@ -276,9 +277,7 @@ class GlobalMutualInformationLoss(_Loss):
         if order == 0:
             weight = weight + (sample_bin_matrix < 0.5) + (sample_bin_matrix == 0.5) * 0.5
         elif order == 3:
-            weight = (
-                weight + (4 - 6 * sample_bin_matrix**2 + 3 * sample_bin_matrix**3) * (sample_bin_matrix < 1) / 6
-            )
+            weight = weight + (4 - 6 * sample_bin_matrix**2 + 3 * sample_bin_matrix**3) * (sample_bin_matrix < 1) / 6
             weight = weight + (2 - sample_bin_matrix) ** 3 * (sample_bin_matrix >= 1) * (sample_bin_matrix < 2) / 6
         else:
             raise ValueError(f"Do not support b-spline {order}-order parzen windowing")
@@ -287,7 +286,7 @@ class GlobalMutualInformationLoss(_Loss):
         probability = torch.mean(weight, dim=-2, keepdim=True)  # (batch, 1, num_bins)
         return weight, probability
 
-    def parzen_windowing_gaussian(self, img: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def parzen_windowing_gaussian(self, img: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Parzen windowing with gaussian kernel (adapted from DeepReg implementation)
         Note: the input is expected to range between 0 and 1

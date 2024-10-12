@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -152,6 +154,7 @@ def check_kernels(net, mode):
 
 
 class TestHoverNet(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shapes):
         input_param["decoder_padding"] = False

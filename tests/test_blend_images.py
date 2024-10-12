@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from unittest.case import skipUnless
 
@@ -42,6 +44,7 @@ for p in TEST_NDARRAYS:
 
 @skipUnless(has_matplotlib, "Matplotlib required")
 class TestBlendImages(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_blend(self, image, label, alpha):
         blended = blend_images(image, label, alpha)

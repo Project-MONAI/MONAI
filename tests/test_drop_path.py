@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -26,6 +28,7 @@ TEST_ERRORS = [[{"drop_prob": 2, "scale_by_keep": False}, (1, 24, 6)]]
 
 
 class TestDropPath(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape):
         im = torch.rand(input_shape)

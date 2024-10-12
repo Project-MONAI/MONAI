@@ -9,17 +9,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from __future__ import annotations
+
+import sys
+import warnings
+from collections.abc import Callable
+from logging import Filter
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+
+from typing import overload
 
 import torch
 import torch.distributed as dist
 
-from monai.config import IgniteInfo
+from monai.utils.enums import IgniteInfo
 from monai.utils.module import min_version, optional_import
 
 idist, has_ignite = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
-__all__ = ["get_dist_device", "evenly_divisible_all_gather", "string_list_all_gather"]
+__all__ = ["get_dist_device", "evenly_divisible_all_gather", "string_list_all_gather", "RankFilter"]
 
 
 def get_dist_device():
@@ -39,7 +49,19 @@ def get_dist_device():
     return None
 
 
-def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
+@overload
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[True]) -> torch.Tensor: ...
+
+
+@overload
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[False]) -> list[torch.Tensor]: ...
+
+
+@overload
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool) -> torch.Tensor | list[torch.Tensor]: ...
+
+
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True) -> torch.Tensor | list[torch.Tensor]:
     """
     Utility function for distributed data parallel to pad at first dim to make it evenly divisible and all_gather.
     The input data of every rank should have the same number of dimensions, only the first dim can be different.
@@ -62,7 +84,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     ndims = data.ndimension()
     length: int = data.shape[0] if ndims > 0 else 1
 
-    def _torch_all_gather(data: torch.Tensor) -> List[torch.Tensor]:
+    def _torch_all_gather(data: torch.Tensor) -> list[torch.Tensor]:
         """
         Implementation based on native PyTorch distributed data parallel APIs.
 
@@ -76,7 +98,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         length_tensor = torch.as_tensor([length], device=device)
         all_lens = [torch.zeros_like(length_tensor) for _ in range(dist.get_world_size())]
         dist.all_gather(all_lens, length_tensor)
-        all_lens_: List[int] = [int(i.item()) for i in all_lens]
+        all_lens_: list[int] = [int(i.item()) for i in all_lens]
 
         max_len: int = max(all_lens_)
         if length < max_len:
@@ -88,14 +110,14 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
         # remove the padding items, if all the input data doesn't have batch dim, squeeze the first dim
         return [(o.squeeze(0) if ndims == 0 else o[:l, ...]).to(orig_device) for o, l in zip(output, all_lens_)]
 
-    def _ignite_all_gather(data: torch.Tensor) -> List[torch.Tensor]:
+    def _ignite_all_gather(data: torch.Tensor) -> list[torch.Tensor]:
         """
         Implementation based on PyTorch ignite package, it can support more kinds of backends.
 
         """
         data = data.unsqueeze(0) if ndims == 0 else data
         # make sure the data is evenly-divisible on multi-GPUs
-        all_lens: List[int] = idist.all_gather(length)
+        all_lens: list[int] = idist.all_gather(length)
         max_len: int = max(all_lens)
         if length < max_len:
             size = [max_len - length] + list(data.shape[1:])
@@ -108,7 +130,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
             return list(torch.unbind(output, dim=0))
         return [output[i * max_len : i * max_len + l, ...] for i, l in enumerate(all_lens)]
 
-    output: List[torch.Tensor]
+    output: list[torch.Tensor]
     if has_ignite:
         if idist.get_world_size() <= 1:
             return data
@@ -123,7 +145,7 @@ def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True):
     return torch.cat(output, dim=0) if concat else output
 
 
-def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[str]:
+def string_list_all_gather(strings: list[str], delimiter: str = "\t") -> list[str]:
     """
     Utility function for distributed data parallel to all gather a list of strings.
     Refer to the idea of ignite `all_gather(string)`:
@@ -149,6 +171,36 @@ def string_list_all_gather(strings: List[str], delimiter: str = "\t") -> List[st
 
     joined = delimiter.join(strings)
     gathered = evenly_divisible_all_gather(torch.tensor(bytearray(joined, "utf-8"), dtype=torch.long), concat=False)
-    gathered = [bytearray(g.tolist()).decode("utf-8").split(delimiter) for g in gathered]
+    _gathered = [bytearray(g.tolist()).decode("utf-8").split(delimiter) for g in gathered]
 
-    return [i for k in gathered for i in k]
+    return [i for k in _gathered for i in k]
+
+
+class RankFilter(Filter):
+    """
+    The RankFilter class is a convenient filter that extends the Filter class in the Python logging module.
+    The purpose is to control which log records are processed based on the rank in a distributed environment.
+
+    Args:
+        rank: the rank of the process in the torch.distributed. Default is None and then it will use dist.get_rank().
+        filter_fn: an optional lambda function used as the filtering criteria.
+            The default function logs only if the rank of the process is 0,
+            but the user can define their own function to implement custom filtering logic.
+    """
+
+    def __init__(self, rank: int | None = None, filter_fn: Callable = lambda rank: rank == 0):
+        super().__init__()
+        self.filter_fn: Callable = filter_fn
+        if dist.is_available() and dist.is_initialized():
+            self.rank: int = rank if rank is not None else dist.get_rank()
+        else:
+            if torch.cuda.is_available() and torch.cuda.device_count() > 1:
+                warnings.warn(
+                    "The torch.distributed is either unavailable and uninitiated when RankFilter is instantiated.\n"
+                    "If torch.distributed is used, please ensure that the RankFilter() is called\n"
+                    "after torch.distributed.init_process_group() in the script.\n"
+                )
+            self.rank = 0
+
+    def filter(self, *_args):
+        return self.filter_fn(self.rank)

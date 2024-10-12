@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import time
 import unittest
@@ -26,6 +28,7 @@ TEST_CASE_3 = [{"keys": "meta_dict%0008\\|[0-9]", "sep": "%", "use_re": True}]
 
 
 class TestDeleteItemsd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_memory(self, input_param, expected_key_size):
         input_data = {"image": {}} if "sep" in input_param else {}

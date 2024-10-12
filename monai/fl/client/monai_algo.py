@@ -9,39 +9,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
+from __future__ import annotations
+
 import os
-import sys
-from typing import Any, Dict, Mapping, MutableMapping, Optional, Union, cast
+import time
+from collections.abc import Mapping, MutableMapping
+from typing import Any, cast
 
 import torch
 import torch.distributed as dist
 
-import monai
 from monai.apps.auto3dseg.data_analyzer import DataAnalyzer
+from monai.apps.utils import get_logger
 from monai.auto3dseg import SegSummarizer
-from monai.bundle import DEFAULT_EXP_MGMT_SETTINGS, ConfigComponent, ConfigItem, ConfigParser, patch_bundle_tracking
-from monai.engines import Trainer
+from monai.bundle import BundleWorkflow, ConfigComponent, ConfigItem, ConfigParser, ConfigWorkflow
+from monai.engines import SupervisedEvaluator, SupervisedTrainer, Trainer
 from monai.fl.client import ClientAlgo, ClientAlgoStats
-from monai.fl.utils.constants import (
-    BundleKeys,
-    ExtraItems,
-    FiltersType,
-    FlPhase,
-    FlStatistics,
-    ModelType,
-    RequiredBundleKeys,
-    WeightType,
-)
+from monai.fl.utils.constants import ExtraItems, FiltersType, FlPhase, FlStatistics, ModelType, WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks.utils import copy_model_state, get_state_dict
 from monai.utils import min_version, require_pkg
 from monai.utils.enums import DataStatsKeys
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = get_logger(__name__)
 
 
-def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping):
+def convert_global_weights(global_weights: Mapping, local_var_dict: MutableMapping) -> tuple[MutableMapping, int]:
     """Helper function to convert global weights to local weights format"""
     # Before loading weights, tensors might need to be reshaped to support HE for secure aggregation.
     model_keys = global_weights.keys()
@@ -67,25 +60,23 @@ def compute_weight_diff(global_weights, local_var_dict):
         raise ValueError("Cannot compute weight differences if `local_var_dict` is None!")
     # compute delta model, global model has the primary key set
     weight_diff = {}
+    n_diff = 0
     for name in global_weights:
         if name not in local_var_dict:
             continue
         # returned weight diff will be on the cpu
         weight_diff[name] = local_var_dict[name].cpu() - global_weights[name].cpu()
+        n_diff += 1
         if torch.any(torch.isnan(weight_diff[name])):
             raise ValueError(f"Weights for {name} became NaN...")
+    if n_diff == 0:
+        raise RuntimeError("No weight differences computed!")
     return weight_diff
 
 
-def check_bundle_config(parser):
-    for k in RequiredBundleKeys:
-        if parser.get(k, None) is None:
-            raise KeyError(f"Bundle config misses required key `{k}`")
-
-
-def disable_ckpt_loaders(parser):
-    if BundleKeys.VALIDATE_HANDLERS in parser:
-        for h in parser[BundleKeys.VALIDATE_HANDLERS]:
+def disable_ckpt_loaders(parser: ConfigParser) -> None:
+    if "validate#handlers" in parser:
+        for h in parser["validate#handlers"]:
             if ConfigComponent.is_instantiable(h):
                 if "CheckpointLoader" in h["_target_"]:
                     h["_disabled_"] = True
@@ -96,36 +87,43 @@ class MonaiAlgoStats(ClientAlgoStats):
     Implementation of ``ClientAlgoStats`` to allow federated learning with MONAI bundle configurations.
 
     Args:
-        bundle_root: path of bundle.
+        bundle_root: directory path of the bundle.
         config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
-            defaults to "configs/train.json".
+            defaults to "configs/train.json". only useful when `workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
+        data_stats_transform_list: transforms to apply for the data stats result.
         histogram_only: whether to only compute histograms. Defaults to False.
+        workflow: the bundle workflow to execute, usually it's training, evaluation or inference.
+            if None, will create an `ConfigWorkflow` internally based on `config_train_filename`.
     """
 
     def __init__(
         self,
         bundle_root: str,
-        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
-        config_filters_filename: Optional[Union[str, list]] = None,
-        train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
-        eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
-        data_stats_transform_list: Optional[list] = None,
+        config_train_filename: str | list | None = "configs/train.json",
+        config_filters_filename: str | list | None = None,
+        data_stats_transform_list: list | None = None,
         histogram_only: bool = False,
+        workflow: BundleWorkflow | None = None,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = logger
         self.bundle_root = bundle_root
         self.config_train_filename = config_train_filename
         self.config_filters_filename = config_filters_filename
-        self.train_data_key = train_data_key
-        self.eval_data_key = eval_data_key
+        self.train_data_key = "train"
+        self.eval_data_key = "eval"
         self.data_stats_transform_list = data_stats_transform_list
         self.histogram_only = histogram_only
+        self.workflow = None
+        if workflow is not None:
+            if not isinstance(workflow, BundleWorkflow):
+                raise ValueError("workflow must be a subclass of BundleWorkflow.")
+            if workflow.get_workflow_type() is None:
+                raise ValueError("workflow doesn't specify the type.")
+            self.workflow = workflow
 
-        self.client_name: Optional[str] = None
+        self.client_name: str | None = None
         self.app_root: str = ""
-        self.train_parser: Optional[ConfigParser] = None
-        self.filter_parser: Optional[ConfigParser] = None
         self.post_statistics_filters: Any = None
         self.phase = FlPhase.IDLE
         self.dataset_root: Any = None
@@ -136,48 +134,41 @@ class MonaiAlgoStats(ClientAlgoStats):
 
         Args:
             extra: Dict with additional information that should be provided by FL system,
-                i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+                i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
+                You can diable the logging logic in the monai bundle by setting {ExtraItems.LOGGING_FILE} to False.
 
         """
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        logging_file = extra.get(ExtraItems.LOGGING_FILE, None)
         self.logger.info(f"Initializing {self.client_name} ...")
 
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
-
-        # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
-        config_train_files = self._add_config_files(self.config_train_filename)
+        if self.workflow is None:
+            config_train_files = self._add_config_files(self.config_train_filename)
+            self.workflow = ConfigWorkflow(
+                config_file=config_train_files, meta_file=None, logging_file=logging_file, workflow_type="train"
+            )
+        self.workflow.initialize()
+        self.workflow.bundle_root = self.bundle_root
+        # initialize the workflow as the content changed
+        self.workflow.initialize()
+
         config_filter_files = self._add_config_files(self.config_filters_filename)
-
-        # Parse
-        self.train_parser = ConfigParser()
-        self.filter_parser = ConfigParser()
-        if len(config_train_files) > 0:
-            self.train_parser.read_config(config_train_files)
-            check_bundle_config(self.train_parser)
+        filter_parser = ConfigParser()
         if len(config_filter_files) > 0:
-            self.filter_parser.read_config(config_filter_files)
-
-        # override some config items
-        self.train_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
-
-        # Get data location
-        self.dataset_root = self.train_parser.get_parsed_content(
-            BundleKeys.DATASET_DIR, default=ConfigItem(None, BundleKeys.DATASET_DIR)
-        )
-
-        # Get filters
-        self.post_statistics_filters = self.filter_parser.get_parsed_content(
-            FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
-        )
-
+            filter_parser.read_config(config_filter_files)
+            # Get filters
+            self.post_statistics_filters = filter_parser.get_parsed_content(
+                FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
+            )
         self.logger.info(f"Initialized {self.client_name}.")
 
-    def get_data_stats(self, extra: Optional[dict] = None) -> ExchangeObject:
+    def get_data_stats(self, extra: dict | None = None) -> ExchangeObject:
         """
         Returns summary statistics about the local data.
 
@@ -192,9 +183,9 @@ class MonaiAlgoStats(ClientAlgoStats):
         if extra is None:
             raise ValueError("`extra` has to be set")
 
-        if self.dataset_root:
+        if self.workflow.dataset_dir:  # type: ignore
             self.phase = FlPhase.GET_DATA_STATS
-            self.logger.info(f"Computing statistics on {self.dataset_root}")
+            self.logger.info(f"Computing statistics on {self.workflow.dataset_dir}")  # type: ignore
 
             if FlStatistics.HIST_BINS not in extra:
                 raise ValueError("FlStatistics.NUM_OF_BINS not specified in `extra`")
@@ -209,7 +200,7 @@ class MonaiAlgoStats(ClientAlgoStats):
 
             # train data stats
             train_summary_stats, train_case_stats = self._get_data_key_stats(
-                parser=self.train_parser,
+                data=self.workflow.train_dataset_data,  # type: ignore
                 data_key=self.train_data_key,
                 hist_bins=hist_bins,
                 hist_range=hist_range,
@@ -220,13 +211,18 @@ class MonaiAlgoStats(ClientAlgoStats):
                 stats_dict.update({self.train_data_key: train_summary_stats})
 
             # eval data stats
-            eval_summary_stats, eval_case_stats = self._get_data_key_stats(
-                parser=self.train_parser,
-                data_key=self.eval_data_key,
-                hist_bins=hist_bins,
-                hist_range=hist_range,
-                output_path=os.path.join(self.app_root, "eval_data_stats.yaml"),
-            )
+            eval_summary_stats = None
+            eval_case_stats = None
+            if self.workflow.val_dataset_data is not None:  # type: ignore
+                eval_summary_stats, eval_case_stats = self._get_data_key_stats(
+                    data=self.workflow.val_dataset_data,  # type: ignore
+                    data_key=self.eval_data_key,
+                    hist_bins=hist_bins,
+                    hist_range=hist_range,
+                    output_path=os.path.join(self.app_root, "eval_data_stats.yaml"),
+                )
+            else:
+                self.logger.warning("the datalist doesn't contain validation section.")
             if eval_summary_stats:
                 # Only return summary statistics to FL server
                 stats_dict.update({self.eval_data_key: eval_summary_stats})
@@ -249,17 +245,10 @@ class MonaiAlgoStats(ClientAlgoStats):
         else:
             raise ValueError("data_root not set!")
 
-    def _get_data_key_stats(self, parser, data_key, hist_bins, hist_range, output_path=None):
-        if data_key not in parser:
-            self.logger.warning(f"Data key {data_key} not available in bundle configs.")
-            return None, None
-        data = parser.get_parsed_content(data_key)
-
-        datalist = {data_key: data}
-
+    def _get_data_key_stats(self, data, data_key, hist_bins, hist_range, output_path=None):
         analyzer = DataAnalyzer(
-            datalist=datalist,
-            dataroot=self.dataset_root,
+            datalist={data_key: data},
+            dataroot=self.workflow.dataset_dir,  # type: ignore
             hist_bins=hist_bins,
             hist_range=hist_range,
             output_path=output_path,
@@ -324,13 +313,18 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
     Implementation of ``ClientAlgo`` to allow federated learning with MONAI bundle configurations.
 
     Args:
-        bundle_root: path of bundle.
+        bundle_root: directory path of the bundle.
         local_epochs: number of local epochs to execute during each round of local training; defaults to 1.
         send_weight_diff: whether to send weight differences rather than full weights; defaults to `True`.
-        config_train_filename: bundle training config path relative to bundle_root. Can be a list of files;
-            defaults to "configs/train.json".
-        config_evaluate_filename: bundle evaluation config path relative to bundle_root. Can be a list of files.
-            If "default", config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"] will be used;
+        config_train_filename: bundle training config path relative to bundle_root. can be a list of files.
+            defaults to "configs/train.json". only useful when `train_workflow` is None.
+        train_kwargs: other args of the `ConfigWorkflow` of train, except for `config_file`, `meta_file`,
+            `logging_file`, `workflow_type`. only useful when `train_workflow` is None.
+        config_evaluate_filename: bundle evaluation config path relative to bundle_root. can be a list of files.
+            if "default", ["configs/train.json", "configs/evaluate.json"] will be used.
+            this arg is only useful when `eval_workflow` is None.
+        eval_kwargs: other args of the `ConfigWorkflow` of evaluation, except for `config_file`, `meta_file`,
+            `logging_file`, `workflow_type`. only useful when `eval_workflow` is None.
         config_filters_filename: filter configuration file. Can be a list of files; defaults to `None`.
         disable_ckpt_loading: do not use any CheckpointLoader if defined in train/evaluate configs; defaults to `True`.
         best_model_filepath: location of best model checkpoint; defaults "models/model.pt" relative to `bundle_root`.
@@ -338,45 +332,14 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         save_dict_key: If a model checkpoint contains several state dicts,
             the one defined by `save_dict_key` will be returned by `get_weights`; defaults to "model".
             If all state dicts should be returned, set `save_dict_key` to None.
-        seed: set random seed for modules to enable or disable deterministic training; defaults to `None`,
-            i.e., non-deterministic training.
-        benchmark: set benchmark to `False` for full deterministic behavior in cuDNN components.
-            Note, full determinism in federated learning depends also on deterministic behavior of other FL components,
-            e.g., the aggregator, which is not controlled by this class.
-        multi_gpu: whether to run MonaiAlgo in a multi-GPU setting; defaults to `False`.
-        backend: backend to use for torch.distributed; defaults to "nccl".
-        init_method: init_method for torch.distributed; defaults to "env://".
-        tracking: enable the experiment tracking feature at runtime with optionally configurable and extensible.
-            if "mlflow", will add `MLFlowHandler` to the parsed bundle with default logging settings,
-            if other string, treat it as file path to load the logging settings, if `dict`,
-            treat it as logging settings, otherwise, use all the default settings.
-            will patch the target config content with `tracking handlers` and the top-level items of `configs`.
-            example of customized settings:
-
-            .. code-block:: python
-
-                tracking = {
-                    "handlers_id": {
-                        "trainer": {"id": "train#trainer", "handlers": "train#handlers"},
-                        "validator": {"id": "evaluate#evaluator", "handlers": "evaluate#handlers"},
-                        "evaluator": {"id": "evaluator", "handlers": "handlers"},
-                    },
-                    "configs": {
-                        "tracking_uri": "<path>",
-                        "trainer": {
-                            "_target_": "MLFlowHandler",
-                            "tracking_uri": "@tracking_uri",
-                            "iteration_log": True,
-                            "output_transform": "$monai.handlers.from_engine(['loss'], first=True)",
-                        },
-                        "validator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
-                        },
-                        "evaluator": {
-                            "_target_": "MLFlowHandler", "tracking_uri": "@tracking_uri", "iteration_log": False,
-                        },
-                    },
-                },
+        data_stats_transform_list: transforms to apply for the data stats result.
+        eval_workflow_name: the workflow name corresponding to the "config_evaluate_filename", default to "train"
+            as the default "config_evaluate_filename" overrides the train workflow config.
+            this arg is only useful when `eval_workflow` is None.
+        train_workflow: the bundle workflow to execute training, if None, will create a `ConfigWorkflow` internally
+            based on `config_train_filename` and `train_kwargs`.
+        eval_workflow: the bundle workflow to execute evaluation, if None, will create a `ConfigWorkflow` internally
+            based on `config_evaluate_filename`, `eval_kwargs`, `eval_workflow_name`.
 
     """
 
@@ -385,58 +348,61 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         bundle_root: str,
         local_epochs: int = 1,
         send_weight_diff: bool = True,
-        config_train_filename: Optional[Union[str, list]] = "configs/train.json",
-        config_evaluate_filename: Optional[Union[str, list]] = "default",
-        config_filters_filename: Optional[Union[str, list]] = None,
+        config_train_filename: str | list | None = "configs/train.json",
+        train_kwargs: dict | None = None,
+        config_evaluate_filename: str | list | None = "default",
+        eval_kwargs: dict | None = None,
+        config_filters_filename: str | list | None = None,
         disable_ckpt_loading: bool = True,
-        best_model_filepath: Optional[str] = "models/model.pt",
-        final_model_filepath: Optional[str] = "models/model_final.pt",
-        save_dict_key: Optional[str] = "model",
-        seed: Optional[int] = None,
-        benchmark: bool = True,
-        multi_gpu: bool = False,
-        backend: str = "nccl",
-        init_method: str = "env://",
-        train_data_key: Optional[str] = BundleKeys.TRAIN_DATA,
-        eval_data_key: Optional[str] = BundleKeys.VALID_DATA,
-        data_stats_transform_list: Optional[list] = None,
-        tracking: Optional[Union[str, dict]] = None,
+        best_model_filepath: str | None = "models/model.pt",
+        final_model_filepath: str | None = "models/model_final.pt",
+        save_dict_key: str | None = "model",
+        data_stats_transform_list: list | None = None,
+        eval_workflow_name: str = "train",
+        train_workflow: BundleWorkflow | None = None,
+        eval_workflow: BundleWorkflow | None = None,
     ):
-        self.logger = logging.getLogger(self.__class__.__name__)
-        if config_evaluate_filename == "default":
-            # by default, evaluator needs both training and evaluate to be instantiated.
-            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
+        self.logger = logger
         self.bundle_root = bundle_root
         self.local_epochs = local_epochs
         self.send_weight_diff = send_weight_diff
         self.config_train_filename = config_train_filename
+        self.train_kwargs = {} if train_kwargs is None else train_kwargs
+        if config_evaluate_filename == "default":
+            # by default, evaluator needs both training and evaluate to be instantiated
+            config_evaluate_filename = ["configs/train.json", "configs/evaluate.json"]
         self.config_evaluate_filename = config_evaluate_filename
+        self.eval_kwargs = {} if eval_kwargs is None else eval_kwargs
         self.config_filters_filename = config_filters_filename
         self.disable_ckpt_loading = disable_ckpt_loading
         self.model_filepaths = {ModelType.BEST_MODEL: best_model_filepath, ModelType.FINAL_MODEL: final_model_filepath}
         self.save_dict_key = save_dict_key
-        self.seed = seed
-        self.benchmark = benchmark
-        self.multi_gpu = multi_gpu
-        self.backend = backend
-        self.init_method = init_method
-        self.train_data_key = train_data_key
-        self.eval_data_key = eval_data_key
         self.data_stats_transform_list = data_stats_transform_list
-        self.tracking = tracking
+        self.eval_workflow_name = eval_workflow_name
+        self.train_workflow = None
+        self.eval_workflow = None
+        if train_workflow is not None:
+            if not isinstance(train_workflow, BundleWorkflow) or train_workflow.get_workflow_type() != "train":
+                raise ValueError(
+                    f"train workflow must be BundleWorkflow and set type in {BundleWorkflow.supported_train_type}."
+                )
+            self.train_workflow = train_workflow
+        if eval_workflow is not None:
+            # evaluation workflow can be "train" type or "infer" type
+            if not isinstance(eval_workflow, BundleWorkflow) or eval_workflow.get_workflow_type() is None:
+                raise ValueError("train workflow must be BundleWorkflow and set type.")
+            self.eval_workflow = eval_workflow
+        self.stats_sender = None
 
         self.app_root = ""
-        self.train_parser: Optional[ConfigParser] = None
-        self.eval_parser: Optional[ConfigParser] = None
-        self.filter_parser: Optional[ConfigParser] = None
-        self.trainer: Optional[Trainer] = None
-        self.evaluator: Optional[Any] = None
+        self.filter_parser: ConfigParser | None = None
+        self.trainer: SupervisedTrainer | None = None
+        self.evaluator: SupervisedEvaluator | None = None
         self.pre_filters = None
         self.post_weight_filters = None
         self.post_evaluate_filters = None
         self.iter_of_start_time = 0
-        self.global_weights: Optional[Mapping] = None
-        self.rank = 0
+        self.global_weights: Mapping | None = None
 
         self.phase = FlPhase.IDLE
         self.client_name = None
@@ -448,78 +414,80 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
         Args:
             extra: Dict with additional information that should be provided by FL system,
-                i.e., `ExtraItems.CLIENT_NAME` and `ExtraItems.APP_ROOT`.
+                i.e., `ExtraItems.CLIENT_NAME`, `ExtraItems.APP_ROOT` and `ExtraItems.LOGGING_FILE`.
+                You can diable the logging logic in the monai bundle by setting {ExtraItems.LOGGING_FILE} to False.
 
         """
+        self._set_cuda_device()
         if extra is None:
             extra = {}
         self.client_name = extra.get(ExtraItems.CLIENT_NAME, "noname")
+        logging_file = extra.get(ExtraItems.LOGGING_FILE, None)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
         self.logger.info(f"Initializing {self.client_name} ...")
-
-        if self.multi_gpu:
-            dist.init_process_group(backend=self.backend, init_method=self.init_method)
-            self._set_cuda_device()
-            self.logger.info(
-                f"Using multi-gpu training on rank {self.rank} (available devices: {torch.cuda.device_count()})"
-            )
-            if self.rank > 0:
-                self.logger.setLevel(logging.WARNING)
-
-        if self.seed:
-            monai.utils.set_determinism(seed=self.seed)
-        torch.backends.cudnn.benchmark = self.benchmark
-
         # FL platform needs to provide filepath to configuration files
         self.app_root = extra.get(ExtraItems.APP_ROOT, "")
-
-        # Read bundle config files
         self.bundle_root = os.path.join(self.app_root, self.bundle_root)
 
-        config_train_files = self._add_config_files(self.config_train_filename)
-        config_eval_files = self._add_config_files(self.config_evaluate_filename)
-        config_filter_files = self._add_config_files(self.config_filters_filename)
+        if self.train_workflow is None and self.config_train_filename is not None:
+            config_train_files = self._add_config_files(self.config_train_filename)
+            # if enabled experiment tracking, set the run name to the FL client name and timestamp,
+            # expect the tracking settings use "run_name" to define the run name
+            if "run_name" not in self.train_kwargs:
+                self.train_kwargs["run_name"] = f"{self.client_name}_{timestamp}"
+            self.train_workflow = ConfigWorkflow(
+                config_file=config_train_files,
+                meta_file=None,
+                logging_file=logging_file,
+                workflow_type="train",
+                **self.train_kwargs,
+            )
+        if self.train_workflow is not None:
+            self.train_workflow.initialize()
+            self.train_workflow.bundle_root = self.bundle_root
+            self.train_workflow.max_epochs = self.local_epochs
+            if self.disable_ckpt_loading and isinstance(self.train_workflow, ConfigWorkflow):
+                disable_ckpt_loaders(parser=self.train_workflow.parser)
+            # initialize the workflow as the content changed
+            self.train_workflow.initialize()
+            self.trainer = self.train_workflow.trainer
+            if not isinstance(self.trainer, SupervisedTrainer):
+                raise ValueError(f"trainer must be SupervisedTrainer, but got: {type(self.trainer)}.")
 
-        # Parse
-        self.train_parser = ConfigParser()
-        self.eval_parser = ConfigParser()
+        if self.eval_workflow is None and self.config_evaluate_filename is not None:
+            config_eval_files = self._add_config_files(self.config_evaluate_filename)
+            # if enabled experiment tracking, set the run name to the FL client name and timestamp,
+            # expect the tracking settings use "run_name" to define the run name
+            if "run_name" not in self.eval_kwargs:
+                self.eval_kwargs["run_name"] = f"{self.client_name}_{timestamp}"
+            self.eval_workflow = ConfigWorkflow(
+                config_file=config_eval_files,
+                meta_file=None,
+                logging_file=logging_file,
+                workflow_type=self.eval_workflow_name,
+                **self.eval_kwargs,
+            )
+        if self.eval_workflow is not None:
+            self.eval_workflow.initialize()
+            self.eval_workflow.bundle_root = self.bundle_root
+            if self.disable_ckpt_loading and isinstance(self.eval_workflow, ConfigWorkflow):
+                disable_ckpt_loaders(parser=self.eval_workflow.parser)
+            # initialize the workflow as the content changed
+            self.eval_workflow.initialize()
+            self.evaluator = self.eval_workflow.evaluator
+            if not isinstance(self.evaluator, SupervisedEvaluator):
+                raise ValueError(f"evaluator must be SupervisedEvaluator, but got: {type(self.evaluator)}.")
+
+        config_filter_files = self._add_config_files(self.config_filters_filename)
         self.filter_parser = ConfigParser()
-        if len(config_train_files) > 0:
-            self.train_parser.read_config(config_train_files)
-            check_bundle_config(self.train_parser)
-        if len(config_eval_files) > 0:
-            self.eval_parser.read_config(config_eval_files)
-            check_bundle_config(self.eval_parser)
         if len(config_filter_files) > 0:
             self.filter_parser.read_config(config_filter_files)
 
-        # override some config items
-        self.train_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
-        self.eval_parser[RequiredBundleKeys.BUNDLE_ROOT] = self.bundle_root
-        # number of training epochs for each round
-        if BundleKeys.TRAIN_TRAINER_MAX_EPOCHS in self.train_parser:
-            self.train_parser[BundleKeys.TRAIN_TRAINER_MAX_EPOCHS] = self.local_epochs
-
-        # remove checkpoint loaders
-        if self.disable_ckpt_loading:
-            disable_ckpt_loaders(self.train_parser)
-            disable_ckpt_loaders(self.eval_parser)
-
-        # set tracking configs for experiment management
-        if self.tracking is not None:
-            if isinstance(self.tracking, str) and self.tracking in DEFAULT_EXP_MGMT_SETTINGS:
-                settings_ = DEFAULT_EXP_MGMT_SETTINGS[self.tracking]
-            else:
-                settings_ = ConfigParser.load_config_files(self.tracking)
-            patch_bundle_tracking(parser=self.train_parser, settings=settings_)
-            patch_bundle_tracking(parser=self.eval_parser, settings=settings_)
-
-        # Get trainer, evaluator
-        self.trainer = self.train_parser.get_parsed_content(
-            BundleKeys.TRAINER, default=ConfigItem(None, BundleKeys.TRAINER)
-        )
-        self.evaluator = self.eval_parser.get_parsed_content(
-            BundleKeys.EVALUATOR, default=ConfigItem(None, BundleKeys.EVALUATOR)
-        )
+        # set stats sender for nvflare
+        self.stats_sender = extra.get(ExtraItems.STATS_SENDER, self.stats_sender)
+        if self.stats_sender is not None:
+            self.stats_sender.attach(self.trainer)
+            self.stats_sender.attach(self.evaluator)
 
         # Get filters
         self.pre_filters = self.filter_parser.get_parsed_content(
@@ -534,20 +502,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.post_statistics_filters = self.filter_parser.get_parsed_content(
             FiltersType.POST_STATISTICS_FILTERS, default=ConfigItem(None, FiltersType.POST_STATISTICS_FILTERS)
         )
-
-        # Get data location
-        self.dataset_root = self.train_parser.get_parsed_content(
-            BundleKeys.DATASET_DIR, default=ConfigItem(None, BundleKeys.DATASET_DIR)
-        )
-
-        if self.multi_gpu:
-            if self.rank > 0 and self.trainer:
-                self.trainer.logger.setLevel(logging.WARNING)
-            if self.rank > 0 and self.evaluator:
-                self.evaluator.logger.setLevel(logging.WARNING)
         self.logger.info(f"Initialized {self.client_name}.")
 
-    def train(self, data: ExchangeObject, extra=None):
+    def train(self, data: ExchangeObject, extra: dict | None = None) -> None:
         """
         Train on client's local data.
 
@@ -556,8 +513,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             extra: Dict with additional information that can be provided by the FL system.
 
         """
-        self._set_cuda_device()
 
+        self._set_cuda_device()
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -572,7 +529,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.logger.info(f"Load {self.client_name} weights...")
         local_var_dict = get_state_dict(self.trainer.network)
         self.global_weights, n_converted = convert_global_weights(
-            global_weights=data.weights, local_var_dict=local_var_dict
+            global_weights=cast(dict, data.weights), local_var_dict=local_var_dict
         )
         self._check_converted(data.weights, local_var_dict, n_converted)
 
@@ -599,8 +556,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 or load requested model type from disk (`ModelType.BEST_MODEL` or `ModelType.FINAL_MODEL`).
 
         """
-        self._set_cuda_device()
 
+        self._set_cuda_device()
         if extra is None:
             extra = {}
 
@@ -621,8 +578,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
                 # if weights contain several state dicts, use the one defined by `save_dict_key`
                 if isinstance(weights, dict) and self.save_dict_key in weights:
                     weights = weights.get(self.save_dict_key)
-                weigh_type: Optional[WeightType] = WeightType.WEIGHTS
-                stats: Dict = {}
+                weigh_type: WeightType | None = WeightType.WEIGHTS
+                stats: dict = {}
                 self.logger.info(f"Returning {model_type} checkpoint weights from {model_path}.")
             else:
                 raise ValueError(
@@ -666,7 +623,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
 
         return return_weights
 
-    def evaluate(self, data: ExchangeObject, extra=None):
+    def evaluate(self, data: ExchangeObject, extra: dict | None = None) -> ExchangeObject:
         """
         Evaluate on client's local data.
 
@@ -678,8 +635,8 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             return_metrics: `ExchangeObject` containing evaluation metrics.
 
         """
-        self._set_cuda_device()
 
+        self._set_cuda_device()
         if extra is None:
             extra = {}
         if not isinstance(data, ExchangeObject):
@@ -694,7 +651,9 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         self.phase = FlPhase.EVALUATE
         self.logger.info(f"Load {self.client_name} weights...")
         local_var_dict = get_state_dict(self.evaluator.network)
-        global_weights, n_converted = convert_global_weights(global_weights=data.weights, local_var_dict=local_var_dict)
+        global_weights, n_converted = convert_global_weights(
+            global_weights=cast(dict, data.weights), local_var_dict=local_var_dict
+        )
         self._check_converted(data.weights, local_var_dict, n_converted)
 
         _, updated_keys, _ = copy_model_state(src=global_weights, dst=self.evaluator.network)
@@ -726,7 +685,7 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             self.logger.info(f"Aborting {self.client_name} evaluator...")
             self.evaluator.interrupt()
 
-    def finalize(self, extra=None):
+    def finalize(self, extra: dict | None = None) -> None:
         """
         Finalize the training or evaluation.
         Args:
@@ -739,13 +698,14 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
         if isinstance(self.evaluator, Trainer):
             self.logger.info(f"Terminating {self.client_name} evaluator...")
             self.evaluator.terminate()
-
-        if self.multi_gpu:
-            dist.destroy_process_group()
+        if self.train_workflow is not None:
+            self.train_workflow.finalize()
+        if self.eval_workflow is not None:
+            self.eval_workflow.finalize()
 
     def _check_converted(self, global_weights, local_var_dict, n_converted):
         if n_converted == 0:
-            self.logger.warning(
+            raise RuntimeError(
                 f"No global weights converted! Received weight dict keys are {list(global_weights.keys())}"
             )
         else:
@@ -754,6 +714,6 @@ class MonaiAlgo(ClientAlgo, MonaiAlgoStats):
             )
 
     def _set_cuda_device(self):
-        if self.multi_gpu:
+        if dist.is_initialized():
             self.rank = int(os.environ["LOCAL_RANK"])
             torch.cuda.set_device(self.rank)

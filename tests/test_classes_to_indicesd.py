@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -57,7 +59,13 @@ for p in TEST_NDARRAYS:
 
     TESTS_CASES.append(
         [
-            {"keys": "label", "image_key": "image", "num_classes": None, "image_threshold": 60},
+            {
+                "keys": "label",
+                "image_key": "image",
+                "num_classes": None,
+                "image_threshold": 60,
+                "max_samples_per_class": 2,
+            },
             {
                 "label": p(
                     [
@@ -68,7 +76,7 @@ for p in TEST_NDARRAYS:
                 ),
                 "image": p([[[132, 1434, 51], [61, 0, 133], [523, 44, 232]]]),
             },
-            [p([0, 8]), p([1, 5, 6]), p([3])],
+            [p([0, 8]), p([1, 6]), p([3])],
         ]
     )
 
@@ -89,6 +97,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestClassesToIndicesd(unittest.TestCase):
+
     @parameterized.expand(TESTS_CASES)
     def test_value(self, input_args, input_data, expected_indices):
         result = ClassesToIndicesd(**input_args)(input_data)

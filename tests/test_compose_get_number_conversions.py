@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -37,6 +38,7 @@ def _apply(x, fn):
 
 
 class Load(Transform):
+
     def __init__(self, as_tensor):
         self.fn = lambda _: PT_ARR if as_tensor else NP_ARR
 
@@ -45,31 +47,36 @@ class Load(Transform):
 
 
 class N(Transform):
+
     def __call__(self, x):
         return _apply(x, convert_to_numpy)
 
 
 class T(Transform):
+
     def __call__(self, x):
         return _apply(x, convert_to_tensor)
 
 
 class NT(Transform):
+
     def __call__(self, x):
         return _apply(x, lambda x: x)
 
 
 class TCPU(Transform):
+
     def __call__(self, x):
         return _apply(x, lambda x: convert_to_tensor(x).cpu())
 
 
 class TGPU(Transform):
+
     def __call__(self, x):
         return _apply(x, lambda x: convert_to_tensor(x).cuda())
 
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for is_dict in (False, True):
     # same type depends on input
     TESTS.append(((N(), N()), is_dict, NP_ARR, 0))
@@ -102,6 +109,7 @@ for is_dict in (False, True):
 
 
 class TestComposeNumConversions(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_get_number_of_conversions(self, transforms, is_dict, input, expected):
         input = input if not is_dict else {KEY: input, "Other": NP_ARR}

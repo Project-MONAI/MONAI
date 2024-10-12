@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -63,6 +65,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestAsDiscrete(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)

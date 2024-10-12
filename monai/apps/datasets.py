@@ -9,16 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import sys
 import warnings
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
 
 from monai.apps.tcia import (
+    DCM_FILENAME_REGEX,
     download_tcia_series_instance,
     get_tcia_metadata,
     get_tcia_ref_uid,
@@ -88,18 +92,18 @@ class MedNISTDataset(Randomizable, CacheDataset):
         self,
         root_dir: PathLike,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = (),
+        transform: Sequence[Callable] | Callable = (),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.1,
         test_frac: float = 0.1,
         cache_num: int = sys.maxsize,
         cache_rate: float = 1.0,
-        num_workers: Optional[int] = 1,
+        num_workers: int | None = 1,
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache=False,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -148,7 +152,7 @@ class MedNISTDataset(Randomizable, CacheDataset):
         """Get number of classes."""
         return self.num_class
 
-    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> list[dict]:
         """
         Raises:
             ValueError: When ``section`` is not one of ["training", "validation", "test"].
@@ -286,7 +290,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         root_dir: PathLike,
         task: str,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = (),
+        transform: Sequence[Callable] | Callable = (),
         download: bool = False,
         seed: int = 0,
         val_frac: float = 0.2,
@@ -296,7 +300,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache=False,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -362,7 +366,7 @@ class DecathlonDataset(Randomizable, CacheDataset):
     def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
-    def get_properties(self, keys: Optional[Union[Sequence[str], str]] = None):
+    def get_properties(self, keys: Sequence[str] | str | None = None) -> dict:
         """
         Get the loaded properties of dataset with specified keys.
         If no keys specified, return all the loaded properties.
@@ -374,14 +378,14 @@ class DecathlonDataset(Randomizable, CacheDataset):
             return {key: self._properties[key] for key in ensure_tuple(keys)}
         return {}
 
-    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> list[dict]:
         # the types of the item in data list should be compatible with the dataloader
         dataset_dir = Path(dataset_dir)
         section = "training" if self.section in ["training", "validation"] else "test"
         datalist = load_decathlon_datalist(dataset_dir / "dataset.json", True, section)
         return self._split_datalist(datalist)
 
-    def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
+    def _split_datalist(self, datalist: list[dict]) -> list[dict]:
         if self.section == "test":
             return datalist
         length = len(datalist)
@@ -439,6 +443,10 @@ class TciaDataset(Randomizable, CacheDataset):
         specific_tags: tags that will be loaded for "SEG" series. This argument will be used in
             `monai.data.PydicomReader`. Default is [(0x0008, 0x1115), (0x0008,0x1140), (0x3006, 0x0010),
             (0x0020,0x000D), (0x0010,0x0010), (0x0010,0x0020), (0x0020,0x0011), (0x0020,0x0012)].
+        fname_regex: a regular expression to match the file names when the input is a folder.
+            If provided, only the matched files will be included. For example, to include the file name
+            "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`.
+            Default to `"^(?!.*LICENSE).*"`, ignoring any file name containing `"LICENSE"`.
         val_frac: percentage of validation fraction in the whole dataset, default is 0.2.
         seed: random seed to randomly shuffle the datalist before splitting into training and validation, default is 0.
             note to set same seed for `training` and `validation` sections.
@@ -489,14 +497,14 @@ class TciaDataset(Randomizable, CacheDataset):
         root_dir: PathLike,
         collection: str,
         section: str,
-        transform: Union[Sequence[Callable], Callable] = (),
+        transform: Sequence[Callable] | Callable = (),
         download: bool = False,
         download_len: int = -1,
         seg_type: str = "SEG",
-        modality_tag: Tuple = (0x0008, 0x0060),
-        ref_series_uid_tag: Tuple = (0x0020, 0x000E),
-        ref_sop_uid_tag: Tuple = (0x0008, 0x1155),
-        specific_tags: Tuple = (
+        modality_tag: tuple = (0x0008, 0x0060),
+        ref_series_uid_tag: tuple = (0x0020, 0x000E),
+        ref_sop_uid_tag: tuple = (0x0008, 0x1155),
+        specific_tags: tuple = (
             (0x0008, 0x1115),  # Referenced Series Sequence
             (0x0008, 0x1140),  # Referenced Image Sequence
             (0x3006, 0x0010),  # Referenced Frame of Reference Sequence
@@ -506,6 +514,7 @@ class TciaDataset(Randomizable, CacheDataset):
             (0x0020, 0x0011),  # Series Number
             (0x0020, 0x0012),  # Acquisition Number
         ),
+        fname_regex: str = DCM_FILENAME_REGEX,
         seed: int = 0,
         val_frac: float = 0.2,
         cache_num: int = sys.maxsize,
@@ -514,7 +523,7 @@ class TciaDataset(Randomizable, CacheDataset):
         progress: bool = True,
         copy_cache: bool = True,
         as_contiguous: bool = True,
-        runtime_cache=False,
+        runtime_cache: bool = False,
     ) -> None:
         root_dir = Path(root_dir)
         if not root_dir.is_dir():
@@ -545,12 +554,13 @@ class TciaDataset(Randomizable, CacheDataset):
 
         if not os.path.exists(download_dir):
             raise RuntimeError(f"Cannot find dataset directory: {download_dir}.")
+        self.fname_regex = fname_regex
 
         self.indices: np.ndarray = np.array([])
         self.datalist = self._generate_data_list(download_dir)
 
         if transform == ():
-            transform = LoadImaged(reader="PydicomReader", keys=["image"])
+            transform = LoadImaged(keys=["image"], reader="PydicomReader", fname_regex=self.fname_regex)
         CacheDataset.__init__(
             self,
             data=self.datalist,
@@ -574,7 +584,7 @@ class TciaDataset(Randomizable, CacheDataset):
     def randomize(self, data: np.ndarray) -> None:
         self.R.shuffle(data)
 
-    def _download_series_reference_data(self, series_uid: str, download_dir: str):
+    def _download_series_reference_data(self, series_uid: str, download_dir: str) -> None:
         """
         First of all, download a series from TCIA according to `series_uid`.
         Then find all referenced series and download.
@@ -583,7 +593,7 @@ class TciaDataset(Randomizable, CacheDataset):
         download_tcia_series_instance(
             series_uid=series_uid, download_dir=download_dir, output_dir=seg_first_dir, check_md5=False
         )
-        dicom_files = [f for f in os.listdir(seg_first_dir) if f.endswith(".dcm")]
+        dicom_files = [f for f in sorted(os.listdir(seg_first_dir)) if f.endswith(".dcm")]
         # achieve series number and patient id from the first dicom file
         dcm_path = os.path.join(seg_first_dir, dicom_files[0])
         ds = PydicomReader(stop_before_pixels=True, specific_tags=self.load_tags).read(dcm_path)
@@ -630,7 +640,7 @@ class TciaDataset(Randomizable, CacheDataset):
         if not os.path.exists(seg_dir):
             shutil.copytree(seg_first_dir, seg_dir)
 
-    def _generate_data_list(self, dataset_dir: PathLike) -> List[Dict]:
+    def _generate_data_list(self, dataset_dir: PathLike) -> list[dict]:
         # the types of the item in data list should be compatible with the dataloader
         dataset_dir = Path(dataset_dir)
         datalist = []
@@ -649,7 +659,7 @@ class TciaDataset(Randomizable, CacheDataset):
 
         return self._split_datalist(datalist)
 
-    def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
+    def _split_datalist(self, datalist: list[dict]) -> list[dict]:
         if self.section == "test":
             return datalist
         length = len(datalist)
@@ -703,7 +713,7 @@ class CrossValidation:
 
     """
 
-    def __init__(self, dataset_cls, nfolds: int = 5, seed: int = 0, **dataset_params) -> None:
+    def __init__(self, dataset_cls: object, nfolds: int = 5, seed: int = 0, **dataset_params: Any) -> None:
         if not hasattr(dataset_cls, "_split_datalist"):
             raise ValueError("dataset class must have _split_datalist API.")
         self.dataset_cls = dataset_cls
@@ -711,7 +721,7 @@ class CrossValidation:
         self.seed = seed
         self.dataset_params = dataset_params
 
-    def get_dataset(self, folds: Union[Sequence[int], int], **dataset_params):
+    def get_dataset(self, folds: Sequence[int] | int, **dataset_params: Any) -> object:
         """
         Generate dataset based on the specified fold indices in the cross validation group.
 
@@ -727,7 +737,8 @@ class CrossValidation:
         dataset_params_.update(dataset_params)
 
         class _NsplitsDataset(self.dataset_cls):  # type: ignore
-            def _split_datalist(self, datalist: List[Dict]) -> List[Dict]:
+
+            def _split_datalist(self, datalist: list[dict]) -> list[dict]:
                 data = partition_dataset(data=datalist, num_partitions=nfolds, shuffle=True, seed=seed)
                 return select_cross_validation_folds(partitions=data, folds=folds)
 

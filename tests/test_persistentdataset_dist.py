@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
@@ -23,6 +25,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class _InplaceXform(Transform):
+
     def __call__(self, data):
         if data:
             data[0] = data[0] + np.pi
@@ -32,6 +35,7 @@ class _InplaceXform(Transform):
 
 
 class TestDistDataset(DistTestCase):
+
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
 
@@ -56,6 +60,7 @@ class TestDistDataset(DistTestCase):
 
 
 class TestDistCreateDataset(DistTestCase):
+
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
 

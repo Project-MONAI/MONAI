@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -29,6 +31,7 @@ TEST_CASES = [
 
 
 class TestPolyval(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_floats(self, coef, x, expected):
         result = polyval(coef, x)

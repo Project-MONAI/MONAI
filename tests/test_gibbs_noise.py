@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -30,6 +32,7 @@ for shape in ((128, 64), (64, 48, 80)):
 
 
 class TestGibbsNoise(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
         super().setUp()

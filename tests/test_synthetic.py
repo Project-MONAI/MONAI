@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -39,12 +41,13 @@ TEST_CASES = [
 
 
 class TestDiceCELoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_create_test_image(self, dim, input_param, expected_img, expected_seg, expected_shape, expected_max_cls):
         set_determinism(seed=0)
         if dim == 2:
             img, seg = create_test_image_2d(**input_param)
-        elif dim == 3:
+        else:  # dim == 3
             img, seg = create_test_image_3d(**input_param)
         self.assertEqual(img.shape, expected_shape)
         self.assertEqual(seg.max(), expected_max_cls)

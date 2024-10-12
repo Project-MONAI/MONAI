@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from collections import defaultdict
+from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
 from threading import RLock
-from typing import TYPE_CHECKING, Callable, DefaultDict, List, Optional
+from typing import TYPE_CHECKING, Any
 
-from monai.config import IgniteInfo
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 from monai.utils.enums import CommonKeys
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -27,7 +29,7 @@ else:
     )
 
 
-def _get_loss_from_output(output, loss_key: str = CommonKeys.LOSS):
+def _get_loss_from_output(output: Sequence[Mapping[str, Any]], loss_key: str = CommonKeys.LOSS) -> Any:
     return output[0][loss_key]
 
 
@@ -70,12 +72,12 @@ class MetricLogger:
         self,
         loss_transform: Callable = _get_loss_from_output,
         metric_transform: Callable = lambda x: x,
-        evaluator: Optional[Engine] = None,
+        evaluator: Engine | None = None,
     ) -> None:
         self.loss_transform = loss_transform
         self.metric_transform = metric_transform
-        self.loss: List = []
-        self.metrics: DefaultDict = defaultdict(list)
+        self.loss: list = []
+        self.metrics: defaultdict = defaultdict(list)
         self.iteration = 0
         self.lock = RLock()
 

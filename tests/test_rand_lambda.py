@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -35,6 +37,7 @@ class RandTest(Randomizable):
 
 
 class TestRandLambda(unittest.TestCase):
+
     def check(self, tr: RandLambda, img, img_orig_type, out, expected=None):
         # input shouldn't change
         self.assertIsInstance(img, img_orig_type)

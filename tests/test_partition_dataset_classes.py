@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -74,6 +76,7 @@ TEST_CASE_4 = [
 
 
 class TestPartitionDatasetClasses(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, input_param, result):
         self.assertListEqual(partition_dataset_classes(**input_param), result)

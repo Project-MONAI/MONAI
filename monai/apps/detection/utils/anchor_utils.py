@@ -37,7 +37,9 @@ This script is adapted from
 https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection/anchor_utils.py
 """
 
-from typing import List, Sequence, Union
+from __future__ import annotations
+
+from typing import List, Sequence
 
 import torch
 from torch import Tensor, nn
@@ -148,7 +150,7 @@ class AnchorGenerator(nn.Module):
         scales: Sequence,
         aspect_ratios: Sequence,
         dtype: torch.dtype = torch.float32,
-        device: Union[torch.device, None] = None,
+        device: torch.device | None = None,
     ) -> torch.Tensor:
         """
         Compute cell anchor shapes at multiple sizes and aspect ratios for the current feature map.
@@ -187,7 +189,7 @@ class AnchorGenerator(nn.Module):
             w_ratios = 1 / area_scale
             h_ratios = area_scale
         # if 3d, w:h:d = 1:aspect_ratios[:,0]:aspect_ratios[:,1]
-        elif self.spatial_dims == 3:
+        else:
             area_scale = torch.pow(aspect_ratios_t[:, 0] * aspect_ratios_t[:, 1], 1 / 3.0)
             w_ratios = 1 / area_scale
             h_ratios = aspect_ratios_t[:, 0] / area_scale
@@ -197,13 +199,13 @@ class AnchorGenerator(nn.Module):
         hs = (h_ratios[:, None] * scales_t[None, :]).view(-1)
         if self.spatial_dims == 2:
             base_anchors = torch.stack([-ws, -hs, ws, hs], dim=1) / 2.0
-        elif self.spatial_dims == 3:
+        else:  # elif self.spatial_dims == 3:
             ds = (d_ratios[:, None] * scales_t[None, :]).view(-1)
             base_anchors = torch.stack([-ws, -hs, -ds, ws, hs, ds], dim=1) / 2.0
 
         return base_anchors.round()
 
-    def set_cell_anchors(self, dtype: torch.dtype, device: torch.device):
+    def set_cell_anchors(self, dtype: torch.dtype, device: torch.device) -> None:
         """
         Convert each element in self.cell_anchors to ``dtype`` and send to ``device``.
         """
@@ -215,7 +217,7 @@ class AnchorGenerator(nn.Module):
         """
         return [c.shape[0] for c in self.cell_anchors]
 
-    def grid_anchors(self, grid_sizes: List[List[int]], strides: List[List[Tensor]]) -> List[Tensor]:
+    def grid_anchors(self, grid_sizes: list[list[int]], strides: list[list[Tensor]]) -> list[Tensor]:
         """
         Every combination of (a, (g, s), i) in (self.cell_anchors, zip(grid_sizes, strides), 0:spatial_dims)
         corresponds to a feature map.
@@ -279,7 +281,7 @@ class AnchorGenerator(nn.Module):
 
         return anchors
 
-    def forward(self, images: Tensor, feature_maps: List[Tensor]) -> List[Tensor]:
+    def forward(self, images: Tensor, feature_maps: list[Tensor]) -> list[Tensor]:
         """
         Generate anchor boxes for each image.
 
@@ -366,8 +368,8 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
 
     def __init__(
         self,
-        feature_map_scales: Union[Sequence[int], Sequence[float]] = (1, 2, 4, 8),
-        base_anchor_shapes: Union[Sequence[Sequence[int]], Sequence[Sequence[float]]] = (
+        feature_map_scales: Sequence[int] | Sequence[float] = (1, 2, 4, 8),
+        base_anchor_shapes: Sequence[Sequence[int]] | Sequence[Sequence[float]] = (
             (32, 32, 32),
             (48, 20, 20),
             (20, 48, 20),
@@ -375,7 +377,6 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
         ),
         indexing: str = "ij",
     ) -> None:
-
         nn.Module.__init__(self)
 
         spatial_dims = len(base_anchor_shapes[0])
@@ -389,7 +390,7 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
 
     @staticmethod
     def generate_anchors_using_shape(
-        anchor_shapes: torch.Tensor, dtype: torch.dtype = torch.float32, device: Union[torch.device, None] = None
+        anchor_shapes: torch.Tensor, dtype: torch.dtype = torch.float32, device: torch.device | None = None
     ) -> torch.Tensor:
         """
         Compute cell anchor shapes at multiple sizes and aspect ratios for the current feature map.

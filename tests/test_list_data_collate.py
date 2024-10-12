@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -29,9 +31,14 @@ g = (np.array([13, 14, 15]), MetaTensor([16, 7, 18]))
 h = (np.array([19, 20, 21]), MetaTensor([22, 23, 24]))
 TEST_CASE_2 = [[[e, f], [g, h]], list, torch.Size([4, 3])]  # dataset returns a list of tuple data
 
+g_m = (np.array([13, 14, 15]), MetaTensor([16, 7, 18], meta={"key1": 0}))
+h_m = (np.array([19, 20, 21]), MetaTensor([22, 23, 24], meta={"key2": 1}))
+TEST_CASE_3 = [[[g_m], [h_m]], list, torch.Size([2, 3])]
+
 
 class TestListDataCollate(unittest.TestCase):
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+
+    @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_type_shape(self, input_data, expected_type, expected_shape):
         result = list_data_collate(input_data)
         self.assertIsInstance(result, expected_type)

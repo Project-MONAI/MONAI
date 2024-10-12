@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import random
 from enum import Enum
-from typing import Optional
+from typing import TYPE_CHECKING
 
-from monai.utils.deprecate_utils import deprecated
+from monai.utils.module import min_version, optional_import
 
 __all__ = [
     "StrEnum",
@@ -35,12 +37,13 @@ __all__ = [
     "SkipMode",
     "Method",
     "TraceKeys",
-    "InverseKeys",
+    "TraceStatusKeys",
     "CommonKeys",
     "GanKeys",
     "PostFix",
     "ForwardMode",
     "TransformBackends",
+    "CompInitMode",
     "BoxModeName",
     "GridPatchSort",
     "FastMRIKeys",
@@ -51,10 +54,13 @@ __all__ = [
     "DataStatsKeys",
     "ImageStatsKeys",
     "LabelStatsKeys",
-    "AlgoEnsembleKeys",
     "HoVerNetMode",
     "HoVerNetBranch",
     "LazyAttr",
+    "BundleProperty",
+    "BundlePropertyConfig",
+    "AlgoKeys",
+    "IgniteInfo",
 ]
 
 
@@ -311,25 +317,15 @@ class TraceKeys(StrEnum):
     DO_TRANSFORM: str = "do_transforms"
     KEY_SUFFIX: str = "_transforms"
     NONE: str = "none"
+    TRACING: str = "tracing"
+    STATUSES: str = "statuses"
+    LAZY: str = "lazy"
 
 
-@deprecated(since="0.8.0", msg_suffix="use monai.utils.enums.TraceKeys instead.")
-class InverseKeys:
-    """
-    Extra metadata keys used for inverse transforms.
+class TraceStatusKeys(StrEnum):
+    """Enumerable status keys for the TraceKeys.STATUS flag"""
 
-    .. deprecated:: 0.8.0
-        Use :class:`monai.utils.enums.TraceKeys` instead.
-
-    """
-
-    CLASS_NAME = "class"
-    ID = "id"
-    ORIG_SIZE = "orig_size"
-    EXTRA_INFO = "extra_info"
-    DO_TRANSFORM = "do_transforms"
-    KEY_SUFFIX = "_transforms"
-    NONE = "none"
+    PENDING_DURING_APPLY = "pending_during_apply"
 
 
 class CommonKeys(StrEnum):
@@ -367,19 +363,19 @@ class PostFix(StrEnum):
     """Post-fixes."""
 
     @staticmethod
-    def _get_str(prefix, suffix):
+    def _get_str(prefix: str | None, suffix: str) -> str:
         return suffix if prefix is None else f"{prefix}_{suffix}"
 
     @staticmethod
-    def meta(key: Optional[str] = None):
+    def meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "meta_dict")
 
     @staticmethod
-    def orig_meta(key: Optional[str] = None):
+    def orig_meta(key: str | None = None) -> str:
         return PostFix._get_str(key, "orig_meta_dict")
 
     @staticmethod
-    def transforms(key: Optional[str] = None):
+    def transforms(key: str | None = None) -> str:
         return PostFix._get_str(key, TraceKeys.KEY_SUFFIX[1:])
 
 
@@ -395,6 +391,18 @@ class TransformBackends(StrEnum):
     TORCH = "torch"
     NUMPY = "numpy"
     CUPY = "cupy"
+
+
+class CompInitMode(StrEnum):
+    """
+    Mode names for instantiating a class or calling a callable.
+
+    See also: :py:func:`monai.utils.module.instantiate`
+    """
+
+    DEFAULT = "default"
+    CALLABLE = "callable"
+    DEBUG = "debug"
 
 
 class JITMetadataKeys(StrEnum):
@@ -468,15 +476,25 @@ class GridPatchSort(StrEnum):
             )
 
 
+class PatchKeys(StrEnum):
+    """
+    The keys to be used for metadata of patches extracted from any kind of image
+    """
+
+    LOCATION = "location"
+    SIZE = "size"
+    COUNT = "count"
+
+
 class WSIPatchKeys(StrEnum):
     """
     The keys to be used for metadata of patches extracted from whole slide images
     """
 
-    LOCATION = "location"
+    LOCATION = PatchKeys.LOCATION
+    SIZE = PatchKeys.SIZE
+    COUNT = PatchKeys.COUNT
     LEVEL = "level"
-    SIZE = "size"
-    COUNT = "count"
     PATH = "path"
 
 
@@ -514,7 +532,8 @@ class MetaKeys(StrEnum):
     ORIGINAL_AFFINE = "original_affine"  # the affine after image loading before any data processing
     SPATIAL_SHAPE = "spatial_shape"  # optional key for the length in each spatial dimension
     SPACE = "space"  # possible values of space type are defined in `SpaceKeys`
-    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or "no_channel"
+    ORIGINAL_CHANNEL_DIM = "original_channel_dim"  # an integer or float("nan")
+    SAVED_TO = "saved_to"
 
 
 class ColorOrder(StrEnum):
@@ -567,6 +586,7 @@ class ImageStatsKeys(StrEnum):
     CHANNELS = "channels"
     CROPPED_SHAPE = "cropped_shape"
     SPACING = "spacing"
+    SIZEMM = "sizemm"
     INTENSITY = "intensity"
     HISTOGRAM = "histogram"
 
@@ -583,16 +603,6 @@ class LabelStatsKeys(StrEnum):
     LABEL = "label"
     LABEL_SHAPE = "shape"
     LABEL_NCOMP = "ncomponents"
-
-
-class AlgoEnsembleKeys(StrEnum):
-    """
-    Default keys for Mixed Ensemble
-    """
-
-    ID = "identifier"
-    ALGO = "infer_algo"
-    SCORE = "best_metric"
 
 
 class HoVerNetMode(StrEnum):
@@ -624,6 +634,7 @@ class LazyAttr(StrEnum):
     MetaTensor with pending operations requires some key attributes tracked especially when the primary array
     is not up-to-date due to lazy evaluation.
     This class specifies the set of key attributes to be tracked for each MetaTensor.
+    See also: :py:func:`monai.transforms.lazy.utils.resample` for more details.
     """
 
     SHAPE = "lazy_shape"  # spatial shape
@@ -631,3 +642,115 @@ class LazyAttr(StrEnum):
     PADDING_MODE = "lazy_padding_mode"
     INTERP_MODE = "lazy_interpolation_mode"
     DTYPE = "lazy_dtype"
+    ALIGN_CORNERS = "lazy_align_corners"
+    RESAMPLE_MODE = "lazy_resample_mode"
+
+
+class BundleProperty(StrEnum):
+    """
+    Bundle property fields:
+    `DESC` is the description of the property.
+    `REQUIRED` is flag to indicate whether the property is required or optional.
+    """
+
+    DESC = "description"
+    REQUIRED = "required"
+
+
+class BundlePropertyConfig(StrEnum):
+    """
+    additional bundle property fields for config based bundle workflow:
+    `ID` is the config item ID of the property.
+    `REF_ID` is the ID of config item which is supposed to refer to this property.
+    For properties that do not have `REF_ID`, `None` should be set.
+    this field is only useful to check the optional property ID.
+    """
+
+    ID = "id"
+    REF_ID = "refer_id"
+
+
+class AlgoKeys(StrEnum):
+    """
+    Default keys for templated Auto3DSeg Algo.
+    `ID` is the identifier of the algorithm. The string has the format of <name>_<idx>_<other>.
+    `ALGO` is the Auto3DSeg Algo instance.
+    `IS_TRAINED` is the status that shows if the Algo has been trained.
+    `SCORE` is the score the Algo has achieved after training.
+    """
+
+    ID = "identifier"
+    ALGO = "algo_instance"
+    IS_TRAINED = "is_trained"
+    SCORE = "best_metric"
+
+
+class AdversarialKeys(StrEnum):
+    """
+    Keys used by the AdversarialTrainer.
+    `REALS` are real images from the batch.
+    `FAKES` are fake images generated by the generator. Are the same as PRED.
+    `REAL_LOGITS` are logits of the discriminator for the real images.
+    `FAKE_LOGIT` are logits of the discriminator for the fake images.
+    `RECONSTRUCTION_LOSS` is the loss value computed by the reconstruction loss function.
+    `GENERATOR_LOSS` is the loss value computed by the generator loss function. It is the
+                discriminator loss for the fake images. That is backpropagated through the generator only.
+    `DISCRIMINATOR_LOSS` is the loss value computed by the discriminator loss function. It is the
+                discriminator loss for the real images and the fake images. That is backpropagated through the
+                discriminator only.
+    """
+
+    REALS = "reals"
+    REAL_LOGITS = "real_logits"
+    FAKES = "fakes"
+    FAKE_LOGITS = "fake_logits"
+    RECONSTRUCTION_LOSS = "reconstruction_loss"
+    GENERATOR_LOSS = "generator_loss"
+    DISCRIMINATOR_LOSS = "discriminator_loss"
+
+
+class OrderingType(StrEnum):
+    RASTER_SCAN = "raster_scan"
+    S_CURVE = "s_curve"
+    RANDOM = "random"
+
+
+class OrderingTransformations(StrEnum):
+    ROTATE_90 = "rotate_90"
+    TRANSPOSE = "transpose"
+    REFLECT = "reflect"
+
+
+class IgniteInfo(StrEnum):
+    """
+    Config information of the PyTorch ignite package.
+
+    """
+
+    OPT_IMPORT_VERSION = "0.4.11"
+
+
+if TYPE_CHECKING:
+    from ignite.engine import EventEnum
+else:
+    EventEnum, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum", as_type="base"
+    )
+
+
+class AdversarialIterationEvents(EventEnum):
+    """
+    Keys used to define events as used in the AdversarialTrainer.
+    """
+
+    RECONSTRUCTION_LOSS_COMPLETED = "reconstruction_loss_completed"
+    GENERATOR_FORWARD_COMPLETED = "generator_forward_completed"
+    GENERATOR_DISCRIMINATOR_FORWARD_COMPLETED = "generator_discriminator_forward_completed"
+    GENERATOR_LOSS_COMPLETED = "generator_loss_completed"
+    GENERATOR_BACKWARD_COMPLETED = "generator_backward_completed"
+    GENERATOR_MODEL_COMPLETED = "generator_model_completed"
+    DISCRIMINATOR_REALS_FORWARD_COMPLETED = "discriminator_reals_forward_completed"
+    DISCRIMINATOR_FAKES_FORWARD_COMPLETED = "discriminator_fakes_forward_completed"
+    DISCRIMINATOR_LOSS_COMPLETED = "discriminator_loss_completed"
+    DISCRIMINATOR_BACKWARD_COMPLETED = "discriminator_backward_completed"
+    DISCRIMINATOR_MODEL_COMPLETED = "discriminator_model_completed"

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -25,6 +27,7 @@ nib, has_nibabel = optional_import("nibabel")
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKWriter(unittest.TestCase):
+
     def test_channel_shape(self):
         with tempfile.TemporaryDirectory() as tempdir:
             for c in (0, 1, 2, 3):
@@ -49,6 +52,17 @@ class TestITKWriter(unittest.TestCase):
             output = np.asarray(itk.imread(fname))
             np.testing.assert_allclose(output.shape, (5, 5, 3))
             np.testing.assert_allclose(output[1, 1], (5, 5, 4))
+
+    def test_no_channel(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fname = os.path.join(tempdir, "testing.nii.gz")
+            writer = ITKWriter(output_dtype=np.uint8)
+            writer.set_data_array(np.arange(48).reshape(3, 4, 4), channel_dim=None)
+            writer.write(fname)
+
+            output = np.asarray(itk.imread(fname))
+            np.testing.assert_allclose(output.shape, (4, 4, 3))
+            np.testing.assert_allclose(output[1, 1], (5, 21, 37))
 
 
 if __name__ == "__main__":

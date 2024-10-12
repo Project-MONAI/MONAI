@@ -9,16 +9,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import ast
 import inspect
 import sys
 import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence
 from importlib import import_module
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
+from pprint import pformat
+from typing import Any
 
 from monai.bundle.utils import EXPR_KEY
-from monai.utils import ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
+from monai.utils import CompInitMode, ensure_tuple, first, instantiate, optional_import, run_debug, run_eval
 
 __all__ = ["ComponentLocator", "ConfigItem", "ConfigExpression", "ConfigComponent", "Instantiable"]
 
@@ -55,18 +59,18 @@ class ComponentLocator:
 
     MOD_START = "monai"
 
-    def __init__(self, excludes: Optional[Union[Sequence[str], str]] = None):
+    def __init__(self, excludes: Sequence[str] | str | None = None):
         self.excludes = [] if excludes is None else ensure_tuple(excludes)
-        self._components_table: Optional[Dict[str, List]] = None
+        self._components_table: dict[str, list] | None = None
 
-    def _find_module_names(self) -> List[str]:
+    def _find_module_names(self) -> list[str]:
         """
         Find all the modules start with MOD_START and don't contain any of `excludes`.
 
         """
         return [m for m in sys.modules if m.startswith(self.MOD_START) and all(s not in m for s in self.excludes)]
 
-    def _find_classes_or_functions(self, modnames: Union[Sequence[str], str]) -> Dict[str, List]:
+    def _find_classes_or_functions(self, modnames: Sequence[str] | str) -> dict[str, list]:
         """
         Find all the classes and functions in the modules with specified `modnames`.
 
@@ -74,7 +78,7 @@ class ComponentLocator:
             modnames: names of the target modules to find all the classes and functions.
 
         """
-        table: Dict[str, List] = {}
+        table: dict[str, list] = {}
         # all the MONAI modules are already loaded by `load_submodules`
         for modname in ensure_tuple(modnames):
             try:
@@ -89,7 +93,7 @@ class ComponentLocator:
                 pass
         return table
 
-    def get_component_module_name(self, name: str) -> Optional[Union[List[str], str]]:
+    def get_component_module_name(self, name: str) -> list[str] | str | None:
         """
         Get the full module name of the class or function with specified ``name``.
         If target component name exists in multiple packages or modules, return a list of full module names.
@@ -104,7 +108,7 @@ class ComponentLocator:
             # init component and module mapping table
             self._components_table = self._find_classes_or_functions(self._find_module_names())
 
-        mods: Optional[Union[List[str], str]] = self._components_table.get(name)
+        mods: list[str] | str | None = self._components_table.get(name)
         if isinstance(mods, list) and len(mods) == 1:
             mods = mods[0]
         return mods
@@ -135,7 +139,7 @@ class ConfigItem:
         """
         return self.id
 
-    def update_config(self, config: Any):
+    def update_config(self, config: Any) -> None:
         """
         Replace the content of `self.config` with new `config`.
         A typical usage is to modify the initial config content at runtime.
@@ -154,7 +158,7 @@ class ConfigItem:
         return self.config
 
     def __repr__(self) -> str:
-        return str(self.config)
+        return f"{type(self).__name__}: \n{pformat(self.config)}"
 
 
 class ConfigComponent(ConfigItem, Instantiable):
@@ -165,8 +169,8 @@ class ConfigComponent(ConfigItem, Instantiable):
     Currently, three special keys (strings surrounded by ``_``) are defined and interpreted beyond the regular literals:
 
         - class or function identifier of the python module, specified by ``"_target_"``,
-          indicating a build-in python class or function such as ``"LoadImageDict"``,
-          or a full module name, such as ``"monai.transforms.LoadImageDict"``.
+          indicating a monai built-in Python class or function such as ``"LoadImageDict"``,
+          or a full module name, e.g. ``"monai.transforms.LoadImageDict"``, or a callable, e.g. ``"$@model.forward"``.
         - ``"_requires_"`` (optional): specifies reference IDs (string starts with ``"@"``) or ``ConfigExpression``
           of the dependencies for this ``ConfigComponent`` object. These dependencies will be
           evaluated/instantiated before this object is instantiated.  It is useful when the
@@ -174,6 +178,11 @@ class ConfigComponent(ConfigItem, Instantiable):
           but requires the dependencies to be instantiated/evaluated beforehand.
         - ``"_disabled_"`` (optional): a flag to indicate whether to skip the instantiation.
         - ``"_desc_"`` (optional): free text descriptions of the component for code readability.
+        - ``"_mode_"`` (optional): operating mode for invoking the callable ``component`` defined by ``"_target_"``:
+
+            - ``"default"``: returns ``component(**kwargs)``
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
+            - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
     Other fields in the config content are input arguments to the python module.
 
@@ -201,14 +210,14 @@ class ConfigComponent(ConfigItem, Instantiable):
 
     """
 
-    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_"}
+    non_arg_keys = {"_target_", "_disabled_", "_requires_", "_desc_", "_mode_"}
 
     def __init__(
         self,
         config: Any,
         id: str = "",
-        locator: Optional[ComponentLocator] = None,
-        excludes: Optional[Union[Sequence[str], str]] = None,
+        locator: ComponentLocator | None = None,
+        excludes: Sequence[str] | str | None = None,
     ) -> None:
         super().__init__(config=config, id=id)
         self.locator = ComponentLocator(excludes=excludes) if locator is None else locator
@@ -233,7 +242,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         config = dict(self.get_config())
         target = config.get("_target_")
         if not isinstance(target, str):
-            raise ValueError("must provide a string for the `_target_` of component to instantiate.")
+            return target  # for feature discussed in project-monai/monai#5852
 
         module = self.locator.get_component_module_name(target)
         if module is None:
@@ -263,7 +272,7 @@ class ConfigComponent(ConfigItem, Instantiable):
         _is_disabled = self.get_config().get("_disabled_", False)
         return _is_disabled.lower().strip() == "true" if isinstance(_is_disabled, str) else bool(_is_disabled)
 
-    def instantiate(self, **kwargs) -> object:
+    def instantiate(self, **kwargs: Any) -> object:
         """
         Instantiate component based on ``self.config`` content.
         The target component must be a `class` or a `function`, otherwise, return `None`.
@@ -277,12 +286,10 @@ class ConfigComponent(ConfigItem, Instantiable):
             return None
 
         modname = self.resolve_module_name()
+        mode = self.get_config().get("_mode_", CompInitMode.DEFAULT)
         args = self.resolve_args()
         args.update(kwargs)
-        try:
-            return instantiate(modname, **args)
-        except Exception as e:
-            raise RuntimeError(f"Failed to instantiate {self}.") from e
+        return instantiate(modname, mode, **args)
 
 
 class ConfigExpression(ConfigItem):
@@ -315,11 +322,11 @@ class ConfigExpression(ConfigItem):
     prefix = EXPR_KEY
     run_eval = run_eval
 
-    def __init__(self, config: Any, id: str = "", globals: Optional[Dict] = None) -> None:
+    def __init__(self, config: Any, id: str = "", globals: dict | None = None) -> None:
         super().__init__(config=config, id=id)
         self.globals = globals if globals is not None else {}
 
-    def _parse_import_string(self, import_string: str):
+    def _parse_import_string(self, import_string: str) -> Any | None:
         """parse single import statement such as "from monai.transforms import Resize"""
         node = first(ast.iter_child_nodes(ast.parse(import_string)))
         if not isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -338,7 +345,7 @@ class ConfigExpression(ConfigItem):
             return self.globals[asname]
         return None
 
-    def evaluate(self, globals: Optional[Dict] = None, locals: Optional[Dict] = None):
+    def evaluate(self, globals: dict | None = None, locals: dict | None = None) -> str | Any | None:
         """
         Execute the current config content and return the result if it is expression, based on Python `eval()`.
         For more details: https://docs.python.org/3/library/functions.html#eval.
@@ -363,17 +370,21 @@ class ConfigExpression(ConfigItem):
                     warnings.warn(f"the new global variable `{k}` conflicts with `self.globals`, override it.")
                 globals_[k] = v
         if not run_debug:
-            return eval(value[len(self.prefix) :], globals_, locals)
+            try:
+                return eval(value[len(self.prefix) :], globals_, locals)
+            except Exception as e:
+                raise RuntimeError(f"Failed to evaluate {self}") from e
         warnings.warn(
             f"\n\npdb: value={value}\n"
             f"See also Debugger commands documentation: https://docs.python.org/3/library/pdb.html\n"
         )
         import pdb
 
-        return pdb.run(value[len(self.prefix) :], globals_, locals)
+        pdb.run(value[len(self.prefix) :], globals_, locals)
+        return None
 
     @classmethod
-    def is_expression(cls, config: Union[Dict, List, str]) -> bool:
+    def is_expression(cls, config: dict | list | str) -> bool:
         """
         Check whether the config is an executable expression string.
         Currently, a string starts with ``"$"`` character is interpreted as an expression.
@@ -385,7 +396,7 @@ class ConfigExpression(ConfigItem):
         return isinstance(config, str) and config.startswith(cls.prefix)
 
     @classmethod
-    def is_import_statement(cls, config: Union[Dict, List, str]) -> bool:
+    def is_import_statement(cls, config: dict | list | str) -> bool:
         """
         Check whether the config is an import statement (a special case of expression).
 

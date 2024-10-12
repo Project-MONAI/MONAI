@@ -9,22 +9,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 
-from monai.metrics.utils import do_metric_reduction, ignore_background, is_binary_tensor
+from monai.metrics.utils import do_metric_reduction, ignore_background
 from monai.utils import MetricReduction
 
 from .metric import CumulativeIterationMetric
 
 
 class FBetaScore(CumulativeIterationMetric):
+
     def __init__(
         self,
         beta: float = 1.0,
         include_background: bool = True,
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         get_not_nans: bool = False,
     ) -> None:
         super().__init__()
@@ -33,21 +36,20 @@ class FBetaScore(CumulativeIterationMetric):
         self.reduction = reduction
         self.get_not_nans = get_not_nans
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
-        is_binary_tensor(y_pred, "y_pred")
-        is_binary_tensor(y, "y")
-
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         if y_pred.ndimension() < 2:
             raise ValueError("y_pred should have at least two dimensions.")
 
         return get_f_beta_score(y_pred=y_pred, y=y, include_background=self.include_background)
 
-    def aggregate(self, compute_sample: bool = False, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(
+        self, compute_sample: bool = False, reduction: MetricReduction | str | None = None
+    ) -> Sequence[torch.Tensor | tuple[torch.Tensor, torch.Tensor]]:
         data = self.get_buffer()
         if not isinstance(data, torch.Tensor):
             raise ValueError("the data to aggregate must be PyTorch Tensor.")
 
-        results = []
+        results: list[torch.Tensor | tuple[torch.Tensor, torch.Tensor]] = []
         f, not_nans = do_metric_reduction(data, reduction or self.reduction)
         f = compute_f_beta_score(f, self.beta)
         if self.get_not_nans:
@@ -58,12 +60,9 @@ class FBetaScore(CumulativeIterationMetric):
         return results
 
 
-def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True):
+def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: bool = True) -> torch.Tensor:
     if not include_background:
         y_pred, y = ignore_background(y_pred=y_pred, y=y)
-
-    y = y.float()
-    y_pred = y_pred.float()
 
     if y.shape != y_pred.shape:
         raise ValueError(f"y_pred and y should have same shapes, got {y_pred.shape} and {y.shape}.")
@@ -74,12 +73,12 @@ def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: 
     # As for classification tasks, S equals to 1.
     y_pred = y_pred.view(batch_size, n_class, -1)
     y = y.view(batch_size, n_class, -1)
-    tp = ((y_pred + y) == 2).float()
-    tn = ((y_pred + y) == 0).float()
+    tp = (y_pred + y) == 2
+    tn = (y_pred + y) == 0
 
-    tp = tp.sum(dim=[2])
-    tn = tn.sum(dim=[2])
-    p = y.sum(dim=[2])
+    tp = tp.sum(dim=[2]).float()
+    tn = tn.sum(dim=[2]).float()
+    p = y.sum(dim=[2]).float()
     n = y.shape[-1] - p
 
     fn = p - tp
@@ -88,7 +87,7 @@ def get_f_beta_score(y_pred: torch.Tensor, y: torch.Tensor, include_background: 
     return torch.stack([tp, fp, tn, fn], dim=-1)
 
 
-def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float):
+def compute_f_beta_score(confusion_matrix: torch.Tensor, beta: float) -> torch.Tensor:
     input_dim = confusion_matrix.ndimension()
     if input_dim == 1:
         confusion_matrix = confusion_matrix.unsqueeze(dim=0)

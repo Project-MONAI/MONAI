@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -17,12 +19,11 @@ from parameterized import parameterized
 
 from monai.networks.layers import HilbertTransform
 from monai.utils import OptionalImportError
-from tests.utils import SkipIfModule, SkipIfNoModule, skip_if_no_cuda
+from tests.utils import SkipIfModule, SkipIfNoModule
 
 
 def create_expected_numpy_output(input_datum, **kwargs):
-
-    x = np.fft.fft(input_datum.cpu().numpy() if input_datum.device.type == "cuda" else input_datum.numpy(), **kwargs)
+    x = np.fft.fft(input_datum.cpu().numpy(), **kwargs)
     f = np.fft.fftfreq(x.shape[kwargs["axis"]])
     u = np.heaviside(f, 0.5)
     new_dims_before = kwargs["axis"]
@@ -43,19 +44,15 @@ hann_windowed_sine = np.sin(2 * np.pi * 10 * np.linspace(0, 1, n_samples)) * np.
 # CPU TEST DATA
 
 cpu_input_data = {}
-cpu_input_data["1D"] = torch.as_tensor(hann_windowed_sine, device=cpu).unsqueeze(0).unsqueeze(0)
-cpu_input_data["2D"] = (
-    torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=cpu).unsqueeze(0).unsqueeze(0)
-)
-cpu_input_data["3D"] = (
-    torch.as_tensor(np.stack([np.stack([hann_windowed_sine] * 10, axis=1)] * 10, axis=2), device=cpu)
-    .unsqueeze(0)
-    .unsqueeze(0)
-)
-cpu_input_data["1D 2CH"] = torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=cpu).unsqueeze(0)
+cpu_input_data["1D"] = torch.as_tensor(hann_windowed_sine, device=cpu)[None, None]
+cpu_input_data["2D"] = torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=cpu)[None, None]
+cpu_input_data["3D"] = torch.as_tensor(
+    np.stack([np.stack([hann_windowed_sine] * 10, axis=1)] * 10, axis=2), device=cpu
+)[None, None]
+cpu_input_data["1D 2CH"] = torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=cpu)[None]
 cpu_input_data["2D 2CH"] = torch.as_tensor(
     np.stack([np.stack([hann_windowed_sine] * 10, axis=1)] * 10, axis=2), device=cpu
-).unsqueeze(0)
+)[None]
 
 # SINGLE-CHANNEL CPU VALUE TESTS
 
@@ -96,108 +93,38 @@ TEST_CASE_2D_2CH_SINE_CPU = [
     1e-5,  # absolute tolerance
 ]
 
+TEST_CASES_CPU = [
+    TEST_CASE_1D_SINE_CPU,
+    TEST_CASE_2D_SINE_CPU,
+    TEST_CASE_3D_SINE_CPU,
+    TEST_CASE_1D_2CH_SINE_CPU,
+    TEST_CASE_2D_2CH_SINE_CPU,
+]
+
 # GPU TEST DATA
 
 if torch.cuda.is_available():
     gpu = torch.device("cuda")
-
-    gpu_input_data = {}
-    gpu_input_data["1D"] = torch.as_tensor(hann_windowed_sine, device=gpu).unsqueeze(0).unsqueeze(0)
-    gpu_input_data["2D"] = (
-        torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=gpu).unsqueeze(0).unsqueeze(0)
-    )
-    gpu_input_data["3D"] = (
-        torch.as_tensor(np.stack([np.stack([hann_windowed_sine] * 10, axis=1)] * 10, axis=2), device=gpu)
-        .unsqueeze(0)
-        .unsqueeze(0)
-    )
-    gpu_input_data["1D 2CH"] = torch.as_tensor(np.stack([hann_windowed_sine] * 10, axis=1), device=gpu).unsqueeze(0)
-    gpu_input_data["2D 2CH"] = torch.as_tensor(
-        np.stack([np.stack([hann_windowed_sine] * 10, axis=1)] * 10, axis=2), device=gpu
-    ).unsqueeze(0)
-
-    # SINGLE CHANNEL GPU VALUE TESTS
-
-    TEST_CASE_1D_SINE_GPU = [
-        {},  # args (empty, so use default)
-        gpu_input_data["1D"],  # Input data: Random 1D signal
-        create_expected_numpy_output(gpu_input_data["1D"], axis=2),  # Expected output: FFT of signal
-        1e-5,  # absolute tolerance
-    ]
-
-    TEST_CASE_2D_SINE_GPU = [
-        {},  # args (empty, so use default)
-        gpu_input_data["2D"],  # Input data: Random 1D signal
-        create_expected_numpy_output(gpu_input_data["2D"], axis=2),  # Expected output: FFT of signal
-        1e-5,  # absolute tolerance
-    ]
-
-    TEST_CASE_3D_SINE_GPU = [
-        {},  # args (empty, so use default)
-        gpu_input_data["3D"],  # Input data: Random 1D signal
-        create_expected_numpy_output(gpu_input_data["3D"], axis=2),  # Expected output: FFT of signal
-        1e-5,  # absolute tolerance
-    ]
-
-    # MULTICHANNEL GPU VALUE TESTS, PROCESS ALONG FIRST SPATIAL AXIS
-
-    TEST_CASE_1D_2CH_SINE_GPU = [
-        {},  # args (empty, so use default)
-        gpu_input_data["1D 2CH"],  # Input data: Random 1D signal
-        create_expected_numpy_output(gpu_input_data["1D 2CH"], axis=2),
-        1e-5,  # absolute tolerance
-    ]
-
-    TEST_CASE_2D_2CH_SINE_GPU = [
-        {},  # args (empty, so use default)
-        gpu_input_data["2D 2CH"],  # Input data: Random 1D signal
-        create_expected_numpy_output(gpu_input_data["2D 2CH"], axis=2),
-        1e-5,  # absolute tolerance
-    ]
+    TEST_CASES_GPU = [[args, image.to(gpu), exp_data, atol] for args, image, exp_data, atol in TEST_CASES_CPU]
+else:
+    TEST_CASES_GPU = []
 
 # TESTS CHECKING PADDING, AXIS SELECTION ETC ARE COVERED BY test_detect_envelope.py
 
 
 @SkipIfNoModule("torch.fft")
 class TestHilbertTransformCPU(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_1D_SINE_CPU,
-            TEST_CASE_2D_SINE_CPU,
-            TEST_CASE_3D_SINE_CPU,
-            TEST_CASE_1D_2CH_SINE_CPU,
-            TEST_CASE_2D_2CH_SINE_CPU,
-        ]
-    )
+
+    @parameterized.expand(TEST_CASES_CPU + TEST_CASES_GPU)
     def test_value(self, arguments, image, expected_data, atol):
         result = HilbertTransform(**arguments)(image)
-        result = result.squeeze(0).squeeze(0).numpy()
-        np.testing.assert_allclose(result, expected_data.squeeze(), atol=atol)
-
-
-@skip_if_no_cuda
-@SkipIfNoModule("torch.fft")
-class TestHilbertTransformGPU(unittest.TestCase):
-    @parameterized.expand(
-        []
-        if not torch.cuda.is_available()
-        else [
-            TEST_CASE_1D_SINE_GPU,
-            TEST_CASE_2D_SINE_GPU,
-            TEST_CASE_3D_SINE_GPU,
-            TEST_CASE_1D_2CH_SINE_GPU,
-            TEST_CASE_2D_2CH_SINE_GPU,
-        ],
-        skip_on_empty=True,
-    )
-    def test_value(self, arguments, image, expected_data, atol):
-        result = HilbertTransform(**arguments)(image)
-        result = result.squeeze(0).squeeze(0).cpu().numpy()
+        result = np.squeeze(result.cpu().numpy())
         np.testing.assert_allclose(result, expected_data.squeeze(), atol=atol)
 
 
 @SkipIfModule("torch.fft")
 class TestHilbertTransformNoFFTMod(unittest.TestCase):
+
     def test_no_fft_module_error(self):
         self.assertRaises(OptionalImportError, HilbertTransform(), torch.randn(1, 1, 10))
 

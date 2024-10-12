@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms.utils_pytorch_numpy_unification import mode, percentile
+from monai.transforms.utils_pytorch_numpy_unification import max, min, mode, percentile
 from monai.utils import set_determinism
 from tests.utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
 
@@ -25,8 +27,16 @@ for p in TEST_NDARRAYS:
     TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4.1), False])
     TEST_MODE.append([p(np.array([3.1, 4.1, 4.1, 5.1])), p(4), True])
 
+TEST_MIN_MAX = []
+for p in TEST_NDARRAYS:
+    TEST_MIN_MAX.append([p(np.array([1, 2, 3, 4, 4, 5])), {}, min, p(1)])
+    TEST_MIN_MAX.append([p(np.array([[3.1, 4.1, 4.1, 5.1], [3, 5, 4.1, 5]])), {"dim": 1}, min, p([3.1, 3])])
+    TEST_MIN_MAX.append([p(np.array([1, 2, 3, 4, 4, 5])), {}, max, p(5)])
+    TEST_MIN_MAX.append([p(np.array([[3.1, 4.1, 4.1, 5.1], [3, 5, 4.1, 5]])), {"dim": 1}, max, p([5.1, 5])])
+
 
 class TestPytorchNumpyUnification(unittest.TestCase):
+
     def setUp(self) -> None:
         set_determinism(0)
 
@@ -70,6 +80,11 @@ class TestPytorchNumpyUnification(unittest.TestCase):
     def test_mode(self, array, expected, to_long):
         res = mode(array, to_long=to_long)
         assert_allclose(res, expected)
+
+    @parameterized.expand(TEST_MIN_MAX)
+    def test_min_max(self, array, input_params, func, expected):
+        res = func(array, **input_params)
+        assert_allclose(res, expected, type_test=False)
 
 
 if __name__ == "__main__":

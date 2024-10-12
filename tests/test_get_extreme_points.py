@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -45,6 +47,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGetExtremePoints(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_data, expected):
         result = get_extreme_points(**input_data)

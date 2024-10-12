@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -111,6 +113,7 @@ TEST_CASES = [
 
 
 class TestDiceLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = MaskedDiceLoss(**input_param).forward(**input_data)

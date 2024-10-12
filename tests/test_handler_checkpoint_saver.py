@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -109,6 +111,7 @@ TEST_CASE_8 = [False, None, True, "val_loss", 1, "model.pt", False, True, False,
 
 
 class TestHandlerCheckpointSaver(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7, TEST_CASE_8]
     )

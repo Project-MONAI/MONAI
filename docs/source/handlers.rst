@@ -29,9 +29,9 @@ CSV saver
     :members:
 
 
-Ignite Metric
--------------
-.. autoclass:: IgniteMetric
+Ignite Metric Handler
+---------------------
+.. autoclass:: IgniteMetricHandler
     :members:
 
 
@@ -98,6 +98,18 @@ Root mean squared error metrics handler
 Peak signal to noise ratio metrics handler
 ------------------------------------------
 .. autoclass:: PeakSignalToNoiseRatio
+    :members:
+
+
+Metrics reloaded binary handler
+-------------------------------
+.. autoclass:: MetricsReloadedBinaryHandler
+    :members:
+
+
+Metrics reloaded categorical handler
+------------------------------------
+.. autoclass:: MetricsReloadedCategoricalHandler
     :members:
 
 
@@ -175,6 +187,17 @@ Decollate batch
 MLFlow handler
 --------------
 .. autoclass:: MLFlowHandler
+    :members:
+
+ClearML handlers
+----------------
+.. autoclass:: ClearMLHandler
+    :members:
+
+.. autoclass:: ClearMLStatsHandler
+    :members:
+
+.. autoclass:: ClearMLImageHandler
     :members:
 
 NVTX Handlers

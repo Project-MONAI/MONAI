@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -22,6 +24,7 @@ for q in TEST_NDARRAYS:
 
 
 class TestRemoveRepeatedChannel(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RemoveRepeatedChannel(**input_param)(input_data)

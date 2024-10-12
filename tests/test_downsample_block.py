@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -35,6 +37,7 @@ TEST_CASES = [
 
 
 class TestMaxAvgPool(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = MaxAvgPool(**input_param)

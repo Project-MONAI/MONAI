@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -44,6 +46,7 @@ TEST_CASE_ERROR_1 = [  # error for duplicate key
 
 
 class TestFlattenSubKeysd(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_dict(self, params, input_data, expected):
         result = FlattenSubKeysd(**params)(input_data)

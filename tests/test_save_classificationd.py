@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import csv
 import os
 import tempfile
@@ -24,6 +26,7 @@ from monai.utils.enums import PostFix
 
 
 class TestSaveClassificationd(unittest.TestCase):
+
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             data = [

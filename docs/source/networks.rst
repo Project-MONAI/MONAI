@@ -58,6 +58,11 @@ Blocks
 .. autoclass:: Mish
     :members:
 
+`GEGLU`
+~~~~~~~
+.. autoclass:: GEGLU
+    :members:
+
 `GCN Module`
 ~~~~~~~~~~~~
 .. autoclass:: GCN
@@ -349,6 +354,16 @@ Layers
 .. autoclass:: BilateralFilter
     :members:
 
+`TrainableBilateralFilter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TrainableBilateralFilter
+    :members:
+
+`TrainableJointBilateralFilter`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: TrainableJointBilateralFilter
+    :members:
+
 `PHLFilter`
 ~~~~~~~~~~~
 .. autoclass:: PHLFilter
@@ -391,6 +406,11 @@ Layers
 `LLTM`
 ~~~~~~
 .. autoclass:: LLTM
+    :members:
+
+`ConjugateGradient`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: ConjugateGradient
     :members:
 
 `Utilities`
@@ -456,6 +476,16 @@ Nets
 .. autoclass:: SegResNet
   :members:
 
+`SegResNetDS`
+~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS
+  :members:
+
+`SegResNetDS2`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS2
+  :members:
+
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
@@ -464,6 +494,11 @@ Nets
 `ResNet`
 ~~~~~~~~
 .. autoclass:: ResNet
+  :members:
+
+`ResNetFeatures`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ResNetFeatures
   :members:
 
 `SENet`
@@ -524,6 +559,11 @@ Nets
 `UNETR`
 ~~~~~~~
 .. autoclass:: UNETR
+    :members:
+
+`VISTA3D`
+~~~~~~~~~
+.. autoclass:: VISTA3D
     :members:
 
 `SwinUNETR`
@@ -678,6 +718,24 @@ Nets
 `e2e-VarNet`
 ~~~~~~~~~~~~
 .. autoclass:: monai.apps.reconstruction.networks.nets.varnet.VariationalNetworkModel
+   :members:
+
+`DAF3D`
+~~~~~~~~~~~~
+.. autoclass:: DAF3D
+   :members:
+
+`Quicknat`
+~~~~~~~~~~~~
+.. autoclass:: Quicknat
+   :members:
+
+`VoxelMorph`
+~~~~~~~~~~~~
+.. autoclass:: VoxelMorphUNet
+   :members:
+
+.. autoclass:: VoxelMorph
    :members:
 
 Utilities

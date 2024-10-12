@@ -9,9 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
-from typing import Type, Union
 
 import torch
 
@@ -30,15 +31,16 @@ TRANSFORMS = mt.Compose(
 
 
 class Base:
+
     class TestVideoDataset(unittest.TestCase):
-        video_source: Union[int, str]
-        ds: Type[VideoDataset]
+        video_source: int | str
+        ds: type[VideoDataset]
 
         def get_video_source(self):
             return self.video_source
 
         def get_ds(self, *args, **kwargs) -> VideoDataset:
-            return self.ds(video_source=self.get_video_source(), transform=TRANSFORMS, *args, **kwargs)  # type: ignore
+            return self.ds(*args, video_source=self.get_video_source(), transform=TRANSFORMS, **kwargs)  # type: ignore
 
         @unittest.skipIf(has_cv2, "Only tested when OpenCV not installed.")
         def test_no_opencv_raises(self):

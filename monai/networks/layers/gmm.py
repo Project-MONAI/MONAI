@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import torch
 
 from monai._extensions.loader import load_module
@@ -76,6 +78,7 @@ class GaussianMixtureModel:
 
 
 class _ApplyFunc(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, params, features, compiled_extension):
         return compiled_extension.apply(params, features)

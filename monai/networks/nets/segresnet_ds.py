@@ -9,7 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Callable, List, Optional, Tuple, Union
+from __future__ import annotations
+
+import copy
+from collections.abc import Callable
+from typing import Union
 
 import numpy as np
 import torch
@@ -20,10 +24,10 @@ from monai.networks.layers.factories import Act, Conv, Norm, split_args
 from monai.networks.layers.utils import get_act_layer, get_norm_layer
 from monai.utils import UpsampleMode, has_option
 
-__all__ = ["SegResNetDS"]
+__all__ = ["SegResNetDS", "SegResNetDS2"]
 
 
-def scales_for_resolution(resolution: Union[Tuple, List], n_stages: Optional[int] = None):
+def scales_for_resolution(resolution: tuple | list, n_stages: int | None = None):
     """
     A helper function to compute a schedule of scale at different downsampling levels,
     given the input resolution.
@@ -51,7 +55,7 @@ def scales_for_resolution(resolution: Union[Tuple, List], n_stages: Optional[int
     return scales
 
 
-def aniso_kernel(scale: Union[Tuple, List]):
+def aniso_kernel(scale: tuple | list):
     """
     A helper function to compute kernel_size, padding and stride for the given scale
 
@@ -73,9 +77,9 @@ class SegResBlock(nn.Module):
         self,
         spatial_dims: int,
         in_channels: int,
-        norm: Union[Tuple, str],
-        kernel_size: Union[Tuple, int] = 3,
-        act: Union[Tuple, str] = "relu",
+        norm: tuple | str,
+        kernel_size: tuple | int = 3,
+        act: tuple | str = "relu",
     ) -> None:
         """
         Args:
@@ -116,15 +120,14 @@ class SegResBlock(nn.Module):
 
     def forward(self, x):
         identity = x
-        x = self.conv1(self.act1(self.norm1(x)))
-        x = self.conv2(self.act2(self.norm2(x)))
+        x = self.conv2(self.act2(self.norm2(self.conv1(self.act1(self.norm1(x))))))
         x += identity
         return x
 
 
 class SegResEncoder(nn.Module):
     """
-    SegResEncoder based on the econder structure in `3D MRI brain tumor segmentation using autoencoder regularization
+    SegResEncoder based on the encoder structure in `3D MRI brain tumor segmentation using autoencoder regularization
     <https://arxiv.org/pdf/1810.11654.pdf>`_.
 
     Args:
@@ -144,13 +147,12 @@ class SegResEncoder(nn.Module):
         spatial_dims: int = 3,
         init_filters: int = 32,
         in_channels: int = 1,
-        act: Union[Tuple, str] = "relu",
-        norm: Union[Tuple, str] = "batch",
+        act: tuple | str = "relu",
+        norm: tuple | str = "batch",
         blocks_down: tuple = (1, 2, 2, 4),
-        head_module: Optional[nn.Module] = None,
-        anisotropic_scales: Optional[Tuple] = None,
+        head_module: nn.Module | None = None,
+        anisotropic_scales: tuple | None = None,
     ):
-
         super().__init__()
 
         if spatial_dims not in (1, 2, 3):
@@ -212,8 +214,7 @@ class SegResEncoder(nn.Module):
         self.act = act
         self.spatial_dims = spatial_dims
 
-    def _forward(self, x: torch.Tensor) -> List[torch.Tensor]:
-
+    def _forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         outputs = []
         x = self.conv_init(x)
 
@@ -227,7 +228,7 @@ class SegResEncoder(nn.Module):
 
         return outputs
 
-    def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
+    def forward(self, x: torch.Tensor) -> list[torch.Tensor]:
         return self._forward(x)
 
 
@@ -262,16 +263,15 @@ class SegResNetDS(nn.Module):
         init_filters: int = 32,
         in_channels: int = 1,
         out_channels: int = 2,
-        act: Union[Tuple, str] = "relu",
-        norm: Union[Tuple, str] = "batch",
+        act: tuple | str = "relu",
+        norm: tuple | str = "batch",
         blocks_down: tuple = (1, 2, 2, 4),
-        blocks_up: Optional[Tuple] = None,
+        blocks_up: tuple | None = None,
         dsdepth: int = 1,
-        preprocess: Optional[Union[nn.Module, Callable]] = None,
-        upsample_mode: Union[UpsampleMode, str] = "deconv",
-        resolution: Optional[Tuple] = None,
+        preprocess: nn.Module | Callable | None = None,
+        upsample_mode: UpsampleMode | str = "deconv",
+        resolution: tuple | None = None,
     ):
-
         super().__init__()
 
         if spatial_dims not in (1, 2, 3):
@@ -328,7 +328,6 @@ class SegResNetDS(nn.Module):
         self.up_layers = nn.ModuleList()
 
         for i in range(n_up):
-
             filters = filters // 2
             kernel_size, _, stride = (
                 aniso_kernel(anisotropic_scales[len(blocks_up) - i - 1]) if anisotropic_scales else (3, 1, 2)
@@ -389,8 +388,7 @@ class SegResNetDS(nn.Module):
         a = [i % j == 0 for i, j in zip(x.shape[2:], self.shape_factor())]
         return all(a)
 
-    def _forward(self, x: torch.Tensor) -> Union[torch.Tensor, List[torch.Tensor]]:
-
+    def _forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
         if self.preprocess is not None:
             x = self.preprocess(x)
 
@@ -405,12 +403,12 @@ class SegResNetDS(nn.Module):
         if len(x_down) == 0:
             x_down = [torch.zeros(1, device=x.device, dtype=x.dtype)]
 
-        outputs: List[torch.Tensor] = []
+        outputs: list[torch.Tensor] = []
 
         i = 0
         for level in self.up_layers:
             x = level["upsample"](x)
-            x = x + x_down[i]
+            x += x_down.pop(0)
             x = level["blocks"](x)
 
             if len(self.up_layers) - i <= self.dsdepth:
@@ -426,5 +424,130 @@ class SegResNetDS(nn.Module):
         # return a list of DS outputs
         return outputs
 
-    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, List[torch.Tensor]]:
+    def forward(self, x: torch.Tensor) -> Union[None, torch.Tensor, list[torch.Tensor]]:
         return self._forward(x)
+
+
+class SegResNetDS2(SegResNetDS):
+    """
+    SegResNetDS2 adds an additional decorder branch to SegResNetDS and is the image encoder of VISTA3D
+     <https://arxiv.org/abs/2406.05285>`_.
+
+    Args:
+        spatial_dims: spatial dimension of the input data. Defaults to 3.
+        init_filters: number of output channels for initial convolution layer. Defaults to 32.
+        in_channels: number of input channels for the network. Defaults to 1.
+        out_channels: number of output channels for the network. Defaults to 2.
+        act: activation type and arguments. Defaults to ``RELU``.
+        norm: feature normalization type and arguments. Defaults to ``BATCH``.
+        blocks_down: number of downsample blocks in each layer. Defaults to ``[1,2,2,4]``.
+        blocks_up: number of upsample blocks (optional).
+        dsdepth: number of levels for deep supervision. This will be the length of the list of outputs at each scale level.
+                 At dsdepth==1,only a single output is returned.
+        preprocess: optional callable function to apply before the model's forward pass
+        resolution: optional input image resolution. When provided, the network will first use non-isotropic kernels to bring
+                    image spacing into an approximately isotropic space.
+                    Otherwise, by default, the kernel size and downsampling is always isotropic.
+
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int = 3,
+        init_filters: int = 32,
+        in_channels: int = 1,
+        out_channels: int = 2,
+        act: tuple | str = "relu",
+        norm: tuple | str = "batch",
+        blocks_down: tuple = (1, 2, 2, 4),
+        blocks_up: tuple | None = None,
+        dsdepth: int = 1,
+        preprocess: nn.Module | Callable | None = None,
+        upsample_mode: UpsampleMode | str = "deconv",
+        resolution: tuple | None = None,
+    ):
+        super().__init__(
+            spatial_dims=spatial_dims,
+            init_filters=init_filters,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            act=act,
+            norm=norm,
+            blocks_down=blocks_down,
+            blocks_up=blocks_up,
+            dsdepth=dsdepth,
+            preprocess=preprocess,
+            upsample_mode=upsample_mode,
+            resolution=resolution,
+        )
+
+        self.up_layers_auto = nn.ModuleList([copy.deepcopy(layer) for layer in self.up_layers])
+
+    def forward(  # type: ignore
+        self, x: torch.Tensor, with_point: bool = True, with_label: bool = True
+    ) -> tuple[Union[None, torch.Tensor, list[torch.Tensor]], Union[None, torch.Tensor, list[torch.Tensor]]]:
+        """
+        Args:
+            x: input tensor.
+            with_point: if true, return the point branch output.
+            with_label: if true, return the label branch output.
+        """
+        if self.preprocess is not None:
+            x = self.preprocess(x)
+
+        if not self.is_valid_shape(x):
+            raise ValueError(f"Input spatial dims {x.shape} must be divisible by {self.shape_factor()}")
+
+        x_down = self.encoder(x)
+
+        x_down.reverse()
+        x = x_down.pop(0)
+
+        if len(x_down) == 0:
+            x_down = [torch.zeros(1, device=x.device, dtype=x.dtype)]
+
+        outputs: list[torch.Tensor] = []
+        outputs_auto: list[torch.Tensor] = []
+        x_ = x.clone()
+        if with_point:
+            i = 0
+            for level in self.up_layers:
+                x = level["upsample"](x)
+                x = x + x_down[i]
+                x = level["blocks"](x)
+
+                if len(self.up_layers) - i <= self.dsdepth:
+                    outputs.append(level["head"](x))
+                i = i + 1
+
+            outputs.reverse()
+        x = x_
+        if with_label:
+            i = 0
+            for level in self.up_layers_auto:
+                x = level["upsample"](x)
+                x = x + x_down[i]
+                x = level["blocks"](x)
+
+                if len(self.up_layers) - i <= self.dsdepth:
+                    outputs_auto.append(level["head"](x))
+                i = i + 1
+
+            outputs_auto.reverse()
+
+        return outputs[0] if len(outputs) == 1 else outputs, outputs_auto[0] if len(outputs_auto) == 1 else outputs_auto
+
+    def set_auto_grad(self, auto_freeze=False, point_freeze=False):
+        """
+        Args:
+            auto_freeze: if true, freeze the image encoder and the auto-branch.
+            point_freeze: if true, freeze the image encoder and the point-branch.
+        """
+        for param in self.encoder.parameters():
+            param.requires_grad = (not auto_freeze) and (not point_freeze)
+
+        for param in self.up_layers_auto.parameters():
+            param.requires_grad = not auto_freeze
+
+        for param in self.up_layers.parameters():
+            param.requires_grad = not point_freeze

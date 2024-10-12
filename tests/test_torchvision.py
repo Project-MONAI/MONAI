@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -53,6 +55,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestTorchVision(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, input_param, input_data, expected_value):
         set_determinism(seed=0)

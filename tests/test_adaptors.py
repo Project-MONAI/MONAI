@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import itertools
 import unittest
 
@@ -16,13 +18,16 @@ from monai.transforms.adaptors import FunctionSignature, adaptor, apply_alias, t
 
 
 class TestAdaptors(unittest.TestCase):
+
     def test_function_signature(self):
+
         def foo(image, label=None, *a, **kw):
             pass
 
         _ = FunctionSignature(foo)
 
     def test_single_in_single_out(self):
+
         def foo(image):
             return image * 2
 
@@ -53,6 +58,7 @@ class TestAdaptors(unittest.TestCase):
         self.assertEqual(dres["img"], 4)
 
     def test_multi_in_single_out(self):
+
         def foo(image, label):
             return image * label
 
@@ -84,6 +90,7 @@ class TestAdaptors(unittest.TestCase):
             self.assertEqual(dres["lbl"], 3)
 
     def test_default_arg_single_out(self):
+
         def foo(a, b=2):
             return a * b
 
@@ -96,6 +103,7 @@ class TestAdaptors(unittest.TestCase):
             dres = adaptor(foo, "c")(d)
 
     def test_multi_out(self):
+
         def foo(a, b):
             return a * b, a / b
 
@@ -105,6 +113,7 @@ class TestAdaptors(unittest.TestCase):
         self.assertEqual(dres["d"], 3 / 4)
 
     def test_dict_out(self):
+
         def foo(a):
             return {"a": a * 2}
 
@@ -118,7 +127,9 @@ class TestAdaptors(unittest.TestCase):
 
 
 class TestApplyAlias(unittest.TestCase):
+
     def test_apply_alias(self):
+
         def foo(d):
             d["x"] *= 2
             return d
@@ -129,7 +140,9 @@ class TestApplyAlias(unittest.TestCase):
 
 
 class TestToKwargs(unittest.TestCase):
+
     def test_to_kwargs(self):
+
         def foo(**kwargs):
             results = {k: v * 2 for k, v in kwargs.items()}
             return results

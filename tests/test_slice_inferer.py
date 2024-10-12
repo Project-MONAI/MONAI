@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -21,6 +23,7 @@ TEST_CASES = ["0", "1", "2"]
 
 
 class TestSliceInferer(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, spatial_dim):
         spatial_dim = int(spatial_dim)

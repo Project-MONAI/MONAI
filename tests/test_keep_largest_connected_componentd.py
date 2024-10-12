@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -335,6 +337,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestKeepLargestConnectedComponentd(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, args, input_dict, expected):
         converter = KeepLargestConnectedComponentd(**args)

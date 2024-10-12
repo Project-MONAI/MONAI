@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
@@ -17,6 +19,7 @@ from tests.utils import SkipIfNoModule
 
 
 class TestInitLoadImage(unittest.TestCase):
+
     def test_load_image(self):
         instance1 = LoadImage(image_only=False, dtype=None)
         instance2 = LoadImage(image_only=True, dtype=None)

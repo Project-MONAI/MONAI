@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, Type, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 from torch import nn
@@ -24,9 +26,9 @@ def get_conv_block(
     spatial_dims: int,
     in_channels: int,
     out_channels: int,
-    kernel_size: Union[Sequence[int], int] = 3,
-    act: Optional[Union[Tuple, str]] = "RELU",
-    norm: Optional[Union[Tuple, str]] = "BATCH",
+    kernel_size: Sequence[int] | int = 3,
+    act: tuple | str | None = "RELU",
+    norm: tuple | str | None = "BATCH",
 ) -> nn.Module:
     padding = same_padding(kernel_size)
     mod: nn.Module = Convolution(
@@ -44,7 +46,7 @@ def get_conv_block(
 
 
 def get_conv_layer(
-    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int] = 3
+    spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int = 3
 ) -> nn.Module:
     padding = same_padding(kernel_size)
     mod: nn.Module = Convolution(
@@ -70,8 +72,9 @@ def get_deconv_block(spatial_dims: int, in_channels: int, out_channels: int) -> 
 
 
 class ResidualBlock(nn.Module):
+
     def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int]
+        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int
     ) -> None:
         super().__init__()
         if in_channels != out_channels:
@@ -93,6 +96,7 @@ class ResidualBlock(nn.Module):
 
 
 class LocalNetResidualBlock(nn.Module):
+
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
         super().__init__()
         if in_channels != out_channels:
@@ -121,7 +125,7 @@ class LocalNetDownSampleBlock(nn.Module):
     """
 
     def __init__(
-        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Union[Sequence[int], int]
+        self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size: Sequence[int] | int
     ) -> None:
         """
         Args:
@@ -141,7 +145,7 @@ class LocalNetDownSampleBlock(nn.Module):
         )
         self.max_pool = Pool[Pool.MAX, spatial_dims](kernel_size=2)
 
-    def forward(self, x) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Halves the spatial dimensions.
         A tuple of (x, mid) is returned:
@@ -166,7 +170,7 @@ class LocalNetDownSampleBlock(nn.Module):
 
 class LocalNetUpSampleBlock(nn.Module):
     """
-    A up-sample module that can be used for LocalNet, based on:
+    An up-sample module that can be used for LocalNet, based on:
     `Weakly-supervised convolutional neural networks for multimodal image registration
     <https://doi.org/10.1016/j.media.2018.07.002>`_.
     `Label-driven weakly-supervised learning for multimodal deformable image registration
@@ -176,12 +180,21 @@ class LocalNetUpSampleBlock(nn.Module):
         DeepReg (https://github.com/DeepRegNet/DeepReg)
     """
 
-    def __init__(self, spatial_dims: int, in_channels: int, out_channels: int) -> None:
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        mode: str = "nearest",
+        align_corners: bool | None = None,
+    ) -> None:
         """
         Args:
             spatial_dims: number of spatial dimensions.
             in_channels: number of input channels.
             out_channels: number of output channels.
+            mode: interpolation mode of the additive upsampling, default to 'nearest'.
+            align_corners: whether to align corners for the additive upsampling, default to None.
         Raises:
             ValueError: when ``in_channels != 2 * out_channels``
         """
@@ -199,9 +212,11 @@ class LocalNetUpSampleBlock(nn.Module):
                 f"got in_channels={in_channels}, out_channels={out_channels}"
             )
         self.out_channels = out_channels
+        self.mode = mode
+        self.align_corners = align_corners
 
-    def addictive_upsampling(self, x, mid) -> torch.Tensor:
-        x = F.interpolate(x, mid.shape[2:])
+    def additive_upsampling(self, x, mid) -> torch.Tensor:
+        x = F.interpolate(x, mid.shape[2:], mode=self.mode, align_corners=self.align_corners)
         # [(batch, out_channels, ...), (batch, out_channels, ...)]
         x = x.split(split_size=int(self.out_channels), dim=1)
         # (batch, out_channels, ...)
@@ -226,7 +241,7 @@ class LocalNetUpSampleBlock(nn.Module):
                     "expecting mid spatial dimensions be exactly the double of x spatial dimensions, "
                     f"got x of shape {x.shape}, mid of shape {mid.shape}"
                 )
-        h0 = self.deconv_block(x) + self.addictive_upsampling(x, mid)
+        h0 = self.deconv_block(x) + self.additive_upsampling(x, mid)
         r1 = h0 + mid
         r2 = self.conv_block(h0)
         out: torch.Tensor = self.residual_block(r2, r1)
@@ -250,7 +265,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        act: Optional[Union[Tuple, str]] = "RELU",
+        act: tuple | str | None = "RELU",
         initializer: str = "kaiming_uniform",
     ) -> None:
         """
@@ -265,7 +280,7 @@ class LocalNetFeatureExtractorBlock(nn.Module):
         self.conv_block = get_conv_block(
             spatial_dims=spatial_dims, in_channels=in_channels, out_channels=out_channels, act=act, norm=None
         )
-        conv_type: Type[Union[nn.Conv1d, nn.Conv2d, nn.Conv3d]] = Conv[Conv.CONV, spatial_dims]
+        conv_type: type[nn.Conv1d | nn.Conv2d | nn.Conv3d] = Conv[Conv.CONV, spatial_dims]
         for m in self.conv_block.modules():
             if isinstance(m, conv_type):
                 if initializer == "kaiming_uniform":

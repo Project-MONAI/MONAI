@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -29,6 +31,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestMedianSmooth(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         result = MedianSmooth(**arguments)(image)

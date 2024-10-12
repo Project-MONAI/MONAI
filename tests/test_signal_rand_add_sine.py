@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 
@@ -23,6 +25,7 @@ VALID_CASES = [([0.0, 1.0], [0.0, 0.5]), ([0.0, 1.0], [0.01, 0.1])]
 
 
 class TestSignalRandAddSineNumpy(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, freqs):
         self.assertIsInstance(SignalRandAddSine(boundaries, freqs), SignalRandAddSine)
@@ -33,6 +36,7 @@ class TestSignalRandAddSineNumpy(unittest.TestCase):
 
 
 class TestSignalRandAddSineTorch(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, freqs):
         self.assertIsInstance(SignalRandAddSine(boundaries, freqs), SignalRandAddSine)

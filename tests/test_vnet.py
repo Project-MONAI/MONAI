@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -53,6 +55,7 @@ TEST_CASE_VNET_3D_3 = [
 
 
 class TestVNet(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_VNET_2D_1,

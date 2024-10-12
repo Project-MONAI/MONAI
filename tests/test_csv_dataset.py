@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -21,6 +23,7 @@ from monai.transforms import ToNumpyd
 
 
 class TestCSVDataset(unittest.TestCase):
+
     def test_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data1 = [

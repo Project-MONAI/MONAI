@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.distributed as dist
@@ -63,6 +65,7 @@ class CumulativeAverage:
         if self.val is None:
             return 0
 
+        val: NdarrayOrTensor
         val = self.val.clone()
         val[~torch.isfinite(val)] = 0
 
@@ -94,13 +97,14 @@ class CumulativeAverage:
             dist.all_reduce(sum)
             dist.all_reduce(count)
 
+        val: NdarrayOrTensor
         val = torch.where(count > 0, sum / count, sum)
 
         if to_numpy:
             val = val.cpu().numpy()
         return val
 
-    def append(self, val: Any, count: Optional[Any] = 1) -> None:
+    def append(self, val: Any, count: Any | None = 1) -> None:
         """
         Append with a new value, and an optional count. Any data type is supported that is convertable
             with torch.as_tensor() e.g. number, list, numpy array, or Tensor.

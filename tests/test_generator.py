@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -40,6 +42,7 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2]
 
 
 class TestGenerator(unittest.TestCase):
+
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         net = Generator(**input_param)

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -32,6 +34,7 @@ KEYS = ["im", "label"]
 
 
 class TestRandGibbsNoised(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
         super().setUp()
@@ -101,6 +104,14 @@ class TestRandGibbsNoised(unittest.TestCase):
         t = RandGibbsNoised(KEYS, 1.0, alpha)
         _ = t(deepcopy(data))
         self.assertTrue(0.5 <= t.rand_gibbs_noise.sampled_alpha <= 0.51)
+
+    @parameterized.expand(TEST_CASES)
+    def test_alpha_single_value(self, im_shape, input_type):
+        data = self.get_data(im_shape, input_type)
+        alpha = 0.01
+        t = RandGibbsNoised(KEYS, 1.0, alpha)
+        _ = t(deepcopy(data))
+        self.assertTrue(0 <= t.rand_gibbs_noise.sampled_alpha <= 0.01)
 
 
 if __name__ == "__main__":

@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, Hashable, Mapping, Optional, Sequence
+from __future__ import annotations
+
+from collections.abc import Hashable, Mapping, Sequence
 
 import numpy as np
 from numpy import ndarray
@@ -18,8 +20,8 @@ from torch import Tensor
 from monai.apps.reconstruction.transforms.array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.transforms import InvertibleTransform
 from monai.transforms.croppad.array import SpatialCrop
-from monai.transforms.croppad.dictionary import Cropd
 from monai.transforms.intensity.array import NormalizeIntensity
 from monai.transforms.transform import MapTransform, RandomizableTransform
 from monai.utils import FastMRIKeys
@@ -46,7 +48,7 @@ class ExtractDataKeyFromMetaKeyd(MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.meta_key = meta_key
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, Tensor]:
         """
         Args:
             data: is a dictionary containing (key,value) pairs from the
@@ -113,13 +115,13 @@ class RandomKspaceMaskd(RandomizableTransform, MapTransform):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "RandomKspaceMaskd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> RandomKspaceMaskd:
         super().set_random_state(seed, state)
         self.masker.set_random_state(seed, state)
         return self
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, Tensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, Tensor]:
         """
         Args:
             data: is a dictionary containing (key,value) pairs from the
@@ -181,14 +183,14 @@ class EquispacedKspaceMaskd(RandomKspaceMaskd):
         )
 
     def set_random_state(
-        self, seed: Optional[int] = None, state: Optional[np.random.RandomState] = None
-    ) -> "EquispacedKspaceMaskd":
+        self, seed: int | None = None, state: np.random.RandomState | None = None
+    ) -> EquispacedKspaceMaskd:
         super().set_random_state(seed, state)
         self.masker.set_random_state(seed, state)
         return self
 
 
-class ReferenceBasedSpatialCropd(Cropd):
+class ReferenceBasedSpatialCropd(MapTransform, InvertibleTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.SpatialCrop`.
     This is similar to :py:class:`monai.transforms.SpatialCropd` which is a
@@ -211,11 +213,10 @@ class ReferenceBasedSpatialCropd(Cropd):
     """
 
     def __init__(self, keys: KeysCollection, ref_key: str, allow_missing_keys: bool = False) -> None:
-
-        super().__init__(keys, cropper=None, allow_missing_keys=allow_missing_keys)  # type: ignore
+        MapTransform.__init__(self, keys, allow_missing_keys)
         self.ref_key = ref_key
 
-    def __call__(self, data: Mapping[Hashable, Tensor]) -> Dict[Hashable, Tensor]:
+    def __call__(self, data: Mapping[Hashable, Tensor]) -> dict[Hashable, Tensor]:
         """
         This transform can support to crop ND spatial (channel-first) data.
         It also supports pseudo ND spatial data (e.g., (C,H,W) is a pseudo-3D
@@ -277,8 +278,8 @@ class ReferenceBasedNormalizeIntensityd(MapTransform):
         self,
         keys: KeysCollection,
         ref_key: str,
-        subtrahend: Optional[NdarrayOrTensor] = None,
-        divisor: Optional[NdarrayOrTensor] = None,
+        subtrahend: NdarrayOrTensor | None = None,
+        divisor: NdarrayOrTensor | None = None,
         nonzero: bool = False,
         channel_wise: bool = False,
         dtype: DtypeLike = np.float32,
@@ -288,7 +289,7 @@ class ReferenceBasedNormalizeIntensityd(MapTransform):
         self.default_normalizer = NormalizeIntensity(subtrahend, divisor, nonzero, channel_wise, dtype)
         self.ref_key = ref_key
 
-    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> Dict[Hashable, NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         """
         This transform can support to normalize ND spatial (channel-first) data.
         It also supports pseudo ND spatial data (e.g., (C,H,W) is a pseudo-3D

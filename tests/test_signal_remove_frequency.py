@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from unittest import skipUnless
@@ -29,6 +31,7 @@ VALID_CASES = [(60, 1, 500)]
 
 @skipUnless(has_scipy and has_torchaudio, "scipy and torchaudio are required")
 class TestSignalRemoveFrequencyNumpy(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, frequency, quality_factor, sampling_freq):
         self.assertIsInstance(SignalRemoveFrequency(frequency, quality_factor, sampling_freq), SignalRemoveFrequency)
@@ -47,6 +50,7 @@ class TestSignalRemoveFrequencyNumpy(unittest.TestCase):
 
 @skipUnless(has_scipy and has_torchaudio, "scipy and torchaudio are required")
 class TestSignalRemoveFrequencyTorch(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, frequency, quality_factor, sampling_freq):
         self.assertIsInstance(SignalRemoveFrequency(frequency, quality_factor, sampling_freq), SignalRemoveFrequency)

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -20,6 +22,7 @@ from tests.utils import assert_allclose
 
 
 class TestEnsureType(unittest.TestCase):
+
     def test_array_input(self):
         test_datas = [np.array([[1, 2], [3, 4]]), torch.as_tensor([[1, 2], [3, 4]])]
         if torch.cuda.is_available():

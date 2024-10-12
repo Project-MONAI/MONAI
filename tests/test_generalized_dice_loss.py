@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -46,7 +48,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        0.435035,
+        0.469964,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": True, "to_onehot_y": True, "softmax": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
@@ -54,7 +56,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        0.3837,
+        0.414507,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {
@@ -69,7 +71,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        1.5348,
+        0.829015,
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {
@@ -84,7 +86,7 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        [[[0.210949], [0.295351]], [[0.599976], [0.428522]]],
+        [[[0.273476]], [[0.555539]]],
     ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True, "smooth_nr": 1e-8, "smooth_dr": 1e-8},
@@ -112,7 +114,7 @@ TEST_CASES = [
             "input": torch.tensor([[[0.0, 10.0, 10.0, 10.0], [10.0, 0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1, 1, 0, 0]]]),
         },
-        0.26669,
+        0.250023,
     ],
     [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
         {"include_background": True, "other_act": torch.tanh, "smooth_nr": 1e-4, "smooth_dr": 1e-4},
@@ -134,12 +136,13 @@ TEST_CASES = [
             "input": torch.tensor([[[-1.0, 0.0, 1.0], [1.0, 0.0, -1.0]], [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]),
             "target": torch.tensor([[[1.0, 0.0, 0.0]], [[1.0, 1.0, 0.0]]]),
         },
-        -8.55485,
+        -0.097833,
     ],
 ]
 
 
 class TestGeneralizedDiceLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = GeneralizedDiceLoss(**input_param).forward(**input_data)
@@ -181,7 +184,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss()
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_batch(self):
         prediction = torch.zeros(2, 3, 3, 3)
@@ -191,7 +194,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss(batch=True)
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_script(self):
         loss = GeneralizedDiceLoss()

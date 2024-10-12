@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -21,11 +23,14 @@ from monai.utils import JITMetadataKeys
 
 
 class TestModule(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def forward(self, x):
         return x + 10
 
 
 class TestTorchscript(unittest.TestCase):
+
     def test_save_net_with_metadata(self):
         """Save a network without metadata to a file."""
         m = torch.jit.script(TestModule())

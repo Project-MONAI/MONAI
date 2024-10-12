@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -68,6 +70,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGridSplitd(unittest.TestCase):
+
     @parameterized.expand(TEST_SINGLE)
     def test_split_patch_single_call(self, in_type, input_parameters, img_dict, expected):
         input_dict = {}

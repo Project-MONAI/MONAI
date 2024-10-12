@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
@@ -16,8 +18,10 @@ import unittest
 
 import torch
 
+from monai.bundle import update_kwargs
 from monai.bundle.utils import load_bundle_config
 from monai.networks.nets import UNet
+from monai.utils import pprint_edges
 from tests.utils import command_line_tests, skip_if_windows
 
 metadata = """
@@ -47,6 +51,7 @@ test_json = """
 
 @skip_if_windows
 class TestLoadBundleConfig(unittest.TestCase):
+
     def setUp(self):
         self.bundle_dir = tempfile.TemporaryDirectory()
         self.dir_name = os.path.join(self.bundle_dir.name, "TestBundle")
@@ -97,7 +102,21 @@ class TestLoadBundleConfig(unittest.TestCase):
         self.assertEqual(p["test_dict"]["b"], "c")
 
     def test_run(self):
-        command_line_tests(["python", "-m", "monai.bundle", "run", "test", "--test", "$print('hello world')"])
+        command_line_tests(
+            [
+                "python",
+                "-m",
+                "monai.bundle",
+                "run",
+                "test",
+                "--test",
+                "$print('hello world')",
+                "--config_file",
+                self.test_name,
+                "--meta_file",
+                self.metadata_name,
+            ]
+        )
 
     def test_load_config_ts(self):
         # create a Torchscript zip of the bundle
@@ -113,6 +132,19 @@ class TestLoadBundleConfig(unittest.TestCase):
         self.assertEqual(p["_meta_"]["test_value"], 1)
 
         self.assertEqual(p["test_dict"]["b"], "c")
+
+
+class TestPPrintEdges(unittest.TestCase):
+
+    def test_str(self):
+        self.assertEqual(pprint_edges("", 0), "''")
+        self.assertEqual(pprint_edges({"a": 1, "b": 2}, 0), "{'a': 1, 'b': 2}")
+        self.assertEqual(
+            pprint_edges([{"a": 1, "b": 2}] * 20, 1),
+            "[{'a': 1, 'b': 2},\n\n ... omitted 18 line(s)\n\n {'a': 1, 'b': 2}]",
+        )
+        self.assertEqual(pprint_edges([{"a": 1, "b": 2}] * 8, 4), pprint_edges([{"a": 1, "b": 2}] * 8, 3))
+        self.assertEqual(update_kwargs({"a": 1}, a=2, b=3), {"a": 2, "b": 3})
 
 
 if __name__ == "__main__":

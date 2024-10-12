@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
-from typing import Dict, List
 
 import nibabel as nib
 import numpy as np
@@ -22,34 +23,36 @@ from monai.apps.auto3dseg import AlgoEnsembleBestByFold, AlgoEnsembleBestN, Algo
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from monai.utils.enums import AlgoEnsembleKeys
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
+from monai.utils.enums import AlgoKeys
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    get_testing_algo_template_path,
+    skip_if_downloading_fails,
+    skip_if_no_cuda,
+    skip_if_quick,
+)
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
-fake_datalist: Dict[str, List[Dict]] = {
+num_images_perfold = max(torch.cuda.device_count(), 4)
+num_images_per_batch = 2
+
+fake_datalist: dict[str, list[dict]] = {
     "testing": [{"image": "val_001.fake.nii.gz"}, {"image": "val_002.fake.nii.gz"}],
     "training": [
-        {"fold": 0, "image": "tr_image_001.fake.nii.gz", "label": "tr_label_001.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_002.fake.nii.gz", "label": "tr_label_002.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_003.fake.nii.gz", "label": "tr_label_003.fake.nii.gz"},
-        {"fold": 0, "image": "tr_image_004.fake.nii.gz", "label": "tr_label_004.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_005.fake.nii.gz", "label": "tr_label_005.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_006.fake.nii.gz", "label": "tr_label_006.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_007.fake.nii.gz", "label": "tr_label_007.fake.nii.gz"},
-        {"fold": 1, "image": "tr_image_008.fake.nii.gz", "label": "tr_label_008.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_009.fake.nii.gz", "label": "tr_label_009.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_010.fake.nii.gz", "label": "tr_label_010.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_011.fake.nii.gz", "label": "tr_label_011.fake.nii.gz"},
-        {"fold": 2, "image": "tr_image_012.fake.nii.gz", "label": "tr_label_012.fake.nii.gz"},
+        {
+            "fold": f,
+            "image": f"tr_image_{(f * num_images_perfold + idx):03d}.nii.gz",
+            "label": f"tr_label_{(f * num_images_perfold + idx):03d}.nii.gz",
+        }
+        for f in range(num_images_per_batch + 1)
+        for idx in range(num_images_perfold)
     ],
 }
 
-num_gpus = 4 if torch.cuda.device_count() > 4 else torch.cuda.device_count()
 train_param = (
     {
-        "CUDA_VISIBLE_DEVICES": list(range(num_gpus)),
-        "num_images_per_batch": 2,
+        "num_images_per_batch": num_images_per_batch,
         "num_epochs": 2,
         "num_epochs_per_validation": 1,
         "num_warmup_epochs": 1,
@@ -64,9 +67,10 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 
 
 @skip_if_quick
-@SkipIfBeforePyTorchVersion((1, 9, 1))
+@SkipIfBeforePyTorchVersion((1, 11, 1))  # module 'torch.cuda' has no attribute 'mem_get_info'
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleGpuCustomization(unittest.TestCase):
+
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
 
@@ -119,7 +123,10 @@ class TestEnsembleGpuCustomization(unittest.TestCase):
 
         with skip_if_downloading_fails():
             bundle_generator = BundleGen(
-                algo_path=work_dir, data_stats_filename=da_output_yaml, data_src_cfg_name=data_src_cfg
+                algo_path=work_dir,
+                data_stats_filename=da_output_yaml,
+                data_src_cfg_name=data_src_cfg,
+                templates_path_or_url=get_testing_algo_template_path(),
             )
 
         gpu_customization_specs = {
@@ -130,10 +137,9 @@ class TestEnsembleGpuCustomization(unittest.TestCase):
         )
         history = bundle_generator.get_history()
 
-        for h in history:
-            self.assertEqual(len(h.keys()), 1, "each record should have one model")
-            for _, algo in h.items():
-                algo.train(train_param)
+        for algo_dict in history:
+            algo = algo_dict[AlgoKeys.ALGO]
+            algo.train(train_param)
 
         builder = AlgoEnsembleBuilder(history, data_src_cfg)
         builder.set_ensemble_method(AlgoEnsembleBestN(n_best=2))
@@ -144,7 +150,7 @@ class TestEnsembleGpuCustomization(unittest.TestCase):
         builder.set_ensemble_method(AlgoEnsembleBestByFold(1))
         ensemble = builder.get_ensemble()
         for algo in ensemble.get_algo_ensemble():
-            print(algo[AlgoEnsembleKeys.ID])
+            print(algo[AlgoKeys.ID])
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()

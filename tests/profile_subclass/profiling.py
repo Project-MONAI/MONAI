@@ -12,6 +12,8 @@
 Comparing torch.Tensor, SubTensor, SubWithTorchFunc, MetaTensor
 Adapted from https://github.com/pytorch/pytorch/tree/v1.11.0/benchmarks/overrides_benchmark
 """
+from __future__ import annotations
+
 import argparse
 
 import torch

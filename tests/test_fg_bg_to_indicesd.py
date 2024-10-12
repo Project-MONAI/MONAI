@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -18,7 +20,6 @@ from tests.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
 for p in TEST_NDARRAYS:
-
     TEST_CASES.append(
         [
             {"keys": "label", "image_key": None, "image_threshold": 0.0, "output_shape": None},
@@ -66,6 +67,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestFgBgToIndicesd(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_type_shape(self, input_data, data, expected_fg, expected_bg):
         result = FgBgToIndicesd(**input_data)(data)

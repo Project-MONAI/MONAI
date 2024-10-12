@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -19,6 +21,7 @@ from monai.transforms import Activations, AsDiscrete
 
 
 class TestHandlerROCAUC(unittest.TestCase):
+
     def test_compute(self):
         auc_metric = ROCAUC()
         act = Activations(softmax=True)

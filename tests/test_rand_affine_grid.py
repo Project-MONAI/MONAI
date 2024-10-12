@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -196,6 +198,7 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandAffineGrid(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_rand_affine_grid(self, input_param, input_data, expected_val):
         g = RandAffineGrid(**input_param)

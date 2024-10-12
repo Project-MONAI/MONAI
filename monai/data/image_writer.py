@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Any, Dict, Mapping, Optional, Sequence, Union, cast
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -58,7 +61,7 @@ __all__ = [
     "logger",
 ]
 
-SUPPORTED_WRITERS: Dict = {}
+SUPPORTED_WRITERS: dict = {}
 
 
 def register_writer(ext_name, *im_writers):
@@ -178,14 +181,14 @@ class ImageWriter:
         The current member in the base class is ``self.data_obj``, the subclasses can add more members,
         so that necessary meta information can be stored in the object and shared among the class methods.
         """
-        self.data_obj: Union[Any, NdarrayOrTensor] = None
+        self.data_obj: Any | NdarrayOrTensor = None
         for k, v in kwargs.items():
             setattr(self, k, v)
 
     def set_data_array(self, data_array, **kwargs):
         raise NotImplementedError(f"Subclasses of {self.__class__.__name__} must implement this method.")
 
-    def set_metadata(self, meta_dict: Optional[Mapping], **options):
+    def set_metadata(self, meta_dict: Mapping | None, **options):
         raise NotImplementedError(f"Subclasses of {self.__class__.__name__} must implement this method.")
 
     def write(self, filename: PathLike, verbose: bool = True, **kwargs):
@@ -205,9 +208,9 @@ class ImageWriter:
     def resample_if_needed(
         cls,
         data_array: NdarrayOrTensor,
-        affine: Optional[NdarrayOrTensor] = None,
-        target_affine: Optional[NdarrayOrTensor] = None,
-        output_spatial_shape: Union[Sequence[int], int, None] = None,
+        affine: NdarrayOrTensor | None = None,
+        target_affine: NdarrayOrTensor | None = None,
+        output_spatial_shape: Sequence[int] | int | None = None,
         mode: str = GridSampleMode.BILINEAR,
         padding_mode: str = GridSamplePadMode.BORDER,
         align_corners: bool = False,
@@ -267,11 +270,13 @@ class ImageWriter:
         if affine is not None:
             data_array.affine = convert_to_tensor(affine, track_meta=False)  # type: ignore
         resampler = SpatialResample(mode=mode, padding_mode=padding_mode, align_corners=align_corners, dtype=dtype)
-        output_array = resampler(data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape)
+        output_array = resampler(
+            data_array[None], dst_affine=target_affine, spatial_size=output_spatial_shape  # type: ignore
+        )
         # convert back at the end
         if isinstance(output_array, MetaTensor):
             output_array.applied_operations = []
-        data_array, *_ = convert_data_type(output_array, output_type=orig_type)  # type: ignore
+        data_array, *_ = convert_data_type(output_array, output_type=orig_type)
         affine, *_ = convert_data_type(output_array.affine, output_type=orig_type)  # type: ignore
         return data_array[0], affine
 
@@ -279,9 +284,9 @@ class ImageWriter:
     def convert_to_channel_last(
         cls,
         data: NdarrayOrTensor,
-        channel_dim: Union[None, int, Sequence[int]] = 0,
+        channel_dim: None | int | Sequence[int] = 0,
         squeeze_end_dims: bool = True,
-        spatial_ndim: Optional[int] = 3,
+        spatial_ndim: int | None = 3,
         contiguous: bool = False,
     ):
         """
@@ -325,7 +330,7 @@ class ImageWriter:
         return data
 
     @classmethod
-    def get_meta_info(cls, metadata: Optional[Mapping] = None):
+    def get_meta_info(cls, metadata: Mapping | None = None):
         """
         Extracts relevant meta information from the metadata object (using ``.get``).
         Optional keys are ``"spatial_shape"``, ``MetaKeys.AFFINE``, ``"original_affine"``.
@@ -366,15 +371,16 @@ class ITKWriter(ImageWriter):
     """
 
     output_dtype: DtypeLike = None
-    channel_dim: Optional[int]
+    channel_dim: int | None
 
-    def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool = True, **kwargs):
+    def __init__(self, output_dtype: DtypeLike = np.float32, affine_lps_to_ras: bool | None = True, **kwargs):
         """
         Args:
             output_dtype: output data type.
             affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
+                Set to ``None`` to use ``data_array.meta[MetaKeys.SPACE]`` to determine the flag.
             kwargs: keyword arguments passed to ``ImageWriter``.
 
         The constructor will create ``self.output_dtype`` internally.
@@ -388,7 +394,7 @@ class ITKWriter(ImageWriter):
         )
 
     def set_data_array(
-        self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
+        self, data_array: NdarrayOrTensor, channel_dim: int | None = 0, squeeze_end_dims: bool = True, **kwargs
     ):
         """
         Convert ``data_array`` into 'channel-last' numpy ndarray.
@@ -401,7 +407,7 @@ class ITKWriter(ImageWriter):
             kwargs: keyword arguments passed to ``self.convert_to_channel_last``,
                 currently support ``spatial_ndim`` and ``contiguous``, defauting to ``3`` and ``False`` respectively.
         """
-        _r = len(data_array.shape)
+        n_chns = data_array.shape[channel_dim] if channel_dim is not None else 0
         self.data_obj = self.convert_to_channel_last(
             data=data_array,
             channel_dim=channel_dim,
@@ -409,11 +415,14 @@ class ITKWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
             contiguous=kwargs.pop("contiguous", True),
         )
-        self.channel_dim = (
-            channel_dim if self.data_obj is not None and len(self.data_obj.shape) >= _r else None
-        )  # channel dim is at the end
+        self.channel_dim = -1  # in most cases, the data is set to channel last
+        if squeeze_end_dims and n_chns <= 1:  # num_channel==1 squeezed
+            self.channel_dim = None
+        if not squeeze_end_dims and n_chns < 1:  # originally no channel and convert_to_channel_last added a channel
+            self.channel_dim = None
+            self.data_obj = self.data_obj[..., 0]
 
-    def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
+    def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
         Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
@@ -470,10 +479,10 @@ class ITKWriter(ImageWriter):
     def create_backend_obj(
         cls,
         data_array: NdarrayOrTensor,
-        channel_dim: Optional[int] = 0,
-        affine: Optional[NdarrayOrTensor] = None,
+        channel_dim: int | None = 0,
+        affine: NdarrayOrTensor | None = None,
         dtype: DtypeLike = np.float32,
-        affine_lps_to_ras: bool = True,
+        affine_lps_to_ras: bool | None = True,
         **kwargs,
     ):
         """
@@ -487,14 +496,18 @@ class ITKWriter(ImageWriter):
             affine_lps_to_ras: whether to convert the affine matrix from "LPS" to "RAS". Defaults to ``True``.
                 Set to ``True`` to be consistent with ``NibabelWriter``,
                 otherwise the affine matrix is assumed already in the ITK convention.
+                Set to ``None`` to use ``data_array.meta[MetaKeys.SPACE]`` to determine the flag.
             kwargs: keyword arguments. Current `itk.GetImageFromArray` will read ``ttype`` from this dictionary.
 
         see also:
 
             - https://github.com/InsightSoftwareConsortium/ITK/blob/v5.2.1/Wrapping/Generators/Python/itk/support/extras.py#L389
+
         """
-        if isinstance(data_array, MetaTensor) and data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS:
-            affine_lps_to_ras = False  # do the converting from LPS to RAS only if the space type is currently LPS.
+        if isinstance(data_array, MetaTensor) and affine_lps_to_ras is None:
+            affine_lps_to_ras = (
+                data_array.meta.get(MetaKeys.SPACE, SpaceKeys.LPS) != SpaceKeys.LPS
+            )  # do the converting from LPS to RAS only if the space type is currently LPS.
         data_array = super().create_backend_obj(data_array)
         _is_vec = channel_dim is not None
         if _is_vec:
@@ -551,7 +564,7 @@ class NibabelWriter(ImageWriter):
         super().__init__(output_dtype=output_dtype, affine=None, **kwargs)
 
     def set_data_array(
-        self, data_array: NdarrayOrTensor, channel_dim: Optional[int] = 0, squeeze_end_dims: bool = True, **kwargs
+        self, data_array: NdarrayOrTensor, channel_dim: int | None = 0, squeeze_end_dims: bool = True, **kwargs
     ):
         """
         Convert ``data_array`` into 'channel-last' numpy ndarray.
@@ -571,7 +584,7 @@ class NibabelWriter(ImageWriter):
             spatial_ndim=kwargs.pop("spatial_ndim", 3),
         )
 
-    def set_metadata(self, meta_dict: Optional[Mapping], resample: bool = True, **options):
+    def set_metadata(self, meta_dict: Mapping | None, resample: bool = True, **options):
         """
         Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
@@ -626,7 +639,7 @@ class NibabelWriter(ImageWriter):
 
     @classmethod
     def create_backend_obj(
-        cls, data_array: NdarrayOrTensor, affine: Optional[NdarrayOrTensor] = None, dtype: DtypeLike = None, **kwargs
+        cls, data_array: NdarrayOrTensor, affine: NdarrayOrTensor | None = None, dtype: DtypeLike = None, **kwargs
     ):
         """
         Create an Nifti1Image object from ``data_array``. This method assumes a 'channel-last' ``data_array``.
@@ -678,11 +691,11 @@ class PILWriter(ImageWriter):
     """
 
     output_dtype: DtypeLike
-    channel_dim: Optional[int]
-    scale: Optional[int]
+    channel_dim: int | None
+    scale: int | None
 
     def __init__(
-        self, output_dtype: DtypeLike = np.float32, channel_dim: Optional[int] = 0, scale: Optional[int] = 255, **kwargs
+        self, output_dtype: DtypeLike = np.float32, channel_dim: int | None = 0, scale: int | None = 255, **kwargs
     ):
         """
         Args:
@@ -698,7 +711,7 @@ class PILWriter(ImageWriter):
     def set_data_array(
         self,
         data_array: NdarrayOrTensor,
-        channel_dim: Optional[int] = 0,
+        channel_dim: int | None = 0,
         squeeze_end_dims: bool = True,
         contiguous: bool = False,
         **kwargs,
@@ -723,7 +736,7 @@ class PILWriter(ImageWriter):
             contiguous=contiguous,
         )
 
-    def set_metadata(self, meta_dict: Optional[Mapping] = None, resample: bool = True, **options):
+    def set_metadata(self, meta_dict: Mapping | None = None, resample: bool = True, **options):
         """
         Resample ``self.dataobj`` if needed.  This method assumes ``self.data_obj`` is a 'channel-last' ndarray.
 
@@ -769,14 +782,14 @@ class PILWriter(ImageWriter):
         self.data_obj.save(filename, **kwargs)
 
     @classmethod
-    def get_meta_info(cls, metadata: Optional[Mapping] = None):
+    def get_meta_info(cls, metadata: Mapping | None = None):
         return None if not metadata else metadata.get(MetaKeys.SPATIAL_SHAPE)
 
     @classmethod
     def resample_and_clip(
         cls,
         data_array: NdarrayOrTensor,
-        output_spatial_shape: Optional[Sequence[int]] = None,
+        output_spatial_shape: Sequence[int] | None = None,
         mode: str = InterpolateMode.BICUBIC,
     ) -> np.ndarray:
         """
@@ -810,7 +823,7 @@ class PILWriter(ImageWriter):
         cls,
         data_array: NdarrayOrTensor,
         dtype: DtypeLike = None,
-        scale: Optional[int] = 255,
+        scale: int | None = 255,
         reverse_indexing: bool = True,
         **kwargs,
     ):

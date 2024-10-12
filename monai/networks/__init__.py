@@ -9,8 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
+from .trt_compiler import trt_compile
 from .utils import (
+    add_casts_around_norms,
+    convert_to_onnx,
     convert_to_torchscript,
+    convert_to_trt,
     copy_model_state,
     eval_mode,
     get_state_dict,
@@ -25,7 +31,6 @@ from .utils import (
     replace_modules_temp,
     save_state,
     set_named_module,
-    slice_channels,
     to_norm_affine,
     train_mode,
 )

@@ -9,13 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
 
 from parameterized import parameterized
 
-from monai.bundle import ConfigParser
+from monai.bundle import ConfigParser, verify_net_in_out
 from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_windows
 
 TEST_CASE_1 = [
@@ -26,6 +28,7 @@ TEST_CASE_1 = [
 
 @skip_if_windows
 class TestVerifyNetwork(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, meta_file, config_file):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -35,7 +38,7 @@ class TestVerifyNetwork(unittest.TestCase):
 
             cmd = ["coverage", "run", "-m", "monai.bundle", "verify_net_in_out", "network_def", "--meta_file"]
             cmd += [meta_file, "--config_file", config_file, "-n", "4", "--any", "16", "--args_file", def_args_file]
-            cmd += ["--device", "cpu", "--_meta_#network_data_format#inputs#image#spatial_shape", "[16,'*','2**p*n']"]
+            cmd += ["--device", "cpu", "--_meta_::network_data_format::inputs#image#spatial_shape", "[16,'*','2**p*n']"]
             command_line_tests(cmd)
 
     @parameterized.expand([TEST_CASE_1])
@@ -50,8 +53,21 @@ class TestVerifyNetwork(unittest.TestCase):
             cmd += [meta_file, "--config_file", config_file, "-n", "4", "--any", "16", "--args_file", def_args_file]
             cmd += ["--device", "cuda", "--_meta_#network_data_format#inputs#image#spatial_shape", "[16,'*','2**p*n']"]
             cmd += ["--_meta_#network_data_format#inputs#image#dtype", "float16"]
-            cmd += ["--_meta_#network_data_format#outputs#pred#dtype", "float16"]
+            cmd += ["--_meta_::network_data_format::outputs::pred::dtype", "float16"]
             command_line_tests(cmd)
+
+    @parameterized.expand([TEST_CASE_1])
+    @skip_if_no_cuda
+    def test_verify_fp16_extra_forward_args(self, meta_file, config_file):
+        verify_net_in_out(
+            net_id="network_def",
+            meta_file=meta_file,
+            config_file=config_file,
+            n=4,
+            any=16,
+            extra_forward_args={"extra_arg1": 1, "extra_arg2": 2},
+            **{"network_def#_target_": "tests.testing_data.bundle_test_network.TestMultiInputUNet"},
+        )
 
 
 if __name__ == "__main__":

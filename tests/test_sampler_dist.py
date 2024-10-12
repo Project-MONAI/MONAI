@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -22,6 +24,7 @@ from tests.utils import DistCall, DistTestCase, assert_allclose
 
 
 class DistributedSamplerTest(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_even(self):
         data = [1, 2, 3, 4, 5]

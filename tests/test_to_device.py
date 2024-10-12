@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -28,6 +30,7 @@ TEST_CASE_4 = ["cpu"]
 
 @skip_if_no_cuda
 class TestToDevice(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_value(self, device):
         converter = ToDevice(device=device, non_blocking=True)

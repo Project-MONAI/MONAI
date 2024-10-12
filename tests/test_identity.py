@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.transforms.utility.array import Identity
@@ -16,6 +18,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestIdentity(NumpyImageTestCase2D):
+
     def test_identity(self):
         for p in TEST_NDARRAYS:
             img = p(self.imt)

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -30,6 +32,7 @@ TEST_CASE_3 = [{"data": [1, 2, 3, 4, 5], "factor": 0.6, "random_pick": True, "se
 
 
 class TestResampleDatalist(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_value_shape(self, input_param, expected):
         result = resample_datalist(**input_param)

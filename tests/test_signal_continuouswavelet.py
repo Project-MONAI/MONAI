@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from unittest import skipUnless
@@ -27,6 +29,7 @@ EXPECTED_RESULTS = [(6, 150, 2000)]
 
 @skipUnless(has_pywt, "pywt required")
 class TestSignalContinousWavelet(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, type, length, frequency):
         self.assertIsInstance(SignalContinuousWavelet(type, length, frequency), SignalContinuousWavelet)

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -46,6 +48,7 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestWatershedd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_output(self, args, image, hover_map, expected_shape):
         data = {"output": image, "hover_map": hover_map}

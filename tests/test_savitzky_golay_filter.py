@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -98,6 +100,7 @@ TEST_CASE_SINE_SMOOTH = [
 
 
 class TestSavitzkyGolayCPU(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_SINGLE_VALUE, TEST_CASE_1D, TEST_CASE_2D_AXIS_2, TEST_CASE_2D_AXIS_3, TEST_CASE_SINE_SMOOTH]
     )
@@ -107,6 +110,7 @@ class TestSavitzkyGolayCPU(unittest.TestCase):
 
 
 class TestSavitzkyGolayCPUREP(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_SINGLE_VALUE_REP, TEST_CASE_1D_REP, TEST_CASE_2D_AXIS_2_REP, TEST_CASE_2D_AXIS_3_REP]
     )
@@ -117,6 +121,7 @@ class TestSavitzkyGolayCPUREP(unittest.TestCase):
 
 @skip_if_no_cuda
 class TestSavitzkyGolayGPU(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_SINGLE_VALUE, TEST_CASE_1D, TEST_CASE_2D_AXIS_2, TEST_CASE_2D_AXIS_3, TEST_CASE_SINE_SMOOTH]
     )
@@ -127,6 +132,7 @@ class TestSavitzkyGolayGPU(unittest.TestCase):
 
 @skip_if_no_cuda
 class TestSavitzkyGolayGPUREP(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_SINGLE_VALUE_REP, TEST_CASE_1D_REP, TEST_CASE_2D_AXIS_2_REP, TEST_CASE_2D_AXIS_3_REP]
     )

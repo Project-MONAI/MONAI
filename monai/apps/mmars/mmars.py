@@ -15,11 +15,14 @@ See Also:
     - https://docs.nvidia.com/clara/clara-train-sdk/pt/mmar.html
 """
 
+from __future__ import annotations
+
 import json
 import os
 import warnings
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Mapping, Optional, Union
+from typing import Any
 
 import torch
 
@@ -35,7 +38,7 @@ from .model_desc import RemoteMMARKeys as Keys
 __all__ = ["get_model_spec", "download_mmar", "load_from_mmar"]
 
 
-def get_model_spec(idx: Union[int, str]):
+def get_model_spec(idx: int | str) -> dict | Any:
     """get model specification by `idx`. `idx` could be index of the constant tuple of dict or the actual model ID."""
     if isinstance(idx, int):
         return MODEL_DESC[idx]
@@ -92,17 +95,17 @@ def _get_all_ngc_models(pattern, page_index=0, page_size=50):
     return model_dict
 
 
-def _get_ngc_url(model_name: str, version: str, model_prefix=""):
+def _get_ngc_url(model_name: str, version: str, model_prefix: str = "") -> str:
     return f"https://api.ngc.nvidia.com/v2/models/{model_prefix}{model_name}/versions/{version}/zip"
 
 
-def _get_ngc_doc_url(model_name: str, model_prefix=""):
+def _get_ngc_doc_url(model_name: str, model_prefix: str = "") -> str:
     return f"https://ngc.nvidia.com/catalog/models/{model_prefix}{model_name}"
 
 
 def download_mmar(
-    item, mmar_dir: Optional[PathLike] = None, progress: bool = True, api: bool = True, version: int = -1
-):
+    item: str | Mapping, mmar_dir: PathLike | None = None, progress: bool = True, api: bool = True, version: int = -1
+) -> Path:
     """
     Download and extract Medical Model Archive (MMAR) from Nvidia Clara Train.
 
@@ -135,19 +138,20 @@ def download_mmar(
             mmar_dir = Path(get_dir()) / "mmars"
         else:
             raise ValueError("mmar_dir=None, but no suitable default directory computed. Upgrade Pytorch to 1.6+ ?")
-    mmar_dir = Path(mmar_dir)
+    _mmar_dir = Path(mmar_dir)
+    model_dir: Path
     if api:
         model_dict = _get_all_ngc_models(item.get(Keys.NAME, f"{item}") if isinstance(item, Mapping) else f"{item}")
         if len(model_dict) == 0:
             raise ValueError(f"api query returns no item for pattern {item}.  Please change or shorten it.")
-        model_dir_list = []
+        model_dir_list: list[Path] = []
         for k, v in model_dict.items():
             ver = v["latest"] if version == -1 else str(version)
             download_url = _get_ngc_url(k, ver)
-            model_dir = mmar_dir / v["name"]
+            model_dir = _mmar_dir / v["name"]
             download_and_extract(
                 url=download_url,
-                filepath=mmar_dir / f'{v["name"]}_{ver}.zip',
+                filepath=_mmar_dir / f'{v["name"]}_{ver}.zip',
                 output_dir=model_dir,
                 hash_val=None,
                 hash_type="md5",
@@ -166,11 +170,11 @@ def download_mmar(
     if version > 0:
         ver = str(version)
     model_fullname = f"{item[Keys.NAME]}_{ver}"
-    model_dir = mmar_dir / model_fullname
+    model_dir = _mmar_dir / model_fullname
     model_url = item.get(Keys.URL) or _get_ngc_url(item[Keys.NAME], version=ver, model_prefix="nvidia/med/")
     download_and_extract(
         url=model_url,
-        filepath=mmar_dir / f"{model_fullname}.{item[Keys.FILE_TYPE]}",
+        filepath=_mmar_dir / f"{model_fullname}.{item[Keys.FILE_TYPE]}",
         output_dir=model_dir,
         hash_val=item[Keys.HASH_VAL],
         hash_type=item[Keys.HASH_TYPE],
@@ -182,17 +186,17 @@ def download_mmar(
 
 
 def load_from_mmar(
-    item,
-    mmar_dir: Optional[PathLike] = None,
+    item: Mapping | str | int,
+    mmar_dir: PathLike | None = None,
     progress: bool = True,
     version: int = -1,
-    map_location=None,
-    pretrained=True,
-    weights_only=False,
+    map_location: Any | None = None,
+    pretrained: bool = True,
+    weights_only: bool = False,
     model_key: str = "model",
     api: bool = True,
-    model_file=None,
-):
+    model_file: PathLike | None = None,
+) -> Any:
     """
     Download and extract Medical Model Archive (MMAR) model weights from Nvidia Clara Train.
 
@@ -225,19 +229,19 @@ def load_from_mmar(
     model_dir = download_mmar(item=item, mmar_dir=mmar_dir, progress=progress, version=version, api=api)
     if model_file is None:
         model_file = os.path.join("models", "model.pt")
-    model_file = model_dir / item.get(Keys.MODEL_FILE, model_file)
+    _model_file = model_dir / item.get(Keys.MODEL_FILE, model_file)
     logger.info(f'\n*** "{item.get(Keys.NAME)}" available at {model_dir}.')
 
     # loading with `torch.jit.load`
-    if model_file.name.endswith(".ts"):
+    if _model_file.name.endswith(".ts"):
         if not pretrained:
             warnings.warn("Loading a ScriptModule, 'pretrained' option ignored.")
         if weights_only:
             warnings.warn("Loading a ScriptModule, 'weights_only' option ignored.")
-        return torch.jit.load(model_file, map_location=map_location)
+        return torch.jit.load(_model_file, map_location=map_location)
 
     # loading with `torch.load`
-    model_dict = torch.load(model_file, map_location=map_location)
+    model_dict = torch.load(_model_file, map_location=map_location)
     if weights_only:
         return model_dict.get(model_key, model_dict)  # model_dict[model_key] or model_dict directly
 
@@ -294,7 +298,7 @@ def load_from_mmar(
     return model_inst
 
 
-def _get_val(input_dict: Mapping, key="model", default=None):
+def _get_val(input_dict: Mapping, key: str = "model", default: Any | None = None) -> Any | None:
     """
     Search for the item with `key` in `config_dict`.
     Returns: the first occurrence of `key` in a breadth first search.

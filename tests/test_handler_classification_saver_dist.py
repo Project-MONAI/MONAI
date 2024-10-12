@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import csv
 import os
 import tempfile
@@ -25,6 +27,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedHandlerClassificationSaver(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_saved_content(self):
         with tempfile.TemporaryDirectory() as tempdir:

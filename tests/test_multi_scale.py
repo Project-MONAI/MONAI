@@ -8,6 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -50,22 +52,30 @@ TEST_CASES = [
 
 
 class TestMultiScale(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = MultiScaleLoss(**input_param).forward(**input_data)
         np.testing.assert_allclose(result.detach().cpu().numpy(), expected_val, rtol=1e-5)
 
-    def test_ill_opts(self):
-        with self.assertRaisesRegex(ValueError, ""):
-            MultiScaleLoss(loss=dice_loss, kernel="none")
-        with self.assertRaisesRegex(ValueError, ""):
-            MultiScaleLoss(loss=dice_loss, scales=[-1])(
-                torch.ones((1, 1, 3), device=device), torch.ones((1, 1, 3), device=device)
-            )
-        with self.assertRaisesRegex(ValueError, ""):
-            MultiScaleLoss(loss=dice_loss, scales=[-1], reduction="none")(
-                torch.ones((1, 1, 3), device=device), torch.ones((1, 1, 3), device=device)
-            )
+    @parameterized.expand(
+        [
+            ({"loss": dice_loss, "kernel": "none"}, None, None),  # kernel_none
+            ({"loss": dice_loss, "scales": [-1]}, torch.ones((1, 1, 3)), torch.ones((1, 1, 3))),  # scales_negative
+            (
+                {"loss": dice_loss, "scales": [-1], "reduction": "none"},
+                torch.ones((1, 1, 3)),
+                torch.ones((1, 1, 3)),
+            ),  # scales_negative_reduction_none
+        ]
+    )
+    def test_ill_opts(self, kwargs, input, target):
+        if input is None and target is None:
+            with self.assertRaisesRegex(ValueError, ""):
+                MultiScaleLoss(**kwargs)
+        else:
+            with self.assertRaisesRegex(ValueError, ""):
+                MultiScaleLoss(**kwargs)(input, target)
 
     def test_script(self):
         input_param, input_data, expected_val = TEST_CASES[0]

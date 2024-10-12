@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING
 from unittest.case import skipUnless
 
 import numpy as np
@@ -36,7 +38,7 @@ else:
     nib, has_nib = optional_import("nibabel")
     PILImage, has_pil = optional_import("PIL.Image")
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for endianness in ["<", ">"]:
     for use_array in [True, False]:
         for image_only in [True, False]:
@@ -44,6 +46,7 @@ for endianness in ["<", ">"]:
 
 
 class TestNiftiEndianness(unittest.TestCase):
+
     def setUp(self):
         self.im, _ = create_test_image_2d(100, 100)
         self.fname = tempfile.NamedTemporaryFile(suffix=".nii.gz").name
@@ -51,7 +54,6 @@ class TestNiftiEndianness(unittest.TestCase):
     @parameterized.expand(TESTS)
     @skipUnless(has_nib, "Requires NiBabel")
     def test_endianness(self, endianness, use_array, image_only):
-
         hdr = nib.Nifti1Header(endianness=endianness)
         nii = nib.Nifti1Image(self.im, np.eye(4), header=hdr)
         nib.save(nii, self.fname)
@@ -80,7 +82,7 @@ class TestNiftiEndianness(unittest.TestCase):
         after = switch_endianness(before)
         np.testing.assert_allclose(after.astype(float), expected_float)
 
-        before = np.array(["1.12", "-9.2", "42"], dtype=np.string_)
+        before = np.array(["1.12", "-9.2", "42"], dtype=np.bytes_)
         after = switch_endianness(before)
         np.testing.assert_array_equal(before, after)
 

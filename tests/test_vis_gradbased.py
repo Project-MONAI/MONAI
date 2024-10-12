@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -19,6 +21,7 @@ from monai.visualize import GuidedBackpropGrad, GuidedBackpropSmoothGrad, Smooth
 
 
 class DenseNetAdjoint(DenseNet121):
+
     def __call__(self, x, adjoint_info):
         if adjoint_info != 42:
             raise ValueError
@@ -46,6 +49,7 @@ for type in (VanillaGrad, SmoothGrad, GuidedBackpropGrad, GuidedBackpropSmoothGr
 
 
 class TestGradientClassActivationMap(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, vis_type, model, shape):
         device = "cuda:0" if torch.cuda.is_available() else "cpu"

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from typing import TYPE_CHECKING
@@ -246,6 +248,7 @@ CASE_EXTRACT_FEATURES = [
 
 
 class TestEFFICIENTNET(unittest.TestCase):
+
     @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -319,7 +322,6 @@ class TestEFFICIENTNET(unittest.TestCase):
 
         # testing 1D, 2D and 3D shape
         for rand_tensor_shape in [(512, 16, 4), (384, 16, 4, 4), (256, 16, 4, 4, 4)]:
-
             # test validation mode, out tensor == in tensor
             training = False
             for p in p_list:
@@ -375,6 +377,7 @@ class TestEFFICIENTNET(unittest.TestCase):
 
 
 class TestExtractFeatures(unittest.TestCase):
+
     @parameterized.expand(CASE_EXTRACT_FEATURES)
     def test_shape(self, input_param, input_shape, expected_shapes):
         device = "cuda" if torch.cuda.is_available() else "cpu"

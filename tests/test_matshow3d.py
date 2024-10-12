@@ -9,13 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
 
 import numpy as np
 
-from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropSamplesd, RepeatChanneld, ScaleIntensityd
+from monai.transforms import (
+    Compose,
+    EnsureChannelFirstd,
+    LoadImaged,
+    RandSpatialCropSamplesd,
+    RepeatChanneld,
+    ScaleIntensityd,
+)
 from monai.utils import optional_import
 from monai.visualize.utils import matshow3d
 from tests.utils import SkipIfNoModule
@@ -26,10 +35,17 @@ pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
 
 @SkipIfNoModule("matplotlib")
 class TestMatshow3d(unittest.TestCase):
+
     def test_3d(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         keys = "image"
-        xforms = Compose([LoadImaged(keys=keys), AddChanneld(keys=keys), ScaleIntensityd(keys=keys)])
+        xforms = Compose(
+            [
+                LoadImaged(keys=keys),
+                EnsureChannelFirstd(keys=keys, channel_dim="no_channel"),
+                ScaleIntensityd(keys=keys),
+            ]
+        )
         image_path = os.path.join(testing_dir, "anatomical.nii")
         ims = xforms({keys: image_path})
 
@@ -51,7 +67,7 @@ class TestMatshow3d(unittest.TestCase):
         xforms = Compose(
             [
                 LoadImaged(keys=keys),
-                AddChanneld(keys=keys),
+                EnsureChannelFirstd(keys=keys),
                 ScaleIntensityd(keys=keys),
                 RandSpatialCropSamplesd(keys=keys, roi_size=(8, 8, 5), random_size=True, num_samples=10),
             ]
@@ -62,7 +78,7 @@ class TestMatshow3d(unittest.TestCase):
         fig, mat = matshow3d(
             [im[keys] for im in ims], title=f"testing {keys}", figsize=(2, 2), frames_per_row=5, every_n=2, show=False
         )
-        self.assertTrue(mat.dtype == np.float32)
+        self.assertEqual(mat.dtype, np.float32)
 
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_patch_test.png"
@@ -80,7 +96,7 @@ class TestMatshow3d(unittest.TestCase):
         xforms = Compose(
             [
                 LoadImaged(keys=keys),
-                AddChanneld(keys=keys),
+                EnsureChannelFirstd(keys=keys, channel_dim="no_channel"),
                 ScaleIntensityd(keys=keys),
                 # change to RGB color image
                 RepeatChanneld(keys=keys, repeats=3),
@@ -98,6 +114,7 @@ class TestMatshow3d(unittest.TestCase):
             every_n=2,
             frame_dim=-1,
             channel_dim=0,
+            fill_value=0,
             show=False,
         )
 

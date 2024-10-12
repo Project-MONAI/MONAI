@@ -9,15 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List, Optional
+from __future__ import annotations
 
 import torch
-from torch import Tensor
+from torch import Tensor, nn
 
 from monai.inferers import SlidingWindowInferer
 
 
-def ensure_dict_value_to_list_(head_outputs: Dict[str, List[Tensor]], keys: Optional[List[str]] = None) -> None:
+def ensure_dict_value_to_list_(head_outputs: dict[str, list[Tensor]], keys: list[str] | None = None) -> None:
     """
     An in-place function. We expect ``head_outputs`` to be Dict[str, List[Tensor]].
     Yet if it is Dict[str, Tensor], this func converts it to Dict[str, List[Tensor]].
@@ -41,7 +41,7 @@ def ensure_dict_value_to_list_(head_outputs: Dict[str, List[Tensor]], keys: Opti
             raise ValueError("The output of network should be Dict[str, List[Tensor]] or Dict[str, Tensor].")
 
 
-def check_dict_values_same_length(head_outputs: Dict[str, List[Tensor]], keys: Optional[List[str]] = None) -> None:
+def check_dict_values_same_length(head_outputs: dict[str, list[Tensor]], keys: list[str] | None = None) -> None:
     """
     We expect the values in ``head_outputs``: Dict[str, List[Tensor]] to have the same length.
     Will raise ValueError if not.
@@ -54,13 +54,13 @@ def check_dict_values_same_length(head_outputs: Dict[str, List[Tensor]], keys: O
     if keys is None:
         keys = list(head_outputs.keys())
 
-    num_output_levels_list: List[int] = [len(head_outputs[k]) for k in keys]
+    num_output_levels_list: list[int] = [len(head_outputs[k]) for k in keys]
     num_output_levels = torch.unique(torch.tensor(num_output_levels_list))
     if len(num_output_levels) != 1:
         raise ValueError(f"The values in the input dict should have the same length, Got {num_output_levels_list}.")
 
 
-def _network_sequence_output(images: Tensor, network, keys: Optional[List[str]] = None) -> List[Tensor]:
+def _network_sequence_output(images: Tensor, network: nn.Module, keys: list[str] | None = None) -> list[Tensor]:
     """
     Decompose the output of network (a dict) into a list.
 
@@ -73,6 +73,12 @@ def _network_sequence_output(images: Tensor, network, keys: Optional[List[str]] 
         network output values concat to a single List[Tensor]
     """
     head_outputs = network(images)
+
+    # if head_outputs is already a sequence of tensors, directly output it
+    if isinstance(head_outputs, (tuple, list)):
+        return list(head_outputs)
+
+    # if head_outputs is a dict
     ensure_dict_value_to_list_(head_outputs, keys)
     if keys is None:
         keys = list(head_outputs.keys())
@@ -84,8 +90,8 @@ def _network_sequence_output(images: Tensor, network, keys: Optional[List[str]] 
 
 
 def predict_with_inferer(
-    images: Tensor, network, keys: List[str], inferer: Optional[SlidingWindowInferer] = None
-) -> Dict[str, List[Tensor]]:
+    images: Tensor, network: nn.Module, keys: list[str], inferer: SlidingWindowInferer | None = None
+) -> dict[str, list[Tensor]]:
     """
     Predict network dict output with an inferer. Compared with directly output network(images),
     it enables a sliding window inferer that can be used to handle large inputs.

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import tempfile
 import unittest
 from io import BytesIO
@@ -19,6 +21,7 @@ from monai.data import NPZDictItemDataset
 
 
 class TestNPZDictItemDataset(unittest.TestCase):
+
     def test_load_stream(self):
         dat0 = np.random.rand(10, 1, 4, 4)
         dat1 = np.random.rand(10, 1, 4, 4)

@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Sequence, Tuple, TypeVar, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import TypeVar
 
 import numpy as np
 import torch
@@ -25,6 +28,8 @@ __all__ = [
     "clip",
     "percentile",
     "where",
+    "argwhere",
+    "argsort",
     "nonzero",
     "floor_divide",
     "unravel_index",
@@ -47,18 +52,33 @@ __all__ = [
     "median",
     "mean",
     "std",
+    "softplus",
 ]
+
+
+def softplus(x: NdarrayOrTensor) -> NdarrayOrTensor:
+    """stable softplus through `np.logaddexp` with equivalent implementation for torch.
+
+    Args:
+        x: array/tensor.
+
+    Returns:
+        Softplus of the input.
+    """
+    if isinstance(x, np.ndarray):
+        return np.logaddexp(np.zeros_like(x), x)
+    return torch.logaddexp(torch.zeros_like(x), x)
 
 
 def allclose(a: NdarrayTensor, b: NdarrayOrTensor, rtol=1e-5, atol=1e-8, equal_nan=False) -> bool:
     """`np.allclose` with equivalent implementation for torch."""
-    b, *_ = convert_to_dst_type(b, a)
+    b, *_ = convert_to_dst_type(b, a, wrap_sequence=True)
     if isinstance(a, np.ndarray):
         return np.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)
     return torch.allclose(a, b, rtol=rtol, atol=atol, equal_nan=equal_nan)  # type: ignore
 
 
-def moveaxis(x: NdarrayOrTensor, src: Union[int, Sequence[int]], dst: Union[int, Sequence[int]]) -> NdarrayOrTensor:
+def moveaxis(x: NdarrayOrTensor, src: int | Sequence[int], dst: int | Sequence[int]) -> NdarrayOrTensor:
     """`moveaxis` for pytorch and numpy"""
     if isinstance(x, torch.Tensor):
         return torch.movedim(x, src, dst)  # type: ignore
@@ -83,8 +103,8 @@ def clip(a: NdarrayOrTensor, a_min, a_max) -> NdarrayOrTensor:
 
 
 def percentile(
-    x: NdarrayOrTensor, q, dim: Optional[int] = None, keepdim: bool = False, **kwargs
-) -> Union[NdarrayOrTensor, float, int]:
+    x: NdarrayOrTensor, q, dim: int | None = None, keepdim: bool = False, **kwargs
+) -> NdarrayOrTensor | float | int:
     """`np.percentile` with equivalent implementation for torch.
 
     Pytorch uses `quantile`. For more details please refer to:
@@ -106,7 +126,7 @@ def percentile(
     q_np = convert_data_type(q, output_type=np.ndarray, wrap_sequence=True)[0]
     if ((q_np < 0) | (q_np > 100)).any():
         raise ValueError(f"q values must be in [0, 100], got values: {q}.")
-    result: Union[NdarrayOrTensor, float, int]
+    result: NdarrayOrTensor | float | int
     if isinstance(x, np.ndarray) or (isinstance(x, torch.Tensor) and torch.numel(x) > 1_000_000):  # pytorch#64947
         _x = convert_data_type(x, output_type=np.ndarray)[0]
         result = np.percentile(_x, q_np, axis=dim, keepdims=keepdim, **kwargs)
@@ -135,6 +155,36 @@ def where(condition: NdarrayOrTensor, x=None, y=None) -> NdarrayOrTensor:
         else:
             result = torch.where(condition)  # type: ignore
     return result
+
+
+def argwhere(a: NdarrayTensor) -> NdarrayTensor:
+    """`np.argwhere` with equivalent implementation for torch.
+
+    Args:
+        a: input data.
+
+    Returns:
+        Indices of elements that are non-zero. Indices are grouped by element.
+        This array will have shape (N, a.ndim) where N is the number of non-zero items.
+    """
+    if isinstance(a, np.ndarray):
+        return np.argwhere(a)  # type: ignore
+    return torch.argwhere(a)  # type: ignore
+
+
+def argsort(a: NdarrayTensor, axis: int | None = -1) -> NdarrayTensor:
+    """`np.argsort` with equivalent implementation for torch.
+
+    Args:
+        a: the array/tensor to sort.
+        axis: axis along which to sort.
+
+    Returns:
+        Array/Tensor of indices that sort a along the specified axis.
+    """
+    if isinstance(a, np.ndarray):
+        return np.argsort(a, axis=axis)  # type: ignore
+    return torch.argsort(a, dim=axis)  # type: ignore
 
 
 def nonzero(x: NdarrayOrTensor) -> NdarrayOrTensor:
@@ -220,7 +270,7 @@ def ravel(x: NdarrayOrTensor) -> NdarrayOrTensor:
     return np.ravel(x)
 
 
-def any_np_pt(x: NdarrayOrTensor, axis: Union[int, Sequence[int]]) -> NdarrayOrTensor:
+def any_np_pt(x: NdarrayOrTensor, axis: int | Sequence[int]) -> NdarrayOrTensor:
     """`np.any` with equivalent implementation for torch.
 
     For pytorch, convert to boolean for compatibility with older versions.
@@ -313,7 +363,7 @@ def searchsorted(a: NdarrayTensor, v: NdarrayOrTensor, right=False, sorter=None,
     return torch.searchsorted(a, v, right=right, **kwargs)  # type: ignore
 
 
-def repeat(a: NdarrayOrTensor, repeats: int, axis: Optional[int] = None, **kwargs) -> NdarrayOrTensor:
+def repeat(a: NdarrayOrTensor, repeats: int, axis: int | None = None, **kwargs) -> NdarrayOrTensor:
     """
     `np.repeat` with equivalent implementation for torch (`repeat_interleave`).
 
@@ -345,7 +395,7 @@ def isnan(x: NdarrayOrTensor) -> NdarrayOrTensor:
 T = TypeVar("T")
 
 
-def ascontiguousarray(x: Union[NdarrayTensor, T], **kwargs) -> Union[NdarrayOrTensor, T]:
+def ascontiguousarray(x: NdarrayTensor | T, **kwargs) -> NdarrayOrTensor | T:
     """`np.ascontiguousarray` with equivalent implementation for torch (`contiguous`).
 
     Args:
@@ -410,7 +460,7 @@ def linalg_inv(x: NdarrayTensor) -> NdarrayTensor:
     return torch.linalg.inv(x) if isinstance(x, torch.Tensor) else np.linalg.inv(x)  # type: ignore
 
 
-def max(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+def max(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTensor:
     """`torch.max` with equivalent implementation for numpy
 
     Args:
@@ -430,10 +480,10 @@ def max(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> 
         else:
             ret = torch.max(x, int(dim), **kwargs)  # type: ignore
 
-    return ret
+    return ret[0] if isinstance(ret, tuple) else ret
 
 
-def mean(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+def mean(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTensor:
     """`torch.mean` with equivalent implementation for numpy
 
     Args:
@@ -455,7 +505,7 @@ def mean(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) ->
     return ret
 
 
-def median(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+def median(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTensor:
     """`torch.median` with equivalent implementation for numpy
 
     Args:
@@ -477,7 +527,7 @@ def median(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) 
     return ret
 
 
-def min(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+def min(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTensor:
     """`torch.min` with equivalent implementation for numpy
 
     Args:
@@ -496,10 +546,10 @@ def min(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> 
         else:
             ret = torch.min(x, int(dim), **kwargs)  # type: ignore
 
-    return ret
+    return ret[0] if isinstance(ret, tuple) else ret
 
 
-def std(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, unbiased: bool = False) -> NdarrayTensor:
+def std(x: NdarrayTensor, dim: int | tuple | None = None, unbiased: bool = False) -> NdarrayTensor:
     """`torch.std` with equivalent implementation for numpy
 
     Args:
@@ -521,7 +571,7 @@ def std(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, unbiased: boo
     return ret
 
 
-def sum(x: NdarrayTensor, dim: Optional[Union[int, Tuple]] = None, **kwargs) -> NdarrayTensor:
+def sum(x: NdarrayTensor, dim: int | tuple | None = None, **kwargs) -> NdarrayTensor:
     """`torch.sum` with equivalent implementation for numpy
 
     Args:

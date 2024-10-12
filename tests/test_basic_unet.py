@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -81,6 +83,7 @@ CASES_3D = [
 
 
 class TestBasicUNET(unittest.TestCase):
+
     @parameterized.expand(CASES_1D + CASES_2D + CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"

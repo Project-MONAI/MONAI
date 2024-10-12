@@ -9,27 +9,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 import torch
+from torch.nn.modules.loss import _Loss
 
-from monai.config import IgniteInfo
-from monai.metrics import CumulativeIterationMetric
-from monai.utils import min_version, optional_import
+from monai.metrics import CumulativeIterationMetric, LossMetric
+from monai.utils import IgniteInfo, MetricReduction, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
-Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="base")
-reinit__is_reduced, _ = optional_import(
-    "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, min_version, "reinit__is_reduced", as_type="decorator"
-)
+
 if TYPE_CHECKING:
-    from ignite.engine import Engine
+    try:
+        _, has_ignite = optional_import("ignite")
+        from ignite.engine import Engine
+        from ignite.metrics import Metric
+        from ignite.metrics.metric import reinit__is_reduced
+    except ImportError:
+        has_ignite = False
+
 else:
     Engine, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Engine")
+    Metric, _ = optional_import("ignite.metrics", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Metric", as_type="base")
+    reinit__is_reduced, _ = optional_import(
+        "ignite.metrics.metric", IgniteInfo.OPT_IMPORT_VERSION, min_version, "reinit__is_reduced", as_type="decorator"
+    )
 
 
-class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_import
+class IgniteMetricHandler(Metric):
     """
     Base Metric class based on ignite event handler mechanism.
     The input `prediction` or `label` data can be a PyTorch Tensor or numpy array with batch dim and channel dim,
@@ -38,6 +49,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
     Args:
         metric_fn: callable function or class to compute raw metric results after every iteration.
             expect to return a Tensor with shape (batch, channel, ...) or tuple (Tensor, not_nans).
+        loss_fn: A torch _Loss function which is used to generate the LossMetric
         output_transform: callable to extract `y_pred` and `y` from `ignite.engine.state.output` then
             construct `(y_pred, y)` pair, where `y_pred` and `y` can be `batch-first` Tensors or
             lists of `channel-first` Tensors. the form of `(y_pred, y)` is required by the `update()`.
@@ -46,18 +58,35 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
             https://github.com/Project-MONAI/tutorials/blob/master/modules/batch_output_transform.ipynb.
         save_details: whether to save metric computation details per image, for example: mean_dice of every image.
             default to True, will save to `engine.state.metric_details` dict with the metric name as key.
+        reduction: Argument for the LossMetric, look there for details
+        get_not_nans: Argument for the LossMetric, look there for details
 
     """
 
     def __init__(
-        self, metric_fn: CumulativeIterationMetric, output_transform: Callable = lambda x: x, save_details: bool = True
+        self,
+        metric_fn: CumulativeIterationMetric | None = None,
+        loss_fn: _Loss | None = None,
+        output_transform: Callable = lambda x: x,
+        save_details: bool = True,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
+        get_not_nans: bool = False,
     ) -> None:
         self._is_reduced: bool = False
-        self.metric_fn = metric_fn
+        self.metric_fn: CumulativeIterationMetric = cast(CumulativeIterationMetric, metric_fn)
+        self.loss_fn = loss_fn
         self.save_details = save_details
-        self._scores: List = []
-        self._engine: Optional[Engine] = None
-        self._name: Optional[str] = None
+        self._scores: list = []
+        self._engine: Engine | None = None
+        self._name: str | None = None
+
+        if self.metric_fn is None and self.loss_fn is None:
+            raise ValueError("Either metric_fn or loss_fn have to be passed.")
+        if self.metric_fn is not None and self.loss_fn is not None:
+            raise ValueError("Either metric_fn or loss_fn have to be passed, but not both.")
+        if self.loss_fn:
+            self.metric_fn = LossMetric(loss_fn=self.loss_fn, reduction=reduction, get_not_nans=get_not_nans)
+
         super().__init__(output_transform)
 
     @reinit__is_reduced
@@ -107,7 +136,7 @@ class IgniteMetric(Metric):  # type: ignore[valid-type, misc] # due to optional_
                 result = result.item()
         return result
 
-    def attach(self, engine: Engine, name: str) -> None:
+    def attach(self, engine: Engine, name: str) -> None:  # type: ignore[override]
         """
         Attaches current metric to provided engine. On the end of engine's run,
         `engine.state.metrics` dictionary will contain computed metric's value under provided name.

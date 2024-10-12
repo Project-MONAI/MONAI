@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -24,11 +26,13 @@ TEST_CASE_2 = [None]
 
 
 class TestEnsembleEvaluator(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_content(self, pred_keys):
         device = torch.device("cpu:0")
 
         class TestDataset(torch.utils.data.Dataset):
+
             def __len__(self):
                 return 8
 
@@ -38,6 +42,7 @@ class TestEnsembleEvaluator(unittest.TestCase):
         val_loader = torch.utils.data.DataLoader(TestDataset())
 
         class TestNet(torch.nn.Module):
+
             def __init__(self, func):
                 super().__init__()
                 self.func = func

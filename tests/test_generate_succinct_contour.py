@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -42,6 +44,7 @@ TEST_CASE_2 = [
 
 
 class TestGenerateSuccinctContour(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_shape(self, test_data, height, width, expected):
         result = GenerateSuccinctContour(height=height, width=width)(test_data)

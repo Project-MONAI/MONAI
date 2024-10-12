@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import pickle
 import tempfile
@@ -43,6 +45,7 @@ TEST_CASE_3 = [None, (128, 128, 128)]
 
 
 class _InplaceXform(Transform):
+
     def __call__(self, data):
         if data:
             data[0] = data[0] + np.pi
@@ -52,6 +55,7 @@ class _InplaceXform(Transform):
 
 
 class TestDataset(unittest.TestCase):
+
     def test_cache(self):
         """testing no inplace change to the hashed item"""
         items = [[list(range(i))] for i in range(5)]
@@ -161,7 +165,7 @@ class TestDataset(unittest.TestCase):
             im1 = PersistentDataset([im], Identity(), cache_dir=path, hash_transform=json_hashing)[0]
             im2 = PersistentDataset([im], Flip(1), cache_dir=path, hash_transform=json_hashing)[0]
             l2 = ((im1 - im2) ** 2).sum() ** 0.5
-            self.assertTrue(l2 > 1)
+            self.assertGreater(l2, 1)
 
 
 if __name__ == "__main__":

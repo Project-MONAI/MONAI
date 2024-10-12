@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -19,15 +21,16 @@ from tests.utils import DistCall, DistTestCase, assert_allclose
 
 
 class DistributedEvenlyDivisibleAllGather(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_data(self):
         self._run()
 
     def _run(self):
-        if dist.get_rank() == 0:
-            data1 = torch.tensor([[1, 2], [3, 4]])
-            data2 = torch.tensor([[1.0, 2.0]])
-            data3 = torch.tensor(7)
+        # if dist.get_rank() == 0
+        data1 = torch.tensor([[1, 2], [3, 4]])
+        data2 = torch.tensor([[1.0, 2.0]])
+        data3 = torch.tensor(7)
 
         if dist.get_rank() == 1:
             data1 = torch.tensor([[5, 6]])

@@ -9,8 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 import torch
@@ -19,7 +21,7 @@ from parameterized import parameterized
 from monai.transforms.post.dictionary import ProbNMSD
 from tests.utils import TEST_NDARRAYS
 
-TESTS: List[Any] = []
+TESTS: list[Any] = []
 for p in TEST_NDARRAYS:
     probs_map_1 = p(np.random.rand(100, 100).clip(0, 0.5))
     TESTS.append([{"spatial_dims": 2, "prob_threshold": 0.5, "box_size": 10}, {"prob_map": probs_map_1}, []])
@@ -66,6 +68,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestProbNMS(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_output(self, class_args, probs_map, expected):
         nms = ProbNMSD(keys="prob_map", **class_args)

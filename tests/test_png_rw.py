@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -20,6 +22,7 @@ from monai.data.image_writer import PILWriter
 
 
 class TestPngWrite(unittest.TestCase):
+
     def test_write_gray(self):
         with tempfile.TemporaryDirectory() as out_dir:
             image_name = os.path.join(out_dir, "test.png")

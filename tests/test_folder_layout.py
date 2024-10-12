@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -58,6 +60,7 @@ TEST_CASES = [
 
 
 class TestFolderLayout(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_value(self, con_params, f_params, expected):
         fname = FolderLayout(**con_params).filename(**f_params)

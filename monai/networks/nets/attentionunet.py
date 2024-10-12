@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -21,12 +23,13 @@ __all__ = ["AttentionUnet"]
 
 
 class ConvBlock(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
         in_channels: int,
         out_channels: int,
-        kernel_size: int = 3,
+        kernel_size: Sequence[int] | int = 3,
         strides: int = 1,
         dropout=0.0,
     ):
@@ -65,6 +68,7 @@ class ConvBlock(nn.Module):
 
 
 class UpConv(nn.Module):
+
     def __init__(self, spatial_dims: int, in_channels: int, out_channels: int, kernel_size=3, strides=2, dropout=0.0):
         super().__init__()
         self.up = Convolution(
@@ -86,6 +90,7 @@ class UpConv(nn.Module):
 
 
 class AttentionBlock(nn.Module):
+
     def __init__(self, spatial_dims: int, f_int: int, f_g: int, f_l: int, dropout=0.0):
         super().__init__()
         self.W_g = nn.Sequential(
@@ -143,6 +148,7 @@ class AttentionBlock(nn.Module):
 
 
 class AttentionLayer(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
@@ -200,8 +206,8 @@ class AttentionUnet(nn.Module):
         out_channels: int,
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
-        up_kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
+        up_kernel_size: Sequence[int] | int = 3,
         dropout: float = 0.0,
     ):
         super().__init__()
@@ -213,7 +219,13 @@ class AttentionUnet(nn.Module):
         self.kernel_size = kernel_size
         self.dropout = dropout
 
-        head = ConvBlock(spatial_dims=spatial_dims, in_channels=in_channels, out_channels=channels[0], dropout=dropout)
+        head = ConvBlock(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=channels[0],
+            dropout=dropout,
+            kernel_size=self.kernel_size,
+        )
         reduce_channels = Convolution(
             spatial_dims=spatial_dims,
             in_channels=channels[0],
@@ -239,6 +251,7 @@ class AttentionUnet(nn.Module):
                             out_channels=channels[1],
                             strides=strides[0],
                             dropout=self.dropout,
+                            kernel_size=self.kernel_size,
                         ),
                         subblock,
                     ),
@@ -265,6 +278,7 @@ class AttentionUnet(nn.Module):
                 out_channels=out_channels,
                 strides=strides,
                 dropout=self.dropout,
+                kernel_size=self.kernel_size,
             ),
             up_kernel_size=self.up_kernel_size,
             strides=strides,

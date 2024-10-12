@@ -22,6 +22,10 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   // filtering
   m.def("bilateral_filter", &BilateralFilter, "Bilateral Filter");
   m.def("phl_filter", &PermutohedralFilter, "Permutohedral Filter");
+  m.def("tbf_forward", &TrainableBilateralFilterForward, "Trainable Bilateral Filter Forward");
+  m.def("tbf_backward", &TrainableBilateralFilterBackward, "Trainable Bilateral Filter Backward");
+  m.def("tjbf_forward", &TrainableJointBilateralFilterForward, "Trainable Joint Bilateral Filter Forward");
+  m.def("tjbf_backward", &TrainableJointBilateralFilterBackward, "Trainable Joint Bilateral Filter Backward");
 
   // lltm
   m.def("lltm_forward", &lltm_forward, "LLTM forward");

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -17,11 +19,13 @@ from monai.transforms.transform import Randomizable
 
 
 class RandTest(Randomizable):
+
     def randomize(self, data=None):
         pass
 
 
 class TestRandomizable(unittest.TestCase):
+
     def test_default(self):
         inst = RandTest()
         r1 = inst.R.rand()

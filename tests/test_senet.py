@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from typing import TYPE_CHECKING
@@ -56,6 +58,7 @@ TEST_CASE_PRETRAINED_1 = [SEResNet50, {"spatial_dims": 2, "in_channels": 3, "num
 
 
 class TestSENET(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5, TEST_CASE_6, TEST_CASE_7])
     def test_senet_shape(self, net, net_args):
         input_data = torch.randn(2, 2, 64, 64, 64).to(device)
@@ -73,6 +76,7 @@ class TestSENET(unittest.TestCase):
 
 
 class TestPretrainedSENET(unittest.TestCase):
+
     def setUp(self):
         self.original_urls = se_mod.SE_NET_MODELS.copy()
         replace_url = test_is_quick()

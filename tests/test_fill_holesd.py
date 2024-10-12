@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -194,6 +196,7 @@ VALID_CASES = [
 
 
 class TestFillHoles(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, args, input_image, expected):
         key = CommonKeys.IMAGE

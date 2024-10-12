@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -30,6 +32,7 @@ TEST_CASES = [
 
 
 class TestRegLossIntegration(unittest.TestCase):
+
     def setUp(self):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
@@ -59,6 +62,7 @@ class TestRegLossIntegration(unittest.TestCase):
 
         # define a one layer model
         class OnelayerNet(nn.Module):
+
             def __init__(self):
                 super().__init__()
                 self.layer = nn.Sequential(
@@ -79,6 +83,9 @@ class TestRegLossIntegration(unittest.TestCase):
         # initialize a SGD optimizer
         optimizer = optim.Adam(net.parameters(), lr=learning_rate)
 
+        # declare first for pylint
+        init_loss = None
+
         # train the network
         for it in range(max_iter):
             # set the gradient to zero
@@ -95,7 +102,7 @@ class TestRegLossIntegration(unittest.TestCase):
             # backward pass
             loss_val.backward()
             optimizer.step()
-        self.assertTrue(init_loss > loss_val, "loss did not decrease")
+        self.assertGreater(init_loss, loss_val, "loss did not decrease")
 
 
 if __name__ == "__main__":

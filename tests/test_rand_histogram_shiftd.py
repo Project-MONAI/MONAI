@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -59,6 +61,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandHistogramShiftD(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_rand_histogram_shiftd(self, input_param, input_data, expected_val):
         g = RandHistogramShiftd(**input_param)

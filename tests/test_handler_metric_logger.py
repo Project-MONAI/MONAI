@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -26,6 +28,7 @@ except ImportError:
 
 
 class TestHandlerMetricLogger(unittest.TestCase):
+
     @SkipIfNoModule("ignite")
     def test_metric_logging(self):
         dummy_name = "dummy"

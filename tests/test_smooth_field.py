@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from itertools import product
 
@@ -86,6 +88,7 @@ for arr_type, shape in product(TEST_NDARRAYS, INPUT_SHAPES):
 
 
 class TestSmoothField(unittest.TestCase):
+
     @parameterized.expand(TESTS_CONTRAST)
     def test_rand_smooth_field_adjust_contrastd(self, input_param, input_data, expected_val):
         g = RandSmoothFieldAdjustContrastd(**input_param)

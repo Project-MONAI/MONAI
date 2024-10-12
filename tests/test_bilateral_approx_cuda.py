@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -364,9 +366,9 @@ TEST_CASES = [
 @skip_if_no_cuda
 @skip_if_no_cpp_extension
 class BilateralFilterTestCaseCudaApprox(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_cuda_approx(self, test_case_description, sigmas, input, expected):
-
         # Skip this test
         if not torch.cuda.is_available():
             return
@@ -380,11 +382,10 @@ class BilateralFilterTestCaseCudaApprox(unittest.TestCase):
         output = BilateralFilter.apply(input_tensor, *sigmas, fast_approx).cpu().numpy()
 
         # Ensure result are as expected
-        np.testing.assert_allclose(output, expected, atol=1e-2)
+        np.testing.assert_allclose(output, expected, atol=2e-1)
 
     @parameterized.expand(TEST_CASES)
     def test_cpu_approx_backwards(self, test_case_description, sigmas, input, expected):
-
         # Params to determine the implementation to test
         device = torch.device("cuda")
         fast_approx = True

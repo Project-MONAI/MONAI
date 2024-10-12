@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -31,6 +33,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestToTensor(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_array_input(self, test_data, expected_shape):
         result = ToTensor(dtype=torch.float32, device="cpu", wrap_sequence=True)(test_data)

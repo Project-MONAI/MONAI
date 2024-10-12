@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from typing import List
 
@@ -90,10 +92,12 @@ TEST_CLS_CASE_5 = [
 
 @SkipIfNoModule("scipy.optimize")
 class TestPanopticQualityMetric(unittest.TestCase):
+
     @parameterized.expand([TEST_FUNC_CASE_1, TEST_FUNC_CASE_2, TEST_FUNC_CASE_3, TEST_FUNC_CASE_4])
     def test_value(self, input_params, expected_value):
         result = compute_panoptic_quality(**input_params)
         np.testing.assert_allclose(result.cpu().detach().item(), expected_value, atol=1e-4)
+        np.testing.assert_equal(result.device, input_params["pred"].device)
 
     @parameterized.expand([TEST_CLS_CASE_1, TEST_CLS_CASE_2, TEST_CLS_CASE_3, TEST_CLS_CASE_4, TEST_CLS_CASE_5])
     def test_value_class(self, input_params, y_pred, y_gt, expected_value):

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -20,6 +22,7 @@ from tests.utils import assert_allclose
 
 
 class TestHandlerDecollateBatch(unittest.TestCase):
+
     def test_compute(self):
         data = [
             {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},

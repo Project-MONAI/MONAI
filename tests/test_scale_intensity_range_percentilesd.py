@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -18,6 +20,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
+
     def test_scaling(self):
         img = self.imt
         lower = 10

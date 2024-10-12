@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 
@@ -59,8 +61,8 @@ class PanopticQualityMetric(CumulativeIterationMetric):
     def __init__(
         self,
         num_classes: int,
-        metric_name: Union[Sequence[str], str] = "pq",
-        reduction: Union[MetricReduction, str] = MetricReduction.MEAN_BATCH,
+        metric_name: Sequence[str] | str = "pq",
+        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
         match_iou_threshold: float = 0.5,
         smooth_numerator: float = 1e-6,
     ) -> None:
@@ -71,7 +73,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
         self.smooth_numerator = smooth_numerator
         self.metric_name = ensure_tuple(metric_name)
 
-    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor):  # type: ignore
+    def _compute_tensor(self, y_pred: torch.Tensor, y: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """
         Args:
             y_pred: Predictions. It must be in the form of B2HW and have integer type. The first channel and the
@@ -120,7 +122,7 @@ class PanopticQualityMetric(CumulativeIterationMetric):
 
         return outputs
 
-    def aggregate(self, reduction: Union[MetricReduction, str, None] = None):
+    def aggregate(self, reduction: MetricReduction | str | None = None) -> torch.Tensor | list[torch.Tensor]:
         """
         Execute reduction logic for the output of `compute_panoptic_quality`.
 
@@ -158,7 +160,7 @@ def compute_panoptic_quality(
     match_iou_threshold: float = 0.5,
     smooth_numerator: float = 1e-6,
     output_confusion_matrix: bool = False,
-):
+) -> torch.Tensor:
     """Computes Panoptic Quality (PQ). If specifying `metric_name` to "SQ" or "RQ",
     Segmentation Quality (SQ) or Recognition Quality (RQ) will be returned instead.
 
@@ -217,7 +219,7 @@ def compute_panoptic_quality(
     return torch.as_tensor(iou_sum / (tp + 0.5 * fp + 0.5 * fn + smooth_numerator), device=pred.device)
 
 
-def _get_id_list(gt: torch.Tensor):
+def _get_id_list(gt: torch.Tensor) -> list[torch.Tensor]:
     id_list = list(gt.unique())
     # ensure id 0 is included
     if 0 not in id_list:
@@ -226,13 +228,15 @@ def _get_id_list(gt: torch.Tensor):
     return id_list
 
 
-def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: Union[str, torch.device] = "cpu"):
+def _get_pairwise_iou(
+    pred: torch.Tensor, gt: torch.Tensor, device: str | torch.device = "cpu"
+) -> tuple[torch.Tensor, list[torch.Tensor], list[torch.Tensor]]:
     pred_id_list = _get_id_list(pred)
     true_id_list = _get_id_list(gt)
 
     pairwise_iou = torch.zeros([len(true_id_list) - 1, len(pred_id_list) - 1], dtype=torch.float, device=device)
-    true_masks: List[torch.Tensor] = []
-    pred_masks: List[torch.Tensor] = []
+    true_masks: list[torch.Tensor] = []
+    pred_masks: list[torch.Tensor] = []
 
     for t in true_id_list[1:]:
         t_mask = torch.as_tensor(gt == t, device=device).int()
@@ -259,8 +263,8 @@ def _get_pairwise_iou(pred: torch.Tensor, gt: torch.Tensor, device: Union[str, t
 
 
 def _get_paired_iou(
-    pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: Union[str, torch.device] = "cpu"
-):
+    pairwise_iou: torch.Tensor, match_iou_threshold: float = 0.5, device: str | torch.device = "cpu"
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     if match_iou_threshold >= 0.5:
         pairwise_iou[pairwise_iou <= match_iou_threshold] = 0.0
         paired_true, paired_pred = torch.nonzero(pairwise_iou)[:, 0], torch.nonzero(pairwise_iou)[:, 1]
@@ -270,7 +274,7 @@ def _get_paired_iou(
 
         return paired_iou, paired_true, paired_pred
 
-    pairwise_iou = pairwise_iou.cpu().numpy()
+    pairwise_iou = pairwise_iou.cpu().numpy()  # type: ignore[assignment]
     paired_true, paired_pred = linear_sum_assignment(-pairwise_iou)
     paired_iou = pairwise_iou[paired_true, paired_pred]
     paired_true = torch.as_tensor(list(paired_true[paired_iou > match_iou_threshold] + 1), device=device)
@@ -280,7 +284,7 @@ def _get_paired_iou(
     return paired_iou, paired_true, paired_pred
 
 
-def _check_panoptic_metric_name(metric_name: str):
+def _check_panoptic_metric_name(metric_name: str) -> str:
     metric_name = metric_name.replace(" ", "_")
     metric_name = metric_name.lower()
     if metric_name in ["panoptic_quality", "pq"]:

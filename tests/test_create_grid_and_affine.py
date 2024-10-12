@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -26,6 +28,7 @@ from tests.utils import assert_allclose, is_tf32_env
 
 
 class TestCreateGrid(unittest.TestCase):
+
     def test_create_grid(self):
         with self.assertRaisesRegex(TypeError, ""):
             create_grid(None)
@@ -166,6 +169,7 @@ def test_assert(func, params, expected):
 
 
 class TestCreateAffine(unittest.TestCase):
+
     def test_create_rotate(self):
         with self.assertRaisesRegex(TypeError, ""):
             create_rotate(2, None)

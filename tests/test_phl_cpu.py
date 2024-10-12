@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -240,9 +242,9 @@ TEST_CASES = [
 
 @skip_if_no_cpp_extension
 class PHLFilterTestCaseCpu(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_cpu(self, test_case_description, sigmas, input, features, expected):
-
         # Create input tensors
         input_tensor = torch.from_numpy(np.array(input)).to(dtype=torch.float, device=torch.device("cpu"))
         feature_tensor = torch.from_numpy(np.array(features)).to(dtype=torch.float, device=torch.device("cpu"))

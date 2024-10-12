@@ -9,14 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 from .evaluator import EnsembleEvaluator, Evaluator, SupervisedEvaluator
-from .multi_gpu_supervised_trainer import create_multigpu_supervised_evaluator, create_multigpu_supervised_trainer
-from .trainer import GanTrainer, SupervisedTrainer, Trainer
+from .trainer import AdversarialTrainer, GanTrainer, SupervisedTrainer, Trainer
 from .utils import (
+    DiffusionPrepareBatch,
     IterationEvents,
     PrepareBatch,
     PrepareBatchDefault,
     PrepareBatchExtraInput,
+    VPredictionPrepareBatch,
     default_make_latent,
     default_metric_cmp_fn,
     default_prepare_batch,

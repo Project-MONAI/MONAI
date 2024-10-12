@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -146,6 +148,7 @@ TEST_CASES = [
 
 
 class TestTverskyLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = TverskyLoss(**input_param).forward(**input_data)
@@ -162,17 +165,12 @@ class TestTverskyLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             TverskyLoss(reduction=None)(chn_input, chn_target)
 
-    def test_input_warnings(self):
+    @parameterized.expand([(False, False, False), (False, True, False), (False, False, True)])
+    def test_input_warnings(self, include_background, softmax, to_onehot_y):
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertWarns(Warning):
-            loss = TverskyLoss(include_background=False)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = TverskyLoss(softmax=True)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = TverskyLoss(to_onehot_y=True)
+            loss = TverskyLoss(include_background=include_background, softmax=softmax, to_onehot_y=to_onehot_y)
             loss.forward(chn_input, chn_target)
 
     def test_script(self):

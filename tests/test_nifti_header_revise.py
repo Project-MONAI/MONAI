@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import nibabel as nib
@@ -18,6 +20,7 @@ from monai.data import rectify_header_sform_qform
 
 
 class TestRectifyHeaderSformQform(unittest.TestCase):
+
     def test_revise_q(self):
         img = nib.Nifti1Image(np.zeros((10, 10, 10)), np.eye(4))
         img.header.set_zooms((0.1, 0.2, 0.3))

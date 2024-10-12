@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -46,6 +48,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestConvertToMultiChannel(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_type_shape(self, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClasses()(data)

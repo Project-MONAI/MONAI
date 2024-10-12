@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -24,6 +26,7 @@ TEST_CASE = [
 
 
 class TestConvertToMultiChanneld(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE])
     def test_type_shape(self, keys, data, expected_result):
         result = ConvertToMultiChannelBasedOnBratsClassesd(**keys)(data)

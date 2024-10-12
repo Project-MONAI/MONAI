@@ -5,21 +5,54 @@ on:
   - cron: "0 2 * * 0"  # 02:00 of every Sunday
 
 jobs:
+  flake8-py3:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        opt: ["codeformat", "pytype", "mypy"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+    - name: cache weekly timestamp
+      id: pip-cache
+      run: |
+        echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
+    - name: cache for pip
+      uses: actions/cache@v4
+      id: cache
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
+    - name: Install dependencies
+      run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        python -m pip install --upgrade pip wheel
+        python -m pip install -r requirements-dev.txt
+    - name: Lint and type check
+      run: |
+        # clean up temporary files
+        $(pwd)/runtests.sh --build --clean
+        # Github actions have 2 cores, so parallelize pytype
+        $(pwd)/runtests.sh --build --${{ matrix.opt }} -j 2
+
   packaging:
     if: github.repository == 'Project-MONAI/MONAI'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: dev
         fetch-depth: 0
-    - name: Set up Python 3.8
-      uses: actions/setup-python@v4
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     - name: Install setuptools
       run: |
-        python -m pip install --user --upgrade setuptools wheel
+        python -m pip install --user --upgrade setuptools wheel packaging
     - name: Build distribution
       run: |
         export HEAD_COMMIT_ID=$(git rev-parse HEAD)
@@ -33,13 +66,13 @@ jobs:
         export YEAR_WEEK=$(date +'%y%U')
         echo "Year week for tag is ${YEAR_WEEK}"
         if ! [[ $YEAR_WEEK =~ ^[0-9]{4}$ ]] ; then echo "Wrong 'year week' format.  Should be 4 digits."; exit 1 ; fi
-        git tag "1.1.dev${YEAR_WEEK}"
+        git tag "1.4.dev${YEAR_WEEK}"
         git log -1
         git tag --list
         python setup.py sdist bdist_wheel
 
     - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@master
+      uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}

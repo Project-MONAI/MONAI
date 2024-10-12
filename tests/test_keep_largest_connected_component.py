@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -379,6 +381,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestKeepLargestConnectedComponent(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, args, input_image, expected):
         converter = KeepLargestConnectedComponent(**args)

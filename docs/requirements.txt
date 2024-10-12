@@ -1,11 +1,12 @@
 -f https://download.pytorch.org/whl/cpu/torch-1.12.1%2Bcpu-cp37-cp37m-linux_x86_64.whl
-torch>=1.8
-pytorch-ignite==0.4.10
-numpy>=1.17
+torch>=1.9
+pytorch-ignite==0.4.11
+numpy>=1.20
 itk>=5.2
 nibabel
 parameterized
-scikit-image>=0.14.2
+scikit-image>=0.19.0
+scipy>=1.12.0; python_version >= '3.9'
 tensorboard
 commonmark==0.9.1
 recommonmark==0.6.0
@@ -20,17 +21,25 @@ sphinxcontrib-serializinghtml
 sphinx-autodoc-typehints==1.11.1
 pandas
 einops
-transformers<4.22  # https://github.com/Project-MONAI/MONAI/issues/5157
-mlflow
+transformers>=4.36.0, <4.41.0; python_version <= '3.10'
+mlflow>=2.12.2
+clearml>=1.10.0rc0
 tensorboardX
-imagecodecs; platform_system == "Linux"
-tifffile; platform_system == "Linux"
+imagecodecs; platform_system == "Linux" or platform_system == "Darwin"
+tifffile; platform_system == "Linux" or platform_system == "Darwin"
 pyyaml
 fire
 jsonschema
 pynrrd
 pydicom
 h5py
-nni
+nni; platform_system == "Linux"
 optuna
 opencv-python-headless
+onnx>=1.13.0
+onnxruntime; python_version <= '3.10'
+zarr
+huggingface_hub
+pyamg>=5.0.0
+packaging
+polygraphy

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -96,6 +98,7 @@ TEST_CASES_2D = [
 
 
 class TestCell(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_2D + TEST_CASES_3D)
     def test_cell_3d(self, input_param, ops, weight, input_shape, expected_shape):
         net = Cell(**input_param)

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -38,6 +40,7 @@ def add_one(engine):
 
 
 class TestInteractions(unittest.TestCase):
+
     def run_interaction(self, train):
         label_names = {"spleen": 1, "background": 0}
         np.random.seed(0)

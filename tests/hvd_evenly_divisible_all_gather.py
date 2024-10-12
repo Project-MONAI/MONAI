@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import torch
 
 from monai.utils import evenly_divisible_all_gather
@@ -19,6 +21,7 @@ hvd, has_hvd = optional_import("horovod", name="torch")
 
 
 class HvdEvenlyDivisibleAllGather:
+
     def test_data(self):
         # initialize Horovod
         hvd.init()
@@ -27,10 +30,10 @@ class HvdEvenlyDivisibleAllGather:
         self._run()
 
     def _run(self):
-        if hvd.rank() == 0:
-            data1 = torch.tensor([[1, 2], [3, 4]])
-            data2 = torch.tensor([[1.0, 2.0]])
-            data3 = torch.tensor(7)
+        # if hvd.rank() == 0:
+        data1 = torch.tensor([[1, 2], [3, 4]])
+        data2 = torch.tensor([[1.0, 2.0]])
+        data3 = torch.tensor(7)
 
         if hvd.rank() == 1:
             data1 = torch.tensor([[5, 6]])

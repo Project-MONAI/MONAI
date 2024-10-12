@@ -8,6 +8,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import annotations
+
 import os
 import unittest
 
@@ -20,7 +22,13 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.blocks.warp import Warp
 from monai.transforms import LoadImaged
 from monai.utils import GridSampleMode, GridSamplePadMode
-from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule, download_url_or_skip_test, testing_data_config
+from tests.utils import (
+    SkipIfBeforePyTorchVersion,
+    SkipIfNoModule,
+    download_url_or_skip_test,
+    skip_if_quick,
+    testing_data_config,
+)
 
 LOW_POWER_TEST_CASES = [  # run with BUILD_MONAI=1 to test csrc/resample, BUILD_MONAI=0 to test native grid_sample
     [
@@ -96,7 +104,9 @@ if USE_COMPILED:
     TEST_CASES += CPP_TEST_CASES
 
 
+@skip_if_quick
 class TestWarp(unittest.TestCase):
+
     def setUp(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
         download_url_or_skip_test(
@@ -114,7 +124,7 @@ class TestWarp(unittest.TestCase):
         relative_diff = np.mean(
             np.divide(monai_result - itk_result, itk_result, out=np.zeros_like(itk_result), where=(itk_result != 0))
         )
-        self.assertTrue(relative_diff < 0.01)
+        self.assertLess(relative_diff, 0.01)
 
     @parameterized.expand(TEST_CASES, skip_on_empty=True)
     def test_resample(self, input_param, input_data, expected_val):
@@ -207,6 +217,7 @@ def itk_warp(img, ddf):
     # warp
     warp_filter.SetDisplacementField(displacement_field)
     warp_filter.SetInput(itk_img)
+    warp_filter.Update()
     warped_img = warp_filter.GetOutput()
     warped_img = np.asarray(warped_img)
 

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
@@ -39,9 +41,9 @@ from monai.handlers import (
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.transforms import (
     Activationsd,
-    AsChannelFirstd,
     AsDiscreted,
     Compose,
+    EnsureChannelFirstd,
     KeepLargestConnectedComponentd,
     LoadImaged,
     RandCropByPosNegLabeld,
@@ -69,7 +71,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     train_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
-            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            EnsureChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
             RandCropByPosNegLabeld(
                 keys=["image", "label"], label_key="label", spatial_size=[96, 96, 96], pos=1, neg=1, num_samples=4
@@ -80,7 +82,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     val_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
-            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            EnsureChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
         ]
     )
@@ -116,6 +118,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     )
 
     class _TestEvalIterEvents:
+
         def attach(self, engine):
             engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
 
@@ -158,6 +161,7 @@ def run_training_test(root_dir, device="cuda:0", amp=False, num_workers=4):
     )
 
     class _TestTrainIterEvents:
+
         def attach(self, engine):
             engine.add_event_handler(IterationEvents.FORWARD_COMPLETED, self._forward_completed)
             engine.add_event_handler(IterationEvents.LOSS_COMPLETED, self._loss_completed)
@@ -222,7 +226,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
     val_transforms = Compose(
         [
             LoadImaged(keys=["image", "label"]),
-            AsChannelFirstd(keys=["image", "label"], channel_dim=-1),
+            EnsureChannelFirstd(keys=["image", "label"], channel_dim=-1),
             ScaleIntensityd(keys=["image", "label"]),
         ]
     )
@@ -282,6 +286,7 @@ def run_inference_test(root_dir, model_file, device="cuda:0", amp=False, num_wor
 
 @skip_if_quick
 class IntegrationWorkflows(DistTestCase):
+
     def setUp(self):
         set_determinism(seed=0)
 

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from functools import partial
 
@@ -43,6 +45,7 @@ def psnrmetric_np(max_val, y_pred, y):
 
 
 class TestRegressionMetrics(unittest.TestCase):
+
     def test_shape_reduction(self):
         set_determinism(seed=123)
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -59,7 +62,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
 
@@ -68,22 +70,24 @@ class TestRegressionMetrics(unittest.TestCase):
                         mt = mt_fn(reduction="mean")
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate()
-                        self.assertTrue(len(out_tensor.shape) == 1)
+                        self.assertEqual(len(out_tensor.shape), 1)
 
                         mt = mt_fn(reduction="sum")
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate()
-                        self.assertTrue(len(out_tensor.shape) == 0)
+                        self.assertEqual(len(out_tensor.shape), 0)
 
                         mt = mt_fn(reduction="sum")  # test reduction arg overriding
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate(reduction="mean_channel")
-                        self.assertTrue(len(out_tensor.shape) == 1 and out_tensor.shape[0] == batch)
+                        self.assertEqual(len(out_tensor.shape), 1)
+                        self.assertEqual(out_tensor.shape[0], batch)
 
                         mt = mt_fn(reduction="sum_channel")
                         mt(in_tensor, in_tensor)
                         out_tensor = mt.aggregate()
-                        self.assertTrue(len(out_tensor.shape) == 1 and out_tensor.shape[0] == batch)
+                        self.assertEqual(len(out_tensor.shape), 1)
+                        self.assertEqual(out_tensor.shape[0], batch)
 
     def test_compare_numpy(self):
         set_determinism(seed=123)
@@ -102,7 +106,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor_a = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
                     in_tensor_b = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
@@ -152,7 +155,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor = torch.rand((batch,) + (base,) * (spatial - 1)).to(device)
 
@@ -178,7 +180,6 @@ class TestRegressionMetrics(unittest.TestCase):
         for batch in batch_dims:
             for spatial in spatial_dims:
                 for base in base_dims:
-
                     # create random tensors
                     in_tensor_a = torch.zeros((batch,) + (base,) * (spatial - 1)).to(device)
                     in_tensor_b = torch.ones((batch,) + (base,) * (spatial - 1)).to(device)

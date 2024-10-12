@@ -9,12 +9,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.config import print_debug_info
 
 
 class TestPrintInfo(unittest.TestCase):
+
     def test_print_info(self):
         print_debug_info()
 

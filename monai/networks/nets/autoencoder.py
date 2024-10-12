@@ -9,7 +9,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -55,6 +58,8 @@ class AutoEncoder(nn.Module):
         bias: whether to have a bias term in convolution blocks. Defaults to True.
             According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
             if a conv layer is directly followed by a batch norm layer, bias should be False.
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
+            for each dimension in convolution blocks. Defaults to None.
 
     Examples::
 
@@ -91,18 +96,18 @@ class AutoEncoder(nn.Module):
         out_channels: int,
         channels: Sequence[int],
         strides: Sequence[int],
-        kernel_size: Union[Sequence[int], int] = 3,
-        up_kernel_size: Union[Sequence[int], int] = 3,
+        kernel_size: Sequence[int] | int = 3,
+        up_kernel_size: Sequence[int] | int = 3,
         num_res_units: int = 0,
-        inter_channels: Optional[list] = None,
-        inter_dilations: Optional[list] = None,
+        inter_channels: list | None = None,
+        inter_dilations: list | None = None,
         num_inter_units: int = 2,
-        act: Optional[Union[Tuple, str]] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
-        dropout: Optional[Union[Tuple, str, float]] = None,
+        act: tuple | str | None = Act.PRELU,
+        norm: tuple | str = Norm.INSTANCE,
+        dropout: tuple | str | float | None = None,
         bias: bool = True,
+        padding: Sequence[int] | int | None = None,
     ) -> None:
-
         super().__init__()
         self.dimensions = spatial_dims
         self.in_channels = in_channels
@@ -116,6 +121,7 @@ class AutoEncoder(nn.Module):
         self.norm = norm
         self.dropout = dropout
         self.bias = bias
+        self.padding = padding
         self.num_inter_units = num_inter_units
         self.inter_channels = inter_channels if inter_channels is not None else []
         self.inter_dilations = list(inter_dilations or [1] * len(self.inter_channels))
@@ -133,7 +139,7 @@ class AutoEncoder(nn.Module):
 
     def _get_encode_module(
         self, in_channels: int, channels: Sequence[int], strides: Sequence[int]
-    ) -> Tuple[nn.Sequential, int]:
+    ) -> tuple[nn.Sequential, int]:
         """
         Returns the encode part of the network by building up a sequence of layers returned by `_get_encode_layer`.
         """
@@ -147,7 +153,7 @@ class AutoEncoder(nn.Module):
 
         return encode, layer_channels
 
-    def _get_intermediate_module(self, in_channels: int, num_inter_units: int) -> Tuple[nn.Module, int]:
+    def _get_intermediate_module(self, in_channels: int, num_inter_units: int) -> tuple[nn.Module, int]:
         """
         Returns the intermediate block of the network which accepts input from the encoder and whose output goes
         to the decoder.
@@ -176,6 +182,7 @@ class AutoEncoder(nn.Module):
                         dropout=self.dropout,
                         dilation=di,
                         bias=self.bias,
+                        padding=self.padding,
                     )
                 else:
                     unit = Convolution(
@@ -189,6 +196,7 @@ class AutoEncoder(nn.Module):
                         dropout=self.dropout,
                         dilation=di,
                         bias=self.bias,
+                        padding=self.padding,
                     )
 
                 intermediate.add_module("inter_%i" % i, unit)
@@ -198,7 +206,7 @@ class AutoEncoder(nn.Module):
 
     def _get_decode_module(
         self, in_channels: int, channels: Sequence[int], strides: Sequence[int]
-    ) -> Tuple[nn.Sequential, int]:
+    ) -> tuple[nn.Sequential, int]:
         """
         Returns the decode part of the network by building up a sequence of layers returned by `_get_decode_layer`.
         """
@@ -229,6 +237,7 @@ class AutoEncoder(nn.Module):
                 norm=self.norm,
                 dropout=self.dropout,
                 bias=self.bias,
+                padding=self.padding,
                 last_conv_only=is_last,
             )
             return mod
@@ -242,6 +251,7 @@ class AutoEncoder(nn.Module):
             norm=self.norm,
             dropout=self.dropout,
             bias=self.bias,
+            padding=self.padding,
             conv_only=is_last,
         )
         return mod
@@ -262,6 +272,7 @@ class AutoEncoder(nn.Module):
             norm=self.norm,
             dropout=self.dropout,
             bias=self.bias,
+            padding=self.padding,
             conv_only=is_last and self.num_res_units == 0,
             is_transposed=True,
         )
@@ -280,6 +291,7 @@ class AutoEncoder(nn.Module):
                 norm=self.norm,
                 dropout=self.dropout,
                 bias=self.bias,
+                padding=self.padding,
                 last_conv_only=is_last,
             )
 

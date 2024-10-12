@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -19,6 +21,7 @@ from tests.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
 
 
 class TestSetDeterminism(unittest.TestCase):
+
     def test_values(self):
         # check system default flags
         set_determinism(None)
@@ -53,6 +56,7 @@ class TestSetDeterminism(unittest.TestCase):
 
 
 class TestSetFlag(unittest.TestCase):
+
     def setUp(self):
         set_determinism(1, use_deterministic_algorithms=True)
 

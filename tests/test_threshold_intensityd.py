@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -43,6 +45,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestThresholdIntensityd(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, in_type, input_param, expected_value):
         test_data = {"image": in_type(np.arange(10)), "label": in_type(np.arange(10)), "extra": in_type(np.arange(10))}

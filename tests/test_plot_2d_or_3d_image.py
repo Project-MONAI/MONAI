@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import glob
 import tempfile
 import unittest
@@ -18,7 +20,7 @@ from parameterized import parameterized
 
 from monai.utils import optional_import
 from monai.visualize import plot_2d_or_3d_image
-from tests.utils import SkipIfNoModule
+from tests.utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 
@@ -36,7 +38,9 @@ TEST_CASE_5 = [(1, 3, 10, 10, 10)]
 
 
 @unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
+@SkipIfBeforePyTorchVersion((1, 13))  # issue 6683
 class TestPlot2dOr3dImage(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_tb_image(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:

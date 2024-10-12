@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -42,6 +44,7 @@ def run_loading_test(num_workers=50, device=None, pw=False):
 @skip_if_no_cuda
 @SkipIfBeforePyTorchVersion((1, 9))
 class IntegrationLoading(DistTestCase):
+
     def tearDown(self):
         set_determinism(seed=None)
 

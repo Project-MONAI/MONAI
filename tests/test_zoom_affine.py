@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import nibabel as nib
@@ -62,6 +64,7 @@ DIAGONAL_CASES = [
 
 
 class TestZoomAffine(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct(self, affine, scale, expected):
         output = zoom_affine(affine, scale, diagonal=False)

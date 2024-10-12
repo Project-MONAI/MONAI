@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -20,6 +22,7 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
+
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_range_scale(self, p):
         scaler = ScaleIntensity(minv=1.0, maxv=2.0)

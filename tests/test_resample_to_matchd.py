@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import shutil
 import tempfile
@@ -24,6 +26,7 @@ from monai.transforms import (
     ResampleToMatchd,
     SaveImaged,
 )
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 
@@ -33,6 +36,7 @@ def update_fname(d):
 
 
 class TestResampleToMatchd(unittest.TestCase):
+
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()
@@ -73,6 +77,17 @@ class TestResampleToMatchd(unittest.TestCase):
         # test the inverse
         data = Invertd("im3", transforms)(data)
         assert_allclose(data["im2"].shape, data["im3"].shape)
+
+    def test_lazy(self):
+        pre_transforms = Compose(
+            [LoadImaged(("im1", "im2")), EnsureChannelFirstd(("im1", "im2")), CopyItemsd(("im2"), names=("im3"))]
+        )
+        data = pre_transforms({"im1": self.fnames[0], "im2": self.fnames[1]})
+        init_param = {"keys": "im3", "key_dst": "im1"}
+        resampler = ResampleToMatchd(**init_param)
+        call_param = {"data": data}
+        non_lazy_out = resampler(**call_param)
+        test_resampler_lazy(resampler, non_lazy_out, init_param, call_param, output_key="im3")
 
 
 if __name__ == "__main__":

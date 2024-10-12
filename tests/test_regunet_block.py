@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -53,6 +55,7 @@ TEST_CASE_EXTRACTION = [
             "out_channels": 1,
             "kernel_initializer": "zeros",
             "activation": "sigmoid",
+            "mode": "trilinear",
         },
         [(1, 3, 2, 2, 2), (1, 2, 4, 4, 4), (1, 1, 8, 8, 8)],
         (3, 3, 3),
@@ -62,6 +65,7 @@ TEST_CASE_EXTRACTION = [
 
 
 class TestRegistrationResidualConvBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_RESIDUAL)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = RegistrationResidualConvBlock(**input_param)
@@ -71,6 +75,7 @@ class TestRegistrationResidualConvBlock(unittest.TestCase):
 
 
 class TestRegistrationDownSampleBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_DOWN_SAMPLE)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = RegistrationDownSampleBlock(**input_param)
@@ -85,6 +90,7 @@ class TestRegistrationDownSampleBlock(unittest.TestCase):
 
 
 class TestRegistrationExtractionBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_EXTRACTION)
     def test_shape(self, input_param, input_shapes, image_size, expected_shape):
         net = RegistrationExtractionBlock(**input_param)

@@ -9,63 +9,69 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
-from parameterized import parameterized
 
-from monai.metrics.regression import SSIMMetric
-
-x = torch.ones([1, 1, 10, 10]) / 2
-y1 = torch.ones([1, 1, 10, 10]) / 2
-y2 = torch.zeros([1, 1, 10, 10])
-data_range = x.max().unsqueeze(0)
-TESTS2D = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_range, torch.tensor(0.0).unsqueeze(0))]
-
-x = torch.ones([1, 1, 10, 10, 10]) / 2
-y1 = torch.ones([1, 1, 10, 10, 10]) / 2
-y2 = torch.zeros([1, 1, 10, 10, 10])
-data_range = x.max().unsqueeze(0)
-TESTS3D = [(x, y1, data_range, torch.tensor(1.0).unsqueeze(0)), (x, y2, data_range, torch.tensor(0.0).unsqueeze(0))]
-
-x = torch.ones([3, 3, 10, 10, 10]) / 2
-y1 = torch.ones([3, 3, 10, 10, 10]) / 2
-data_range = x.max().unsqueeze(0)
-res = torch.tensor(1.0).unsqueeze(0) * torch.ones((3, 1))
-TESTSCS = [(x, y1, data_range, res)]
+from monai.metrics.regression import SSIMMetric, compute_ssim_and_cs
+from monai.utils import set_determinism
 
 
 class TestSSIMMetric(unittest.TestCase):
-    @parameterized.expand(TESTS2D)
-    def test2d(self, x, y, drange, res):
-        result = SSIMMetric(data_range=drange, spatial_dims=2)._compute_metric(x, y)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(torch.abs(res - result).item() < 0.001)
 
-        ssim = SSIMMetric(data_range=drange, spatial_dims=2)
-        ssim(x, y)
-        result2 = ssim.aggregate()
-        self.assertTrue(isinstance(result2, torch.Tensor))
-        self.assertTrue(torch.abs(result2 - result).item() < 0.001)
+    def test2d_gaussian(self):
+        set_determinism(0)
+        preds = torch.abs(torch.randn(2, 3, 16, 16))
+        target = torch.abs(torch.randn(2, 3, 16, 16))
+        preds = preds / preds.max()
+        target = target / target.max()
 
-    @parameterized.expand(TESTS3D)
-    def test3d(self, x, y, drange, res):
-        result = SSIMMetric(data_range=drange, spatial_dims=3)._compute_metric(x, y)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(torch.abs(res - result).item() < 0.001)
+        metric = SSIMMetric(spatial_dims=2, data_range=1.0, kernel_type="gaussian")
+        metric(preds, target)
+        result = metric.aggregate()
+        expected_value = 0.045415
+        self.assertTrue(expected_value - result.item() < 0.000001)
 
-        ssim = SSIMMetric(data_range=drange, spatial_dims=3)
-        ssim(x, y)
-        result2 = ssim.aggregate()
-        self.assertTrue(isinstance(result2, torch.Tensor))
-        self.assertTrue(torch.abs(result2 - result).item() < 0.001)
+    def test2d_uniform(self):
+        set_determinism(0)
+        preds = torch.abs(torch.randn(2, 3, 16, 16))
+        target = torch.abs(torch.randn(2, 3, 16, 16))
+        preds = preds / preds.max()
+        target = target / target.max()
 
-    @parameterized.expand(TESTSCS)
-    def testfull(self, x, y, drange, res):
-        result, cs = SSIMMetric(data_range=drange, spatial_dims=3)._compute_metric_and_contrast(x, y)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertTrue(isinstance(cs, torch.Tensor))
-        self.assertTrue((torch.abs(res - cs) < 0.001).all().item())
+        metric = SSIMMetric(spatial_dims=2, data_range=1.0, kernel_type="uniform")
+        metric(preds, target)
+        result = metric.aggregate()
+        expected_value = 0.050103
+        self.assertTrue(expected_value - result.item() < 0.000001)
+
+    def test3d_gaussian(self):
+        set_determinism(0)
+        preds = torch.abs(torch.randn(2, 3, 16, 16, 16))
+        target = torch.abs(torch.randn(2, 3, 16, 16, 16))
+        preds = preds / preds.max()
+        target = target / target.max()
+
+        metric = SSIMMetric(spatial_dims=3, data_range=1.0, kernel_type="gaussian")
+        metric(preds, target)
+        result = metric.aggregate()
+        expected_value = 0.017644
+        self.assertTrue(expected_value - result.item() < 0.000001)
+
+    def input_ill_input_shape(self):
+        with self.assertRaises(ValueError):
+            metric = SSIMMetric(spatial_dims=3)
+            metric(torch.randn(1, 1, 16, 16), torch.randn(1, 1, 16, 16))
+
+        with self.assertRaises(ValueError):
+            metric = SSIMMetric(spatial_dims=2)
+            metric(torch.randn(1, 1, 16, 16, 16), torch.randn(1, 1, 16, 16, 16))
+
+    def mismatch_y_pred_and_y(self):
+        with self.assertRaises(ValueError):
+            compute_ssim_and_cs(y_pred=torch.randn(1, 1, 16, 8), y=torch.randn(1, 1, 16, 16), spatial_dims=2)
 
 
 if __name__ == "__main__":

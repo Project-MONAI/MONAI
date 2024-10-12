@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -21,9 +23,9 @@ from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
 
 @SkipIfBeforePyTorchVersion((1, 8))
 class DistributedCumulativeAverage(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_value(self):
-
         rank = dist.get_rank()
         nprocs = dist.get_world_size()
         is_cuda = dist.get_backend() == dist.Backend.NCCL

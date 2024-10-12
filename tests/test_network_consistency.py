@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import json
 import os
 import unittest
@@ -21,9 +23,10 @@ from parameterized.parameterized import parameterized
 
 import monai.networks.nets as nets
 from monai.utils import set_determinism
+from monai.utils.misc import MONAIEnvVars
 from tests.utils import assert_allclose
 
-extra_test_data_dir = os.environ.get("MONAI_EXTRA_TEST_DATA")
+extra_test_data_dir = MONAIEnvVars.extra_test_data()
 
 TESTS = []
 if extra_test_data_dir is not None:
@@ -35,6 +38,7 @@ if extra_test_data_dir is not None:
 
 
 class TestNetworkConsistency(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
 
@@ -47,7 +51,6 @@ class TestNetworkConsistency(unittest.TestCase):
     )
     @parameterized.expand(TESTS, skip_on_empty=True)
     def test_network_consistency(self, net_name, data_path, json_path):
-
         print("Net name: " + net_name)
         print("Data path: " + data_path)
         print("JSON path: " + json_path)

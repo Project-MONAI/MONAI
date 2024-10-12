@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -18,6 +20,7 @@ from monai.utils import set_determinism
 
 
 class TestPickleHashing(unittest.TestCase):
+
     def test_pickle(self):
         set_determinism(0)
         data1 = np.random.rand(10)
@@ -43,6 +46,7 @@ class TestPickleHashing(unittest.TestCase):
 
 
 class TestJSONHashing(unittest.TestCase):
+
     def test_json(self):
         data_dict1 = {"b": "str2", "a": "str1"}
         data_dict2 = {"a": "str1", "b": "str2"}

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -28,6 +30,7 @@ except ImportError:
 
 
 class TestHandlerLogfile(unittest.TestCase):
+
     def setUp(self):
         if has_ignite:
             # set up engine
@@ -58,7 +61,6 @@ class TestHandlerLogfile(unittest.TestCase):
         filename = "something_else.txt"
 
         with tempfile.TemporaryDirectory() as tempdir:
-
             handler = LogfileHandler(output_dir=tempdir, filename=filename)
             handler.attach(self.engine)
 

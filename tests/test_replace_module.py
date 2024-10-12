@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import Optional, Type
 
 import torch
 from parameterized import parameterized
@@ -31,13 +32,14 @@ for device in TEST_DEVICES:
 
 
 class TestReplaceModule(unittest.TestCase):
+
     def setUp(self):
         self.net = DenseNet121(spatial_dims=2, in_channels=1, out_channels=3)
         self.num_relus = self.get_num_modules(torch.nn.ReLU)
         self.total = self.get_num_modules()
         self.assertGreater(self.num_relus, 0)
 
-    def get_num_modules(self, mod: Optional[Type[torch.nn.Module]] = None) -> int:
+    def get_num_modules(self, mod: type[torch.nn.Module] | None = None) -> int:
         m = [m for _, m in self.net.named_modules()]
         if mod is not None:
             m = [_m for _m in m if isinstance(_m, mod)]

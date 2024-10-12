@@ -50,8 +50,10 @@ by overriding the definition of convolutional layers and pooling layers.
 https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
 """
 
+from __future__ import annotations
+
 from collections import OrderedDict
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+from collections.abc import Callable
 
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -68,7 +70,7 @@ class ExtraFPNBlock(nn.Module):
     Same code as https://github.com/pytorch/vision/blob/release/0.12/torchvision/ops/feature_pyramid_network.py
     """
 
-    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]):
+    def forward(self, results: list[Tensor], x: list[Tensor], names: list[str]):
         """
         Compute extended set of results of the FPN and their names.
 
@@ -92,10 +94,10 @@ class LastLevelMaxPool(ExtraFPNBlock):
 
     def __init__(self, spatial_dims: int):
         super().__init__()
-        pool_type: Type[Union[nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d]] = Pool[Pool.MAX, spatial_dims]
+        pool_type: type[nn.MaxPool1d | nn.MaxPool2d | nn.MaxPool3d] = Pool[Pool.MAX, spatial_dims]
         self.maxpool = pool_type(kernel_size=1, stride=2, padding=0)
 
-    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
+    def forward(self, results: list[Tensor], x: list[Tensor], names: list[str]) -> tuple[list[Tensor], list[str]]:
         names.append("pool")
         results.append(self.maxpool(results[-1]))
         return results, names
@@ -118,7 +120,7 @@ class LastLevelP6P7(ExtraFPNBlock):
             nn.init.constant_(module.bias, 0)
         self.use_P5 = in_channels == out_channels
 
-    def forward(self, results: List[Tensor], x: List[Tensor], names: List[str]) -> Tuple[List[Tensor], List[str]]:
+    def forward(self, results: list[Tensor], x: list[Tensor], names: list[str]) -> tuple[list[Tensor], list[str]]:
         p5, c5 = results[-1], x[-1]
         x5 = p5 if self.use_P5 else c5
         p6 = self.p6(x5)
@@ -170,9 +172,9 @@ class FeaturePyramidNetwork(nn.Module):
     def __init__(
         self,
         spatial_dims: int,
-        in_channels_list: List[int],
+        in_channels_list: list[int],
         out_channels: int,
-        extra_blocks: Optional[ExtraFPNBlock] = None,
+        extra_blocks: ExtraFPNBlock | None = None,
     ):
         super().__init__()
 
@@ -189,11 +191,11 @@ class FeaturePyramidNetwork(nn.Module):
             self.layer_blocks.append(layer_block_module)
 
         # initialize parameters now to avoid modifying the initialization of top_blocks
-        conv_type_: Type[nn.Module] = Conv[Conv.CONV, spatial_dims]
+        conv_type_: type[nn.Module] = Conv[Conv.CONV, spatial_dims]
         for m in self.modules():
             if isinstance(m, conv_type_):
-                nn.init.kaiming_uniform_(m.weight, a=1)  # type: ignore
-                nn.init.constant_(m.bias, 0.0)  # type: ignore
+                nn.init.kaiming_uniform_(m.weight, a=1)
+                nn.init.constant_(m.bias, 0.0)
 
         if extra_blocks is not None:
             if not isinstance(extra_blocks, ExtraFPNBlock):
@@ -228,7 +230,7 @@ class FeaturePyramidNetwork(nn.Module):
                 out = module(x)
         return out
 
-    def forward(self, x: Dict[str, Tensor]) -> Dict[str, Tensor]:
+    def forward(self, x: dict[str, Tensor]) -> dict[str, Tensor]:
         """
         Computes the FPN for a set of feature maps.
 
@@ -240,7 +242,7 @@ class FeaturePyramidNetwork(nn.Module):
         """
         # unpack OrderedDict into two lists for easier handling
         names = list(x.keys())
-        x_values: List[Tensor] = list(x.values())
+        x_values: list[Tensor] = list(x.values())
 
         last_inner = self.get_result_from_inner_blocks(x_values[-1], -1)
         results = []

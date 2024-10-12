@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -33,6 +35,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestGetUniqueLabels(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_correct_results(self, args, expected):
         result = get_unique_labels(**args)

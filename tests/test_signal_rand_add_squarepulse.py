@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 from unittest import skipUnless
@@ -29,6 +31,7 @@ VALID_CASES = [([0.0, 1.0], [0.001, 0.2])]
 @skipUnless(has_scipy, "scipy required")
 @SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestSignalRandAddSquarePulseNumpy(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies):
         self.assertIsInstance(SignalRandAddSquarePulse(boundaries, frequencies), SignalRandAddSquarePulse)
@@ -41,6 +44,7 @@ class TestSignalRandAddSquarePulseNumpy(unittest.TestCase):
 @skipUnless(has_scipy, "scipy required")
 @SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestSignalRandAddSquarePulseTorch(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies):
         self.assertIsInstance(SignalRandAddSquarePulse(boundaries, frequencies), SignalRandAddSquarePulse)

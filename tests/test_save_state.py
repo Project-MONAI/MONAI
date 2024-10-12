@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -41,6 +43,7 @@ TEST_CASE_10 = [torch.nn.PReLU(), ["weight"], True, True, torch.save]
 
 
 class TestSaveState(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_1,

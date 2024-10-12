@@ -9,8 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -20,14 +21,14 @@ from monai.data import MetaTensor
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, get_equivalent_dtype
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
-TESTS: List[Tuple] = []
+TESTS: list[tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
         TESTS.append((in_type(np.array(1.0)), out_type(np.array(1.0)), None, False))  # type: ignore
         if in_type is not float:
             TESTS.append((in_type(np.array(256)), out_type(np.array(255)), np.uint8, True))  # type: ignore
 
-TESTS_LIST: List[Tuple] = []
+TESTS_LIST: list[tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):
     for out_type in TEST_NDARRAYS_ALL:
         TESTS_LIST.append(
@@ -72,10 +73,12 @@ UNSUPPORTED_TYPES = {np.dtype("uint16"): torch.int32, np.dtype("uint32"): torch.
 
 
 class TestTensor(torch.Tensor):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
     pass
 
 
 class TestConvertDataType(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_convert_data_type(self, in_image, im_out, out_dtype, safe):
         converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), dtype=out_dtype, safe=safe)

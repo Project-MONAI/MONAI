@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from parameterized import parameterized
@@ -37,6 +39,10 @@ class TestBorderPad(PadTest):
         kwargs = {"spatial_border": 2, "mode": "constant"}
         unchanged_slices = [slice(None), slice(2, -2), slice(2, -2)]
         self.pad_test_kwargs(unchanged_slices, **kwargs)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, input_param, input_shape, _):
+        self.pad_test_pending_ops(input_param, input_shape)
 
 
 if __name__ == "__main__":

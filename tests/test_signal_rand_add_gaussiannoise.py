@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import unittest
 
@@ -23,6 +25,7 @@ VALID_CASES = [([0.0, 0.02],)]
 
 
 class TestSignalRandAddGaussianNoiseNumpy(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)
@@ -33,6 +36,7 @@ class TestSignalRandAddGaussianNoiseNumpy(unittest.TestCase):
 
 
 class TestSignalRandAddGaussianNoiseTorch(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)

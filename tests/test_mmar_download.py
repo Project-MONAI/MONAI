@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -114,6 +116,7 @@ TEST_EXTRACT_CASES = [
 
 @unittest.skip("deprecating mmar tests")
 class TestMMMARDownload(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     @skip_if_quick
     def test_download(self, idx):
@@ -139,7 +142,7 @@ class TestMMMARDownload(unittest.TestCase):
     def test_unique(self):
         # model ids are unique
         keys = sorted(m["id"] for m in MODEL_DESC)
-        self.assertTrue(keys == sorted(set(keys)))
+        self.assertEqual(keys, sorted(set(keys)))
 
     def test_search(self):
         self.assertEqual(_get_val({"a": 1, "b": 2}, key="b"), 2)

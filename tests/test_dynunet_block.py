@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -71,6 +73,7 @@ for spatial_dims in range(2, 4):
 
 
 class TestResBasicBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_RES_BASIC_BLOCK)
     def test_shape(self, input_param, input_shape, expected_shape):
         for net in [UnetResBlock(**input_param), UnetBasicBlock(**input_param)]:
@@ -94,6 +97,7 @@ class TestResBasicBlock(unittest.TestCase):
 
 
 class TestUpBlock(unittest.TestCase):
+
     @parameterized.expand(TEST_UP_BLOCK)
     def test_shape(self, input_param, input_shape, expected_shape, skip_shape):
         net = UnetUpBlock(**input_param)

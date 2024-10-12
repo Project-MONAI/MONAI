@@ -1,8 +1,9 @@
 ---
 dataset_dir: "/workspace/data/Task09_Spleen"
+bundle_root: "will override"
 output_dir: "need override"
 prediction_shape: "prediction shape:"
-device: "$torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')"
+device: "$torch.device('cpu')"
 print_test_name: "$print('yaml_test')"
 network_def:
   _target_: UNet
@@ -80,6 +81,9 @@ evaluator:
   inferer: "@inferer"
   postprocessing: "@postprocessing"
   amp: false
-evaluating:
+initialize:
   - "$monai.utils.set_determinism(0)"
+run:
   - "$@evaluator.run()"
+finalize:
+  - "$print('test finalize section.')"

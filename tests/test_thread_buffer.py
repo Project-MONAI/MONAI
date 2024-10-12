@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import time
 import unittest
@@ -22,6 +24,7 @@ from tests.utils import assert_allclose
 
 
 class TestDataLoader(unittest.TestCase):
+
     def setUp(self):
         super().setUp()
 

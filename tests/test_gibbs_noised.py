@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -31,6 +33,7 @@ KEYS = ["im", "label"]
 
 
 class TestGibbsNoised(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
         super().setUp()

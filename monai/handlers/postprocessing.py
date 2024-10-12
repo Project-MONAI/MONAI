@@ -9,11 +9,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable
+from __future__ import annotations
 
-from monai.config import IgniteInfo
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
 from monai.engines.utils import IterationEvents, engine_apply_transform
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:

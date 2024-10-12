@@ -9,10 +9,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import sys
 import unittest
 from enum import Enum
-from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -21,9 +22,9 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, Dataset, create_test_image_2d
 from monai.data.utils import decollate_batch
 from monai.transforms import (
-    AddChannel,
-    AddChanneld,
     Compose,
+    EnsureChannelFirst,
+    EnsureChannelFirstd,
     LoadImage,
     LoadImaged,
     RandAffine,
@@ -45,12 +46,12 @@ _, has_nib = optional_import("nibabel")
 
 KEYS = ["image"]
 
-TESTS_DICT: List[Tuple] = []
+TESTS_DICT: list[tuple] = []
 TESTS_DICT.append((SpatialPadd(KEYS, 150), RandFlipd(KEYS, prob=1.0, spatial_axis=1)))
 TESTS_DICT.append((RandRotate90d(KEYS, prob=0.0, max_k=1),))
 TESTS_DICT.append((RandAffined(KEYS, prob=0.0, translate_range=10),))
 
-TESTS_LIST: List[Tuple] = []
+TESTS_LIST: list[tuple] = []
 TESTS_LIST.append((SpatialPad(150), RandFlip(prob=1.0, spatial_axis=1)))
 TESTS_LIST.append((RandRotate90(prob=0.0, max_k=1),))
 TESTS_LIST.append((RandAffine(prob=0.0, translate_range=10),))
@@ -80,6 +81,7 @@ TEST_BASIC = [
 
 
 class TestDeCollate(unittest.TestCase):
+
     def setUp(self) -> None:
         set_determinism(seed=0)
 
@@ -128,7 +130,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_DICT)
     def test_decollation_dict(self, *transforms):
-        t_compose = Compose([AddChanneld(KEYS), Compose(transforms), ToTensord(KEYS)])
+        t_compose = Compose([EnsureChannelFirstd(KEYS, channel_dim="no_channel"), Compose(transforms), ToTensord(KEYS)])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImaged("image", image_only=True), t_compose])
@@ -138,7 +140,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_LIST)
     def test_decollation_tensor(self, *transforms):
-        t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
+        t_compose = Compose([EnsureChannelFirst(channel_dim="no_channel"), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImage(image_only=True), t_compose])
@@ -148,7 +150,7 @@ class TestDeCollate(unittest.TestCase):
 
     @parameterized.expand(TESTS_LIST)
     def test_decollation_list(self, *transforms):
-        t_compose = Compose([AddChannel(), Compose(transforms), ToTensor()])
+        t_compose = Compose([EnsureChannelFirst(channel_dim="no_channel"), Compose(transforms), ToTensor()])
         # If nibabel present, read from disk
         if has_nib:
             t_compose = Compose([LoadImage(image_only=True), t_compose])
@@ -158,6 +160,7 @@ class TestDeCollate(unittest.TestCase):
 
 
 class TestBasicDeCollate(unittest.TestCase):
+
     @parameterized.expand(TEST_BASIC)
     def test_decollation_examples(self, input_val, expected_out):
         out = decollate_batch(input_val)

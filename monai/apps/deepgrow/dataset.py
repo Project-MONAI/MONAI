@@ -9,28 +9,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import logging
 import os
-from typing import Dict, List, Union
+from collections.abc import Sequence
 
 import numpy as np
 
-from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd, SqueezeDimd
+from monai.config import PathLike
+from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd, SqueezeDimd, Transform
 from monai.utils import GridSampleMode
 
 
 def create_dataset(
-    datalist,
+    datalist: list[dict],
     output_dir: str,
     dimension: int,
-    pixdim,
+    pixdim: Sequence[float] | float,
     image_key: str = "image",
     label_key: str = "label",
-    base_dir=None,
+    base_dir: PathLike | None = None,
     limit: int = 0,
     relative_path: bool = False,
-    transforms=None,
-) -> List[Dict]:
+    transforms: Transform | None = None,
+) -> list[dict]:
     """
     Utility to pre-process and create dataset list for Deepgrow training over on existing one.
     The input data list is normally a list of images and labels (3D volume) that needs pre-processing
@@ -144,7 +147,7 @@ def _default_transforms(image_key, label_key, pixdim):
 
 
 def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
-    data_list: List[Dict[str, Union[str, int]]] = []
+    data_list: list[dict[str, str | int]] = []
 
     image_count = 0
     label_count = 0
@@ -211,7 +214,7 @@ def _save_data_2d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
 
 
 def _save_data_3d(vol_idx, vol_image, vol_label, dataset_dir, relative_path):
-    data_list: List[Dict[str, Union[str, int]]] = []
+    data_list: list[dict[str, str | int]] = []
 
     image_count = 0
     label_count = 0

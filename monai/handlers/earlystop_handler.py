@@ -9,10 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import TYPE_CHECKING, Callable, Optional
+from __future__ import annotations
 
-from monai.config import IgniteInfo
-from monai.utils import min_version, optional_import
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 EarlyStopping, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EarlyStopping")
@@ -45,7 +47,30 @@ class EarlyStopHandler:
 
     Note:
         If in distributed training and uses loss value of every iteration to detect early stopping,
-        the values may be different in different ranks.
+        the values may be different in different ranks. When using this handler with distributed training,
+        please also note that to prevent "dist.destroy_process_group()" hangs, you can use an "all_reduce" operation
+        to synchronize the stop signal across all ranks. The mechanism can be implemented in the `score_function`. The following
+        is an example:
+
+        .. code-block:: python
+
+            import os
+
+            import torch
+            import torch.distributed as dist
+
+
+            def score_function(engine):
+                val_metric = engine.state.metrics["val_mean_dice"]
+                if dist.is_initialized():
+                    device = torch.device("cuda:" + os.environ["LOCAL_RANK"])
+                    val_metric = torch.tensor([val_metric]).to(device)
+                    dist.all_reduce(val_metric, op=dist.ReduceOp.SUM)
+                    val_metric /= dist.get_world_size()
+                    return val_metric.item()
+                return val_metric
+
+
         User may attach this handler to validator engine to detect validation metrics and stop the training,
         in this case, the `score_function` is executed on validator engine and `trainer` is the trainer engine.
 
@@ -55,7 +80,7 @@ class EarlyStopHandler:
         self,
         patience: int,
         score_function: Callable,
-        trainer: Optional[Engine] = None,
+        trainer: Engine | None = None,
         min_delta: float = 0.0,
         cumulative_delta: bool = False,
         epoch_level: bool = True,
@@ -80,7 +105,7 @@ class EarlyStopHandler:
         else:
             engine.add_event_handler(Events.ITERATION_COMPLETED, self)
 
-    def set_trainer(self, trainer: Engine):
+    def set_trainer(self, trainer: Engine) -> None:
         """
         Set trainer to execute early stop if not setting properly in `__init__()`.
         """

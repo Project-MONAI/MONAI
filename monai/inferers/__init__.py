@@ -9,5 +9,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .inferer import Inferer, SaliencyInferer, SimpleInferer, SliceInferer, SlidingWindowInferer
+from __future__ import annotations
+
+from .inferer import (
+    ControlNetDiffusionInferer,
+    ControlNetLatentDiffusionInferer,
+    DiffusionInferer,
+    Inferer,
+    LatentDiffusionInferer,
+    PatchInferer,
+    SaliencyInferer,
+    SimpleInferer,
+    SliceInferer,
+    SlidingWindowInferer,
+    SlidingWindowInfererAdapt,
+    VQVAETransformerInferer,
+)
+from .merger import AvgMerger, Merger, ZarrAvgMerger
+from .splitter import SlidingWindowSplitter, Splitter, WSISlidingWindowSplitter
 from .utils import sliding_window_inference

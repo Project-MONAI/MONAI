@@ -9,13 +9,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.utils import OptionalImportError, min_version, require_pkg
 
 
 class TestRequirePkg(unittest.TestCase):
+
     def test_class(self):
+
         @require_pkg(pkg_name="torch", version="1.4", version_checker=min_version)
         class TestClass:
             pass
@@ -23,6 +27,7 @@ class TestRequirePkg(unittest.TestCase):
         TestClass()
 
     def test_function(self):
+
         @require_pkg(pkg_name="torch", version="1.4", version_checker=min_version)
         def test_func(x):
             return x
@@ -30,6 +35,7 @@ class TestRequirePkg(unittest.TestCase):
         test_func(x=None)
 
     def test_warning(self):
+
         @require_pkg(pkg_name="test123", raise_error=False)
         def test_func(x):
             return x

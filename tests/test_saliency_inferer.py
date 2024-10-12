@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -26,6 +28,7 @@ TEST_CASE_3 = ["GradCAMpp"]
 
 
 class TestSaliencyInferer(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_shape(self, cam_name):
         model = DenseNet(

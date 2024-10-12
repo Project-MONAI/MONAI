@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -84,6 +86,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestVoteEnsembled(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, input_param, img, expected_value):
         result = VoteEnsembled(**input_param)(img)

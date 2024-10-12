@@ -9,17 +9,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional, Tuple, Union
+from __future__ import annotations
+
+from typing import Optional
 
 import torch.nn
 
-from monai.networks.layers.factories import Act, Dropout, Norm, Pool, split_args
+from monai.networks.layers.factories import Act, Dropout, Norm, Pool, RelPosEmbedding, split_args
 from monai.utils import has_option
 
 __all__ = ["get_norm_layer", "get_act_layer", "get_dropout_layer", "get_pool_layer"]
 
 
-def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, channels: Optional[int] = 1):
+def get_norm_layer(name: tuple | str, spatial_dims: int | None = 1, channels: int | None = 1):
     """
     Create a normalization layer instance.
 
@@ -50,7 +52,7 @@ def get_norm_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1, cha
     return norm_type(**kw_args)
 
 
-def get_act_layer(name: Union[Tuple, str]):
+def get_act_layer(name: tuple | str):
     """
     Create an activation layer instance.
 
@@ -73,7 +75,7 @@ def get_act_layer(name: Union[Tuple, str]):
     return act_type(**act_args)
 
 
-def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional[int] = 1):
+def get_dropout_layer(name: tuple | str | float | int, dropout_dim: int | None = 1):
     """
     Create a dropout layer instance.
 
@@ -102,7 +104,7 @@ def get_dropout_layer(name: Union[Tuple, str, float, int], dropout_dim: Optional
     return drop_type(**drop_args)
 
 
-def get_pool_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1):
+def get_pool_layer(name: tuple | str, spatial_dims: int | None = 1):
     """
     Create a pooling layer instance.
 
@@ -124,3 +126,14 @@ def get_pool_layer(name: Union[Tuple, str], spatial_dims: Optional[int] = 1):
     pool_name, pool_args = split_args(name)
     pool_type = Pool[pool_name, spatial_dims]
     return pool_type(**pool_args)
+
+
+def get_rel_pos_embedding_layer(name: tuple | str, s_input_dims: Optional[tuple], c_dim: int, num_heads: int):
+    embedding_name, embedding_args = split_args(name)
+    embedding_type = RelPosEmbedding[embedding_name]
+    # create a dictionary with the default values which can be overridden by embedding_args
+    kw_args = {"s_input_dims": s_input_dims, "c_dim": c_dim, "num_heads": num_heads, **embedding_args}
+    # filter out unused argument names
+    kw_args = {k: v for k, v in kw_args.items() if has_option(embedding_type, k)}
+
+    return embedding_type(**kw_args)

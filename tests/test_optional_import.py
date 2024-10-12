@@ -9,22 +9,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
+
+from parameterized import parameterized
 
 from monai.utils import OptionalImportError, exact_version, optional_import
 
 
 class TestOptionalImport(unittest.TestCase):
-    def test_default(self):
-        my_module, flag = optional_import("not_a_module")
+
+    @parameterized.expand(["not_a_module", "torch.randint"])
+    def test_default(self, import_module):
+        my_module, flag = optional_import(import_module)
         self.assertFalse(flag)
         with self.assertRaises(OptionalImportError):
             my_module.test
-
-        my_module, flag = optional_import("torch.randint")
-        with self.assertRaises(OptionalImportError):
-            self.assertFalse(flag)
-            print(my_module.test)
 
     def test_import_valid(self):
         my_module, flag = optional_import("torch")
@@ -44,18 +45,9 @@ class TestOptionalImport(unittest.TestCase):
             self.assertTrue(flag)
             print(my_module.randint(1, 2, (1, 2)))
 
-    def test_import_good_number(self):
-        my_module, flag = optional_import("torch", "0")
-        my_module.nn
-        self.assertTrue(flag)
-        print(my_module.randint(1, 2, (1, 2)))
-
-        my_module, flag = optional_import("torch", "0.0.0.1")
-        my_module.nn
-        self.assertTrue(flag)
-        print(my_module.randint(1, 2, (1, 2)))
-
-        my_module, flag = optional_import("torch", "1.1.0")
+    @parameterized.expand(["0", "0.0.0.1", "1.1.0"])
+    def test_import_good_number(self, version_number):
+        my_module, flag = optional_import("torch", version_number)
         my_module.nn
         self.assertTrue(flag)
         print(my_module.randint(1, 2, (1, 2)))

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import pickle
 import unittest
 from os.path import exists, join
@@ -34,9 +36,9 @@ TEST_CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3]
 
 
 class TestStateCacher(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_state_cacher(self, data_obj, params):
-
         key = "data_obj"
 
         state_cacher = StateCacher(**params)

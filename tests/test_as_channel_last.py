@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -25,6 +27,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestAsChannelLast(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_shape(self, in_type, input_param, expected_shape):
         test_data = in_type(np.random.randint(0, 2, size=[1, 2, 3, 4]))

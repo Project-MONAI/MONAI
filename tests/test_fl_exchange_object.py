@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -44,6 +46,7 @@ TEST_FAILURE_WEIGHT_TYPE = [{"weights": None, "optim": None, "metrics": None, "w
 @SkipIfNoModule("torchvision")
 @SkipIfNoModule("ignite")
 class TestFLExchangeObject(unittest.TestCase):
+
     @parameterized.expand([TEST_INIT_1, TEST_INIT_2])
     def test_init(self, input_params, expected_str):
         eo = ExchangeObject(**input_params)

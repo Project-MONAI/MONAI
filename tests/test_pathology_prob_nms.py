@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -41,6 +43,7 @@ TEST_CASES_3D = [
 
 
 class TestPathologyProbNMS(unittest.TestCase):
+
     @parameterized.expand([TEST_CASES_2D, TEST_CASES_3D])
     def test_output(self, class_args, call_args, probs_map, expected):
         nms = PathologyProbNMS(**class_args)

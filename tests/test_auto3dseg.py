@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -121,6 +123,8 @@ class TestOperations(Operations):
     Test example for user operation
     """
 
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def __init__(self) -> None:
         self.data = {"max": np.max, "mean": np.mean, "min": np.min}
 
@@ -129,6 +133,8 @@ class TestAnalyzer(Analyzer):
     """
     Test example for a simple Analyzer
     """
+
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def __init__(self, key, report_format, stats_name="test"):
         self.key = key
@@ -147,8 +153,9 @@ class TestImageAnalyzer(Analyzer):
     Test example for a simple Analyzer
     """
 
-    def __init__(self, image_key="image", stats_name="test_image"):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
+    def __init__(self, image_key="image", stats_name="test_image"):
         self.image_key = image_key
         report_format = {"test_stats": None}
 
@@ -164,17 +171,17 @@ class TestImageAnalyzer(Analyzer):
 
 
 class TestDataAnalyzer(unittest.TestCase):
+
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()
         work_dir = self.test_dir.name
         self.dataroot_dir = os.path.join(work_dir, "sim_dataroot")
         self.datalist_file = os.path.join(work_dir, "sim_datalist.json")
-        self.datastat_file = os.path.join(work_dir, "data_stats.yaml")
+        self.datastat_file = os.path.join(work_dir, "datastats.yml")
         ConfigParser.export_config_file(sim_datalist, self.datalist_file)
 
     @parameterized.expand(SIM_CPU_TEST_CASES)
     def test_data_analyzer_cpu(self, input_params):
-
         sim_dim = input_params["sim_dim"]
         label_key = input_params["label_key"]
         image_only = not bool(label_key)
@@ -184,10 +191,25 @@ class TestDataAnalyzer(unittest.TestCase):
         )
 
         analyser = DataAnalyzer(
-            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=label_key
+            self.datalist_file, self.dataroot_dir, output_path=self.datastat_file, label_key=label_key, device=device
         )
         datastat = analyser.get_all_case_stats()
 
+        assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
+
+    def test_data_analyzer_histogram(self):
+        create_sim_data(
+            self.dataroot_dir, sim_datalist, [32] * 3, image_only=True, rad_max=8, rad_min=1, num_seg_classes=1
+        )
+        analyser = DataAnalyzer(
+            self.datalist_file,
+            self.dataroot_dir,
+            output_path=self.datastat_file,
+            label_key=None,
+            device=device,
+            histogram_only=True,
+        )
+        datastat = analyser.get_all_case_stats()
         assert len(datastat["stats_by_cases"]) == len(sim_datalist["training"])
 
     @parameterized.expand(SIM_GPU_TEST_CASES)
@@ -350,7 +372,6 @@ class TestDataAnalyzer(unittest.TestCase):
         self.dataset = DataLoader(ds, batch_size=1, shuffle=False, num_workers=n_workers, collate_fn=no_collation)
         for batch_data in self.dataset:
             d = transform(batch_data[0])
-            assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
             assert DataStatsKeys.BY_CASE_IMAGE_PATH in d
 
     def test_filename_case_analyzer_image_only(self):

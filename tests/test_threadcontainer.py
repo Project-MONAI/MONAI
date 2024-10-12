@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import time
@@ -34,6 +36,7 @@ compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_
 
 
 class TestThreadContainer(unittest.TestCase):
+
     @SkipIfNoModule("ignite")
     def test_container(self):
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
@@ -59,7 +62,7 @@ class TestThreadContainer(unittest.TestCase):
 
         self.assertTrue(con.is_alive)
         self.assertIsNotNone(con.status())
-        self.assertTrue(len(con.status_dict) > 0)
+        self.assertGreater(len(con.status_dict), 0)
 
         con.join()
 

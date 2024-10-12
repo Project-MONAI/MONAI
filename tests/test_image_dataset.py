@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -45,9 +47,10 @@ class RandTest(RandomizableTransform):
 
 
 class _TestCompose(Compose):
-    def __call__(self, data, meta):
+
+    def __call__(self, data, meta, lazy):
         data = self.transforms[0](data)  # ensure channel first
-        data = self.transforms[1](data, data.meta["affine"])  # spacing
+        data = self.transforms[1](data, lazy=lazy)  # spacing
         meta = data.meta
         if len(self.transforms) == 3:
             return self.transforms[2](data), meta  # image contrast
@@ -55,6 +58,7 @@ class _TestCompose(Compose):
 
 
 class TestImageDataset(unittest.TestCase):
+
     def test_use_case(self):
         with tempfile.TemporaryDirectory() as tempdir:
             img_ = nib.Nifti1Image(np.random.randint(0, 2, size=(20, 20, 20)).astype(float), np.eye(4))

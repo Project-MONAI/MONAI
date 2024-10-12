@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -27,6 +29,7 @@ TEST_CASE_1 = [
 
 
 class TestLLTM(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1])
     @SkipIfNoModule("monai._C")
     def test_value(self, input_param, expected_h, expected_c):

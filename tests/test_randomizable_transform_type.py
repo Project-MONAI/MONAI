@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 from monai.transforms.transform import RandomizableTrait, RandomizableTransform
@@ -19,11 +21,13 @@ class InheritsInterface(RandomizableTrait):
 
 
 class InheritsImplementation(RandomizableTransform):
+
     def __call__(self, data):
         return data
 
 
 class TestRandomizableTransformType(unittest.TestCase):
+
     def test_is_randomizable_transform_type(self):
         inst = InheritsInterface()
         self.assertIsInstance(inst, RandomizableTrait)

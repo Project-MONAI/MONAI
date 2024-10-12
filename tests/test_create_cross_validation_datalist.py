@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -18,6 +20,7 @@ from monai.data import create_cross_validation_datalist, load_decathlon_datalist
 
 
 class TestCreateCrossValidationDatalist(unittest.TestCase):
+
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             datalist = []

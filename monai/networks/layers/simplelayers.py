@@ -9,15 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import math
 from copy import deepcopy
-from typing import List, Optional, Sequence, Union
+from typing import Sequence
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.autograd import Function
 
+from monai.config.type_definitions import NdarrayOrTensor
 from monai.networks.layers.convutils import gaussian_1d
 from monai.networks.layers.factories import Conv
 from monai.utils import (
@@ -57,11 +60,7 @@ class ChannelPad(nn.Module):
     """
 
     def __init__(
-        self,
-        spatial_dims: int,
-        in_channels: int,
-        out_channels: int,
-        mode: Union[ChannelMatching, str] = ChannelMatching.PAD,
+        self, spatial_dims: int, in_channels: int, out_channels: int, mode: ChannelMatching | str = ChannelMatching.PAD
     ):
         """
 
@@ -112,7 +111,7 @@ class SkipConnection(nn.Module):
     The available modes are ``"cat"``, ``"add"``, ``"mul"``.
     """
 
-    def __init__(self, submodule, dim: int = 1, mode: Union[str, SkipMode] = "cat") -> None:
+    def __init__(self, submodule, dim: int = 1, mode: str | SkipMode = "cat") -> None:
         """
 
         Args:
@@ -171,11 +170,11 @@ class Reshape(nn.Module):
 
 def _separable_filtering_conv(
     input_: torch.Tensor,
-    kernels: List[torch.Tensor],
+    kernels: list[torch.Tensor],
     pad_mode: str,
     d: int,
     spatial_dims: int,
-    paddings: List[int],
+    paddings: list[int],
     num_channels: int,
 ) -> torch.Tensor:
     if d < 0:
@@ -195,8 +194,8 @@ def _separable_filtering_conv(
     conv_type = [F.conv1d, F.conv2d, F.conv3d][spatial_dims - 1]
 
     # translate padding for input to torch.nn.functional.pad
-    _reversed_padding_repeated_twice: List[List[int]] = [[p, p] for p in reversed(_padding)]
-    _sum_reversed_padding_repeated_twice: List[int] = sum(_reversed_padding_repeated_twice, [])
+    _reversed_padding_repeated_twice: list[list[int]] = [[p, p] for p in reversed(_padding)]
+    _sum_reversed_padding_repeated_twice: list[int] = sum(_reversed_padding_repeated_twice, [])
     padded_input = F.pad(input_, _sum_reversed_padding_repeated_twice, mode=pad_mode)
 
     return conv_type(
@@ -206,7 +205,7 @@ def _separable_filtering_conv(
     )
 
 
-def separable_filtering(x: torch.Tensor, kernels: List[torch.Tensor], mode: str = "zeros") -> torch.Tensor:
+def separable_filtering(x: torch.Tensor, kernels: list[torch.Tensor], mode: str = "zeros") -> torch.Tensor:
     """
     Apply 1-D convolutions along each spatial dimension of `x`.
 
@@ -322,7 +321,6 @@ class SavitzkyGolayFilter(nn.Module):
     """
 
     def __init__(self, window_length: int, order: int, axis: int = 2, mode: str = "zeros"):
-
         super().__init__()
         if order >= window_length:
             raise ValueError("order must be less than window_length.")
@@ -366,7 +364,6 @@ class SavitzkyGolayFilter(nn.Module):
 
     @staticmethod
     def _make_coeffs(window_length, order):
-
         half_length, rem = divmod(window_length, 2)
         if rem == 0:
             raise ValueError("window_length must be odd.")
@@ -391,8 +388,7 @@ class HilbertTransform(nn.Module):
         n: Number of Fourier components (i.e. FFT size). Default: ``x.shape[axis]``.
     """
 
-    def __init__(self, axis: int = 2, n: Union[int, None] = None) -> None:
-
+    def __init__(self, axis: int = 2, n: int | None = None) -> None:
         super().__init__()
         self.axis = axis
         self.n = n
@@ -456,9 +452,9 @@ def get_binary_kernel(window_size: Sequence[int], dtype=torch.float, device=None
 
 def median_filter(
     in_tensor: torch.Tensor,
-    kernel_size: Sequence[int] = (3, 3, 3),
+    kernel_size: Sequence[int] | int = (3, 3, 3),
     spatial_dims: int = 3,
-    kernel: Optional[torch.Tensor] = None,
+    kernel: torch.Tensor | None = None,
     **kwargs,
 ) -> torch.Tensor:
     """
@@ -536,7 +532,7 @@ class MedianFilter(nn.Module):
 
     """
 
-    def __init__(self, radius: Union[Sequence[int], int], spatial_dims: int = 3, device="cpu") -> None:
+    def __init__(self, radius: Sequence[int] | int, spatial_dims: int = 3, device="cpu") -> None:
         super().__init__()
         self.spatial_dims = spatial_dims
         self.radius: Sequence[int] = ensure_tuple_rep(radius, spatial_dims)
@@ -556,10 +552,11 @@ class MedianFilter(nn.Module):
 
 
 class GaussianFilter(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int,
-        sigma: Union[Sequence[float], float, Sequence[torch.Tensor], torch.Tensor],
+        sigma: Sequence[float] | float | Sequence[torch.Tensor] | torch.Tensor,
         truncated: float = 4.0,
         approx: str = "erf",
         requires_grad: bool = False,
@@ -611,6 +608,7 @@ class GaussianFilter(nn.Module):
 
 
 class LLTMFunction(Function):
+
     @staticmethod
     def forward(ctx, input, weights, bias, old_h, old_cell):
         outputs = _C.lltm_forward(input, weights, bias, old_h, old_cell)
@@ -658,3 +656,90 @@ class LLTM(nn.Module):
 
     def forward(self, input, state):
         return LLTMFunction.apply(input, self.weights, self.bias, *state)
+
+
+class ApplyFilter(nn.Module):
+    "Wrapper class to apply a filter to an image."
+
+    def __init__(self, filter: NdarrayOrTensor) -> None:
+        super().__init__()
+
+        self.filter = convert_to_tensor(filter, dtype=torch.float32)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return apply_filter(x, self.filter)
+
+
+class MeanFilter(ApplyFilter):
+    """
+    Mean filtering can smooth edges and remove aliasing artifacts in an segmentation image.
+    The mean filter used, is a `torch.Tensor` of all ones.
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        filter = torch.ones([size] * spatial_dims)
+        filter = filter
+        super().__init__(filter=filter)
+
+
+class LaplaceFilter(ApplyFilter):
+    """
+    Laplacian filtering for outline detection in images. Can be used to transform labels to contours.
+    The laplace filter used, is a `torch.Tensor` where all values are -1, except the center value
+    which is `size` ** `spatial_dims`
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        filter = torch.zeros([size] * spatial_dims).float() - 1  # make all -1
+        center_point = tuple([size // 2] * spatial_dims)
+        filter[center_point] = (size**spatial_dims) - 1
+        super().__init__(filter=filter)
+
+
+class EllipticalFilter(ApplyFilter):
+    """
+    Elliptical filter, can be used to dilate labels or label-contours.
+    The elliptical filter used here, is a `torch.Tensor` with shape (size, ) * ndim containing a circle/sphere of `1`
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        radius = size // 2
+        grid = torch.meshgrid(*[torch.arange(0, size) for _ in range(spatial_dims)])
+        squared_distances = torch.stack([(axis - radius) ** 2 for axis in grid], 0).sum(0)
+        filter = squared_distances <= radius**2
+        super().__init__(filter=filter)
+
+
+class SharpenFilter(EllipticalFilter):
+    """
+    Convolutional filter to sharpen a 2D or 3D image.
+    The filter used contains a circle/sphere of `-1`, with the center value being
+    the absolute sum of all non-zero elements in the kernel
+    """
+
+    def __init__(self, spatial_dims: int, size: int) -> None:
+        """
+        Args:
+            spatial_dims: `int` of either 2 for 2D images and 3 for 3D images
+            size: edge length of the filter
+        """
+        super().__init__(spatial_dims=spatial_dims, size=size)
+        center_point = tuple([size // 2] * spatial_dims)
+        center_value = self.filter.sum()
+        self.filter *= -1
+        self.filter[center_point] = center_value

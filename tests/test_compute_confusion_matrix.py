@@ -9,9 +9,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-from typing import Any, Dict, List
+from __future__ import annotations
 
+import unittest
+from typing import Any
+
+import numpy as np
 import torch
 from parameterized import parameterized
 
@@ -25,7 +28,7 @@ from tests.utils import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # input data
-data: Dict[Any, Any] = {
+data: dict[Any, Any] = {
     "y_pred": torch.tensor(
         [
             [[[0.0, 1.0], [0.0, 0.0]], [[0.0, 0.0], [1.0, 1.0]], [[1.0, 0.0], [0.0, 0.0]]],
@@ -42,7 +45,7 @@ data: Dict[Any, Any] = {
     ),
 }
 
-data_nan: Dict[Any, Any] = {
+data_nan: dict[Any, Any] = {
     # confusion matrix:[[[0,1,2,1],[1,1,1,1],[0,1,2,1]],
     #                   [[0,0,0,4],[0,0,4,0],[0,4,0,0]],
     #                   [[0,0,2,2],[0,0,2,2],[0,4,0,0]]]
@@ -62,7 +65,7 @@ data_nan: Dict[Any, Any] = {
     ),
 }
 
-data_clf: Dict[Any, Any] = {
+data_clf: dict[Any, Any] = {
     "y_pred": torch.tensor([[1, 0, 0], [0, 0, 1]]),
     "y": torch.tensor([[1, 0, 0], [0, 1, 0]]),
     "compute_sample": False,
@@ -146,7 +149,7 @@ metric_names = [
 result: Any = None
 for idx, item in enumerate(metric_names):
     for reduction in ["mean", "mean_batch"]:
-        TEST_CASE: List[Any] = [data.copy()]
+        TEST_CASE: list[Any] = [data.copy()]
         TEST_CASE[0]["compute_sample"] = True
         TEST_CASE[0]["include_background"] = True
         TEST_CASE[0]["metric_name"] = item
@@ -161,7 +164,7 @@ for idx, item in enumerate(metric_names):
 
 # one input to compute multiple metrics
 for reduction in ["mean", "mean_batch"]:
-    TEST_CASE_MULTIPLE: List[Any] = [data.copy()]
+    TEST_CASE_MULTIPLE: list[Any] = [data.copy()]
     TEST_CASE_MULTIPLE[0]["compute_sample"] = True
     TEST_CASE_MULTIPLE[0]["include_background"] = True
     TEST_CASE_MULTIPLE[0]["metric_name"] = metric_names
@@ -207,8 +210,17 @@ result_clf = torch.tensor(
 
 TEST_CASES_CLF = [data_clf.copy(), result_clf]
 
+TEST_CASE_PRECISION = [
+    {
+        "y_pred": torch.zeros([1, 1, 1024, 1024, 44], device=_device),
+        "y": torch.zeros([1, 1, 1024, 1024, 44], device=_device),
+    },
+    torch.tensor([[[0.0, 0.0, 46137344.0, 0.0]]]),
+]
+
 
 class TestConfusionMatrix(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_CONFUSION_MATRIX])
     def test_value(self, input_data, expected_value):
         # include or ignore background
@@ -218,6 +230,7 @@ class TestConfusionMatrix(unittest.TestCase):
         input_data["include_background"] = False
         result = get_confusion_matrix(**input_data)
         assert_allclose(result, expected_value[:, 1:, :], atol=1e-4, rtol=1e-4)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
     @parameterized.expand(TEST_CASES_COMPUTE_SAMPLE)
     def test_compute_sample(self, input_data, expected_value):
@@ -269,6 +282,13 @@ class TestConfusionMatrix(unittest.TestCase):
         expected_value, _ = do_metric_reduction(expected_value, "mean_channel")
         expected_value = compute_confusion_matrix_metric("tpr", expected_value)
         assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+
+    @parameterized.expand([TEST_CASE_PRECISION])
+    def test_precision(self, input_data, expected_value):
+        # include or ignore background
+        result = get_confusion_matrix(**input_data)
+        assert_allclose(result, expected_value, atol=1e-4, rtol=1e-4)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
 
 if __name__ == "__main__":

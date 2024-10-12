@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -23,6 +25,7 @@ TEST_CASES_3D = [
 
 
 class TestFactInc(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES_3D)
     def test_factorized_increase_3d(self, input_param, input_shape, expected_shape):
         net = FactorizedIncreaseBlock(**input_param)

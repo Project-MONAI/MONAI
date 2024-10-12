@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from unittest import skipUnless
 
@@ -24,6 +26,7 @@ cp, _ = optional_import("cupy")
 
 @skipUnless(HAS_CUPY, "CuPy is required.")
 class TestToCupyd(unittest.TestCase):
+
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])
         test_data = cp.rot90(test_data)

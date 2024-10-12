@@ -9,7 +9,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Optional
+from __future__ import annotations
 
 from monai.fl.utils.exchange_object import ExchangeObject
 
@@ -27,7 +27,7 @@ class BaseClient:
     to help with lifecycle management of the class object.
     """
 
-    def initialize(self, extra: Optional[dict] = None):
+    def initialize(self, extra: dict | None = None) -> None:
         """
         Call to initialize the ClientAlgo class.
 
@@ -36,7 +36,7 @@ class BaseClient:
         """
         pass
 
-    def finalize(self, extra: Optional[dict] = None):
+    def finalize(self, extra: dict | None = None) -> None:
         """
         Call to finalize the ClientAlgo class.
 
@@ -45,7 +45,7 @@ class BaseClient:
         """
         pass
 
-    def abort(self, extra: Optional[dict] = None):
+    def abort(self, extra: dict | None = None) -> None:
         """
         Call to abort the ClientAlgo training or evaluation.
 
@@ -57,7 +57,8 @@ class BaseClient:
 
 
 class ClientAlgoStats(BaseClient):
-    def get_data_stats(self, extra: Optional[dict] = None) -> ExchangeObject:
+
+    def get_data_stats(self, extra: dict | None = None) -> ExchangeObject:
         """
         Get summary statistics about the local data.
 
@@ -102,7 +103,7 @@ class ClientAlgo(ClientAlgoStats):
     to help with lifecycle management of the class object.
     """
 
-    def train(self, data: ExchangeObject, extra: Optional[dict] = None) -> None:
+    def train(self, data: ExchangeObject, extra: dict | None = None) -> None:
         """
         Train network and produce new network from train data.
 
@@ -115,7 +116,7 @@ class ClientAlgo(ClientAlgoStats):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def get_weights(self, extra: Optional[dict] = None) -> ExchangeObject:
+    def get_weights(self, extra: dict | None = None) -> ExchangeObject:
         """
         Get current local weights or weight differences.
 
@@ -138,7 +139,7 @@ class ClientAlgo(ClientAlgoStats):
         """
         raise NotImplementedError(f"Subclass {self.__class__.__name__} must implement this method.")
 
-    def evaluate(self, data: ExchangeObject, extra: Optional[dict] = None) -> ExchangeObject:
+    def evaluate(self, data: ExchangeObject, extra: dict | None = None) -> ExchangeObject:
         """
         Get evaluation metrics on test data.
 

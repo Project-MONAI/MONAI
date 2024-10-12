@@ -9,13 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 import warnings
 
-from monai.utils import DeprecatedError, deprecated, deprecated_arg
+from monai.utils import DeprecatedError, deprecated, deprecated_arg, deprecated_arg_default
 
 
 class TestDeprecatedRC(unittest.TestCase):
+
     def setUp(self):
         self.test_version_rc = "0.6.0rc1"
         self.test_version = "0.6.0"
@@ -59,6 +62,7 @@ class TestDeprecatedRC(unittest.TestCase):
 
 
 class TestDeprecated(unittest.TestCase):
+
     def setUp(self):
         self.test_version = "0.5.3+96.g1fa03c2.dirty"
         self.prev_version = "0.4.3+96.g1fa03c2.dirty"
@@ -140,6 +144,7 @@ class TestDeprecated(unittest.TestCase):
         """Test deprecated decorator with just `since` set."""
 
         class Foo5:
+
             @deprecated(since=self.prev_version, version_val=self.test_version)
             def meth1(self):
                 pass
@@ -150,6 +155,7 @@ class TestDeprecated(unittest.TestCase):
         """Test deprecated decorator with just `since` set."""
 
         class Foo6:
+
             @deprecated(version_val=self.test_version)
             def meth1(self):
                 pass
@@ -232,7 +238,7 @@ class TestDeprecated(unittest.TestCase):
         def afoo4(a, b=None):
             pass
 
-        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
+        afoo4(1, b=2)
 
     def test_arg_except3_unknown(self):
         """
@@ -244,8 +250,8 @@ class TestDeprecated(unittest.TestCase):
         def afoo4(a, b=None, **kwargs):
             pass
 
-        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2))
-        self.assertRaises(DeprecatedError, lambda: afoo4(1, b=2, c=3))
+        afoo4(1, b=2)
+        afoo4(1, b=2, c=3)
 
     def test_replacement_arg(self):
         """
@@ -286,6 +292,163 @@ class TestDeprecated(unittest.TestCase):
         self.assertEqual(afoo4(1, b=2, c=3), (1, {"c": 3}))  # new name is in use
         self.assertEqual(afoo4(a=1, b=2, c=3), (1, {"c": 3}))  # prefers the new arg
         self.assertEqual(afoo4(1, 2, c=3), (1, {"c": 3}))  # prefers the new positional arg
+
+    def test_deprecated_arg_default_explicit_default(self):
+        """
+        Test deprecated arg default, where the default is explicitly set (no warning).
+        """
+
+        @deprecated_arg_default(
+            "b", old_default="a", new_default="b", since=self.prev_version, version_val=self.test_version
+        )
+        def foo(a, b="a"):
+            return a, b
+
+        with self.assertWarns(FutureWarning) as aw:
+            self.assertEqual(foo("a", "a"), ("a", "a"))
+            self.assertEqual(foo("a", "b"), ("a", "b"))
+            self.assertEqual(foo("a", "c"), ("a", "c"))
+            warnings.warn("fake warning", FutureWarning)
+
+        self.assertEqual(aw.warning.args[0], "fake warning")
+
+    def test_deprecated_arg_default_version_less_than_since(self):
+        """
+        Test deprecated arg default, where the current version is less than `since` (no warning).
+        """
+
+        @deprecated_arg_default(
+            "b", old_default="a", new_default="b", since=self.test_version, version_val=self.prev_version
+        )
+        def foo(a, b="a"):
+            return a, b
+
+        with self.assertWarns(FutureWarning) as aw:
+            self.assertEqual(foo("a"), ("a", "a"))
+            self.assertEqual(foo("a", "a"), ("a", "a"))
+            warnings.warn("fake warning", FutureWarning)
+
+        self.assertEqual(aw.warning.args[0], "fake warning")
+
+    def test_deprecated_arg_default_warning_deprecated(self):
+        """
+        Test deprecated arg default, where the default is used.
+        """
+
+        @deprecated_arg_default(
+            "b", old_default="a", new_default="b", since=self.prev_version, version_val=self.test_version
+        )
+        def foo(a, b="a"):
+            return a, b
+
+        self.assertWarns(FutureWarning, lambda: foo("a"))
+
+    def test_deprecated_arg_default_warning_replaced(self):
+        """
+        Test deprecated arg default, where the default is used.
+        """
+
+        @deprecated_arg_default(
+            "b",
+            old_default="a",
+            new_default="b",
+            since=self.prev_version,
+            replaced=self.prev_version,
+            version_val=self.test_version,
+        )
+        def foo(a, b="a"):
+            return a, b
+
+        self.assertWarns(FutureWarning, lambda: foo("a"))
+
+    def test_deprecated_arg_default_warning_with_none_as_placeholder(self):
+        """
+        Test deprecated arg default, where the default is used.
+        """
+
+        @deprecated_arg_default(
+            "b", old_default="a", new_default="b", since=self.prev_version, version_val=self.test_version
+        )
+        def foo(a, b=None):
+            if b is None:
+                b = "a"
+            return a, b
+
+        self.assertWarns(FutureWarning, lambda: foo("a"))
+
+        @deprecated_arg_default(
+            "b", old_default="a", new_default="b", since=self.prev_version, version_val=self.test_version
+        )
+        def foo2(a, b=None):
+            if b is None:
+                b = "b"
+            return a, b
+
+        self.assertWarns(FutureWarning, lambda: foo2("a"))
+
+    def test_deprecated_arg_default_errors(self):
+        """
+        Test deprecated arg default, where the decorator is wrongly used.
+        """
+
+        # since > replaced
+        def since_grater_than_replaced():
+
+            @deprecated_arg_default(
+                "b",
+                old_default="a",
+                new_default="b",
+                since=self.test_version,
+                replaced=self.prev_version,
+                version_val=self.test_version,
+            )
+            def foo(a, b=None):
+                return a, b
+
+        self.assertRaises(ValueError, since_grater_than_replaced)
+
+        # argname doesnt exist
+        def argname_doesnt_exist():
+
+            @deprecated_arg_default(
+                "other", old_default="a", new_default="b", since=self.test_version, version_val=self.test_version
+            )
+            def foo(a, b=None):
+                return a, b
+
+        self.assertRaises(ValueError, argname_doesnt_exist)
+
+        # argname has no default
+        def argname_has_no_default():
+
+            @deprecated_arg_default(
+                "a",
+                old_default="a",
+                new_default="b",
+                since=self.prev_version,
+                replaced=self.test_version,
+                version_val=self.test_version,
+            )
+            def foo(a):
+                return a
+
+        self.assertRaises(ValueError, argname_has_no_default)
+
+        # new default is used but version < replaced
+        def argname_was_replaced_before_specified_version():
+
+            @deprecated_arg_default(
+                "a",
+                old_default="a",
+                new_default="b",
+                since=self.prev_version,
+                replaced=self.next_version,
+                version_val=self.test_version,
+            )
+            def foo(a, b="b"):
+                return a, b
+
+        self.assertRaises(ValueError, argname_was_replaced_before_specified_version)
 
 
 if __name__ == "__main__":

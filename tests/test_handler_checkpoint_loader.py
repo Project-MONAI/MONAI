@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import tempfile
 import unittest
 
@@ -21,6 +23,7 @@ from tests.utils import assert_allclose
 
 
 class TestHandlerCheckpointLoader(unittest.TestCase):
+
     def test_one_save_one_load(self):
         net1 = torch.nn.PReLU()
         data1 = net1.state_dict()

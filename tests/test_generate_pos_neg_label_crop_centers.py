@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -28,7 +30,7 @@ TESTS = [
             "fg_indices": [1, 9, 18],
             "bg_indices": [3, 12, 21],
         },
-        list,
+        tuple,
         2,
         3,
     ],
@@ -41,7 +43,7 @@ TESTS = [
             "fg_indices": [],
             "bg_indices": [3, 12, 21],
         },
-        list,
+        tuple,
         2,
         3,
     ],
@@ -49,6 +51,7 @@ TESTS = [
 
 
 class TestGeneratePosNegLabelCropCenters(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_data, expected_type, expected_count, expected_shape):
         results = []

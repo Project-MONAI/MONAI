@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from typing import TYPE_CHECKING
 from unittest import skipUnless
@@ -36,6 +38,7 @@ if has_pil:
 
 
 class TestToPIL(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     @skipUnless(has_pil, "Requires `pillow` package.")
     def test_values(self, input_param, test_data):

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -18,6 +20,7 @@ from monai.data.utils import create_file_basename
 
 
 class TestFilename(unittest.TestCase):
+
     def test_value(self):
         with tempfile.TemporaryDirectory() as tempdir:
             output_tmp = os.path.join(tempdir, "output")

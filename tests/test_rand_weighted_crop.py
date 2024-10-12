@@ -9,12 +9,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
 from parameterized.parameterized import parameterized
 
+from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import RandWeightedCrop
+from monai.transforms.lazy.functional import apply_pending
 from tests.croppers import CropTest
 from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
@@ -86,6 +90,21 @@ for p in TEST_NDARRAYS_ALL:
                 [[63, 37], [31, 43], [66, 20]],
             ]
         )
+        im = SEG1_2D
+        weight_map = np.zeros_like(im, dtype=np.int32)
+        weight_map[0, 30, 20] = 3
+        weight_map[0, 45, 44] = 1
+        weight_map[0, 60, 50] = 2
+        TESTS.append(
+            [
+                "int w 2d",
+                dict(spatial_size=(10, 12), num_samples=3),
+                p(im),
+                q(weight_map),
+                (1, 10, 12),
+                [[60, 50], [30, 20], [45, 44]],
+            ]
+        )
         im = SEG1_3D
         weight = np.zeros_like(im)
         weight[0, 5, 30, 17] = 1.1
@@ -145,6 +164,21 @@ for p in TEST_NDARRAYS_ALL:
                 [[32, 24, 40], [32, 24, 40], [32, 24, 40]],
             ]
         )
+        im = SEG1_3D
+        weight_map = np.zeros_like(im, dtype=np.int32)
+        weight_map[0, 6, 22, 19] = 4
+        weight_map[0, 8, 40, 31] = 2
+        weight_map[0, 13, 20, 24] = 3
+        TESTS.append(
+            [
+                "int w 3d",
+                dict(spatial_size=(8, 10, 12), num_samples=3),
+                p(im),
+                q(weight_map),
+                (1, 8, 10, 12),
+                [[13, 20, 24], [6, 22, 19], [8, 40, 31]],
+            ]
+        )
 
 
 class TestRandWeightedCrop(CropTest):
@@ -164,6 +198,26 @@ class TestRandWeightedCrop(CropTest):
             for res in result:
                 assert_allclose(res, img, type_test="tensor")
                 self.assertEqual(len(res.applied_operations), 1)
+
+    @parameterized.expand(TESTS)
+    def test_pending_ops(self, _, input_param, img, weight, expected_shape, expected_vals):
+        crop = RandWeightedCrop(**input_param)
+        # non-lazy
+        crop.set_random_state(10)
+        expected = crop(img, weight)
+        self.assertIsInstance(expected[0], MetaTensor)
+        # lazy
+        crop.set_random_state(10)
+        crop.lazy = True
+        pending_result = crop(img, weight)
+        for i, _pending_result in enumerate(pending_result):
+            self.assertIsInstance(_pending_result, MetaTensor)
+            assert_allclose(_pending_result.peek_pending_affine(), expected[i].affine)
+            assert_allclose(_pending_result.peek_pending_shape(), expected[i].shape[1:])
+            # only support nearest
+            result = apply_pending(_pending_result, overrides={"mode": "nearest", "align_corners": False})[0]
+            # compare
+            assert_allclose(result, expected[i], rtol=1e-5)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -35,6 +37,7 @@ TESTS = [
 
 
 class TestEnsureTuple(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_value(self, input, expected_value, wrap_array=False):
         result = ensure_tuple(input, wrap_array)
@@ -48,5 +51,4 @@ class TestEnsureTuple(unittest.TestCase):
 
 
 if __name__ == "__main__":
-
     unittest.main()

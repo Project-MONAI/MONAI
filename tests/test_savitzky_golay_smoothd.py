@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -58,6 +60,7 @@ TEST_CASE_SINE_SMOOTH = [
 
 
 class TestSavitzkyGolaySmoothd(unittest.TestCase):
+
     @parameterized.expand(
         [TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH, TEST_CASE_SINGLE_VALUE_REP]
     )

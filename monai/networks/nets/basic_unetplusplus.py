@@ -9,7 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -22,6 +24,7 @@ __all__ = ["BasicUnetPlusPlus", "BasicunetPlusPlus", "basicunetplusplus", "Basic
 
 
 class BasicUNetPlusPlus(nn.Module):
+
     def __init__(
         self,
         spatial_dims: int = 3,
@@ -29,10 +32,10 @@ class BasicUNetPlusPlus(nn.Module):
         out_channels: int = 2,
         features: Sequence[int] = (32, 32, 64, 128, 256, 32),
         deep_supervision: bool = False,
-        act: Union[str, tuple] = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
-        norm: Union[str, tuple] = ("instance", {"affine": True}),
+        act: str | tuple = ("LeakyReLU", {"negative_slope": 0.1, "inplace": True}),
+        norm: str | tuple = ("instance", {"affine": True}),
         bias: bool = True,
-        dropout: Union[float, tuple] = 0.0,
+        dropout: float | tuple = 0.0,
         upsample: str = "deconv",
     ):
         """

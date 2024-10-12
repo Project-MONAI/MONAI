@@ -9,15 +9,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 from collections import OrderedDict
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Union
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo, KeysCollection, PathLike
-from monai.utils import ensure_tuple, look_up_option, min_version, optional_import
+from monai.config import KeysCollection, PathLike
+from monai.utils import IgniteInfo, ensure_tuple, look_up_option, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 if TYPE_CHECKING:
@@ -28,23 +31,23 @@ else:
 __all__ = ["stopping_fn_from_metric", "stopping_fn_from_loss", "write_metrics_reports", "from_engine"]
 
 
-def stopping_fn_from_metric(metric_name: str):
+def stopping_fn_from_metric(metric_name: str) -> Callable[[Engine], Any]:
     """
     Returns a stopping function for ignite.handlers.EarlyStopping using the given metric name.
     """
 
-    def stopping_fn(engine: Engine):
+    def stopping_fn(engine: Engine) -> Any:
         return engine.state.metrics[metric_name]
 
     return stopping_fn
 
 
-def stopping_fn_from_loss():
+def stopping_fn_from_loss() -> Callable[[Engine], Any]:
     """
     Returns a stopping function for ignite.handlers.EarlyStopping using the loss value.
     """
 
-    def stopping_fn(engine: Engine):
+    def stopping_fn(engine: Engine) -> Any:
         return -engine.state.output  # type:ignore
 
     return stopping_fn
@@ -52,13 +55,14 @@ def stopping_fn_from_loss():
 
 def write_metrics_reports(
     save_dir: PathLike,
-    images: Optional[Sequence[str]],
-    metrics: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
-    metric_details: Optional[Dict[str, Union[torch.Tensor, np.ndarray]]],
-    summary_ops: Optional[Union[str, Sequence[str]]],
+    images: Sequence[str] | None,
+    metrics: dict[str, torch.Tensor | np.ndarray] | None,
+    metric_details: dict[str, torch.Tensor | np.ndarray] | None,
+    summary_ops: str | Sequence[str] | None,
     deli: str = ",",
     output_type: str = "csv",
-):
+    class_labels: list[str] | None = None,
+) -> None:
     """
     Utility function to write the metrics into files, contains 3 parts:
     1. if `metrics` dict is not None, write overall metrics into file, every line is a metric name and value pair.
@@ -91,6 +95,8 @@ def write_metrics_reports(
         deli: the delimiter character in the saved file, default to "," as the default output type is `csv`.
             to be consistent with: https://docs.python.org/3/library/csv.html#csv.Dialect.delimiter.
         output_type: expected output file type, supported types: ["csv"], default to "csv".
+        class_labels: list of class names used to name the classes in the output report, if None,
+            "class0", ..., "classn" are used, default to None.
 
     """
     if output_type.lower() != "csv":
@@ -115,7 +121,12 @@ def write_metrics_reports(
                 v = v.reshape((-1, 1))
 
             # add the average value of all classes to v
-            class_labels = ["class" + str(i) for i in range(v.shape[1])] + ["mean"]
+            if class_labels is None:
+                class_labels = ["class" + str(i) for i in range(v.shape[1])]
+            else:
+                class_labels = [str(i) for i in class_labels]  # ensure to have a list of str
+
+            class_labels += ["mean"]
             v = np.concatenate([v, np.nanmean(v, axis=1, keepdims=True)], axis=1)
 
             with open(os.path.join(save_dir, f"{k}_raw.csv"), "w") as f:
@@ -142,7 +153,7 @@ def write_metrics_reports(
                 if "*" in ops:
                     ops = tuple(supported_ops.keys())
 
-                def _compute_op(op: str, d: np.ndarray):
+                def _compute_op(op: str, d: np.ndarray) -> Any:
                     if not op.endswith("percentile"):
                         c_op = look_up_option(op, supported_ops)
                         return c_op(d)
@@ -156,7 +167,7 @@ def write_metrics_reports(
                         f.write(f"{class_labels[i]}{deli}{deli.join([f'{_compute_op(k, c):.4f}' for k in ops])}\n")
 
 
-def from_engine(keys: KeysCollection, first: bool = False):
+def from_engine(keys: KeysCollection, first: bool = False) -> Callable:
     """
     Utility function to simplify the `batch_transform` or `output_transform` args of ignite components
     when handling dictionary or list of dictionaries(for example: `engine.state.batch` or `engine.state.output`).
@@ -199,7 +210,7 @@ def from_engine(keys: KeysCollection, first: bool = False):
     return _wrapper
 
 
-def ignore_data(x: Any):
+def ignore_data(x: Any) -> None:
     """
     Always return `None` for any input data.
     A typical usage is to avoid logging the engine output of every iteration during evaluation.

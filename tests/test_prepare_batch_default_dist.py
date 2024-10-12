@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import torch
@@ -41,11 +43,14 @@ TEST_CASE_2 = [
 
 
 class TestNet(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def forward(self, x: torch.Tensor):
         return x
 
 
 class DistributedPrepareBatchDefault(DistTestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @DistCall(nnodes=1, nproc_per_node=2, node_rank=0)
     def test_compute(self, dataloaders):

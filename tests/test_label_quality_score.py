@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 
 import numpy as np
@@ -97,10 +99,12 @@ TEST_CASE_7 = [  # y_pred (1, 1, 2, 2)
 
 
 class TestLabelQualityScore(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value(self, input_data, expected_value):
         result = label_quality_score(**input_data)
         np.testing.assert_allclose(result.cpu().numpy(), expected_value, atol=1e-4)
+        np.testing.assert_equal(result.device, input_data["y_pred"].device)
 
     @parameterized.expand([TEST_CASE_6, TEST_CASE_7])
     def test_spatial_case(self, input_data, expected_value):

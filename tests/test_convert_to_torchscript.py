@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import os
 import tempfile
 import unittest
@@ -20,6 +22,7 @@ from monai.networks.nets import UNet
 
 
 class TestConvertToTorchScript(unittest.TestCase):
+
     def test_value(self):
         model = UNet(
             spatial_dims=2, in_channels=1, out_channels=3, channels=(16, 32, 64), strides=(2, 2), num_res_units=0

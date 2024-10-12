@@ -13,6 +13,8 @@ Minimal subclassing as baselines
 Adapted from https://github.com/pytorch/pytorch/tree/v1.11.0/benchmarks/overrides_benchmark
 """
 
+from __future__ import annotations
+
 import torch
 
 __all__ = ["SubTensor", "SubWithTorchFunc"]
@@ -23,5 +25,6 @@ class SubTensor(torch.Tensor):
 
 
 class SubWithTorchFunc(torch.Tensor):
+
     def __torch_function__(self, func, types, args=(), kwargs=None):
         return super().__torch_function__(func, types, args, {} if kwargs is None else kwargs)

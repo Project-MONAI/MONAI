@@ -76,4 +76,4 @@ The following figure shows the detection training and inference workflows:
 ![detection workflow](../images/detection.png)
 
 ### Reproducing the state-of-the-art Kaggle competition solutions
-[A reimplementation](https://github.com/Project-MONAI/tutorials/tree/master/kaggle/RANZCR/4th_place_solution) of the 4th place solution of RANZCR CLiP - Catheter and Line Position Challenge in Kaggle: https://www.kaggle.com/c/ranzcr-clip-catheter-line-classification
+[A reimplementation](https://github.com/Project-MONAI/tutorials/tree/main/competitions/kaggle/RANZCR/4th_place_solution) of the 4th place solution of RANZCR CLiP - Catheter and Line Position Challenge in Kaggle: https://www.kaggle.com/c/ranzcr-clip-catheter-line-classification

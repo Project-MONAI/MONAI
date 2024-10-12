@@ -17,12 +17,6 @@ Module utils
   :members:
 
 
-Aliases
--------
-.. automodule:: monai.utils.aliases
-  :members:
-
-
 Misc
 ----
 .. automodule:: monai.utils.misc
@@ -75,4 +69,14 @@ Jupyter Utilities
 State Cacher
 ------------
 .. automodule:: monai.utils.state_cacher
+  :members:
+
+Component store
+---------------
+.. autoclass:: monai.utils.component_store.ComponentStore
+  :members:
+
+Ordering
+--------
+.. automodule:: monai.utils.ordering
   :members:

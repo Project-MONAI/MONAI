@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import io
 import os
 import random
@@ -18,7 +20,6 @@ import unittest
 import warnings
 from copy import deepcopy
 from multiprocessing.reduction import ForkingPickler
-from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -49,6 +50,7 @@ def rand_string(min_len=5, max_len=10):
 
 
 class TestMetaTensor(unittest.TestCase):
+
     @staticmethod
     def get_im(shape=None, dtype=None, device=None):
         if shape is None:
@@ -86,7 +88,7 @@ class TestMetaTensor(unittest.TestCase):
         shape: bool = True,
         vals: bool = True,
         ids: bool = True,
-        device: Optional[Union[str, torch.device]] = None,
+        device: str | torch.device | None = None,
         meta: bool = True,
         check_ids: bool = True,
         **kwargs,
@@ -176,6 +178,7 @@ class TestMetaTensor(unittest.TestCase):
         a = deepcopy(m)
         self.check(a, m, ids=False)
         # clone
+        a = m.clone(memory_format=torch.preserve_format)
         a = m.clone()
         self.check(a, m, ids=False)
         a = MetaTensor([[]], device=device, dtype=dtype)
@@ -219,9 +222,9 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_get_set_meta_fns(self):
         set_track_meta(False)
-        self.assertEqual(get_track_meta(), False)
+        self.assertFalse(get_track_meta())
         set_track_meta(True)
-        self.assertEqual(get_track_meta(), True)
+        self.assertTrue(get_track_meta())
 
     @parameterized.expand(TEST_DEVICES)
     def test_torchscript(self, device):
@@ -246,7 +249,7 @@ class TestMetaTensor(unittest.TestCase):
                     "your pytorch version if this is important to you."
                 )
                 im_conv = im_conv.as_tensor()
-            self.check(out, im_conv, ids=False)
+        self.check(out, im_conv, ids=False)
 
     def test_pickling(self):
         m, _ = self.get_im()
@@ -257,7 +260,7 @@ class TestMetaTensor(unittest.TestCase):
             if not isinstance(m2, MetaTensor) and not pytorch_after(1, 8, 1):
                 warnings.warn("Old version of pytorch. pickling converts `MetaTensor` to `torch.Tensor`.")
                 m = m.as_tensor()
-            self.check(m2, m, ids=False)
+        self.check(m2, m, ids=False)
 
     @skip_if_no_cuda
     def test_amp(self):
@@ -405,6 +408,17 @@ class TestMetaTensor(unittest.TestCase):
         for _d in d:
             self.check_meta(_d, data)
 
+    def test_slicing(self):
+        x = MetaTensor(np.zeros((10, 3, 4)))
+        self.assertEqual(x[slice(4, 1)].shape[0], 0)
+        x.is_batch = True
+        with self.assertRaises(ValueError):
+            x[slice(0, 8)]
+        x = MetaTensor(np.zeros((3, 3, 4)))
+        x.is_batch = True
+        self.assertEqual(x[torch.tensor([True, False, True])].shape, (2, 3, 4))
+        self.assertEqual(x[[True, False, True]].shape, (2, 3, 4))
+
     @parameterized.expand(DTYPES)
     @SkipIfBeforePyTorchVersion((1, 8))
     def test_decollate(self, dtype):
@@ -422,8 +436,9 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_str(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
-        self.assertEqual(str(t), "tensor([1.])")
-        self.assertEqual(t.__repr__(), "tensor([1.])")
+        self.assertEqual(str(t), "metatensor([1.])")
+        self.assertEqual(t.__repr__(), "metatensor([1.])")
+        self.assertEqual(f"{t[0]:.2f}", "1.00")
 
     def test_shape(self):
         s = MetaTensor([1])
@@ -433,7 +448,7 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_astype(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
-        for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.compat.long, np.uint16):
+        for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.uint16):
             self.assertIsInstance(t.astype(np_types), np.ndarray)
         for pt_types in ("torch.float", torch.float, "torch.float64"):
             self.assertIsInstance(t.astype(pt_types), torch.Tensor)
@@ -507,9 +522,11 @@ class TestMetaTensor(unittest.TestCase):
         self.assertEqual(m.pending_operations, [])
         self.assertEqual(m.peek_pending_shape(), (10, 8))
         self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        self.assertTrue(m.peek_pending_rank() >= 1)
         m.push_pending_operation({})
         self.assertEqual(m.peek_pending_shape(), (10, 8))
         self.assertIsInstance(m.peek_pending_affine(), torch.Tensor)
+        self.assertTrue(m.peek_pending_rank() >= 1)
 
     @parameterized.expand(TESTS)
     def test_multiprocessing(self, device=None, dtype=None):

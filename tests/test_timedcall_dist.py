@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import multiprocessing
 import sys
 import time
@@ -48,6 +50,7 @@ def case_1_seconds_bad(arg=None):
 
 
 class TestTimedCall(unittest.TestCase):
+
     def test_good_call(self):
         output = case_1_seconds()
         self.assertEqual(output, "good")

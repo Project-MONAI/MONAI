@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import csv
 import os
 import tempfile
@@ -21,6 +23,7 @@ from monai.handlers.utils import write_metrics_reports
 
 
 class TestWriteMetricsReports(unittest.TestCase):
+
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             write_metrics_reports(

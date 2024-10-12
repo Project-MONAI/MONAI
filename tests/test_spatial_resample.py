@@ -9,6 +9,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import unittest
 from copy import deepcopy
 
@@ -21,6 +23,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
 from monai.utils import optional_import
+from tests.lazy_transforms_utils import test_resampler_lazy
 from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
@@ -130,6 +133,7 @@ for track_meta in (True,):
 
 
 class TestSpatialResample(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_flips(self, img, device, data_param, expected_output):
         for p in TEST_NDARRAYS_ALL:
@@ -138,9 +142,14 @@ class TestSpatialResample(unittest.TestCase):
                 img.affine = torch.eye(4)
             if hasattr(img, "to"):
                 img = img.to(device)
-            out = SpatialResample()(img=img, **data_param)
+            resampler = SpatialResample()
+            call_param = data_param.copy()
+            call_param["img"] = img
+            out = resampler(**call_param)
             assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-            assert_allclose(out.affine, data_param["dst_affine"])
+            assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), call_param["dst_affine"])
+
+            test_resampler_lazy(resampler, out, init_param=None, call_param=call_param)
 
     @parameterized.expand(TEST_4_5_D)
     def test_4d_5d(self, new_shape, tile, device, dtype, expected_data):
@@ -150,9 +159,14 @@ class TestSpatialResample(unittest.TestCase):
 
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype)
-        out = SpatialResample(dtype=dtype, align_corners=True)(img=img, dst_affine=dst, align_corners=False)
+        init_param = {"dtype": dtype, "align_corners": True}
+        call_param = {"img": img, "dst_affine": dst, "align_corners": False}
+        resampler = SpatialResample(**init_param)
+        out = resampler(**call_param)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
         assert_allclose(out.affine, dst.to(torch.float32), rtol=1e-2, atol=1e-2)
+
+        test_resampler_lazy(resampler, out, init_param, call_param)
 
     @parameterized.expand(TEST_DEVICES)
     def test_ill_affine(self, device):
@@ -180,9 +194,14 @@ class TestSpatialResample(unittest.TestCase):
         img = torch.as_tensor(np.tile(img, tile)).to(device)
         dst = torch.tensor([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, -1.0, 1.5], [0.0, 0.0, 0.0, 1.0]])
         dst = dst.to(dtype).to(device)
-
-        out = SpatialResample(dtype=dtype)(img=img, dst_affine=dst)
+        init_param = {"dtype": dtype}
+        call_param = {"img": img, "dst_affine": dst}
+        resampler = SpatialResample(**init_param)
+        out = resampler(**call_param)
         assert_allclose(out, expected_data[None], rtol=1e-2, atol=1e-2)
+
+        test_resampler_lazy(resampler, out, init_param, call_param)
+
         if track_meta:
             self.assertIsInstance(out, MetaTensor)
             assert_allclose(out.affine, dst.to(torch.float32), rtol=1e-2, atol=1e-2)
@@ -196,13 +215,21 @@ class TestSpatialResample(unittest.TestCase):
         tr = SpatialResample()
         out = tr(img=img, **data_param)
         assert_allclose(out, expected_output, rtol=1e-2, atol=1e-2)
-        assert_allclose(out.affine, data_param["dst_affine"])
+        assert_allclose(to_affine_nd(len(out.shape) - 1, out.affine), data_param["dst_affine"])
 
         # inverse
         out = tr.inverse(out)
         assert_allclose(img, out)
         expected_affine = to_affine_nd(len(out.affine) - 1, torch.eye(4))
         assert_allclose(out.affine, expected_affine)
+
+    def test_unchange(self):
+        for i, p in enumerate(TEST_NDARRAYS_ALL):
+            set_track_meta(i % 2)
+            img = p(np.arange(12).reshape(1, 3, 4))
+            result = SpatialResample()(img)
+            assert_allclose(result, img, type_test=False)
+        set_track_meta(True)
 
 
 if __name__ == "__main__":
