@@ -29,7 +29,7 @@ VISTA-3D is a specialized interactive foundation model for 3D medical imaging. I
 
 A tutorial showing how to finetune VISTA-3D on spleen dataset is provided within
 [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/vista_3d).
-It can support three core workflows:
+It supports three core workflows:
 - Segment everything: Enables whole body exploration, crucial for understanding complex diseases affecting multiple organs and for holistic treatment planning.
 - Segment using class: Provides detailed sectional views based on specific classes, essential for targeted disease analysis or organ mapping, such as tumor identification in critical organs.
 - Segment point prompts: Enhances segmentation precision through user-directed, click-based selection. This interactive approach accelerates the creation of accurate ground-truth data, essential in medical imaging analysis.
