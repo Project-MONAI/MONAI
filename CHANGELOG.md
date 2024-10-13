@@ -19,7 +19,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Integrated generative refactor into the core (#7886, #7962)
 * Made `ViT` and `UNETR` models compatible with TorchScript (#7937)
 * Implemented post-download checks for MONAI bundles and compatibility warnings (#7938)
-* Added NGC prefix argument when downloading bundles (7974)
+* Added NGC prefix argument when downloading bundles (#7974)
 * Added flash attention support in the attention block for improved performance (#7977)
 * Enhanced `MLPBlock` for compatibility with VISTA-3D (#7995)
 * Added support for Neighbor-Aware Calibration Loss (NACL) for calibrated models in segmentation tasks (#7819)
