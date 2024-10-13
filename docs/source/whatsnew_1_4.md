@@ -47,7 +47,7 @@ Key features of the model include:
 - Capable of handling multiple imaging modalities
 - Multi-GPU and multinode training support
 
-A tutorial demonstrating how to train a cell segmentation model using the MONAI framework on the Cellpose dataset can be found in the [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/vista_2d).
+A tutorial demonstrating how to train a cell segmentation model using the MONAI framework on the Cellpose dataset can be found in [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/vista_2d).
 
 ## Integrating MONAI Generative into MONAI Core
 
