@@ -57,11 +57,11 @@ Additionally, several tutorials have been ported and are available within [`proj
 
 ## Lazy TensorRT export via `trt_compile`
 This release expands TensorRT optimization options for MONAI bundles with `trt_compile` API.
-Existing `trt_export` API requires user to run a separate export script to prepare TensorRT engine-based TorchScript model.
-`trt_compile` builds and saves a TensorRT engine first time the bundle is being run and provides limited dependency support.
+The existing `trt_export` API requires the user to run a separate export script to prepare a TensorRT engine-based TorchScript model.
+`trt_compile` builds and saves a TensorRT engine the first time a bundle is run and provides limited dependency support.
 It also allows partial TensorRT export where only a certain submodule is being optimized, which improves usability.
 A few bundles in the MONAI model zoo, like the new [VISTA-3D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista3d)
-and [VISTA-2D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista2d) bundles, already come with `trt_inference.json` config files that use `trt_compile`.
+and [VISTA-2D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista2d) bundles, already come with `trt_inference.json` config files which use `trt_compile`.
 
 ## Geometric Data Support
 
