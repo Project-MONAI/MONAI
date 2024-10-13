@@ -65,7 +65,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 * Attempted to resolve the "experiment already exists" issue in `MLFlowHandler` (#7916)
 * Refactored the model export process for conversion and saving (#7934)
 #### misc.
-* Adjusted requirements to exclude version 2.0 (#7859)
+* Adjusted requirements to exclude Numpy version 2.0 (#7859)
 * Updated deprecated `scipy.ndimage` namespaces in optional imports (#7847, #7897)
 * Resolved `load_module()` deprecation in Python 3.12 (#7881)
 * Fixed Ruff type check issues (#7885)
