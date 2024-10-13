@@ -16,7 +16,7 @@ MAISI (Medical AI for Synthetic Imaging) is a state-of-the-art three-dimensional
 
 A tutorial for generating large CT images accompanied by corresponding segmentation masks using MAISI is provided within
 [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/generation/maisi).
-And it contains the following features:
+It contains the following features:
 - A foundation Variational Auto-Encoder (VAE) model for latent feature compression that works for both CT and MRI with flexible volume size and voxel size
 - A foundation Diffusion model that can generate large CT volumes up to 512 × 512 × 768 size, with flexible volume size and voxel size
 - A ControlNet to generate image/mask pairs that can improve downstream tasks, with controllable organ/tumor size
