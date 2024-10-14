@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-## [1.4.0] - 2024-10-15
+## [1.4.0] - 2024-10-14
 ## What's Changed
 ### Added
 * Implemented Conjugate Gradient Solver to generate confidence maps. (#7876)
