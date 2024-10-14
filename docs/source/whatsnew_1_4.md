@@ -47,21 +47,21 @@ Key features of the model include:
 - Capable of handling multiple imaging modalities
 - Multi-GPU and multinode training support
 
-A tutorial demonstrating how to train a cell segmentation model using the MONAI framework on the Cellpose dataset can be found in the [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/vista_2d).
+A tutorial demonstrating how to train a cell segmentation model using the MONAI framework on the Cellpose dataset can be found in [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/vista_2d).
 
 ## Integrating MONAI Generative into MONAI Core
 
-Key modules originally developed in the [MONAI GenerativeModels](https://github.com/Project-MONAI/GenerativeModels) have been integrated into the core MONAI codebase. This integration ensures consistent maintenance and streamlined release of essential components for generative AI. In this version, all utilities, networks, diffusion schedulers, inferers, and engines have been migrated to the Core.
+Key modules originally developed in the [MONAI GenerativeModels](https://github.com/Project-MONAI/GenerativeModels) repository have been integrated into the core MONAI codebase. This integration ensures consistent maintenance and streamlined release of essential components for generative AI. In this version, all utilities, networks, diffusion schedulers, inferers, and engines have been migrated into the core codebase. Special care has been taken to ensure saved weights from models trained using GenerativeModels can be loaded into those now integrated into core.
 
 Additionally, several tutorials have been ported and are available within [`project-monai/tutorials`](https://github.com/Project-MONAI/tutorials/blob/main/generation)
 
 ## Lazy TensorRT export via `trt_compile`
 This release expands TensorRT optimization options for MONAI bundles with `trt_compile` API.
-Existing `trt_export` API requires user to run a separate export script to prepare TensorRT engine-based TorchScript model.
-`trt_compile` builds and saves a TensorRT engine first time the bundle is being run and provides limited dependency support.
+The existing `trt_export` API requires the user to run a separate export script to prepare a TensorRT engine-based TorchScript model.
+`trt_compile` builds and saves a TensorRT engine the first time a bundle is run and provides limited dependency support.
 It also allows partial TensorRT export where only a certain submodule is being optimized, which improves usability.
 A few bundles in the MONAI model zoo, like the new [VISTA-3D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista3d)
-and [VISTA-2D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista2d) bundles, already come with `trt_inference.json` config files that use `trt_compile`.
+and [VISTA-2D](https://github.com/Project-MONAI/model-zoo/tree/dev/models/vista2d) bundles, already come with `trt_inference.json` config files which use `trt_compile`.
 
 ## Geometric Data Support
 
