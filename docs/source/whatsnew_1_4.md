@@ -42,7 +42,7 @@ VISTA-2D is a comprehensive training and inference pipeline for cell segmentatio
 
 Key features of the model include:
 - A robust deep learning algorithm utilizing transformers
-- Generalist model as compared to specialist models
+- Foundational model as compared to specialist models
 - Supports a wide variety of datasets and file formats
 - Capable of handling multiple imaging modalities
 - Multi-GPU and multinode training support
