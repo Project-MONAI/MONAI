@@ -9,7 +9,7 @@ ci:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -26,15 +26,15 @@ repos:
         args: ['--autofix', '--no-sort-keys', '--indent=4']
       - id: end-of-file-fixer
       - id: mixed-line-ending
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.3.5
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.0
     hooks:
     -   id: ruff
         args:
         - --fix
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
+    rev: v3.19.0
     hooks:
       - id: pyupgrade
         args: [--py37-plus]
@@ -52,7 +52,7 @@ repos:
         files: (?x)(^monai/networks/)
 
   - repo: https://github.com/asottile/yesqa
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: yesqa
         name: Unused noqa
