@@ -37,7 +37,7 @@ repos:
     rev: v3.19.0
     hooks:
       - id: pyupgrade
-        args: [--py37-plus]
+        args: [--py38-plus]
         name: Upgrade code excluding monai networks
         exclude: |
           (?x)(
@@ -49,7 +49,7 @@ repos:
               ^monai/data/grid_dataset.py
           )
       - id: pyupgrade
-        args: [--py37-plus, --keep-runtime-typing]
+        args: [--py38-plus, --keep-runtime-typing]
         name: Upgrade monai networks
         files: (?x)(
                    ^monai/networks/|
