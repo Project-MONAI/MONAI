@@ -26,7 +26,7 @@ from monai.bundle import ConfigWorkflow
 from monai.data import Dataset
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.networks.nets import UNet
-from monai.transforms import Compose, LoadImage
+from monai.transforms import Compose, LoadImage, LoadImaged, SaveImaged
 from tests.nonconfig_workflow import NonConfigWorkflow
 
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")]
@@ -34,6 +34,8 @@ TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inferenc
 TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml")]
 
 TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
+
+TEST_CASE_4 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference_rt.json")]
 
 TEST_CASE_NON_CONFIG_WRONG_LOG = [None, "logging.conf", "Cannot find the logging config file: logging.conf."]
 
@@ -117,31 +119,31 @@ class TestBundleWorkflow(unittest.TestCase):
         self._test_inferer(inferer)
         self.assertEqual(inferer.workflow_type, None)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
+    @parameterized.expand([TEST_CASE_4])
     def test_realtime_inference_config(self, config_file):
-        override = {
-            "network": "$@network_def.to(@device)",
-            "dataset#_target_": "Dataset",
-            "dataset#data": [{"image": None}],
-            "dataloader#num_workers": 0,
-            "postprocessing#transforms#2#output_postfix": "seg",
-            "output_dir": self.data_dir,
-        }
+        input_loader = LoadImaged(keys="image")
+        output_saver = SaveImaged(keys="pred", output_dir=self.data_dir, output_postfix="seg")
+
         # test standard MONAI model-zoo config workflow
         inferer = ConfigWorkflow(
             workflow_type="infer",
             config_file=config_file,
-            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
-            **override,
+            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf")
         )
+        # FIXME: temp add the property for test, we should add it to some formal realtime infer properties
+        inferer.add_property(name="dataflow", required=True, config_id="dataflow")
 
         inferer.initialize()
-        inferer.dataset.data[0]["image"] = self.filename
+        inferer.dataflow.update(input_loader({"image": self.filename}))
         inferer.run()
+        output_saver(inferer.dataflow)
         self.assertTrue(os.path.exists(os.path.join(self.data_dir, "image", "image_seg.nii.gz")))
-        # bundle is instantiated and idle on GPU, just change the input for next inference
-        inferer.dataset.data[0]["image"] = self.filename1
+
+        # bundle is instantiated and idle, just change the input for next inference
+        inferer.dataflow.clear()
+        inferer.dataflow.update(input_loader({"image": self.filename1}))
         inferer.run()
+        output_saver(inferer.dataflow)
         self.assertTrue(os.path.exists(os.path.join(self.data_dir, "image1", "image1_seg.nii.gz")))
 
         inferer.finalize()
