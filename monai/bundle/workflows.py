@@ -227,7 +227,7 @@ class BundleWorkflow(ABC):
 
 class PythonicWorkflow(BundleWorkflow):
     """
-    Base class for the workflow specification in bundle, it can be a training, evaluation or inference workflow.
+    Base class for the pythonic workflow specification in bundle, it can be a training, evaluation or inference workflow.
     It defines the basic interfaces for the bundle workflow behavior: `initialize`, `run`, `finalize`, etc.
     And also provides the interface to get / set public properties to interact with a bundle workflow.
 
