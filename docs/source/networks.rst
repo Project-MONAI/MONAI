@@ -631,7 +631,7 @@ Nets
   :members:
 
 `MaskedAutoEncoderViT`
-~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: MaskedAutoEncoderViT
   :members:
 
