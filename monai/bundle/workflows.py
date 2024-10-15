@@ -225,6 +225,115 @@ class BundleWorkflow(ABC):
         return [n for n, p in self.properties.items() if p.get(BundleProperty.REQUIRED, False) and not hasattr(self, n)]
 
 
+class PythonicWorkflow(BundleWorkflow):
+    """
+    Base class for the workflow specification in bundle, it can be a training, evaluation or inference workflow.
+    It defines the basic interfaces for the bundle workflow behavior: `initialize`, `run`, `finalize`, etc.
+    And also provides the interface to get / set public properties to interact with a bundle workflow.
+
+    Args:
+        workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `train` for train workflow.
+        workflow: specifies the workflow type: "train" or "training" for a training workflow,
+            or "infer", "inference", "eval", "evaluation" for a inference workflow,
+            other unsupported string will raise a ValueError.
+            default to `None` for common workflow.
+        properties_path: the path to the JSON file of properties.
+        meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
+        logging_file: config file for `logging` module in the program. for more details:
+            https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
+
+    """
+
+    supported_train_type: tuple = ("train", "training")
+    supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
+
+    @deprecated_arg(
+        "workflow",
+        since="1.2",
+        removed="1.5",
+        new_name="workflow_type",
+        msg_suffix="please use `workflow_type` instead.",
+    )
+    def __init__(
+        self,
+        workflow_type: str | None = None,
+        workflow: str | None = None,
+        properties_path: PathLike | None = None,
+        meta_file: str | Sequence[str] | None = None,
+        logging_file: str | None = None,
+    ):
+        super().__init__(workflow_type=workflow_type, workflow=workflow, properties_path=properties_path, meta_file=meta_file, logging_file=logging_file)
+        self._props = {}
+        self._set_props = {}
+
+    def initialize(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Initialize the bundle workflow before running.
+        """
+        self._props = {}
+
+    @abstractmethod
+    def run(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Run the bundle workflow, it can be a training, evaluation or inference.
+
+        """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def finalize(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Finalize step after the running of bundle workflow.
+
+        """
+        raise NotImplementedError()
+
+    def _get_property(self, name: str, property: dict) -> Any:
+        """
+        With specified property name and information, get the expected property value.
+        If the property is already generated, return from the bucket directly.
+        If user explicitly set the property, return it directly.
+        Otherwise, generate the expected property as a class private property with prefix "_".
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+        """
+        value = None
+        if name in self._set_props:
+            value = self._set_props[name]
+            self._props[name] = value
+        elif name in self._props:
+            value = self._props[name]
+        else:
+            try:
+                value = getattr(self, f"get_{name}")()
+            except AttributeError:
+                if property[BundleProperty.REQUIRED]:
+                    raise ValueError(
+                        f"unsupported property '{name}' is required in the bundle properties,"
+                        f"need to implement a method 'get_{name}' to provide the property."
+                    )
+            self._props[name] = value
+        return value
+
+    def _set_property(self, name: str, property: dict, value: Any) -> Any:
+        """
+        With specified property name and information, set value for the expected property.
+        Stores user-reset initialized objects that should not be re-initialized.
+
+        Args:
+            name: the name of target property.
+            property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
+            value: value to set for the property.
+
+        """
+        self._set_props[name] = value
+
+
 class ConfigWorkflow(BundleWorkflow):
     """
     Specification for the config-based bundle workflow.
