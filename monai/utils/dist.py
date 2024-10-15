@@ -11,13 +11,11 @@
 
 from __future__ import annotations
 
-import sys
 import warnings
 from collections.abc import Callable
 from logging import Filter
 
-if sys.version_info >= (3, 8):
-    from typing import Literal
+from typing import Literal
 
 from typing import overload
 
