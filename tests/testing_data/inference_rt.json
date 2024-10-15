@@ -47,7 +47,9 @@
     },
     "dataset": {
         "_target_": "Dataset",
-        "data": ["@dataflow"],
+        "data": [
+            "@dataflow"
+        ],
         "transform": "@preprocessing"
     },
     "dataloader": {
