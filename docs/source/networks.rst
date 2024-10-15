@@ -632,7 +632,7 @@ Nets
 
 `MaskedAutoEncoderViT`
 ~~~~~~~~~~~~
-.. autoclass:: ViTAutoEnc
+.. autoclass:: MaskedAutoEncoderViT
   :members:
 
 `FullyConnectedNet`
