@@ -630,6 +630,11 @@ Nets
 .. autoclass:: ViTAutoEnc
   :members:
 
+`MaskedAutoEncoderViT`
+~~~~~~~~~~~~
+.. autoclass:: ViTAutoEnc
+  :members:
+
 `FullyConnectedNet`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: FullyConnectedNet
