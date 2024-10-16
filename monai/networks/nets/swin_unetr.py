@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Sequence
+from typing import Final
 
 import numpy as np
 import torch
@@ -20,7 +21,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from torch.nn import LayerNorm
-from typing import Final
 
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock

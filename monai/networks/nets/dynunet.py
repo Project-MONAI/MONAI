@@ -11,9 +11,8 @@
 
 # isort: dont-add-import: from __future__ import annotations
 
-from typing import Optional, Union
-
 from collections.abc import Sequence
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn

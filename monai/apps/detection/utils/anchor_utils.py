@@ -39,7 +39,6 @@ https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection
 
 from __future__ import annotations
 
-
 from collections.abc import Sequence
 
 import torch

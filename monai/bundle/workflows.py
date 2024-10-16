@@ -16,12 +16,11 @@ import os
 import sys
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
 from typing import Any
-
-from collections.abc import Sequence
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser

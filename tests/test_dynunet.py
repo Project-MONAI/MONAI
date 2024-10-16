@@ -13,9 +13,8 @@ from __future__ import annotations
 
 import platform
 import unittest
-from typing import Any
-
 from collections.abc import Sequence
+from typing import Any
 
 import torch
 from parameterized import parameterized

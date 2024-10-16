@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import functools
 import warnings
+from collections.abc import Sequence
 from copy import deepcopy
 from typing import Any
-
-from collections.abc import Sequence
 
 import numpy as np
 import torch

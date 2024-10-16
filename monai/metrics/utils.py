@@ -12,11 +12,10 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterable, Sequence
 from functools import lru_cache, partial
 from types import ModuleType
 from typing import Any
-
-from collections.abc import Iterable, Sequence
 
 import numpy as np
 import torch

@@ -12,9 +12,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable
-
 from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import torch
 from torch.utils.data import DataLoader
