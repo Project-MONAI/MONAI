@@ -241,8 +241,11 @@ class DDPMScheduler(Scheduler):
         variance = 0
         if timestep > 0:
             noise = torch.randn(
-                model_output.size(), dtype=model_output.dtype, layout=model_output.layout, generator=generator,
-                device=model_output.device
+                model_output.size(),
+                dtype=model_output.dtype,
+                layout=model_output.layout,
+                generator=generator,
+                device=model_output.device,
             )
             variance = (self._get_variance(timestep, predicted_variance=predicted_variance) ** 0.5) * noise
 
