@@ -439,7 +439,7 @@ class VISTA3D(nn.Module):
                 input_images, with_point=point_coords is not None, with_label=class_vector is not None
             )
             torch.cuda.synchronize()
-            print("Encoder time : ", time.time()-t0, input_images.shape) 
+            print("Encoder time : ", time.time()-t0, input_images.shape)
         # release memory
         input_images = None  # type: ignore
 
@@ -645,7 +645,7 @@ class ClassMappingClassify(nn.Module):
         # [b,1,feat] @ [1,feat,dim], batch dimension become class_embedding batch dimension.
         masks_embedding = class_embedding.squeeze() @ src.view(b, c, h * w * d)
         masks_embedding = masks_embedding.view(b, -1, h, w, d).transpose(0, 1)
-        
+
         return masks_embedding, class_embedding
 
         return torch.cat(masks, 1), class_embedding
