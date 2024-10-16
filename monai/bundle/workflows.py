@@ -19,7 +19,9 @@ from abc import ABC, abstractmethod
 from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
+
+from collections.abc import Sequence
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser

@@ -39,7 +39,8 @@ https://github.com/pytorch/vision/blob/release/0.12/torchvision/models/detection
 
 from __future__ import annotations
 
-from typing import List, Sequence
+
+from collections.abc import Sequence
 
 import torch
 from torch import Tensor, nn
@@ -106,7 +107,7 @@ class AnchorGenerator(nn.Module):
             anchor_generator = AnchorGenerator(sizes, aspect_ratios)
     """
 
-    __annotations__ = {"cell_anchors": List[torch.Tensor]}
+    __annotations__ = {"cell_anchors": list[torch.Tensor]}
 
     def __init__(
         self,
@@ -364,7 +365,7 @@ class AnchorGeneratorWithAnchorShape(AnchorGenerator):
             anchor_generator = AnchorGeneratorWithAnchorShape(feature_map_scales, base_anchor_shapes)
     """
 
-    __annotations__ = {"cell_anchors": List[torch.Tensor]}
+    __annotations__ = {"cell_anchors": list[torch.Tensor]}
 
     def __init__(
         self,

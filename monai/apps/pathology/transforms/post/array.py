@@ -12,7 +12,9 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable, Sequence
+from typing import Callable
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch

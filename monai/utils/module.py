@@ -25,7 +25,9 @@ from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, Iterable, cast
+from typing import Any, cast
+
+from collections.abc import Iterable
 
 import torch
 

@@ -18,7 +18,9 @@ import warnings
 from collections.abc import Callable
 from copy import deepcopy
 from itertools import zip_longest
-from typing import Any, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
@@ -116,7 +118,7 @@ __all__ = [
     "RandSimulateLowResolution",
 ]
 
-RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
+RandRange = Optional[Union[Sequence[Union[tuple[float, float], float]], float]]
 
 
 class SpatialResample(InvertibleTransform, LazyTransform):

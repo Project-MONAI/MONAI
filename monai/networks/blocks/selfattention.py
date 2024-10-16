@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Union
 
 import torch
 import torch.nn as nn
@@ -41,7 +41,7 @@ class SABlock(nn.Module):
         causal: bool = False,
         sequence_length: int | None = None,
         rel_pos_embedding: str | None = None,
-        input_size: Tuple | None = None,
+        input_size: tuple | None = None,
         attention_dtype: torch.dtype | None = None,
         include_fc: bool = True,
         use_combined_linear: bool = True,
