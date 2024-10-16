@@ -17,7 +17,6 @@ import torch
 import torch.nn as nn
 
 from monai.networks.blocks import SABlock
-from monai.utils import optional_import
 
 
 class SpatialAttentionBlock(nn.Module):
