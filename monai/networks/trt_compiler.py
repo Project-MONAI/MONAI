@@ -437,16 +437,11 @@ class TrtCompiler:
         """
 
         profiles = []
-        if self.profiles:
-            for input_profile in self.profiles:
-                if isinstance(input_profile, Profile):
-                    profiles.append(input_profile)
-                else:
-                    p = Profile()
-                    for name, dims in input_profile.items():
-                        assert len(dims) == 3
-                        p.add(name, min=dims[0], opt=dims[1], max=dims[2])
-                    profiles.append(p)
+        for profile in self.profiles:
+            p = Profile()
+            for id, val in profile.items():
+                p.add(id, min=val[0], opt=val[1], max=val[2])
+            profiles.append(p)
 
         build_args = self.build_args.copy()
         build_args["tf32"] = self.precision != "fp32"
@@ -508,29 +503,37 @@ class TrtCompiler:
                     raise ValueError("ERROR: Both dynamic_batchsize and input_profiles set for TrtCompiler!")
                 if len(dbs) != 3:
                     raise ValueError("dynamic_batchsize has to have len ==3 ")
-                profiles = {}
+                profile = {}
                 for id, val in input_example.items():
-                    sh = val.shape[1:]
-                    profiles[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
-                self.profiles = [profiles]
-
-            dynamic_axes = get_dynamic_axes(self.profiles)
-
-            if len(self.profiles) > 0:
-                export_args.update({"dynamic_axes": dynamic_axes})
+                    def add_profile(id, val):
+                        sh = val.shape 
+                        if len(sh) > 0:
+                           sh = sh[1:]
+                           profile[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
+                    if isinstance(val, list | tuple):
+                        for i in range(len(val)):
+                            add_profile(f"{id}_{i}", val[i])
+                    elif isinstance(val, torch.Tensor):
+                        add_profile(id, val)
+                self.profiles = [profile]
+                
+            self.dynamic_axes = get_dynamic_axes(self.profiles)
+            
+            if len(self.dynamic_axes) > 0:
+                export_args.update({"dynamic_axes": self.dynamic_axes})
 
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
+                unrolled_input = unroll_input(self.input_names, input_example)
                 onnx_path = str(Path(tmpdir) / "model.onnx")
                 self.logger.info(
-                    f"Exporting to {onnx_path}:\ninputs={list(input_example.keys())}\toutput_names={self.output_names}\n\texport args: {export_args}"
+                    f"Exporting to {onnx_path}:\nunrolled_inputs={list(unrolled_input.keys())}\noutput_names={self.output_names}\ninput_names={self.input_names}\nexport args: {export_args}"
                 )
-                input_names = list(unroll_input(self.input_names, input_example).keys())
                 convert_to_onnx(
                     model,
                     input_example,
                     filename=onnx_path,
-                    input_names=input_names,
+                    input_names=list(unrolled_input.keys()),
                     output_names=self.output_names,
                     **export_args,
                 )
