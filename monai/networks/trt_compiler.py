@@ -241,9 +241,10 @@ def remove_non_tensors(input_example, remove_constants=True):
         input_example.pop(key)
     return non_tensors
 
+
 def unroll_input(input_names, input_example):
     # Simulate list/tuple unrolling during ONNX export
-    unrolled_input={}
+    unrolled_input = {}
     for name in input_names:
         val = input_example[name]
         if val is not None:
@@ -253,6 +254,7 @@ def unroll_input(input_names, input_example):
             else:
                 unrolled_input[name] = val
     return unrolled_input
+
 
 class TrtCompiler:
     """
@@ -454,7 +456,7 @@ class TrtCompiler:
         network = network_from_onnx_path(onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM])
         return engine_bytes_from_network(network, config=CreateConfig(profiles=profiles, **build_args))
 
-    def _build_and_save(self, model, input_example): 
+    def _build_and_save(self, model, input_example):
         """
         If TRT engine is not ready, exports model to ONNX,
         builds TRT engine and saves serialized TRT engine to the disk.
@@ -505,20 +507,22 @@ class TrtCompiler:
                     raise ValueError("dynamic_batchsize has to have len ==3 ")
                 profile = {}
                 for id, val in input_example.items():
+
                     def add_profile(id, val):
-                        sh = val.shape 
+                        sh = val.shape
                         if len(sh) > 0:
-                           sh = sh[1:]
-                           profile[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
+                            sh = sh[1:]
+                            profile[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
+
                     if isinstance(val, list | tuple):
                         for i in range(len(val)):
                             add_profile(f"{id}_{i}", val[i])
                     elif isinstance(val, torch.Tensor):
                         add_profile(id, val)
                 self.profiles = [profile]
-                
+
             self.dynamic_axes = get_dynamic_axes(self.profiles)
-            
+
             if len(self.dynamic_axes) > 0:
                 export_args.update({"dynamic_axes": self.dynamic_axes})
 
