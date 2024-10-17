@@ -280,7 +280,7 @@ class PythonicWorkflow(BundleWorkflow):
         super().__init__(workflow_type=workflow_type, workflow=workflow, properties_path=properties_path, meta_file=meta_file, logging_file=logging_file)
         self._props = {}
         self._set_props = {}
-        
+
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
         if self.meta_file is not None:
