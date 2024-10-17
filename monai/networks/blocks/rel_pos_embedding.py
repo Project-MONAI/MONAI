@@ -9,7 +9,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable, Tuple
+from collections.abc import Iterable
 
 import torch
 from torch import nn
@@ -19,7 +19,7 @@ from monai.utils.misc import ensure_tuple_size
 
 
 class DecomposedRelativePosEmbedding(nn.Module):
-    def __init__(self, s_input_dims: Tuple[int, int] | Tuple[int, int, int], c_dim: int, num_heads: int) -> None:
+    def __init__(self, s_input_dims: tuple[int, int] | tuple[int, int, int], c_dim: int, num_heads: int) -> None:
         """
         Args:
             s_input_dims (Tuple): input spatial dimension. (H, W) or (H, W, D)

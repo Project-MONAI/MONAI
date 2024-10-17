@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import gc
 import logging
-from typing import Sequence
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn

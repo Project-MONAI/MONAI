@@ -11,7 +11,8 @@
 
 from __future__ import annotations
 
-from typing import Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Optional, Union
 
 import torch
 import torch.nn as nn
@@ -360,8 +361,8 @@ class Quicknat(nn.Module):
         # Valid options : NONE, CSE, SSE, CSSE
         se_block: str = "None",
         drop_out: float = 0,
-        act: Union[Tuple, str] = Act.PRELU,
-        norm: Union[Tuple, str] = Norm.INSTANCE,
+        act: Union[tuple, str] = Act.PRELU,
+        norm: Union[tuple, str] = Norm.INSTANCE,
         adn_ordering: str = "NA",
     ) -> None:
         self.act = act
