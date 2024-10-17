@@ -53,6 +53,7 @@ from .fullyconnectednet import FullyConnectedNet, VarFullyConnectedNet
 from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
+from .masked_autoencoder_vit import MaskedAutoEncoderViT
 from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
