@@ -96,29 +96,39 @@ class BundleWorkflow(ABC):
                         meta_file = None
 
         workflow_type = workflow if workflow is not None else workflow_type
-        if workflow_type is None and properties_path is None:
-            self.properties = copy(MetaProperties)
-            self.workflow_type = None
-            self.meta_file = meta_file
-            return
+        if workflow_type is not None:
+            if workflow_type.lower() in self.supported_train_type:
+                workflow_type = "train"
+            elif workflow_type.lower() in self.supported_infer_type:
+                workflow_type = "infer"
+            else:
+                raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
+
         if properties_path is not None:
             properties_path = Path(properties_path)
             if not properties_path.is_file():
                 raise ValueError(f"Property file {properties_path} does not exist.")
+            if workflow_type is None:
+                workflow_type = "train"
+                logger.info("No workflow type specified, default to 'train' for property file loading.")
             with open(properties_path) as json_file:
-                self.properties = json.load(json_file)
-            self.workflow_type = None
-            self.meta_file = meta_file
-            return
-        if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
-            self.properties = {**TrainProperties, **MetaProperties}
-            self.workflow_type = "train"
-        elif workflow_type.lower() in self.supported_infer_type:  # type: ignore[union-attr]
-            self.properties = {**InferProperties, **MetaProperties}
-            self.workflow_type = "infer"
+                try:
+                    self.properties = json.load(json_file)[workflow_type]
+                    print(self.properties)
+                except:
+                    raise ValueError(f"{self.workflow_type} not find in property file {properties_path}")
         else:
-            raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
+            if workflow_type == "train":
+                self.properties = {**TrainProperties, **MetaProperties}
+            elif workflow_type == "infer":
+                self.properties = {**InferProperties, **MetaProperties}
+            elif workflow_type is None:
+                self.properties = copy(MetaProperties)
+                logger.info("No workflow type and property file specified, default to 'meta' properties.")
+            else:
+                raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
 
+        self.workflow_type = workflow_type
         self.meta_file = meta_file
 
     @abstractmethod
@@ -262,12 +272,22 @@ class PythonicWorkflow(BundleWorkflow):
         workflow_type: str | None = None,
         workflow: str | None = None,
         properties_path: PathLike | None = None,
+        config_file: str | Sequence[str] | None = None,
         meta_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
+        **override: Any
     ):
         super().__init__(workflow_type=workflow_type, workflow=workflow, properties_path=properties_path, meta_file=meta_file, logging_file=logging_file)
         self._props = {}
         self._set_props = {}
+        
+        self.parser = ConfigParser()
+        self.parser.read_config(f=config_file)
+        if self.meta_file is not None:
+            self.parser.read_meta(f=self.meta_file)
+
+        # the rest key-values in the _args are to override config content
+        self.parser.update(pairs=override)
 
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
         """
