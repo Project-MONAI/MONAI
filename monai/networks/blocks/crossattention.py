@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -42,7 +42,7 @@ class CrossAttentionBlock(nn.Module):
         causal: bool = False,
         sequence_length: int | None = None,
         rel_pos_embedding: Optional[str] = None,
-        input_size: Optional[Tuple] = None,
+        input_size: Optional[tuple] = None,
         attention_dtype: Optional[torch.dtype] = None,
         use_flash_attention: bool = False,
     ) -> None:

@@ -18,7 +18,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 from types import MethodType
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 import torch
 
@@ -499,8 +499,8 @@ def trt_forward(self, *argv, **kwargs):
 def trt_compile(
     model: torch.nn.Module,
     base_path: str,
-    args: Dict[str, Any] | None = None,
-    submodule: Union[str, List[str]] | None = None,
+    args: dict[str, Any] | None = None,
+    submodule: Union[str, list[str]] | None = None,
     logger: Any | None = None,
 ) -> torch.nn.Module:
     """
@@ -521,7 +521,7 @@ def trt_compile(
       Always returns same model passed in as argument. This is for ease of use in configs.
     """
 
-    default_args: Dict[str, Any] = {
+    default_args: dict[str, Any] = {
         "method": "onnx",
         "precision": "fp16",
         "build_args": {"builder_optimization_level": 5, "precision_constraints": "obey"},

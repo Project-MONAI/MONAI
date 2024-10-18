@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import torch
 from torch.optim.optimizer import Optimizer

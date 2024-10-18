@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import os
-from typing import Iterable
+from collections.abc import Iterable
 
 import monai
 from monai.config.type_definitions import PathLike

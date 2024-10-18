@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -107,7 +106,7 @@ class Encoder(nn.Module):
         channels: Sequence[int],
         num_res_layers: int,
         num_res_channels: Sequence[int],
-        downsample_parameters: Sequence[Tuple[int, int, int, int]],
+        downsample_parameters: Sequence[tuple[int, int, int, int]],
         dropout: float,
         act: tuple | str | None,
     ) -> None:
@@ -198,7 +197,7 @@ class Decoder(nn.Module):
         channels: Sequence[int],
         num_res_layers: int,
         num_res_channels: Sequence[int],
-        upsample_parameters: Sequence[Tuple[int, int, int, int, int]],
+        upsample_parameters: Sequence[tuple[int, int, int, int, int]],
         dropout: float,
         act: tuple | str | None,
         output_act: tuple | str | None,
@@ -312,12 +311,12 @@ class VQVAE(nn.Module):
         channels: Sequence[int] = (96, 96, 192),
         num_res_layers: int = 3,
         num_res_channels: Sequence[int] | int = (96, 96, 192),
-        downsample_parameters: Sequence[Tuple[int, int, int, int]] | Tuple[int, int, int, int] = (
+        downsample_parameters: Sequence[tuple[int, int, int, int]] | tuple[int, int, int, int] = (
             (2, 4, 1, 1),
             (2, 4, 1, 1),
             (2, 4, 1, 1),
         ),
-        upsample_parameters: Sequence[Tuple[int, int, int, int, int]] | Tuple[int, int, int, int, int] = (
+        upsample_parameters: Sequence[tuple[int, int, int, int, int]] | tuple[int, int, int, int, int] = (
             (2, 4, 1, 1, 0),
             (2, 4, 1, 1, 0),
             (2, 4, 1, 1, 0),

@@ -79,7 +79,7 @@ class HausdorffDTLoss(_Loss):
                 Incompatible values.
 
         """
-        super(HausdorffDTLoss, self).__init__(reduction=LossReduction(reduction).value)
+        super().__init__(reduction=LossReduction(reduction).value)
         if other_act is not None and not callable(other_act):
             raise TypeError(f"other_act must be None or callable but is {type(other_act).__name__}.")
         if int(sigmoid) + int(softmax) > 1:

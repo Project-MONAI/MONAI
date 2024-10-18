@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import itertools
 import pprint
+from collections.abc import Iterable
 from copy import deepcopy
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import torch
