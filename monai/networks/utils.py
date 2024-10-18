@@ -694,7 +694,7 @@ def convert_to_onnx(
         else:
             f = filename
 
-        torch.onnx.export(
+        torch.onnx.export(  # type: ignore[arg-type]
             mode_to_export,
             onnx_inputs,
             f=f,

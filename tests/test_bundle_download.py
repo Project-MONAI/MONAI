@@ -250,7 +250,7 @@ class TestDownload(unittest.TestCase):
                 mock_logger.warning.assert_called_once()
 
     @skip_if_quick
-    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.3"})
     def test_download_ngc(self, mock_get_versions):
         """Test checking MONAI version from a metadata file."""
         with patch("monai.bundle.scripts.logger") as mock_logger:
