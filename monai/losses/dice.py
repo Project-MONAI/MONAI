@@ -17,6 +17,7 @@ from typing import Any
 
 import numpy as np
 import torch
+import torch.linalg as LA
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
@@ -39,8 +40,16 @@ class DiceLoss(_Loss):
     The `smooth_nr` and `smooth_dr` parameters are values added to the intersection and union components of
     the inter-over-union calculation to smooth results respectively, these values should be small.
 
-    The original paper: Milletari, F. et. al. (2016) V-Net: Fully Convolutional Neural Networks forVolumetric
-    Medical Image Segmentation, 3DV, 2016.
+    The original papers:
+
+        Milletari, F. et. al. (2016) V-Net: Fully Convolutional Neural Networks for Volumetric
+        Medical Image Segmentation. 3DV 2016.
+
+        Wang, Z. et. al. (2023) Jaccard Metric Losses: Optimizing the Jaccard Index with
+        Soft Labels. NeurIPS 2023.
+
+        Wang, Z. et. al. (2023) Dice Semimetric Losses: Optimizing the Dice Score with
+        Soft Labels. MICCAI 2023.
 
     """
 
@@ -174,16 +183,17 @@ class DiceLoss(_Loss):
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
 
-        intersection = torch.sum(target * input, dim=reduce_axis)
-
         if self.squared_pred:
             ground_o = torch.sum(target**2, dim=reduce_axis)
             pred_o = torch.sum(input**2, dim=reduce_axis)
+            difference = LA.vector_norm(input - target, ord=2, dim=reduce_axis) ** 2
         else:
             ground_o = torch.sum(target, dim=reduce_axis)
             pred_o = torch.sum(input, dim=reduce_axis)
+            difference = LA.vector_norm(input - target, ord=1, dim=reduce_axis)
 
         denominator = ground_o + pred_o
+        intersection = (denominator - difference) / 2
 
         if self.jaccard:
             denominator = 2.0 * (denominator - intersection)
@@ -370,12 +380,13 @@ class GeneralizedDiceLoss(_Loss):
         reduce_axis: list[int] = torch.arange(2, len(input.shape)).tolist()
         if self.batch:
             reduce_axis = [0] + reduce_axis
-        intersection = torch.sum(target * input, reduce_axis)
 
         ground_o = torch.sum(target, reduce_axis)
         pred_o = torch.sum(input, reduce_axis)
+        difference = LA.vector_norm(input - target, ord=1, dim=reduce_axis)
 
         denominator = ground_o + pred_o
+        intersection = (denominator - difference) / 2
 
         w = self.w_func(ground_o.float())
         infs = torch.isinf(w)
