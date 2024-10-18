@@ -282,7 +282,8 @@ class PythonicWorkflow(BundleWorkflow):
         self._set_props = {}
         
         self.parser = ConfigParser()
-        self.parser.read_config(f=config_file)
+        if config_file is not None:
+            self.parser.read_config(f=config_file)
         if self.meta_file is not None:
             self.parser.read_meta(f=self.meta_file)
 
