@@ -18,7 +18,7 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 from types import MethodType
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import torch
 
@@ -256,6 +256,55 @@ def unroll_input(input_names, input_example):
     return unrolled_input
 
 
+def parse_groups(
+    ret: List[torch.Tensor], output_lists: List[int]
+) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
+    """
+    Implements parsing of 'output_lists' arg of trt_compile().
+    Args:
+      ret: ungrouped list of Tensors
+
+      output_lists=[[group_n] | [], ...]
+        [] or group_n == 0 : next output from ret is a scalar
+        group_n > 0  :       next output from ret is a list of group_n length
+        group_n == -1:       next output is a dynamic list. This entry can be at any
+                             position in output_lists, but can appear only once.
+    Returns:
+       Tuple of Union[torch.Tensor, List[torch.Tensor]], according to the grouping in output_lists
+
+    """
+    groups = []
+    cur = 0
+    for l in range(len(output_lists)):
+        gl = output_lists[l]
+        assert len(gl) == 0 or len(gl) == 1
+        if len(gl) == 0 or gl[0] == 0:
+            groups.append(ret[cur])
+            cur = cur + 1
+        elif gl[0] > 0:
+            groups.append(ret[cur : cur + gl[0]])
+            cur = cur + gl[0]
+        elif gl[0] == -1:
+            rev_groups = []
+            rcur = len(ret)
+            for rl in range(len(output_lists) - 1, l, -1):
+                rgl = output_lists[rl]
+                assert len(rgl) == 0 or len(rgl) == 1
+                if len(rgl) == 0 or rgl[0] == 0:
+                    rcur = rcur - 1
+                    rev_groups.append(ret[rcur])
+                elif rgl[0] > 0:
+                    rcur = rcur - rgl[0]
+                    rev_groups.append(ret[rcur : rcur + rgl[0]])
+                else:
+                    raise ValueError("Two -1 lists in output")
+            groups.append(ret[cur:rcur])
+            rev_groups.reverse()
+            groups.extend(rev_groups)
+            break
+    return tuple(groups)
+
+
 class TrtCompiler:
     """
     This class implements:
@@ -272,6 +321,7 @@ class TrtCompiler:
         method="onnx",
         input_names=None,
         output_names=None,
+        output_lists=None,
         export_args=None,
         build_args=None,
         input_profiles=None,
@@ -295,6 +345,7 @@ class TrtCompiler:
                     'torch_trt' may not work for some nets. Also AMP must be turned off for it to work.
             input_names: Optional list of input names. If None, will be read from the function signature.
             output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
+            output_lists: Optional list of output lists.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
             build_args: Optional args to pass to TRT builder. See polygraphy.Config for details.
             input_profiles: Optional list of profiles for TRT builder and ONNX export.
@@ -319,6 +370,7 @@ class TrtCompiler:
         self.method = method
         self.return_dict = output_names is not None
         self.output_names = output_names or []
+        self.output_lists = output_lists or []
         self.profiles = input_profiles or []
         self.dynamic_batchsize = dynamic_batchsize
         self.export_args = export_args or {}
@@ -423,7 +475,9 @@ class TrtCompiler:
                     # if output_names is not None, return dictionary
                     if not self.return_dict:
                         ret = list(ret.values())
-                        if len(ret) == 1:
+                        if self.output_lists:
+                            ret = parse_groups(ret, self.output_lists)
+                        elif len(ret) == 1:
                             ret = ret[0]
                     return ret
         except Exception as e:
