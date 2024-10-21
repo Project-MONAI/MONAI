@@ -15,9 +15,9 @@ import warnings
 from collections.abc import Callable
 
 import torch
-import torch.linalg as LA
 from torch.nn.modules.loss import _Loss
 
+from monai.losses.utils import compute_tp_fp_fn
 from monai.networks import one_hot
 from monai.utils import LossReduction
 
@@ -50,6 +50,7 @@ class TverskyLoss(_Loss):
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
+        soft_label: bool = False,
     ) -> None:
         """
         Args:
@@ -74,6 +75,7 @@ class TverskyLoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
+            soft_label: whether the target contains non-binary values or not
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -97,6 +99,7 @@ class TverskyLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+        self.soft_label = soft_label
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -144,13 +147,9 @@ class TverskyLoss(_Loss):
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
 
-        pred_o = torch.sum(input, reduce_axis)
-        ground_o = torch.sum(target, reduce_axis)
-        difference = LA.vector_norm(input - target, ord=1, dim=reduce_axis)
-
-        tp = (pred_o + ground_o - difference) / 2
-        fp = self.alpha * (pred_o - tp)
-        fn = self.beta * (ground_o - tp)
+        tp, fp, fn = compute_tp_fp_fn(input, target, reduce_axis, 1, self.soft_label, False)
+        fp *= self.alpha
+        fn *= self.beta
         numerator = tp + self.smooth_nr
         denominator = tp + fp + fn + self.smooth_dr
 

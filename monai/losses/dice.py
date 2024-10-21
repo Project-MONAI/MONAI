@@ -17,13 +17,13 @@ from typing import Any
 
 import numpy as np
 import torch
-import torch.linalg as LA
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.loss import _Loss
 
 from monai.losses.focal_loss import FocalLoss
 from monai.losses.spatial_mask import MaskedLoss
+from monai.losses.utils import compute_tp_fp_fn
 from monai.networks import one_hot
 from monai.utils import DiceCEReduction, LossReduction, Weight, look_up_option, pytorch_after
 
@@ -67,6 +67,7 @@ class DiceLoss(_Loss):
         smooth_dr: float = 1e-5,
         batch: bool = False,
         weight: Sequence[float] | float | int | torch.Tensor | None = None,
+        soft_label: bool = False,
     ) -> None:
         """
         Args:
@@ -98,6 +99,7 @@ class DiceLoss(_Loss):
                 of the sequence should be the same as the number of classes. If not ``include_background``,
                 the number of classes should not include the background category class 0).
                 The value/values should be no less than 0. Defaults to None.
+            soft_label: whether the target contains non-binary values or not
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -123,6 +125,7 @@ class DiceLoss(_Loss):
         weight = torch.as_tensor(weight) if weight is not None else None
         self.register_buffer("class_weight", weight)
         self.class_weight: None | torch.Tensor
+        self.soft_label = soft_label
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         """
@@ -183,22 +186,15 @@ class DiceLoss(_Loss):
             # reducing spatial dimensions and batch
             reduce_axis = [0] + reduce_axis
 
-        if self.squared_pred:
-            ground_o = torch.sum(target**2, dim=reduce_axis)
-            pred_o = torch.sum(input**2, dim=reduce_axis)
-            difference = LA.vector_norm(input - target, ord=2, dim=reduce_axis) ** 2
-        else:
-            ground_o = torch.sum(target, dim=reduce_axis)
-            pred_o = torch.sum(input, dim=reduce_axis)
-            difference = LA.vector_norm(input - target, ord=1, dim=reduce_axis)
+        ord = 2 if self.squared_pred else 1
+        tp, fp, fn = compute_tp_fp_fn(input, target, reduce_axis, ord, self.soft_label)
+        if not self.jaccard:
+            fp *= 0.5
+            fn *= 0.5
+        numerator = 2 * tp + self.smooth_nr
+        denominator = 2 * (tp + fp + fn) + self.smooth_dr
 
-        denominator = ground_o + pred_o
-        intersection = (denominator - difference) / 2
-
-        if self.jaccard:
-            denominator = 2.0 * (denominator - intersection)
-
-        f: torch.Tensor = 1.0 - (2.0 * intersection + self.smooth_nr) / (denominator + self.smooth_dr)
+        f = 1 - numerator / denominator
 
         num_of_classes = target.shape[1]
         if self.class_weight is not None and num_of_classes != 1:
@@ -282,6 +278,7 @@ class GeneralizedDiceLoss(_Loss):
         smooth_nr: float = 1e-5,
         smooth_dr: float = 1e-5,
         batch: bool = False,
+        soft_label: bool = False,
     ) -> None:
         """
         Args:
@@ -305,6 +302,7 @@ class GeneralizedDiceLoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, intersection over union is computed from each item in the batch.
                 If True, the class-weighted intersection and union areas are first summed across the batches.
+            soft_label: whether the target contains non-binary values or not
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -329,6 +327,7 @@ class GeneralizedDiceLoss(_Loss):
         self.smooth_nr = float(smooth_nr)
         self.smooth_dr = float(smooth_dr)
         self.batch = batch
+        self.soft_label = soft_label
 
     def w_func(self, grnd):
         if self.w_type == str(Weight.SIMPLE):
@@ -381,13 +380,12 @@ class GeneralizedDiceLoss(_Loss):
         if self.batch:
             reduce_axis = [0] + reduce_axis
 
+        tp, fp, fn = compute_tp_fp_fn(input, target, reduce_axis, 1, self.soft_label)
+        fp *= 0.5
+        fn *= 0.5
+        denominator = 2 * (tp + fp + fn)
+
         ground_o = torch.sum(target, reduce_axis)
-        pred_o = torch.sum(input, reduce_axis)
-        difference = LA.vector_norm(input - target, ord=1, dim=reduce_axis)
-
-        denominator = ground_o + pred_o
-        intersection = (denominator - difference) / 2
-
         w = self.w_func(ground_o.float())
         infs = torch.isinf(w)
         if self.batch:
@@ -399,7 +397,7 @@ class GeneralizedDiceLoss(_Loss):
             w = w + infs * max_values
 
         final_reduce_dim = 0 if self.batch else 1
-        numer = 2.0 * (intersection * w).sum(final_reduce_dim, keepdim=True) + self.smooth_nr
+        numer = 2.0 * (tp * w).sum(final_reduce_dim, keepdim=True) + self.smooth_nr
         denom = (denominator * w).sum(final_reduce_dim, keepdim=True) + self.smooth_dr
         f: torch.Tensor = 1.0 - (numer / denom)
 
