@@ -639,12 +639,9 @@ class ClassMappingClassify(nn.Module):
         if self.use_mlp:
             class_embedding = self.mlp(class_embedding)
         # [b,1,feat] @ [1,feat,dim], batch dimension become class_embedding batch dimension.
-        masks = []
-        for i in range(b):
-            mask = class_embedding @ src[[i]].view(1, c, h * w * d)
-            masks.append(mask.view(-1, 1, h, w, d))
-
-        return torch.cat(masks, 1), class_embedding
+        masks_embedding = class_embedding.squeeze() @ src.view(b, c, h * w * d)
+        masks_embedding = masks_embedding.view(b, -1, h, w, d).transpose(0, 1)
+        return masks_embedding, class_embedding
 
 
 class TwoWayTransformer(nn.Module):
