@@ -694,7 +694,7 @@ def convert_to_onnx(
         else:
             f = filename
 
-        torch.onnx.export(  # type: ignore[arg-type]
+        torch.onnx.export(
             mode_to_export,
             onnx_inputs,
             f=f,
@@ -704,7 +704,7 @@ def convert_to_onnx(
             opset_version=opset_version,
             do_constant_folding=do_constant_folding,
             **torch_versioned_kwargs,
-        )
+        )  # type: ignore[arg-type]
         if filename is None:
             onnx_model = onnx.load_model_from_string(f.getvalue())
         else:
