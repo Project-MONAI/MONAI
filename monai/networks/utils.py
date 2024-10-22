@@ -697,7 +697,7 @@ def convert_to_onnx(
         torch.onnx.export(
             mode_to_export,
             onnx_inputs,
-            f=f,
+            f=f,  # type: ignore[arg-type]
             input_names=input_names,
             output_names=output_names,
             dynamic_axes=dynamic_axes,

@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo, KeysCollection
+from monai.config import KeysCollection
 from monai.engines.utils import IterationEvents
 from monai.transforms import Decollated
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
