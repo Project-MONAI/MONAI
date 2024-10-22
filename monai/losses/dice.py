@@ -413,7 +413,7 @@ class GeneralizedDiceLoss(_Loss):
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
-        return f # type: ignore[arg-type]
+        return f
 
 
 class GeneralizedWassersteinDiceLoss(_Loss):
