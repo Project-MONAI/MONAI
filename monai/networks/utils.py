@@ -697,14 +697,14 @@ def convert_to_onnx(
         torch.onnx.export(
             mode_to_export,
             onnx_inputs,
-            f=f,
+            f=f,  # type: ignore[arg-type]
             input_names=input_names,
             output_names=output_names,
             dynamic_axes=dynamic_axes,
             opset_version=opset_version,
             do_constant_folding=do_constant_folding,
             **torch_versioned_kwargs,
-        )  # type: ignore[arg-type]
+        )
         if filename is None:
             onnx_model = onnx.load_model_from_string(f.getvalue())
         else:
