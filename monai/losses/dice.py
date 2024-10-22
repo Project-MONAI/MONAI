@@ -194,7 +194,7 @@ class DiceLoss(_Loss):
         numerator = 2 * tp + self.smooth_nr
         denominator = 2 * (tp + fp + fn) + self.smooth_dr
 
-        f = 1 - numerator / denominator
+        f: torch.Tensor = 1 - numerator / denominator
 
         num_of_classes = target.shape[1]
         if self.class_weight is not None and num_of_classes != 1:
@@ -413,7 +413,7 @@ class GeneralizedDiceLoss(_Loss):
         else:
             raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
 
-        return f
+        return f # type: ignore[arg-type]
 
 
 class GeneralizedWassersteinDiceLoss(_Loss):
