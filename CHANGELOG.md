@@ -5,6 +5,98 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2024-10-17
+## What's Changed
+### Added
+* Implemented Conjugate Gradient Solver to generate confidence maps. (#7876)
+* Added norm parameter to `ResNet` (#7752, #7805)
+* Introduced alpha parameter to `DiceFocalLoss` for improved flexibility (#7841)
+* Integrated Tailored ControlNet Implementations (#7875)
+* Integrated Tailored Auto-Encoder Model (#7861)
+* Integrated Tailored Diffusion U-Net Model (7867)
+* Added Maisi morphological functions (#7893)
+* Added support for downloading bundles from NGC private registry (#7907, #7929, #8076)
+* Integrated generative refactor into the core (#7886, #7962)
+* Made `ViT` and `UNETR` models compatible with TorchScript (#7937)
+* Implemented post-download checks for MONAI bundles and compatibility warnings (#7938)
+* Added NGC prefix argument when downloading bundles (#7974)
+* Added flash attention support in the attention block for improved performance (#7977)
+* Enhanced `MLPBlock` for compatibility with VISTA-3D (#7995)
+* Added support for Neighbor-Aware Calibration Loss (NACL) for calibrated models in segmentation tasks (#7819)
+* Added label_smoothing parameter to `DiceCELoss` for enhanced model calibration (#8000)
+* Add `include_fc` and `use_combined_linear` argument in the `SABlock` (#7996)
+* Added utilities, networks, and an inferer specific to VISTA-3D (#7999, #7987, #8047, #8059, #8021)
+* Integrated a new network, `CellSamWrapper`, for cell-based applications (#7981)
+* Introduced `WriteFileMapping` transform to map between input image paths and their corresponding output paths (#7769)
+* Added `TrtHandler` to accelerate models using TensorRT (#7990, #8064)
+* Added box and points conversion transforms for more flexible spatial manipulation (#8053)
+* Enhanced `RandSimulateLowResolutiond` transform with deterministic support (#8057)
+* Added a contiguous argument to the `Fourier` class to facilitate contiguous tensor outputs (#7969)
+* Allowed `ApplyTransformToPointsd` to receive a sequence of reference keys for more versatile point manipulation (#8063)
+* Made `MetaTensor` an optional print in `DataStats` and `DataStatsd` for more concise logging (#7814)
+#### misc.
+* Refactored Dataset to utilize Compose for handling transforms. (#7784)
+* Combined `map_classes_to_indices` and `generate_label_classes_crop_centers` into a unified function (#7712)
+* Introduced metadata schema directly into the codebase for improved structure and validation (#7409)
+* Renamed `optional_packages_version` to `required_packages_version` for clearer package dependency management. (#7253)
+* Replaced `pkg_resources` with the more modern packaging module for package handling (#7953)
+* Refactored MAISI-related networks to align with the new generative components (#7989, #7993, #8005)
+* Added a badge displaying monthly download statistics to enhance project visibility (#7891)
+### Fixed
+#### transforms
+* Ensured deterministic behavior in `MixUp`, `CutMix`, and `CutOut` transforms (#7813)
+* Applied a minor correction to `AsDiscrete` transform (#7984)
+* Fixed handling of integer weightmaps in `RandomWeightedCrop` (#8097)
+* Resolved data type bug in `ScaleIntensityRangePercentile` (#8109)
+#### data
+* Fixed negative strides issue in the `NrrdReader` (#7809)
+* Addressed wsireader issue with retrieving MPP (7921)
+* Ensured location is returned as a tuple in wsireader (#8007)
+* Corrected interpretation of space directions in nrrd reader (#8091)
+#### metrics and losses
+* Improved memory management for `NACLLoss` (#8020)
+* Fixed reduction logic in `GeneralizedDiceScore` (#7970)
+#### networks
+* Resolved issue with loading pre-trained weights in `ResNet` (#7924)
+* Fixed error where `torch.device` object had no attribute gpu_id during TensorRT export (#8019)
+* Corrected function for loading older weights in `DiffusionModelUNet` (#8031)
+* Switched to `torch_tensorrt.Device` instead of `torch.device` during TensorRT compilation (#8051)
+#### engines and handlers
+* Attempted to resolve the "experiment already exists" issue in `MLFlowHandler` (#7916)
+* Refactored the model export process for conversion and saving (#7934)
+#### misc.
+* Adjusted requirements to exclude Numpy version 2.0 (#7859)
+* Updated deprecated `scipy.ndimage` namespaces in optional imports (#7847, #7897)
+* Resolved `load_module()` deprecation in Python 3.12 (#7881)
+* Fixed Ruff type check issues (#7885)
+* Cleaned disk space in the conda test pipeline (#7902)
+* Replaced deprecated `pkgutil.find_loader` usage  (#7906)
+* Enhanced docstrings in various modules (#7913, #8055)
+* Test cases fixing (#7905, #7794, #7808)
+* Fix mypy issue introduced in 1.11.0 (#7941)
+* Cleaned up warnings during test collection (#7914)
+* Fix incompatible types in assignment issue (#7950)
+* Fix outdated link in the docs (#7971)
+* Addressed CI issues (#7983, #8013)
+* Fix module can not import correctly issue (#8015)
+* Fix AttributeError when using torch.min and max (#8041)
+* Ensure synchronization by adding `cuda.synchronize` (#8058)
+* Ignore warning from nptyping as workaround (#8062)
+* Suppress deprecated warning when importing monai (#8067)
+* Fix link in test bundle under MONAI-extra-test-data (#8092)
+### Changed
+* Base Docker image upgraded to `nvcr.io/nvidia/pytorch:24.08-py3` from `nvcr.io/nvidia/pytorch:23.08-py3`
+* Change blossom-ci to ACL security format (#7843)
+* Move PyType test to weekly test (#8025)
+* Adjusted to meet Numpy 2.0 requirements (#7857)
+### Deprecated
+* Dropped support for Python 3.8 (#7909)
+* Remove deprecated arguments and class for v1.4 (#8079)
+### Removed
+* Remove use of deprecated python 3.12 strtobool (#7900)
+* Removed the pipeline for publishing to testpypi (#8086)
+* Cleaning up some very old and now obsolete infrastructure (#8113, #8118, #8121)
+
 ## [1.3.2] - 2024-06-25
 ### Fixed
 #### misc.
@@ -1040,7 +1132,8 @@ the postprocessing steps should be used before calling the metrics methods
 
 [highlights]: https://github.com/Project-MONAI/MONAI/blob/master/docs/source/highlights.md
 
-[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.3.2...HEAD
+[Unreleased]: https://github.com/Project-MONAI/MONAI/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/Project-MONAI/MONAI/compare/1.3.2...1.4.0
 [1.3.2]: https://github.com/Project-MONAI/MONAI/compare/1.3.1...1.3.2
 [1.3.1]: https://github.com/Project-MONAI/MONAI/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/Project-MONAI/MONAI/compare/1.2.0...1.3.0
