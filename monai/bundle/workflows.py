@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import sys
@@ -48,7 +49,12 @@ class BundleWorkflow(ABC):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties.
+        properties_path: the path to the file of properties. It can be a JSON file or a Python file.
+            If the file is a JSON file, it should be a dictionary of properties.
+            If the file is a Python file, it should define the properties in specific dictionaries:
+                - `TrainProperties` for training workflows.
+                - `InferProperties` for inference or evaluation workflows.
+                - `MetaProperties` is optional and can be provided for both types.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
@@ -105,11 +111,38 @@ class BundleWorkflow(ABC):
             properties_path = Path(properties_path)
             if not properties_path.is_file():
                 raise ValueError(f"Property file {properties_path} does not exist.")
-            with open(properties_path) as json_file:
-                self.properties = json.load(json_file)
-            self.workflow_type = None
-            self.meta_file = meta_file
-            return
+            if properties_path.suffix == ".json":
+                with open(properties_path) as json_file:
+                    self.properties = json.load(json_file)
+                    self.workflow_type = None
+                    self.meta_file = meta_file
+                    return
+            elif properties_path.suffix == ".py":
+                module_name = properties_path.stem
+                spec = importlib.util.spec_from_file_location(module_name, properties_path)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+                self.properties = {}
+                if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
+                    if not hasattr(module, "TrainProperties"):
+                        raise ValueError("TrainProperties is not defined in the properties file.")
+                    self.properties.update(module.TrainProperties)
+                    self.workflow_type = "train"
+                    self.meta_file = meta_file
+                elif workflow_type.lower() in self.supported_infer_type:  # type: ignore[union-attr]
+                    if not hasattr(module, "InferProperties"):
+                        raise ValueError("InferProperties is not defined in the properties file.")
+                    self.properties.update(module.InferProperties)
+                    self.workflow_type = "infer"
+                    self.meta_file = meta_file
+                else:
+                    raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
+                if hasattr(module, "MetaProperties"):
+                    self.properties.update(module.MetaProperties)
+                return
+            else:
+                raise ValueError(f"Unsupported file type: {properties_path.suffix}. Only support .json or .py.")
         if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
             self.properties = {**TrainProperties, **MetaProperties}
             self.workflow_type = "train"
