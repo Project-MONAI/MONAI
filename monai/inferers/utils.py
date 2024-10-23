@@ -12,10 +12,8 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
-
-from collections.abc import Iterable
 
 import numpy as np
 import torch

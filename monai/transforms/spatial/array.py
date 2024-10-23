@@ -15,12 +15,10 @@ A collection of "vanilla" transforms for spatial operations.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from itertools import zip_longest
 from typing import Any, Optional, Union, cast
-
-from collections.abc import Sequence
 
 import numpy as np
 import torch

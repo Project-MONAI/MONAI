@@ -18,7 +18,7 @@ import pdb
 import re
 import sys
 import warnings
-from collections.abc import Callable, Collection, Hashable, Mapping
+from collections.abc import Callable, Collection, Hashable, Iterable, Mapping
 from functools import partial, wraps
 from importlib import import_module
 from pkgutil import walk_packages
@@ -26,8 +26,6 @@ from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
 from typing import Any, cast
-
-from collections.abc import Iterable
 
 import torch
 
