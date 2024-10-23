@@ -74,7 +74,7 @@ class StatsHandler:
         output_transform: Callable = lambda x: x[0],
         global_epoch_transform: Callable = lambda x: x,
         state_attributes: Sequence[str] | None = None,
-        name: str | None = "StatsHandler",
+        name: str | None = "monai.handlers.StatsHandler",
         tag_name: str = DEFAULT_TAG,
         key_var_format: str = DEFAULT_KEY_VAL_FORMAT,
     ) -> None:
