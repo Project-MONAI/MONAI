@@ -9,7 +9,7 @@ ci:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -26,33 +26,28 @@ repos:
         args: ['--autofix', '--no-sort-keys', '--indent=4']
       - id: end-of-file-fixer
       - id: mixed-line-ending
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.3.5
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
     hooks:
     -   id: ruff
         args:
         - --fix
 
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.3.1
+    rev: v3.18.0
     hooks:
       - id: pyupgrade
-        args: [--py37-plus]
-        name: Upgrade code excluding monai networks
+        args: [--py39-plus, --keep-runtime-typing]
+        name: Upgrade code with exceptions
         exclude: |
           (?x)(
               ^versioneer.py|
-              ^monai/_version.py|
-              ^monai/networks/|  # no PEP 604 for torchscript tensorrt
-              ^monai/losses/  # no PEP 604 for torchscript tensorrt
+              ^monai/_version.py
           )
-      - id: pyupgrade
-        args: [--py37-plus, --keep-runtime-typing]
-        name: Upgrade monai networks
-        files: (?x)(^monai/networks/)
+
 
   - repo: https://github.com/asottile/yesqa
-    rev: v1.4.0
+    rev: v1.5.0
     hooks:
       - id: yesqa
         name: Unused noqa
