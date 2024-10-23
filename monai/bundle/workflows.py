@@ -120,8 +120,12 @@ class BundleWorkflow(ABC):
             elif properties_path.suffix == ".py":
                 module_name = properties_path.stem
                 spec = importlib.util.spec_from_file_location(module_name, properties_path)
+                if spec is None:
+                    raise ImportError(f"Cannot find module specification for {module_name}")
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[module_name] = module
+                if spec.loader is None:
+                    raise ImportError(f"Cannot find loader for {module_name}")
                 spec.loader.exec_module(module)
                 self.properties = {}
                 if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
