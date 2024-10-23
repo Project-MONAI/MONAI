@@ -94,7 +94,7 @@ class MaskedAutoEncoderViT(nn.Module):
         super().__init__()
 
         if not (0 <= dropout_rate <= 1):
-            raise ValueError("dropout_rate should be between 0 and 1.")
+            raise ValueError(f"dropout_rate should be between 0 and 1, got {dropout_rate}.")
 
         if hidden_size % num_heads != 0:
             raise ValueError("hidden_size should be divisible by num_heads.")
