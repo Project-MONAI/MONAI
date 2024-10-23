@@ -14,7 +14,9 @@ from __future__ import annotations
 from collections import namedtuple
 from keyword import iskeyword
 from textwrap import dedent, indent
-from typing import Any, Callable, Iterable, TypeVar
+from typing import Any, Callable, TypeVar
+
+from collections.abc import Iterable
 
 T = TypeVar("T")
 

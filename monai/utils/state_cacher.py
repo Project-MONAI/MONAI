@@ -16,7 +16,9 @@ import os
 import pickle
 import tempfile
 from types import ModuleType
-from typing import Any, Hashable
+from typing import Any
+
+from collections.abc import Hashable
 
 import torch
 from torch.serialization import DEFAULT_PROTOCOL

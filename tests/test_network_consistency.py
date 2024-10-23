@@ -15,7 +15,7 @@ import json
 import os
 import unittest
 from glob import glob
-from typing import Sequence
+from collections.abc import Sequence
 from unittest.case import skipIf
 
 import torch

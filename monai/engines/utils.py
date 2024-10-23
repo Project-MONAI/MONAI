@@ -13,7 +13,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, Mapping, cast
+from typing import TYPE_CHECKING, Any, cast
+
+from collections.abc import Mapping
 
 import torch
 import torch.nn as nn

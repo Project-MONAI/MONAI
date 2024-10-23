@@ -20,7 +20,9 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Hashable, Mapping
 from copy import deepcopy
-from typing import Any, Sequence, cast
+from typing import Any, cast
+
+from collections.abc import Sequence
 
 import numpy as np
 import torch
