@@ -37,25 +37,16 @@ repos:
     rev: v3.19.0
     hooks:
       - id: pyupgrade
-        args: [--py38-plus]
-        name: Upgrade code excluding monai networks
+        args: [--py38-plus, --keep-runtime-typing]
+        name: Upgrade code with exceptions
         exclude: |
           (?x)(
               ^versioneer.py|
               ^monai/_version.py|
-              ^monai/networks/|  # no PEP 604 for torchscript tensorrt
-              ^monai/losses/|  # no PEP 604 for torchscript tensorrt
-              ^monai/data/utils.py|
-              ^monai/data/grid_dataset.py
+              ^monai/networks/| # avoid typing rewrites
+              ^monai/apps/detection/utils/anchor_utils.py| # avoid typing rewrites
+              ^tests/test_compute_panoptic_quality.py # avoid typing rewrites
           )
-      - id: pyupgrade
-        args: [--py38-plus, --keep-runtime-typing]
-        name: Upgrade monai networks
-        files: (?x)(
-                   ^monai/networks/|
-                   ^monai/data/utils.py|
-                   ^monai/data/grid_dataset.py
-                )
 
   - repo: https://github.com/asottile/yesqa
     rev: v1.5.0
