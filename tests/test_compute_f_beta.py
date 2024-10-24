@@ -59,7 +59,7 @@ class TestFBetaScore(unittest.TestCase):
         metric = FBetaScore(get_not_nans=True)
         metric(
             y_pred=torch.Tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]]),
-            y=torch.Tensor([[1, 0, 1], [np.NaN, np.NaN, np.NaN], [1, 0, 1]]),
+            y=torch.Tensor([[1, 0, 1], [np.nan, np.nan, np.nan], [1, 0, 1]]),
         )
         assert_allclose(metric.aggregate()[0][0], torch.Tensor([0.727273]), atol=1e-6, rtol=1e-6)
 
