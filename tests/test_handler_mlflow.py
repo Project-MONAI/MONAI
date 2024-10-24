@@ -123,7 +123,10 @@ class TestHandlerMLFlow(unittest.TestCase):
                 current_metric = engine.state.metrics.get("acc", 0.1)
                 engine.state.metrics["acc"] = current_metric + 0.1
                 # log nested metrics
-                engine.state.metrics["acc_per_label"] = {"label_0": current_metric + 0.1, "label_1": current_metric + 0.2}
+                engine.state.metrics["acc_per_label"] = {
+                    "label_0": current_metric + 0.1,
+                    "label_1": current_metric + 0.2,
+                }
                 engine.state.test = current_metric
 
             # set up testing handler
