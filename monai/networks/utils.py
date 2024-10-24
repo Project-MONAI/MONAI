@@ -692,7 +692,7 @@ def convert_to_onnx(
             onnx_inputs = tuple(inputs)
         if filename is None:
             temp_file = tempfile.NamedTemporaryFile(delete=False)
-            f = f"{temp_file.name}/model.onnx"
+            f = temp_file.name
         else:
             f = filename
 
