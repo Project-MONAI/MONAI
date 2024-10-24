@@ -927,5 +927,5 @@ def flatten_dict(metrics: dict[str, Any]) -> dict[str, Any]:
         if isinstance(value, dict):
             result.update(flatten_dict(value))
         else:
-            result[f"{key}"] = value
+            result[key] = value
     return result
