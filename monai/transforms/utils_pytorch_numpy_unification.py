@@ -88,7 +88,7 @@ def moveaxis(x: NdarrayOrTensor, src: int | Sequence[int], dst: int | Sequence[i
 def in1d(x, y):
     """`np.in1d` with equivalent implementation for torch."""
     if isinstance(x, np.ndarray):
-        return np.in1d(x, y)
+        return np.isin(x, y)
     return (x[..., None] == torch.tensor(y, device=x.device)).any(-1).view(-1)
 
 

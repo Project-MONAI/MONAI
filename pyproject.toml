@@ -50,7 +50,6 @@ extend-ignore = [
   "E741", # ambiguous variable name
   "F401", # unused import
   "NPY002", # numpy-legacy-random
-  "NPY201", # numpy2 deprecation
 ]
 
 [tool.pytype]
