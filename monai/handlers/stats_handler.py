@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 from monai.apps import get_logger
-from monai.utils import IgniteInfo, is_scalar, min_version, optional_import
+from monai.utils import IgniteInfo, flatten_dict, is_scalar, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 if TYPE_CHECKING:
@@ -211,8 +211,7 @@ class StatsHandler:
 
         """
         current_epoch = self.global_epoch_transform(engine.state.epoch)
-
-        prints_dict = engine.state.metrics
+        prints_dict = flatten_dict(engine.state.metrics)
         if prints_dict is not None and len(prints_dict) > 0:
             out_str = f"Epoch[{current_epoch}] Metrics -- "
             for name in sorted(prints_dict):

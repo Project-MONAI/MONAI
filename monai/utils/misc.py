@@ -916,3 +916,16 @@ def unsqueeze_right(arr: NT, ndim: int) -> NT:
 def unsqueeze_left(arr: NT, ndim: int) -> NT:
     """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(None,) * (ndim - arr.ndim)]
+
+
+def flatten_dict(metrics: dict[str, Any]) -> dict[str, Any]:
+    """
+    Flatten the nested dictionary to a flat dictionary.
+    """
+    result = {}
+    for key, value in metrics.items():
+        if isinstance(value, dict):
+            result.update(flatten_dict(value))
+        else:
+            result[key] = value
+    return result
