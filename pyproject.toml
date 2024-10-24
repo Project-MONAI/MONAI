@@ -44,10 +44,13 @@ target-version = "py39"
 [tool.ruff.lint]
 select = [
   "E", "F", "W", # flake8
+  "NPY",         # NumPy specific rules
 ]
 extend-ignore = [
   "E741", # ambiguous variable name
   "F401", # unused import
+  "NPY002", # numpy-legacy-random
+  "NPY201", # numpy2 deprecation
 ]
 
 [tool.pytype]
