@@ -231,6 +231,7 @@ class TrtCompiler:
         plan_path,
         precision="fp16",
         method="onnx",
+        onnx_path=None,
         input_names=None,
         output_names=None,
         export_args=None,
@@ -253,6 +254,7 @@ class TrtCompiler:
             method: One of 'onnx'|'torch_trt'.
                     Default is 'onnx' (torch.onnx.export()->TRT). This is the most stable and efficient option.
                     'torch_trt' may not work for some nets. Also AMP must be turned off for it to work.
+            onnx_path: Optional path to ONNX model. If provided, will save the onnx model to this path.
             input_names: Optional list of input names. If None, will be read from the function signature.
             output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
@@ -275,6 +277,7 @@ class TrtCompiler:
             raise ValueError(f"trt_compile(): 'precision' should be one of {precision_vals}, got: {precision}.")
 
         self.plan_path = plan_path
+        self.onnx_path = onnx_path
         self.precision = precision
         self.method = method
         self.return_dict = output_names is not None
@@ -470,7 +473,10 @@ class TrtCompiler:
 
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
-                onnx_path = Path(tmpdir) / "model.onnx"
+                if self.onnx_path is not None:
+                    onnx_path = Path(self.onnx_path) / "model.onnx"
+                else:
+                    onnx_path = Path(tmpdir) / "model.onnx"
                 self.logger.info(
                     f"Exporting to {onnx_path}:\n\toutput_names={self.output_names}\n\texport args: {export_args}"
                 )
