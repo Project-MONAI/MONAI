@@ -67,6 +67,17 @@ for masking_ratio in [0.5]:
                                                                     test_case[0]["spatial_dims"] = 2  # type: ignore
                                                                 TEST_CASE_MaskedAutoEncoderViT.append(test_case)
 
+TEST_CASE_ill_args = [
+    [{"in_channels": 1, "img_size": (128, 128, 128), "patch_size": (16, 16, 16), "dropout_rate": 5.0}],
+    [{"in_channels": 1, "img_size": (128, 128, 128), "patch_size": (64, 64, 64), "pos_embed_type": "sin"}],
+    [{"in_channels": 1, "img_size": (128, 128, 128), "patch_size": (64, 64, 64), "decoder_pos_embed_type": "sin"}],
+    [{"in_channels": 1, "img_size": (32, 32, 32), "patch_size": (64, 64, 64)}],
+    [{"in_channels": 1, "img_size": (128, 128, 128), "patch_size": (64, 64, 64), "num_layers": 12, "num_heads": 14}],
+    [{"in_channels": 1, "img_size": (97, 97, 97), "patch_size": (16, 16, 16)}],
+    [{"in_channels": 1, "img_size": (128, 128, 128), "patch_size": (64, 64, 64), "masking_ratio": 1.1}],
+    [{"in_channels": 1, "img_size": (128, 128, 128), "patch_size": (64, 64, 64), "masking_ratio": -0.1}],
+]
+
 
 @skip_if_quick
 class TestMaskedAutoencoderViT(unittest.TestCase):
@@ -83,121 +94,10 @@ class TestMaskedAutoencoderViT(unittest.TestCase):
 
         self.assertEqual(net.decoder_pos_embedding.requires_grad, False)
 
-    def test_ill_arg(self):
+    @parameterized.expand(TEST_CASE_ill_args)
+    def test_ill_arg(self, input_param):
         with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=1,
-                img_size=(128, 128, 128),
-                patch_size=(16, 16, 16),
-                hidden_size=128,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                proj_type="conv",
-                dropout_rate=5.0,
-            )
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=1,
-                img_size=(32, 32, 32),
-                patch_size=(64, 64, 64),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                pos_embed_type="sin",
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=1,
-                img_size=(32, 32, 32),
-                patch_size=(64, 64, 64),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                decoder_pos_embed_type="sin",
-                dropout_rate=0.3,
-            )
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=1,
-                img_size=(32, 32, 32),
-                patch_size=(64, 64, 64),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                proj_type="perceptron",
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=1,
-                img_size=(96, 96, 96),
-                patch_size=(8, 8, 8),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=14,
-                proj_type="conv",
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=1,
-                img_size=(97, 97, 97),
-                patch_size=(4, 4, 4),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                proj_type="perceptron",
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=4,
-                img_size=(96, 96, 96),
-                patch_size=(16, 16, 16),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                proj_type="perc",
-                dropout_rate=0.3,
-            )
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=4,
-                img_size=(96, 96, 96),
-                patch_size=(16, 16, 16),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                proj_type="conv",
-                dropout_rate=0.3,
-                masking_ratio=1.1,
-            )
-        with self.assertRaises(ValueError):
-            MaskedAutoEncoderViT(
-                in_channels=4,
-                img_size=(96, 96, 96),
-                patch_size=(16, 16, 16),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                proj_type="conv",
-                dropout_rate=0.3,
-                masking_ratio=-0.1,
-            )
+            MaskedAutoEncoderViT(**input_param)
 
     def test_access_attn_matrix(self):
         # input format
