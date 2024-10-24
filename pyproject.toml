@@ -39,7 +39,16 @@ exclude = "monai/bundle/__main__.py"
 
 [tool.ruff]
 line-length = 133
-lint.ignore = ["F401", "E741"]
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W", # flake8
+]
+extend-ignore = [
+  "E741", # ambiguous variable name
+  "F401", # unused import
+]
 
 [tool.pytype]
 # Space-separated list of files or directories to exclude.
