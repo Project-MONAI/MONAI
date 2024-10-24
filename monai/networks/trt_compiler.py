@@ -474,7 +474,7 @@ class TrtCompiler:
             # Use temporary directory for easy cleanup in case of external weights
             with tempfile.TemporaryDirectory() as tmpdir:
                 if self.onnx_path is not None:
-                    onnx_path = Path(self.onnx_path) / "model.onnx"
+                    onnx_path = Path(self.onnx_path)
                 else:
                     onnx_path = Path(tmpdir) / "model.onnx"
                 self.logger.info(
