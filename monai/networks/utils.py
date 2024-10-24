@@ -15,7 +15,9 @@ Utilities and types for defining networks, these depend on PyTorch.
 from __future__ import annotations
 
 import io
+import os
 import re
+import tempfile
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
@@ -688,16 +690,16 @@ def convert_to_onnx(
             onnx_inputs = (inputs,)
         else:
             onnx_inputs = tuple(inputs)
-
         if filename is None:
-            f = io.BytesIO()
+            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            f = f"{temp_file.name}/model.onnx"
         else:
             f = filename
 
         torch.onnx.export(
             mode_to_export,
             onnx_inputs,
-            f=f,  # type: ignore[arg-type]
+            f=f,
             input_names=input_names,
             output_names=output_names,
             dynamic_axes=dynamic_axes,
@@ -705,10 +707,9 @@ def convert_to_onnx(
             do_constant_folding=do_constant_folding,
             **torch_versioned_kwargs,
         )
-        if filename is None:
-            onnx_model = onnx.load_model_from_string(f.getvalue())
-        else:
-            onnx_model = onnx.load(filename)
+        onnx_model = onnx.load(f)
+        temp_file.close()
+        os.remove(temp_file.name)
 
     if do_constant_folding and polygraphy_imported:
         from polygraphy.backend.onnx.loader import fold_constants
