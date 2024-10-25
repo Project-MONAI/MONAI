@@ -372,7 +372,7 @@ class PersistentDataset(Dataset):
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                if 'weights_only' in signature(torch.load):
+                if 'weights_only' in signature(torch.load).parameters:
                     return torch.load(hashfile, weights_only=False)
                 else:
                     return torch.load(hashfile)
@@ -1674,7 +1674,7 @@ class GDSDataset(PersistentDataset):
         if meta_hash_file_name in self._meta_cache:
             return self._meta_cache[meta_hash_file_name]
         else:
-            if 'weights_only' in signature(torch.load):
+            if 'weights_only' in signature(torch.load).parameters:
                 return torch.load(self.cache_dir / meta_hash_file_name, weights_only=False)
             else:
                 return torch.load(self.cache_dir / meta_hash_file_name)
