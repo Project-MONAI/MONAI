@@ -23,6 +23,7 @@ from monai.transforms import ToNumpyd
 
 
 class TestCSVDataset(unittest.TestCase):
+
     def test_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data1 = [

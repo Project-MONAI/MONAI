@@ -28,6 +28,7 @@ TEST_CASE_3 = [(2, 16, 20, 18), [[0, 16, 0, 20, 0, 18], [0, 16, 0, 20, 0, 18]]]
 
 
 class TestBoundingRectD(unittest.TestCase):
+
     def setUp(self):
         monai.utils.set_determinism(1)
 

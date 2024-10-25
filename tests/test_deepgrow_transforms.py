@@ -141,6 +141,21 @@ DATA_11 = {
 
 DATA_12 = {"image": np.arange(27).reshape(3, 3, 3), PostFix.meta("image"): {}, "guidance": [[0, 0, 0], [0, 1, 1], 1]}
 
+DATA_13 = {
+    "image": np.arange(64).reshape((1, 4, 4, 4)),
+    PostFix.meta("image"): {
+        "spatial_shape": [8, 8, 4],
+        "foreground_start_coord": np.array([1, 1, 1]),
+        "foreground_end_coord": np.array([3, 3, 3]),
+        "foreground_original_shape": (1, 4, 4, 4),
+        "foreground_cropped_shape": (1, 2, 2, 2),
+        "original_affine": np.array(
+            [[[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]]
+        ),
+    },
+    "pred": np.array([[[[10, 20], [30, 40]], [[50, 60], [70, 80]]]]),
+}
+
 FIND_SLICE_TEST_CASE_1 = [{"label": "label", "sids": "sids"}, DATA_1, [0]]
 
 FIND_SLICE_TEST_CASE_2 = [{"label": "label", "sids": "sids"}, DATA_2, [0, 1]]
@@ -329,6 +344,74 @@ RESULT[4:8, 4:8, 4:8] = np.array(
 
 RESTORE_LABEL_TEST_CASE_2 = [{"keys": ["pred"], "ref_image": "image", "mode": "nearest"}, DATA_11, RESULT]
 
+RESTORE_LABEL_TEST_CASE_3_RESULT = np.zeros((10, 20, 20))
+RESTORE_LABEL_TEST_CASE_3_RESULT[:5, 0:10, 0:10] = 1
+RESTORE_LABEL_TEST_CASE_3_RESULT[:5, 0:10, 10:20] = 2
+RESTORE_LABEL_TEST_CASE_3_RESULT[:5, 10:20, 0:10] = 3
+RESTORE_LABEL_TEST_CASE_3_RESULT[:5, 10:20, 10:20] = 4
+RESTORE_LABEL_TEST_CASE_3_RESULT[5:10, 0:10, 0:10] = 5
+RESTORE_LABEL_TEST_CASE_3_RESULT[5:10, 0:10, 10:20] = 6
+RESTORE_LABEL_TEST_CASE_3_RESULT[5:10, 10:20, 0:10] = 7
+RESTORE_LABEL_TEST_CASE_3_RESULT[5:10, 10:20, 10:20] = 8
+
+RESTORE_LABEL_TEST_CASE_3 = [
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_cropping": False},
+    DATA_11,
+    RESTORE_LABEL_TEST_CASE_3_RESULT,
+]
+
+RESTORE_LABEL_TEST_CASE_4_RESULT = np.zeros((4, 8, 8))
+RESTORE_LABEL_TEST_CASE_4_RESULT[1, 2:6, 2:6] = np.array(
+    [[10.0, 10.0, 20.0, 20.0], [10.0, 10.0, 20.0, 20.0], [30.0, 30.0, 40.0, 40.0], [30.0, 30.0, 40.0, 40.0]]
+)
+RESTORE_LABEL_TEST_CASE_4_RESULT[2, 2:6, 2:6] = np.array(
+    [[50.0, 50.0, 60.0, 60.0], [50.0, 50.0, 60.0, 60.0], [70.0, 70.0, 80.0, 80.0], [70.0, 70.0, 80.0, 80.0]]
+)
+
+RESTORE_LABEL_TEST_CASE_4 = [
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_resizing": False},
+    DATA_13,
+    RESTORE_LABEL_TEST_CASE_4_RESULT,
+]
+
+RESTORE_LABEL_TEST_CASE_5_RESULT = np.zeros((4, 4, 4))
+RESTORE_LABEL_TEST_CASE_5_RESULT[1, 1:3, 1:3] = np.array([[10.0, 20.0], [30.0, 40.0]])
+RESTORE_LABEL_TEST_CASE_5_RESULT[2, 1:3, 1:3] = np.array([[50.0, 60.0], [70.0, 80.0]])
+
+RESTORE_LABEL_TEST_CASE_5 = [
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_spacing": False},
+    DATA_13,
+    RESTORE_LABEL_TEST_CASE_5_RESULT,
+]
+
+RESTORE_LABEL_TEST_CASE_6_RESULT = np.zeros((1, 4, 8, 8))
+RESTORE_LABEL_TEST_CASE_6_RESULT[-1, 1, 2:6, 2:6] = np.array(
+    [[10.0, 10.0, 20.0, 20.0], [10.0, 10.0, 20.0, 20.0], [30.0, 30.0, 40.0, 40.0], [30.0, 30.0, 40.0, 40.0]]
+)
+RESTORE_LABEL_TEST_CASE_6_RESULT[-1, 2, 2:6, 2:6] = np.array(
+    [[50.0, 50.0, 60.0, 60.0], [50.0, 50.0, 60.0, 60.0], [70.0, 70.0, 80.0, 80.0], [70.0, 70.0, 80.0, 80.0]]
+)
+
+RESTORE_LABEL_TEST_CASE_6 = [
+    {"keys": ["pred"], "ref_image": "image", "mode": "nearest", "restore_slicing": False},
+    DATA_13,
+    RESTORE_LABEL_TEST_CASE_6_RESULT,
+]
+
+RESTORE_LABEL_TEST_CASE_7 = [
+    {
+        "keys": ["pred"],
+        "ref_image": "image",
+        "mode": "nearest",
+        "restore_resizing": False,
+        "restore_cropping": False,
+        "restore_spacing": False,
+        "restore_slicing": False,
+    },
+    DATA_11,
+    np.array([[[[1, 2], [3, 4]], [[5, 6], [7, 8]]]]),
+]
+
 FETCH_2D_SLICE_TEST_CASE_1 = [
     {"keys": ["image"], "guidance": "guidance"},
     DATA_12,
@@ -337,6 +420,7 @@ FETCH_2D_SLICE_TEST_CASE_1 = [
 
 
 class TestFindAllValidSlicesd(unittest.TestCase):
+
     @parameterized.expand([FIND_SLICE_TEST_CASE_1, FIND_SLICE_TEST_CASE_2])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = FindAllValidSlicesd(**arguments)(input_data)
@@ -344,6 +428,7 @@ class TestFindAllValidSlicesd(unittest.TestCase):
 
 
 class TestSpatialCropForegroundd(unittest.TestCase):
+
     @parameterized.expand([CROP_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = SpatialCropForegroundd(**arguments)(input_data)
@@ -368,6 +453,7 @@ class TestSpatialCropForegroundd(unittest.TestCase):
 
 
 class TestAddInitialSeedPointd(unittest.TestCase):
+
     @parameterized.expand([ADD_INITIAL_POINT_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         seed = 0
@@ -378,6 +464,7 @@ class TestAddInitialSeedPointd(unittest.TestCase):
 
 
 class TestAddGuidanceSignald(unittest.TestCase):
+
     @parameterized.expand([ADD_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = AddGuidanceSignald(**arguments)(input_data)
@@ -385,6 +472,7 @@ class TestAddGuidanceSignald(unittest.TestCase):
 
 
 class TestFindDiscrepancyRegionsd(unittest.TestCase):
+
     @parameterized.expand([FIND_DISCREPANCY_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = FindDiscrepancyRegionsd(**arguments)(input_data)
@@ -392,6 +480,7 @@ class TestFindDiscrepancyRegionsd(unittest.TestCase):
 
 
 class TestAddRandomGuidanced(unittest.TestCase):
+
     @parameterized.expand([ADD_RANDOM_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         seed = 0
@@ -402,6 +491,7 @@ class TestAddRandomGuidanced(unittest.TestCase):
 
 
 class TestAddGuidanceFromPointsd(unittest.TestCase):
+
     @parameterized.expand(
         [
             ADD_GUIDANCE_FROM_POINTS_TEST_CASE_1,
@@ -419,6 +509,7 @@ class TestAddGuidanceFromPointsd(unittest.TestCase):
 
 
 class TestSpatialCropGuidanced(unittest.TestCase):
+
     @parameterized.expand(
         [SPATIAL_CROP_GUIDANCE_TEST_CASE_1, SPATIAL_CROP_GUIDANCE_TEST_CASE_2, SPATIAL_CROP_GUIDANCE_TEST_CASE_3]
     )
@@ -428,6 +519,7 @@ class TestSpatialCropGuidanced(unittest.TestCase):
 
 
 class TestResizeGuidanced(unittest.TestCase):
+
     @parameterized.expand([RESIZE_GUIDANCE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = ResizeGuidanced(**arguments)(input_data)
@@ -435,13 +527,25 @@ class TestResizeGuidanced(unittest.TestCase):
 
 
 class TestRestoreLabeld(unittest.TestCase):
-    @parameterized.expand([RESTORE_LABEL_TEST_CASE_1, RESTORE_LABEL_TEST_CASE_2])
+
+    @parameterized.expand(
+        [
+            RESTORE_LABEL_TEST_CASE_1,
+            RESTORE_LABEL_TEST_CASE_2,
+            RESTORE_LABEL_TEST_CASE_3,
+            RESTORE_LABEL_TEST_CASE_4,
+            RESTORE_LABEL_TEST_CASE_5,
+            RESTORE_LABEL_TEST_CASE_6,
+            RESTORE_LABEL_TEST_CASE_7,
+        ]
+    )
     def test_correct_results(self, arguments, input_data, expected_result):
         result = RestoreLabeld(**arguments)(input_data)
         np.testing.assert_allclose(result["pred"], expected_result)
 
 
 class TestFetch2DSliced(unittest.TestCase):
+
     @parameterized.expand([FETCH_2D_SLICE_TEST_CASE_1])
     def test_correct_results(self, arguments, input_data, expected_result):
         result = Fetch2DSliced(**arguments)(input_data)

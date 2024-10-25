@@ -26,13 +26,17 @@ jobs:
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
-      uses: al-cheb/configure-pagefile-action@v1.3
+      uses: al-cheb/configure-pagefile-action@v1.4
       with:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v4
-    - uses: conda-incubator/setup-miniconda@v2
+    - name: Clean up disk space
+      run: |
+        find /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        rm -rf /usr/share/dotnet/
+    - uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
@@ -56,6 +60,10 @@ jobs:
         conda deactivate
     - name: Test env (CPU ${{ runner.os }})
       shell: bash -el {0}
+      env:
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: |
         conda activate monai
         $(pwd)/runtests.sh --build --unittests

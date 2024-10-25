@@ -73,10 +73,12 @@ UNSUPPORTED_TYPES = {np.dtype("uint16"): torch.int32, np.dtype("uint32"): torch.
 
 
 class TestTensor(torch.Tensor):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
     pass
 
 
 class TestConvertDataType(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_convert_data_type(self, in_image, im_out, out_dtype, safe):
         converted_im, orig_type, orig_device = convert_data_type(in_image, type(im_out), dtype=out_dtype, safe=safe)

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import glob
 import os
+import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -167,8 +168,8 @@ class ITKReader(ImageReader):
         series_name: the name of the DICOM series if there are multiple ones.
             used when loading DICOM series.
         reverse_indexing: whether to use a reversed spatial indexing convention for the returned data array.
-            If ``False``, the spatial indexing follows the numpy convention;
-            otherwise, the spatial indexing convention is reversed to be compatible with ITK. Default is ``False``.
+            If ``False``, the spatial indexing convention is reversed to be compatible with ITK;
+            otherwise, the spatial indexing follows the numpy convention. Default is ``False``.
             This option does not affect the metadata.
         series_meta: whether to load the metadata of the DICOM series (using the metadata from the first slice).
             This flag is checked only when loading DICOM series. Default is ``False``.
@@ -403,8 +404,12 @@ class PydicomReader(ImageReader):
         label_dict: label of the dicom data. If provided, it will be used when loading segmentation data.
             Keys of the dict are the classes, and values are the corresponding class number. For example:
             for TCIA collection "C4KC-KiTS", it can be: {"Kidney": 0, "Renal Tumor": 1}.
+        fname_regex: a regular expression to match the file names when the input is a folder.
+            If provided, only the matched files will be included. For example, to include the file name
+            "image_0001.dcm", the regular expression could be `".*image_(\\d+).dcm"`. Default to `""`.
+            Set it to `None` to use `pydicom.misc.is_dicom` to match valid files.
         kwargs: additional args for `pydicom.dcmread` API. more details about available args:
-            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html#pydicom.filereader.dcmread
+            https://pydicom.github.io/pydicom/stable/reference/generated/pydicom.filereader.dcmread.html
             If the `get_data` function will be called
             (for example, when using this reader with `monai.transforms.LoadImage`), please ensure that the argument
             `stop_before_pixels` is `True`, and `specific_tags` covers all necessary tags, such as `PixelSpacing`,
@@ -418,6 +423,7 @@ class PydicomReader(ImageReader):
         swap_ij: bool = True,
         prune_metadata: bool = True,
         label_dict: dict | None = None,
+        fname_regex: str = "",
         **kwargs,
     ):
         super().__init__()
@@ -427,6 +433,7 @@ class PydicomReader(ImageReader):
         self.swap_ij = swap_ij
         self.prune_metadata = prune_metadata
         self.label_dict = label_dict
+        self.fname_regex = fname_regex
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -467,9 +474,16 @@ class PydicomReader(ImageReader):
             name = f"{name}"
             if Path(name).is_dir():
                 # read DICOM series
-                series_slcs = glob.glob(os.path.join(name, "*"))
-                series_slcs = [slc for slc in series_slcs if "LICENSE" not in slc]
-                slices = [pydicom.dcmread(fp=slc, **kwargs_) for slc in series_slcs]
+                if self.fname_regex is not None:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
+                else:
+                    series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
+                slices = []
+                for slc in series_slcs:
+                    try:
+                        slices.append(pydicom.dcmread(fp=slc, **kwargs_))
+                    except pydicom.errors.InvalidDicomError as e:
+                        warnings.warn(f"Failed to read {slc} with exception: \n{e}.", stacklevel=2)
                 img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
                     self.has_series = True
@@ -1286,7 +1300,7 @@ class NrrdReader(ImageReader):
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
-            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, *kwargs_))
+            nrrd_image = NrrdImage(*nrrd.read(name, index_order=self.index_order, **kwargs_))
             img_.append(nrrd_image)
         return img_ if len(filenames) > 1 else img_[0]
 
@@ -1309,7 +1323,7 @@ class NrrdReader(ImageReader):
             header = dict(i.header)
             if self.index_order == "C":
                 header = self._convert_f_to_c_order(header)
-            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
+            header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(header)
 
             if self.affine_lps_to_ras:
                 header = self._switch_lps_ras(header)
@@ -1317,7 +1331,7 @@ class NrrdReader(ImageReader):
                 header[MetaKeys.SPACE] = SpaceKeys.LPS  # assuming LPS if not specified
 
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
-            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
+            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"].copy()
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1
@@ -1330,7 +1344,7 @@ class NrrdReader(ImageReader):
 
         return _stack_images(img_array, compatible_meta), compatible_meta
 
-    def _get_affine(self, img: NrrdImage) -> np.ndarray:
+    def _get_affine(self, header: dict) -> np.ndarray:
         """
         Get the affine matrix of the image, it can be used to correct
         spacing, orientation or execute spatial transforms.
@@ -1339,13 +1353,13 @@ class NrrdReader(ImageReader):
             img: A `NrrdImage` loaded from image file
 
         """
-        direction = img.header["space directions"]
-        origin = img.header["space origin"]
+        direction = header["space directions"]
+        origin = header["space origin"]
 
         x, y = direction.shape
         affine_diam = min(x, y) + 1
         affine: np.ndarray = np.eye(affine_diam)
-        affine[:x, :y] = direction
+        affine[:x, :y] = direction.T
         affine[: (affine_diam - 1), -1] = origin  # len origin is always affine_diam - 1
         return affine
 

@@ -36,11 +36,14 @@ TEST_CASE_2 = [
 
 
 class TestNet(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def forward(self, x: torch.Tensor, t1=None, t2=None, t3=None):
         return {"x": x, "t1": t1, "t2": t2, "t3": t3}
 
 
 class TestPrepareBatchExtraInput(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_content(self, input_args, expected_value):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

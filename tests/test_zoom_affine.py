@@ -64,6 +64,7 @@ DIAGONAL_CASES = [
 
 
 class TestZoomAffine(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct(self, affine, scale, expected):
         output = zoom_affine(affine, scale, diagonal=False)

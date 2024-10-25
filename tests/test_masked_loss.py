@@ -40,6 +40,7 @@ TEST_CASES = [
 
 
 class TestMaskedLoss(unittest.TestCase):
+
     def setUp(self):
         set_determinism(0)
 

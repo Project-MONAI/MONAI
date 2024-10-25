@@ -49,6 +49,7 @@ TEST_SENS = [(ksp_2d, sens_2d), (ksp_3d, sens_3d)]
 
 
 class TestReconNetUtils(unittest.TestCase):
+
     @parameterized.expand(TEST_RESHAPE)
     def test_reshape_channel_complex(self, test_data):
         result = reshape_complex_to_channel_dim(test_data)
@@ -63,7 +64,7 @@ class TestReconNetUtils(unittest.TestCase):
     def test_complex_normalize(self, test_data):
         result, mean, std = complex_normalize(test_data)
         result = result * std + mean
-        self.assertTrue((((result - test_data) ** 2).mean() ** 0.5).item() < 1e-5)
+        self.assertLess((((result - test_data) ** 2).mean() ** 0.5).item(), 1e-5)
 
     @parameterized.expand(TEST_PAD)
     def test_pad(self, test_data):

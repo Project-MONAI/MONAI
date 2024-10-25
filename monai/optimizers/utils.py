@@ -70,12 +70,14 @@ def generate_param_groups(
     lr_values = ensure_tuple_rep(lr_values, len(layer_matches))
 
     def _get_select(f):
+
         def _select():
             return f(network).parameters()
 
         return _select
 
     def _get_filter(f):
+
         def _filter():
             # should eventually generate a list of network parameters
             return (x[1] for x in filter(f, network.named_parameters()))

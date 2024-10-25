@@ -31,7 +31,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import is_no_channel, no_collation
+from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
     EllipticalFilter,
@@ -42,16 +42,17 @@ from monai.networks.layers.simplelayers import (
     SharpenFilter,
     median_filter,
 )
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
+    apply_affine_to_points,
     extreme_points_to_image,
     get_extreme_points,
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, linalg_inv, moveaxis, unravel_indices
 from monai.utils import (
     MetaKeys,
     TraceKeys,
@@ -66,7 +67,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
+from monai.utils.type_conversion import convert_to_dst_type, get_dtype_string, get_equivalent_dtype
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -106,6 +107,7 @@ __all__ = [
     "ToCupy",
     "ImageFilter",
     "RandImageFilter",
+    "ApplyTransformToPoints",
 ]
 
 
@@ -333,6 +335,23 @@ class CastToType(Transform):
     """
     Cast the Numpy data to specified numpy data type, or cast the PyTorch Tensor to
     specified PyTorch data type.
+
+    Example:
+        >>> import numpy as np
+        >>> import torch
+        >>> transform = CastToType(dtype=np.float32)
+
+        >>> # Example with a numpy array
+        >>> img_np = np.array([0, 127, 255], dtype=np.uint8)
+        >>> img_np_casted = transform(img_np)
+        >>> img_np_casted
+        array([  0. , 127. , 255. ], dtype=float32)
+
+        >>> # Example with a PyTorch tensor
+        >>> img_tensor = torch.tensor([0, 127, 255], dtype=torch.uint8)
+        >>> img_tensor_casted = transform(img_tensor)
+        >>> img_tensor_casted
+        tensor([  0., 127., 255.])  # dtype is float32
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -355,7 +374,7 @@ class CastToType(Transform):
             TypeError: When ``img`` type is not in ``Union[numpy.ndarray, torch.Tensor]``.
 
         """
-        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]  # type: ignore
+        return convert_data_type(img, output_type=type(img), dtype=dtype or self.dtype)[0]
 
 
 class ToTensor(Transform):
@@ -413,10 +432,26 @@ class EnsureType(Transform):
         dtype: target data content type to convert, for example: np.float32, torch.float, etc.
         device: for Tensor data type, specify the target device.
         wrap_sequence: if `False`, then lists will recursively call this function, default to `True`.
-            E.g., if `False`, `[1, 2]` -> `[tensor(1), tensor(2)]`, if `True`, then `[1, 2]` -> `tensor([1, 2])`.
         track_meta: if `True` convert to ``MetaTensor``, otherwise to Pytorch ``Tensor``,
             if ``None`` behave according to return value of py:func:`monai.data.meta_obj.get_track_meta`.
 
+    Example with wrap_sequence=True:
+        >>> import numpy as np
+        >>> import torch
+        >>> transform = EnsureType(data_type="tensor", wrap_sequence=True)
+        >>> # Converting a list to a tensor
+        >>> data_list = [1, 2., 3]
+        >>> tensor_data = transform(data_list)
+        >>> tensor_data
+        tensor([1., 2., 3.])    # All elements have dtype float32
+
+    Example with wrap_sequence=False:
+        >>> transform = EnsureType(data_type="tensor", wrap_sequence=False)
+        >>> # Converting each element in a list to individual tensors
+        >>> data_list = [1, 2, 3]
+        >>> tensors_list = transform(data_list)
+        >>> tensors_list
+        [tensor(1), tensor(2.), tensor(3)]  # Only second element is float32 rest are int64
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -621,6 +656,7 @@ class DataStats(Transform):
         data_shape: bool = True,
         value_range: bool = True,
         data_value: bool = False,
+        meta_info: bool = False,
         additional_info: Callable | None = None,
         name: str = "DataStats",
     ) -> None:
@@ -632,6 +668,7 @@ class DataStats(Transform):
             value_range: whether to show the value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            meta_info: whether to show the data of MetaTensor.
             additional_info: user can define callable function to extract additional info from input data.
             name: identifier of `logging.logger` to use, defaulting to "DataStats".
 
@@ -646,6 +683,7 @@ class DataStats(Transform):
         self.data_shape = data_shape
         self.value_range = value_range
         self.data_value = data_value
+        self.meta_info = meta_info
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
@@ -672,6 +710,7 @@ class DataStats(Transform):
         data_shape: bool | None = None,
         value_range: bool | None = None,
         data_value: bool | None = None,
+        meta_info: bool | None = None,
         additional_info: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
@@ -692,6 +731,9 @@ class DataStats(Transform):
                 lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
+        if self.meta_info if meta_info is None else meta_info:
+            metadata = getattr(img, "meta", "(input is not a MetaTensor)")
+            lines.append(f"Meta info: {repr(metadata)}")
         additional_info = self.additional_info if additional_info is None else additional_info
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
@@ -1529,17 +1571,22 @@ class ImageFilter(Transform):
         self.filter_size = filter_size
         self.additional_args_for_filter = kwargs
 
-    def __call__(self, img: NdarrayOrTensor, meta_dict: dict | None = None) -> NdarrayOrTensor:
+    def __call__(
+        self, img: NdarrayOrTensor, meta_dict: dict | None = None, applied_operations: list | None = None
+    ) -> NdarrayOrTensor:
         """
         Args:
             img: torch tensor data to apply filter to with shape: [channels, height, width[, depth]]
             meta_dict: An optional dictionary with metadata
+            applied_operations: An optional list of operations that have been applied to the data
 
         Returns:
             A MetaTensor with the same shape as `img` and identical metadata
         """
         if isinstance(img, MetaTensor):
             meta_dict = img.meta
+            applied_operations = img.applied_operations
+
         img_, prev_type, device = convert_data_type(img, torch.Tensor)
         ndim = img_.ndim - 1  # assumes channel first format
 
@@ -1549,8 +1596,8 @@ class ImageFilter(Transform):
             self.filter = ApplyFilter(self.filter)
 
         img_ = self._apply_filter(img_)
-        if meta_dict:
-            img_ = MetaTensor(img_, meta=meta_dict)
+        if meta_dict is not None or applied_operations is not None:
+            img_ = MetaTensor(img_, meta=meta_dict, applied_operations=applied_operations)
         else:
             img_, *_ = convert_data_type(img_, prev_type, device)
         return img_
@@ -1677,3 +1724,143 @@ class RandImageFilter(RandomizableTransform):
         if self._do_transform:
             img = self.filter(img)
         return img
+
+
+class ApplyTransformToPoints(InvertibleTransform, Transform):
+    """
+    Transform points between image coordinates and world coordinates.
+    The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels
+    and N denotes the number of points. It will return a tensor with the same shape as the input.
+
+    Args:
+        dtype: The desired data type for the output.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. This matrix typically originates
+            from the image. For 2D points, a 3x3 matrix can be provided, avoiding the need to add an unnecessary
+            Z dimension. While a 4x4 matrix is required for 3D transformations, it's important to note that when
+            applying a 4x4 matrix to 2D points, the additional dimensions are handled accordingly.
+            The matrix is always converted to float64 for computation, which can be computationally
+            expensive when applied to a large number of points.
+            If None, will try to use the affine matrix from the input data.
+        invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
+            Typically, the affine matrix is derived from an image and represents its location in world space,
+            while the points are in world coordinates. A value of ``True`` represents transforming these
+            world space coordinates to the image's coordinate space, and ``False`` the inverse of this operation.
+        affine_lps_to_ras: Defaults to ``False``. Set to `True` if your point data is in the RAS coordinate system
+            or you're using `ITKReader` with `affine_lps_to_ras=True`.
+            This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
+            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
+            matrix are in the same coordinate system.
+
+    Use Cases:
+        - Transforming points between world space and image space, and vice versa.
+        - Automatically handling inverse transformations between image space and world space.
+        - If points have an existing affine transformation, the class computes and
+          applies the required delta affine transformation.
+
+    """
+
+    def __init__(
+        self,
+        dtype: DtypeLike | torch.dtype | None = None,
+        affine: torch.Tensor | None = None,
+        invert_affine: bool = True,
+        affine_lps_to_ras: bool = False,
+    ) -> None:
+        self.dtype = dtype
+        self.affine = affine
+        self.invert_affine = invert_affine
+        self.affine_lps_to_ras = affine_lps_to_ras
+
+    def _compute_final_affine(self, affine: torch.Tensor, applied_affine: torch.Tensor | None = None) -> torch.Tensor:
+        """
+        Compute the final affine transformation matrix to apply to the point data.
+
+        Args:
+            data: Input coordinates assumed to be in the shape (C, N, 2 or 3).
+            affine: 3x3 or 4x4 affine transformation matrix.
+
+        Returns:
+            Final affine transformation matrix.
+        """
+
+        affine = convert_data_type(affine, dtype=torch.float64)[0]
+
+        if self.affine_lps_to_ras:
+            affine = orientation_ras_lps(affine)
+
+        if self.invert_affine:
+            affine = linalg_inv(affine)
+            if applied_affine is not None:
+                affine = affine @ applied_affine
+
+        return affine
+
+    def transform_coordinates(
+        self, data: torch.Tensor, affine: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, dict]:
+        """
+        Transform coordinates using an affine transformation matrix.
+
+        Args:
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
+            affine: 3x3 or 4x4 affine transformation matrix. The matrix is always converted to float64 for computation,
+                which can be computationally expensive when applied to a large number of points.
+
+        Returns:
+            Transformed coordinates.
+        """
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        if affine is None and self.invert_affine:
+            raise ValueError("affine must be provided when invert_affine is True.")
+        # applied_affine is the affine transformation matrix that has already been applied to the point data
+        applied_affine: torch.Tensor | None = getattr(data, "affine", None)
+        affine = applied_affine if affine is None else affine
+        if affine is None:
+            raise ValueError("affine must be provided if data does not have an affine matrix.")
+
+        final_affine = self._compute_final_affine(affine, applied_affine)
+        out = apply_affine_to_points(data, final_affine, dtype=self.dtype)
+
+        extra_info = {
+            "invert_affine": self.invert_affine,
+            "dtype": get_dtype_string(self.dtype),
+            "image_affine": affine,
+            "affine_lps_to_ras": self.affine_lps_to_ras,
+        }
+
+        xform = orientation_ras_lps(linalg_inv(final_affine)) if self.affine_lps_to_ras else linalg_inv(final_affine)
+        meta_info = TraceableTransform.track_transform_meta(
+            data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
+        )
+
+        return out, meta_info
+
+    def __call__(self, data: torch.Tensor, affine: torch.Tensor | None = None):
+        """
+        Args:
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
+            affine: A 3x3 or 4x4 affine transformation matrix, this argument will take precedence over ``self.affine``.
+        """
+        if data.ndim != 3 or data.shape[-1] not in (2, 3):
+            raise ValueError(f"data should be in shape (C, N, 2 or 3), got {data.shape}.")
+        affine = self.affine if affine is None else affine
+        if affine is not None and affine.shape not in ((3, 3), (4, 4)):
+            raise ValueError(f"affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
+
+        out, meta_info = self.transform_coordinates(data, affine)
+
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        inverse_transform = ApplyTransformToPoints(
+            dtype=transform[TraceKeys.EXTRA_INFO]["dtype"],
+            invert_affine=not transform[TraceKeys.EXTRA_INFO]["invert_affine"],
+            affine_lps_to_ras=transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"],
+        )
+        with inverse_transform.trace_transform(False):
+            data = inverse_transform(data, transform[TraceKeys.EXTRA_INFO]["image_affine"])
+
+        return data

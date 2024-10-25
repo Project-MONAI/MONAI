@@ -12,9 +12,10 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterable, Sequence
 from functools import lru_cache, partial
 from types import ModuleType
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -35,13 +36,9 @@ from monai.utils import (
     optional_import,
 )
 
-binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
-distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
-distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
-cucim_binary_erosion, has_cucim_binary_erosion = optional_import("cucim.skimage.morphology", name="binary_erosion")
-cucim_distance_transform_edt, has_cucim_distance_transform_edt = optional_import(
-    "cucim.core.operations.morphology", name="distance_transform_edt"
-)
+binary_erosion, _ = optional_import("scipy.ndimage", name="binary_erosion")
+distance_transform_edt, _ = optional_import("scipy.ndimage", name="distance_transform_edt")
+distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
 
 __all__ = [
     "ignore_background",
@@ -95,37 +92,37 @@ def do_metric_reduction(
     # some elements might be Nan (if ground truth y was missing (zeros))
     # we need to account for it
     nans = torch.isnan(f)
-    not_nans = (~nans).float()
+    not_nans = ~nans
 
-    t_zero = torch.zeros(1, device=f.device, dtype=f.dtype)
+    t_zero = torch.zeros(1, device=f.device, dtype=torch.float)
     reduction = look_up_option(reduction, MetricReduction)
     if reduction == MetricReduction.NONE:
-        return f, not_nans
+        return f, not_nans.float()
 
     f[nans] = 0
     if reduction == MetricReduction.MEAN:
         # 2 steps, first, mean by channel (accounting for nans), then by batch
-        not_nans = not_nans.sum(dim=1)
-        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+        not_nans = not_nans.sum(dim=1).float()
+        f = torch.where(not_nans > 0, f.sum(dim=1).float() / not_nans, t_zero)  # channel average
 
-        not_nans = (not_nans > 0).float().sum(dim=0)
-        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+        not_nans = (not_nans > 0).sum(dim=0).float()
+        f = torch.where(not_nans > 0, f.sum(dim=0).float() / not_nans, t_zero)  # batch average
 
     elif reduction == MetricReduction.SUM:
-        not_nans = not_nans.sum(dim=[0, 1])
+        not_nans = not_nans.sum(dim=[0, 1]).float()
         f = torch.sum(f, dim=[0, 1])  # sum over the batch and channel dims
     elif reduction == MetricReduction.MEAN_BATCH:
-        not_nans = not_nans.sum(dim=0)
-        f = torch.where(not_nans > 0, f.sum(dim=0) / not_nans, t_zero)  # batch average
+        not_nans = not_nans.sum(dim=0).float()
+        f = torch.where(not_nans > 0, f.sum(dim=0).float() / not_nans, t_zero)  # batch average
     elif reduction == MetricReduction.SUM_BATCH:
-        not_nans = not_nans.sum(dim=0)
-        f = f.sum(dim=0)  # the batch sum
+        not_nans = not_nans.sum(dim=0).float()
+        f = f.sum(dim=0).float()  # the batch sum
     elif reduction == MetricReduction.MEAN_CHANNEL:
-        not_nans = not_nans.sum(dim=1)
-        f = torch.where(not_nans > 0, f.sum(dim=1) / not_nans, t_zero)  # channel average
+        not_nans = not_nans.sum(dim=1).float()
+        f = torch.where(not_nans > 0, f.sum(dim=1).float() / not_nans, t_zero)  # channel average
     elif reduction == MetricReduction.SUM_CHANNEL:
-        not_nans = not_nans.sum(dim=1)
-        f = f.sum(dim=1)  # the channel sum
+        not_nans = not_nans.sum(dim=1).float()
+        f = f.sum(dim=1).float()  # the channel sum
     elif reduction != MetricReduction.NONE:
         raise ValueError(
             f"Unsupported reduction: {reduction}, available options are "
@@ -179,6 +176,8 @@ def get_mask_edges(
         always_return_as_numpy: whether to a numpy array regardless of the input type.
             If False, return the same type as inputs.
     """
+    # move in the funciton to avoid using all the GPUs
+    cucim_binary_erosion, has_cucim_binary_erosion = optional_import("cucim.skimage.morphology", name="binary_erosion")
     if seg_pred.shape != seg_gt.shape:
         raise ValueError(f"seg_pred and seg_gt should have same shapes, got {seg_pred.shape} and {seg_gt.shape}.")
     converter: Any
@@ -205,7 +204,7 @@ def get_mask_edges(
         or_vol = seg_pred | seg_gt
         if not or_vol.any():
             pred, gt = lib.zeros(seg_pred.shape, dtype=bool), lib.zeros(seg_gt.shape, dtype=bool)
-            return (pred, gt) if spacing is None else (pred, gt, pred, gt)  # type: ignore
+            return (pred, gt) if spacing is None else (pred, gt, pred, gt)
         channel_first = [seg_pred[None], seg_gt[None], or_vol[None]]
         if spacing is None and not use_cucim:  # cpu only erosion
             seg_pred, seg_gt, or_vol = convert_to_tensor(channel_first, device="cpu", dtype=bool)
@@ -295,7 +294,7 @@ def get_edge_surface_distance(
     distance_metric: str = "euclidean",
     spacing: int | float | np.ndarray | Sequence[int | float] | None = None,
     use_subvoxels: bool = False,
-    symetric: bool = False,
+    symmetric: bool = False,
     class_index: int = -1,
 ) -> tuple[
     tuple[torch.Tensor, torch.Tensor],
@@ -314,7 +313,7 @@ def get_edge_surface_distance(
             See :py:func:`monai.metrics.utils.get_surface_distance`.
         use_subvoxels: whether to use subvoxel resolution (using the spacing).
             This will return the areas of the edges.
-        symetric: whether to compute the surface distance from `y_pred` to `y` and from `y` to `y_pred`.
+        symmetric: whether to compute the surface distance from `y_pred` to `y` and from `y` to `y_pred`.
         class_index: The class-index used for context when warning about empty ground truth or prediction.
 
     Returns:
@@ -338,7 +337,7 @@ def get_edge_surface_distance(
             " this may result in nan/inf distance."
         )
     distances: tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor]
-    if symetric:
+    if symmetric:
         distances = (
             get_surface_distance(edges_pred, edges_gt, distance_metric, spacing),
             get_surface_distance(edges_gt, edges_pred, distance_metric, spacing),
@@ -383,7 +382,7 @@ def remap_instance_id(pred: torch.Tensor, by_size: bool = False) -> torch.Tensor
         by_size: if True, largest instance will be assigned a smaller id.
 
     """
-    pred_id = list(pred.unique())
+    pred_id: Iterable[Any] = list(pred.unique())
     # the original implementation has the limitation that if there is no 0 in pred, error will happen
     pred_id = [i for i in pred_id if i != 0]
 

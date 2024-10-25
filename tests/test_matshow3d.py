@@ -35,6 +35,7 @@ pyplot, has_pyplot = optional_import("matplotlib", name="pyplot")
 
 @SkipIfNoModule("matplotlib")
 class TestMatshow3d(unittest.TestCase):
+
     def test_3d(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
         keys = "image"
@@ -77,7 +78,7 @@ class TestMatshow3d(unittest.TestCase):
         fig, mat = matshow3d(
             [im[keys] for im in ims], title=f"testing {keys}", figsize=(2, 2), frames_per_row=5, every_n=2, show=False
         )
-        self.assertTrue(mat.dtype == np.float32)
+        self.assertEqual(mat.dtype, np.float32)
 
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_patch_test.png"
@@ -113,6 +114,7 @@ class TestMatshow3d(unittest.TestCase):
             every_n=2,
             frame_dim=-1,
             channel_dim=0,
+            fill_value=0,
             show=False,
         )
 

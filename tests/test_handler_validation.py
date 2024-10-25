@@ -22,12 +22,15 @@ from monai.handlers import ValidationHandler
 
 
 class TestEvaluator(Evaluator):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def _iteration(self, engine, batchdata):
         engine.state.output = "called"
         return engine.state.output
 
 
 class TestHandlerValidation(unittest.TestCase):
+
     def test_content(self):
         data = [0] * 8
 

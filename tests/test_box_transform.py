@@ -79,6 +79,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestBoxTransform(unittest.TestCase):
+
     @parameterized.expand(TESTS_2D_mask)
     def test_value_2d_mask(self, mask, expected_box_label):
         box_label = convert_mask_to_box(mask)

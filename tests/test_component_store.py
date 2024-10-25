@@ -17,6 +17,7 @@ from monai.utils import ComponentStore
 
 
 class TestComponentStore(unittest.TestCase):
+
     def setUp(self):
         self.cs = ComponentStore("TestStore", "I am a test store, please ignore")
 
@@ -47,17 +48,17 @@ class TestComponentStore(unittest.TestCase):
         self.cs.add("test_obj2", "Test object", test_obj2)
 
         self.assertEqual(len(self.cs), 2)
-        self.assertTrue("test_obj1" in self.cs)
-        self.assertTrue("test_obj2" in self.cs)
+        self.assertIn("test_obj1", self.cs)
+        self.assertIn("test_obj2", self.cs)
 
     def test_add_def(self):
-        self.assertFalse("test_func" in self.cs)
+        self.assertNotIn("test_func", self.cs)
 
         @self.cs.add_def("test_func", "Test function")
         def test_func():
             return 123
 
-        self.assertTrue("test_func" in self.cs)
+        self.assertIn("test_func", self.cs)
 
         self.assertEqual(len(self.cs), 1)
         self.assertEqual(list(self.cs), [("test_func", test_func)])

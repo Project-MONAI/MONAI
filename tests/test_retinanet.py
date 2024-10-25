@@ -101,6 +101,7 @@ for case in [TEST_CASE_1]:
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 @skip_if_quick
 class TestRetinaNet(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_retina_shape(self, model, input_param, input_shape):
         backbone = model(**input_param)

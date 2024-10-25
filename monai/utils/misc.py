@@ -24,7 +24,6 @@ import types
 import warnings
 from ast import literal_eval
 from collections.abc import Callable, Iterable, Sequence
-from distutils.util import strtobool
 from math import log10
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
@@ -78,6 +77,25 @@ __all__ = [
     "run_cmd",
 ]
 
+
+def _strtobool(val: str) -> bool:
+    """
+    Replaces deprecated (pre python 3.12)
+    distutils strtobool function.
+
+    True values are y, yes, t, true, on and 1;
+    False values are n, no, f, false, off and 0.
+    Raises ValueError if val is anything else.
+    """
+    val = val.lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return False
+    else:
+        raise ValueError(f"invalid truth value {val}")
+
+
 _seed = None
 _flag_deterministic = torch.backends.cudnn.deterministic
 _flag_cudnn_benchmark = torch.backends.cudnn.benchmark
@@ -100,16 +118,15 @@ def star_zip_with(op, *vals):
 
 
 T = TypeVar("T")
+NT = TypeVar("NT", np.ndarray, torch.Tensor)
 
 
 @overload
-def first(iterable: Iterable[T], default: T) -> T:
-    ...
+def first(iterable: Iterable[T], default: T) -> T: ...
 
 
 @overload
-def first(iterable: Iterable[T]) -> T | None:
-    ...
+def first(iterable: Iterable[T]) -> T | None: ...
 
 
 def first(iterable: Iterable[T], default: T | None = None) -> T | None:
@@ -402,7 +419,7 @@ def list_to_dict(items):
                 d[key] = literal_eval(value)
             except ValueError:
                 try:
-                    d[key] = bool(strtobool(str(value)))
+                    d[key] = bool(_strtobool(str(value)))
                 except ValueError:
                     d[key] = value
     return d
@@ -529,7 +546,7 @@ class MONAIEnvVars:
 
     @staticmethod
     def algo_hash() -> str | None:
-        return os.environ.get("MONAI_ALGO_HASH", "249bf4b")
+        return os.environ.get("MONAI_ALGO_HASH", "e4cf5a1")
 
     @staticmethod
     def trace_transform() -> str | None:
@@ -744,6 +761,7 @@ def check_key_duplicates(ordered_pairs: Sequence[tuple[Any, Any]]) -> dict[Any, 
 
 
 class CheckKeyDuplicatesYamlLoader(SafeLoader):
+
     def construct_mapping(self, node, deep=False):
         mapping = set()
         for key_node, _ in node.value:
@@ -797,7 +815,7 @@ class ConvertUnits:
                 "Both input and target units should be from the same quantity. "
                 f"Input quantity is {input_base} while target quantity is {target_base}"
             )
-        self._calculate_conversion_factor()
+        self.conversion_factor = self._calculate_conversion_factor()
 
     def _get_valid_unit_and_base(self, unit):
         unit = str(unit).lower()
@@ -824,7 +842,7 @@ class ConvertUnits:
             return 1.0
         input_power = self._get_unit_power(self.input_unit)
         target_power = self._get_unit_power(self.target_unit)
-        self.conversion_factor = 10 ** (input_power - target_power)
+        return 10 ** (input_power - target_power)
 
     def __call__(self, value: int | float) -> Any:
         return float(value) * self.conversion_factor
@@ -869,7 +887,7 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
     if kwargs.pop("run_cmd_verbose", False):
         import monai
 
-        monai.apps.utils.get_logger("run_cmd").info(f"{cmd_list}")
+        monai.apps.utils.get_logger("monai.utils.run_cmd").info(f"{cmd_list}")  # type: ignore[attr-defined]
     try:
         return subprocess.run(cmd_list, **kwargs)
     except subprocess.CalledProcessError as e:
@@ -890,11 +908,11 @@ def is_sqrt(num: Sequence[int] | int) -> bool:
     return ensure_tuple(ret) == num
 
 
-def unsqueeze_right(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+def unsqueeze_right(arr: NT, ndim: int) -> NT:
     """Append 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(...,) + (None,) * (ndim - arr.ndim)]
 
 
-def unsqueeze_left(arr: NdarrayOrTensor, ndim: int) -> NdarrayOrTensor:
+def unsqueeze_left(arr: NT, ndim: int) -> NT:
     """Prepend 1-sized dimensions to `arr` to create a result with `ndim` dimensions."""
     return arr[(None,) * (ndim - arr.ndim)]

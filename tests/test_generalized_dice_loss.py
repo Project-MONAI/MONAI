@@ -142,6 +142,7 @@ TEST_CASES = [
 
 
 class TestGeneralizedDiceLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_val):
         result = GeneralizedDiceLoss(**input_param).forward(**input_data)
@@ -183,7 +184,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss()
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_batch(self):
         prediction = torch.zeros(2, 3, 3, 3)
@@ -193,7 +194,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss(batch=True)
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_script(self):
         loss = GeneralizedDiceLoss()

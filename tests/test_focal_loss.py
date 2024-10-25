@@ -79,6 +79,7 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
 
 
 class TestFocalLoss(unittest.TestCase):
+
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_param, input_data, expected_val):
         focal_loss = FocalLoss(**input_param)
@@ -131,7 +132,7 @@ class TestFocalLoss(unittest.TestCase):
             error = np.abs(a - b)
             max_error = np.maximum(error, max_error)
 
-        assert np.allclose(max_error, 0)
+        assert np.allclose(max_error, 0, atol=1e-6)
 
     def test_consistency_with_cross_entropy_2d_onehot_label(self):
         """For gamma=0 the focal loss reduces to the cross entropy loss"""

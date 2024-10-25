@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import functools
 import warnings
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -505,7 +506,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         a = self.pending_operations[-1].get(LazyAttr.AFFINE, None) if self.pending_operations else self.affine
         return 1 if a is None else int(max(1, len(a) - 1))
 
-    def new_empty(self, size, dtype=None, device=None, requires_grad=False):
+    def new_empty(self, size, dtype=None, device=None, requires_grad=False):  # type: ignore[override]
         """
         must be defined for deepcopy to work
 
@@ -580,7 +581,7 @@ class MetaTensor(MetaObj, torch.Tensor):
             img.affine = MetaTensor.get_default_affine()
         return img
 
-    def __repr__(self):
+    def __repr__(self):  # type: ignore[override]
         """
         Prints a representation of the tensor.
         Prepends "meta" to ``torch.Tensor.__repr__``.

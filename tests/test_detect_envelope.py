@@ -116,6 +116,7 @@ TEST_CASE_INVALID_OBJ = [{}, "a string", "__call__"]  # method expected to raise
 
 @SkipIfNoModule("torch.fft")
 class TestDetectEnvelope(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_1D_SINE,
@@ -146,11 +147,12 @@ class TestDetectEnvelope(unittest.TestCase):
         elif method == "__call__":
             self.assertRaises(ValueError, DetectEnvelope(**arguments), image)
         else:
-            raise ValueError("Expected raising method invalid. Should be __init__ or __call__.")
+            self.fail("Expected raising method invalid. Should be __init__ or __call__.")
 
 
 @SkipIfModule("torch.fft")
 class TestHilbertTransformNoFFTMod(unittest.TestCase):
+
     def test_no_fft_module_error(self):
         self.assertRaises(OptionalImportError, DetectEnvelope(), np.random.rand(1, 10))
 

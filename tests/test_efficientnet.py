@@ -248,6 +248,7 @@ CASE_EXTRACT_FEATURES = [
 
 
 class TestEFFICIENTNET(unittest.TestCase):
+
     @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -376,6 +377,7 @@ class TestEFFICIENTNET(unittest.TestCase):
 
 
 class TestExtractFeatures(unittest.TestCase):
+
     @parameterized.expand(CASE_EXTRACT_FEATURES)
     def test_shape(self, input_param, input_shape, expected_shapes):
         device = "cuda" if torch.cuda.is_available() else "cpu"

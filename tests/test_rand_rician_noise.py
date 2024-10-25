@@ -27,6 +27,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandRicianNoise(NumpyImageTestCase2D):
+
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, in_type, mean, std):
         seed = 0

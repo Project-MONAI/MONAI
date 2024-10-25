@@ -35,8 +35,11 @@ TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inferenc
 
 TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
 
+TEST_CASE_NON_CONFIG_WRONG_LOG = [None, "logging.conf", "Cannot find the logging config file: logging.conf."]
+
 
 class TestBundleWorkflow(unittest.TestCase):
+
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
         self.expected_shape = (128, 128, 128)
@@ -102,6 +105,16 @@ class TestBundleWorkflow(unittest.TestCase):
         )
         self._test_inferer(inferer)
 
+        # test property path
+        inferer = ConfigWorkflow(
+            config_file=config_file,
+            properties_path=os.path.join(os.path.dirname(__file__), "testing_data", "fl_infer_properties.json"),
+            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            **override,
+        )
+        self._test_inferer(inferer)
+        self.assertEqual(inferer.workflow_type, None)
+
     @parameterized.expand([TEST_CASE_3])
     def test_train_config(self, config_file):
         # test standard MONAI model-zoo config workflow
@@ -125,11 +138,11 @@ class TestBundleWorkflow(unittest.TestCase):
         self.assertListEqual(trainer.check_properties(), [])
         # test read / write the properties
         dataset = trainer.train_dataset
-        self.assertTrue(isinstance(dataset, Dataset))
+        self.assertIsInstance(dataset, Dataset)
         inferer = trainer.train_inferer
-        self.assertTrue(isinstance(inferer, SimpleInferer))
+        self.assertIsInstance(inferer, SimpleInferer)
         # test optional properties get
-        self.assertTrue(trainer.train_key_metric is None)
+        self.assertIsNone(trainer.train_key_metric)
         trainer.train_dataset = deepcopy(dataset)
         trainer.train_inferer = deepcopy(inferer)
         # test optional properties set
@@ -143,7 +156,13 @@ class TestBundleWorkflow(unittest.TestCase):
     def test_non_config(self):
         # test user defined python style workflow
         inferer = NonConfigWorkflow(self.filename, self.data_dir)
+        self.assertEqual(inferer.meta_file, None)
         self._test_inferer(inferer)
+
+    @parameterized.expand([TEST_CASE_NON_CONFIG_WRONG_LOG])
+    def test_non_config_wrong_log_cases(self, meta_file, logging_file, expected_error):
+        with self.assertRaisesRegex(FileNotFoundError, expected_error):
+            NonConfigWorkflow(self.filename, self.data_dir, meta_file, logging_file)
 
 
 if __name__ == "__main__":

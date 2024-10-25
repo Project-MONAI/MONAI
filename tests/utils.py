@@ -156,6 +156,7 @@ def skip_if_downloading_fails():
                 "limit",  # HTTP Error 503: Egress is over the account limit
                 "authenticate",
                 "timed out",  # urlopen error [Errno 110] Connection timed out
+                "HTTPError",  # HTTPError: 429 Client Error: Too Many Requests for huggingface hub
             )
         ):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -474,7 +475,7 @@ class DistCall:
             if self.verbose:
                 os.environ["NCCL_DEBUG"] = "INFO"
                 os.environ["NCCL_DEBUG_SUBSYS"] = "ALL"
-            os.environ["NCCL_BLOCKING_WAIT"] = str(1)
+            os.environ["TORCH_NCCL_BLOCKING_WAIT"] = str(1)
             os.environ["OMP_NUM_THREADS"] = str(1)
             os.environ["WORLD_SIZE"] = str(self.nproc_per_node * self.nnodes)
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)
@@ -677,6 +678,7 @@ class NumpyImageTestCase2D(unittest.TestCase):
 
 
 class TorchImageTestCase2D(NumpyImageTestCase2D):
+
     def setUp(self):
         NumpyImageTestCase2D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -707,6 +709,7 @@ class NumpyImageTestCase3D(unittest.TestCase):
 
 
 class TorchImageTestCase3D(NumpyImageTestCase3D):
+
     def setUp(self):
         NumpyImageTestCase3D.setUp(self)
         self.imt = torch.tensor(self.imt)
@@ -832,9 +835,9 @@ DEFAULT_TEST_AFFINE = torch.tensor(
     [[2.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 0.0], [0.0, 0.0, 2.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
 )
 _metatensor_creator = partial(MetaTensor, meta={"a": "b", "affine": DEFAULT_TEST_AFFINE})
-TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS  # type: ignore
+TEST_NDARRAYS_NO_META_TENSOR: tuple[Callable] = (np.array,) + TEST_TORCH_TENSORS
 TEST_NDARRAYS: tuple[Callable] = TEST_NDARRAYS_NO_META_TENSOR + (_metatensor_creator,)  # type: ignore
-TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)  # type: ignore
+TEST_TORCH_AND_META_TENSORS: tuple[Callable] = TEST_TORCH_TENSORS + (_metatensor_creator,)
 # alias for branch tests
 TEST_NDARRAYS_ALL = TEST_NDARRAYS
 

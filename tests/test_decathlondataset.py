@@ -23,6 +23,7 @@ from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestDecathlonDataset(unittest.TestCase):
+
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -79,7 +80,7 @@ class TestDecathlonDataset(unittest.TestCase):
         self.assertDictEqual(properties["labels"], {"0": "background", "1": "Anterior", "2": "Posterior"})
 
         shutil.rmtree(os.path.join(testing_dir, "Task04_Hippocampus"))
-        try:
+        with self.assertRaisesRegex(RuntimeError, "^Cannot find dataset directory"):
             DecathlonDataset(
                 root_dir=testing_dir,
                 task="Task04_Hippocampus",
@@ -87,9 +88,6 @@ class TestDecathlonDataset(unittest.TestCase):
                 section="validation",
                 download=False,
             )
-        except RuntimeError as e:
-            print(str(e))
-            self.assertTrue(str(e).startswith("Cannot find dataset directory"))
 
 
 if __name__ == "__main__":

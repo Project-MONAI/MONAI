@@ -24,6 +24,7 @@ _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 class TestAllSurfaceDiceMetrics(unittest.TestCase):
+
     def test_tolerance_euclidean_distance_with_spacing(self):
         batch_size = 2
         n_class = 2

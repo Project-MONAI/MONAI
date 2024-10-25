@@ -46,6 +46,7 @@ for endianness in ["<", ">"]:
 
 
 class TestNiftiEndianness(unittest.TestCase):
+
     def setUp(self):
         self.im, _ = create_test_image_2d(100, 100)
         self.fname = tempfile.NamedTemporaryFile(suffix=".nii.gz").name
@@ -81,7 +82,7 @@ class TestNiftiEndianness(unittest.TestCase):
         after = switch_endianness(before)
         np.testing.assert_allclose(after.astype(float), expected_float)
 
-        before = np.array(["1.12", "-9.2", "42"], dtype=np.string_)
+        before = np.array(["1.12", "-9.2", "42"], dtype=np.bytes_)
         after = switch_endianness(before)
         np.testing.assert_array_equal(before, after)
 

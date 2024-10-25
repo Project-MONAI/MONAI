@@ -32,6 +32,7 @@ TEST_CASE_5 = [
 
 
 class TestListToDict(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_value_shape(self, input, output):
         result = list_to_dict(input)

@@ -19,7 +19,7 @@
 
 ---
 
-MONAI's core functionality is written in Python 3 (>= 3.8) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
+MONAI's core functionality is written in Python 3 (>= 3.9) and only requires [Numpy](https://numpy.org/) and [Pytorch](https://pytorch.org/).
 
 The package is currently distributed via Github as the primary source code repository,
 and the Python package index (PyPI). The pre-built Docker images are made available on DockerHub.
@@ -228,7 +228,7 @@ Alternatively, to install all optional dependencies:
 ```bash
 git clone https://github.com/Project-MONAI/MONAI.git
 cd MONAI/
-pip install -e '.[all]'
+pip install -e ".[all]"
 ```
 
 To install all optional dependencies with `pip` based on MONAI development environment settings:
@@ -258,6 +258,6 @@ Since MONAI v0.2.0, the extras syntax such as `pip install 'monai[nibabel]'` is 
 ```
 
 which correspond to `nibabel`, `scikit-image`,`scipy`, `pillow`, `tensorboard`,
-`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, and `huggingface_hub` respectively.
+`gdown`, `pytorch-ignite`, `torchvision`, `itk`, `tqdm`, `lmdb`, `psutil`, `cucim`, `openslide-python`, `pandas`, `einops`, `transformers`, `mlflow`, `clearml`, `matplotlib`, `tensorboardX`, `tifffile`, `imagecodecs`, `pyyaml`, `fire`, `jsonschema`, `ninja`, `pynrrd`, `pydicom`, `h5py`, `nni`, `optuna`, `onnx`, `onnxruntime`, `zarr`, `lpips`, `nvidia-ml-py`, `huggingface_hub` and `pyamg` respectively.
 
 - `pip install 'monai[all]'` installs all the optional dependencies.

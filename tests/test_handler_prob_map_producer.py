@@ -30,6 +30,8 @@ TEST_CASE_2 = ["temp_image_inference_output_3", 100]
 
 
 class TestDataset(Dataset):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def __init__(self, name, size):
         super().__init__(
             data=[
@@ -63,11 +65,14 @@ class TestDataset(Dataset):
 
 
 class TestEvaluator(Evaluator):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
+
     def _iteration(self, engine, batchdata):
         return batchdata
 
 
 class TestHandlerProbMapGenerator(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_prob_map_generator(self, name, size):
         # set up dataset

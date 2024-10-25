@@ -18,14 +18,14 @@ import pdb
 import re
 import sys
 import warnings
-from collections.abc import Callable, Collection, Hashable, Mapping
+from collections.abc import Callable, Collection, Hashable, Iterable, Mapping
 from functools import partial, wraps
 from importlib import import_module
 from pkgutil import walk_packages
 from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
-from typing import Any, Iterable, cast
+from typing import Any, cast
 
 import torch
 
@@ -43,13 +43,11 @@ __all__ = [
     "InvalidPyTorchVersionError",
     "OptionalImportError",
     "exact_version",
-    "export",
     "damerau_levenshtein_distance",
     "look_up_option",
     "min_version",
     "optional_import",
     "require_pkg",
-    "load_submodules",
     "instantiate",
     "get_full_type_name",
     "get_package_version",
@@ -172,28 +170,6 @@ def damerau_levenshtein_distance(s1: str, s2: str) -> int:
     return d[string_1_length - 1, string_2_length - 1]
 
 
-def export(modname):
-    """
-    Make the decorated object a member of the named module. This will also add the object under its aliases if it has
-    a `__aliases__` member, thus this decorator should be before the `alias` decorator to pick up those names. Alias
-    names which conflict with package names or existing members will be ignored.
-    """
-
-    def _inner(obj):
-        mod = import_module(modname)
-        if not hasattr(mod, obj.__name__):
-            setattr(mod, obj.__name__, obj)
-
-            # add the aliases for `obj` to the target module
-            for alias in getattr(obj, "__aliases__", ()):
-                if not hasattr(mod, alias):
-                    setattr(mod, alias, obj)
-
-        return obj
-
-    return _inner
-
-
 def load_submodules(
     basemod: ModuleType, load_all: bool = True, exclude_pattern: str = "(.*[tT]est.*)|(_.*)"
 ) -> tuple[list[ModuleType], list[str]]:
@@ -209,8 +185,11 @@ def load_submodules(
         if (is_pkg or load_all) and name not in sys.modules and match(exclude_pattern, name) is None:
             try:
                 mod = import_module(name)
-                importer.find_module(name).load_module(name)  # type: ignore
-                submodules.append(mod)
+                mod_spec = importer.find_spec(name)  # type: ignore
+                if mod_spec and mod_spec.loader:
+                    loader = mod_spec.loader
+                    loader.exec_module(mod)
+                    submodules.append(mod)
             except OptionalImportError:
                 pass  # could not import the optional deps., they are ignored
             except ImportError as e:
@@ -231,11 +210,14 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
 
     Args:
         __path: if a string is provided, it's interpreted as the full path of the target class or function component.
-            If a callable is provided, ``__path(**kwargs)`` or ``functools.partial(__path, **kwargs)`` will be returned.
+            If a callable is provided, ``__path(**kwargs)`` will be invoked and returned for ``__mode="default"``.
+            For ``__mode="callable"``, the callable will be returned as ``__path`` or, if ``kwargs`` are provided,
+            as ``functools.partial(__path, **kwargs)`` for future invoking.
+
         __mode: the operating mode for invoking the (callable) ``component`` represented by ``__path``:
 
             - ``"default"``: returns ``component(**kwargs)``
-            - ``"partial"``: returns ``functools.partial(component, **kwargs)``
+            - ``"callable"``: returns ``component`` or, if ``kwargs`` are provided, ``functools.partial(component, **kwargs)``
             - ``"debug"``: returns ``pdb.runcall(component, **kwargs)``
 
         kwargs: keyword arguments to the callable represented by ``__path``.
@@ -259,8 +241,8 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return component
         if m == CompInitMode.DEFAULT:
             return component(**kwargs)
-        if m == CompInitMode.PARTIAL:
-            return partial(component, **kwargs)
+        if m == CompInitMode.CALLABLE:
+            return partial(component, **kwargs) if kwargs else component
         if m == CompInitMode.DEBUG:
             warnings.warn(
                 f"\n\npdb: instantiating component={component}, mode={m}\n"
@@ -269,7 +251,7 @@ def instantiate(__path: str, __mode: str, **kwargs: Any) -> Any:
             return pdb.runcall(component, **kwargs)
     except Exception as e:
         raise RuntimeError(
-            f"Failed to instantiate component '{__path}' with kwargs: {kwargs}"
+            f"Failed to instantiate component '{__path}' with keywords: {','.join(kwargs.keys())}"
             f"\n set '_mode_={CompInitMode.DEBUG}' to enter the debugging mode."
         ) from e
 
@@ -418,6 +400,7 @@ def optional_import(
         msg += f" ({exception_str})"
 
     class _LazyRaise:
+
         def __init__(self, *_args, **_kwargs):
             _default_msg = (
                 f"{msg}."
@@ -453,6 +436,7 @@ def optional_import(
         return _LazyRaise(), False
 
     class _LazyCls(_LazyRaise):
+
         def __init__(self, *_args, **kwargs):
             super().__init__()
             if not as_type.startswith("decorator"):
@@ -556,7 +540,7 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging.Version")
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
@@ -583,7 +567,8 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("pkg_resources", name="packaging")
+    pkging, has_ver = optional_import("packaging.Version")
+
     if has_ver:
         try:
             return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
@@ -621,7 +606,7 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
         if current_ver_string is None:
             _env_var = os.environ.get("PYTORCH_VER", "")
             current_ver_string = _env_var if _env_var else torch.__version__
-        ver, has_ver = optional_import("pkg_resources", name="parse_version")
+        ver, has_ver = optional_import("packaging.version", name="parse")
         if has_ver:
             return ver(".".join((f"{major}", f"{minor}", f"{patch}"))) <= ver(f"{current_ver_string}")  # type: ignore
         parts = f"{current_ver_string}".split("+", 1)[0].split(".", 3)

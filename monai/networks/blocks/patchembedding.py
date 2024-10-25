@@ -21,7 +21,7 @@ from torch.nn import LayerNorm
 
 from monai.networks.blocks.pos_embed_utils import build_sincos_position_embedding
 from monai.networks.layers import Conv, trunc_normal_
-from monai.utils import deprecated_arg, ensure_tuple_rep, optional_import
+from monai.utils import ensure_tuple_rep, optional_import
 from monai.utils.module import look_up_option
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
@@ -42,9 +42,6 @@ class PatchEmbeddingBlock(nn.Module):
 
     """
 
-    @deprecated_arg(
-        name="pos_embed", since="1.2", removed="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead."
-    )
     def __init__(
         self,
         in_channels: int,
@@ -52,7 +49,6 @@ class PatchEmbeddingBlock(nn.Module):
         patch_size: Sequence[int] | int,
         hidden_size: int,
         num_heads: int,
-        pos_embed: str = "conv",
         proj_type: str = "conv",
         pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
@@ -69,8 +65,6 @@ class PatchEmbeddingBlock(nn.Module):
             pos_embed_type: position embedding layer type.
             dropout_rate: fraction of the input units to drop.
             spatial_dims: number of spatial dimensions.
-        .. deprecated:: 1.4
-            ``pos_embed`` is deprecated in favor of ``proj_type``.
         """
 
         super().__init__()
@@ -120,9 +114,7 @@ class PatchEmbeddingBlock(nn.Module):
             for in_size, pa_size in zip(img_size, patch_size):
                 grid_size.append(in_size // pa_size)
 
-            with torch.no_grad():
-                pos_embeddings = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
-                self.position_embeddings.data.copy_(pos_embeddings.float())
+            self.position_embeddings = build_sincos_position_embedding(grid_size, hidden_size, spatial_dims)
         else:
             raise ValueError(f"pos_embed_type {self.pos_embed_type} not supported.")
 

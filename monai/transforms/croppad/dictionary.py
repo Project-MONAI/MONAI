@@ -221,9 +221,8 @@ class SpatialPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        LazyTransform.__init__(self, lazy)
         padder = SpatialPad(spatial_size, method, lazy=lazy, **kwargs)
-        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class BorderPadd(Padd):
@@ -274,9 +273,8 @@ class BorderPadd(Padd):
                 note that `np.pad` treats channel dimension as the first dimension.
 
         """
-        LazyTransform.__init__(self, lazy)
         padder = BorderPad(spatial_border=spatial_border, lazy=lazy, **kwargs)
-        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class DivisiblePadd(Padd):
@@ -324,9 +322,8 @@ class DivisiblePadd(Padd):
         See also :py:class:`monai.transforms.SpatialPad`
 
         """
-        LazyTransform.__init__(self, lazy)
         padder = DivisiblePad(k=k, method=method, lazy=lazy, **kwargs)
-        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys)
+        Padd.__init__(self, keys, padder=padder, mode=mode, allow_missing_keys=allow_missing_keys, lazy=lazy)
 
 
 class Cropd(MapTransform, InvertibleTransform, LazyTransform):
@@ -441,10 +438,10 @@ class SpatialCropd(Cropd):
     def __init__(
         self,
         keys: KeysCollection,
-        roi_center: Sequence[int] | None = None,
-        roi_size: Sequence[int] | None = None,
-        roi_start: Sequence[int] | None = None,
-        roi_end: Sequence[int] | None = None,
+        roi_center: Sequence[int] | int | None = None,
+        roi_size: Sequence[int] | int | None = None,
+        roi_start: Sequence[int] | int | None = None,
+        roi_end: Sequence[int] | int | None = None,
         roi_slices: Sequence[slice] | None = None,
         allow_missing_keys: bool = False,
         lazy: bool = False,

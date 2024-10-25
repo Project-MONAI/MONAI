@@ -228,9 +228,6 @@ def compute_surface_dice(
             f"y_pred and y should have same shape, but instead, shapes are {y_pred.shape} (y_pred) and {y.shape} (y)."
         )
 
-    y = y.float()
-    y_pred = y_pred.float()
-
     batch_size, n_class = y_pred.shape[:2]
 
     if n_class != len(class_thresholds):
@@ -256,7 +253,7 @@ def compute_surface_dice(
             distance_metric=distance_metric,
             spacing=spacing_list[b],
             use_subvoxels=use_subvoxels,
-            symetric=True,
+            symmetric=True,
             class_index=c,
         )
         boundary_correct: int | torch.Tensor | float

@@ -39,6 +39,7 @@ def single_2d_transform_cases():
 
 
 class TestApply(unittest.TestCase):
+
     def _test_apply_impl(self, tensor, pending_transforms, expected_shape):
         result = apply_pending(tensor, pending_transforms)
         self.assertListEqual(result[1], pending_transforms)

@@ -83,6 +83,9 @@ class AutoRunner:
             zip url will be downloaded and extracted into the work_dir.
         allow_skip: a switch passed to BundleGen process which determines if some Algo in the default templates
             can be skipped based on the analysis on the dataset from Auto3DSeg DataAnalyzer.
+        mlflow_tracking_uri: a tracking URI for MLflow server which could be local directory or address of the remote
+            tracking Server; MLflow runs will be recorded locally in algorithms' model folder if the value is None.
+        mlflow_experiment_name: the name of the experiment in MLflow server.
         kwargs: image writing parameters for the ensemble inference. The kwargs format follows the SaveImage
             transform. For more information, check https://docs.monai.io/en/stable/transforms.html#saveimage.
 
@@ -209,23 +212,15 @@ class AutoRunner:
         not_use_cache: bool = False,
         templates_path_or_url: str | None = None,
         allow_skip: bool = True,
+        mlflow_tracking_uri: str | None = None,
+        mlflow_experiment_name: str | None = None,
         **kwargs: Any,
     ):
-        logger.info(f"AutoRunner using work directory {work_dir}")
-        os.makedirs(work_dir, exist_ok=True)
-
-        self.work_dir = os.path.abspath(work_dir)
-        self.data_src_cfg = dict()
-        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
-        self.algos = algos
-        self.templates_path_or_url = templates_path_or_url
-        self.allow_skip = allow_skip
-        self.kwargs = deepcopy(kwargs)
-
-        if input is None and os.path.isfile(self.data_src_cfg_name):
-            input = self.data_src_cfg_name
+        if input is None and os.path.isfile(os.path.join(os.path.abspath(work_dir), "input.yaml")):
+            input = os.path.join(os.path.abspath(work_dir), "input.yaml")
             logger.info(f"Input config is not provided, using the default {input}")
 
+        self.data_src_cfg = dict()
         if isinstance(input, dict):
             self.data_src_cfg = input
         elif isinstance(input, str) and os.path.isfile(input):
@@ -233,6 +228,58 @@ class AutoRunner:
             logger.info(f"Loading input config {input}")
         else:
             raise ValueError(f"{input} is not a valid file or dict")
+
+        if "work_dir" in self.data_src_cfg:  # override from config
+            work_dir = self.data_src_cfg["work_dir"]
+        self.work_dir = os.path.abspath(work_dir)
+
+        logger.info(f"AutoRunner using work directory {self.work_dir}")
+        os.makedirs(self.work_dir, exist_ok=True)
+        self.data_src_cfg_name = os.path.join(self.work_dir, "input.yaml")
+
+        self.algos = algos
+        self.templates_path_or_url = templates_path_or_url
+        self.allow_skip = allow_skip
+
+        # cache.yaml
+        self.not_use_cache = not_use_cache
+        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
+        self.cache = self.read_cache()
+        self.export_cache()
+
+        # determine if we need to analyze, algo_gen or train from cache, unless manually provided
+        self.analyze = not self.cache["analyze"] if analyze is None else analyze
+        self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
+        self.train = train
+        self.ensemble = ensemble  # last step, no need to check
+        self.hpo = hpo and has_nni
+        self.hpo_backend = hpo_backend
+        self.mlflow_tracking_uri = mlflow_tracking_uri
+        self.mlflow_experiment_name = mlflow_experiment_name
+        self.kwargs = deepcopy(kwargs)
+
+        # parse input config for AutoRunner param overrides
+        for param in [
+            "analyze",
+            "algo_gen",
+            "train",
+            "hpo",
+            "ensemble",
+            "not_use_cache",
+            "allow_skip",
+        ]:  # override from config
+            if param in self.data_src_cfg and isinstance(self.data_src_cfg[param], bool):
+                setattr(self, param, self.data_src_cfg[param])  # e.g. self.analyze = self.data_src_cfg["analyze"]
+
+        for param in [
+            "algos",
+            "hpo_backend",
+            "templates_path_or_url",
+            "mlflow_tracking_uri",
+            "mlflow_experiment_name",
+        ]:  # override from config
+            if param in self.data_src_cfg:
+                setattr(self, param, self.data_src_cfg[param])  # e.g. self.algos = self.data_src_cfg["algos"]
 
         missing_keys = {"dataroot", "datalist", "modality"}.difference(self.data_src_cfg.keys())
         if len(missing_keys) > 0:
@@ -251,7 +298,13 @@ class AutoRunner:
                 pass
 
         # inspect and update folds
-        num_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
+        self.max_fold = self.inspect_datalist_folds(datalist_filename=datalist_filename)
+        if "num_fold" in self.data_src_cfg:
+            num_fold = int(self.data_src_cfg["num_fold"])  # override from config
+            logger.info(f"Setting num_fold {num_fold} based on the input config.")
+        else:
+            num_fold = self.max_fold
+            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
 
         self.data_src_cfg["datalist"] = datalist_filename  # update path to a version in work_dir and save user input
         ConfigParser.export_config_file(
@@ -261,17 +314,6 @@ class AutoRunner:
         self.dataroot = self.data_src_cfg["dataroot"]
         self.datastats_filename = os.path.join(self.work_dir, "datastats.yaml")
         self.datalist_filename = datalist_filename
-
-        self.not_use_cache = not_use_cache
-        self.cache_filename = os.path.join(self.work_dir, "cache.yaml")
-        self.cache = self.read_cache()
-        self.export_cache()
-
-        # determine if we need to analyze, algo_gen or train from cache, unless manually provided
-        self.analyze = not self.cache["analyze"] if analyze is None else analyze
-        self.algo_gen = not self.cache["algo_gen"] if algo_gen is None else algo_gen
-        self.train = train
-        self.ensemble = ensemble  # last step, no need to check
 
         self.set_training_params()
         self.set_device_info()
@@ -284,9 +326,9 @@ class AutoRunner:
         self.gpu_customization_specs: dict[str, Any] = {}
 
         # hpo
-        if hpo_backend.lower() != "nni":
+        if self.hpo_backend.lower() != "nni":
             raise NotImplementedError("HPOGen backend only supports NNI")
-        self.hpo = hpo and has_nni
+        self.hpo = self.hpo and has_nni
         self.set_hpo_params()
         self.search_space: dict[str, dict[str, Any]] = {}
         self.hpo_tasks = 0
@@ -360,7 +402,10 @@ class AutoRunner:
 
         if len(fold_list) > 0:
             num_fold = max(fold_list) + 1
-            logger.info(f"Setting num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            logger.info(f"Found num_fold {num_fold} based on the input datalist {datalist_filename}.")
+            # check if every fold is present
+            if len(set(fold_list)) != num_fold:
+                raise ValueError(f"Fold numbers are not continuous from 0 to {num_fold - 1}")
         elif "validation" in datalist and len(datalist["validation"]) > 0:
             logger.info("No fold numbers provided, attempting to use a single fold based on the validation key")
             # update the datalist file
@@ -454,6 +499,11 @@ class AutoRunner:
 
         if num_fold <= 0:
             raise ValueError(f"num_fold is expected to be an integer greater than zero. Now it gets {num_fold}")
+        if num_fold > self.max_fold:
+            # Auto3DSeg must contain validation set, so the maximum fold number is max_fold.
+            raise ValueError(
+                f"num_fold is greater than the maximum fold number {self.max_fold} in {self.datalist_filename}."
+            )
         self.num_fold = num_fold
 
         return self
@@ -501,7 +551,7 @@ class AutoRunner:
             cmd_prefix: command line prefix for subprocess running in BundleAlgo and EnsembleRunner.
                 Default using env "CMD_PREFIX" or None, examples are:
 
-                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.8 ",
+                    - single GPU/CPU or multinode bcprun: "python " or "/opt/conda/bin/python3.9 ",
                     - single node multi-GPU running "torchrun --nnodes=1 --nproc_per_node=2 "
 
                 If user define this prefix, please make sure --nproc_per_node matches cuda_visible_device or
@@ -783,6 +833,8 @@ class AutoRunner:
                 templates_path_or_url=self.templates_path_or_url,
                 data_stats_filename=self.datastats_filename,
                 data_src_cfg_name=self.data_src_cfg_name,
+                mlflow_tracking_uri=self.mlflow_tracking_uri,
+                mlflow_experiment_name=self.mlflow_experiment_name,
             )
 
             if self.gpu_customization:

@@ -19,10 +19,9 @@ import torch
 from ignite.engine import Engine
 from parameterized import parameterized
 
-from monai.config import IgniteInfo
 from monai.data import Dataset
 from monai.handlers import GarbageCollector
-from monai.utils import min_version, optional_import
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, has_ignite = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 
@@ -34,6 +33,7 @@ TEST_CASE_2 = [[0, 1, 2], Events.EPOCH_COMPLETED]
 
 
 class TestHandlerGarbageCollector(unittest.TestCase):
+
     @skipUnless(has_ignite, "Requires ignite")
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_content(self, data, trigger_event):

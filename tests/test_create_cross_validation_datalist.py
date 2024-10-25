@@ -20,6 +20,7 @@ from monai.data import create_cross_validation_datalist, load_decathlon_datalist
 
 
 class TestCreateCrossValidationDatalist(unittest.TestCase):
+
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
             datalist = []

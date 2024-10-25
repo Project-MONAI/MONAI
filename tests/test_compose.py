@@ -39,6 +39,7 @@ def data_from_keys(keys, h, w):
 
 
 class _RandXform(Randomizable):
+
     def randomize(self):
         self.val = self.R.random_sample()
 
@@ -48,12 +49,14 @@ class _RandXform(Randomizable):
 
 
 class TestCompose(unittest.TestCase):
+
     def test_empty_compose(self):
         c = mt.Compose()
         i = 1
         self.assertEqual(c(i), 1)
 
     def test_non_dict_compose(self):
+
         def a(i):
             return i + "a"
 
@@ -64,6 +67,7 @@ class TestCompose(unittest.TestCase):
         self.assertEqual(c(""), "abab")
 
     def test_dict_compose(self):
+
         def a(d):
             d = dict(d)
             d["a"] += 1
@@ -82,6 +86,7 @@ class TestCompose(unittest.TestCase):
         self.assertDictEqual(execute_compose(data, transforms), expected)
 
     def test_list_dict_compose(self):
+
         def a(d):  # transform to handle dict data
             d = dict(d)
             d["a"] += 1
@@ -109,6 +114,7 @@ class TestCompose(unittest.TestCase):
             self.assertDictEqual(item, expected)
 
     def test_non_dict_compose_with_unpack(self):
+
         def a(i, i2):
             return i + "a", i2 + "a2"
 
@@ -122,6 +128,7 @@ class TestCompose(unittest.TestCase):
         self.assertEqual(execute_compose(data, transforms, map_items=False, unpack_items=True), expected)
 
     def test_list_non_dict_compose_with_unpack(self):
+
         def a(i, i2):
             return i + "a", i2 + "a2"
 
@@ -135,6 +142,7 @@ class TestCompose(unittest.TestCase):
         self.assertEqual(execute_compose(data, transforms, unpack_items=True), expected)
 
     def test_list_dict_compose_no_map(self):
+
         def a(d):  # transform to handle dict data
             d = dict(d)
             d["a"] += 1
@@ -163,6 +171,7 @@ class TestCompose(unittest.TestCase):
             self.assertDictEqual(item, expected)
 
     def test_random_compose(self):
+
         class _Acc(Randomizable):
             self.rand = 0.0
 
@@ -182,7 +191,9 @@ class TestCompose(unittest.TestCase):
         self.assertAlmostEqual(c(1), 1.90734751)
 
     def test_randomize_warn(self):
+
         class _RandomClass(Randomizable):
+
             def randomize(self, foo1, foo2):
                 pass
 
@@ -267,6 +278,7 @@ TEST_COMPOSE_EXECUTE_TEST_CASES = [
 
 
 class TestComposeExecute(unittest.TestCase):
+
     @parameterized.expand(TEST_COMPOSE_EXECUTE_TEST_CASES)
     def test_compose_execute_equivalence(self, keys, pipeline):
         data = data_from_keys(keys, 12, 16)
@@ -657,8 +669,10 @@ class TestComposeExecuteWithLogging(unittest.TestCase):
 
 
 class TestOps:
+
     @staticmethod
     def concat(value):
+
         def _inner(data):
             return data + value
 
@@ -666,6 +680,7 @@ class TestOps:
 
     @staticmethod
     def concatd(value):
+
         def _inner(data):
             return {k: v + value for k, v in data.items()}
 
@@ -673,6 +688,7 @@ class TestOps:
 
     @staticmethod
     def concata(value):
+
         def _inner(data1, data2):
             return data1 + value, data2 + value
 
@@ -688,6 +704,7 @@ TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES = [
 
 
 class TestComposeExecuteWithFlags(unittest.TestCase):
+
     @parameterized.expand(TEST_COMPOSE_EXECUTE_FLAG_TEST_CASES)
     def test_compose_execute_equivalence_with_flags(self, flags, data, pipeline):
         expected = mt.Compose(pipeline, **flags)(data)
@@ -699,18 +716,19 @@ class TestComposeExecuteWithFlags(unittest.TestCase):
                 for k in actual.keys():
                     self.assertEqual(expected[k], actual[k])
             else:
-                self.assertTrue(expected, actual)
+                self.assertEqual(expected, actual)
 
             p = deepcopy(pipeline)
             actual = execute_compose(execute_compose(data, p, start=0, end=cutoff, **flags), p, start=cutoff, **flags)
             if isinstance(actual, dict):
                 for k in actual.keys():
-                    self.assertTrue(expected[k], actual[k])
+                    self.assertEqual(expected[k], actual[k])
             else:
-                self.assertTrue(expected, actual)
+                self.assertEqual(expected, actual)
 
 
 class TestComposeCallableInput(unittest.TestCase):
+
     def test_value_error_when_not_sequence(self):
         data = torch.tensor(np.random.randn(1, 5, 5))
 

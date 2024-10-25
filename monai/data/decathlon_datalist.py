@@ -24,13 +24,11 @@ from monai.utils import ensure_tuple
 
 
 @overload
-def _compute_path(base_dir: PathLike, element: PathLike, check_path: bool = False) -> str:
-    ...
+def _compute_path(base_dir: PathLike, element: PathLike, check_path: bool = False) -> str: ...
 
 
 @overload
-def _compute_path(base_dir: PathLike, element: list[PathLike], check_path: bool = False) -> list[str]:
-    ...
+def _compute_path(base_dir: PathLike, element: list[PathLike], check_path: bool = False) -> list[str]: ...
 
 
 def _compute_path(base_dir, element, check_path=False):

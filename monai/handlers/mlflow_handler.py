@@ -21,13 +21,16 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch.utils.data import Dataset
 
-from monai.config import IgniteInfo
-from monai.utils import CommonKeys, ensure_tuple, min_version, optional_import
+from monai.apps.utils import get_logger
+from monai.utils import CommonKeys, IgniteInfo, ensure_tuple, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
 mlflow.entities, _ = optional_import(
     "mlflow.entities", descriptor="Please install mlflow.entities before using MLFlowHandler."
+)
+MlflowException, _ = optional_import(
+    "mlflow.exceptions", name="MlflowException", descriptor="Please install mlflow before using MLFlowHandler."
 )
 pandas, _ = optional_import("pandas", descriptor="Please install pandas for recording the dataset.")
 tqdm, _ = optional_import("tqdm", "4.47.0", min_version, "tqdm")
@@ -40,6 +43,8 @@ else:
     )
 
 DEFAULT_TAG = "Loss"
+
+logger = get_logger(module_name=__name__)
 
 
 class MLFlowHandler:
@@ -236,10 +241,21 @@ class MLFlowHandler:
     def _set_experiment(self):
         experiment = self.experiment
         if not experiment:
-            experiment = self.client.get_experiment_by_name(self.experiment_name)
-            if not experiment:
-                experiment_id = self.client.create_experiment(self.experiment_name)
-                experiment = self.client.get_experiment(experiment_id)
+            for _retry_time in range(3):
+                try:
+                    experiment = self.client.get_experiment_by_name(self.experiment_name)
+                    if not experiment:
+                        experiment_id = self.client.create_experiment(self.experiment_name)
+                        experiment = self.client.get_experiment(experiment_id)
+                    break
+                except MlflowException as e:
+                    if "RESOURCE_ALREADY_EXISTS" in str(e):
+                        logger.warning("Experiment already exists; delaying before retrying.")
+                        time.sleep(1)
+                        if _retry_time == 2:
+                            raise e
+                    else:
+                        raise e
 
         if experiment.lifecycle_stage != mlflow.entities.LifecycleStage.ACTIVE:
             raise ValueError(f"Cannot set a deleted experiment '{self.experiment_name}' as the active experiment")
@@ -401,7 +417,7 @@ class MLFlowHandler:
             cur_optimizer = engine.optimizer
             for param_name in self.optimizer_param_names:
                 params = {
-                    f"{param_name} group_{i}": float(param_group[param_name])
+                    f"{param_name}_group_{i}": float(param_group[param_name])
                     for i, param_group in enumerate(cur_optimizer.param_groups)
                 }
                 self._log_metrics(params, step=engine.state.iteration)

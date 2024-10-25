@@ -43,7 +43,7 @@ for dropout_rate in (0.5,):
                                             "patch_size": (patch_size,) * nd,
                                             "hidden_size": hidden_size,
                                             "num_heads": num_heads,
-                                            "pos_embed": proj_type,
+                                            "proj_type": proj_type,
                                             "pos_embed_type": pos_embed_type,
                                             "dropout_rate": dropout_rate,
                                         },
@@ -77,6 +77,7 @@ for patch_size in [2]:
 
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestPatchEmbeddingBlock(unittest.TestCase):
+
     def setUp(self):
         self.threads = torch.get_num_threads()
         torch.set_num_threads(4)
@@ -92,6 +93,32 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
+    def test_sincos_pos_embed(self):
+        net = PatchEmbeddingBlock(
+            in_channels=1,
+            img_size=(32, 32, 32),
+            patch_size=(8, 8, 8),
+            hidden_size=96,
+            num_heads=8,
+            pos_embed_type="sincos",
+            dropout_rate=0.5,
+        )
+
+        self.assertEqual(net.position_embeddings.requires_grad, False)
+
+    def test_learnable_pos_embed(self):
+        net = PatchEmbeddingBlock(
+            in_channels=1,
+            img_size=(32, 32, 32),
+            patch_size=(8, 8, 8),
+            hidden_size=96,
+            num_heads=8,
+            pos_embed_type="learnable",
+            dropout_rate=0.5,
+        )
+
+        self.assertEqual(net.position_embeddings.requires_grad, True)
+
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
             PatchEmbeddingBlock(
@@ -100,7 +127,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(16, 16, 16),
                 hidden_size=128,
                 num_heads=12,
-                pos_embed="conv",
+                proj_type="conv",
                 pos_embed_type="sincos",
                 dropout_rate=5.0,
             )
@@ -112,7 +139,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(64, 64, 64),
                 hidden_size=512,
                 num_heads=8,
-                pos_embed="perceptron",
+                proj_type="perceptron",
                 pos_embed_type="sincos",
                 dropout_rate=0.3,
             )
@@ -124,7 +151,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(8, 8, 8),
                 hidden_size=512,
                 num_heads=14,
-                pos_embed="conv",
+                proj_type="conv",
                 dropout_rate=0.3,
             )
 
@@ -135,7 +162,7 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(4, 4, 4),
                 hidden_size=768,
                 num_heads=8,
-                pos_embed="perceptron",
+                proj_type="perceptron",
                 dropout_rate=0.3,
             )
         with self.assertRaises(ValueError):
@@ -156,12 +183,13 @@ class TestPatchEmbeddingBlock(unittest.TestCase):
                 patch_size=(16, 16, 16),
                 hidden_size=768,
                 num_heads=12,
-                pos_embed="perc",
+                proj_type="perc",
                 dropout_rate=0.3,
             )
 
 
 class TestPatchEmbed(unittest.TestCase):
+
     def setUp(self):
         self.threads = torch.get_num_threads()
         torch.set_num_threads(4)

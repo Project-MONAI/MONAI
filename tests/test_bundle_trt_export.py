@@ -48,6 +48,7 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 @skip_if_no_cuda
 @skip_if_quick
 class TestTRTExport(unittest.TestCase):
+
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:
@@ -90,9 +91,9 @@ class TestTRTExport(unittest.TestCase):
             _, metadata, extra_files = load_net_with_metadata(
                 ts_file, more_extra_files=["inference.json", "def_args.json"]
             )
-            self.assertTrue("schema" in metadata)
-            self.assertTrue("meta_file" in json.loads(extra_files["def_args.json"]))
-            self.assertTrue("network_def" in json.loads(extra_files["inference.json"]))
+            self.assertIn("schema", metadata)
+            self.assertIn("meta_file", json.loads(extra_files["def_args.json"]))
+            self.assertIn("network_def", json.loads(extra_files["inference.json"]))
 
     @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
     @unittest.skipUnless(
@@ -128,9 +129,9 @@ class TestTRTExport(unittest.TestCase):
             _, metadata, extra_files = load_net_with_metadata(
                 ts_file, more_extra_files=["inference.json", "def_args.json"]
             )
-            self.assertTrue("schema" in metadata)
-            self.assertTrue("meta_file" in json.loads(extra_files["def_args.json"]))
-            self.assertTrue("network_def" in json.loads(extra_files["inference.json"]))
+            self.assertIn("schema", metadata)
+            self.assertIn("meta_file", json.loads(extra_files["def_args.json"]))
+            self.assertIn("network_def", json.loads(extra_files["inference.json"]))
 
 
 if __name__ == "__main__":

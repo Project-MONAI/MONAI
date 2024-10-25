@@ -72,6 +72,7 @@ TEST_CASE_1 = [
 
 
 class TestClass:
+
     @staticmethod
     def compute(a, b, func=lambda x, y: x + y):
         return func(a, b)
@@ -124,8 +125,25 @@ TEST_CASE_DUPLICATED_KEY_YAML = [
     [0, 4],
 ]
 
+TEST_CASE_MERGE_JSON = ["""{"key1": [0], "key2": [0] }""", """{"key1": [1], "+key2": [4] }""", "json", [1], [0, 4]]
+
+TEST_CASE_MERGE_YAML = [
+    """
+    key1: 0
+    key2: [0]
+    """,
+    """
+    key1: 1
+    +key2: [4]
+    """,
+    "yaml",
+    1,
+    [0, 4],
+]
+
 
 class TestConfigParser(unittest.TestCase):
+
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
@@ -181,9 +199,9 @@ class TestConfigParser(unittest.TestCase):
         parser = ConfigParser(config=config, globals={"TestClass": TestClass})
         for id in config:
             if id in ("compute", "cls_compute"):
-                parser[f"{id}#_mode_"] = "partial"
+                parser[f"{id}#_mode_"] = "callable"
             func = parser.get_parsed_content(id=id)
-            self.assertTrue(id in parser.ref_resolver.resolved_content)
+            self.assertIn(id, parser.ref_resolver.resolved_content)
             if id == "error_func":
                 with self.assertRaises(TypeError):
                     func(1, 2)
@@ -277,7 +295,7 @@ class TestConfigParser(unittest.TestCase):
 
     def test_non_str_target(self):
         configs = {
-            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "partial"},
+            "fwd": {"_target_": "$@model.forward", "x": "$torch.rand(1, 3, 256, 256)", "_mode_": "callable"},
             "model": {"_target_": "monai.networks.nets.resnet.resnet18", "pretrained": False, "spatial_dims": 2},
         }
         self.assertTrue(callable(ConfigParser(config=configs).fwd))
@@ -354,6 +372,22 @@ class TestConfigParser(unittest.TestCase):
 
             self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
             self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
+
+    @parameterized.expand([TEST_CASE_MERGE_JSON, TEST_CASE_MERGE_YAML])
+    @skipUnless(has_yaml, "Requires pyyaml")
+    def test_load_configs(
+        self, config_string, config_string2, extension, expected_overridden_val, expected_merged_vals
+    ):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path1 = Path(tempdir) / f"config1.{extension}"
+            config_path2 = Path(tempdir) / f"config2.{extension}"
+            config_path1.write_text(config_string)
+            config_path2.write_text(config_string2)
+
+            parser = ConfigParser.load_config_files([config_path1, config_path2])
+
+            self.assertEqual(parser["key1"], expected_overridden_val)
+            self.assertEqual(parser["key2"], expected_merged_vals)
 
 
 if __name__ == "__main__":

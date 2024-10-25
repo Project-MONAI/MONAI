@@ -26,6 +26,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestSplitDim(unittest.TestCase):
+
     @parameterized.expand(TESTS)
     def test_correct_shape(self, shape, keepdim, im_type):
         arr = im_type(np.random.rand(*shape))

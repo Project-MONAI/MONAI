@@ -26,6 +26,7 @@ cp, _ = optional_import("cupy")
 
 @skipUnless(HAS_CUPY, "CuPy is required.")
 class TestToCupy(unittest.TestCase):
+
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]], dtype=cp.float32)
         test_data = cp.rot90(test_data)
@@ -61,8 +62,8 @@ class TestToCupy(unittest.TestCase):
         test_data = np.rot90(test_data)
         self.assertFalse(test_data.flags["C_CONTIGUOUS"])
         result = ToCupy(np.uint8)(test_data)
-        self.assertTrue(result.dtype == cp.uint8)
-        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertEqual(result.dtype, cp.uint8)
+        self.assertIsInstance(result, cp.ndarray)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 
@@ -71,8 +72,8 @@ class TestToCupy(unittest.TestCase):
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
         result = ToCupy()(test_data)
-        self.assertTrue(result.dtype == cp.float32)
-        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertEqual(result.dtype, cp.float32)
+        self.assertIsInstance(result, cp.ndarray)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 
@@ -82,8 +83,8 @@ class TestToCupy(unittest.TestCase):
         test_data = test_data.rot90()
         self.assertFalse(test_data.is_contiguous())
         result = ToCupy()(test_data)
-        self.assertTrue(result.dtype == cp.float32)
-        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertEqual(result.dtype, cp.float32)
+        self.assertIsInstance(result, cp.ndarray)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 
@@ -94,8 +95,8 @@ class TestToCupy(unittest.TestCase):
         self.assertFalse(test_data.is_contiguous())
 
         result = ToCupy(dtype="float32")(test_data)
-        self.assertTrue(result.dtype == cp.float32)
-        self.assertTrue(isinstance(result, cp.ndarray))
+        self.assertEqual(result.dtype, cp.float32)
+        self.assertIsInstance(result, cp.ndarray)
         self.assertTrue(result.flags["C_CONTIGUOUS"])
         cp.testing.assert_allclose(result, test_data)
 

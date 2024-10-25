@@ -83,6 +83,7 @@ for spatial_dims in range(2, 4):
 
 
 class TestResNet(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_SEGRESNET + TEST_CASE_SEGRESNET_2)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = SegResNet(**input_param).to(device)
@@ -102,6 +103,7 @@ class TestResNet(unittest.TestCase):
 
 
 class TestResNetVAE(unittest.TestCase):
+
     @parameterized.expand(TEST_CASE_SEGRESNET_VAE)
     def test_vae_shape(self, input_param, input_shape, expected_shape):
         net = SegResNetVAE(**input_param).to(device)

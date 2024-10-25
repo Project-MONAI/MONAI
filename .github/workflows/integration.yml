@@ -22,7 +22,7 @@ jobs:
       id: pip-cache
       run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -68,10 +68,13 @@ jobs:
       shell: bash
       env:
         BUILD_MONAI: 1
+        NGC_API_KEY: ${{ secrets.NGC_API_KEY }}
+        NGC_ORG: ${{ secrets.NGC_ORG }}
+        NGC_TEAM: ${{ secrets.NGC_TEAM }}
       run: ./runtests.sh --build --net
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v3
+      uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}
@@ -95,7 +98,7 @@ jobs:
       id: pip-cache
       run: echo "datew=$(date '+%Y-%V')" >> $GITHUB_OUTPUT
     - name: cache for pip
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       id: cache
       with:
         path: |
@@ -151,7 +154,7 @@ jobs:
         python -m tests.test_integration_gpu_customization
 
     - name: Add reaction
-      uses: peter-evans/create-or-update-comment@v3
+      uses: peter-evans/create-or-update-comment@v4
       with:
         token: ${{ secrets.PR_MAINTAIN }}
         repository: ${{ github.event.client_payload.github.payload.repository.full_name }}

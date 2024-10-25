@@ -337,6 +337,7 @@ for p in TEST_NDARRAYS:
 
 
 class TestKeepLargestConnectedComponentd(unittest.TestCase):
+
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, args, input_dict, expected):
         converter = KeepLargestConnectedComponentd(**args)

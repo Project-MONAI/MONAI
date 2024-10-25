@@ -102,6 +102,7 @@ TEST_CASE_WSI_8_OVERLAP = [
 
 # Filtering functions test cases
 def gen_location_filter(locations):
+
     def my_filter(patch, loc):
         if loc in locations:
             return False
@@ -198,6 +199,7 @@ def setUpModule():
 
 
 class WSISlidingWindowSplitterTests(unittest.TestCase):
+
     @parameterized.expand(
         [
             TEST_CASE_WSI_0_BASE,

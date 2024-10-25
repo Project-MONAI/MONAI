@@ -18,9 +18,8 @@ from typing import TYPE_CHECKING, Any, cast
 import torch
 from torch.nn.modules.loss import _Loss
 
-from monai.config import IgniteInfo
 from monai.metrics import CumulativeIterationMetric, LossMetric
-from monai.utils import MetricReduction, deprecated, min_version, optional_import
+from monai.utils import IgniteInfo, MetricReduction, min_version, optional_import
 
 idist, _ = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
 
@@ -153,24 +152,3 @@ class IgniteMetricHandler(Metric):
         self._name = name
         if self.save_details and not hasattr(engine.state, "metric_details"):
             engine.state.metric_details = {}  # type: ignore
-
-
-@deprecated(since="1.2", removed="1.4", msg_suffix="Use IgniteMetricHandler instead of IgniteMetric.")
-class IgniteMetric(IgniteMetricHandler):
-    def __init__(
-        self,
-        metric_fn: CumulativeIterationMetric | None = None,
-        loss_fn: _Loss | None = None,
-        output_transform: Callable = lambda x: x,
-        save_details: bool = True,
-        reduction: MetricReduction | str = MetricReduction.MEAN,
-        get_not_nans: bool = False,
-    ) -> None:
-        super().__init__(
-            metric_fn=metric_fn,
-            loss_fn=loss_fn,
-            output_transform=output_transform,
-            save_details=save_details,
-            reduction=reduction,
-            get_not_nans=get_not_nans,
-        )

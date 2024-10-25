@@ -30,10 +30,11 @@ measure, _ = optional_import("skimage.measure", "0.14.2", min_version)
 
 logger = logging.getLogger(__name__)
 
-distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
 
 
 class DiscardAddGuidanced(MapTransform):
+
     def __init__(
         self,
         keys: KeysCollection,
@@ -84,6 +85,7 @@ class DiscardAddGuidanced(MapTransform):
 
 
 class NormalizeLabelsInDatasetd(MapTransform):
+
     def __init__(
         self, keys: KeysCollection, label_names: dict[str, int] | None = None, allow_missing_keys: bool = False
     ):
@@ -121,6 +123,7 @@ class NormalizeLabelsInDatasetd(MapTransform):
 
 
 class SingleLabelSelectiond(MapTransform):
+
     def __init__(
         self, keys: KeysCollection, label_names: Sequence[str] | None = None, allow_missing_keys: bool = False
     ):

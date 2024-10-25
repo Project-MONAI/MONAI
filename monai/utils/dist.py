@@ -11,20 +11,15 @@
 
 from __future__ import annotations
 
-import sys
 import warnings
 from collections.abc import Callable
 from logging import Filter
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-
-from typing import overload
+from typing import Literal, overload
 
 import torch
 import torch.distributed as dist
 
-from monai.config import IgniteInfo
+from monai.utils.enums import IgniteInfo
 from monai.utils.module import min_version, optional_import
 
 idist, has_ignite = optional_import("ignite", IgniteInfo.OPT_IMPORT_VERSION, min_version, "distributed")
@@ -50,18 +45,15 @@ def get_dist_device():
 
 
 @overload
-def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[True]) -> torch.Tensor:
-    ...
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[True]) -> torch.Tensor: ...
 
 
 @overload
-def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[False]) -> list[torch.Tensor]:
-    ...
+def evenly_divisible_all_gather(data: torch.Tensor, concat: Literal[False]) -> list[torch.Tensor]: ...
 
 
 @overload
-def evenly_divisible_all_gather(data: torch.Tensor, concat: bool) -> torch.Tensor | list[torch.Tensor]:
-    ...
+def evenly_divisible_all_gather(data: torch.Tensor, concat: bool) -> torch.Tensor | list[torch.Tensor]: ...
 
 
 def evenly_divisible_all_gather(data: torch.Tensor, concat: bool = True) -> torch.Tensor | list[torch.Tensor]:

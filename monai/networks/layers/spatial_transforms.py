@@ -33,6 +33,7 @@ __all__ = ["AffineTransform", "grid_pull", "grid_push", "grid_count", "grid_grad
 
 
 class _GridPull(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, input, grid, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -132,6 +133,7 @@ def grid_pull(
 
 
 class _GridPush(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, input, grid, shape, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -236,6 +238,7 @@ def grid_push(
 
 
 class _GridCount(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, grid, shape, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -335,6 +338,7 @@ def grid_count(grid: torch.Tensor, shape=None, interpolation="linear", bound="ze
 
 
 class _GridGrad(torch.autograd.Function):
+
     @staticmethod
     def forward(ctx, input, grid, interpolation, bound, extrapolate):
         opt = (bound, interpolation, extrapolate)
@@ -433,6 +437,7 @@ def grid_grad(input: torch.Tensor, grid: torch.Tensor, interpolation="linear", b
 
 
 class AffineTransform(nn.Module):
+
     def __init__(
         self,
         spatial_size: Sequence[int] | int | None = None,

@@ -11,7 +11,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -94,6 +95,9 @@ class LesionFROC:
         nms_outputs = self.nms(probs_map=prob_map, resolution_level=sample["level"])
 
         # separate nms outputs
+        probs: Iterable[Any]
+        x_coord: Iterable[Any]
+        y_coord: Iterable[Any]
         if nms_outputs:
             probs, x_coord, y_coord = zip(*nms_outputs)
         else:

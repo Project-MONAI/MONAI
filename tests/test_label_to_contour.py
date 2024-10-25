@@ -142,6 +142,7 @@ def gen_fixed_img(array_type):
 
 
 class TestContour(unittest.TestCase):
+
     def test_contour(self):
         input_param = {"kernel_type": "Laplace"}
 

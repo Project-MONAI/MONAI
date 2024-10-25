@@ -15,6 +15,7 @@ import unittest
 
 import numpy as np
 import torch
+from parameterized import parameterized
 
 from monai import transforms
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
@@ -54,6 +55,7 @@ EXPECTED_VALUE = {
 
 @skip_if_quick
 class TestGlobalMutualInformationLoss(unittest.TestCase):
+
     def setUp(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
         download_url_or_skip_test(
@@ -114,24 +116,34 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
 
 class TestGlobalMutualInformationLossIll(unittest.TestCase):
-    def test_ill_shape(self):
-        loss = GlobalMutualInformationLoss()
-        with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float, device=device))
-        with self.assertRaisesRegex(ValueError, ""):
-            loss.forward(torch.ones((1, 3, 3), dtype=torch.float), torch.ones((1, 3), dtype=torch.float, device=device))
 
-    def test_ill_opts(self):
+    @parameterized.expand(
+        [
+            (torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),  # mismatched_simple_dims
+            (
+                torch.ones((1, 3, 3), dtype=torch.float),
+                torch.ones((1, 3), dtype=torch.float),
+            ),  # mismatched_advanced_dims
+        ]
+    )
+    def test_ill_shape(self, input1, input2):
+        loss = GlobalMutualInformationLoss()
+        with self.assertRaises(ValueError):
+            loss.forward(input1, input2)
+
+    @parameterized.expand(
+        [
+            (0, "mean", ValueError, ""),  # num_bins_zero
+            (-1, "mean", ValueError, ""),  # num_bins_negative
+            (64, "unknown", ValueError, ""),  # reduction_unknown
+            (64, None, ValueError, ""),  # reduction_none
+        ]
+    )
+    def test_ill_opts(self, num_bins, reduction, expected_exception, expected_message):
         pred = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
         target = torch.ones((1, 3, 3, 3, 3), dtype=torch.float, device=device)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(num_bins=0)(pred, target)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(num_bins=-1)(pred, target)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(reduction="unknown")(pred, target)
-        with self.assertRaisesRegex(ValueError, ""):
-            GlobalMutualInformationLoss(reduction=None)(pred, target)
+        with self.assertRaisesRegex(expected_exception, expected_message):
+            GlobalMutualInformationLoss(num_bins=num_bins, reduction=reduction)(pred, target)
 
 
 if __name__ == "__main__":

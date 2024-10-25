@@ -111,7 +111,7 @@ class BaseWSIReader(ImageReader):
         self.set_device(device)
         self.mode = mode
         self.kwargs = kwargs
-        self.mpp: tuple[float, float] | None = ensure_tuple_rep(mpp, 2) if mpp is not None else None  # type: ignore
+        self.mpp: tuple[float, float] | None = ensure_tuple_rep(mpp, 2) if mpp is not None else None
         self.power = power
         self.mpp_rtol = mpp_rtol
         self.mpp_atol = mpp_atol
@@ -1097,8 +1097,8 @@ class TiffFileWSIReader(BaseWSIReader):
         ):
             unit = wsi.pages[level].tags.get("ResolutionUnit")
             if unit is not None:
-                unit = str(unit.value)[8:]
-            else:
+                unit = str(unit.value.name)
+            if unit is None or len(unit) == 0:
                 warnings.warn("The resolution unit is missing. `micrometer` will be used as default.")
                 unit = "micrometer"
 

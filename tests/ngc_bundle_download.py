@@ -70,6 +70,7 @@ TESTCASE_WEIGHTS = {
 
 @skip_if_windows
 class TestNgcBundleDownload(unittest.TestCase):
+
     @parameterized.expand([TEST_CASE_NGC_1, TEST_CASE_NGC_2])
     @skip_if_quick
     def test_ngc_download_bundle(self, bundle_name, version, remove_prefix, download_name, file_path, hash_val):
@@ -101,6 +102,7 @@ class TestNgcBundleDownload(unittest.TestCase):
 
 @unittest.skip("deprecating mmar tests")
 class TestAllDownloadingMMAR(unittest.TestCase):
+
     def setUp(self):
         print_debug_info()
         self.test_dir = "./"
@@ -125,7 +127,7 @@ class TestAllDownloadingMMAR(unittest.TestCase):
                 in_channels=1,
                 img_size=(96, 96, 96),
                 patch_size=(16, 16, 16),
-                pos_embed="conv",
+                proj_type="conv",
                 hidden_size=768,
                 mlp_dim=3072,
             )

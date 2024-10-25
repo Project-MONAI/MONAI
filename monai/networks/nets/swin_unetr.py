@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Sequence
+from typing import Final
 
 import numpy as np
 import torch
@@ -20,7 +21,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from torch.nn import LayerNorm
-from typing_extensions import Final
 
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
@@ -320,7 +320,7 @@ class SwinUNETR(nn.Module):
             )
 
     def forward(self, x_in):
-        if not torch.jit.is_scripting():
+        if not torch.jit.is_scripting() and not torch.jit.is_tracing():
             self._check_input_size(x_in.shape[2:])
         hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)
@@ -347,7 +347,7 @@ def window_partition(x, window_size):
         x: input tensor.
         window_size: local window size.
     """
-    x_shape = x.size()
+    x_shape = x.size()  # length 4 or 5 only
     if len(x_shape) == 5:
         b, d, h, w, c = x_shape
         x = x.view(
@@ -363,10 +363,11 @@ def window_partition(x, window_size):
         windows = (
             x.permute(0, 1, 3, 5, 2, 4, 6, 7).contiguous().view(-1, window_size[0] * window_size[1] * window_size[2], c)
         )
-    elif len(x_shape) == 4:
+    else:  # if len(x_shape) == 4:
         b, h, w, c = x.shape
         x = x.view(b, h // window_size[0], window_size[0], w // window_size[1], window_size[1], c)
         windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0] * window_size[1], c)
+
     return windows
 
 
@@ -613,7 +614,7 @@ class SwinTransformerBlock(nn.Module):
             _, dp, hp, wp, _ = x.shape
             dims = [b, dp, hp, wp]
 
-        elif len(x_shape) == 4:
+        else:  # elif len(x_shape) == 4
             b, h, w, c = x.shape
             window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
             pad_l = pad_t = 0
@@ -1024,7 +1025,7 @@ class SwinTransformer(nn.Module):
                 self.layers4.append(layer)
             if self.use_v2:
                 layerc = UnetrBasicBlock(
-                    spatial_dims=3,
+                    spatial_dims=spatial_dims,
                     in_channels=embed_dim * 2**i_layer,
                     out_channels=embed_dim * 2**i_layer,
                     kernel_size=3,
@@ -1045,14 +1046,14 @@ class SwinTransformer(nn.Module):
 
     def proj_out(self, x, normalize=False):
         if normalize:
-            x_shape = x.size()
+            x_shape = x.shape
+            # Force trace() to generate a constant by casting to int
+            ch = int(x_shape[1])
             if len(x_shape) == 5:
-                n, ch, d, h, w = x_shape
                 x = rearrange(x, "n c d h w -> n d h w c")
                 x = F.layer_norm(x, [ch])
                 x = rearrange(x, "n d h w c -> n c d h w")
             elif len(x_shape) == 4:
-                n, ch, h, w = x_shape
                 x = rearrange(x, "n c h w -> n h w c")
                 x = F.layer_norm(x, [ch])
                 x = rearrange(x, "n h w c -> n c h w")

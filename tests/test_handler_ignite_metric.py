@@ -16,7 +16,7 @@ import unittest
 import torch
 from parameterized import parameterized
 
-from monai.handlers import IgniteMetric, IgniteMetricHandler, from_engine
+from monai.handlers import IgniteMetricHandler, from_engine
 from monai.losses import DiceLoss
 from monai.metrics import LossMetric
 from tests.utils import SkipIfNoModule, assert_allclose, optional_import
@@ -99,6 +99,7 @@ TEST_CASES = [
 
 
 class TestHandlerIgniteMetricHandler(unittest.TestCase):
+
     @SkipIfNoModule("ignite")
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_metric_fn(self, loss_params, metric_params, handler_params, expected_avg):
@@ -171,7 +172,7 @@ class TestHandlerIgniteMetricHandler(unittest.TestCase):
     @parameterized.expand(TEST_CASES[0:2])
     def test_old_ignite_metric(self, input_param, input_data, expected_val):
         loss_fn = DiceLoss(**input_param)
-        ignite_metric = IgniteMetric(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
+        ignite_metric = IgniteMetricHandler(loss_fn=loss_fn, output_transform=from_engine(["pred", "label"]))
 
         def _val_func(engine, batch):
             pass

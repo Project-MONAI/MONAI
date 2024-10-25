@@ -27,6 +27,7 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedMetricsSaver(DistTestCase):
+
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -50,8 +51,10 @@ class DistributedMetricsSaver(DistTestCase):
 
         engine = Engine(_val_func)
 
+        # define here to ensure symbol always exists regardless of the following if conditions
+        data = [{PostFix.meta("image"): {"filename_or_obj": [fnames[0]]}}]
+
         if my_rank == 0:
-            data = [{PostFix.meta("image"): {"filename_or_obj": [fnames[0]]}}]
 
             @engine.on(Events.EPOCH_COMPLETED)
             def _save_metrics0(engine):

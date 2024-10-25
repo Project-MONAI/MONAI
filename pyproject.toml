@@ -4,6 +4,7 @@ requires = [
   "setuptools",
   "torch>=1.9",
   "ninja",
+  "packaging"
 ]
 
 [tool.black]
@@ -38,8 +39,18 @@ exclude = "monai/bundle/__main__.py"
 
 [tool.ruff]
 line-length = 133
-ignore-init-module-imports = true
-ignore = ["F401", "E741"]
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W", # flake8
+  "NPY",         # NumPy specific rules
+]
+extend-ignore = [
+  "E741", # ambiguous variable name
+  "F401", # unused import
+  "NPY002", # numpy-legacy-random
+]
 
 [tool.pytype]
 # Space-separated list of files or directories to exclude.
