@@ -26,6 +26,7 @@ from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, cast
+from inspect import signature
 
 import numpy as np
 import torch
@@ -371,7 +372,10 @@ class PersistentDataset(Dataset):
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                return torch.load(hashfile, weights_only=False)
+                if 'weights_only' in signature(torch.load):
+                    return torch.load(hashfile, weights_only=False)
+                else:
+                    return torch.load(hashfile)
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
@@ -1670,4 +1674,7 @@ class GDSDataset(PersistentDataset):
         if meta_hash_file_name in self._meta_cache:
             return self._meta_cache[meta_hash_file_name]
         else:
-            return torch.load(self.cache_dir / meta_hash_file_name, weights_only=False)
+            if 'weights_only' in signature(torch.load):
+                return torch.load(self.cache_dir / meta_hash_file_name, weights_only=False)
+            else:
+                return torch.load(self.cache_dir / meta_hash_file_name)
