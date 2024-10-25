@@ -22,11 +22,11 @@ import time
 import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
+from inspect import signature
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, cast
-from inspect import signature
 
 import numpy as np
 import torch
