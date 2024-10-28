@@ -690,8 +690,9 @@ def convert_to_onnx(
             onnx_inputs = (inputs,)
         else:
             onnx_inputs = tuple(inputs)
+        temp_file = None
         if filename is None:
-            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            temp_file = tempfile.NamedTemporaryFile()
             f = temp_file.name
         else:
             f = filename
@@ -708,8 +709,6 @@ def convert_to_onnx(
             **torch_versioned_kwargs,
         )
         onnx_model = onnx.load(f)
-        temp_file.close()
-        os.remove(temp_file.name)
 
     if do_constant_folding and polygraphy_imported:
         from polygraphy.backend.onnx.loader import fold_constants
