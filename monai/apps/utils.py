@@ -136,10 +136,7 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5
         return True
     actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
 
-    if sys.version_info >= (3, 9):
-        actual_hash = actual_hash_func(usedforsecurity=False)  # allows checks on FIPS enabled machines
-    else:
-        actual_hash = actual_hash_func()
+    actual_hash = actual_hash_func(usedforsecurity=False)  # allows checks on FIPS enabled machines
 
     try:
         with open(filepath, "rb") as f:

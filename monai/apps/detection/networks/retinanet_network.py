@@ -42,7 +42,7 @@ from __future__ import annotations
 import math
 import warnings
 from collections.abc import Callable, Sequence
-from typing import Any, Dict
+from typing import Any
 
 import torch
 from torch import Tensor, nn
@@ -330,7 +330,7 @@ class RetinaNet(nn.Module):
         features = self.feature_extractor(images)
         if isinstance(features, Tensor):
             feature_maps = [features]
-        elif torch.jit.isinstance(features, Dict[str, Tensor]):
+        elif torch.jit.isinstance(features, dict[str, Tensor]):
             feature_maps = list(features.values())
         else:
             feature_maps = list(features)
