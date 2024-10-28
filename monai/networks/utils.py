@@ -15,7 +15,6 @@ Utilities and types for defining networks, these depend on PyTorch.
 from __future__ import annotations
 
 import io
-import os
 import re
 import tempfile
 import warnings
