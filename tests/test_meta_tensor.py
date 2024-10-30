@@ -222,9 +222,9 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_get_set_meta_fns(self):
         set_track_meta(False)
-        self.assertEqual(get_track_meta(), False)
+        self.assertFalse(get_track_meta())
         set_track_meta(True)
-        self.assertEqual(get_track_meta(), True)
+        self.assertTrue(get_track_meta())
 
     @parameterized.expand(TEST_DEVICES)
     def test_torchscript(self, device):
@@ -448,7 +448,7 @@ class TestMetaTensor(unittest.TestCase):
 
     def test_astype(self):
         t = MetaTensor([1.0], affine=torch.tensor(1), meta={"fname": "filename"})
-        for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.compat.long, np.uint16):
+        for np_types in ("float32", "np.float32", "numpy.float32", np.float32, float, "int", np.uint16):
             self.assertIsInstance(t.astype(np_types), np.ndarray)
         for pt_types in ("torch.float", torch.float, "torch.float64"):
             self.assertIsInstance(t.astype(pt_types), torch.Tensor)

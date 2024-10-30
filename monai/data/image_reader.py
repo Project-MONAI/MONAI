@@ -1331,7 +1331,7 @@ class NrrdReader(ImageReader):
                 header[MetaKeys.SPACE] = SpaceKeys.LPS  # assuming LPS if not specified
 
             header[MetaKeys.AFFINE] = header[MetaKeys.ORIGINAL_AFFINE].copy()
-            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"]
+            header[MetaKeys.SPATIAL_SHAPE] = header["sizes"].copy()
             [header.pop(k) for k in ("sizes", "space origin", "space directions")]  # rm duplicated data in header
 
             if self.channel_dim is None:  # default to "no_channel" or -1
@@ -1359,7 +1359,7 @@ class NrrdReader(ImageReader):
         x, y = direction.shape
         affine_diam = min(x, y) + 1
         affine: np.ndarray = np.eye(affine_diam)
-        affine[:x, :y] = direction
+        affine[:x, :y] = direction.T
         affine[: (affine_diam - 1), -1] = origin  # len origin is always affine_diam - 1
         return affine
 

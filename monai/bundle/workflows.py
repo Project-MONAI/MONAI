@@ -11,20 +11,23 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.properties import InferProperties, MetaProperties, TrainProperties
 from monai.bundle.utils import DEFAULT_EXP_MGMT_SETTINGS, EXPR_KEY, ID_REF_KEY, ID_SEP_KEY
-from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, deprecated_arg_default, ensure_tuple
+from monai.config import PathLike
+from monai.utils import BundleProperty, BundlePropertyConfig, deprecated_arg, ensure_tuple
 
 __all__ = ["BundleWorkflow", "ConfigWorkflow"]
 
@@ -41,11 +44,15 @@ class BundleWorkflow(ABC):
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
-            default to `None` for common workflow.
+            default to `train` for train workflow.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        properties_path: the path to the JSON file of properties.
+        meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
+        logging_file: config file for `logging` module in the program. for more details:
+            https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
 
     """
 
@@ -59,20 +66,61 @@ class BundleWorkflow(ABC):
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
     )
-    def __init__(self, workflow_type: str | None = None, workflow: str | None = None):
+    def __init__(
+        self,
+        workflow_type: str | None = None,
+        workflow: str | None = None,
+        properties_path: PathLike | None = None,
+        meta_file: str | Sequence[str] | None = None,
+        logging_file: str | None = None,
+    ):
+        if logging_file is not None:
+            if not os.path.isfile(logging_file):
+                raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
+            logger.info(f"Setting logging properties based on config: {logging_file}.")
+            fileConfig(logging_file, disable_existing_loggers=False)
+
+        if meta_file is not None:
+            if isinstance(meta_file, str) and not os.path.isfile(meta_file):
+                logger.error(
+                    f"Cannot find the metadata config file: {meta_file}. "
+                    "Please see: https://docs.monai.io/en/stable/mb_specification.html"
+                )
+                meta_file = None
+            if isinstance(meta_file, list):
+                for f in meta_file:
+                    if not os.path.isfile(f):
+                        logger.error(
+                            f"Cannot find the metadata config file: {f}. "
+                            "Please see: https://docs.monai.io/en/stable/mb_specification.html"
+                        )
+                        meta_file = None
+
         workflow_type = workflow if workflow is not None else workflow_type
-        if workflow_type is None:
+        if workflow_type is None and properties_path is None:
             self.properties = copy(MetaProperties)
             self.workflow_type = None
+            self.meta_file = meta_file
             return
-        if workflow_type.lower() in self.supported_train_type:
+        if properties_path is not None:
+            properties_path = Path(properties_path)
+            if not properties_path.is_file():
+                raise ValueError(f"Property file {properties_path} does not exist.")
+            with open(properties_path) as json_file:
+                self.properties = json.load(json_file)
+            self.workflow_type = None
+            self.meta_file = meta_file
+            return
+        if workflow_type.lower() in self.supported_train_type:  # type: ignore[union-attr]
             self.properties = {**TrainProperties, **MetaProperties}
             self.workflow_type = "train"
-        elif workflow_type.lower() in self.supported_infer_type:
+        elif workflow_type.lower() in self.supported_infer_type:  # type: ignore[union-attr]
             self.properties = {**InferProperties, **MetaProperties}
             self.workflow_type = "infer"
         else:
             raise ValueError(f"Unsupported workflow type: '{workflow_type}'.")
+
+        self.meta_file = meta_file
 
     @abstractmethod
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
@@ -142,6 +190,13 @@ class BundleWorkflow(ABC):
         """
         return self.workflow_type
 
+    def get_meta_file(self):
+        """
+        Get the meta file.
+
+        """
+        return self.meta_file
+
     def add_property(self, name: str, required: str, desc: str | None = None) -> None:
         """
         Besides the default predefined properties, some 3rd party applications may need the bundle
@@ -185,6 +240,7 @@ class ConfigWorkflow(BundleWorkflow):
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
             If None, default to "configs/logging.conf", which is commonly used for bundles in MONAI model zoo.
+            If False, the logging logic for the bundle will not be modified.
         init_id: ID name of the expected config expression to initialize before running, default to "initialize".
             allow a config to have no `initialize` logic and the ID.
         run_id: ID name of the expected config expression to run, default to "run".
@@ -206,6 +262,7 @@ class ConfigWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
+        properties_path: the path to the JSON file of properties.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
@@ -218,58 +275,55 @@ class ConfigWorkflow(BundleWorkflow):
         new_name="workflow_type",
         msg_suffix="please use `workflow_type` instead.",
     )
-    @deprecated_arg_default("workflow_type", None, "train", since="1.2", replaced="1.4")
     def __init__(
         self,
         config_file: str | Sequence[str],
         meta_file: str | Sequence[str] | None = None,
-        logging_file: str | None = None,
+        logging_file: str | bool | None = None,
         init_id: str = "initialize",
         run_id: str = "run",
         final_id: str = "finalize",
         tracking: str | dict | None = None,
-        workflow_type: str | None = None,
+        workflow_type: str | None = "train",
         workflow: str | None = None,
+        properties_path: PathLike | None = None,
         **override: Any,
     ) -> None:
         workflow_type = workflow if workflow is not None else workflow_type
-        super().__init__(workflow_type=workflow_type)
         if config_file is not None:
             _config_files = ensure_tuple(config_file)
-            self.config_root_path = Path(_config_files[0]).parent
+            config_root_path = Path(_config_files[0]).parent
             for _config_file in _config_files:
                 _config_file = Path(_config_file)
-                if _config_file.parent != self.config_root_path:
+                if _config_file.parent != config_root_path:
                     logger.warn(
-                        f"Not all config files are in {self.config_root_path}. If logging_file and meta_file are"
-                        f"not specified, {self.config_root_path} will be used as the default config root directory."
+                        f"Not all config files are in {config_root_path}. If logging_file and meta_file are"
+                        f"not specified, {config_root_path} will be used as the default config root directory."
                     )
                 if not _config_file.is_file():
                     raise FileNotFoundError(f"Cannot find the config file: {_config_file}.")
         else:
-            self.config_root_path = Path("configs")
-
+            config_root_path = Path("configs")
+        meta_file = str(config_root_path / "metadata.json") if meta_file is None else meta_file
+        super().__init__(workflow_type=workflow_type, meta_file=meta_file, properties_path=properties_path)
+        self.config_root_path = config_root_path
         logging_file = str(self.config_root_path / "logging.conf") if logging_file is None else logging_file
-        if logging_file is not None:
-            if not os.path.exists(logging_file):
+        if logging_file is False:
+            logger.warn(f"Logging file is set to {logging_file}, skipping logging.")
+        else:
+            if not os.path.isfile(logging_file):
                 if logging_file == str(self.config_root_path / "logging.conf"):
                     logger.warn(f"Default logging file in {logging_file} does not exist, skipping logging.")
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
+                fileConfig(str(logging_file), disable_existing_loggers=False)
                 logger.info(f"Setting logging properties based on config: {logging_file}.")
-                fileConfig(logging_file, disable_existing_loggers=False)
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
-        meta_file = str(self.config_root_path / "metadata.json") if meta_file is None else meta_file
-        if isinstance(meta_file, str) and not os.path.exists(meta_file):
-            logger.error(
-                f"Cannot find the metadata config file: {meta_file}. "
-                "Please see: https://docs.monai.io/en/stable/mb_specification.html"
-            )
-        else:
-            self.parser.read_meta(f=meta_file)
+        if self.meta_file is not None:
+            self.parser.read_meta(f=self.meta_file)
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
@@ -455,13 +509,19 @@ class ConfigWorkflow(BundleWorkflow):
                 parser[k] = v
         # save the executed config into file
         default_name = f"config_{time.strftime('%Y%m%d_%H%M%S')}.json"
-        filepath = parser.get("execute_config", None)
-        if filepath is None:
-            if "output_dir" not in parser:
-                # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
-                parser["output_dir"] = f"{EXPR_KEY}{ID_REF_KEY}bundle_root + '/eval'"
-            # experiment management tools can refer to this config item to track the config info
-            parser["execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
-            filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
-        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
-        parser.export_config_file(parser.get(), filepath)
+        # Users can set the `save_execute_config` to `False`, `/path/to/artifacts` or `True`.
+        # If set to False, nothing will be recorded. If set to True, the default path will be logged.
+        # If set to a file path, the given path will be logged.
+        filepath = parser.get("save_execute_config", True)
+        if filepath:
+            if isinstance(filepath, bool):
+                if "output_dir" not in parser:
+                    # if no "output_dir" in the bundle config, default to "<bundle root>/eval"
+                    parser["output_dir"] = f"{EXPR_KEY}{ID_REF_KEY}bundle_root + '/eval'"
+                # experiment management tools can refer to this config item to track the config info
+                parser["save_execute_config"] = parser["output_dir"] + f" + '/{default_name}'"
+                filepath = os.path.join(parser.get_parsed_content("output_dir"), default_name)
+            Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+            parser.export_config_file(parser.get(), filepath)
+        else:
+            parser["save_execute_config"] = None

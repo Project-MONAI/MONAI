@@ -452,7 +452,7 @@ def get_binary_kernel(window_size: Sequence[int], dtype=torch.float, device=None
 
 def median_filter(
     in_tensor: torch.Tensor,
-    kernel_size: Sequence[int] = (3, 3, 3),
+    kernel_size: Sequence[int] | int = (3, 3, 3),
     spatial_dims: int = 3,
     kernel: torch.Tensor | None = None,
     **kwargs,

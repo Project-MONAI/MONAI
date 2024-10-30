@@ -135,7 +135,9 @@ def check_hash(filepath: PathLike, val: str | None = None, hash_type: str = "md5
         logger.info(f"Expected {hash_type} is None, skip {hash_type} check for file {filepath}.")
         return True
     actual_hash_func = look_up_option(hash_type.lower(), SUPPORTED_HASH_TYPES)
-    actual_hash = actual_hash_func()
+
+    actual_hash = actual_hash_func(usedforsecurity=False)  # allows checks on FIPS enabled machines
+
     try:
         with open(filepath, "rb") as f:
             for chunk in iter(lambda: f.read(1024 * 1024), b""):

@@ -16,6 +16,7 @@ import os
 import tempfile
 import unittest
 from unittest.case import skipUnless
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -24,6 +25,7 @@ from parameterized import parameterized
 import monai.networks.nets as nets
 from monai.apps import check_hash
 from monai.bundle import ConfigParser, create_workflow, load
+from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
 from monai.utils import optional_import
 from tests.utils import (
     SkipIfBeforePyTorchVersion,
@@ -56,7 +58,7 @@ TEST_CASE_4 = [
 TEST_CASE_5 = [
     ["models/model.pt", "models/model.ts", "configs/train.json"],
     "brats_mri_segmentation",
-    "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/brats_mri_segmentation/versions/0.3.9/files/brats_mri_segmentation_v0.3.9.zip",
+    "https://api.ngc.nvidia.com/v2/models/nvidia/monaihosting/brats_mri_segmentation/versions/0.4.0/files/brats_mri_segmentation_v0.4.0.zip",
 ]
 
 TEST_CASE_6 = [["models/model.pt", "configs/train.json"], "renalStructures_CECT_segmentation", "0.1.0"]
@@ -87,7 +89,7 @@ TEST_CASE_9 = [
 TEST_CASE_10 = [
     ["network.json", "test_output.pt", "test_input.pt", "large_files.yaml"],
     "test_bundle",
-    "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.2.zip",
+    "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/test_bundle_v0.1.3.zip",
     {"model.pt": "27952767e2e154e3b0ee65defc5aed38", "model.ts": "97746870fe591f69ac09827175b00675"},
 ]
 
@@ -173,6 +175,23 @@ class TestDownload(unittest.TestCase):
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
 
+    @parameterized.expand([TEST_CASE_5])
+    @skip_if_quick
+    def test_ngc_private_source_download_bundle(self, bundle_files, bundle_name, _url):
+        with skip_if_downloading_fails():
+            # download a single file from url, also use `args_file`
+            with tempfile.TemporaryDirectory() as tempdir:
+                def_args = {"name": bundle_name, "bundle_dir": tempdir}
+                def_args_file = os.path.join(tempdir, "def_args.json")
+                parser = ConfigParser()
+                parser.export_config_file(config=def_args, filepath=def_args_file)
+                cmd = ["coverage", "run", "-m", "monai.bundle", "download", "--args_file", def_args_file]
+                cmd += ["--progress", "False", "--source", "ngc_private"]
+                command_line_tests(cmd)
+                for file in bundle_files:
+                    file_path = os.path.join(tempdir, bundle_name, file)
+                    self.assertTrue(os.path.exists(file_path))
+
     @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
     def test_monaihosting_source_download_bundle(self, bundle_files, bundle_name, version):
@@ -189,6 +208,55 @@ class TestDownload(unittest.TestCase):
                 for file in bundle_files:
                     file_path = os.path.join(tempdir, bundle_name, file)
                     self.assertTrue(os.path.exists(file_path))
+
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
+    def test_examine_monai_version(self, mock_get_versions):
+        self.assertTrue(_examine_monai_version("1.1")[0])  # Should return True, compatible
+        self.assertTrue(_examine_monai_version("1.2rc1")[0])  # Should return True, compatible
+        self.assertFalse(_examine_monai_version("1.3")[0])  # Should return False, not compatible
+
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2rc1"})
+    def test_examine_monai_version_rc(self, mock_get_versions):
+        self.assertTrue(_examine_monai_version("1.2")[0])  # Should return True, compatible
+        self.assertFalse(_examine_monai_version("1.3")[0])  # Should return False, not compatible
+
+    def test_list_latest_versions(self):
+        """Test listing of the latest versions."""
+        data = {
+            "modelVersions": [
+                {"createdDate": "2021-01-01", "versionId": "1.0"},
+                {"createdDate": "2021-01-02", "versionId": "1.1"},
+                {"createdDate": "2021-01-03", "versionId": "1.2"},
+            ]
+        }
+        self.assertEqual(_list_latest_versions(data), ["1.2", "1.1", "1.0"])
+        self.assertEqual(_list_latest_versions(data, max_versions=2), ["1.2", "1.1"])
+        data = {
+            "modelVersions": [
+                {"createdDate": "2021-01-01", "versionId": "1.0"},
+                {"createdDate": "2021-01-02", "versionId": "1.1"},
+            ]
+        }
+        self.assertEqual(_list_latest_versions(data), ["1.1", "1.0"])
+
+    @skip_if_quick
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
+    def test_download_monaihosting(self, mock_get_versions):
+        """Test checking MONAI version from a metadata file."""
+        with patch("monai.bundle.scripts.logger") as mock_logger:
+            with tempfile.TemporaryDirectory() as tempdir:
+                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="monaihosting")
+                # Should have a warning message because the latest version is using monai > 1.2
+                mock_logger.warning.assert_called_once()
+
+    @skip_if_quick
+    @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.3"})
+    def test_download_ngc(self, mock_get_versions):
+        """Test checking MONAI version from a metadata file."""
+        with patch("monai.bundle.scripts.logger") as mock_logger:
+            with tempfile.TemporaryDirectory() as tempdir:
+                download(name="spleen_ct_segmentation", bundle_dir=tempdir, source="ngc")
+                mock_logger.warning.assert_not_called()
 
 
 @skip_if_no_cuda

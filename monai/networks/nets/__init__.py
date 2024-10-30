@@ -14,9 +14,11 @@ from __future__ import annotations
 from .ahnet import AHnet, Ahnet, AHNet
 from .attentionunet import AttentionUnet
 from .autoencoder import AutoEncoder
+from .autoencoderkl import AutoencoderKL
 from .basic_unet import BasicUNet, BasicUnet, Basicunet, basicunet
 from .basic_unetplusplus import BasicUNetPlusPlus, BasicUnetPlusPlus, BasicunetPlusPlus, basicunetplusplus
 from .classifier import Classifier, Critic, Discriminator
+from .controlnet import ControlNet
 from .daf3d import DAF3D
 from .densenet import (
     DenseNet,
@@ -34,6 +36,7 @@ from .densenet import (
     densenet201,
     densenet264,
 )
+from .diffusion_model_unet import DiffusionModelUNet
 from .dints import DiNTS, TopologyConstruction, TopologyInstance, TopologySearch
 from .dynunet import DynUNet, DynUnet, Dynunet
 from .efficientnet import (
@@ -52,6 +55,7 @@ from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .milmodel import MILModel
 from .netadapter import NetAdapter
+from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
 from .quicknat import Quicknat
 from .regressor import Regressor
 from .regunet import GlobalNet, LocalNet, RegUNet
@@ -59,6 +63,8 @@ from .resnet import (
     ResNet,
     ResNetBlock,
     ResNetBottleneck,
+    ResNetEncoder,
+    ResNetFeatures,
     get_medicalnet_pretrained_resnet_args,
     get_pretrained_resnet_medicalnet,
     resnet10,
@@ -70,7 +76,7 @@ from .resnet import (
     resnet200,
 )
 from .segresnet import SegResNet, SegResNetVAE
-from .segresnet_ds import SegResNetDS
+from .segresnet_ds import SegResNetDS, SegResNetDS2
 from .senet import (
     SENet,
     SEnet,
@@ -102,13 +108,19 @@ from .senet import (
     seresnext50,
     seresnext101,
 )
+from .spade_autoencoderkl import SPADEAutoencoderKL
+from .spade_diffusion_model_unet import SPADEDiffusionModelUNet
+from .spade_network import SPADENet
 from .swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR
 from .torchvision_fc import TorchVisionFCModel
 from .transchex import BertAttention, BertMixedLayer, BertOutput, BertPreTrainedModel, MultiModal, Pooler, Transchex
+from .transformer import DecoderOnlyTransformer
 from .unet import UNet, Unet
 from .unetr import UNETR
 from .varautoencoder import VarAutoEncoder
+from .vista3d import VISTA3D, vista3d132
 from .vit import ViT
 from .vitautoenc import ViTAutoEnc
 from .vnet import VNet
 from .voxelmorph import VoxelMorph, VoxelMorphUNet
+from .vqvae import VQVAE

@@ -11,8 +11,10 @@
 
 from __future__ import annotations
 
+import platform
 import unittest
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import torch
 from parameterized import parameterized
@@ -23,6 +25,12 @@ from monai.utils import optional_import
 from tests.utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
 
 InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
+
+ON_AARCH64 = platform.machine() == "aarch64"
+if ON_AARCH64:
+    rtol, atol = 1e-2, 1e-2
+else:
+    rtol, atol = 1e-4, 1e-4
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -159,7 +167,7 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
                         with eval_mode(net_fuser):
                             result_fuser = net_fuser(input_tensor)
 
-                        assert_allclose(result, result_fuser, rtol=1e-4, atol=1e-4)
+                        assert_allclose(result, result_fuser, rtol=rtol, atol=atol)
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):

@@ -147,7 +147,7 @@ class TestDetectEnvelope(unittest.TestCase):
         elif method == "__call__":
             self.assertRaises(ValueError, DetectEnvelope(**arguments), image)
         else:
-            raise ValueError("Expected raising method invalid. Should be __init__ or __call__.")
+            self.fail("Expected raising method invalid. Should be __init__ or __call__.")
 
 
 @SkipIfModule("torch.fft")

@@ -125,6 +125,22 @@ TEST_CASE_DUPLICATED_KEY_YAML = [
     [0, 4],
 ]
 
+TEST_CASE_MERGE_JSON = ["""{"key1": [0], "key2": [0] }""", """{"key1": [1], "+key2": [4] }""", "json", [1], [0, 4]]
+
+TEST_CASE_MERGE_YAML = [
+    """
+    key1: 0
+    key2: [0]
+    """,
+    """
+    key1: 1
+    +key2: [4]
+    """,
+    "yaml",
+    1,
+    [0, 4],
+]
+
 
 class TestConfigParser(unittest.TestCase):
 
@@ -185,7 +201,7 @@ class TestConfigParser(unittest.TestCase):
             if id in ("compute", "cls_compute"):
                 parser[f"{id}#_mode_"] = "callable"
             func = parser.get_parsed_content(id=id)
-            self.assertTrue(id in parser.ref_resolver.resolved_content)
+            self.assertIn(id, parser.ref_resolver.resolved_content)
             if id == "error_func":
                 with self.assertRaises(TypeError):
                     func(1, 2)
@@ -356,6 +372,22 @@ class TestConfigParser(unittest.TestCase):
 
             self.assertEqual(parser.get_parsed_content("key#unique"), expected_unique_val)
             self.assertIn(parser.get_parsed_content("key#duplicate"), expected_duplicate_vals)
+
+    @parameterized.expand([TEST_CASE_MERGE_JSON, TEST_CASE_MERGE_YAML])
+    @skipUnless(has_yaml, "Requires pyyaml")
+    def test_load_configs(
+        self, config_string, config_string2, extension, expected_overridden_val, expected_merged_vals
+    ):
+        with tempfile.TemporaryDirectory() as tempdir:
+            config_path1 = Path(tempdir) / f"config1.{extension}"
+            config_path2 = Path(tempdir) / f"config2.{extension}"
+            config_path1.write_text(config_string)
+            config_path2.write_text(config_string2)
+
+            parser = ConfigParser.load_config_files([config_path1, config_path2])
+
+            self.assertEqual(parser["key1"], expected_overridden_val)
+            self.assertEqual(parser["key2"], expected_merged_vals)
 
 
 if __name__ == "__main__":

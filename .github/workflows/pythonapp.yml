@@ -9,6 +9,8 @@ on:
       - main
       - releasing/*
   pull_request:
+    head_ref-ignore:
+      - dev
 
 concurrency:
   # automatically cancel the previously triggered workflows when there's a newer version
@@ -27,10 +29,10 @@ jobs:
         opt: ["codeformat", "pytype", "mypy"]
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -43,6 +45,7 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
         python -m pip install --upgrade pip wheel
         python -m pip install -r requirements-dev.txt
     - name: Lint and type check
@@ -62,16 +65,16 @@ jobs:
     steps:
     - if: runner.os == 'windows'
       name: Config pagefile (Windows only)
-      uses: al-cheb/configure-pagefile-action@v1.3
+      uses: al-cheb/configure-pagefile-action@v1.4
       with:
         minimum-size: 8GB
         maximum-size: 16GB
         disk-root: "D:"
     - uses: actions/checkout@v4
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     - name: Prepare pip wheel
       run: |
         which python
@@ -96,8 +99,10 @@ jobs:
       name: Install itk pre-release (Linux only)
       run: |
         python -m pip install --pre -U itk
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
     - name: Install the dependencies
       run: |
+        python -m pip install --user --upgrade pip wheel
         python -m pip install torch==1.13.1 torchvision==0.14.1
         cat "requirements-dev.txt"
         python -m pip install -r requirements-dev.txt
@@ -127,10 +132,10 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     - name: cache weekly timestamp
       id: pip-cache
       run: |
@@ -145,7 +150,8 @@ jobs:
         key: ${{ runner.os }}-pip-${{ steps.pip-cache.outputs.datew }}
     - name: Install dependencies
       run: |
-        python -m pip install --user --upgrade pip setuptools wheel twine
+        find  /opt/hostedtoolcache/* -maxdepth 0 ! -name 'Python' -exec rm -rf {} \;
+        python -m pip install --user --upgrade pip setuptools wheel twine packaging
         # install the latest pytorch for testing
         # however, "pip install monai*.tar.gz" will build cpp/cuda with an isolated
         # fresh torch installation according to pyproject.toml
@@ -208,10 +214,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.8
+    - name: Set up Python 3.9
       uses: actions/setup-python@v5
       with:
-        python-version: '3.8'
+        python-version: '3.9'
     - name: cache weekly timestamp
       id: pip-cache
       run: |

@@ -53,7 +53,7 @@ class HPOGen(AlgoGen):
         raise NotImplementedError
 
     @abstractmethod
-    def set_score(self):
+    def set_score(self, *args, **kwargs):
         """Report the evaluated results to HPO."""
         raise NotImplementedError
 
@@ -193,7 +193,9 @@ class NNIGen(HPOGen):
         self.obj_filename = os.path.join(write_path, "algo_object.pkl")
 
         if isinstance(self.algo, BundleAlgo):
-            self.algo.export_to_disk(output_folder, task_prefix + task_id, fill_with_datastats=False)
+            self.algo.export_to_disk(
+                output_folder, task_prefix + task_id, bundle_root=write_path, fill_with_datastats=False
+            )
         else:
             ConfigParser.export_config_file(self.params, write_path)
             logger.info(write_path)

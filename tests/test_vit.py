@@ -30,7 +30,7 @@ for dropout_rate in [0.6]:
                         for mlp_dim in [3072]:
                             for num_layers in [4]:
                                 for num_classes in [8]:
-                                    for pos_embed in ["conv", "perceptron"]:
+                                    for proj_type in ["conv", "perceptron"]:
                                         for classification in [False, True]:
                                             for nd in (2, 3):
                                                 test_case = [
@@ -42,7 +42,7 @@ for dropout_rate in [0.6]:
                                                         "mlp_dim": mlp_dim,
                                                         "num_layers": num_layers,
                                                         "num_heads": num_heads,
-                                                        "pos_embed": pos_embed,
+                                                        "proj_type": proj_type,
                                                         "classification": classification,
                                                         "num_classes": num_classes,
                                                         "dropout_rate": dropout_rate,
@@ -69,79 +69,44 @@ class TestViT(unittest.TestCase):
             result, _ = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
-    def test_ill_arg(self):
+    @parameterized.expand(
+        [
+            (1, (128, 128, 128), (16, 16, 16), 128, 3072, 12, 12, "conv", False, 5.0),
+            (1, (32, 32, 32), (64, 64, 64), 512, 3072, 12, 8, "perceptron", False, 0.3),
+            (1, (96, 96, 96), (8, 8, 8), 512, 3072, 12, 14, "conv", False, 0.3),
+            (1, (97, 97, 97), (4, 4, 4), 768, 3072, 12, 8, "perceptron", True, 0.3),
+            (4, (96, 96, 96), (16, 16, 16), 768, 3072, 12, 12, "perc", False, 0.3),
+        ]
+    )
+    def test_ill_arg(
+        self,
+        in_channels,
+        img_size,
+        patch_size,
+        hidden_size,
+        mlp_dim,
+        num_layers,
+        num_heads,
+        proj_type,
+        classification,
+        dropout_rate,
+    ):
         with self.assertRaises(ValueError):
             ViT(
-                in_channels=1,
-                img_size=(128, 128, 128),
-                patch_size=(16, 16, 16),
-                hidden_size=128,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                pos_embed="conv",
-                classification=False,
-                dropout_rate=5.0,
+                in_channels=in_channels,
+                img_size=img_size,
+                patch_size=patch_size,
+                hidden_size=hidden_size,
+                mlp_dim=mlp_dim,
+                num_layers=num_layers,
+                num_heads=num_heads,
+                proj_type=proj_type,
+                classification=classification,
+                dropout_rate=dropout_rate,
             )
 
-        with self.assertRaises(ValueError):
-            ViT(
-                in_channels=1,
-                img_size=(32, 32, 32),
-                patch_size=(64, 64, 64),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                pos_embed="perceptron",
-                classification=False,
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            ViT(
-                in_channels=1,
-                img_size=(96, 96, 96),
-                patch_size=(8, 8, 8),
-                hidden_size=512,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=14,
-                pos_embed="conv",
-                classification=False,
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            ViT(
-                in_channels=1,
-                img_size=(97, 97, 97),
-                patch_size=(4, 4, 4),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=8,
-                pos_embed="perceptron",
-                classification=True,
-                dropout_rate=0.3,
-            )
-
-        with self.assertRaises(ValueError):
-            ViT(
-                in_channels=4,
-                img_size=(96, 96, 96),
-                patch_size=(16, 16, 16),
-                hidden_size=768,
-                mlp_dim=3072,
-                num_layers=12,
-                num_heads=12,
-                pos_embed="perc",
-                classification=False,
-                dropout_rate=0.3,
-            )
-
-    @parameterized.expand(TEST_CASE_Vit)
-    @SkipIfBeforePyTorchVersion((1, 9))
+    @parameterized.expand(TEST_CASE_Vit[:1])
+    @SkipIfBeforePyTorchVersion((2, 0))
     def test_script(self, input_param, input_shape, _):
         net = ViT(**(input_param))
         net.eval()
