@@ -115,7 +115,7 @@ class TRTEngine:
           logger: optional logger object
         """
         self.plan_path = plan_path
-        self.logger = logger or get_logger("trt_compile")
+        self.logger = logger or get_logger("monai.networks.trt_compiler")
         self.logger.info(f"Loading TensorRT engine: {self.plan_path}")
         self.engine = engine_from_bytes(bytes_from_path(self.plan_path))
         self.tensors = OrderedDict()
@@ -364,8 +364,9 @@ class TrtCompiler:
         self.fallback = fallback
         self.disabled = False
 
-        self.logger = logger or get_logger("trt_compile")
+        self.logger = logger or get_logger("monai.networks.trt_compiler")
         self.argspec = inspect.getfullargspec(model.forward)
+
         # Normally we read input_names from forward() but can be overridden
         if input_names is None:
             input_names = self.argspec.args[1:]
@@ -451,7 +452,6 @@ class TrtCompiler:
                 with lock_sm:
                     device = torch.cuda.current_device()
                     stream = torch.cuda.Stream(device=device)
-                    breakpoint()
                     self.engine.set_inputs(unroll_input(self.input_names, args), stream.cuda_stream)
                     self.engine.allocate_buffers(device=device)
                     # Need this to synchronize with Torch stream
@@ -661,7 +661,7 @@ def trt_compile(
         else:
             wrap(model, base_path)
     else:
-        logger = logger or get_logger("trt_compile")
+        logger = logger or get_logger("monai.networks.trt_compiler")
         logger.warning("TensorRT and/or polygraphy packages are not available! trt_compile() has no effect.")
 
     return model

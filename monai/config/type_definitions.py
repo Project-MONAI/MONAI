@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import os
-from typing import Collection, Hashable, Iterable, Sequence, TypeVar, Union
+from collections.abc import Collection, Hashable, Iterable, Sequence
+from typing import TypeVar, Union
 
 import numpy as np
 import torch
