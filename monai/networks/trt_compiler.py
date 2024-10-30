@@ -222,26 +222,6 @@ class TRTEngine:
         return self.tensors
 
 
-def remove_non_tensors(input_example, remove_constants=True):
-    #
-    # TODO : see if we can instantiate wrappers to handle non-default non-tensors
-    #
-    non_tensors = {}
-    for k, v in input_example.items():
-        if v is None:
-            non_tensors[k] = v
-        elif not torch.is_tensor(v):
-            if remove_constants:
-                non_tensors[k] = v
-            else:
-                input_example[k] = torch.tensor(v)
-
-    for key in non_tensors.keys():
-        # print(f"Removing non-tensor input: {key})")
-        input_example.pop(key)
-    return non_tensors
-
-
 def unroll_input(input_names, input_example):
     # Simulate list/tuple unrolling during ONNX export
     unrolled_input = {}
@@ -261,14 +241,17 @@ def parse_groups(
 ) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
     """
     Implements parsing of 'output_lists' arg of trt_compile().
-    Args:
-      ret: ungrouped list of Tensors
 
-      output_lists=[[group_n] | [], ...]
-        [] or group_n == 0 : next output from ret is a scalar
-        group_n > 0  :       next output from ret is a list of group_n length
-        group_n == -1:       next output is a dynamic list. This entry can be at any
-                             position in output_lists, but can appear only once.
+    Args:
+      ret: plain list of Tensors
+
+      output_lists: list of output group sizes: to form some Lists/Tuples out of 'ret' List, this will be a list
+                    of group dimensions, like [[], [5], [-1]] for returning Tensor, list of 5 items and dynamic list.
+        Format: [[group_n] | [], ...]
+          [] or group_n == 0 : next output from ret is a scalar
+          group_n > 0  :       next output from ret is a list of group_n length
+          group_n == -1:       next output is a dynamic list. This entry can be at any
+                               position in output_lists, but can appear only once.
     Returns:
        Tuple of Union[torch.Tensor, List[torch.Tensor]], according to the grouping in output_lists
 
@@ -345,7 +328,8 @@ class TrtCompiler:
                     'torch_trt' may not work for some nets. Also AMP must be turned off for it to work.
             input_names: Optional list of input names. If None, will be read from the function signature.
             output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
-            output_lists: Optional list of output lists.
+            output_lists: Optional list of output group sizes: when forward() returns Lists/Tuples, this will be a list 
+                          of their dimensions, like [[], [5], [-1]] for returning Tensor, list of 5 items and dynamic list. 
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
             build_args: Optional args to pass to TRT builder. See polygraphy.Config for details.
             input_profiles: Optional list of profiles for TRT builder and ONNX export.
@@ -467,6 +451,7 @@ class TrtCompiler:
                 with lock_sm:
                     device = torch.cuda.current_device()
                     stream = torch.cuda.Stream(device=device)
+                    breakpoint()
                     self.engine.set_inputs(unroll_input(self.input_names, args), stream.cuda_stream)
                     self.engine.allocate_buffers(device=device)
                     # Need this to synchronize with Torch stream
@@ -522,9 +507,6 @@ class TrtCompiler:
             return
 
         export_args = self.export_args
-
-        # remove_non_tensors(input_example)
-
         engine_bytes = None
         add_casts_around_norms(model)
 
@@ -547,7 +529,7 @@ class TrtCompiler:
             engine_bytes = torch_tensorrt.convert_method_to_trt_engine(
                 ir_model,
                 "forward",
-                inputs=tt_inputs,
+                arg_inputs=tt_inputs,
                 ir="torchscript",
                 enabled_precisions=enabled_precisions,
                 **export_args,
@@ -585,7 +567,8 @@ class TrtCompiler:
                 unrolled_input = unroll_input(self.input_names, input_example)
                 onnx_path = str(Path(tmpdir) / "model.onnx")
                 self.logger.info(
-                    f"Exporting to {onnx_path}:\nunrolled_inputs={list(unrolled_input.keys())}\noutput_names={self.output_names}\ninput_names={self.input_names}\nexport args: {export_args}"
+                    f"Exporting to {onnx_path}:\nunrolled_inputs={list(unrolled_input.keys())}\n"
+                    + f"output_names={self.output_names}\ninput_names={self.input_names}\nexport args: {export_args}"
                 )
                 convert_to_onnx(
                     model,
@@ -655,9 +638,9 @@ def trt_compile(
         def wrap(model, path):
             if not hasattr(model, "_trt_compiler"):
                 model.orig_forward = model.forward
-            wrapper = TrtCompiler(model, path + ".plan", logger=logger, **args)
-            model._trt_compiler = wrapper
-            model.forward = MethodType(trt_forward, model)
+                wrapper = TrtCompiler(model, path + ".plan", logger=logger, **args)
+                model._trt_compiler = wrapper
+                model.forward = MethodType(trt_forward, model)
 
         def find_sub(parent, submodule):
             idx = submodule.find(".")
