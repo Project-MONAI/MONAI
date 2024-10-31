@@ -328,8 +328,8 @@ class TrtCompiler:
                     'torch_trt' may not work for some nets. Also AMP must be turned off for it to work.
             input_names: Optional list of input names. If None, will be read from the function signature.
             output_names: Optional list of output names. Note: If not None, patched forward() will return a dictionary.
-            output_lists: Optional list of output group sizes: when forward() returns Lists/Tuples, this will be a list 
-                          of their dimensions, like [[], [5], [-1]] for returning Tensor, list of 5 items and dynamic list. 
+            output_lists: Optional list of output group sizes: when forward() returns Lists/Tuples, this will be a list
+                          of their dimensions, like [[], [5], [-1]] for returning Tensor, list of 5 items and dynamic list.
             export_args: Optional args to pass to export method. See onnx.export() and Torch-TensorRT docs for details.
             build_args: Optional args to pass to TRT builder. See polygraphy.Config for details.
             input_profiles: Optional list of profiles for TRT builder and ONNX export.
