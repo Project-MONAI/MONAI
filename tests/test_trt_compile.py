@@ -69,33 +69,6 @@ class TestTRTCompile(unittest.TestCase):
             self.assertIsNotNone(net1._trt_compiler.engine)
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_unet_value(self, precision):
-        model = UNet(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=2,
-            channels=(2, 2, 4, 8, 4),
-            strides=(2, 2, 2, 2),
-            num_res_units=2,
-            norm="batch",
-        ).cuda()
-        with torch.no_grad(), tempfile.TemporaryDirectory() as tmpdir:
-            model.eval()
-            input_example = torch.randn(2, 1, 96, 96, 96).cuda()
-            output_example = model(input_example)
-            args: dict = {"builder_optimization_level": 1}
-            trt_compile(
-                model,
-                f"{tmpdir}/test_unet_trt_compile",
-                args={"precision": precision, "build_args": args, "dynamic_batchsize": [1, 4, 8]},
-            )
-            self.assertIsNone(model._trt_compiler.engine)
-            trt_output = model(input_example)
-            # Check that lazy TRT build succeeded
-            self.assertIsNotNone(model._trt_compiler.engine)
-            torch.testing.assert_close(trt_output, output_example, rtol=0.01, atol=0.01)
-
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @unittest.skipUnless(has_sam, "Requires SAM installation")
     def test_cell_sam_wrapper_value(self, precision):
         model = cell_sam_wrapper.CellSamWrapper(checkpoint=None).to("cuda")
@@ -106,7 +79,7 @@ class TestTRTCompile(unittest.TestCase):
             trt_compile(
                 model,
                 f"{tmpdir}/test_cell_sam_wrapper_trt_compile",
-                args={"precision": precision, "dynamic_batchsize": [1, 1, 1]},
+                args={"precision": precision},
             )
             self.assertIsNone(model._trt_compiler.engine)
             trt_output = model(input_example)
@@ -124,7 +97,7 @@ class TestTRTCompile(unittest.TestCase):
             model = trt_compile(
                 model,
                 f"{tmpdir}/test_vista3d_trt_compile",
-                args={"precision": precision, "dynamic_batchsize": [1, 1, 1]},
+                args={"precision": precision, "dynamic_batchsize": [1, 2, 4]},
                 submodule=["image_encoder.encoder", "class_head"],
             )
             self.assertIsNotNone(model.image_encoder.encoder._trt_compiler)

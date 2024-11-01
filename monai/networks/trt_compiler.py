@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Tuple, Union
 import torch
 
 from monai.apps.utils import get_logger
-from monai.networks.utils import add_casts_around_norms, convert_to_onnx, convert_to_torchscript, get_profile_shapes
+from monai.networks.utils import add_casts_around_norms, convert_to_onnx, get_profile_shapes
 from monai.utils.module import optional_import
 
 polygraphy, polygraphy_imported = optional_import("polygraphy")
@@ -517,7 +517,6 @@ class TrtCompiler:
             elif self.precision == "bf16":
                 enabled_precisions.append(torch.bfloat16)
             inputs = list(input_example.values())
-            ir_model = convert_to_torchscript(model, inputs=inputs, use_trace=True)
 
             def get_torch_trt_input(input_shape, dynamic_batchsize):
                 min_input_shape, opt_input_shape, max_input_shape = get_profile_shapes(input_shape, dynamic_batchsize)
@@ -527,12 +526,7 @@ class TrtCompiler:
 
             tt_inputs = [get_torch_trt_input(i.shape, self.dynamic_batchsize) for i in inputs]
             engine_bytes = torch_tensorrt.convert_method_to_trt_engine(
-                ir_model,
-                "forward",
-                arg_inputs=tt_inputs,
-                ir="torchscript",
-                enabled_precisions=enabled_precisions,
-                **export_args,
+                model, "forward", arg_inputs=tt_inputs, enabled_precisions=enabled_precisions, **export_args
             )
         else:
             dbs = self.dynamic_batchsize
