@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from typing import List
 
 import torch
 from parameterized import parameterized
@@ -37,7 +36,7 @@ class ListAdd(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, x: List[torch.Tensor], y: torch.Tensor, z: torch.Tensor, bs: float = float(0.1)):
+    def forward(self, x: list[torch.Tensor], y: torch.Tensor, z: torch.Tensor, bs: float = float(0.1)):
         y1 = y.clone()
         x1 = x.copy()
         z1 = z + y
