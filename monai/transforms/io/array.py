@@ -259,7 +259,8 @@ class LoadImage(Transform):
         img, err = None, []
         if reader is not None:
             if isinstance(reader, NibabelGPUReader):
-                buffer = reader.read(filename)
+                # TODO: handle multiple filenames later
+                buffer = reader.read(filename[0])
                 img = reader.get_data(buffer)
                 # TODO: check ensure channel first
                 if self.ensure_channel_first:
