@@ -1088,7 +1088,7 @@ class NibabelGPUReader(NibabelReader):
         data_shape = header.get_data_shape()
         data_dtype = header.get_data_dtype()
         affine = header.get_best_affine()
-        meta = dict(header)
+        meta = {}
         meta[MetaKeys.AFFINE] = affine
         meta[MetaKeys.ORIGINAL_AFFINE] = affine
         # TODO: as_closest_canonical
