@@ -1031,7 +1031,7 @@ class NibabelReader(ImageReader):
 
         """
         return np.asanyarray(img.dataobj, order="C")
-    
+
 
 @require_pkg(pkg_name="nibabel")
 @require_pkg(pkg_name="cupy")
@@ -1053,12 +1053,12 @@ class NibabelGPUReader(NibabelReader):
             compressed_data = cp.asnumpy(image)
             with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
                 decompressed_data = gz_file.read()
-            
+
             file_size = len(decompressed_data)
             image = cp.asarray(np.frombuffer(decompressed_data, dtype=np.uint8))
 
         return image
-    
+
     def read(self, data: Sequence[PathLike] | PathLike, **kwargs):
         """
         Read image data from specified file or files, it can read a list of images
@@ -1078,7 +1078,7 @@ class NibabelGPUReader(NibabelReader):
             img = self._gds_load(name)
             img_.append(img)  # type: ignore
         return img_ if len(filenames) > 1 else img_[0]
-    
+
     def get_data(self, img):
         """
         Extract data array and metadata from loaded image and return them.
@@ -1121,7 +1121,7 @@ class NibabelGPUReader(NibabelReader):
             _copy_compatible_dict(meta, compatible_meta)
 
         return self._stack_images(img_array, compatible_meta), compatible_meta
-    
+
     def _get_header(self, img):
         """
         Get the all the metadata of the image and convert to dict type.
@@ -1138,7 +1138,7 @@ class NibabelGPUReader(NibabelReader):
         except ValueError:
             pass
         return header
-    
+
     def _stack_images(self, image_list: list, meta_dict: dict):
         if len(image_list) <= 1:
             return image_list[0]
