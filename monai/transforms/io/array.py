@@ -70,7 +70,6 @@ SUPPORTED_READERS = {
     "numpyreader": NumpyReader,
     "pilreader": PILReader,
     "nibabelreader": NibabelReader,
-    "nibabelgpureader": NibabelGPUReader,
 }
 
 
