@@ -258,6 +258,16 @@ class LoadImage(Transform):
         )
         img, err = None, []
         if reader is not None:
+            if isinstance(reader, NibabelGPUReader):
+                buffer = reader.read(filename)
+                img = reader.get_data(buffer)
+                # TODO: check ensure channel first
+                if self.ensure_channel_first:
+                    img = EnsureChannelFirst()(img)
+                if self.image_only:
+                    return img
+                return img, img.meta
+
             img = reader.read(filename)  # runtime specified reader
         else:
             for reader in self.readers[::-1]:
@@ -288,7 +298,6 @@ class LoadImage(Transform):
                 "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
                 f"   The current registered: {self.readers}.\n{msg}"
             )
-
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
