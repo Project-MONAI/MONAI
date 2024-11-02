@@ -167,7 +167,7 @@ class TRTEngine:
 
         def try_set_inputs():
             for binding in self.input_names:
-                t = feed_dict[binding]
+                t = feed_dict.get(self.input_table[binding], None)
                 if t is not None:
                     t = t.contiguous()
                     shape = t.shape
@@ -222,6 +222,10 @@ class TRTEngine:
         return self.tensors
 
 
+def make_tensor(d):
+    return d if isinstance(d, torch.Tensor) else torch.tensor(d).cuda()
+
+
 def unroll_input(input_names, input_example):
     # Simulate list/tuple unrolling during ONNX export
     unrolled_input = {}
@@ -230,9 +234,9 @@ def unroll_input(input_names, input_example):
         if val is not None:
             if isinstance(val, list | tuple):
                 for i in range(len(val)):
-                    unrolled_input[f"{name}_{i}"] = val[i]
+                    unrolled_input[f"{name}_{i}"] = make_tensor(val[i])
             else:
-                unrolled_input[name] = val
+                unrolled_input[name] = make_tensor(val)
     return unrolled_input
 
 
@@ -375,8 +379,8 @@ class TrtCompiler:
             for i in range(len(self.argspec.defaults)):
                 d = self.argspec.defaults[-i - 1]
                 if d is not None:
-                    d = torch.tensor(d).cuda()
-                self.defaults[self.argspec.args[-i - 1]] = d
+                    d = make_tensor(d)
+                    self.defaults[self.argspec.args[-i - 1]] = d
 
         self.input_names = input_names
         self.old_forward = model.forward
@@ -398,7 +402,16 @@ class TrtCompiler:
         """
         try:
             self.engine = TRTEngine(self.plan_path, self.logger)
-            self.logger.info(f"Engine loaded, inputs:{self.engine.input_names}")
+            # Make sure we have names correct
+            input_table = {}
+            for name in self.engine.input_names:
+                if name.startswith("__") and name not in self.input_names:
+                    orig_name = name[2:]
+                else:
+                    orig_name = name
+                input_table[name] = orig_name
+            self.engine.input_table = input_table
+            self.logger.info(f"Engine loaded, inputs:{self.engine.input_table}")
         except Exception as e:
             self.logger.info(f"Exception while loading the engine:\n{e}")
 

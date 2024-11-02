@@ -703,7 +703,7 @@ def convert_to_onnx(
             onnx_inputs,
             f=f,
             input_names=input_names,
-            output_names=output_names,
+            output_names=output_names or None,
             dynamic_axes=dynamic_axes,
             opset_version=opset_version,
             do_constant_folding=do_constant_folding,

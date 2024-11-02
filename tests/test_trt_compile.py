@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from typing import List
 
 import torch
 from parameterized import parameterized
@@ -30,6 +31,19 @@ build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="b
 
 TEST_CASE_1 = ["fp32"]
 TEST_CASE_2 = ["fp16"]
+
+
+class ListAdd(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: List[torch.Tensor], y: torch.Tensor, z: torch.Tensor, bs: float = float(0.1)):
+        y1 = y.clone()
+        x1 = x.copy()
+        z1 = z + y
+        for xi in x:
+            y1 = y1 + xi + bs
+        return x1, [y1, z1], y1 + z1
 
 
 @skip_if_windows
@@ -68,6 +82,23 @@ class TestTRTCompile(unittest.TestCase):
             net1.forward(torch.tensor([[0.0, 1.0], [1.0, 2.0]], device="cuda"))
             self.assertIsNotNone(net1._trt_compiler.engine)
 
+    def test_lists(self):
+        model = ListAdd().cuda()
+
+        with torch.no_grad(), tempfile.TemporaryDirectory() as tmpdir:
+            args = {"output_lists": [[-1], [2], []], "export_args": {"dynamo": False, "verbose": True}}
+            x = torch.randn(1, 16).to("cuda")
+            y = torch.randn(1, 16).to("cuda")
+            z = torch.randn(1, 16).to("cuda")
+            input_example = ([x, y, z], y.clone(), z.clone())
+            output_example = model(*input_example)
+            trt_compile(model, f"{tmpdir}/test_lists", args=args)
+            self.assertIsNone(model._trt_compiler.engine)
+            trt_output = model(*input_example)
+            # Check that lazy TRT build succeeded
+            self.assertIsNotNone(model._trt_compiler.engine)
+            torch.testing.assert_close(trt_output, output_example, rtol=0.01, atol=0.01)
+
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @unittest.skipUnless(has_sam, "Requires SAM installation")
     def test_cell_sam_wrapper_value(self, precision):
@@ -76,11 +107,7 @@ class TestTRTCompile(unittest.TestCase):
             model.eval()
             input_example = torch.randn(1, 3, 128, 128).to("cuda")
             output_example = model(input_example)
-            trt_compile(
-                model,
-                f"{tmpdir}/test_cell_sam_wrapper_trt_compile",
-                args={"precision": precision},
-            )
+            trt_compile(model, f"{tmpdir}/test_cell_sam_wrapper_trt_compile", args={"precision": precision})
             self.assertIsNone(model._trt_compiler.engine)
             trt_output = model(input_example)
             # Check that lazy TRT build succeeded
