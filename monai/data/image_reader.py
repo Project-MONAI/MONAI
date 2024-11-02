@@ -1069,7 +1069,7 @@ class NibabelGPUReader(NibabelReader):
             data: file name or a list of file names to read.
 
         """
-        img_: list[Nifti1Image] = []
+        img_ = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
         kwargs_ = self.kwargs.copy()
@@ -1113,12 +1113,12 @@ class NibabelGPUReader(NibabelReader):
             # if self.squeeze_non_spatial_dims:
             img_array.append(data)
             if self.channel_dim is None:  # default to "no_channel" or -1
-                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                    float("nan") if len(data.shape) == len(header[MetaKeys.SPATIAL_SHAPE]) else -1
+                meta[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
+                    float("nan") if len(data.shape) == len(meta[MetaKeys.SPATIAL_SHAPE]) else -1
                 )
             else:
-                header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
-            _copy_compatible_dict(header, compatible_meta)
+                meta[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
+            _copy_compatible_dict(meta, compatible_meta)
 
         return self._stack_images(img_array, compatible_meta), compatible_meta
     
