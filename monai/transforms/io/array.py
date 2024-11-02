@@ -277,6 +277,16 @@ class LoadImage(Transform):
                         break
                 else:  # try the user designated readers
                     try:
+                        if isinstance(reader, NibabelGPUReader):
+                            # TODO: handle multiple filenames later
+                            buffer = reader.read(filename[0])
+                            img = reader.get_data(buffer)
+                            # TODO: check ensure channel first
+                            if self.ensure_channel_first:
+                                img = EnsureChannelFirst()(img)
+                            if self.image_only:
+                                return img
+                            return img, img.meta
                         img = reader.read(filename)
                     except Exception as e:
                         err.append(traceback.format_exc())
