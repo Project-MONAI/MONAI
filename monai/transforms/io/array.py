@@ -261,6 +261,7 @@ class LoadImage(Transform):
                 # TODO: handle multiple filenames later
                 buffer = reader.read(filename[0])
                 img = reader.get_data(buffer)
+                img.meta[Key.FILENAME_OR_OBJ] = filename[0]
                 # TODO: check ensure channel first
                 if self.ensure_channel_first:
                     img = EnsureChannelFirst()(img)
@@ -281,6 +282,7 @@ class LoadImage(Transform):
                             # TODO: handle multiple filenames later
                             buffer = reader.read(filename[0])
                             img = reader.get_data(buffer)
+                            img.meta[Key.FILENAME_OR_OBJ] = filename[0]
                             # TODO: check ensure channel first
                             if self.ensure_channel_first:
                                 img = EnsureChannelFirst()(img)
