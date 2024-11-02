@@ -35,6 +35,7 @@ from monai.data.image_reader import (
     ImageReader,
     ITKReader,
     NibabelReader,
+    NibabelGPUReader,
     NrrdReader,
     NumpyReader,
     PILReader,
@@ -69,6 +70,7 @@ SUPPORTED_READERS = {
     "numpyreader": NumpyReader,
     "pilreader": PILReader,
     "nibabelreader": NibabelReader,
+    "nibabelgpureader": NibabelGPUReader,
 }
 
 
