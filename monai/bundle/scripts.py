@@ -1945,7 +1945,6 @@ def create_workflow(
 
     """
     _args = update_kwargs(args=args_file, workflow_name=workflow_name, config_file=config_file, **kwargs)
-    _log_input_summary(tag="run", args=_args)
     (workflow_name, config_file) = _pop_args(
         _args, workflow_name=ConfigWorkflow, config_file=None
     )  # the default workflow name is "ConfigWorkflow"
@@ -1969,7 +1968,7 @@ def create_workflow(
         workflow_ = workflow_class(**_args)
 
     workflow_.initialize()
-
+    _log_input_summary(tag="run", args=_args)
     return workflow_
 
 

@@ -22,7 +22,7 @@ import torch
 from torch.utils.data import Dataset
 
 from monai.apps.utils import get_logger
-from monai.utils import CommonKeys, IgniteInfo, ensure_tuple, min_version, optional_import
+from monai.utils import CommonKeys, IgniteInfo, ensure_tuple, flatten_dict, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 mlflow, _ = optional_import("mlflow", descriptor="Please install mlflow before using MLFlowHandler.")
@@ -303,7 +303,9 @@ class MLFlowHandler:
 
         run_id = self.cur_run.info.run_id
         timestamp = int(time.time() * 1000)
-        metrics_arr = [mlflow.entities.Metric(key, value, timestamp, step or 0) for key, value in metrics.items()]
+        metrics_arr = [
+            mlflow.entities.Metric(key, value, timestamp, step or 0) for key, value in flatten_dict(metrics).items()
+        ]
         self.client.log_batch(run_id=run_id, metrics=metrics_arr, params=[], tags=[])
 
     def _parse_artifacts(self):

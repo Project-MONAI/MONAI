@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
-import logging
 import warnings
-from ._version import get_versions
 
+from ._version import get_versions
 
 old_showwarning = warnings.showwarning
 
