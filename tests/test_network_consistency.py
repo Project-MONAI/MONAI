@@ -14,8 +14,8 @@ from __future__ import annotations
 import json
 import os
 import unittest
+from collections.abc import Sequence
 from glob import glob
-from typing import Sequence
 from unittest.case import skipIf
 
 import torch

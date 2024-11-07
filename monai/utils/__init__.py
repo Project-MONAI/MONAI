@@ -78,6 +78,7 @@ from .misc import (
     ensure_tuple_size,
     fall_back_tuple,
     first,
+    flatten_dict,
     get_seed,
     has_option,
     is_immutable,
