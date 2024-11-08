@@ -1609,9 +1609,9 @@ class ImageFilter(Transform):
 
     def _check_filter_format(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None) -> None:
         if isinstance(filter, str):
-            if not filter_size:
+            if filter != "gauss" and not filter_size:  # Gauss is the only filter that does not require `filter_size`
                 raise ValueError("`filter_size` must be specified when specifying filters by string.")
-            if filter_size % 2 == 0:
+            if filter_size and filter_size % 2 == 0:
                 raise ValueError("`filter_size` should be a single uneven integer.")
             if filter not in self.supported_filters:
                 raise NotImplementedError(f"{filter}. Supported filters are {self.supported_filters}.")
