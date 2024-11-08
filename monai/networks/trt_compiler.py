@@ -233,7 +233,7 @@ def unroll_input(input_names, input_example):
     for name in input_names:
         val = input_example[name]
         if val is not None:
-            if isinstance(val, list | tuple):
+            if isinstance(val, list) or isinstance(val, tuple):
                 for i in range(len(val)):
                     unrolled_input[f"{name}_{i}"] = make_tensor(val[i])
             else:
@@ -556,7 +556,7 @@ class TrtCompiler:
                             sh = sh[1:]
                             profile[id] = [[dbs[0], *sh], [dbs[1], *sh], [dbs[2], *sh]]
 
-                    if isinstance(val, list | tuple):
+                    if isinstance(val, list) or isinstance(val, tuple):
                         for i in range(len(val)):
                             add_profile(f"{id}_{i}", val[i])
                     elif isinstance(val, torch.Tensor):
