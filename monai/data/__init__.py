@@ -50,7 +50,7 @@ from .decathlon_datalist import (
 from .folder_layout import FolderLayout, FolderLayoutBase
 from .grid_dataset import GridPatchDataset, PatchDataset, PatchIter, PatchIterd
 from .image_dataset import ImageDataset
-from .image_reader import ImageReader, ITKReader, NibabelReader, NibabelGPUReader, NrrdReader, NumpyReader, PILReader, PydicomReader
+from .image_reader import ImageReader, ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from .image_writer import (
     SUPPORTED_WRITERS,
     ImageWriter,

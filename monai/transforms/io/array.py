@@ -35,7 +35,6 @@ from monai.data.image_reader import (
     ImageReader,
     ITKReader,
     NibabelReader,
-    NibabelGPUReader,
     NrrdReader,
     NumpyReader,
     PILReader,
@@ -140,6 +139,7 @@ class LoadImage(Transform):
         prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         expanduser: bool = True,
+        device: None | str | torch.device = None,
         *args,
         **kwargs,
     ) -> None:
@@ -164,6 +164,7 @@ class LoadImage(Transform):
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
+            device: target device to put the loaded image.
             kwargs: additional parameters for reader if providing a reader name.
 
         Note:
@@ -185,6 +186,7 @@ class LoadImage(Transform):
         self.pattern = prune_meta_pattern
         self.sep = prune_meta_sep
         self.expanduser = expanduser
+        self.device = device
 
         self.readers: list[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -257,18 +259,6 @@ class LoadImage(Transform):
         )
         img, err = None, []
         if reader is not None:
-            if isinstance(reader, NibabelGPUReader):
-                # TODO: handle multiple filenames later
-                buffer = reader.read(filename[0])
-                img = reader.get_data(buffer)
-                img.meta[Key.FILENAME_OR_OBJ] = filename[0]
-                # TODO: check ensure channel first
-                if self.ensure_channel_first:
-                    img = EnsureChannelFirst()(img)
-                if self.image_only:
-                    return img
-                return img, img.meta
-
             img = reader.read(filename)  # runtime specified reader
         else:
             for reader in self.readers[::-1]:
@@ -278,17 +268,6 @@ class LoadImage(Transform):
                         break
                 else:  # try the user designated readers
                     try:
-                        if isinstance(reader, NibabelGPUReader):
-                            # TODO: handle multiple filenames later
-                            buffer = reader.read(filename[0])
-                            img = reader.get_data(buffer)
-                            img.meta[Key.FILENAME_OR_OBJ] = filename[0]
-                            # TODO: check ensure channel first
-                            if self.ensure_channel_first:
-                                img = EnsureChannelFirst()(img)
-                            if self.image_only:
-                                return img
-                            return img, img.meta
                         img = reader.read(filename)
                     except Exception as e:
                         err.append(traceback.format_exc())
@@ -312,7 +291,7 @@ class LoadImage(Transform):
             )
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
-        img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
+        img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype, device=self.device)[0]
         if not isinstance(meta_data, dict):
             raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
         # make sure all elements in metadata are little endian
@@ -320,7 +299,7 @@ class LoadImage(Transform):
 
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
         img = MetaTensor.ensure_torch_and_prune_meta(
-            img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep
+            img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep, device=self.device
         )
         if self.ensure_channel_first:
             img = EnsureChannelFirst()(img)

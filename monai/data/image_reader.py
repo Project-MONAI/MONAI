@@ -58,7 +58,7 @@ else:
     cp, has_cp = optional_import("cupy")
     kvikio, has_kvikio = optional_import("kvikio")
 
-__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NibabelGPUReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
+__all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
 
 class ImageReader(ABC):
@@ -153,6 +153,17 @@ def _stack_images(image_list: list, meta_dict: dict):
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
     return np.stack(image_list, axis=0)
+
+
+def _stack_gpu_images(image_list: list, meta_dict: dict):
+    if len(image_list) <= 1:
+        return image_list[0]
+    if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
+        channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
+        return cp.concatenate(image_list, axis=channel_dim)
+    # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
+    meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
+    return cp.stack(image_list, axis=0)
 
 
 @require_pkg(pkg_name="itk")
@@ -887,12 +898,15 @@ class NibabelReader(ImageReader):
         channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
+        gpu_load: bool = False,
         **kwargs,
     ):
         super().__init__()
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
+        # TODO: add warning if not have required libs
+        self.gpu_load = gpu_load
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -923,6 +937,7 @@ class NibabelReader(ImageReader):
         img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        self.filenames = filenames
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -946,7 +961,7 @@ class NibabelReader(ImageReader):
         img_array: list[np.ndarray] = []
         compatible_meta: dict = {}
 
-        for i in ensure_tuple(img):
+        for i, filename in zip(ensure_tuple(img), self.filenames):
             header = self._get_meta_dict(i)
             header[MetaKeys.AFFINE] = self._get_affine(i)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
@@ -956,7 +971,7 @@ class NibabelReader(ImageReader):
                 header[MetaKeys.AFFINE] = self._get_affine(i)
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             header[MetaKeys.SPACE] = SpaceKeys.RAS
-            data = self._get_array_data(i)
+            data = self._get_array_data(i, filename)
             if self.squeeze_non_spatial_dims:
                 for d in range(len(data.shape), len(header[MetaKeys.SPATIAL_SHAPE]), -1):
                     if data.shape[d - 1] == 1:
@@ -969,7 +984,8 @@ class NibabelReader(ImageReader):
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
-
+        if self.gpu_load:
+            return _stack_gpu_images(img_array, compatible_meta), compatible_meta
         return _stack_images(img_array, compatible_meta), compatible_meta
 
     def _get_meta_dict(self, img) -> dict:
@@ -1022,7 +1038,7 @@ class NibabelReader(ImageReader):
         spatial_rank = max(min(ndim, 3), 1)
         return np.asarray(size[:spatial_rank])
 
-    def _get_array_data(self, img):
+    def _get_array_data(self, img, filename):
         """
         Get the raw array data of the image, converted to Numpy array.
 
@@ -1030,101 +1046,30 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file.
 
         """
+        if self.gpu_load:
+            file_size = os.path.getsize(filename)
+            image = cp.empty(file_size, dtype=cp.uint8)
+            # suggestion from Ming: more tests, diff size
+            # cucim + nifti
+            with kvikio.CuFile(filename, "r") as f:
+                f.read(image)
+            if filename.endswith(".gz"):
+                # for compressed data, have to tansfer to CPU to decompress
+                # and then transfer back to GPU. It is not efficient compared to .nii file
+                # but it's still faster than Nibabel's default reader.
+                # TODO: can benchmark more, it may no need to do this since we don't have to use .gz
+                # since it's waste times especially in training
+                compressed_data = cp.asnumpy(image)
+                with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
+                    decompressed_data = gz_file.read()
+
+                file_size = len(decompressed_data)
+                image = cp.asarray(np.frombuffer(decompressed_data, dtype=np.uint8))
+            data_shape = img.shape
+            data_offset = img.dataobj.offset
+            data_dtype = img.dataobj.dtype
+            return image[data_offset:].view(data_dtype).reshape(data_shape, order="F")
         return np.asanyarray(img.dataobj, order="C")
-
-
-@require_pkg(pkg_name="nibabel")
-@require_pkg(pkg_name="cupy")
-@require_pkg(pkg_name="kvikio")
-class NibabelGPUReader(NibabelReader):
-
-    def read(self, filename: PathLike, **kwargs):
-        """
-        Read image data from specified file or files, it can read a list of images
-        and stack them together as multi-channel data in `get_data()`.
-        Note that the returned object is Nibabel image object or list of Nibabel image objects.
-
-        Args:
-            data: file name.
-
-        """
-        file_size = os.path.getsize(filename)
-        image = cp.empty(file_size, dtype=cp.uint8)
-        with kvikio.CuFile(filename, "r") as f:
-            f.read(image)
-
-        if filename.endswith(".gz"):
-            # for compressed data, have to tansfer to CPU to decompress
-            # and then transfer back to GPU. It is not efficient compared to .nii file
-            # but it's still faster than Nibabel's default reader.
-            # TODO: can benchmark more, it may no need to do this since we don't have to use .gz
-            # since it's waste times especially in training
-            compressed_data = cp.asnumpy(image)
-            with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
-                decompressed_data = gz_file.read()
-
-            file_size = len(decompressed_data)
-            image = cp.asarray(np.frombuffer(decompressed_data, dtype=np.uint8))
-        return image
-
-    def get_data(self, img):
-        """
-        Extract data array and metadata from loaded image and return them.
-        This function returns two objects, first is numpy array of image data, second is dict of metadata.
-        It constructs `affine`, `original_affine`, and `spatial_shape` and stores them in meta dict.
-        When loading a list of files, they are stacked together at a new dimension as the first dimension,
-        and the metadata of the first image is used to present the output metadata.
-
-        Args:
-            img: a Nibabel image object loaded from an image file.
-
-        """
-
-        # TODO: use a formal way for device
-        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-        header = self._get_header(img)
-        data_offset = header.get_data_offset()
-        data_shape = header.get_data_shape()
-        data_dtype = header.get_data_dtype()
-        affine = header.get_best_affine()
-        meta = {}
-        meta[MetaKeys.AFFINE] = affine
-        meta[MetaKeys.ORIGINAL_AFFINE] = affine
-        # TODO: as_closest_canonical
-        # TODO: correct_nifti_header_if_necessary
-        meta[MetaKeys.SPATIAL_SHAPE] = data_shape
-        # TODO: figure out why always RAS for NibabelReader ?
-        # meta[MetaKeys.SPACE] = SpaceKeys.RAS
-
-        data = img[data_offset:].view(data_dtype).reshape(data_shape, order="F")
-        # TODO: check channel
-        # if self.squeeze_non_spatial_dims:
-        if self.channel_dim is None:  # default to "no_channel" or -1
-            meta[MetaKeys.ORIGINAL_CHANNEL_DIM] = (
-                float("nan") if len(data.shape) == len(meta[MetaKeys.SPATIAL_SHAPE]) else -1
-            )
-        else:
-            meta[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
-
-        return MetaTensor(data, affine=affine, meta=meta, device=device)
-
-    def _get_header(self, img):
-        """
-        Get the all the metadata of the image and convert to dict type.
-
-        Args:
-            img: a Nibabel image object loaded from an image file.
-
-        """
-        header_bytes = cp.asnumpy(img[:348])
-        header = nib.Nifti1Header.from_fileobj(io.BytesIO(header_bytes))
-        # swap to little endian as PyTorch doesn't support big endian
-        try:
-            header = header.as_byteswapped("<")
-        except ValueError:
-            pass
-        return header
 
 
 class NumpyReader(ImageReader):
