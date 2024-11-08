@@ -46,7 +46,7 @@ class TestTRTCompile(unittest.TestCase):
         if current_device != self.gpu_device:
             torch.cuda.set_device(self.gpu_device)
 
-    @SkipIfAtLeastPyTorchVersion((2, 5, 0))
+    @SkipIfAtLeastPyTorchVersion((2, 4, 1))
     def test_handler(self):
         from ignite.engine import Engine
 
