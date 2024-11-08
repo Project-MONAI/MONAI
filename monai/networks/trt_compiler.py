@@ -261,7 +261,7 @@ def parse_groups(
        Tuple of Union[torch.Tensor, List[torch.Tensor]], according to the grouping in output_lists
 
     """
-    groups:Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
+    groups: Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
     cur = 0
     for l in range(len(output_lists)):
         gl = output_lists[l]
@@ -273,17 +273,17 @@ def parse_groups(
             groups = (*groups, ret[cur : cur + gl[0]])
             cur = cur + gl[0]
         elif gl[0] == -1:
-            rev_groups:Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
+            rev_groups: Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
             rcur = len(ret)
             for rl in range(len(output_lists) - 1, l, -1):
                 rgl = output_lists[rl]
                 assert len(rgl) == 0 or len(rgl) == 1
                 if len(rgl) == 0 or rgl[0] == 0:
                     rcur = rcur - 1
-                    rev_groups=(*rev_groups, ret[rcur])
+                    rev_groups = (*rev_groups, ret[rcur])
                 elif rgl[0] > 0:
                     rcur = rcur - rgl[0]
-                    rev_groups=(*rev_groups, ret[rcur : rcur + rgl[0]])
+                    rev_groups = (*rev_groups, ret[rcur : rcur + rgl[0]])
                 else:
                     raise ValueError("Two -1 lists in output")
             groups = (*groups, ret[cur:rcur], *rev_groups[::-1])
