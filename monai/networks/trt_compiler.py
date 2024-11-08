@@ -125,6 +125,7 @@ class TRTEngine:
         self.output_names = []
         self.dtypes = []
         self.cur_profile = 0
+        self.input_table = {}
         dtype_dict = trt_to_torch_dtype_dict()
         for idx in range(self.engine.num_io_tensors):
             binding = self.engine[idx]
@@ -241,7 +242,7 @@ def unroll_input(input_names, input_example):
 
 
 def parse_groups(
-    ret: List[torch.Tensor], output_lists: List[int]
+    ret: List[torch.Tensor], output_lists: List[List[int]]
 ) -> Tuple[Union[torch.Tensor, List[torch.Tensor]], ...]:
     """
     Implements parsing of 'output_lists' arg of trt_compile().
@@ -260,36 +261,34 @@ def parse_groups(
        Tuple of Union[torch.Tensor, List[torch.Tensor]], according to the grouping in output_lists
 
     """
-    groups = []
+    groups:Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
     cur = 0
     for l in range(len(output_lists)):
         gl = output_lists[l]
         assert len(gl) == 0 or len(gl) == 1
         if len(gl) == 0 or gl[0] == 0:
-            groups.append(ret[cur])
+            groups = (*groups, ret[cur])
             cur = cur + 1
         elif gl[0] > 0:
-            groups.append(ret[cur : cur + gl[0]])
+            groups = (*groups, ret[cur : cur + gl[0]])
             cur = cur + gl[0]
         elif gl[0] == -1:
-            rev_groups = []
+            rev_groups:Tuple[Union[torch.Tensor, List[torch.Tensor]], ...] = tuple()
             rcur = len(ret)
             for rl in range(len(output_lists) - 1, l, -1):
                 rgl = output_lists[rl]
                 assert len(rgl) == 0 or len(rgl) == 1
                 if len(rgl) == 0 or rgl[0] == 0:
                     rcur = rcur - 1
-                    rev_groups.append(ret[rcur])
+                    rev_groups=(*rev_groups, ret[rcur])
                 elif rgl[0] > 0:
                     rcur = rcur - rgl[0]
-                    rev_groups.append(ret[rcur : rcur + rgl[0]])
+                    rev_groups=(*rev_groups, ret[rcur : rcur + rgl[0]])
                 else:
                     raise ValueError("Two -1 lists in output")
-            groups.append(ret[cur:rcur])
-            rev_groups.reverse()
-            groups.extend(rev_groups)
+            groups = (*groups, ret[cur:rcur], *rev_groups[::-1])
             break
-    return tuple(groups)
+    return groups
 
 
 class TrtCompiler:
