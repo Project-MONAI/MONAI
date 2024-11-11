@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.bundle import ConfigWorkflow, create_workflow
+from monai.bundle import ConfigWorkflow
 from monai.data import Dataset
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.networks.nets import UNet

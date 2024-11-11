@@ -1,6 +1,5 @@
-{   
-"infer": 
-    {
+{
+    "infer": {
         "bundle_root": {
             "description": "root path of the bundle.",
             "required": true,
@@ -67,8 +66,7 @@
             "refer_id": "evaluator::key_val_metric"
         }
     },
-"meta":
-    {
+    "meta": {
         "version": {
             "description": "version of the inference configuration.",
             "required": true,
