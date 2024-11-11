@@ -44,12 +44,14 @@ class BundleWorkflow(ABC):
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
-            default to `train` for train workflow.
+            default to `None` for only using meta properties.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties.
+        properties_path: the path to the JSON file of properties. If workflow type is specified, the properties
+            will be loaded from the file based on the workflow type and meta, otherwise, the properties will be loaded from
+            "train". If the file does not exist, the default properties will be used.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
@@ -250,12 +252,14 @@ class PythonicWorkflow(BundleWorkflow):
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
-            default to `train` for train workflow.
+            default to `None` for only using meta properties.
         workflow: specifies the workflow type: "train" or "training" for a training workflow,
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties.
+        properties_path: the path to the JSON file of properties. If workflow type is specified, the properties
+            will be loaded from the file based on the workflow type and meta, otherwise, the properties will be loaded from
+            "train". If the file does not exist, the default properties will be used.
         config_file: path to the config file, typically used to store hyperparameters.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
