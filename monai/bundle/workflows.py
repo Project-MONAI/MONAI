@@ -295,8 +295,8 @@ class PythonicWorkflow(BundleWorkflow):
             meta_file=meta_file,
             logging_file=logging_file,
         )
-        self._props = {}
-        self._set_props = {}
+        self._props: dict = {}
+        self._set_props: dict = {}
         self.parser = ConfigParser()
         if config_file is not None:
             self.parser.read_config(f=config_file)
@@ -346,7 +346,7 @@ class PythonicWorkflow(BundleWorkflow):
             self._props[name] = value
         elif name in self._props:
             value = self._props[name]
-        elif name in self.parser.config["_meta_"]:
+        elif name in self.parser.config[self.parser.meta_key]:  # type: ignore[index]
             value = self.parser.__getitem__(id)
         else:
             try:

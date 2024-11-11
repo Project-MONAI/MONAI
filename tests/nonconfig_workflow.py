@@ -194,7 +194,7 @@ class PythonicWorkflowImpl(PythonicWorkflow):
         super().__init__(
             workflow_type=workflow_type, properties_path=properties_path, config_file=config_file, meta_file=meta_file
         )
-        self.dataflow = {}
+        self.dataflow: dict = {}
 
     def initialize(self):
         self.net = UNet(
