@@ -118,10 +118,10 @@ class BundleWorkflow(ABC):
                     self.properties = properties[workflow_type]
                     if "meta" in properties:
                         self.properties.update(properties["meta"])
-                except KeyError:
-                    raise ValueError(f"{workflow_type} not found in property file {properties_path}")
-                except json.JSONDecodeError:
-                    raise ValueError(f"Error decoding JSON from property file {properties_path}")
+                except KeyError as e:
+                    raise ValueError(f"{workflow_type} not found in property file {properties_path}") from e
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Error decoding JSON from property file {properties_path}") from e
         else:
             if workflow_type == "train":
                 self.properties = {**TrainProperties, **MetaProperties}
@@ -337,7 +337,6 @@ class PythonicWorkflow(BundleWorkflow):
         """
         value = None
         id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
-        print(self.parser.config.keys(), self.parser.config["_meta_"], "*********")
         if name in self._set_props:
             value = self._set_props[name]
             self._props[name] = value
@@ -348,12 +347,12 @@ class PythonicWorkflow(BundleWorkflow):
         else:
             try:
                 value = getattr(self, f"get_{name}")()
-            except AttributeError:
+            except AttributeError as e:
                 if property[BundleProperty.REQUIRED]:
                     raise ValueError(
                         f"unsupported property '{name}' is required in the bundle properties,"
                         f"need to implement a method 'get_{name}' to provide the property."
-                    )
+                    ) from e
             self._props[name] = value
         return value
 
