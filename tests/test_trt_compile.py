@@ -21,7 +21,7 @@ from monai.handlers import TrtHandler
 from monai.networks import trt_compile
 from monai.networks.nets import UNet, cell_sam_wrapper, vista3d132
 from monai.utils import min_version, optional_import
-from tests.utils import skip_if_no_cuda, skip_if_quick, skip_if_windows
+from tests.utils import SkipIfAtLeastPyTorchVersion, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 trt, trt_imported = optional_import("tensorrt", "10.1.0", min_version)
 polygraphy, polygraphy_imported = optional_import("polygraphy")
@@ -46,6 +46,7 @@ class TestTRTCompile(unittest.TestCase):
         if current_device != self.gpu_device:
             torch.cuda.set_device(self.gpu_device)
 
+    @SkipIfAtLeastPyTorchVersion((2, 4, 1))
     def test_handler(self):
         from ignite.engine import Engine
 

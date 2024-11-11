@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import io
 import re
+import tempfile
 import warnings
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
@@ -688,9 +689,10 @@ def convert_to_onnx(
             onnx_inputs = (inputs,)
         else:
             onnx_inputs = tuple(inputs)
-
+        temp_file = None
         if filename is None:
-            f = io.BytesIO()
+            temp_file = tempfile.NamedTemporaryFile()
+            f = temp_file.name
         else:
             f = filename
 
@@ -705,10 +707,7 @@ def convert_to_onnx(
             do_constant_folding=do_constant_folding,
             **torch_versioned_kwargs,
         )
-        if filename is None:
-            onnx_model = onnx.load_model_from_string(f.getvalue())
-        else:
-            onnx_model = onnx.load(filename)
+        onnx_model = onnx.load(f)
 
     if do_constant_folding and polygraphy_imported:
         from polygraphy.backend.onnx.loader import fold_constants
