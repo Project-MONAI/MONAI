@@ -114,8 +114,10 @@ class BundleWorkflow(ABC):
                 logger.info("No workflow type specified, default to 'train' for property file loading.")
             with open(properties_path) as json_file:
                 try:
-                    self.properties = json.load(json_file)[workflow_type]
-                    print(self.properties)
+                    properties = json.load(json_file)
+                    self.properties = properties[workflow_type]
+                    if "meta" in properties:
+                        self.properties.update(properties["meta"])
                 except:
                     raise ValueError(f"{self.workflow_type} not find in property file {properties_path}")
         else:
@@ -278,10 +280,10 @@ class PythonicWorkflow(BundleWorkflow):
         logging_file: str | None = None,
         **override: Any
     ):
+        meta_file = str(Path(os.getcwd()) / "metadata.json") if meta_file is None else meta_file
         super().__init__(workflow_type=workflow_type, workflow=workflow, properties_path=properties_path, meta_file=meta_file, logging_file=logging_file)
         self._props = {}
         self._set_props = {}
-
         self.parser = ConfigParser()
         if config_file is not None:
             self.parser.read_config(f=config_file)
@@ -325,11 +327,15 @@ class PythonicWorkflow(BundleWorkflow):
             property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
         """
         value = None
+        id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
+        print(self.parser.config.keys(), self.parser.config["_meta_"], '*********')
         if name in self._set_props:
             value = self._set_props[name]
             self._props[name] = value
         elif name in self._props:
             value = self._props[name]
+        elif name in self.parser.config["_meta_"]:
+            value = self.parser.__getitem__(id)
         else:
             try:
                 value = getattr(self, f"get_{name}")()
@@ -454,7 +460,6 @@ class ConfigWorkflow(BundleWorkflow):
         self.parser.read_config(f=config_file)
         if self.meta_file is not None:
             self.parser.read_meta(f=self.meta_file)
-
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
         self.init_id = init_id
