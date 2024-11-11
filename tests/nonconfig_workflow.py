@@ -28,7 +28,7 @@ from monai.transforms import (
     ScaleIntensityd,
     ScaleIntensityRanged,
 )
-from monai.utils import BundleProperty, set_determinism, CommonKeys
+from monai.utils import BundleProperty, CommonKeys, set_determinism
 
 
 class NonConfigWorkflow(BundleWorkflow):
@@ -184,8 +184,16 @@ class PythonicWorkflowImpl(PythonicWorkflow):
     Test class simulates the bundle workflow defined by Python script directly.
     """
 
-    def __init__(self, workflow_type: str = "inference", config_file: str | None = None, properties_path: str | None = None, meta_file: str | None = None):
-        super().__init__(workflow_type=workflow_type, properties_path=properties_path, config_file=config_file, meta_file=meta_file)
+    def __init__(
+        self,
+        workflow_type: str = "inference",
+        config_file: str | None = None,
+        properties_path: str | None = None,
+        meta_file: str | None = None,
+    ):
+        super().__init__(
+            workflow_type=workflow_type, properties_path=properties_path, config_file=config_file, meta_file=meta_file
+        )
         self.dataflow = {}
 
     def initialize(self):
@@ -204,16 +212,8 @@ class PythonicWorkflowImpl(PythonicWorkflow):
                 ScaleIntensityRanged(keys="image", a_min=-57, a_max=164, b_min=0.0, b_max=1.0, clip=True),
             ]
         )
-        self.dataset = Dataset(
-            data=[self.dataflow],
-            transform=preprocessing,
-        )
-        self.postprocessing = Compose(
-            [
-                Activationsd(keys="pred", softmax=True),
-                AsDiscreted(keys="pred", argmax=True),
-            ]
-        )
+        self.dataset = Dataset(data=[self.dataflow], transform=preprocessing)
+        self.postprocessing = Compose([Activationsd(keys="pred", softmax=True), AsDiscreted(keys="pred", argmax=True)])
         self.inferer = SlidingWindowInferer(roi_size=self.parser.roi_size, sw_batch_size=1, overlap=0)
 
     def run(self):
@@ -232,6 +232,6 @@ class PythonicWorkflowImpl(PythonicWorkflow):
 
     def get_device(self):
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     def get_inferer(self):
         return self.inferer

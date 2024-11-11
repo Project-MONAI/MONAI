@@ -118,8 +118,10 @@ class BundleWorkflow(ABC):
                     self.properties = properties[workflow_type]
                     if "meta" in properties:
                         self.properties.update(properties["meta"])
-                except:
-                    raise ValueError(f"{self.workflow_type} not find in property file {properties_path}")
+                except KeyError:
+                    raise ValueError(f"{workflow_type} not found in property file {properties_path}")
+                except json.JSONDecodeError:
+                    raise ValueError(f"Error decoding JSON from property file {properties_path}")
         else:
             if workflow_type == "train":
                 self.properties = {**TrainProperties, **MetaProperties}
@@ -278,10 +280,16 @@ class PythonicWorkflow(BundleWorkflow):
         config_file: str | Sequence[str] | None = None,
         meta_file: str | Sequence[str] | None = None,
         logging_file: str | None = None,
-        **override: Any
+        **override: Any,
     ):
         meta_file = str(Path(os.getcwd()) / "metadata.json") if meta_file is None else meta_file
-        super().__init__(workflow_type=workflow_type, workflow=workflow, properties_path=properties_path, meta_file=meta_file, logging_file=logging_file)
+        super().__init__(
+            workflow_type=workflow_type,
+            workflow=workflow,
+            properties_path=properties_path,
+            meta_file=meta_file,
+            logging_file=logging_file,
+        )
         self._props = {}
         self._set_props = {}
         self.parser = ConfigParser()
@@ -328,7 +336,7 @@ class PythonicWorkflow(BundleWorkflow):
         """
         value = None
         id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
-        print(self.parser.config.keys(), self.parser.config["_meta_"], '*********')
+        print(self.parser.config.keys(), self.parser.config["_meta_"], "*********")
         if name in self._set_props:
             value = self._set_props[name]
             self._props[name] = value
