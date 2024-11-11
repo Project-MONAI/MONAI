@@ -256,6 +256,7 @@ class PythonicWorkflow(BundleWorkflow):
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
         properties_path: the path to the JSON file of properties.
+        config_file: path to the config file, typically used to store hyperparameters.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
