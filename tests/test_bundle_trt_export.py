@@ -22,7 +22,7 @@ from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from monai.utils import optional_import
-from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows
+from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_quick, skip_if_windows, SkipIfBeforeComputeCapabilityVersion
 
 _, has_torchtrt = optional_import(
     "torch_tensorrt",
@@ -47,6 +47,7 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
+@SkipIfBeforeComputeCapabilityVersion((7, 0))
 class TestTRTExport(unittest.TestCase):
 
     def setUp(self):
