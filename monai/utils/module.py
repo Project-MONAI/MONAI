@@ -642,12 +642,12 @@ def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: s
     Compute whether the current system GPU CUDA compute capability is after or equal to the specified version.
     The current system GPU CUDA compute capability is determined by the first GPU in the system.
     The compared version is a string in the form of "major.minor".
-    
+
     Args:
         major: major version number to be compared with.
         minor: minor version number to be compared with. Defaults to 0.
         current_ver_string: if None, the current system GPU CUDA compute capability will be used.
-    
+
     Returns:
         True if the current system GPU CUDA compute capability is greater than or equal to the specified version.
     """
@@ -657,7 +657,7 @@ def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: s
         major_c, minor_c = pynvml.nvmlDeviceGetCudaComputeCapability(handle)
         pynvml.nvmlShutdown()
         current_ver_string = f"{major_c}.{minor_c}"
-    
+
     ver, has_ver = optional_import("packaging.version", name="parse")
     if has_ver:
         return ver(".".join((f"{major}", f"{minor}"))) <= ver(f"{current_ver_string}")  # type: ignore
