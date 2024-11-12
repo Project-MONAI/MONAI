@@ -123,6 +123,7 @@ from .module import (
     run_eval,
     version_geq,
     version_leq,
+    compute_capabilities_after,
 )
 from .nvtx import Range
 from .ordering import Ordering

@@ -26,6 +26,7 @@ from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
 from typing import Any, cast
+import pynvml
 
 import torch
 
@@ -634,3 +635,36 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
     if is_prerelease:
         return False
     return True
+
+@functools.lru_cache(None)
+def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: str | None = None) -> bool:
+    """
+    Compute whether the current system GPU CUDA compute capability is after or equal to the specified version.
+    The current system GPU CUDA compute capability is determined by the first GPU in the system.
+    The compared version is a string in the form of "major.minor".
+    
+    Args:
+        major: major version number to be compared with.
+        minor: minor version number to be compared with. Defaults to 0.
+        current_ver_string: if None, the current system GPU CUDA compute capability will be used.
+    
+    Returns:
+        True if the current system GPU CUDA compute capability is greater than or equal to the specified version.
+    """
+    if current_ver_string is None:
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(0)  # get the first GPU
+        major_c, minor_c = pynvml.nvmlDeviceGetCudaComputeCapability(handle)
+        pynvml.nvmlShutdown()
+        current_ver_string = f"{major_c}.{minor_c}"
+    
+    ver, has_ver = optional_import("packaging.version", name="parse")
+    if has_ver:
+        return ver(".".join((f"{major}", f"{minor}"))) <= ver(f"{current_ver_string}")  # type: ignore
+    parts = f"{current_ver_string}".split("+", 1)[0].split(".", 2)
+    while len(parts) < 2:
+        parts += ["0"]
+    c_major, c_minor = parts[:2]
+    c_mn = int(c_major), int(c_minor)
+    mn = int(major), int(minor)
+    return c_mn > mn

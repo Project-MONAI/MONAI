@@ -47,7 +47,7 @@ from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.misc import MONAIEnvVars
-from monai.utils.module import pytorch_after
+from monai.utils.module import pytorch_after, compute_capabilities_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
 
@@ -283,6 +283,20 @@ class SkipIfAtLeastPyTorchVersion:
     def __call__(self, obj):
         return unittest.skipIf(
             self.version_too_new, f"Skipping tests that fail on PyTorch versions at least: {self.max_version}"
+        )(obj)
+
+
+class SkipIfBeforeComputeCapabilityVersion:
+    """Decorator to be used if test should be skipped
+    with Compute Capability older than that given."""
+
+    def __init__(self, compute_capability_tuple):
+        self.min_version = compute_capability_tuple
+        self.version_too_old = not compute_capabilities_after(*compute_capability_tuple)
+
+    def __call__(self, obj):
+        return unittest.skipIf(
+            self.version_too_old, f"Skipping tests that fail on Compute Capability versions before: {self.min_version}"
         )(obj)
 
 
