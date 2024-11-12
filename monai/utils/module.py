@@ -655,7 +655,7 @@ def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: s
         pynvml, has_pynvml = optional_import("pynvml")
         if not has_pynvml:  # assuming that the user has Ampere and later GPU
             return True
-        
+
         try:
             pynvml.nvmlInit()
             handle = pynvml.nvmlDeviceGetHandleByIndex(0)  # get the first GPU
