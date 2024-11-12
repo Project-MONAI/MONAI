@@ -107,6 +107,7 @@ from .module import (
     InvalidPyTorchVersionError,
     OptionalImportError,
     allow_missing_reference,
+    compute_capabilities_after,
     damerau_levenshtein_distance,
     exact_version,
     get_full_type_name,
@@ -123,7 +124,6 @@ from .module import (
     run_eval,
     version_geq,
     version_leq,
-    compute_capabilities_after,
 )
 from .nvtx import Range
 from .ordering import Ordering

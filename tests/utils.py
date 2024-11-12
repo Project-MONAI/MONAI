@@ -47,7 +47,7 @@ from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.misc import MONAIEnvVars
-from monai.utils.module import pytorch_after, compute_capabilities_after
+from monai.utils.module import compute_capabilities_after, pytorch_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
 

@@ -26,8 +26,8 @@ from pydoc import locate
 from re import match
 from types import FunctionType, ModuleType
 from typing import Any, cast
-import pynvml
 
+import pynvml
 import torch
 
 # bundle config system flags
@@ -635,6 +635,7 @@ def pytorch_after(major: int, minor: int, patch: int = 0, current_ver_string: st
     if is_prerelease:
         return False
     return True
+
 
 @functools.lru_cache(None)
 def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: str | None = None) -> bool:

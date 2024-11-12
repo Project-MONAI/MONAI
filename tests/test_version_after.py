@@ -15,7 +15,7 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.utils import pytorch_after, compute_capabilities_after
+from monai.utils import compute_capabilities_after, pytorch_after
 
 TEST_CASES_PT = (
     (1, 5, 9, "1.6.0"),
