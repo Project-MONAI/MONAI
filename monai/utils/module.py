@@ -27,7 +27,6 @@ from re import match
 from types import FunctionType, ModuleType
 from typing import Any, cast
 
-import pynvml
 import torch
 
 # bundle config system flags
@@ -653,11 +652,19 @@ def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: s
         True if the current system GPU CUDA compute capability is greater than or equal to the specified version.
     """
     if current_ver_string is None:
-        pynvml.nvmlInit()
-        handle = pynvml.nvmlDeviceGetHandleByIndex(0)  # get the first GPU
-        major_c, minor_c = pynvml.nvmlDeviceGetCudaComputeCapability(handle)
-        pynvml.nvmlShutdown()
-        current_ver_string = f"{major_c}.{minor_c}"
+        pynvml, has_pynvml = optional_import("pynvml")
+        if not has_pynvml:  # assuming that the user has Ampere and later GPU
+            return True
+        
+        try:
+            pynvml.nvmlInit()
+            handle = pynvml.nvmlDeviceGetHandleByIndex(0)  # get the first GPU
+            major_c, minor_c = pynvml.nvmlDeviceGetCudaComputeCapability(handle)
+            current_ver_string = f"{major_c}.{minor_c}"
+        except BaseException:
+            pass
+        finally:
+            pynvml.nvmlShutdown()
 
     ver, has_ver = optional_import("packaging.version", name="parse")
     if has_ver:
