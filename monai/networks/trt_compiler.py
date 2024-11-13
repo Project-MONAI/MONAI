@@ -379,7 +379,7 @@ class TrtCompiler:
                 d = self.argspec.defaults[-i - 1]
                 if d is not None:
                     d = make_tensor(d)
-                    self.defaults[self.argspec.args[-i - 1]] = d
+                self.defaults[self.argspec.args[-i - 1]] = d
 
         self.input_names = input_names
         self.old_forward = model.forward
