@@ -49,9 +49,13 @@ class BundleWorkflow(ABC):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties. If workflow type is specified, the properties
-            will be loaded from the file based on the workflow type and meta, otherwise, the properties will be loaded from
-            "train". If the file does not exist, the default properties will be used.
+        properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
+            loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
+            properties will default to loading from "train". If the specified file is unavailable, default properties
+            will be sourced from "monai/bundle/properties.py" based on the workflow_type:
+            For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
+            For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
+            For workflow_type = None : only `MetaProperties` will be loaded.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
             https://docs.python.org/3/library/logging.config.html#logging.config.fileConfig.
@@ -246,7 +250,8 @@ class PythonicWorkflow(BundleWorkflow):
     """
     Base class for the pythonic workflow specification in bundle, it can be a training, evaluation or inference workflow.
     It defines the basic interfaces for the bundle workflow behavior: `initialize`, `run`, `finalize`, etc.
-    And also provides the interface to get / set public properties to interact with a bundle workflow.
+    This also provides the interface to get / set public properties to interact with a bundle workflow through
+    defined `get_<property>` accessor methods or directly defining members of the object.
 
     Args:
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
@@ -257,9 +262,13 @@ class PythonicWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties. If workflow type is specified, the properties
-            will be loaded from the file based on the workflow type and meta, otherwise, the properties will be loaded from
-            "train". If the file does not exist, the default properties will be used.
+        properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
+            loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
+            properties will default to loading from "train". If the specified file is unavailable, default properties
+            will be sourced from "monai/bundle/properties.py" based on the workflow_type:
+            For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
+            For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
+            For workflow_type = None : only `MetaProperties` will be loaded.
         config_file: path to the config file, typically used to store hyperparameters.
         meta_file: filepath of the metadata file, if this is a list of file paths, their contents will be merged in order.
         logging_file: config file for `logging` module in the program. for more details:
@@ -270,17 +279,9 @@ class PythonicWorkflow(BundleWorkflow):
     supported_train_type: tuple = ("train", "training")
     supported_infer_type: tuple = ("infer", "inference", "eval", "evaluation")
 
-    @deprecated_arg(
-        "workflow",
-        since="1.2",
-        removed="1.5",
-        new_name="workflow_type",
-        msg_suffix="please use `workflow_type` instead.",
-    )
     def __init__(
         self,
         workflow_type: str | None = None,
-        workflow: str | None = None,
         properties_path: PathLike | None = None,
         config_file: str | Sequence[str] | None = None,
         meta_file: str | Sequence[str] | None = None,
@@ -290,13 +291,12 @@ class PythonicWorkflow(BundleWorkflow):
         meta_file = str(Path(os.getcwd()) / "metadata.json") if meta_file is None else meta_file
         super().__init__(
             workflow_type=workflow_type,
-            workflow=workflow,
             properties_path=properties_path,
             meta_file=meta_file,
             logging_file=logging_file,
         )
-        self._props: dict = {}
-        self._set_props: dict = {}
+        self._props_vals: dict = {}
+        self._set_props_vals: dict = {}
         self.parser = ConfigParser()
         if config_file is not None:
             self.parser.read_config(f=config_file)
@@ -312,22 +312,6 @@ class PythonicWorkflow(BundleWorkflow):
         """
         self._props = {}
 
-    @abstractmethod
-    def run(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Run the bundle workflow, it can be a training, evaluation or inference.
-
-        """
-        raise NotImplementedError()
-
-    @abstractmethod
-    def finalize(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Finalize step after the running of bundle workflow.
-
-        """
-        raise NotImplementedError()
-
     def _get_property(self, name: str, property: dict) -> Any:
         """
         With specified property name and information, get the expected property value.
@@ -340,13 +324,13 @@ class PythonicWorkflow(BundleWorkflow):
             property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
         """
         value = None
-        id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
-        if name in self._set_props:
-            value = self._set_props[name]
-            self._props[name] = value
-        elif name in self._props:
-            value = self._props[name]
+        if name in self._set_props_vals:
+            value = self._set_props_vals[name]
+            self._props_vals[name] = value
+        elif name in self._props_vals:
+            value = self._props_vals[name]
         elif name in self.parser.config[self.parser.meta_key]:  # type: ignore[index]
+            id = self.properties.get(name, None).get(BundlePropertyConfig.ID, None)
             value = self.parser[id]
         else:
             try:
@@ -357,7 +341,7 @@ class PythonicWorkflow(BundleWorkflow):
                         f"unsupported property '{name}' is required in the bundle properties,"
                         f"need to implement a method 'get_{name}' to provide the property."
                     ) from e
-            self._props[name] = value
+            self._props_vals[name] = value
         return value
 
     def _set_property(self, name: str, property: dict, value: Any) -> Any:
@@ -371,7 +355,7 @@ class PythonicWorkflow(BundleWorkflow):
             value: value to set for the property.
 
         """
-        self._set_props[name] = value
+        self._set_props_vals[name] = value
 
 
 class ConfigWorkflow(BundleWorkflow):
@@ -410,7 +394,13 @@ class ConfigWorkflow(BundleWorkflow):
             or "infer", "inference", "eval", "evaluation" for a inference workflow,
             other unsupported string will raise a ValueError.
             default to `None` for common workflow.
-        properties_path: the path to the JSON file of properties.
+        properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
+            loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
+            properties will default to loading from "train". If the specified file is unavailable, default properties
+            will be sourced from "monai/bundle/properties.py" based on the workflow_type:
+            For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
+            For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
+            For workflow_type = None : only `MetaProperties` will be loaded.
         override: id-value pairs to override or add the corresponding config content.
             e.g. ``--net#input_chns 42``, ``--net %/data/other.json#net_arg``
 
