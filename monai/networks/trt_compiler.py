@@ -607,7 +607,9 @@ def trt_compile(
 ) -> torch.nn.Module:
     """
     Instruments model or submodule(s) with TrtCompiler and replaces its forward() with TRT hook.
-    Note: TRT 10.3 is recommended for best performance. Some nets may even fail to work with TRT 8.x
+    Note: TRT 10.3 is recommended for best performance. Some nets may even fail to work with TRT 8.x.
+        NVIDIA Volta support (GPUs with compute capability 7.0) has been removed starting with TensorRT 10.5.
+        Review the TensorRT Support Matrix for which GPUs are supported.
     Args:
       model: module to patch with TrtCompiler object.
       base_path: TRT plan(s) saved to f"{base_path}[.{submodule}].plan" path.
