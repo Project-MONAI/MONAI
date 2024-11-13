@@ -347,7 +347,7 @@ class PythonicWorkflow(BundleWorkflow):
         elif name in self._props:
             value = self._props[name]
         elif name in self.parser.config[self.parser.meta_key]:  # type: ignore[index]
-            value = self.parser.__getitem__(id)
+            value = self.parser[id]
         else:
             try:
                 value = getattr(self, f"get_{name}")()
