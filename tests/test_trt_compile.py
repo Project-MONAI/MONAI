@@ -22,7 +22,6 @@ from monai.networks import trt_compile
 from monai.networks.nets import cell_sam_wrapper, vista3d132
 from monai.utils import min_version, optional_import
 from tests.utils import (
-    SkipIfAtLeastPyTorchVersion,
     SkipIfBeforeComputeCapabilityVersion,
     skip_if_no_cuda,
     skip_if_quick,
