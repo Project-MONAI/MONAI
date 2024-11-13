@@ -290,10 +290,7 @@ class PythonicWorkflow(BundleWorkflow):
     ):
         meta_file = str(Path(os.getcwd()) / "metadata.json") if meta_file is None else meta_file
         super().__init__(
-            workflow_type=workflow_type,
-            properties_path=properties_path,
-            meta_file=meta_file,
-            logging_file=logging_file,
+            workflow_type=workflow_type, properties_path=properties_path, meta_file=meta_file, logging_file=logging_file
         )
         self._props_vals: dict = {}
         self._set_props_vals: dict = {}
