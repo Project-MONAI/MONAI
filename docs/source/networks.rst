@@ -481,6 +481,11 @@ Nets
 .. autoclass:: SegResNetDS
   :members:
 
+`SegResNetDS2`
+~~~~~~~~~~~~~~
+.. autoclass:: SegResNetDS2
+  :members:
+
 `SegResNetVAE`
 ~~~~~~~~~~~~~~
 .. autoclass:: SegResNetVAE
@@ -489,6 +494,11 @@ Nets
 `ResNet`
 ~~~~~~~~
 .. autoclass:: ResNet
+  :members:
+
+`ResNetFeatures`
+~~~~~~~~~~~~~~~~
+.. autoclass:: ResNetFeatures
   :members:
 
 `SENet`
@@ -549,6 +559,11 @@ Nets
 `UNETR`
 ~~~~~~~
 .. autoclass:: UNETR
+    :members:
+
+`VISTA3D`
+~~~~~~~~~
+.. autoclass:: VISTA3D
     :members:
 
 `SwinUNETR`
@@ -720,13 +735,8 @@ Nets
 .. autoclass:: VoxelMorphUNet
    :members:
 
-.. autoclass:: voxelmorphunet
-   :members:
-
 .. autoclass:: VoxelMorph
    :members:
-
-.. autoclass:: voxelmorph
 
 Utilities
 ---------

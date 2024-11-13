@@ -11,14 +11,18 @@
 
 # To build with a different base image
 # please run `docker build` using the `--build-arg PYTORCH_IMAGE=...` flag.
-ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:23.08-py3
+ARG PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:24.10-py3
 FROM ${PYTORCH_IMAGE}
 
 LABEL maintainer="monai.contact@gmail.com"
 
 # TODO: remark for issue [revise the dockerfile](https://github.com/zarr-developers/numcodecs/issues/431)
-WORKDIR /opt
-RUN git clone --recursive https://github.com/zarr-developers/numcodecs.git && pip wheel numcodecs
+RUN if [[ $(uname -m) =~ "aarch64" ]]; then \
+      export CFLAGS="-O3" && \
+      export DISABLE_NUMCODECS_SSE2=true && \
+      export DISABLE_NUMCODECS_AVX2=true && \
+      pip install numcodecs; \
+    fi
 
 WORKDIR /opt/monai
 
@@ -52,4 +56,5 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
 ENV PATH=${PATH}:/opt/tools
+ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
 WORKDIR /opt/monai

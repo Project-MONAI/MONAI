@@ -13,20 +13,31 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
 import torch
 
-from monai.transforms import CutMix, CutMixd, CutOut, MixUp, MixUpd
+from monai.transforms import CutMix, CutMixd, CutOut, CutOutd, MixUp, MixUpd
+from tests.utils import assert_allclose
 
 
 class TestMixup(unittest.TestCase):
+
     def test_mixup(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
             sample = torch.rand(*shape, dtype=torch.float32)
             mixup = MixUp(6, 1.0)
+            mixup.set_random_state(seed=0)
             output = mixup(sample)
+            np.random.seed(0)
+            # simulate the randomize() of transform
+            np.random.random()
+            weight = torch.from_numpy(np.random.beta(1.0, 1.0, 6)).type(torch.float32)
+            perm = np.random.permutation(6)
             self.assertEqual(output.shape, sample.shape)
-            self.assertTrue(any(not torch.allclose(sample, mixup(sample)) for _ in range(10)))
+            mixweight = weight[(Ellipsis,) + (None,) * (dims + 1)]
+            expected = mixweight * sample + (1 - mixweight) * sample[perm, ...]
+            assert_allclose(output, expected, type_test=False, atol=1e-7)
 
         with self.assertRaises(ValueError):
             MixUp(6, -0.5)
@@ -44,19 +55,32 @@ class TestMixup(unittest.TestCase):
             t = torch.rand(*shape, dtype=torch.float32)
             sample = {"a": t, "b": t}
             mixup = MixUpd(["a", "b"], 6)
+            mixup.set_random_state(seed=0)
             output = mixup(sample)
-            self.assertTrue(torch.allclose(output["a"], output["b"]))
+            np.random.seed(0)
+            # simulate the randomize() of transform
+            np.random.random()
+            weight = torch.from_numpy(np.random.beta(1.0, 1.0, 6)).type(torch.float32)
+            perm = np.random.permutation(6)
+            self.assertEqual(output["a"].shape, sample["a"].shape)
+            mixweight = weight[(Ellipsis,) + (None,) * (dims + 1)]
+            expected = mixweight * sample["a"] + (1 - mixweight) * sample["a"][perm, ...]
+            assert_allclose(output["a"], expected, type_test=False, atol=1e-7)
+            assert_allclose(output["a"], output["b"], type_test=False, atol=1e-7)
+            # self.assertTrue(torch.allclose(output["a"], output["b"]))
 
         with self.assertRaises(ValueError):
             MixUpd(["k1", "k2"], 6, -0.5)
 
 
 class TestCutMix(unittest.TestCase):
+
     def test_cutmix(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
             sample = torch.rand(*shape, dtype=torch.float32)
             cutmix = CutMix(6, 1.0)
+            cutmix.set_random_state(seed=0)
             output = cutmix(sample)
             self.assertEqual(output.shape, sample.shape)
             self.assertTrue(any(not torch.allclose(sample, cutmix(sample)) for _ in range(10)))
@@ -68,22 +92,50 @@ class TestCutMix(unittest.TestCase):
             label = torch.randint(0, 1, shape)
             sample = {"a": t, "b": t, "lbl1": label, "lbl2": label}
             cutmix = CutMixd(["a", "b"], 6, label_keys=("lbl1", "lbl2"))
+            cutmix.set_random_state(seed=123)
             output = cutmix(sample)
-            # croppings are different on each application
-            self.assertTrue(not torch.allclose(output["a"], output["b"]))
             # but mixing of labels is not affected by it
             self.assertTrue(torch.allclose(output["lbl1"], output["lbl2"]))
 
 
 class TestCutOut(unittest.TestCase):
+
     def test_cutout(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
             sample = torch.rand(*shape, dtype=torch.float32)
             cutout = CutOut(6, 1.0)
+            cutout.set_random_state(seed=123)
             output = cutout(sample)
+            np.random.seed(123)
+            # simulate the randomize() of transform
+            np.random.random()
+            weight = torch.from_numpy(np.random.beta(1.0, 1.0, 6)).type(torch.float32)
+            perm = np.random.permutation(6)
+            coords = [torch.from_numpy(np.random.randint(0, d, size=(1,))) for d in sample.shape[2:]]
+            assert_allclose(weight, cutout._params[0])
+            assert_allclose(perm, cutout._params[1])
+            self.assertSequenceEqual(coords, cutout._params[2])
             self.assertEqual(output.shape, sample.shape)
-            self.assertTrue(any(not torch.allclose(sample, cutout(sample)) for _ in range(10)))
+
+    def test_cutoutd(self):
+        for dims in [2, 3]:
+            shape = (6, 3) + (32,) * dims
+            t = torch.rand(*shape, dtype=torch.float32)
+            sample = {"a": t, "b": t}
+            cutout = CutOutd(["a", "b"], 6, 1.0)
+            cutout.set_random_state(seed=123)
+            output = cutout(sample)
+            np.random.seed(123)
+            # simulate the randomize() of transform
+            np.random.random()
+            weight = torch.from_numpy(np.random.beta(1.0, 1.0, 6)).type(torch.float32)
+            perm = np.random.permutation(6)
+            coords = [torch.from_numpy(np.random.randint(0, d, size=(1,))) for d in t.shape[2:]]
+            assert_allclose(weight, cutout.cutout._params[0])
+            assert_allclose(perm, cutout.cutout._params[1])
+            self.assertSequenceEqual(coords, cutout.cutout._params[2])
+            self.assertEqual(output["a"].shape, sample["a"].shape)
 
 
 if __name__ == "__main__":

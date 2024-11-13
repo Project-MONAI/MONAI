@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import torch
 
-from monai.config import IgniteInfo
+from monai.utils import IgniteInfo
 from monai.utils.module import min_version, optional_import
 
 try:

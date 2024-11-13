@@ -18,7 +18,7 @@ import torch.nn as nn
 from monai.networks.blocks.dynunet_block import UnetOutBlock
 from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrPrUpBlock, UnetrUpBlock
 from monai.networks.nets.vit import ViT
-from monai.utils import deprecated_arg, ensure_tuple_rep
+from monai.utils import ensure_tuple_rep
 
 
 class UNETR(nn.Module):
@@ -27,9 +27,6 @@ class UNETR(nn.Module):
     UNETR: Transformers for 3D Medical Image Segmentation <https://arxiv.org/abs/2103.10504>"
     """
 
-    @deprecated_arg(
-        name="pos_embed", since="1.2", removed="1.4", new_name="proj_type", msg_suffix="please use `proj_type` instead."
-    )
     def __init__(
         self,
         in_channels: int,
@@ -39,7 +36,6 @@ class UNETR(nn.Module):
         hidden_size: int = 768,
         mlp_dim: int = 3072,
         num_heads: int = 12,
-        pos_embed: str = "conv",
         proj_type: str = "conv",
         norm_name: tuple | str = "instance",
         conv_block: bool = True,
@@ -66,9 +62,6 @@ class UNETR(nn.Module):
             spatial_dims: number of spatial dims. Defaults to 3.
             qkv_bias: apply the bias term for the qkv linear layer in self attention block. Defaults to False.
             save_attn: to make accessible the attention in self attention block. Defaults to False.
-
-        .. deprecated:: 1.4
-            ``pos_embed`` is deprecated in favor of ``proj_type``.
 
         Examples::
 

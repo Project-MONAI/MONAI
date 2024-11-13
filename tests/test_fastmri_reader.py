@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.reconstruction.fastmri_reader import FastMRIReader
-from tests.utils import assert_allclose
+from tests.utils import SkipIfNoModule, assert_allclose
 
 TEST_CASE1 = [
     {
@@ -64,6 +64,7 @@ TEST_CASE2 = [
 ]
 
 
+@SkipIfNoModule("h5py")
 class TestMRIUtils(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE1, TEST_CASE2])

@@ -184,7 +184,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss()
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_batch(self):
         prediction = torch.zeros(2, 3, 3, 3)
@@ -194,7 +194,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss(batch=True)
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_script(self):
         loss = GeneralizedDiceLoss()

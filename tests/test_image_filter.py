@@ -38,6 +38,7 @@ ADDITIONAL_ARGUMENTS = {"order": 1, "sigma": 1, "padding_mode": "zeros"}
 
 
 class TestModule(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def __init__(self):
         super().__init__()
@@ -132,6 +133,12 @@ class TestImageFilter(unittest.TestCase):
         filter = ImageFilter(SUPPORTED_FILTERS[0], 3, **ADDITIONAL_ARGUMENTS)
         out_tensor = filter(image)
         self.assertTrue(isinstance(out_tensor, MetaTensor))
+
+    def test_gaussian_filter_without_filter_size(self):
+        "Test Gaussian filter without specifying filter_size"
+        filter = ImageFilter("gauss", sigma=2)
+        out_tensor = filter(SAMPLE_IMAGE_2D)
+        self.assertEqual(out_tensor.shape[1:], SAMPLE_IMAGE_2D.shape[1:])
 
 
 class TestImageFilterDict(unittest.TestCase):

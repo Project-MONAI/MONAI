@@ -17,7 +17,8 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
-from typing import Callable, Hashable, Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
+from typing import Callable
 
 import numpy as np
 
@@ -26,6 +27,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ClipIntensityPercentiles,
     ComputeHoVerMaps,
     ForegroundMask,
     GaussianSharpen,
@@ -77,6 +79,7 @@ __all__ = [
     "NormalizeIntensityd",
     "ThresholdIntensityd",
     "ScaleIntensityRanged",
+    "ClipIntensityPercentilesd",
     "AdjustContrastd",
     "RandAdjustContrastd",
     "ScaleIntensityRangePercentilesd",
@@ -122,6 +125,8 @@ __all__ = [
     "ThresholdIntensityDict",
     "ScaleIntensityRangeD",
     "ScaleIntensityRangeDict",
+    "ClipIntensityPercentilesD",
+    "ClipIntensityPercentilesDict",
     "AdjustContrastD",
     "AdjustContrastDict",
     "RandAdjustContrastD",
@@ -880,6 +885,36 @@ class ScaleIntensityRanged(MapTransform):
         self.scaler = ScaleIntensityRange(a_min, a_max, b_min, b_max, clip, dtype)
 
     def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.scaler(d[key])
+        return d
+
+
+class ClipIntensityPercentilesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ClipIntensityPercentiles`.
+    Clip the intensity values of input image to a specific range based on the intensity distribution of the input.
+    If `sharpness_factor` is provided, the intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor) * softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        lower: float | None,
+        upper: float | None,
+        sharpness_factor: float | None = None,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.scaler = ClipIntensityPercentiles(
+            lower=lower, upper=upper, sharpness_factor=sharpness_factor, channel_wise=channel_wise, dtype=dtype
+        )
+
+    def __call__(self, data: dict) -> dict:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.scaler(d[key])
@@ -1929,6 +1964,7 @@ RandScaleIntensityFixedMeanD = RandScaleIntensityFixedMeanDict = RandScaleIntens
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
+ClipIntensityPercentilesD = ClipIntensityPercentilesDict = ClipIntensityPercentilesd
 AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd
