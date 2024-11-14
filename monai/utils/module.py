@@ -649,7 +649,7 @@ def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: s
         current_ver_string: if None, the current system GPU CUDA compute capability will be used.
 
     Returns:
-        True if the current system GPU CUDA compute capability is greater than or equal to the specified version.
+        True if the current system GPU CUDA compute capability is greater than the specified version.
     """
     if current_ver_string is None:
         cuda_available = torch.cuda.is_available()
@@ -667,11 +667,11 @@ def compute_capabilities_after(major: int, minor: int = 0, current_ver_string: s
 
     ver, has_ver = optional_import("packaging.version", name="parse")
     if has_ver:
-        return ver(".".join((f"{major}", f"{minor}"))) <= ver(f"{current_ver_string}")  # type: ignore
+        return ver(".".join((f"{major}", f"{minor}"))) < ver(f"{current_ver_string}")  # type: ignore
     parts = f"{current_ver_string}".split("+", 1)[0].split(".", 2)
     while len(parts) < 2:
         parts += ["0"]
     c_major, c_minor = parts[:2]
     c_mn = int(c_major), int(c_minor)
     mn = int(major), int(minor)
-    return c_mn > mn
+    return c_mn >= mn
