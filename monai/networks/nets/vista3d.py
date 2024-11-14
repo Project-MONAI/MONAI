@@ -641,7 +641,6 @@ class ClassMappingClassify(nn.Module):
         # [b,1,feat] @ [1,feat,dim], batch dimension become class_embedding batch dimension.
         masks_embedding = class_embedding.squeeze() @ src.view(b, c, h * w * d)
         masks_embedding = masks_embedding.view(b, -1, h, w, d).transpose(0, 1)
-
         return masks_embedding, class_embedding
 
 

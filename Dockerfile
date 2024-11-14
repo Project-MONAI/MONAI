@@ -41,6 +41,10 @@ RUN cp /tmp/requirements.txt /tmp/req.bak \
 COPY LICENSE CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md README.md versioneer.py setup.py setup.cfg runtests.sh MANIFEST.in ./
 COPY tests ./tests
 COPY monai ./monai
+
+# TODO: remove this line and torch.patch for 24.11
+RUN patch -R -d /usr/local/lib/python3.10/dist-packages/torch/onnx/ < ./monai/torch.patch
+
 RUN BUILD_MONAI=1 FORCE_CUDA=1 python setup.py develop \
   && rm -rf build __pycache__
 
@@ -57,4 +61,6 @@ RUN apt-get update \
 # append /opt/tools to runtime path for NGC CLI to be accessible from all file system locations
 ENV PATH=${PATH}:/opt/tools
 ENV POLYGRAPHY_AUTOINSTALL_DEPS=1
+
+
 WORKDIR /opt/monai
