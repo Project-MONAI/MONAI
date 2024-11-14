@@ -323,7 +323,6 @@ class PythonicWorkflow(BundleWorkflow):
         value = None
         if name in self._set_props_vals:
             value = self._set_props_vals[name]
-            self._props_vals[name] = value
         elif name in self._props_vals:
             value = self._props_vals[name]
         elif name in self.parser.config[self.parser.meta_key]:  # type: ignore[index]
