@@ -307,7 +307,7 @@ class PythonicWorkflow(BundleWorkflow):
         """
         Initialize the bundle workflow before running.
         """
-        self._props = {}
+        self._props_vals = {}
 
     def _get_property(self, name: str, property: dict) -> Any:
         """
