@@ -50,7 +50,7 @@ class ListAdd(torch.nn.Module):
 @skip_if_quick
 @unittest.skipUnless(trt_imported, "tensorrt is required")
 @unittest.skipUnless(polygraphy_imported, "polygraphy is required")
-@SkipIfBeforeComputeCapabilityVersion((7, 0))
+@SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestTRTCompile(unittest.TestCase):
 
     def setUp(self):
