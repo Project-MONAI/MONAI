@@ -206,7 +206,7 @@ class TestBundleWorkflow(unittest.TestCase):
         self.assertEqual(workflow.version, "0.1.0")
         # check config override correctly
         self.assertEqual(workflow.inferer.roi_size, (64, 64, 32))
-        
+
         # check set property override correctly
         workflow.inferer = SlidingWindowInferer(roi_size=config_file["roi_size"], sw_batch_size=1, overlap=0.5)
         workflow.initialize()
@@ -219,7 +219,7 @@ class TestBundleWorkflow(unittest.TestCase):
         pred = workflow.dataflow["pred"]
         self.assertEqual(pred.shape[2:], self.expected_shape)
         self.assertEqual(pred.meta["filename_or_obj"], self.filename2)
-        
+
         # test add properties
         workflow.add_property(name="net", required=True, desc="network for the training.")
         self.assertIn("net", workflow.properties)
