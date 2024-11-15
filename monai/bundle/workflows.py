@@ -51,7 +51,7 @@ class BundleWorkflow(ABC):
             default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
-            properties will default to loading from "train". If the specified file is unavailable, default properties
+            properties will default to loading from "meta". If the specified file is unavailable, default properties
             will be sourced from "monai/bundle/properties.py" based on the workflow_type:
             For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
             For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
@@ -116,8 +116,7 @@ class BundleWorkflow(ABC):
             if not properties_path.is_file():
                 raise ValueError(f"Property file {properties_path} does not exist.")
             if workflow_type is None:
-                workflow_type = "train"
-                logger.info("No workflow type specified, default to 'train' for property file loading.")
+                logger.info("No workflow type specified, default to load meta properties from property file.")
             with open(properties_path) as json_file:
                 try:
                     properties = json.load(json_file)
@@ -249,9 +248,13 @@ class BundleWorkflow(ABC):
 class PythonicWorkflow(BundleWorkflow):
     """
     Base class for the pythonic workflow specification in bundle, it can be a training, evaluation or inference workflow.
-    It defines the basic interfaces for the bundle workflow behavior: `initialize`, `run`, `finalize`, etc.
+    It defines the basic interfaces for the bundle workflow behavior: `initialize`, `finalize`, etc.
     This also provides the interface to get / set public properties to interact with a bundle workflow through
     defined `get_<property>` accessor methods or directly defining members of the object.
+    For how to set the properties, users can define the `_set_<property>` methods or directly set the members of the object.
+    The `initialize` method is called to set up the workflow before running. This method sets up internal state and prepares properties.
+    If properties are modified after the workflow has been initialized, `self._is_initialized` is set to `False`. Before running the
+    workflow again, `initialize` should be called to ensure that the workflow is properly set up with the new property values.
 
     Args:
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,
@@ -264,7 +267,7 @@ class PythonicWorkflow(BundleWorkflow):
             default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
-            properties will default to loading from "train". If the specified file is unavailable, default properties
+            properties will default to loading from "meta". If the specified file is unavailable, default properties
             will be sourced from "monai/bundle/properties.py" based on the workflow_type:
             For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
             For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
@@ -302,12 +305,14 @@ class PythonicWorkflow(BundleWorkflow):
 
         # the rest key-values in the _args are to override config content
         self.parser.update(pairs=override)
+        self._is_initialized: bool = False
 
     def initialize(self, *args: Any, **kwargs: Any) -> Any:
         """
         Initialize the bundle workflow before running.
         """
         self._props_vals = {}
+        self._is_initialized = True
 
     def _get_property(self, name: str, property: dict) -> Any:
         """
@@ -320,6 +325,8 @@ class PythonicWorkflow(BundleWorkflow):
             name: the name of target property.
             property: other information for the target property, defined in `TrainProperties` or `InferProperties`.
         """
+        if not self._is_initialized:
+            raise RuntimeError("Please execute 'initialize' before getting any properties.")
         value = None
         if name in self._set_props_vals:
             value = self._set_props_vals[name]
@@ -343,7 +350,7 @@ class PythonicWorkflow(BundleWorkflow):
     def _set_property(self, name: str, property: dict, value: Any) -> Any:
         """
         With specified property name and information, set value for the expected property.
-        Stores user-reset initialized objects that should not be re-initialized.
+        Stores user-reset initialized objects that should not be re-initialized and marks the workflow as not initialized.
 
         Args:
             name: the name of target property.
@@ -352,6 +359,7 @@ class PythonicWorkflow(BundleWorkflow):
 
         """
         self._set_props_vals[name] = value
+        self._is_initialized = False
 
 
 class ConfigWorkflow(BundleWorkflow):

@@ -197,6 +197,8 @@ class PythonicWorkflowImpl(PythonicWorkflow):
         self.dataflow: dict = {}
 
     def initialize(self):
+        self._props_vals = {}
+        self._is_initialized = True
         self.net = UNet(
             spatial_dims=3,
             in_channels=1,
@@ -214,7 +216,6 @@ class PythonicWorkflowImpl(PythonicWorkflow):
         )
         self.dataset = Dataset(data=[self.dataflow], transform=preprocessing)
         self.postprocessing = Compose([Activationsd(keys="pred", softmax=True), AsDiscreted(keys="pred", argmax=True)])
-        self.inferer = SlidingWindowInferer(roi_size=self.parser.roi_size, sw_batch_size=1, overlap=0)
 
     def run(self):
         data = self.dataset[0]
@@ -234,4 +235,4 @@ class PythonicWorkflowImpl(PythonicWorkflow):
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def get_inferer(self):
-        return self.inferer
+        return SlidingWindowInferer(roi_size=self.parser.roi_size, sw_batch_size=1, overlap=0)
