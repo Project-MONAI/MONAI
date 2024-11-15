@@ -126,7 +126,9 @@ class BundleWorkflow(ABC):
                     elif workflow_type is None:
                         if "meta" in properties:
                             self.properties = properties["meta"]
-                            logger.info("No workflow type specified, default to load meta properties from property file.")
+                            logger.info(
+                                "No workflow type specified, default to load meta properties from property file."
+                            )
                         else:
                             logger.warning("No 'meta' key found in properties while workflow_type is None.")
                 except KeyError as e:

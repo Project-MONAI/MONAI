@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import os
-import sys
 import shutil
+import sys
 import tempfile
 import unittest
 from copy import deepcopy
@@ -174,10 +174,7 @@ class TestBundleWorkflow(unittest.TestCase):
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         property_path = os.path.join(os.path.dirname(__file__), "testing_data", "python_workflow_properties.json")
         workflow = PythonicWorkflowImpl(
-            workflow_type="infer",
-            config_file=config_file,
-            meta_file=meta_file,
-            properties_path=property_path
+            workflow_type="infer", config_file=config_file, meta_file=meta_file, properties_path=property_path
         )
         workflow.initialize()
         # Load input data
@@ -208,7 +205,7 @@ class TestBundleWorkflow(unittest.TestCase):
             workflow_type="infer",
             config_file=config_file,
             meta_file=meta_file,
-            properties_path=property_path
+            properties_path=property_path,
         )
         # Load input data
         input_loader = LoadImaged(keys="image")
