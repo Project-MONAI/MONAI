@@ -115,14 +115,18 @@ class BundleWorkflow(ABC):
             properties_path = Path(properties_path)
             if not properties_path.is_file():
                 raise ValueError(f"Property file {properties_path} does not exist.")
-            if workflow_type is None:
-                logger.info("No workflow type specified, default to load meta properties from property file.")
             with open(properties_path) as json_file:
                 try:
                     properties = json.load(json_file)
-                    self.properties = properties[workflow_type]
-                    if "meta" in properties:
-                        self.properties.update(properties["meta"])
+                    self.properties: dict = {}
+                    if workflow_type is not None and workflow_type in properties:
+                        self.properties = properties[workflow_type]
+                    elif workflow_type is None:
+                        if "meta" in properties:
+                            self.properties = properties["meta"]
+                            logger.info("No workflow type specified, default to load meta properties from property file.")
+                        else:
+                            logger.warning("No 'meta' key found in properties while workflow_type is None.")
                 except KeyError as e:
                     raise ValueError(f"{workflow_type} not found in property file {properties_path}") from e
                 except json.JSONDecodeError as e:
@@ -252,9 +256,10 @@ class PythonicWorkflow(BundleWorkflow):
     This also provides the interface to get / set public properties to interact with a bundle workflow through
     defined `get_<property>` accessor methods or directly defining members of the object.
     For how to set the properties, users can define the `_set_<property>` methods or directly set the members of the object.
-    The `initialize` method is called to set up the workflow before running. This method sets up internal state and prepares properties.
-    If properties are modified after the workflow has been initialized, `self._is_initialized` is set to `False`. Before running the
-    workflow again, `initialize` should be called to ensure that the workflow is properly set up with the new property values.
+    The `initialize` method is called to set up the workflow before running. This method sets up internal state
+    and prepares properties. If properties are modified after the workflow has been initialized, `self._is_initialized`
+    is set to `False`. Before running the workflow again, `initialize` should be called to ensure that the workflow is
+    properly set up with the new property values.
 
     Args:
         workflow_type: specifies the workflow type: "train" or "training" for a training workflow,

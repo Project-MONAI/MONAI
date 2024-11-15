@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import shutil
 import tempfile
 import unittest
@@ -195,9 +196,14 @@ class TestBundleWorkflow(unittest.TestCase):
         config_file = {"roi_size": (64, 64, 32)}
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
         property_path = os.path.join(os.path.dirname(__file__), "testing_data", "python_workflow_properties.json")
-        import sys
         sys.path.append(os.path.dirname(__file__))
-        workflow = create_workflow("nonconfig_workflow.PythonicWorkflowImpl", workflow_type="infer", config_file=config_file, meta_file=meta_file, properties_path=property_path)
+        workflow = create_workflow(
+            "nonconfig_workflow.PythonicWorkflowImpl",
+            workflow_type="infer",
+            config_file=config_file,
+            meta_file=meta_file,
+            properties_path=property_path
+        )
         # Load input data
         input_loader = LoadImaged(keys="image")
         workflow.dataflow.update(input_loader({"image": self.filename}))
@@ -206,7 +212,7 @@ class TestBundleWorkflow(unittest.TestCase):
         self.assertEqual(workflow.version, "0.1.0")
         # check config override correctly
         self.assertEqual(workflow.inferer.roi_size, (64, 64, 32))
-        
+
         # check set property override correctly
         workflow.inferer = SlidingWindowInferer(roi_size=config_file["roi_size"], sw_batch_size=1, overlap=0.5)
         workflow.initialize()
@@ -219,7 +225,7 @@ class TestBundleWorkflow(unittest.TestCase):
         pred = workflow.dataflow["pred"]
         self.assertEqual(pred.shape[2:], self.expected_shape)
         self.assertEqual(pred.meta["filename_or_obj"], self.filename2)
-        
+
         # test add properties
         workflow.add_property(name="net", required=True, desc="network for the training.")
         self.assertIn("net", workflow.properties)
