@@ -121,6 +121,8 @@ class BundleWorkflow(ABC):
                     self.properties: dict = {}
                     if workflow_type is not None and workflow_type in properties:
                         self.properties = properties[workflow_type]
+                        if "meta" in properties:
+                            self.properties.update(properties["meta"])
                     elif workflow_type is None:
                         if "meta" in properties:
                             self.properties = properties["meta"]

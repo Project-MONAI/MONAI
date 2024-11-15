@@ -172,7 +172,13 @@ class TestBundleWorkflow(unittest.TestCase):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         config_file = {"roi_size": (64, 64, 32)}
         meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        workflow = PythonicWorkflowImpl(workflow_type="infer", config_file=config_file, meta_file=meta_file)
+        property_path = os.path.join(os.path.dirname(__file__), "testing_data", "python_workflow_properties.json")
+        workflow = PythonicWorkflowImpl(
+            workflow_type="infer",
+            config_file=config_file,
+            meta_file=meta_file,
+            properties_path=property_path
+        )
         workflow.initialize()
         # Load input data
         input_loader = LoadImaged(keys="image")
