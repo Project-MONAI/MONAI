@@ -11,14 +11,12 @@
 
 from __future__ import annotations
 
-import logging
-import warnings
 from types import MethodType
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 import torch
 
-from monai.networks.utils import copy_model_state
 from monai.utils import IgniteInfo, min_version, optional_import
 from torch.ao.quantization.quantizer import Quantizer
 from torch.ao.quantization.quantizer.xnnpack_quantizer import (
@@ -27,7 +25,6 @@ from torch.ao.quantization.quantizer.xnnpack_quantizer import (
 )
 from torch.ao.quantization.quantize_pt2e import (
   prepare_qat_pt2e,
-  convert_pt2e,
 )
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
@@ -57,7 +54,7 @@ class ModelQuantizer:
         example_inputs: Sequence,
         export_path: str,
         quantizer: Quantizer | None = None,
-        
+
     ) -> None:
         self.model = model
         self.example_inputs = example_inputs
@@ -77,6 +74,6 @@ class ModelQuantizer:
         self.model = prepare_qat_pt2e(self.model, self.quantizer)
         self.model.train = MethodType(torch.ao.quantization.move_exported_model_to_train, self.model)
         self.model.eval = MethodType(torch.ao.quantization.move_exported_model_to_eval, self.model)
-    
+
     def epoch(self) -> None:
         torch.save(self.model.state_dict(), self.export_path)

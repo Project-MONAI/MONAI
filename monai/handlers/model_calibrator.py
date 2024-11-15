@@ -45,7 +45,7 @@ class ModelCalibrater:
         model: torch.nn.Module,
         export_path: str,
         config: dict= mtq.INT8_SMOOTHQUANT_CFG,
-        
+
     ) -> None:
         self.model = model
         self.export_path = export_path
@@ -57,7 +57,7 @@ class ModelCalibrater:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
         engine.add_event_handler(Events.STARTED, self)
-    
+
     @staticmethod
     def _model_wrapper(engine, model):
         engine.run()
