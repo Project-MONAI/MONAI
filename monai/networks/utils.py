@@ -712,9 +712,10 @@ def convert_to_onnx(
         onnx_model = onnx.load(f)
 
     if do_constant_folding and polygraphy_imported:
-        from polygraphy.backend.onnx.loader import fold_constants
+        from polygraphy.backend.onnx.loader import fold_constants, save_onnx
 
-        fold_constants(onnx_model, size_threshold=constant_size_threshold)
+        onnx_model = fold_constants(onnx_model, size_threshold=constant_size_threshold)
+        save_onnx(onnx_model, f)
 
     if verify:
         if isinstance(inputs, dict):
