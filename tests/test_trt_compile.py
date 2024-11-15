@@ -61,7 +61,7 @@ class TestTRTCompile(unittest.TestCase):
         if current_device != self.gpu_device:
             torch.cuda.set_device(self.gpu_device)
 
-    @unittest.skipUnless(torch_trt_imported, "torch_tensorrt is required")
+    # @unittest.skipUnless(torch_trt_imported, "torch_tensorrt is required")
     def test_handler(self):
         from ignite.engine import Engine
 
@@ -74,7 +74,7 @@ class TestTRTCompile(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             engine = Engine(lambda e, b: None)
-            args = {"method": "torch_trt"}
+            args = {"method": "onnx", "dynamic_batchsize": [1, 4, 8]}
             TrtHandler(net1, tempdir + "/trt_handler", args=args).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             self.assertIsNotNone(net1._trt_compiler)
@@ -86,7 +86,11 @@ class TestTRTCompile(unittest.TestCase):
         model = ListAdd().cuda()
 
         with torch.no_grad(), tempfile.TemporaryDirectory() as tmpdir:
-            args = {"output_lists": [[-1], [2], []], "export_args": {"dynamo": False, "verbose": True}}
+            args = {
+                "output_lists": [[-1], [2], []],
+                "export_args": {"dynamo": False, "verbose": True},
+                "dynamic_batchsize": [1, 4, 8],
+            }
             x = torch.randn(1, 16).to("cuda")
             y = torch.randn(1, 16).to("cuda")
             z = torch.randn(1, 16).to("cuda")
