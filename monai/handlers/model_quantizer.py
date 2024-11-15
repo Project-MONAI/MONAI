@@ -11,21 +11,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from types import MethodType
 from typing import TYPE_CHECKING
-from collections.abc import Sequence
 
 import torch
+from torch.ao.quantization.quantize_pt2e import prepare_qat_pt2e
+from torch.ao.quantization.quantizer import Quantizer
+from torch.ao.quantization.quantizer.xnnpack_quantizer import XNNPACKQuantizer, get_symmetric_quantization_config
 
 from monai.utils import IgniteInfo, min_version, optional_import
-from torch.ao.quantization.quantizer import Quantizer
-from torch.ao.quantization.quantizer.xnnpack_quantizer import (
-  XNNPACKQuantizer,
-  get_symmetric_quantization_config,
-)
-from torch.ao.quantization.quantize_pt2e import (
-  prepare_qat_pt2e,
-)
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
@@ -49,17 +44,14 @@ class ModelQuantizer:
     """
 
     def __init__(
-        self,
-        model: torch.nn.Module,
-        example_inputs: Sequence,
-        export_path: str,
-        quantizer: Quantizer | None = None,
-
+        self, model: torch.nn.Module, example_inputs: Sequence, export_path: str, quantizer: Quantizer | None = None
     ) -> None:
         self.model = model
         self.example_inputs = example_inputs
         self.export_path = export_path
-        self.quantizer = XNNPACKQuantizer().set_global(get_symmetric_quantization_config()) if quantizer is None else quantizer
+        self.quantizer = (
+            XNNPACKQuantizer().set_global(get_symmetric_quantization_config()) if quantizer is None else quantizer
+        )
 
     def attach(self, engine: Engine) -> None:
         """

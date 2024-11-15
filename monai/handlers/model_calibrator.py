@@ -11,13 +11,13 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
-import torch
 import modelopt.torch.quantization as mtq
-from functools import partial
-from monai.utils import IgniteInfo, min_version, optional_import
+import torch
 
+from monai.utils import IgniteInfo, min_version, optional_import
 
 Events, _ = optional_import("ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Events")
 Checkpoint, _ = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
@@ -40,13 +40,7 @@ class ModelCalibrater:
 
     """
 
-    def __init__(
-        self,
-        model: torch.nn.Module,
-        export_path: str,
-        config: dict= mtq.INT8_SMOOTHQUANT_CFG,
-
-    ) -> None:
+    def __init__(self, model: torch.nn.Module, export_path: str, config: dict = mtq.INT8_SMOOTHQUANT_CFG) -> None:
         self.model = model
         self.export_path = export_path
         self.config = config
@@ -65,4 +59,4 @@ class ModelCalibrater:
     def __call__(self, engine) -> None:
         quant_fun = partial(self._model_wrapper, engine)
         model = mtq.quantize(self.model, self.config, quant_fun)
-        torch.save(self.model.state_dict(), self.export_path)
+        torch.save(model.state_dict(), self.export_path)
