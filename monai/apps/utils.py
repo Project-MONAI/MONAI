@@ -327,7 +327,18 @@ def download_and_extract(
             be False.
         progress: whether to display progress bar.
     """
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        filename = filepath or Path(tmp_dir, _basename(url)).resolve()
-        download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
-        extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
+    urlFilenameExtension = ''.join(Path(".", _basename(url)).resolve().suffixes)
+    if filepath:
+        FilepathExtenstion = ''.join(Path(".", _basename(filepath)).resolve().suffixes)
+        if urlFilenameExtension != FilepathExtenstion:
+            raise NotImplementedError(
+                f'The file types do not match: url={urlFilenameExtension}, but filepath={FilepathExtenstion}'
+            )
+    else:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            if filepath:
+                filename = filepath
+            else:
+                filename = Path(tmp_dir, _basename(url)).resolve()
+            download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
+            extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
