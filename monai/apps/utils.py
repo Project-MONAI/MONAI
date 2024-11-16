@@ -339,6 +339,5 @@ def download_and_extract(
             filename = filepath
         else:
             filename = Path(tmp_dir, _basename(url)).resolve()
-        filename = filepath if filepath else Path(tmp_dir, _basename(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
