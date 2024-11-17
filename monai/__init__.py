@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
-import logging
 import warnings
-from ._version import get_versions
 
+from ._version import get_versions
 
 old_showwarning = warnings.showwarning
 
@@ -78,6 +78,7 @@ if sys.version_info.major != PY_REQUIRED_MAJOR or sys.version_info.minor < PY_RE
         f"But the current Python is: {sys.version}",
         category=RuntimeWarning,
     )
+
 
 from .utils.module import load_submodules  # noqa: E402
 

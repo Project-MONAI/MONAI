@@ -21,13 +21,10 @@ from monai.networks.blocks.convolutions import Convolution
 from monai.networks.blocks.upsample import UpSample
 from monai.networks.blocks.warp import DVF2DDF, Warp
 from monai.networks.layers.simplelayers import SkipConnection
-from monai.utils import alias, export
 
 __all__ = ["VoxelMorphUNet", "voxelmorphunet", "VoxelMorph", "voxelmorph"]
 
 
-@export("monai.networks.nets")
-@alias("voxelmorphunet")
 class VoxelMorphUNet(nn.Module):
     """
     The backbone network used in VoxelMorph. See :py:class:`monai.networks.nets.VoxelMorph` for more details.
@@ -340,8 +337,6 @@ class VoxelMorphUNet(nn.Module):
 voxelmorphunet = VoxelMorphUNet
 
 
-@export("monai.networks.nets")
-@alias("voxelmorph")
 class VoxelMorph(nn.Module):
     """
     A re-implementation of VoxelMorph framework for medical image registration as described in

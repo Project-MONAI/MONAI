@@ -15,7 +15,6 @@ import random
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from monai.config import IgniteInfo
 from monai.utils.module import min_version, optional_import
 
 __all__ = [
@@ -61,6 +60,7 @@ __all__ = [
     "BundleProperty",
     "BundlePropertyConfig",
     "AlgoKeys",
+    "IgniteInfo",
 ]
 
 
@@ -87,14 +87,6 @@ class StrEnum(str, Enum):
 
     def __repr__(self):
         return self.value
-
-
-if TYPE_CHECKING:
-    from ignite.engine import EventEnum
-else:
-    EventEnum, _ = optional_import(
-        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum", as_type="base"
-    )
 
 
 class NumpyPadMode(StrEnum):
@@ -717,6 +709,35 @@ class AdversarialKeys(StrEnum):
     DISCRIMINATOR_LOSS = "discriminator_loss"
 
 
+class OrderingType(StrEnum):
+    RASTER_SCAN = "raster_scan"
+    S_CURVE = "s_curve"
+    RANDOM = "random"
+
+
+class OrderingTransformations(StrEnum):
+    ROTATE_90 = "rotate_90"
+    TRANSPOSE = "transpose"
+    REFLECT = "reflect"
+
+
+class IgniteInfo(StrEnum):
+    """
+    Config information of the PyTorch ignite package.
+
+    """
+
+    OPT_IMPORT_VERSION = "0.4.11"
+
+
+if TYPE_CHECKING:
+    from ignite.engine import EventEnum
+else:
+    EventEnum, _ = optional_import(
+        "ignite.engine", IgniteInfo.OPT_IMPORT_VERSION, min_version, "EventEnum", as_type="base"
+    )
+
+
 class AdversarialIterationEvents(EventEnum):
     """
     Keys used to define events as used in the AdversarialTrainer.
@@ -733,15 +754,3 @@ class AdversarialIterationEvents(EventEnum):
     DISCRIMINATOR_LOSS_COMPLETED = "discriminator_loss_completed"
     DISCRIMINATOR_BACKWARD_COMPLETED = "discriminator_backward_completed"
     DISCRIMINATOR_MODEL_COMPLETED = "discriminator_model_completed"
-
-
-class OrderingType(StrEnum):
-    RASTER_SCAN = "raster_scan"
-    S_CURVE = "s_curve"
-    RANDOM = "random"
-
-
-class OrderingTransformations(StrEnum):
-    ROTATE_90 = "rotate_90"
-    TRANSPOSE = "transpose"
-    REFLECT = "reflect"

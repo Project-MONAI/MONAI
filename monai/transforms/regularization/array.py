@@ -111,6 +111,11 @@ class CutMix(Mixer):
         the mixing weight but also the size of the random rectangles used during for mixing.
         Please refer to the paper for details.
 
+        Please note that there is a change in behavior starting from version 1.4.0. In the previous
+        implementation, the transform would generate a different label each time it was called.
+        To ensure determinism, the new implementation will now generate the same label for
+        the same input image when using the same operation.
+
         The most common use case is something close to:
 
     .. code-block:: python
