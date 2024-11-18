@@ -105,6 +105,8 @@ __all__ = [
     "ToDevice",
     "CuCIM",
     "RandCuCIM",
+    "RandTorchIO",
+    "RandTorchVision",
     "ToCupy",
     "ImageFilter",
     "RandImageFilter",
@@ -1139,7 +1141,7 @@ class AddExtremePointsChannel(Randomizable, Transform):
 
 class TorchVision(Transform):
     """
-    This is a wrapper transform for PyTorch TorchVision transform based on the specified transform name and args.
+    This is a wrapper transform for PyTorch TorchVision non-randomized transform based on the specified transform name and args.
     Data is converted to a torch.tensor before applying the transform and then converted back to the original data type.
     """
 
@@ -1171,9 +1173,43 @@ class TorchVision(Transform):
         return out
 
 
-class TorchIO(Transform, RandomizableTrait):
+class RandTorchVision(Transform, RandomizableTrait):
     """
-    This is a wrapper transform for TorchIO transforms based on the specified transform name and args.
+    This is a wrapper transform for PyTorch TorchVision randomized transform based on the specified transform name and args.
+    Data is converted to a torch.tensor before applying the transform and then converted back to the original data type.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: PyTorch Tensor data for the TorchVision transform.
+
+        """
+        img_t, *_ = convert_data_type(img, torch.Tensor)
+
+        out = self.trans(img_t)
+        out, *_ = convert_to_dst_type(src=out, dst=img)
+        return out
+
+
+class TorchIO(Transform):
+    """
+    This is a wrapper for TorchIO non-randomized transforms based on the specified transform name and args.
     See https://torchio.readthedocs.io/transforms/transforms.html for more details.
     """
 
@@ -1185,21 +1221,41 @@ class TorchIO(Transform, RandomizableTrait):
             name: The transform name in TorchIO package.
             args: parameters for the TorchIO transform.
             kwargs: parameters for the TorchIO transform.
-
-        Note:
-            The `p=` kwarg of TorchIO transforms control set the probability with which the transform is applied.
-            You can specify the probability of applying the transform by passing either `prob` ot `p` in kwargs but'
-            ' not both.
         """
         super().__init__()
         self.name = name
         transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
 
-        if "prob" in kwargs:
-            if "p" in kwargs:
-                raise ValueError("Cannot specify both 'prob' and 'p' in kwargs.")
-            kwargs["p"] = kwargs.pop("prob")
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
+                 or dict containing 4D tensors as values
 
+        """
+        return self.trans(img)
+
+class RandTorchIO(Transform, RandomizableTrait):
+    """
+    This is a wrapper for TorchIO randomized transforms based on the specified transform name and args.
+    See https://torchio.readthedocs.io/transforms/transforms.html for more details.
+    Use this wrapper for all TorchIO transform inheriting from RandomTransform:
+        https://torchio.readthedocs.io/transforms/augmentation.html#randomtransform
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchIO package.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
         self.trans = transform(*args, **kwargs)
 
     def __call__(self, img: NdarrayOrTensor):
