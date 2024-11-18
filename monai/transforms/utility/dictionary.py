@@ -1952,9 +1952,10 @@ ConvertToMultiChannelBasedOnBratsClassesD = ConvertToMultiChannelBasedOnBratsCla
     ConvertToMultiChannelBasedOnBratsClassesd
 )
 AddExtremePointsChannelD = AddExtremePointsChannelDict = AddExtremePointsChanneld
-TorchVisionD = TorchVisionDict = TorchVisiond
 TorchIOD = TorchIODict = TorchIOd
+TorchVisionD = TorchVisionDict = TorchVisiond
 RandTorchVisionD = RandTorchVisionDict = RandTorchVisiond
+RandTorchIOd = RandTorchIODict = RandTorchIOD
 RandLambdaD = RandLambdaDict = RandLambdad
 MapLabelValueD = MapLabelValueDict = MapLabelValued
 IntensityStatsD = IntensityStatsDict = IntensityStatsd
