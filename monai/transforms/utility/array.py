@@ -1236,6 +1236,7 @@ class TorchIO(Transform):
         """
         return self.trans(img)
 
+
 class RandTorchIO(Transform, RandomizableTrait):
     """
     This is a wrapper for TorchIO randomized transforms based on the specified transform name and args.

@@ -1460,14 +1460,7 @@ class TorchIOd(MapTransform):
 
     backend = TorchIO.backend
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
@@ -1497,14 +1490,7 @@ class RandTorchIOd(MapTransform, RandomizableTrait):
 
     backend = TorchIO.backend
 
-    def __init__(
-        self,
-        keys: KeysCollection,
-        name: str,
-        allow_missing_keys: bool = False,
-        *args,
-        **kwargs,
-    ) -> None:
+    def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False, *args, **kwargs) -> None:
         """
         Args:
             keys: keys of the corresponding items to be transformed.
