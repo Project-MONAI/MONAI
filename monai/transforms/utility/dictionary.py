@@ -1478,7 +1478,7 @@ class TorchIOd(MapTransform):
 
         self.trans = TorchIO(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[NdarrayOrTensor]) -> dict[NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         return self.trans(dict(data))
 
 
@@ -1508,7 +1508,7 @@ class RandTorchIOd(MapTransform, RandomizableTrait):
 
         self.trans = TorchIO(name, *args, **kwargs)
 
-    def __call__(self, data: Mapping[NdarrayOrTensor]) -> dict[NdarrayOrTensor]:
+    def __call__(self, data: Mapping[Hashable, NdarrayOrTensor]) -> dict[Hashable, NdarrayOrTensor]:
         return self.trans(dict(data))
 
 
