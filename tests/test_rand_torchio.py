@@ -18,21 +18,34 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.transforms import TorchIO
-from monai.utils import optional_import
+from monai.transforms import RandTorchIO
+from monai.utils import optional_import, set_determinism
 
 _, has_torchio = optional_import("torchio")
 
 TEST_DIMS = [3, 128, 160, 160]
-TESTS = [[{"name": "RescaleIntensity"}, torch.rand(TEST_DIMS)], [{"name": "ZNormalization"}, torch.rand(TEST_DIMS)]]
+TESTS = [
+    [{"name": "RandomAffine"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomElasticDeformation"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomAnisotropy"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomMotion"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomGhosting"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomSpike"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomBiasField"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomBlur"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomNoise"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomSwap"}, torch.rand(TEST_DIMS)],
+    [{"name": "RandomGamma"}, torch.rand(TEST_DIMS)],
+]
 
 
 @skipUnless(has_torchio, "Requires torchio")
-class TestTorchIO(unittest.TestCase):
+class TestRandTorchIO(unittest.TestCase):
 
     @parameterized.expand(TESTS)
     def test_value(self, input_param, input_data):
-        result = TorchIO(**input_param)(input_data)
+        set_determinism(seed=0)
+        result = RandTorchIO(**input_param)(input_data)
         self.assertIsNotNone(result)
         self.assertFalse(np.array_equal(result.numpy(), input_data.numpy()), f"{input_param} failed")
 
