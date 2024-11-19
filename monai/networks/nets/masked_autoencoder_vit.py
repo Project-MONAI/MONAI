@@ -128,13 +128,11 @@ class MaskedAutoEncoderViT(nn.Module):
             dropout_rate=dropout_rate,
             spatial_dims=self.spatial_dims,
         )
-        self.blocks = nn.ModuleList(
-            [
-                TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias, save_attn)
-                for _ in range(num_layers)
-            ]
-        )
-        self.norm = nn.LayerNorm(hidden_size)
+        blocks = [
+            TransformerBlock(hidden_size, mlp_dim, num_heads, dropout_rate, qkv_bias, save_attn)
+            for _ in range(num_layers)
+        ]
+        self.blocks = nn.Sequential(*blocks, nn.LayerNorm(hidden_size))
 
         # decoder
         self.decoder_embed = nn.Linear(hidden_size, decoder_hidden_size)
@@ -144,15 +142,11 @@ class MaskedAutoEncoderViT(nn.Module):
         self.decoder_pos_embed_type = look_up_option(decoder_pos_embed_type, SUPPORTED_POS_EMBEDDING_TYPES)
         self.decoder_pos_embedding = nn.Parameter(torch.zeros(1, self.patch_embedding.n_patches, decoder_hidden_size))
 
-        self.decoder_blocks = nn.ModuleList(
-            [
-                TransformerBlock(
-                    decoder_hidden_size, decoder_mlp_dim, decoder_num_heads, dropout_rate, qkv_bias, save_attn
-                )
-                for _ in range(decoder_num_layers)
-            ]
-        )
-        self.decoder_norm = nn.LayerNorm(decoder_hidden_size)
+        decoder_blocks = [
+            TransformerBlock(decoder_hidden_size, decoder_mlp_dim, decoder_num_heads, dropout_rate, qkv_bias, save_attn)
+            for _ in range(decoder_num_layers)
+        ]
+        self.decoder_blocks = nn.Sequential(*decoder_blocks, nn.LayerNorm(decoder_hidden_size))
         self.decoder_pred = nn.Linear(decoder_hidden_size, int(np.prod(self.patch_size)) * in_channels)
 
         self._init_weights()
@@ -201,9 +195,7 @@ class MaskedAutoEncoderViT(nn.Module):
         cls_tokens = self.cls_token.expand(x.shape[0], -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
 
-        for blk in self.blocks:
-            x = blk(x)
-        x = self.norm(x)
+        x = self.blocks(x)
 
         # decoder
         x = self.decoder_embed(x)
@@ -212,9 +204,7 @@ class MaskedAutoEncoderViT(nn.Module):
         x_[torch.arange(x.shape[0]).unsqueeze(-1), selected_indices] = x[:, 1:, :]  # no cls token
         x_ = x_ + self.decoder_pos_embedding
         x = torch.cat([x[:, :1, :], x_], dim=1)
-        for blk in self.decoder_blocks:
-            x = blk(x)
-        x = self.decoder_norm(x)
+        x = self.decoder_blocks(x)
         x = self.decoder_pred(x)
 
         x = x[:, 1:, :]
