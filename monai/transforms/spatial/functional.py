@@ -32,7 +32,7 @@ from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
 from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
-from monai.transforms.utils_pytorch_numpy_unification import allclose
+from monai.transforms.utils_pytorch_numpy_unification import allclose, concatenate
 from monai.utils import (
     LazyAttr,
     TraceKeys,
@@ -44,13 +44,24 @@ from monai.utils import (
     fall_back_tuple,
     optional_import,
 )
+from monai.utils.enums import MetaKeys, KindKeys
 
 nib, has_nib = optional_import("nibabel")
 cupy, _ = optional_import("cupy")
 cupy_ndi, _ = optional_import("cupyx.scipy.ndimage")
 np_ndi, _ = optional_import("scipy.ndimage")
 
-__all__ = ["spatial_resample", "orientation", "flip", "resize", "rotate", "zoom", "rotate90", "affine_func"]
+__all__ = [
+    "spatial_resample",
+    "orientation",
+    "flip_image",
+    "flip_point",
+    "resize",
+    "rotate",
+    "zoom",
+    "rotate90",
+    "affine_func",
+]
 
 
 def _maybe_new_metatensor(img, dtype=None, device=None):
@@ -229,7 +240,26 @@ def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> tor
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def flip(img, sp_axes, lazy, transform_info):
+def flip_helper(data, sp_axes, lazy, transform_info):
+    sp_size = data.peek_pending_shape() if isinstance(data, MetaTensor) else data.shape[1:]
+    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
+    extra_info = {"axes": sp_axes}  # track the spatial axes
+    axes = monai.transforms.utils.map_spatial_axes(data.ndim, sp_axes)  # use the axes with channel dim
+    rank = data.peek_pending_rank() if isinstance(data, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
+    # axes include the channel dim
+    xform = torch.eye(int(rank) + 1, dtype=torch.double)
+    for axis in axes:
+        sp = axis - 1
+        if data.kind == KindKeys.PIXEL:
+            xform[sp, -1] = sp_size[sp] - 1
+        xform[sp, sp] = xform[sp, sp] * -1
+    meta_info = TraceableTransform.track_transform_meta(
+        data, affine=xform, extra_info=extra_info, lazy=lazy, transform_info=transform_info
+    )
+    return axes, meta_info, xform
+
+
+def flip_image(img, sp_axes, lazy, transform_info):
     """
     Functional implementation of flip.
     This function operates eagerly or lazily according to
@@ -245,23 +275,46 @@ def flip(img, sp_axes, lazy, transform_info):
         lazy: a flag that indicates whether the operation should be performed lazily or not
         transform_info: a dictionary with the relevant information pertaining to an applied transform.
     """
-    sp_size = img.peek_pending_shape() if isinstance(img, MetaTensor) else img.shape[1:]
-    sp_size = convert_to_numpy(sp_size, wrap_sequence=True).tolist()
-    extra_info = {"axes": sp_axes}  # track the spatial axes
-    axes = monai.transforms.utils.map_spatial_axes(img.ndim, sp_axes)  # use the axes with channel dim
-    rank = img.peek_pending_rank() if isinstance(img, MetaTensor) else torch.tensor(3.0, dtype=torch.double)
-    # axes include the channel dim
-    xform = torch.eye(int(rank) + 1, dtype=torch.double)
-    for axis in axes:
-        sp = axis - 1
-        xform[sp, sp], xform[sp, -1] = xform[sp, sp] * -1, sp_size[sp] - 1
-    meta_info = TraceableTransform.track_transform_meta(
-        img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
-    )
+    kind = img.meta.get(MetaKeys.KIND, KindKeys.PIXEL) if isinstance(img, MetaTensor) else KindKeys.PIXEL
+    if kind != KindKeys.PIXEL:
+        return None
+    axes, meta_info, _ = flip_helper(img, sp_axes, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip_point(points, sp_axes, lazy, transform_info):
+    """
+    Functional implementation of flip points.
+    This function operates eagerly or lazily according to
+    ``lazy`` (default ``False``).
+
+    Args:
+        points: point coordinates, represented by a torch tensor or ndarray with dimensions of 1xNx2 or 1xNx3.
+            Here 1 represents the channel dimension.
+        sp_axes: spatial axes along which to flip over. Default is None.
+            The default `axis=None` will flip over all of the axes of the input array.
+            If axis is negative it counts from the last to the first axis.
+            If axis is a tuple of ints, flipping is performed on all of the axes
+            specified in the tuple.
+        lazy: a flag that indicates whether the operation should be performed lazily or not.
+        transform_info: a dictionary with the relevant information pertaining to an applied transform.
+    """
+    kind = points.meta.get(MetaKeys.KIND, KindKeys.PIXEL) if isinstance(points, MetaTensor) else KindKeys.PIXEL
+    if kind != KindKeys.POINT:
+        return None
+    _, meta_info, xform = flip_helper(points, sp_axes, lazy, transform_info)
+
+    out = _maybe_new_metatensor(points)
+    if lazy:
+        # TODO: add lazy support
+        raise NotImplementedError
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    # TODO: use CoordinateTransformd.apply_affine_to_points instead
+    out = apply_affine_to_points(out[0], xform, dtype=torch.float64).unsqueeze(0)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
 
 
@@ -610,3 +663,15 @@ def affine_func(
         out = _maybe_new_metatensor(img, dtype=torch.float32, device=resampler.device)
     out = out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
     return out if image_only else (out, affine)
+
+
+def apply_affine_to_points(data, affine, dtype):
+    data = convert_to_tensor(data, track_meta=get_track_meta())
+    data_: torch.Tensor = convert_to_tensor(data, track_meta=False, dtype=dtype)
+
+    homogeneous = concatenate((data_, torch.ones((data_.shape[0], 1))), axis=1)
+    transformed_homogeneous = torch.matmul(affine, homogeneous.T)
+    transformed_coordinates = transformed_homogeneous[:-1].T
+    out, *_ = convert_to_dst_type(transformed_coordinates, data, dtype=dtype)
+
+    return out
