@@ -54,6 +54,26 @@ from .generator import Generator
 from .highresnet import HighResBlock, HighResNet
 from .hovernet import Hovernet, HoVernet, HoVerNet, HoverNet
 from .masked_autoencoder_vit import MaskedAutoEncoderViT
+from .mednext import (
+    MedNeXt,
+    MedNext,
+    MedNextB,
+    MedNeXtB,
+    MedNextBase,
+    MedNextL,
+    MedNeXtL,
+    MedNeXtLarge,
+    MedNextLarge,
+    MedNextM,
+    MedNeXtM,
+    MedNeXtMedium,
+    MedNextMedium,
+    MedNextS,
+    MedNeXtS,
+    MedNeXtSmall,
+    MedNextSmall,
+)
+
 from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
