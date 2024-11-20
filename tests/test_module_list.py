@@ -68,7 +68,7 @@ class TestAllImport(unittest.TestCase):
                         continue
                     if (contents is not None) and f"`{docname}`" not in f"{contents}":
                         self.assertTrue(False, f"please add `{docname}` to docs/source/transforms.rst")
-                
+
         self.assertFalse(remained)
 
 
