@@ -73,7 +73,6 @@ from .mednext import (
     MedNeXtSmall,
     MedNextSmall,
 )
-
 from .milmodel import MILModel
 from .netadapter import NetAdapter
 from .patchgan_discriminator import MultiScalePatchDiscriminator, PatchDiscriminator
