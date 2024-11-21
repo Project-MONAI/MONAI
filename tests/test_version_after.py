@@ -15,9 +15,9 @@ import unittest
 
 from parameterized import parameterized
 
-from monai.utils import pytorch_after
+from monai.utils import compute_capabilities_after, pytorch_after
 
-TEST_CASES = (
+TEST_CASES_PT = (
     (1, 5, 9, "1.6.0"),
     (1, 6, 0, "1.6.0"),
     (1, 6, 1, "1.6.0", False),
@@ -36,13 +36,29 @@ TEST_CASES = (
     (1, 6, 1, "1.6.0+cpu", False),
 )
 
+TEST_CASES_SM = [
+    # (major, minor, sm, expected)
+    (6, 1, "6.1", False),
+    (6, 1, "6.0", False),
+    (6, 0, "8.6", True),
+    (7, 0, "8", True),
+    (8, 6, "8", False),
+]
+
 
 class TestPytorchVersionCompare(unittest.TestCase):
 
-    @parameterized.expand(TEST_CASES)
+    @parameterized.expand(TEST_CASES_PT)
     def test_compare(self, a, b, p, current, expected=True):
         """Test pytorch_after with a and b"""
         self.assertEqual(pytorch_after(a, b, p, current), expected)
+
+
+class TestComputeCapabilitiesAfter(unittest.TestCase):
+
+    @parameterized.expand(TEST_CASES_SM)
+    def test_compute_capabilities_after(self, major, minor, sm, expected):
+        self.assertEqual(compute_capabilities_after(major, minor, sm), expected)
 
 
 if __name__ == "__main__":
