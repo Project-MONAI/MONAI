@@ -35,7 +35,7 @@ TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inferenc
 
 TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
 
-TEST_CASE_4 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference_rt.json")]
+TEST_CASE_4 = [os.path.join(os.path.dirname(__file__), "testing_data", "responsive_inference.json")]
 
 TEST_CASE_NON_CONFIG_WRONG_LOG = [None, "logging.conf", "Cannot find the logging config file: logging.conf."]
 
