@@ -19,7 +19,7 @@ import numpy as np
 import torch
 from e3nn import o3
 from e3nn.nn import SO3Activation
-from tests.utils import testing_data_config, download_url_or_skip_test
+
 
 def s2_near_identity_grid(max_beta: float = math.pi / 8, n_alpha: int = 8, n_beta: int = 3) -> torch.Tensor:
     beta = torch.arange(1, n_beta + 1) * max_beta / n_beta
@@ -191,9 +191,11 @@ def load_nii_data(file_path, index, dimension):
 
     return slice_2d
 
+
 def main():
     """
-    Equivariant feature extractor that loads in a 3D nii.gz image, extracts a single slice and pushes it through the equivariant network. The extracted features are printed to terminal.
+    Equivariant feature extractor that loads in a 3D nii.gz image, extracts a single slice and
+    pushes it through the equivariant network. The extracted features are printed to terminal.
     """
     nii_file_path = "testing_data/source_0_0.nii.gz"  # Path to the 3D .nii.gz file
     slice_index = 64  # Index of the slice to extract
@@ -209,10 +211,10 @@ def main():
     with torch.no_grad():
         features = model(input_slice)
 
-    print("Extracted features:", features) #print out extracted features from the equivariant filter 
+    print("Extracted features:", features)  # print out extracted features from the equivariant filter
 
-    #Save features as .nii.gz files
-    #save_features_as_nii(features, output_dir="nii_features")
+    # Save features as .nii.gz files
+    # save_features_as_nii(features, output_dir="nii_features")
 
 
 if __name__ == "__main__":
