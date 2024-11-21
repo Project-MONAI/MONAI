@@ -122,6 +122,21 @@ class TestResBlock(unittest.TestCase):
         # check upper triangular part of the attention matrix is zero
         assert torch.triu(block.att_mat, diagonal=1).sum() == 0
 
+    def test_masked_selfattention(self):
+        n = 4
+        block = SABlock(hidden_size=128, num_heads=1, dropout_rate=0.1, sequence_length=16, save_attn=True)
+        input_shape = (1, n, 128)
+        mask = torch.tensor([[1, 1, 1, 0]]).bool()
+        block(torch.randn(input_shape), attn_mask=mask)
+        att_mat = block.att_mat.squeeze(1)
+        # get the masked row and the remaining ones based on mask 0 values
+        rows_true = att_mat[mask, :]
+        rows_false = att_mat[~mask, :]
+        # check that in false rows every element is equal to 1/4
+        assert torch.allclose(rows_false, torch.ones_like(rows_false) / n)
+        # check that in true rows the mask column is zero
+        assert torch.allclose(rows_true[:, -1], torch.zeros_like(rows_true[:, -1]))
+
     @skipUnless(has_einops, "Requires einops")
     def test_access_attn_matrix(self):
         # input format

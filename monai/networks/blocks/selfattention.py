@@ -154,10 +154,12 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x):
+    def forward(self, x, attn_mask: torch.Tensor | None = None):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
+            attn_mask (torch.Tensor, optional): mask to apply to the attention matrix.
+            Defaults to None. B x N_heads x (s_dim_1 * ... * s_dim_n) x (s_dim_1 * ... * s_dim_n).
 
         Return:
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
@@ -176,7 +178,13 @@ class SABlock(nn.Module):
 
         if self.use_flash_attention:
             x = F.scaled_dot_product_attention(
-                query=q, key=k, value=v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
+                query=q,
+                key=k,
+                value=v,
+                attn_mask=attn_mask,
+                scale=self.scale,
+                dropout_p=self.dropout_rate,
+                is_causal=self.causal,
             )
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
@@ -187,6 +195,10 @@ class SABlock(nn.Module):
 
             if self.causal:
                 att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[-2], : x.shape[-2]] == 0, float("-inf"))
+
+            if attn_mask is not None:
+                attn_mask = attn_mask[:, None, :, None] * attn_mask[:, None, None, :]
+                att_mat.masked_fill_(~attn_mask, torch.finfo(att_mat.dtype).min)
 
             att_mat = att_mat.softmax(dim=-1)
 
@@ -203,3 +215,13 @@ class SABlock(nn.Module):
             x = self.out_proj(x)
         x = self.drop_output(x)
         return x
+
+
+if __name__ == "__main__":
+    sa = SABlock(128, 1)
+    x = torch.randn(1, 6, 128)
+    mask = torch.ones((1, 6), dtype=torch.bool)
+    mask[0][2] = False
+    print(mask)
+    out = sa(x, attn_mask=mask)
+    print(out.shape)
