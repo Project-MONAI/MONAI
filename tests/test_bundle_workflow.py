@@ -120,7 +120,7 @@ class TestBundleWorkflow(unittest.TestCase):
         self.assertEqual(inferer.workflow_type, None)
 
     @parameterized.expand([TEST_CASE_4])
-    def test_realtime_inference_config(self, config_file):
+    def test_responsive_inference_config(self, config_file):
         input_loader = LoadImaged(keys="image")
         output_saver = SaveImaged(keys="pred", output_dir=self.data_dir, output_postfix="seg")
 
@@ -128,7 +128,7 @@ class TestBundleWorkflow(unittest.TestCase):
         inferer = ConfigWorkflow(
             workflow_type="infer",
             config_file=config_file,
-            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf")
+            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
         )
         # FIXME: temp add the property for test, we should add it to some formal realtime infer properties
         inferer.add_property(name="dataflow", required=True, config_id="dataflow")
