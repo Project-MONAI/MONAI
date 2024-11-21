@@ -122,6 +122,11 @@ class TestHandlerMLFlow(unittest.TestCase):
             def _update_metric(engine):
                 current_metric = engine.state.metrics.get("acc", 0.1)
                 engine.state.metrics["acc"] = current_metric + 0.1
+                # log nested metrics
+                engine.state.metrics["acc_per_label"] = {
+                    "label_0": current_metric + 0.1,
+                    "label_1": current_metric + 0.2,
+                }
                 engine.state.test = current_metric
 
             # set up testing handler
@@ -138,10 +143,12 @@ class TestHandlerMLFlow(unittest.TestCase):
                 state_attributes=["test"],
                 experiment_param=experiment_param,
                 artifacts=[artifact_path],
-                close_on_complete=True,
+                close_on_complete=False,
             )
             handler.attach(engine)
             engine.run(range(3), max_epochs=2)
+            cur_run = handler.client.get_run(handler.cur_run.info.run_id)
+            self.assertTrue("label_0" in cur_run.data.metrics.keys())
             handler.close()
             # check logging output
             self.assertTrue(len(glob.glob(test_path)) > 0)

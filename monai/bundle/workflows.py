@@ -16,10 +16,11 @@ import os
 import sys
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from copy import copy
 from logging.config import fileConfig
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from monai.apps.utils import get_logger
 from monai.bundle.config_parser import ConfigParser
@@ -316,8 +317,8 @@ class ConfigWorkflow(BundleWorkflow):
                 else:
                     raise FileNotFoundError(f"Cannot find the logging config file: {logging_file}.")
             else:
-                logger.info(f"Setting logging properties based on config: {logging_file}.")
                 fileConfig(str(logging_file), disable_existing_loggers=False)
+                logger.info(f"Setting logging properties based on config: {logging_file}.")
 
         self.parser = ConfigParser()
         self.parser.read_config(f=config_file)
