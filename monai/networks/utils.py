@@ -632,7 +632,6 @@ def convert_to_onnx(
     use_trace: bool = True,
     do_constant_folding: bool = True,
     constant_size_threshold: int = 16 * 1024 * 1024 * 1024,
-    dynamo=False,
     **kwargs,
 ):
     """
@@ -673,6 +672,9 @@ def convert_to_onnx(
             # let torch.onnx.export to trace the model.
             mode_to_export = model
             torch_versioned_kwargs = kwargs
+            if "dynamo" in kwargs and kwargs["dynamo"] and verify:
+                torch_versioned_kwargs["verify"] = verify
+                verify = False
         else:
             if not pytorch_after(1, 10):
                 if "example_outputs" not in kwargs:
@@ -695,13 +697,13 @@ def convert_to_onnx(
             f = temp_file.name
         else:
             f = filename
-
+        print(f"torch_versioned_kwargs={torch_versioned_kwargs}")
         torch.onnx.export(
             mode_to_export,
             onnx_inputs,
             f=f,
             input_names=input_names,
-            output_names=output_names,
+            output_names=output_names or None,
             dynamic_axes=dynamic_axes,
             opset_version=opset_version,
             do_constant_folding=do_constant_folding,
@@ -710,11 +712,15 @@ def convert_to_onnx(
         onnx_model = onnx.load(f)
 
     if do_constant_folding and polygraphy_imported:
-        from polygraphy.backend.onnx.loader import fold_constants
+        from polygraphy.backend.onnx.loader import fold_constants, save_onnx
 
-        fold_constants(onnx_model, size_threshold=constant_size_threshold)
+        onnx_model = fold_constants(onnx_model, size_threshold=constant_size_threshold)
+        save_onnx(onnx_model, f)
 
     if verify:
+        if isinstance(inputs, dict):
+            inputs = list(inputs.values())
+
         if device is None:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
