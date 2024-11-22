@@ -398,9 +398,13 @@ class ConfigWorkflow(BundleWorkflow):
         ret = []
         if id in self.parser:
             # suppose all the expressions are in a list, run and reset the expressions
-            for i in range(len(self.parser[id])):
-                sub_id = f"{id}{ID_SEP_KEY}{i}"
-                ret.append(self.parser.get_parsed_content(sub_id, **kwargs))
+            if isinstance(self.parser[id], list):
+                for i in range(len(self.parser[id])):
+                    sub_id = f"{id}{ID_SEP_KEY}{i}"
+                    ret.append(self.parser.get_parsed_content(sub_id, **kwargs))
+                    self.parser.ref_resolver.remove_resolved_content(sub_id)
+            else:
+                ret.append(self.parser.get_parsed_content(id, **kwargs))
                 self.parser.ref_resolver.remove_resolved_content(sub_id)
         return ret
 
