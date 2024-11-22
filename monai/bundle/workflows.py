@@ -396,7 +396,8 @@ class ConfigWorkflow(BundleWorkflow):
 
     def _run_expr(self, id: str, **kwargs: dict) -> list[Any]:
         """
-        Evaluate the expression or expression list given by `id`. The resolved values from the evaluations are not stored, allowing this to be evaluated repeatedly (eg. in streaming applications) without restarting the hosting process.
+        Evaluate the expression or expression list given by `id`. The resolved values from the evaluations are not stored,
+        allowing this to be evaluated repeatedly (eg. in streaming applications) without restarting the hosting process.
         """
         ret = []
         if id in self.parser:
