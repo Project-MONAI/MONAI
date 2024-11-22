@@ -405,7 +405,7 @@ class ConfigWorkflow(BundleWorkflow):
                     self.parser.ref_resolver.remove_resolved_content(sub_id)
             else:
                 ret.append(self.parser.get_parsed_content(id, **kwargs))
-                self.parser.ref_resolver.remove_resolved_content(sub_id)
+                self.parser.ref_resolver.remove_resolved_content(id)
         return ret
 
     def _get_prop_id(self, name: str, property: dict) -> Any:
