@@ -159,7 +159,7 @@ class SABlock(nn.Module):
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
             attn_mask (torch.Tensor, optional): mask to apply to the attention matrix.
-            Defaults to None. B x N_heads x (s_dim_1 * ... * s_dim_n) x (s_dim_1 * ... * s_dim_n).
+            B x (s_dim_1 * ... * s_dim_n). Defaults to None.
 
         Return:
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
@@ -194,14 +194,15 @@ class SABlock(nn.Module):
                 att_mat = self.rel_positional_embedding(x, att_mat, q)
 
             if self.causal:
+                assert attn_mask is None, "Causal attention does not support attention masks."
                 att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[-2], : x.shape[-2]] == 0, float("-inf"))
 
             if attn_mask is not None:
-                attn_mask = attn_mask[:, None, :, None] * attn_mask[:, None, None, :]
-                att_mat.masked_fill_(~attn_mask, torch.finfo(att_mat.dtype).min)
+                attn_mask = attn_mask.unsqueeze(1).unsqueeze(2)
+                attn_mask = attn_mask.expand(-1, self.num_heads, -1, -1)
+                att_mat = att_mat.masked_fill(attn_mask == 0, float("-inf"))
 
             att_mat = att_mat.softmax(dim=-1)
-
             if self.save_attn:
                 # no gradients and new tensor;
                 # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html
@@ -215,13 +216,3 @@ class SABlock(nn.Module):
             x = self.out_proj(x)
         x = self.drop_output(x)
         return x
-
-
-if __name__ == "__main__":
-    sa = SABlock(128, 1)
-    x = torch.randn(1, 6, 128)
-    mask = torch.ones((1, 6), dtype=torch.bool)
-    mask[0][2] = False
-    print(mask)
-    out = sa(x, attn_mask=mask)
-    print(out.shape)
