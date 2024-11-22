@@ -134,7 +134,7 @@ class TestResBlock(unittest.TestCase):
         assert torch.allclose(att_mat[:, ~mask.squeeze(0)], torch.zeros_like(att_mat[:, ~mask.squeeze(0)]))
 
     def test_causal_and_mask(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             block = SABlock(hidden_size=128, num_heads=1, causal=True, sequence_length=64)
             inputs = torch.randn(2, 64, 128)
             mask = torch.randint(0, 2, (2, 64)).bool()
