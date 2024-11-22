@@ -194,7 +194,8 @@ class SABlock(nn.Module):
                 att_mat = self.rel_positional_embedding(x, att_mat, q)
 
             if self.causal:
-                assert attn_mask is None, "Causal attention does not support attention masks."
+                if attn_mask is not None:
+                    raise ValueError("Causal attention does not support attention masks.")
                 att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[-2], : x.shape[-2]] == 0, float("-inf"))
 
             if attn_mask is not None:
