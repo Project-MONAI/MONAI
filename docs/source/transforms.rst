@@ -1186,6 +1186,11 @@ Utility
     :members:
     :special-members: __call__
 
+`RandTorchIO`
+"""""""""
+.. autoclass:: RandTorchIO
+    :members:
+    :special-members: __call__
 
 `MapLabelValue`
 """""""""""""""
@@ -2263,6 +2268,12 @@ Utility (Dict)
 `TorchIOd`
 """"""""""
 .. autoclass:: TorchIOd
+    :members:
+    :special-members: __call__
+
+`RandTorchIOd`
+""""""""""
+.. autoclass:: RandTorchIOd
     :members:
     :special-members: __call__
 
