@@ -1187,7 +1187,7 @@ Utility
     :special-members: __call__
 
 `RandTorchIO`
-"""""""""
+"""""""""""""
 .. autoclass:: RandTorchIO
     :members:
     :special-members: __call__
@@ -2272,7 +2272,7 @@ Utility (Dict)
     :special-members: __call__
 
 `RandTorchIOd`
-""""""""""
+""""""""""""""
 .. autoclass:: RandTorchIOd
     :members:
     :special-members: __call__
