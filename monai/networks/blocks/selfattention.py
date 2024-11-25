@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 
 import torch
 import torch.nn as nn
@@ -154,7 +154,7 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x, attn_mask: torch.Tensor | None = None):
+    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
