@@ -695,7 +695,9 @@ class DataStats(Transform):
         _logger.setLevel(logging.INFO)
         if logging.root.getEffectiveLevel() > logging.INFO:
             # Avoid duplicate stream handlers to be added when multiple DataStats are used in a chain.
-            has_console_handler = any(hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler for h in _logger.handlers)
+            has_console_handler = any(
+                hasattr(h, "is_data_stats_handler") and h.is_data_stats_handler for h in _logger.handlers
+            )
             if not has_console_handler:
                 # if the root log level is higher than INFO, set a separate stream handler to record
                 console = logging.StreamHandler(sys.stdout)
@@ -805,7 +807,9 @@ class Lambda(InvertibleTransform):
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
 
-    def __init__(self, func: Callable | None = None, inv_func: Callable = no_collation, track_meta: bool = True) -> None:
+    def __init__(
+        self, func: Callable | None = None, inv_func: Callable = no_collation, track_meta: bool = True
+    ) -> None:
         if func is not None and not callable(func):
             raise TypeError(f"func must be None or callable but is {type(func).__name__}.")
         self.func = func
@@ -1039,7 +1043,9 @@ class ClassesToIndices(Transform, MultiSampleTrait):
         if output_shape is None:
             output_shape = self.output_shape
         indices: list[NdarrayOrTensor]
-        indices = map_classes_to_indices(label, self.num_classes, image, self.image_threshold, self.max_samples_per_class)
+        indices = map_classes_to_indices(
+            label, self.num_classes, image, self.image_threshold, self.max_samples_per_class
+        )
         if output_shape is not None:
             indices = [unravel_indices(cls_indices, output_shape) for cls_indices in indices]
 
@@ -1651,7 +1657,9 @@ class ImageFilter(Transform):
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-    supported_filters = sorted(["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"])
+    supported_filters = sorted(
+        ["mean", "laplace", "elliptical", "sobel", "sharpen", "median", "gauss", "savitzky_golay"]
+    )
 
     def __init__(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None, **kwargs) -> None:
         self._check_filter_format(filter, filter_size)
@@ -1792,7 +1800,9 @@ class RandImageFilter(RandomizableTransform):
 
     backend = ImageFilter.backend
 
-    def __init__(self, filter: str | NdarrayOrTensor, filter_size: int | None = None, prob: float = 0.1, **kwargs) -> None:
+    def __init__(
+        self, filter: str | NdarrayOrTensor, filter_size: int | None = None, prob: float = 0.1, **kwargs
+    ) -> None:
         super().__init__(prob)
         self.filter = ImageFilter(filter, filter_size, **kwargs)
 
@@ -1882,7 +1892,9 @@ class ApplyTransformToPoints(InvertibleTransform, Transform):
 
         return affine
 
-    def transform_coordinates(self, data: torch.Tensor, affine: torch.Tensor | None = None) -> tuple[torch.Tensor, dict]:
+    def transform_coordinates(
+        self, data: torch.Tensor, affine: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, dict]:
         """
         Transform coordinates using an affine transformation matrix.
 
