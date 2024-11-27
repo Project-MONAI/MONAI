@@ -51,7 +51,7 @@ class BundleWorkflow(ABC):
             default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
-            properties will default to loading from "meta". If the specified file is unavailable, default properties
+            properties will default to loading from "meta". If `properties_path` is None, default properties
             will be sourced from "monai/bundle/properties.py" based on the workflow_type:
             For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
             For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
@@ -276,7 +276,7 @@ class PythonicWorkflow(BundleWorkflow):
             default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
-            properties will default to loading from "meta". If the specified file is unavailable, default properties
+            properties will default to loading from "meta". If `properties_path` is None, default properties
             will be sourced from "monai/bundle/properties.py" based on the workflow_type:
             For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
             For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
@@ -409,7 +409,7 @@ class ConfigWorkflow(BundleWorkflow):
             default to `None` for common workflow.
         properties_path: the path to the JSON file of properties. If `workflow_type` is specified, properties will be
             loaded from the file based on the provided `workflow_type` and meta. If no `workflow_type` is specified,
-            properties will default to loading from "train". If the specified file is unavailable, default properties
+            properties will default to loading from "train". If `properties_path` is None, default properties
             will be sourced from "monai/bundle/properties.py" based on the workflow_type:
             For a training workflow, properties load from `TrainProperties` and `MetaProperties`.
             For a inference workflow, properties load from `InferProperties` and `MetaProperties`.
