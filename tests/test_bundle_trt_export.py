@@ -53,7 +53,7 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
-@SkipIfBeforeComputeCapabilityVersion((7, 0))
+@SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestTRTExport(unittest.TestCase):
 
     def setUp(self):
