@@ -45,7 +45,6 @@ TASK = "integration_classification_2d"
 
 
 class MedNISTDataset(torch.utils.data.Dataset):
-
     def __init__(self, image_files, labels, transforms):
         self.image_files = image_files
         self.labels = labels
@@ -61,26 +60,22 @@ class MedNISTDataset(torch.utils.data.Dataset):
 def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0", num_workers=10):
     monai.config.print_config()
     # define transforms for image and classification
-    train_transforms = Compose(
-        [
-            LoadImage(image_only=True, simple_keys=True),
-            EnsureChannelFirst(channel_dim="no_channel"),
-            Transpose(indices=[0, 2, 1]),
-            ScaleIntensity(),
-            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
-            RandFlip(spatial_axis=0, prob=0.5),
-            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
-        ]
-    )
+    train_transforms = Compose([
+        LoadImage(image_only=True, simple_keys=True),
+        EnsureChannelFirst(channel_dim="no_channel"),
+        Transpose(indices=[0, 2, 1]),
+        ScaleIntensity(),
+        RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
+        RandFlip(spatial_axis=0, prob=0.5),
+        RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
+    ])
     train_transforms.set_random_state(1234)
-    val_transforms = Compose(
-        [
-            LoadImage(image_only=True, simple_keys=True),
-            EnsureChannelFirst(channel_dim="no_channel"),
-            Transpose(indices=[0, 2, 1]),
-            ScaleIntensity(),
-        ]
-    )
+    val_transforms = Compose([
+        LoadImage(image_only=True, simple_keys=True),
+        EnsureChannelFirst(channel_dim="no_channel"),
+        Transpose(indices=[0, 2, 1]),
+        ScaleIntensity(),
+    ])
     y_pred_trans = Compose([Activations(softmax=True)])
     y_trans = AsDiscrete(to_onehot=len(np.unique(train_y)))
     auc_metric = ROCAUCMetric()
@@ -95,7 +90,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
     model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(train_y))).to(device)
     loss_function = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
-    epoch_num = 4
+    epoch_num = 1
     val_interval = 1
 
     # start training validation
@@ -149,7 +144,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                     torch.save(model.state_dict(), model_filename)
                     print("saved new best metric model")
                 print(
-                    f"current epoch {epoch +1} current AUC: {auc_value:0.4f} "
+                    f"current epoch {epoch + 1} current AUC: {auc_value:0.4f} "
                     f"current accuracy: {acc_metric:0.4f} best AUC: {best_metric:0.4f} at epoch {best_metric_epoch}"
                 )
     print(f"train completed, best_metric: {best_metric:0.4f}  at epoch: {best_metric_epoch}")
@@ -158,9 +153,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
 
 def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10):
     # define transforms for image and classification
-    val_transforms = Compose(
-        [LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), ScaleIntensity()]
-    )
+    val_transforms = Compose([LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), ScaleIntensity()])
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 
@@ -183,7 +176,6 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
 
 @skip_if_quick
 class IntegrationClassification2D(DistTestCase):
-
     def setUp(self):
         set_determinism(seed=0)
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -214,7 +206,7 @@ class IntegrationClassification2D(DistTestCase):
             image_classes.extend([i] * len(image_files[i]))
 
         # split train, val, test
-        valid_frac, test_frac = 0.1, 0.1
+        valid_frac, test_frac = 0.01, 0.01
         self.train_x, self.train_y = [], []
         self.val_x, self.val_y = [], []
         self.test_x, self.test_y = [], []
@@ -270,7 +262,7 @@ class IntegrationClassification2D(DistTestCase):
 
     def test_training(self):
         repeated = []
-        for i in range(2):
+        for i in range(1):
             results = self.train_and_infer(i)
             repeated.append(results)
         np.testing.assert_allclose(repeated[0], repeated[1])

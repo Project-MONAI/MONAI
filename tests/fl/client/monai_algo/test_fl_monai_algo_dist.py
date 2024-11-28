@@ -64,7 +64,7 @@ class TestFLMonaiAlgo(DistTestCase):
         data = ExchangeObject(weights=get_state_dict(network))
         # test train
         for i in range(2):
-            print(f"Testing round {i+1} of {2}...")
+            print(f"Testing round {i + 1} of {2}...")
             # test evaluate
             metric_eo = algo.evaluate(data=data, extra={})
             self.assertIsInstance(metric_eo, ExchangeObject)

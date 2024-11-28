@@ -139,7 +139,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
             writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
         epoch_loss /= step
         epoch_loss_values.append(epoch_loss)
-        print(f"epoch {epoch +1} average loss:{epoch_loss:0.4f}")
+        print(f"epoch {epoch + 1} average loss:{epoch_loss:0.4f}")
 
         if (epoch + 1) % val_interval == 0:
             with eval_mode(model):
@@ -164,7 +164,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                     torch.save(model.state_dict(), model_filename)
                     print("saved new best metric model")
                 print(
-                    f"current epoch {epoch +1} current mean dice: {metric:0.4f} "
+                    f"current epoch {epoch + 1} current mean dice: {metric:0.4f} "
                     f"best mean dice: {best_metric:0.4f} at epoch {best_metric_epoch}"
                 )
                 writer.add_scalar("val_mean_dice", metric, epoch + 1)

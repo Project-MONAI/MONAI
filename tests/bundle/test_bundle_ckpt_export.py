@@ -23,12 +23,17 @@ from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from tests.utils import command_line_tests, skip_if_windows
 
-TEST_CASE_1 = ["", ""]
+TEST_CASE_1 = [True, "", ""]
 
-TEST_CASE_2 = ["model", ""]
+TEST_CASE_2 = [True, "model", ""]
 
-TEST_CASE_3 = ["model", "True"]
+TEST_CASE_3 = [True, "model", "True"]
 
+TEST_CASE_4 = [False, "", ""]
+
+TEST_CASE_5 = [False, "model", ""]
+
+TEST_CASE_6 = [False, "model", "True"]
 
 @skip_if_windows
 class TestCKPTExport(unittest.TestCase):
