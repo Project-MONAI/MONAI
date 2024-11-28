@@ -60,22 +60,26 @@ class MedNISTDataset(torch.utils.data.Dataset):
 def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0", num_workers=10):
     monai.config.print_config()
     # define transforms for image and classification
-    train_transforms = Compose([
-        LoadImage(image_only=True, simple_keys=True),
-        EnsureChannelFirst(channel_dim="no_channel"),
-        Transpose(indices=[0, 2, 1]),
-        ScaleIntensity(),
-        RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
-        RandFlip(spatial_axis=0, prob=0.5),
-        RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
-    ])
+    train_transforms = Compose(
+        [
+            LoadImage(image_only=True, simple_keys=True),
+            EnsureChannelFirst(channel_dim="no_channel"),
+            Transpose(indices=[0, 2, 1]),
+            ScaleIntensity(),
+            RandRotate(range_x=np.pi / 12, prob=0.5, keep_size=True, dtype=np.float64),
+            RandFlip(spatial_axis=0, prob=0.5),
+            RandZoom(min_zoom=0.9, max_zoom=1.1, prob=0.5),
+        ]
+    )
     train_transforms.set_random_state(1234)
-    val_transforms = Compose([
-        LoadImage(image_only=True, simple_keys=True),
-        EnsureChannelFirst(channel_dim="no_channel"),
-        Transpose(indices=[0, 2, 1]),
-        ScaleIntensity(),
-    ])
+    val_transforms = Compose(
+        [
+            LoadImage(image_only=True, simple_keys=True),
+            EnsureChannelFirst(channel_dim="no_channel"),
+            Transpose(indices=[0, 2, 1]),
+            ScaleIntensity(),
+        ]
+    )
     y_pred_trans = Compose([Activations(softmax=True)])
     y_trans = AsDiscrete(to_onehot=len(np.unique(train_y)))
     auc_metric = ROCAUCMetric()
@@ -153,7 +157,9 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
 
 def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10):
     # define transforms for image and classification
-    val_transforms = Compose([LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), ScaleIntensity()])
+    val_transforms = Compose(
+        [LoadImage(image_only=True), EnsureChannelFirst(channel_dim="no_channel"), ScaleIntensity()]
+    )
     val_ds = MedNISTDataset(test_x, test_y, val_transforms)
     val_loader = DataLoader(val_ds, batch_size=300, num_workers=num_workers)
 

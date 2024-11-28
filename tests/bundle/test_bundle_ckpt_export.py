@@ -35,6 +35,7 @@ TEST_CASE_5 = [False, "model", ""]
 
 TEST_CASE_6 = [False, "model", "True"]
 
+
 @skip_if_windows
 class TestCKPTExport(unittest.TestCase):
     def setUp(self):
@@ -56,7 +57,13 @@ class TestCKPTExport(unittest.TestCase):
         self.parser.read_config(self.config_file)
         self.net = self.parser.get_parsed_content("network_def")
         self.cmd = ["coverage", "run", "-m", "monai.bundle", "ckpt_export", "network_def", "--filepath", self.ts_file]
-        self.cmd += ["--meta_file", self.meta_file, "--config_file", f"['{self.config_file}','{self.def_args_file}']", "--ckpt_file"]
+        self.cmd += [
+            "--meta_file",
+            self.meta_file,
+            "--config_file",
+            f"['{self.config_file}','{self.def_args_file}']",
+            "--ckpt_file",
+        ]
 
     def tearDown(self):
         if self.device is not None:
@@ -74,7 +81,9 @@ class TestCKPTExport(unittest.TestCase):
         command_line_tests(full_cmd)
         self.assertTrue(os.path.exists(self.ts_file))
 
-        _, metadata, extra_files = load_net_with_metadata(self.ts_file, more_extra_files=["inference.json", "def_args.json"])
+        _, metadata, extra_files = load_net_with_metadata(
+            self.ts_file, more_extra_files=["inference.json", "def_args.json"]
+        )
         self.assertIn("schema", metadata)
         self.assertIn("meta_file", json.loads(extra_files["def_args.json"]))
         self.assertIn("network_def", json.loads(extra_files["inference.json"]))
