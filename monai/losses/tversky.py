@@ -75,7 +75,8 @@ class TverskyLoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, a Dice loss value is computed independently from each item in the batch
                 before any `reduction`.
-            soft_label: whether the target contains non-binary values or not
+            soft_label: whether the target contains non-binary values (soft labels) or not.
+                If True a soft label formulation of the loss will be used.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.

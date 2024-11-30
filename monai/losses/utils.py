@@ -29,8 +29,6 @@ def compute_tp_fp_fn(
     Adapted from:
         https://github.com/zifuwanggg/JDTLosses
     """
-    if torch.unique(target).shape[0] > 2 and not soft_label:
-        warnings.warn("soft labels are used, but `soft_label == False`.")
 
     # the original implementation that is erroneous with soft labels
     if ord == 1 and not soft_label:

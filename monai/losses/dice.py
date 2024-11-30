@@ -99,7 +99,8 @@ class DiceLoss(_Loss):
                 of the sequence should be the same as the number of classes. If not ``include_background``,
                 the number of classes should not include the background category class 0).
                 The value/values should be no less than 0. Defaults to None.
-            soft_label: whether the target contains non-binary values or not
+            soft_label: whether the target contains non-binary values (soft labels) or not.
+                If True a soft label formulation of the loss will be used.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
@@ -302,7 +303,8 @@ class GeneralizedDiceLoss(_Loss):
             batch: whether to sum the intersection and union areas over the batch dimension before the dividing.
                 Defaults to False, intersection over union is computed from each item in the batch.
                 If True, the class-weighted intersection and union areas are first summed across the batches.
-            soft_label: whether the target contains non-binary values or not
+            soft_label: whether the target contains non-binary values (soft labels) or not.
+                If True a soft label formulation of the loss will be used.
 
         Raises:
             TypeError: When ``other_act`` is not an ``Optional[Callable]``.
