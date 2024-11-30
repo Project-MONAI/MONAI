@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import warnings
 
 import torch
 import torch.linalg as LA
