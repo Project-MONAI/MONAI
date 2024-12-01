@@ -1051,12 +1051,11 @@ class ClassesToIndices(Transform, MultiSampleTrait):
 
 class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
-    Convert labels to multi channels based on brats18 classes:
-    label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the peritumoral edema
-    label 4 is the GD-enhancing tumor
-    The possible classes are TC (Tumor core), WT (Whole tumor)
-    and ET (Enhancing tumor).
+    Convert labels to multi channels based on `brats18 <https://www.med.upenn.edu/sbia/brats2018/data.html>`_ classes,
+    which include TC (Tumor core), WT (Whole tumor) and ET (Enhancing tumor):
+    label 1 is the necrotic and non-enhancing tumor core, which should be counted under TC and WT subregion,
+    label 2 is the peritumoral edema, which is counted only under WT subregion,
+    label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
