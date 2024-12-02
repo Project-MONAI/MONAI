@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import List
 
 import numpy as np
 import torch
@@ -104,7 +103,7 @@ class TestPanopticQualityMetric(unittest.TestCase):
         metric = PanopticQualityMetric(**input_params)
         metric(y_pred, y_gt)
         outputs = metric.aggregate()
-        if isinstance(outputs, List):
+        if isinstance(outputs, list):
             for output, value in zip(outputs, expected_value):
                 np.testing.assert_allclose(output.cpu().numpy(), np.asarray(value), atol=1e-4)
         else:
