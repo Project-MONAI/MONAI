@@ -38,7 +38,7 @@ TEST_CASES_PT = (
 
 TEST_CASES_SM = [
     # (major, minor, sm, expected)
-    (6, 1, "6.1", False),
+    (6, 1, "6.1", True),
     (6, 1, "6.0", False),
     (6, 0, "8.6", True),
     (7, 0, "8", True),

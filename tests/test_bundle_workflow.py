@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from copy import deepcopy
@@ -22,12 +23,12 @@ import numpy as np
 import torch
 from parameterized import parameterized
 
-from monai.bundle import ConfigWorkflow
+from monai.bundle import ConfigWorkflow, create_workflow
 from monai.data import Dataset
 from monai.inferers import SimpleInferer, SlidingWindowInferer
 from monai.networks.nets import UNet
 from monai.transforms import Compose, LoadImage, LoadImaged, SaveImaged
-from tests.nonconfig_workflow import NonConfigWorkflow
+from tests.nonconfig_workflow import NonConfigWorkflow, PythonicWorkflowImpl
 
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")]
 
@@ -112,12 +113,13 @@ class TestBundleWorkflow(unittest.TestCase):
         # test property path
         inferer = ConfigWorkflow(
             config_file=config_file,
+            workflow_type="infer",
             properties_path=os.path.join(os.path.dirname(__file__), "testing_data", "fl_infer_properties.json"),
             logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
             **override,
         )
         self._test_inferer(inferer)
-        self.assertEqual(inferer.workflow_type, None)
+        self.assertEqual(inferer.workflow_type, "infer")
 
     @parameterized.expand([TEST_CASE_4])
     def test_responsive_inference_config(self, config_file):
@@ -196,6 +198,72 @@ class TestBundleWorkflow(unittest.TestCase):
     def test_non_config_wrong_log_cases(self, meta_file, logging_file, expected_error):
         with self.assertRaisesRegex(FileNotFoundError, expected_error):
             NonConfigWorkflow(self.filename, self.data_dir, meta_file, logging_file)
+
+    def test_pythonic_workflow(self):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        config_file = {"roi_size": (64, 64, 32)}
+        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
+        property_path = os.path.join(os.path.dirname(__file__), "testing_data", "python_workflow_properties.json")
+        workflow = PythonicWorkflowImpl(
+            workflow_type="infer", config_file=config_file, meta_file=meta_file, properties_path=property_path
+        )
+        workflow.initialize()
+        # Load input data
+        input_loader = LoadImaged(keys="image")
+        workflow.dataflow.update(input_loader({"image": self.filename}))
+        self.assertEqual(workflow.bundle_root, ".")
+        self.assertEqual(workflow.device, device)
+        self.assertEqual(workflow.version, "0.1.0")
+        # check config override correctly
+        self.assertEqual(workflow.inferer.roi_size, (64, 64, 32))
+        workflow.run()
+        # update input data and run again
+        workflow.dataflow.update(input_loader({"image": self.filename1}))
+        workflow.run()
+        pred = workflow.dataflow["pred"]
+        self.assertEqual(pred.shape[2:], self.expected_shape)
+        self.assertEqual(pred.meta["filename_or_obj"], self.filename1)
+        workflow.finalize()
+
+    def test_create_pythonic_workflow(self):
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        config_file = {"roi_size": (64, 64, 32)}
+        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
+        property_path = os.path.join(os.path.dirname(__file__), "testing_data", "python_workflow_properties.json")
+        sys.path.append(os.path.dirname(__file__))
+        workflow = create_workflow(
+            "nonconfig_workflow.PythonicWorkflowImpl",
+            workflow_type="infer",
+            config_file=config_file,
+            meta_file=meta_file,
+            properties_path=property_path,
+        )
+        # Load input data
+        input_loader = LoadImaged(keys="image")
+        workflow.dataflow.update(input_loader({"image": self.filename}))
+        self.assertEqual(workflow.bundle_root, ".")
+        self.assertEqual(workflow.device, device)
+        self.assertEqual(workflow.version, "0.1.0")
+        # check config override correctly
+        self.assertEqual(workflow.inferer.roi_size, (64, 64, 32))
+
+        # check set property override correctly
+        workflow.inferer = SlidingWindowInferer(roi_size=config_file["roi_size"], sw_batch_size=1, overlap=0.5)
+        workflow.initialize()
+        self.assertEqual(workflow.inferer.overlap, 0.5)
+
+        workflow.run()
+        # update input data and run again
+        workflow.dataflow.update(input_loader({"image": self.filename1}))
+        workflow.run()
+        pred = workflow.dataflow["pred"]
+        self.assertEqual(pred.shape[2:], self.expected_shape)
+        self.assertEqual(pred.meta["filename_or_obj"], self.filename1)
+
+        # test add properties
+        workflow.add_property(name="net", required=True, desc="network for the training.")
+        self.assertIn("net", workflow.properties)
+        workflow.finalize()
 
 
 if __name__ == "__main__":
