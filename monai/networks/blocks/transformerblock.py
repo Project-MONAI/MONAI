@@ -90,8 +90,10 @@ class TransformerBlock(nn.Module):
             use_flash_attention=use_flash_attention,
         )
 
-    def forward(self, x: torch.Tensor, context: Optional[torch.Tensor] = None) -> torch.Tensor:
-        x = x + self.attn(self.norm1(x))
+    def forward(
+        self, x: torch.Tensor, context: Optional[torch.Tensor] = None, attn_mask: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        x = x + self.attn(self.norm1(x), attn_mask=attn_mask)
         if self.with_cross_attention:
             x = x + self.cross_attn(self.norm_cross_attn(x), context=context)
         x = x + self.mlp(self.norm2(x))
