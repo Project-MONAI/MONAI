@@ -38,7 +38,7 @@ TEST_CASE_2 = ["fp16"]
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
-@SkipIfBeforeComputeCapabilityVersion((7, 0))
+@SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestConvertToTRT(unittest.TestCase):
 
     def setUp(self):
