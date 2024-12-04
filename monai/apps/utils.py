@@ -327,17 +327,18 @@ def download_and_extract(
             be False.
         progress: whether to display progress bar.
     """
-    urlFilenameExtension = ''.join(Path(".", _basename(url)).resolve().suffixes)
-    if filepath:
-        FilepathExtenstion = ''.join(Path(".", _basename(filepath)).resolve().suffixes)
-        if urlFilenameExtension != FilepathExtenstion:
-            raise NotImplementedError(
-                f'The file types do not match: url={urlFilenameExtension}, but filepath={FilepathExtenstion}'
+    url_filename_ext = "".join(Path(".", _basename(url)).resolve().suffixes)
+    filepath_ext = "".join(Path(".", _basename(filepath)).resolve().suffixes)
+    if filepath not in ["", "."]:
+        if filepath_ext == "":
+            new_filepath = filepath + url_filename_ext
+            logger.warning(
+                f"filepath={filepath}, which missing file extension. Auto-appending extension to: {new_filepath}"
             )
+            filepath = new_filepath
+    if filepath_ext and filepath_ext != url_filename_ext:
+        logger.warning(f"Expected extension {url_filename_ext}, but get {filepath_ext}, may cause unexpected errors!")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        if filepath:
-            filename = filepath
-        else:
-            filename = Path(tmp_dir, _basename(url)).resolve()
+        filename = filepath or Path(tmp_dir, _basename(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
