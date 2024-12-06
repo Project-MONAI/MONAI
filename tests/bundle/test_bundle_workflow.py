@@ -30,19 +30,20 @@ from monai.networks.nets import UNet
 from monai.transforms import Compose, LoadImage, LoadImaged, SaveImaged
 from tests.nonconfig_workflow import NonConfigWorkflow, PythonicWorkflowImpl
 
-TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")]
+MODULE_PATH = os.path.dirname(os.path.abspath(__file__).parents[2])
 
-TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml")]
+TEST_CASE_1 = [os.path.join(MODULE_PATH, "tests", "testing_data", "inference.json")]
 
-TEST_CASE_3 = [os.path.join(os.path.dirname(__file__), "testing_data", "config_fl_train.json")]
+TEST_CASE_2 = [os.path.join(MODULE_PATH, "tests", "testing_data", "inference.yaml")]
 
-TEST_CASE_4 = [os.path.join(os.path.dirname(__file__), "testing_data", "responsive_inference.json")]
+TEST_CASE_3 = [os.path.join(MODULE_PATH, "tests", "testing_data", "config_fl_train.json")]
+
+TEST_CASE_4 = [os.path.join(MODULE_PATH, "tests", "testing_data", "responsive_inference.json")]
 
 TEST_CASE_NON_CONFIG_WRONG_LOG = [None, "logging.conf", "Cannot find the logging config file: logging.conf."]
 
 
 class TestBundleWorkflow(unittest.TestCase):
-
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
         self.expected_shape = (128, 128, 128)

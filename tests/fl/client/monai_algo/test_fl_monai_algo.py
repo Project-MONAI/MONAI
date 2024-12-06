@@ -17,6 +17,7 @@ import shutil
 import unittest
 from copy import deepcopy
 from os.path import join as pathjoin
+from pathlib import Path
 
 from parameterized import parameterized
 
@@ -28,7 +29,7 @@ from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils import path_to_uri
 from tests.utils import SkipIfNoModule
 
-_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+_root_dir = Path(__file__).resolve().parents[3]
 _data_dir = os.path.join(_root_dir, "testing_data")
 _logging_file = pathjoin(_data_dir, "logging.conf")
 
@@ -181,7 +182,6 @@ TEST_GET_WEIGHTS_3 = [
 @SkipIfNoModule("ignite")
 @SkipIfNoModule("mlflow")
 class TestFLMonaiAlgo(unittest.TestCase):
-
     @parameterized.expand([TEST_TRAIN_1, TEST_TRAIN_2, TEST_TRAIN_3, TEST_TRAIN_4])
     def test_train(self, input_params):
         # initialize algo

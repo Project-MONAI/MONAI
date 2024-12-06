@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
@@ -22,7 +23,7 @@ from monai.fl.utils.constants import ExtraItems, FlStatistics
 from monai.fl.utils.exchange_object import ExchangeObject
 from tests.utils import SkipIfNoModule
 
-_root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+_root_dir = Path(__file__).resolve().parents[1]
 _data_dir = os.path.join(_root_dir, "testing_data")
 _logging_file = os.path.join(_data_dir, "logging.conf")
 
@@ -64,7 +65,6 @@ TEST_GET_DATA_STATS_3 = [
 
 @SkipIfNoModule("ignite")
 class TestFLMonaiAlgo(unittest.TestCase):
-
     @parameterized.expand([TEST_GET_DATA_STATS_1, TEST_GET_DATA_STATS_2, TEST_GET_DATA_STATS_3])
     def test_get_data_stats(self, input_params):
         # initialize algo
