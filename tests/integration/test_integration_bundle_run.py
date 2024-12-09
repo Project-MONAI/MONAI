@@ -19,6 +19,7 @@ import sys
 import tempfile
 import unittest
 from glob import glob
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np
@@ -31,13 +32,13 @@ from monai.transforms import LoadImage
 from monai.utils import path_to_uri
 from tests.utils import command_line_tests
 
-TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"), (128, 128, 128)]
+TESTS_PATH = Path(__file__).parents[1]
+TEST_CASE_1 = [os.path.join(TESTS_PATH, "testing_data", "inference.json"), (128, 128, 128)]
 
-TEST_CASE_2 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.yaml"), (128, 128, 128)]
+TEST_CASE_2 = [os.path.join(TESTS_PATH, "testing_data", "inference.yaml"), (128, 128, 128)]
 
 
 class _Runnable42:
-
     def __init__(self, val=1):
         self.val = val
 
@@ -47,7 +48,6 @@ class _Runnable42:
 
 
 class _Runnable43:
-
     def __init__(self, func):
         self.func = func
 
@@ -56,7 +56,6 @@ class _Runnable43:
 
 
 class TestBundleRun(unittest.TestCase):
-
     def setUp(self):
         self.data_dir = tempfile.mkdtemp()
 
@@ -161,7 +160,7 @@ class TestBundleRun(unittest.TestCase):
         nib.save(nib.Nifti1Image(test_image, np.eye(4)), filename)
 
         # generate default args in a JSON file
-        logging_conf = os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf")
+        logging_conf = os.path.join(TESTS_PATH, "testing_data", "logging.conf")
         def_args = {"config_file": "will be replaced by `config_file` arg", "logging_file": logging_conf}
         def_args_file = os.path.join(tempdir, "def_args.json")
         ConfigParser.export_config_file(config=def_args, filepath=def_args_file)

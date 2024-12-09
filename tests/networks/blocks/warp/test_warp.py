@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -106,7 +107,6 @@ if USE_COMPILED:
 
 @skip_if_quick
 class TestWarp(unittest.TestCase):
-
     def setUp(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
         download_url_or_skip_test(
@@ -157,7 +157,8 @@ class TestWarp(unittest.TestCase):
                 gradcheck(warp_layer, (input_image, ddf), atol=1e-2, eps=1e-2)
 
 
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + "mri.nii")
+TESTS_PATH = Path(__file__).parents[1]
+FILE_PATH = os.path.join(TESTS_PATH, "testing_data", "temp_" + "mri.nii")
 
 
 def load_img_and_sample_ddf():

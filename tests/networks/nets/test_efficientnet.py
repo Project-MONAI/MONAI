@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import skipUnless
 
@@ -29,6 +30,8 @@ from monai.networks.nets import (
 )
 from monai.utils import optional_import
 from tests.utils import skip_if_downloading_fails, skip_if_quick, test_pretrained_networks, test_script_save
+
+TESTS_PATH = Path(__file__).parents[1]
 
 if TYPE_CHECKING:
     import torchvision
@@ -162,7 +165,7 @@ CASES_KITTY_TRAINED = [
             "norm": ("batch", {"eps": 1e-3, "momentum": 0.01}),
             "adv_prop": False,
         },
-        os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
+        os.path.join(TESTS_PATH, "testing_data", "kitty_test.jpg"),
         282,  # ~ tiger cat
     ),
     (
@@ -174,7 +177,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
         },
-        os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
+        os.path.join(TESTS_PATH, "testing_data", "kitty_test.jpg"),
         282,  # ~ tiger cat
     ),
     (
@@ -186,7 +189,7 @@ CASES_KITTY_TRAINED = [
             "in_channels": 3,
             "num_classes": 1000,
         },
-        os.path.join(os.path.dirname(__file__), "testing_data", "kitty_test.jpg"),
+        os.path.join(TESTS_PATH, "testing_data", "kitty_test.jpg"),
         282,  # ~ tiger cat
     ),
 ]
@@ -248,7 +251,6 @@ CASE_EXTRACT_FEATURES = [
 
 
 class TestEFFICIENTNET(unittest.TestCase):
-
     @parameterized.expand(CASES_1D + CASES_2D + CASES_3D + CASES_VARIATIONS)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -377,7 +379,6 @@ class TestEFFICIENTNET(unittest.TestCase):
 
 
 class TestExtractFeatures(unittest.TestCase):
-
     @parameterized.expand(CASE_EXTRACT_FEATURES)
     def test_shape(self, input_param, input_shape, expected_shapes):
         device = "cuda" if torch.cuda.is_available() else "cpu"

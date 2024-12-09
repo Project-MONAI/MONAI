@@ -106,7 +106,7 @@ class TestBundleWorkflow(unittest.TestCase):
         inferer = ConfigWorkflow(
             workflow_type="infer",
             config_file=config_file,
-            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            logging_file=os.path.join(MODULE_PATH, "testing_data", "logging.conf"),
             **override,
         )
         self._test_inferer(inferer)
@@ -115,8 +115,8 @@ class TestBundleWorkflow(unittest.TestCase):
         inferer = ConfigWorkflow(
             config_file=config_file,
             workflow_type="infer",
-            properties_path=os.path.join(os.path.dirname(__file__), "testing_data", "fl_infer_properties.json"),
-            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            properties_path=os.path.join(MODULE_PATH, "testing_data", "fl_infer_properties.json"),
+            logging_file=os.path.join(MODULE_PATH, "testing_data", "logging.conf"),
             **override,
         )
         self._test_inferer(inferer)
@@ -131,7 +131,7 @@ class TestBundleWorkflow(unittest.TestCase):
         inferer = ConfigWorkflow(
             workflow_type="infer",
             config_file=config_file,
-            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            logging_file=os.path.join(MODULE_PATH, "testing_data", "logging.conf"),
         )
         # FIXME: temp add the property for test, we should add it to some formal realtime infer properties
         inferer.add_property(name="dataflow", required=True, config_id="dataflow")
@@ -157,7 +157,7 @@ class TestBundleWorkflow(unittest.TestCase):
         trainer = ConfigWorkflow(
             workflow_type="train",
             config_file=config_file,
-            logging_file=os.path.join(os.path.dirname(__file__), "testing_data", "logging.conf"),
+            logging_file=os.path.join(MODULE_PATH, "testing_data", "logging.conf"),
             init_id="initialize",
             run_id="run",
             final_id="finalize",
@@ -203,8 +203,8 @@ class TestBundleWorkflow(unittest.TestCase):
     def test_pythonic_workflow(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         config_file = {"roi_size": (64, 64, 32)}
-        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        property_path = os.path.join(os.path.dirname(__file__), "testing_data", "python_workflow_properties.json")
+        meta_file = os.path.join(MODULE_PATH, "testing_data", "metadata.json")
+        property_path = os.path.join(MODULE_PATH, "testing_data", "python_workflow_properties.json")
         workflow = PythonicWorkflowImpl(
             workflow_type="infer", config_file=config_file, meta_file=meta_file, properties_path=property_path
         )
@@ -229,9 +229,9 @@ class TestBundleWorkflow(unittest.TestCase):
     def test_create_pythonic_workflow(self):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         config_file = {"roi_size": (64, 64, 32)}
-        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        property_path = os.path.join(os.path.dirname(__file__), "testing_data", "python_workflow_properties.json")
-        sys.path.append(os.path.dirname(__file__))
+        meta_file = os.path.join(MODULE_PATH, "testing_data", "metadata.json")
+        property_path = os.path.join(MODULE_PATH, "testing_data", "python_workflow_properties.json")
+        sys.path.append(MODULE_PATH)
         workflow = create_workflow(
             "nonconfig_workflow.PythonicWorkflowImpl",
             workflow_type="infer",

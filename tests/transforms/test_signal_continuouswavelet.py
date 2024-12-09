@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
@@ -22,14 +23,14 @@ from monai.transforms import SignalContinuousWavelet
 from monai.utils import optional_import
 
 _, has_pywt = optional_import("pywt")
-TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
+TESTS_PATH = Path(__file__).parents[1]
+TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 VALID_CASES = [("mexh", 150, 500)]
 EXPECTED_RESULTS = [(6, 150, 2000)]
 
 
 @skipUnless(has_pywt, "pywt required")
 class TestSignalContinousWavelet(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, type, length, frequency):
         self.assertIsInstance(SignalContinuousWavelet(type, length, frequency), SignalContinuousWavelet)

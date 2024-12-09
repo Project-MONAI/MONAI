@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -72,7 +73,6 @@ class TestEvaluator(Evaluator):
 
 
 class TestHandlerProbMapGenerator(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_prob_map_generator(self, name, size):
         # set up dataset
@@ -86,8 +86,9 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
 
         engine = Engine(inference)
 
+        tests_path = Path(__file__).parents[1].as_posix()
         # add ProbMapGenerator() to evaluator
-        output_dir = os.path.join(os.path.dirname(__file__), "testing_data")
+        output_dir = os.path.join(tests_path, "testing_data")
         prob_map_gen = ProbMapProducer(output_dir=output_dir)
 
         evaluator = TestEvaluator(

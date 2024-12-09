@@ -15,15 +15,18 @@ import glob
 import inspect
 import os
 import unittest
+from pathlib import Path
 
 from monai.utils import optional_import
+
+TESTS_PATH = Path(__file__).parents[1]
 
 
 class TestModuleAlias(unittest.TestCase):
     """check that 'import monai.xx.file_name' returns a module"""
 
     def test_files(self):
-        src_dir = os.path.dirname(os.path.dirname(__file__))
+        src_dir = os.path.dirname(TESTS_PATH)
         monai_dir = os.path.join(src_dir, "monai")
         py_files = glob.glob(os.path.join(monai_dir, "**", "*.py"), recursive=True)
         for x in py_files:

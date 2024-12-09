@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
@@ -25,13 +26,13 @@ from monai.utils.type_conversion import convert_to_tensor
 
 _, has_scipy = optional_import("scipy")
 _, has_torchaudio = optional_import("torchaudio")
-TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
+TESTS_PATH = Path(__file__).parents[1]
+TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 VALID_CASES = [(60, 1, 500)]
 
 
 @skipUnless(has_scipy and has_torchaudio, "scipy and torchaudio are required")
 class TestSignalRemoveFrequencyNumpy(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, frequency, quality_factor, sampling_freq):
         self.assertIsInstance(SignalRemoveFrequency(frequency, quality_factor, sampling_freq), SignalRemoveFrequency)
@@ -50,7 +51,6 @@ class TestSignalRemoveFrequencyNumpy(unittest.TestCase):
 
 @skipUnless(has_scipy and has_torchaudio, "scipy and torchaudio are required")
 class TestSignalRemoveFrequencyTorch(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, frequency, quality_factor, sampling_freq):
         self.assertIsInstance(SignalRemoveFrequency(frequency, quality_factor, sampling_freq), SignalRemoveFrequency)

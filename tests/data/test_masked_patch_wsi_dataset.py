@@ -34,7 +34,8 @@ has_tiff = has_tiff and has_codec
 
 FILE_KEY = "wsi_generic_tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
+TESTS_PATH = os.path.dirname(os.path.realpath(__file__))
+FILE_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{FILE_KEY}.tiff")
 
 TEST_CASE_0 = [
     {"data": [{"image": FILE_PATH, WSIPatchKeys.LEVEL: 8, WSIPatchKeys.SIZE: (2, 2)}], "mask_level": 8},
@@ -74,7 +75,6 @@ def setUpModule():
 
 
 class MaskedPatchWSIDatasetTests:
-
     class Tests(unittest.TestCase):
         backend = None
 
@@ -101,7 +101,6 @@ class MaskedPatchWSIDatasetTests:
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestSlidingPatchWSIDatasetCuCIM(MaskedPatchWSIDatasetTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -109,7 +108,6 @@ class TestSlidingPatchWSIDatasetCuCIM(MaskedPatchWSIDatasetTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestSlidingPatchWSIDatasetOpenSlide(MaskedPatchWSIDatasetTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"

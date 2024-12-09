@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import torch
 
@@ -31,7 +32,6 @@ TRANSFORMS = mt.Compose(
 
 
 class Base:
-
     class TestVideoDataset(unittest.TestCase):
         video_source: int | str
         ds: type[VideoDataset]
@@ -116,7 +116,8 @@ class TestVideoFileDataset(Base.TestVideoDataset):
             cls.known_num_frames = None
             cls.video_source = None
             return
-        cls.video_source = os.path.join(os.path.dirname(__file__), "testing_data", fname)
+        tests_path = Path(__file__).parents[1].as_posix()
+        cls.video_source = os.path.join(tests_path, "testing_data", fname)
         download_url_or_skip_test(
             url=config["url"],
             filepath=cls.video_source,

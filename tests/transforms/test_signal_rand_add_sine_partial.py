@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 from parameterized import parameterized
@@ -20,12 +21,12 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddSinePartial
 from monai.utils.type_conversion import convert_to_tensor
 
-TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
+TESTS_PATH = Path(__file__).parents[1]
+TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 VALID_CASES = [([0.0, 1.0], [0.1, 0.6], [0.0, 0.4])]
 
 
 class TestSignalRandAddSinePartialNumpy(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
         self.assertIsInstance(SignalRandAddSinePartial(boundaries, frequencies, fraction), SignalRandAddSinePartial)
@@ -36,7 +37,6 @@ class TestSignalRandAddSinePartialNumpy(unittest.TestCase):
 
 
 class TestSignalRandAddSinePartialTorch(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies, fraction):
         self.assertIsInstance(SignalRandAddSinePartial(boundaries, frequencies, fraction), SignalRandAddSinePartial)

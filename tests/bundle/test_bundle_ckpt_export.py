@@ -15,6 +15,7 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
@@ -42,8 +43,9 @@ class TestCKPTExport(unittest.TestCase):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:
             os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # default
-        self.meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        self.config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
+        module_path = Path(__file__).resolve().parents[1].as_posix()
+        self.meta_file = os.path.join(module_path, "testing_data", "metadata.json")
+        self.config_file = os.path.join(module_path, "testing_data", "inference.json")
         self.tempdir_obj = tempfile.TemporaryDirectory()
         tempdir = self.tempdir_obj.name
         self.def_args = {"meta_file": "will be replaced by `meta_file` arg"}
