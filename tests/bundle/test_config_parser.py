@@ -373,7 +373,9 @@ class TestConfigParser(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_MERGE_JSON, TEST_CASE_MERGE_YAML])
     @skipUnless(has_yaml, "Requires pyyaml")
-    def test_load_configs(self, config_string, config_string2, extension, expected_overridden_val, expected_merged_vals):
+    def test_load_configs(
+        self, config_string, config_string2, extension, expected_overridden_val, expected_merged_vals
+    ):
         with tempfile.TemporaryDirectory() as tempdir:
             config_path1 = Path(tempdir) / f"config1.{extension}"
             config_path2 = Path(tempdir) / f"config2.{extension}"

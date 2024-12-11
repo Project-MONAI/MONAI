@@ -52,10 +52,12 @@ class TestDataset(unittest.TestCase):
                     "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
                 },
             ]
-            test_transform = Compose([
-                LoadImaged(keys=["image", "label", "extra"]),
-                SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
-            ])
+            test_transform = Compose(
+                [
+                    LoadImaged(keys=["image", "label", "extra"]),
+                    SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
+                ]
+            )
             dataset = Dataset(data=test_data, transform=test_transform)
             data1 = dataset[0]
             data2 = dataset[1]

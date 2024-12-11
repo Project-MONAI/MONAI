@@ -11,13 +11,13 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import os
 import shutil
 import sys
 import tempfile
 import unittest
 from copy import deepcopy
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np

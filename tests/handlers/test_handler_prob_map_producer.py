@@ -31,9 +31,7 @@ TEST_CASE_2 = ["temp_image_inference_output_3", 100]
 
 
 class TestDataset(Dataset):
-    __test__ = (
-        False  # indicate to pytest that this class is not intended for collection
-    )
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def __init__(self, name, size):
         super().__init__(
@@ -68,9 +66,7 @@ class TestDataset(Dataset):
 
 
 class TestEvaluator(Evaluator):
-    __test__ = (
-        False  # indicate to pytest that this class is not intended for collection
-    )
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def _iteration(self, engine, batchdata):
         return batchdata
@@ -96,10 +92,7 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         prob_map_gen = ProbMapProducer(output_dir=output_dir)
 
         evaluator = TestEvaluator(
-            torch.device("cpu:0"),
-            data_loader,
-            np.ceil(size / batch_size),
-            val_handlers=[prob_map_gen],
+            torch.device("cpu:0"), data_loader, np.ceil(size / batch_size), val_handlers=[prob_map_gen]
         )
 
         # set up validation handler
@@ -110,12 +103,8 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         engine.run(data_loader)
 
         prob_map = np.load(os.path.join(output_dir, name + ".npy"))
-        self.assertListEqual(
-            np.vstack(prob_map.nonzero()).T.tolist(), [[i, i + 1] for i in range(size)]
-        )
-        self.assertListEqual(
-            prob_map[prob_map.nonzero()].tolist(), [i + 1 for i in range(size)]
-        )
+        self.assertListEqual(np.vstack(prob_map.nonzero()).T.tolist(), [[i, i + 1] for i in range(size)])
+        self.assertListEqual(prob_map[prob_map.nonzero()].tolist(), [i + 1 for i in range(size)])
 
 
 if __name__ == "__main__":

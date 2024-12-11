@@ -49,7 +49,9 @@ class TestResizeWithPadOrCropd(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_data, expected_val):
         for p in TEST_NDARRAYS_ALL:
-            if isinstance(p(0), torch.Tensor) and ("constant_values" in input_param or input_param["mode"] == "reflect"):
+            if isinstance(p(0), torch.Tensor) and (
+                "constant_values" in input_param or input_param["mode"] == "reflect"
+            ):
                 continue
             padcropper = ResizeWithPadOrCropd(**input_param)
             input_data_ = deepcopy(input_data)
