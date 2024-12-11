@@ -64,7 +64,9 @@ class TestMatshow3d(unittest.TestCase):
             tempimg = f"{tempdir}/matshow3d_test.png"
             fig.savefig(tempimg)
             comp = compare_images(f"{testing_dir}/matshow3d_test.png", tempimg, 5e-2)
-            self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+            self.assertIsNone(
+                comp, f"value of comp={comp}"
+            )  # None indicates test passed
 
         _, axes = pyplot.subplots()
         matshow3d(
@@ -113,7 +115,9 @@ class TestMatshow3d(unittest.TestCase):
                 print("not none comp: ", comp)  # matplotlib 3.2.2
                 np.testing.assert_allclose(comp["rms"], 30.786983, atol=1e-3, rtol=1e-3)
             else:
-                self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+                self.assertIsNone(
+                    comp, f"value of comp={comp}"
+                )  # None indicates test passed
 
     def test_3d_rgb(self):
         test_dir = Path(__file__).parents[2].as_posix()
@@ -145,8 +149,12 @@ class TestMatshow3d(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tempdir:
             tempimg = f"{tempdir}/matshow3d_rgb_test.png"
             fig.savefig(tempimg)
-            comp = compare_images(f"{testing_dir}/matshow3d_rgb_test.png", tempimg, 5e-2)
-            self.assertIsNone(comp, f"value of comp={comp}")  # None indicates test passed
+            comp = compare_images(
+                f"{testing_dir}/matshow3d_rgb_test.png", tempimg, 5e-2
+            )
+            self.assertIsNone(
+                comp, f"value of comp={comp}"
+            )  # None indicates test passed
 
 
 if __name__ == "__main__":
