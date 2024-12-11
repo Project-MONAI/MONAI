@@ -26,11 +26,10 @@ from monai.transforms import RandomOrder
 from monai.transforms.compose import Compose
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
-from tests.test_one_of import A, B, C, Inv, NonInv, X, Y
+from tests.integration.test_one_of import A, B, C, Inv, NonInv, X, Y
 
 
 class InvC(Inv):
-
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x + 1
@@ -38,7 +37,6 @@ class InvC(Inv):
 
 
 class InvD(Inv):
-
     def __init__(self, keys):
         super().__init__(keys)
         self.fwd_fn = lambda x: x * 100
@@ -57,7 +55,6 @@ TEST_INVERSES = [
 
 
 class TestRandomOrder(unittest.TestCase):
-
     def test_empty_compose(self):
         c = RandomOrder()
         i = 1
@@ -116,7 +113,6 @@ TEST_RANDOM_ORDER_EXTENDED_TEST_CASES = [
 
 
 class TestRandomOrderAPITests(unittest.TestCase):
-
     @staticmethod
     def data_from_keys(keys):
         if keys is None:

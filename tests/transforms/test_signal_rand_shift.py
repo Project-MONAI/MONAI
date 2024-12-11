@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
@@ -23,13 +24,13 @@ from monai.utils import optional_import
 from monai.utils.type_conversion import convert_to_tensor
 
 _, has_scipy = optional_import("scipy")
-TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
+TESTS_PATH = Path(__file__).parents[1]
+TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 VALID_CASES = [("wrap", 0.0, [-1.0, 1.0])]
 
 
 @skipUnless(has_scipy, "scipy required")
 class TestSignalRandShiftNumpy(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, mode, filling, boundaries):
         self.assertIsInstance(SignalRandShift(mode, filling, boundaries), SignalRandShift)
@@ -41,7 +42,6 @@ class TestSignalRandShiftNumpy(unittest.TestCase):
 
 @skipUnless(has_scipy, "scipy required")
 class TestSignalRandShiftTorch(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, mode, filling, boundaries):
         self.assertIsInstance(SignalRandShift(mode, filling, boundaries), SignalRandShift)

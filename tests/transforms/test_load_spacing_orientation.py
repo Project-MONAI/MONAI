@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import time
 import unittest
+from pathlib import Path
 
 import nibabel
 import numpy as np
@@ -23,14 +24,13 @@ from parameterized import parameterized
 
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, Orientationd, Spacingd
 
+TESTS_PATH = Path(__file__).parents[1]
 FILES = tuple(
-    os.path.join(os.path.dirname(__file__), "testing_data", filename)
-    for filename in ("anatomical.nii", "reoriented_anat_moved.nii")
+    os.path.join(TESTS_PATH, "testing_data", filename) for filename in ("anatomical.nii", "reoriented_anat_moved.nii")
 )
 
 
 class TestLoadSpacingOrientation(unittest.TestCase):
-
     @staticmethod
     def load_image(filename):
         data = {"image": filename}

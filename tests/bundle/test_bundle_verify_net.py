@@ -14,21 +14,23 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, verify_net_in_out
 from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_windows
 
+TESTS_PATH = Path(__file__).parents[1].as_posix()
+
 TEST_CASE_1 = [
-    os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json"),
-    os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"),
+    os.path.join(TESTS_PATH, "testing_data", "metadata.json"),
+    os.path.join(TESTS_PATH, "testing_data", "inference.json"),
 ]
 
 
 @skip_if_windows
 class TestVerifyNetwork(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_verify(self, meta_file, config_file):
         with tempfile.TemporaryDirectory() as tempdir:

@@ -15,6 +15,7 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
@@ -23,17 +24,9 @@ from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from tests.utils import command_line_tests, skip_if_windows
 
-TEST_CASE_1 = [True, "", ""]
-
-TEST_CASE_2 = [True, "model", ""]
-
-TEST_CASE_3 = [True, "model", "True"]
-
-TEST_CASE_4 = [False, "", ""]
-
-TEST_CASE_5 = [False, "model", ""]
-
-TEST_CASE_6 = [False, "model", "True"]
+TEST_CASE_1 = ["", ""]
+TEST_CASE_2 = ["model", ""]
+TEST_CASE_3 = ["model", "True"]
 
 
 @skip_if_windows
@@ -42,8 +35,9 @@ class TestCKPTExport(unittest.TestCase):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:
             os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # default
-        self.meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        self.config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
+        module_path = Path(__file__).resolve().parents[1].as_posix()
+        self.meta_file = os.path.join(module_path, "testing_data", "metadata.json")
+        self.config_file = os.path.join(module_path, "testing_data", "inference.json")
         self.tempdir_obj = tempfile.TemporaryDirectory()
         tempdir = self.tempdir_obj.name
         self.def_args = {"meta_file": "will be replaced by `meta_file` arg"}
@@ -81,9 +75,7 @@ class TestCKPTExport(unittest.TestCase):
         command_line_tests(full_cmd)
         self.assertTrue(os.path.exists(self.ts_file))
 
-        _, metadata, extra_files = load_net_with_metadata(
-            self.ts_file, more_extra_files=["inference.json", "def_args.json"]
-        )
+        _, metadata, extra_files = load_net_with_metadata(self.ts_file, more_extra_files=["inference.json", "def_args.json"])
         self.assertIn("schema", metadata)
         self.assertIn("meta_file", json.loads(extra_files["def_args.json"]))
         self.assertIn("network_def", json.loads(extra_files["inference.json"]))

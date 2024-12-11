@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import unittest
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 from parameterized import parameterized
@@ -41,8 +42,9 @@ TINY_DIFF = 1e-4
 
 keys = ("img1", "img2")
 key, key_1 = "ref_avg152T1_LR", "ref_avg152T1_RL"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.gz")
-FILE_PATH_1 = os.path.join(os.path.dirname(__file__), "testing_data", f"{key_1}.nii.gz")
+TESTS_PATH = Path(__file__).parents[1]
+FILE_PATH = os.path.join(TESTS_PATH, "testing_data", f"{key}.nii.gz")
+FILE_PATH_1 = os.path.join(TESTS_PATH, "testing_data", f"{key_1}.nii.gz")
 
 TEST_CASES_ARRAY = [
     [Compose([Spacing(pixdim=(1.0, 1.1, 1.2)), Orientation(axcodes="RAS")]), {}, TINY_DIFF],
@@ -123,7 +125,6 @@ def _resample_to_affine(itk_obj, ref_obj):
 
 @unittest.skipUnless(has_itk, "Requires itk package.")
 class TestAffineConsistencyITK(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

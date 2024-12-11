@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -23,7 +24,8 @@ from tests.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test, s
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", "temp_" + "mri.nii")
+TESTS_PATH = Path(__file__).parents[1]
+FILE_PATH = os.path.join(TESTS_PATH, "testing_data", "temp_" + "mri.nii")
 
 EXPECTED_VALUE = {
     "xyz_translation": [
@@ -55,7 +57,6 @@ EXPECTED_VALUE = {
 
 @skip_if_quick
 class TestGlobalMutualInformationLoss(unittest.TestCase):
-
     def setUp(self):
         config = testing_data_config("images", "Prostate_T2W_AX_1")
         download_url_or_skip_test(
@@ -116,7 +117,6 @@ class TestGlobalMutualInformationLoss(unittest.TestCase):
 
 
 class TestGlobalMutualInformationLossIll(unittest.TestCase):
-
     @parameterized.expand(
         [
             (torch.ones((1, 2), dtype=torch.float), torch.ones((1, 3), dtype=torch.float)),  # mismatched_simple_dims

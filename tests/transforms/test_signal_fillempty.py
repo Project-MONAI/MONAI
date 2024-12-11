@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -21,12 +22,12 @@ from monai.transforms import SignalFillEmpty
 from monai.utils.type_conversion import convert_to_tensor
 from tests.utils import SkipIfBeforePyTorchVersion
 
-TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
+TESTS_PATH = Path(__file__).parents[1]
+TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 
 
 @SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalFillEmptyNumpy(unittest.TestCase):
-
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = np.load(TEST_SIGNAL)
@@ -38,7 +39,6 @@ class TestSignalFillEmptyNumpy(unittest.TestCase):
 
 @SkipIfBeforePyTorchVersion((1, 9))
 class TestSignalFillEmptyTorch(unittest.TestCase):
-
     def test_correct_parameters_multi_channels(self):
         self.assertIsInstance(SignalFillEmpty(replacement=0.0), SignalFillEmpty)
         sig = convert_to_tensor(np.load(TEST_SIGNAL))

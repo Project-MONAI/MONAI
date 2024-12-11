@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks.utils import freeze_layers
 from monai.utils import set_determinism
-from tests.test_copy_model_state import _TestModelOne, _TestModelTwo
+from tests.networks.utils.test_copy_model_state import _TestModelOne, _TestModelTwo
 
 TEST_CASES = []
 __devices = ("cpu", "cuda") if torch.cuda.is_available() else ("cpu",)
@@ -27,7 +27,6 @@ for _x in __devices:
 
 
 class TestModuleState(unittest.TestCase):
-
     def tearDown(self):
         set_determinism(None)
 

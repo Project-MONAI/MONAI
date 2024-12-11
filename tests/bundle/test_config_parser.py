@@ -72,7 +72,6 @@ TEST_CASE_1 = [
 
 
 class TestClass:
-
     @staticmethod
     def compute(a, b, func=lambda x, y: x + y):
         return func(a, b)
@@ -92,9 +91,9 @@ TEST_CASE_2 = [
         "cls_func": "$TestClass.cls_compute",
         "lambda_static_func": "$lambda x, y: TestClass.compute(x, y)",
         "lambda_cls_func": "$lambda x, y: TestClass.cls_compute(x, y)",
-        "compute": {"_target_": "tests.test_config_parser.TestClass.compute", "func": "@basic_func"},
-        "cls_compute": {"_target_": "tests.test_config_parser.TestClass.cls_compute", "func": "@basic_func"},
-        "call_compute": {"_target_": "tests.test_config_parser.TestClass"},
+        "compute": {"_target_": "tests.bundle.test_config_parser.TestClass.compute", "func": "@basic_func"},
+        "cls_compute": {"_target_": "tests.bundle.test_config_parser.TestClass.cls_compute", "func": "@basic_func"},
+        "call_compute": {"_target_": "tests.bundle.test_config_parser.TestClass"},
         "error_func": "$TestClass.__call__",
         "<test>": "$lambda x, y: x + y",
     }
@@ -143,7 +142,6 @@ TEST_CASE_MERGE_YAML = [
 
 
 class TestConfigParser(unittest.TestCase):
-
     def test_config_content(self):
         test_config = {"preprocessing": [{"_target_": "LoadImage"}], "dataset": {"_target_": "Dataset"}}
         parser = ConfigParser(config=test_config)
@@ -375,9 +373,7 @@ class TestConfigParser(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_MERGE_JSON, TEST_CASE_MERGE_YAML])
     @skipUnless(has_yaml, "Requires pyyaml")
-    def test_load_configs(
-        self, config_string, config_string2, extension, expected_overridden_val, expected_merged_vals
-    ):
+    def test_load_configs(self, config_string, config_string2, extension, expected_overridden_val, expected_merged_vals):
         with tempfile.TemporaryDirectory() as tempdir:
             config_path1 = Path(tempdir) / f"config1.{extension}"
             config_path2 = Path(tempdir) / f"config2.{extension}"

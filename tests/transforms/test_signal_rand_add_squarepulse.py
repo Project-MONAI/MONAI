@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
@@ -24,14 +25,14 @@ from monai.utils.type_conversion import convert_to_tensor
 from tests.utils import SkipIfBeforePyTorchVersion
 
 _, has_scipy = optional_import("scipy")
-TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
+TESTS_PATH = Path(__file__).parents[1]
+TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 VALID_CASES = [([0.0, 1.0], [0.001, 0.2])]
 
 
 @skipUnless(has_scipy, "scipy required")
 @SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestSignalRandAddSquarePulseNumpy(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies):
         self.assertIsInstance(SignalRandAddSquarePulse(boundaries, frequencies), SignalRandAddSquarePulse)
@@ -44,7 +45,6 @@ class TestSignalRandAddSquarePulseNumpy(unittest.TestCase):
 @skipUnless(has_scipy, "scipy required")
 @SkipIfBeforePyTorchVersion((1, 10, 1))
 class TestSignalRandAddSquarePulseTorch(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries, frequencies):
         self.assertIsInstance(SignalRandAddSquarePulse(boundaries, frequencies), SignalRandAddSquarePulse)

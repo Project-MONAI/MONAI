@@ -15,6 +15,7 @@ import os
 import tempfile
 import unittest
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 from parameterized import parameterized
@@ -32,14 +33,14 @@ TINY_DIFF = 0.1
 
 keys = ("img", "seg")
 key, key_1 = "MNI152_T1_2mm", "MNI152_T1_2mm_strucseg"
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"{key}.nii.gz")
-FILE_PATH_1 = os.path.join(os.path.dirname(__file__), "testing_data", f"{key_1}.nii.gz")
-TEST_CASES = os.path.join(os.path.dirname(__file__), "testing_data", "transform_metatensor_cases.yaml")
+TESTS_PATH = Path(__file__).parents[1]
+FILE_PATH = os.path.join(TESTS_PATH, "testing_data", f"{key}.nii.gz")
+FILE_PATH_1 = os.path.join(TESTS_PATH, "testing_data", f"{key_1}.nii.gz")
+TEST_CASES = os.path.join(TESTS_PATH, "testing_data", "transform_metatensor_cases.yaml")
 
 
 @unittest.skipUnless(has_nib, "Requires nibabel package.")
 class TestMetaTensorIntegration(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

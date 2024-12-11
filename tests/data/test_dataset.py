@@ -24,13 +24,12 @@ from parameterized import parameterized
 
 from monai.data import Dataset
 from monai.transforms import Compose, Lambda, LoadImage, LoadImaged, SimulateDelay, SimulateDelayd
-from tests.test_compose import TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES, data_from_keys
+from tests.transforms.compose.test_compose import TEST_COMPOSE_LAZY_ON_CALL_LOGGING_TEST_CASES, data_from_keys
 
 TEST_CASE_1 = [(128, 128, 128)]
 
 
 class TestDataset(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))
@@ -53,12 +52,10 @@ class TestDataset(unittest.TestCase):
                     "extra": os.path.join(tempdir, "test_extra2.nii.gz"),
                 },
             ]
-            test_transform = Compose(
-                [
-                    LoadImaged(keys=["image", "label", "extra"]),
-                    SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
-                ]
-            )
+            test_transform = Compose([
+                LoadImaged(keys=["image", "label", "extra"]),
+                SimulateDelayd(keys=["image", "label", "extra"], delay_time=[1e-7, 1e-6, 1e-5]),
+            ])
             dataset = Dataset(data=test_data, transform=test_transform)
             data1 = dataset[0]
             data2 = dataset[1]
@@ -100,7 +97,6 @@ class TestDataset(unittest.TestCase):
 
 
 class TestTupleDataset(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     def test_shape(self, expected_shape):
         test_image = nib.Nifti1Image(np.random.randint(0, 2, size=[128, 128, 128]).astype(float), np.eye(4))

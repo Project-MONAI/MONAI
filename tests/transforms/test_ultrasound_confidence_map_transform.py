@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -24,6 +25,8 @@ from monai.utils import optional_import
 from tests.utils import assert_allclose
 
 _, has_scipy = optional_import("scipy")
+
+TESTS_PATH = Path(__file__).parents[1]
 
 TEST_INPUT = np.array(
     [
@@ -487,7 +490,6 @@ SINK_MASK_OUTPUT = np.array(
 
 @unittest.skipUnless(has_scipy, "Requires scipy")
 class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
-
     def setUp(self):
         self.input_img_np = np.expand_dims(TEST_INPUT, axis=0)  # mock image (numpy array)
         self.input_mask_np = np.expand_dims(TEST_MASK, axis=0)  # mock mask (numpy array)
@@ -496,13 +498,13 @@ class TestUltrasoundConfidenceMapTransform(unittest.TestCase):
         self.input_mask_torch = torch.from_numpy(TEST_MASK).unsqueeze(0)  # mock mask (torch tensor)
 
         self.real_input_img_paths = [
-            os.path.join(os.path.dirname(__file__), "testing_data", "ultrasound_confidence_map", "neck_input.png"),
-            os.path.join(os.path.dirname(__file__), "testing_data", "ultrasound_confidence_map", "femur_input.png"),
+            os.path.join(TESTS_PATH, "testing_data", "ultrasound_confidence_map", "neck_input.png"),
+            os.path.join(TESTS_PATH, "testing_data", "ultrasound_confidence_map", "femur_input.png"),
         ]
 
         self.real_result_npy_paths = [
-            os.path.join(os.path.dirname(__file__), "testing_data", "ultrasound_confidence_map", "neck_result.npy"),
-            os.path.join(os.path.dirname(__file__), "testing_data", "ultrasound_confidence_map", "femur_result.npy"),
+            os.path.join(TESTS_PATH, "testing_data", "ultrasound_confidence_map", "neck_result.npy"),
+            os.path.join(TESTS_PATH, "testing_data", "ultrasound_confidence_map", "femur_result.npy"),
         ]
 
         self.real_input_paramaters = [
