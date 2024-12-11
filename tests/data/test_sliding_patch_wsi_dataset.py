@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
@@ -34,10 +35,11 @@ has_tiff = has_tiff and has_codec
 
 FILE_KEY = "wsi_generic_tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
+TESTS_PATH = Path(__file__).parents[1].as_posix()
+FILE_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{FILE_KEY}.tiff")
 
-FILE_PATH_SMALL_0 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_wsi_inference_0.tiff")
-FILE_PATH_SMALL_1 = os.path.join(os.path.dirname(__file__), "testing_data", "temp_wsi_inference_1.tiff")
+FILE_PATH_SMALL_0 = os.path.join(TESTS_PATH, "testing_data", "temp_wsi_inference_0.tiff")
+FILE_PATH_SMALL_1 = os.path.join(TESTS_PATH, "testing_data", "temp_wsi_inference_1.tiff")
 ARRAY_SMALL_0 = np.random.randint(low=0, high=255, size=(3, 4, 4), dtype=np.uint8)
 ARRAY_SMALL_1 = np.random.randint(low=0, high=255, size=(3, 5, 5), dtype=np.uint8)
 
@@ -213,7 +215,6 @@ def setUpModule():
 
 
 class SlidingPatchWSIDatasetTests:
-
     class Tests(unittest.TestCase):
         backend = None
 
@@ -253,7 +254,6 @@ class SlidingPatchWSIDatasetTests:
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -261,7 +261,6 @@ class TestSlidingPatchWSIDatasetCuCIM(SlidingPatchWSIDatasetTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestSlidingPatchWSIDatasetOpenSlide(SlidingPatchWSIDatasetTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"

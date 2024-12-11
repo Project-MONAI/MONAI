@@ -21,7 +21,7 @@ from monai.apps.pathology.inferers import SlidingWindowHoVerNetInferer
 from monai.data import MetaTensor
 from monai.inferers import sliding_window_inference
 from monai.utils import optional_import
-from tests.test_sliding_window_inference import TEST_CASES
+from tests.inferers.test_sliding_window_inference import TEST_CASES
 
 _, has_tqdm = optional_import("tqdm")
 
@@ -36,7 +36,6 @@ TEST_CASES_MULTIOUTPUT = [[torch.ones((1, 6, 20, 20))], [MetaTensor(torch.ones((
 
 
 class TestSlidingWindowHoVerNetInference(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_PADDING)
     def test_sliding_window_with_padding(
         self, key, image_shape, roi_shape, sw_batch_size, overlap, mode, device, extra_input_padding
@@ -122,21 +121,19 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
             sigma_scale=1.0,
         )
 
-        expected = np.array(
+        expected = np.array([
             [
                 [
-                    [
-                        [3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000],
-                        [3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000],
-                        [3.3333, 3.3333, 3.3333, 3.3333, 3.3333, 3.3333, 3.3333],
-                        [3.6667, 3.6667, 3.6667, 3.6667, 3.6667, 3.6667, 3.6667],
-                        [4.3333, 4.3333, 4.3333, 4.3333, 4.3333, 4.3333, 4.3333],
-                        [4.5000, 4.5000, 4.5000, 4.5000, 4.5000, 4.5000, 4.5000],
-                        [5.0000, 5.0000, 5.0000, 5.0000, 5.0000, 5.0000, 5.0000],
-                    ]
+                    [3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000],
+                    [3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000, 3.0000],
+                    [3.3333, 3.3333, 3.3333, 3.3333, 3.3333, 3.3333, 3.3333],
+                    [3.6667, 3.6667, 3.6667, 3.6667, 3.6667, 3.6667, 3.6667],
+                    [4.3333, 4.3333, 4.3333, 4.3333, 4.3333, 4.3333, 4.3333],
+                    [4.5000, 4.5000, 4.5000, 4.5000, 4.5000, 4.5000, 4.5000],
+                    [5.0000, 5.0000, 5.0000, 5.0000, 5.0000, 5.0000, 5.0000],
                 ]
             ]
-        )
+        ])
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
         result = sliding_window_inference(
             inputs,
@@ -150,21 +147,19 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
             sigma_scale=1.0,
             progress=has_tqdm,
         )
-        expected = np.array(
+        expected = np.array([
             [
                 [
-                    [
-                        [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
-                        [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
-                        [3.3271625, 3.3271623, 3.3271623, 3.3271623, 3.3271623, 3.3271623, 3.3271625],
-                        [3.6728377, 3.6728377, 3.6728377, 3.6728377, 3.6728377, 3.6728377, 3.6728377],
-                        [4.3271623, 4.3271623, 4.3271627, 4.3271627, 4.3271627, 4.3271623, 4.3271623],
-                        [4.513757, 4.513757, 4.513757, 4.513757, 4.513757, 4.513757, 4.513757],
-                        [4.9999995, 5.0, 5.0, 5.0, 5.0, 5.0, 4.9999995],
-                    ]
+                    [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
+                    [3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
+                    [3.3271625, 3.3271623, 3.3271623, 3.3271623, 3.3271623, 3.3271623, 3.3271625],
+                    [3.6728377, 3.6728377, 3.6728377, 3.6728377, 3.6728377, 3.6728377, 3.6728377],
+                    [4.3271623, 4.3271623, 4.3271627, 4.3271627, 4.3271627, 4.3271623, 4.3271623],
+                    [4.513757, 4.513757, 4.513757, 4.513757, 4.513757, 4.513757, 4.513757],
+                    [4.9999995, 5.0, 5.0, 5.0, 5.0, 5.0, 4.9999995],
                 ]
             ]
-        )
+        ])
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
         result = SlidingWindowHoVerNetInferer(roi_shape, sw_batch_size, overlap=0.5, mode="gaussian", sigma_scale=1.0)(
@@ -172,9 +167,9 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
         )
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
-        result = SlidingWindowHoVerNetInferer(
-            roi_shape, sw_batch_size, overlap=0.5, mode="gaussian", sigma_scale=[1.0, 1.0]
-        )(inputs, _Pred().compute)
+        result = SlidingWindowHoVerNetInferer(roi_shape, sw_batch_size, overlap=0.5, mode="gaussian", sigma_scale=[1.0, 1.0])(
+            inputs, _Pred().compute
+        )
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
         result = SlidingWindowHoVerNetInferer(
@@ -205,9 +200,7 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
         expected = np.ones((1, 1, 3, 3)) * -6.0
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
-        result = SlidingWindowHoVerNetInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1)(
-            inputs, compute
-        )
+        result = SlidingWindowHoVerNetInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1)(inputs, compute)
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
     def test_args_kwargs(self):
@@ -245,9 +238,9 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
         expected = np.ones((1, 1, 3, 3)) + 2.0
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
-        result = SlidingWindowHoVerNetInferer(
-            roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm
-        )(inputs, compute, t1, test2=t2)
+        result = SlidingWindowHoVerNetInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm)(
+            inputs, compute, t1, test2=t2
+        )
         np.testing.assert_allclose(result.cpu().numpy(), expected, rtol=1e-4)
 
     @parameterized.expand(TEST_CASES_MULTIOUTPUT)
@@ -287,9 +280,9 @@ class TestSlidingWindowHoVerNetInference(unittest.TestCase):
         for rr, _ in zip(result_dict, expected_dict):
             np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
 
-        result = SlidingWindowHoVerNetInferer(
-            roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm
-        )(inputs, compute)
+        result = SlidingWindowHoVerNetInferer(roi_shape, sw_batch_size, overlap=0.5, mode="constant", cval=-1, progress=has_tqdm)(
+            inputs, compute
+        )
         for rr, ee in zip(result, expected):
             np.testing.assert_allclose(rr.cpu().numpy(), ee, rtol=1e-4)
 

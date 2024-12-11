@@ -229,7 +229,7 @@ def run_testsuit():
             print(f"adding {test_module}")
             cases.append(test_module)
     exclude_cases = [str(list(Path(__file__).parent.rglob(f"*{et}*"))[0]) for et in exclude_cases]
-    assert not exclude_cases, f"items in exclude_cases not used:\n\t{'\n\t'.join(exclude_cases)}"
+    assert not exclude_cases, f"items in exclude_cases not used: {' '.join(exclude_cases)}"
     test_suite = unittest.TestLoader().loadTestsFromNames(cases)
     return test_suite
 

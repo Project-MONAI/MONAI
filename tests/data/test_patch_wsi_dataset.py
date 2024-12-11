@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import numpy as np
@@ -34,7 +35,8 @@ has_tiff = has_tiff and has_codec
 
 FILE_KEY = "wsi_generic_tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-FILE_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{FILE_KEY}.tiff")
+TESTS_PATH = Path(__file__).parents[1].as_posix()
+FILE_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{FILE_KEY}.tiff")
 
 TEST_CASE_0 = [
     {
@@ -128,7 +130,6 @@ def setUpModule():
 
 
 class PatchWSIDatasetTests:
-
     class Tests(unittest.TestCase):
         backend = None
 
@@ -183,7 +184,6 @@ class PatchWSIDatasetTests:
 
 @skipUnless(has_cim, "Requires cucim")
 class TestPatchWSIDatasetCuCIM(PatchWSIDatasetTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -191,7 +191,6 @@ class TestPatchWSIDatasetCuCIM(PatchWSIDatasetTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestPatchWSIDatasetOpenSlide(PatchWSIDatasetTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"

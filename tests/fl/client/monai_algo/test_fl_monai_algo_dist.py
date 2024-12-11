@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import unittest
 from os.path import join as pathjoin
+from pathlib import Path
 
 import torch.distributed as dist
 
@@ -24,7 +25,8 @@ from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks import get_state_dict
 from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion, SkipIfNoModule, skip_if_no_cuda
 
-_root_dir = os.path.abspath(pathjoin(os.path.dirname(__file__)))
+TESTS_PATH = TESTS_PATH = Path(__file__).parents[3].as_posix()
+_root_dir = os.path.abspath(pathjoin(TESTS_PATH))
 _data_dir = pathjoin(_root_dir, "testing_data")
 _logging_file = pathjoin(_data_dir, "logging.conf")
 
@@ -32,7 +34,6 @@ _logging_file = pathjoin(_data_dir, "logging.conf")
 @SkipIfNoModule("ignite")
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestFLMonaiAlgo(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2, init_method="no_init")
     @skip_if_no_cuda
     def test_train(self):

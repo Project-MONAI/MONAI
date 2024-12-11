@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 from parameterized import parameterized
@@ -20,12 +21,12 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddGaussianNoise
 from monai.utils.type_conversion import convert_to_tensor
 
-TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
+TESTS_PATH = Path(__file__).parents[1]
+TEST_SIGNAL = os.path.join(TESTS_PATH, "testing_data", "signal.npy")
 VALID_CASES = [([0.0, 0.02],)]
 
 
 class TestSignalRandAddGaussianNoiseNumpy(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)
@@ -36,7 +37,6 @@ class TestSignalRandAddGaussianNoiseNumpy(unittest.TestCase):
 
 
 class TestSignalRandAddGaussianNoiseTorch(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_parameters_multi_channels(self, boundaries):
         self.assertIsInstance(SignalRandAddGaussianNoise(boundaries), SignalRandAddGaussianNoise)

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import tempfile
 import time
 import unittest
@@ -36,7 +37,6 @@ compare_images, _ = optional_import("matplotlib.testing.compare", name="compare_
 
 
 class TestThreadContainer(unittest.TestCase):
-
     @SkipIfNoModule("ignite")
     def test_container(self):
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
@@ -70,8 +70,8 @@ class TestThreadContainer(unittest.TestCase):
     @SkipIfNoModule("matplotlib")
     def test_plot(self):
         set_determinism(0)
-
-        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        test_dir = Path(__file__).parents[1]
+        testing_dir = os.path.join(test_dir, "testing_data")
 
         net = torch.nn.Conv2d(1, 1, 3, padding=1)
 

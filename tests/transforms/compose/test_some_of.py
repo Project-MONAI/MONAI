@@ -26,8 +26,8 @@ from monai.transforms import TraceableTransform, Transform
 from monai.transforms.compose import Compose, SomeOf
 from monai.utils import set_determinism
 from monai.utils.enums import TraceKeys
-from tests.test_one_of import NonInv
-from tests.test_random_order import InvC, InvD
+from tests.integration.test_one_of import NonInv
+from tests.transforms.test_random_order import InvC, InvD
 
 
 class A(Transform):

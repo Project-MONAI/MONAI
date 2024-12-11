@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
@@ -43,8 +44,9 @@ class TestONNXExport(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_onnx_export(self, use_trace):
-        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
+        tests_path = Path(__file__).parents[1]
+        meta_file = os.path.join(tests_path, "testing_data", "metadata.json")
+        config_file = os.path.join(tests_path, "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.yaml")

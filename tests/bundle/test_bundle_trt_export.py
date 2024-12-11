@@ -15,6 +15,7 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
@@ -55,7 +56,6 @@ TEST_CASE_4 = ["fp16", [1, 1, 96, 96, 96], [1, 4, 8]]
 @skip_if_quick
 @SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestTRTExport(unittest.TestCase):
-
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:
@@ -70,8 +70,9 @@ class TestTRTExport(unittest.TestCase):
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     @unittest.skipUnless(has_torchtrt and has_tensorrt, "Torch-TensorRT is required for conversion!")
     def test_trt_export(self, convert_precision, input_shape, dynamic_batch):
-        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
+        tests_dir = Path(__file__).resolve().parent
+        meta_file = os.path.join(tests_dir, "testing_data", "metadata.json")
+        config_file = os.path.join(tests_dir, "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.yaml")
@@ -107,8 +108,9 @@ class TestTRTExport(unittest.TestCase):
         has_onnx and has_torchtrt and has_tensorrt, "Onnx and TensorRT are required for onnx-trt conversion!"
     )
     def test_onnx_trt_export(self, convert_precision, input_shape, dynamic_batch):
-        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
+        tests_dir = Path(__file__).resolve().parent
+        meta_file = os.path.join(tests_dir, "testing_data", "metadata.json")
+        config_file = os.path.join(tests_dir, "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.yaml")

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 import torch
@@ -36,7 +37,8 @@ elif has_osl:
     WSI_READER_CLASS = OpenSlideWSIReader
 
 WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"
-WSI_GENERIC_TIFF_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
+TESTS_PATH = Path(__file__).parents[1]
+WSI_GENERIC_TIFF_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
 
 HEIGHT = 32914
 WIDTH = 46000
@@ -102,7 +104,6 @@ TEST_CASE_WSI_8_OVERLAP = [
 
 # Filtering functions test cases
 def gen_location_filter(locations):
-
     def my_filter(patch, loc):
         if loc in locations:
             return False
@@ -199,7 +200,6 @@ def setUpModule():
 
 
 class WSISlidingWindowSplitterTests(unittest.TestCase):
-
     @parameterized.expand(
         [
             TEST_CASE_WSI_0_BASE,

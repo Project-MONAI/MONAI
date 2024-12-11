@@ -19,12 +19,10 @@ from monai.transforms import ClipIntensityPercentilesd
 from monai.transforms.utils_pytorch_numpy_unification import clip, percentile
 from monai.utils.type_conversion import convert_to_tensor
 from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
-
-from .test_clip_intensity_percentiles import test_hard_clip_func, test_soft_clip_func
+from tests.transforms.test_clip_intensity_percentiles import test_hard_clip_func, test_soft_clip_func
 
 
 class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
-
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_two_sided(self, p):
         key = "img"
@@ -121,7 +119,6 @@ class TestClipIntensityPercentilesd2D(NumpyImageTestCase2D):
 
 
 class TestClipIntensityPercentilesd3D(NumpyImageTestCase3D):
-
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_two_sided(self, p):
         key = "img"

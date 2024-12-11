@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCropd
 from monai.transforms.lazy.functional import apply_pending
-from tests.test_resize_with_pad_or_crop import TESTS_PENDING_MODE
+from tests.transforms.test_resize_with_pad_or_crop import TESTS_PENDING_MODE
 from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
 
 TEST_CASES = [
@@ -46,13 +46,10 @@ TEST_CASES = [
 
 
 class TestResizeWithPadOrCropd(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_pad_shape(self, input_param, input_data, expected_val):
         for p in TEST_NDARRAYS_ALL:
-            if isinstance(p(0), torch.Tensor) and (
-                "constant_values" in input_param or input_param["mode"] == "reflect"
-            ):
+            if isinstance(p(0), torch.Tensor) and ("constant_values" in input_param or input_param["mode"] == "reflect"):
                 continue
             padcropper = ResizeWithPadOrCropd(**input_param)
             input_data_ = deepcopy(input_data)

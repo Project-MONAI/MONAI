@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from typing import Any
 from unittest import skipUnless
 
@@ -35,11 +36,12 @@ imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
+TESTS_PATH = Path(__file__).parents[1]
 WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"
-WSI_GENERIC_TIFF_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
+WSI_GENERIC_TIFF_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
 
 WSI_APERIO_SVS_KEY = "wsi_aperio_svs"
-WSI_APERIO_SVS_PATH = os.path.join(os.path.dirname(__file__), "testing_data", f"temp_{WSI_APERIO_SVS_KEY}.svs")
+WSI_APERIO_SVS_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_APERIO_SVS_KEY}.svs")
 
 WSI_GENERIC_TIFF_HEIGHT = 32914
 WSI_GENERIC_TIFF_WIDTH = 46000
@@ -402,7 +404,6 @@ def setUpModule():
 
 
 class WSIReaderTests:
-
     class Tests(unittest.TestCase):
         backend = None
 
@@ -497,9 +498,7 @@ class WSIReaderTests:
             reader = WSIReader(self.backend)
             for mode in ["RGB", "RGBA"]:
                 file_path = save_rgba_tiff(
-                    img_expected,
-                    os.path.join(os.path.dirname(__file__), "testing_data", f"temp_tiff_image_{mode}.tiff"),
-                    mode=mode,
+                    img_expected, os.path.join(TESTS_PATH, "testing_data", f"temp_tiff_image_{mode}.tiff"), mode=mode
                 )
                 with reader.read(file_path) as img_obj:
                     image[mode], _ = reader.get_data(img_obj)
@@ -514,7 +513,7 @@ class WSIReaderTests:
                 # Until cuCIM addresses https://github.com/rapidsai/cucim/issues/230
                 return
             reader = WSIReader(self.backend)
-            file_path = os.path.join(os.path.dirname(__file__), "testing_data", "temp_tiff_image_gray.tiff")
+            file_path = os.path.join(TESTS_PATH, "testing_data", "temp_tiff_image_gray.tiff")
             imwrite(file_path, img_expected, shape=img_expected.shape)
             with self.assertRaises((RuntimeError, ValueError, openslide.OpenSlideError if has_osl else ValueError)):
                 with reader.read(file_path) as img_obj:
@@ -641,7 +640,6 @@ class WSIReaderTests:
 
 @skipUnless(has_cucim, "Requires cucim")
 class TestCuCIM(WSIReaderTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "cucim"
@@ -649,7 +647,6 @@ class TestCuCIM(WSIReaderTests.Tests):
 
 @skipUnless(has_osl, "Requires openslide")
 class TestOpenSlide(WSIReaderTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "openslide"
@@ -657,7 +654,6 @@ class TestOpenSlide(WSIReaderTests.Tests):
 
 @skipUnless(has_tiff, "Requires tifffile")
 class TestTiffFile(WSIReaderTests.Tests):
-
     @classmethod
     def setUpClass(cls):
         cls.backend = "tifffile"

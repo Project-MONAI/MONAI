@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -30,7 +31,9 @@ TEST_CASE_2 = ["temp_image_inference_output_3", 100]
 
 
 class TestDataset(Dataset):
-    __test__ = False  # indicate to pytest that this class is not intended for collection
+    __test__ = (
+        False  # indicate to pytest that this class is not intended for collection
+    )
 
     def __init__(self, name, size):
         super().__init__(
@@ -65,14 +68,15 @@ class TestDataset(Dataset):
 
 
 class TestEvaluator(Evaluator):
-    __test__ = False  # indicate to pytest that this class is not intended for collection
+    __test__ = (
+        False  # indicate to pytest that this class is not intended for collection
+    )
 
     def _iteration(self, engine, batchdata):
         return batchdata
 
 
 class TestHandlerProbMapGenerator(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_prob_map_generator(self, name, size):
         # set up dataset
@@ -86,12 +90,16 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
 
         engine = Engine(inference)
 
+        tests_path = Path(__file__).parents[1].as_posix()
         # add ProbMapGenerator() to evaluator
-        output_dir = os.path.join(os.path.dirname(__file__), "testing_data")
+        output_dir = os.path.join(tests_path, "testing_data")
         prob_map_gen = ProbMapProducer(output_dir=output_dir)
 
         evaluator = TestEvaluator(
-            torch.device("cpu:0"), data_loader, np.ceil(size / batch_size), val_handlers=[prob_map_gen]
+            torch.device("cpu:0"),
+            data_loader,
+            np.ceil(size / batch_size),
+            val_handlers=[prob_map_gen],
         )
 
         # set up validation handler
@@ -102,8 +110,12 @@ class TestHandlerProbMapGenerator(unittest.TestCase):
         engine.run(data_loader)
 
         prob_map = np.load(os.path.join(output_dir, name + ".npy"))
-        self.assertListEqual(np.vstack(prob_map.nonzero()).T.tolist(), [[i, i + 1] for i in range(size)])
-        self.assertListEqual(prob_map[prob_map.nonzero()].tolist(), [i + 1 for i in range(size)])
+        self.assertListEqual(
+            np.vstack(prob_map.nonzero()).T.tolist(), [[i, i + 1] for i in range(size)]
+        )
+        self.assertListEqual(
+            prob_map[prob_map.nonzero()].tolist(), [i + 1 for i in range(size)]
+        )
 
 
 if __name__ == "__main__":

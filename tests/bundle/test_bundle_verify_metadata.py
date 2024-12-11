@@ -15,20 +15,21 @@ import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, verify_metadata
 from tests.utils import command_line_tests, download_url_or_skip_test, skip_if_windows, testing_data_config
 
-SCHEMA_FILE = os.path.join(os.path.dirname(__file__), "testing_data", "schema.json")
+TESTS_DIR = Path(__file__).parent.as_posix()
+SCHEMA_FILE = os.path.join(TESTS_DIR, "testing_data", "schema.json")
 
-TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json"), SCHEMA_FILE]
+TEST_CASE_1 = [os.path.join(TESTS_DIR, "testing_data", "metadata.json"), SCHEMA_FILE]
 
 
 @skip_if_windows
 class TestVerifyMetaData(unittest.TestCase):
-
     def setUp(self):
         self.config = testing_data_config("configs", "test_meta_file")
         download_url_or_skip_test(
