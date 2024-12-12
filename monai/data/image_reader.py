@@ -986,9 +986,8 @@ class NibabelReader(ImageReader):
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
-        if self.to_gpu:
-            return _stack_images(img_array, compatible_meta, to_cupy=True), compatible_meta
-        return _stack_images(img_array, compatible_meta), compatible_meta
+
+        return _stack_images(img_array, compatible_meta, to_cupy=self.to_gpu), compatible_meta
 
     def _get_meta_dict(self, img) -> dict:
         """
