@@ -142,26 +142,19 @@ def _copy_compatible_dict(from_dict: dict, to_dict: dict):
             )
 
 
-def _stack_images(image_list: list, meta_dict: dict):
+def _stack_images(image_list: list, meta_dict: dict, to_cupy: bool = False):
     if len(image_list) <= 1:
         return image_list[0]
     if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
         channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
+        if to_cupy and has_cp:
+            return cp.concatenate(image_list, axis=channel_dim)
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
+    if to_cupy and has_cp:
+        return cp.stack(image_list, axis=0)
     return np.stack(image_list, axis=0)
-
-
-def _stack_gpu_images(image_list: list, meta_dict: dict):
-    if len(image_list) <= 1:
-        return image_list[0]
-    if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
-        channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
-        return cp.concatenate(image_list, axis=channel_dim)
-    # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
-    meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
-    return cp.stack(image_list, axis=0)
 
 
 @require_pkg(pkg_name="itk")
@@ -880,12 +873,16 @@ class NibabelReader(ImageReader):
     Load NIfTI format images based on Nibabel library.
 
     Args:
-        as_closest_canonical: if True, load the image as closest to canonical axis format.
-        squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
         channel_dim: the channel dimension of the input image, default is None.
             this is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             if None, `original_channel_dim` will be either `no_channel` or `-1`.
             most Nifti files are usually "channel last", no need to specify this argument for them.
+        as_closest_canonical: if True, load the image as closest to canonical axis format.
+        squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
+        to_gpu: If True, load the image into GPU memory using CuPy and Kvikio. This can accelerate data loading.
+            Default is False. CuPy and Kvikio are required for this option.
+            Note: For compressed NIfTI files, some operations may still be performed on CPU memory,
+            and the acceleration may not be significant.
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
@@ -896,15 +893,22 @@ class NibabelReader(ImageReader):
         channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
-        gpu_load: bool = False,
+        to_gpu: bool = False,
         **kwargs,
     ):
         super().__init__()
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
-        # TODO: add warning if not have required libs
-        self.gpu_load = gpu_load
+        if to_gpu is True:
+            if not has_cp:
+                warnings.warn("CuPy is not installed, fall back to use cpu load.")
+                to_gpu = False
+            if not has_kvikio:
+                warnings.warn("Kvikio is not installed, fall back to use cpu load.")
+                to_gpu = False
+                
+        self.to_gpu = to_gpu
         self.kwargs = kwargs
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
@@ -982,8 +986,8 @@ class NibabelReader(ImageReader):
             else:
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
-        if self.gpu_load:
-            return _stack_gpu_images(img_array, compatible_meta), compatible_meta
+        if self.to_gpu:
+            return _stack_images(img_array, compatible_meta, to_cupy=True), compatible_meta
         return _stack_images(img_array, compatible_meta), compatible_meta
 
     def _get_meta_dict(self, img) -> dict:
@@ -1047,22 +1051,18 @@ class NibabelReader(ImageReader):
         if self.gpu_load:
             file_size = os.path.getsize(filename)
             image = cp.empty(file_size, dtype=cp.uint8)
-            # suggestion from Ming: more tests, diff size
-            # cucim + nifti
             with kvikio.CuFile(filename, "r") as f:
                 f.read(image)
             if filename.endswith(".gz"):
                 # for compressed data, have to tansfer to CPU to decompress
                 # and then transfer back to GPU. It is not efficient compared to .nii file
                 # but it's still faster than Nibabel's default reader.
-                # TODO: can benchmark more, it may no need to do this since we don't have to use .gz
-                # since it's waste times especially in training
                 compressed_data = cp.asnumpy(image)
                 with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
                     decompressed_data = gz_file.read()
 
                 file_size = len(decompressed_data)
-                image = cp.asarray(np.frombuffer(decompressed_data, dtype=np.uint8))
+                image = cp.frombuffer(decompressed_data, dtype=cp.uint8)
             data_shape = img.shape
             data_offset = img.dataobj.offset
             data_dtype = img.dataobj.dtype
