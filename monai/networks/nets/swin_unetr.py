@@ -75,7 +75,7 @@ class SwinUNETR(nn.Module):
         dropout_path_rate: float = 0.0,
         normalize: bool = True,
         norm_layer: type[LayerNorm] = nn.LayerNorm,
-        patch_norm: bool = True,
+        patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
         downsample: str | nn.Module = "merging",
@@ -102,7 +102,7 @@ class SwinUNETR(nn.Module):
             dropout_path_rate: drop path rate.
             normalize: normalize output intermediate features in each stage.
             norm_layer: normalization layer.
-            patch_norm: whether to apply normalization to the patch embedding.
+            patch_norm: whether to apply normalization to the patch embedding. Default is False.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
             spatial_dims: number of spatial dims.
             downsample: module used for downsampling, available options are `"mergingv2"`, `"merging"` and a

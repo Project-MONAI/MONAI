@@ -137,6 +137,6 @@ jobs:
       shell: bash
     - name: Upload coverage
       if: ${{ github.head_ref != 'dev' && github.event.pull_request.merged != true }}
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         files: ./coverage.xml
