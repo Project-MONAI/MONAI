@@ -907,7 +907,7 @@ class NibabelReader(ImageReader):
             if not has_kvikio:
                 warnings.warn("Kvikio is not installed, fall back to use cpu load.")
                 to_gpu = False
-                
+
         self.to_gpu = to_gpu
         self.kwargs = kwargs
 
