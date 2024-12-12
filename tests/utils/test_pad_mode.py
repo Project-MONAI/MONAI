@@ -18,7 +18,7 @@ import torch
 
 from monai.transforms import CastToType, Pad
 from monai.utils import NumpyPadMode, PytorchPadMode
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils.utils import SkipIfBeforePyTorchVersion
 
 
 @SkipIfBeforePyTorchVersion((1, 10, 1))

@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai import transforms
 from monai.losses.image_dissimilarity import GlobalMutualInformationLoss
-from tests.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test, skip_if_quick, testing_data_config
+from tests.utils.utils import SkipIfBeforePyTorchVersion, download_url_or_skip_test, skip_if_quick, testing_data_config
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 

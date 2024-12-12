@@ -26,7 +26,7 @@ from monai.bundle.config_item import ConfigItem
 from monai.data import DataLoader, Dataset
 from monai.transforms import Compose, LoadImaged, RandTorchVisiond
 from monai.utils import min_version, optional_import
-from tests.utils import TimedCall
+from tests.utils.utils import TimedCall
 
 _, has_tv = optional_import("torchvision", "0.8.0", min_version)
 _, has_yaml = optional_import("yaml")

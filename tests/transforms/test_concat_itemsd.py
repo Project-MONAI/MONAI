@@ -18,7 +18,7 @@ import torch
 
 from monai.data import MetaTensor
 from monai.transforms import ConcatItemsd
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 
 class TestConcatItemsd(unittest.TestCase):

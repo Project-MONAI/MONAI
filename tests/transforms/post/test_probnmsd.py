@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms.post.dictionary import ProbNMSD
-from tests.utils import TEST_NDARRAYS
+from tests.utils.utils import TEST_NDARRAYS
 
 TESTS: list[Any] = []
 for p in TEST_NDARRAYS:

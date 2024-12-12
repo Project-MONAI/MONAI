@@ -21,7 +21,7 @@ from monai.handlers import TrtHandler
 from monai.networks import trt_compile
 from monai.networks.nets import cell_sam_wrapper, vista3d132
 from monai.utils import min_version, optional_import
-from tests.utils import SkipIfBeforeComputeCapabilityVersion, skip_if_no_cuda, skip_if_quick, skip_if_windows
+from tests.utils.utils import SkipIfBeforeComputeCapabilityVersion, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 trt, trt_imported = optional_import("tensorrt", "10.1.0", min_version)
 torch_tensorrt, torch_trt_imported = optional_import("torch_tensorrt")

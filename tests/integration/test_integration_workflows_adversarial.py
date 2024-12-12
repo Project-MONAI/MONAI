@@ -28,7 +28,7 @@ from monai.networks.nets import AutoEncoder, Discriminator
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, RandFlipd, ScaleIntensityd
 from monai.utils import AdversarialKeys as Keys
 from monai.utils import CommonKeys, optional_import, set_determinism
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils.utils import DistTestCase, TimedCall, skip_if_quick
 
 nib, has_nibabel = optional_import("nibabel")
 

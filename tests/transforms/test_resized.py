@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Invertd, Resize, Resized
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import (
+from tests.utils.utils import (
     TEST_NDARRAYS_ALL,
     NumpyImageTestCase2D,
     SkipIfAtLeastPyTorchVersion,

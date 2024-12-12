@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import GenerateDistanceMap
 from monai.transforms.intensity.array import GaussianSmooth
-from tests.utils import TEST_NDARRAYS
+from tests.utils.utils import TEST_NDARRAYS
 
 EXCEPTION_TESTS = []
 TESTS = []

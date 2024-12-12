@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers.filtering import PHLFilter
-from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda
+from tests.utils.utils import skip_if_no_cpp_extension, skip_if_no_cuda
 
 TEST_CASES = [
     [

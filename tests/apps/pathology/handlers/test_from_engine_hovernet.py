@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.apps.pathology.handlers.utils import from_engine_hovernet
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 TEST_CASE_0 = [
     [{"A": {"C": 1, "D": 2}, "B": {"C": 2, "D": 2}}, {"A": {"C": 3, "D": 2}, "B": {"C": 4, "D": 2}}],

@@ -30,7 +30,7 @@ from monai.networks.nets import Discriminator, Generator
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, RandFlipd, ScaleIntensityd
 from monai.utils import GanKeys as Keys
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, TimedCall, skip_if_quick
+from tests.utils.utils import DistTestCase, TimedCall, skip_if_quick
 
 
 def run_training_test(root_dir, device="cuda:0"):

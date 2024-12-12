@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import TverskyLoss
-from tests.utils import test_script_save
+from tests.utils.utils import test_script_save
 
 TEST_CASES = [
     [  # shape: (1, 1, 2, 2), (1, 1, 2, 2)

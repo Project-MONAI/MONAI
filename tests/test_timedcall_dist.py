@@ -16,7 +16,7 @@ import sys
 import time
 import unittest
 
-from tests.utils import TimedCall
+from tests.utils.utils import TimedCall
 
 
 @TimedCall(seconds=20 if sys.platform == "linux" else 60, force_quit=False)

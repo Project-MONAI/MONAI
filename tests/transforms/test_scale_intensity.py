@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import ScaleIntensity
 from monai.transforms.utils import rescale_array
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):

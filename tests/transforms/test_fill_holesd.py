@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import FillHolesd
 from monai.utils.enums import CommonKeys
-from tests.utils import TEST_NDARRAYS, assert_allclose, clone
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose, clone
 
 grid_1_raw = [[1, 1, 1], [1, 0, 1], [1, 1, 1]]
 

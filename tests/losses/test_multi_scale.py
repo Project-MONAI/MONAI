@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.losses import DiceLoss
 from monai.losses.multi_scale import MultiScaleLoss
-from tests.utils import test_script_save
+from tests.utils.utils import test_script_save
 
 dice_loss = DiceLoss(include_background=True, sigmoid=True, smooth_nr=1e-5, smooth_dr=1e-5)
 device = "cuda" if torch.cuda.is_available() else "cpu"

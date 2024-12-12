@@ -24,7 +24,7 @@ from parameterized import parameterized
 
 from monai.data import DataLoader, SmartCacheDataset
 from monai.transforms import Compose, Lambda, LoadImaged
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 TEST_CASE_1 = [0.1, 0, Compose([LoadImaged(keys=["image", "label", "extra"])])]
 

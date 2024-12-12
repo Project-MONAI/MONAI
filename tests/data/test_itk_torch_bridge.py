@@ -35,7 +35,7 @@ from monai.data.itk_torch_bridge import (
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
 from monai.utils import optional_import, set_determinism
-from tests.utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, test_is_quick, testing_data_config
+from tests.utils.utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, test_is_quick, testing_data_config
 
 itk, has_itk = optional_import("itk")
 _, has_nib = optional_import("nibabel")

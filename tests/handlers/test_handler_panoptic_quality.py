@@ -18,7 +18,7 @@ from ignite.engine import Engine, Events
 from parameterized import parameterized
 
 from monai.handlers import PanopticQuality, from_engine
-from tests.utils import SkipIfNoModule, assert_allclose
+from tests.utils.utils import SkipIfNoModule, assert_allclose
 
 sample_1_pred = torch.as_tensor(
     [[[0, 1, 1, 1], [0, 0, 5, 5], [2, 0, 3, 3], [2, 2, 2, 0]], [[0, 1, 1, 1], [0, 0, 0, 0], [2, 0, 3, 3], [4, 2, 2, 0]]]

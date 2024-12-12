@@ -18,7 +18,7 @@ import torch
 import torch.distributed as dist
 
 from monai.metrics import CumulativeAverage
-from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
+from tests.utils.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion
 
 
 @SkipIfBeforePyTorchVersion((1, 8))

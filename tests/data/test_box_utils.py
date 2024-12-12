@@ -35,7 +35,7 @@ from monai.data.box_utils import (
     non_max_suppression,
 )
 from monai.utils.type_conversion import convert_data_type
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:

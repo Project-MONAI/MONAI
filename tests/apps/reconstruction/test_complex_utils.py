@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.reconstruction.complex_utils import complex_abs, complex_conj, complex_mul, convert_to_tensor_complex
 from monai.utils.type_conversion import convert_data_type
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose
 
 # test case for convert_to_tensor_complex
 im_complex = [[1.0 + 1.0j, 1.0 + 1.0j], [1.0 + 1.0j, 1.0 + 1.0j]]

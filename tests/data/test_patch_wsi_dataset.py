@@ -24,7 +24,7 @@ from monai.data import PatchWSIDataset
 from monai.data.wsi_reader import CuCIMWSIReader, OpenSlideWSIReader
 from monai.utils import optional_import
 from monai.utils.enums import WSIPatchKeys
-from tests.utils import download_url_or_skip_test, testing_data_config
+from tests.utils.utils import download_url_or_skip_test, testing_data_config
 
 cucim, has_cim = optional_import("cucim")
 has_cim = has_cim and hasattr(cucim, "CuImage")

@@ -19,7 +19,7 @@ import torch.distributed as dist
 
 from monai.handlers import ROCAUC
 from monai.transforms import Activations, AsDiscrete
-from tests.utils import DistCall, DistTestCase
+from tests.utils.utils import DistCall, DistTestCase
 
 
 class DistributedROCAUC(DistTestCase):

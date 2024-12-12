@@ -27,7 +27,7 @@ from monai.networks import eval_mode, predict_segmentation
 from monai.networks.nets import UNet
 from monai.transforms import EnsureChannelFirst, SaveImage
 from monai.utils import pytorch_after, set_determinism
-from tests.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
+from tests.utils.utils import DistTestCase, TimedCall, make_nifti_image, skip_if_quick
 
 
 def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):

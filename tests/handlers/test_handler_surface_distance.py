@@ -18,7 +18,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.handlers import SurfaceDistance
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 
 def create_spherical_seg_3d(

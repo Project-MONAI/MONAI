@@ -19,7 +19,7 @@ from monai.apps import TciaDataset
 from monai.apps.tcia import DCM_FILENAME_REGEX, TCIA_LABEL_DICT
 from monai.data import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
-from tests.utils import skip_if_downloading_fails, skip_if_quick
+from tests.utils.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestTciaDataset(unittest.TestCase):

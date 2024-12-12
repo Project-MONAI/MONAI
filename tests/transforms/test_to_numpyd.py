@@ -19,7 +19,7 @@ import torch
 
 from monai.transforms import ToNumpyd
 from monai.utils import optional_import
-from tests.utils import HAS_CUPY, assert_allclose, skip_if_no_cuda
+from tests.utils.utils import HAS_CUPY, assert_allclose, skip_if_no_cuda
 
 cp, _ = optional_import("cupy")
 

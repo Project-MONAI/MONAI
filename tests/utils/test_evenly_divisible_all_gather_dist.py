@@ -17,7 +17,7 @@ import torch
 import torch.distributed as dist
 
 from monai.utils import evenly_divisible_all_gather
-from tests.utils import DistCall, DistTestCase, assert_allclose
+from tests.utils.utils import DistCall, DistTestCase, assert_allclose
 
 
 class DistributedEvenlyDivisibleAllGather(DistTestCase):

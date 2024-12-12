@@ -23,7 +23,7 @@ from monai.apps import download_url
 from monai.networks import eval_mode
 from monai.networks.nets.controlnet import ControlNet
 from monai.utils import optional_import
-from tests.utils import skip_if_downloading_fails, testing_data_config
+from tests.utils.utils import skip_if_downloading_fails, testing_data_config
 
 _, has_einops = optional_import("einops")
 UNCOND_CASES_2D = [

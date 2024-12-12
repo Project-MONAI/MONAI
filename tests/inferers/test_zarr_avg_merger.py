@@ -20,7 +20,7 @@ from torch.nn.functional import pad
 
 from monai.inferers import ZarrAvgMerger
 from monai.utils import optional_import
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")

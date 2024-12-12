@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import GenerateInstanceBorderd
-from tests.utils import TEST_NDARRAYS
+from tests.utils.utils import TEST_NDARRAYS
 
 EXCEPTION_TESTS = []
 TESTS = []

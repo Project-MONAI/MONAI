@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Activationsd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
 for p in TEST_NDARRAYS:

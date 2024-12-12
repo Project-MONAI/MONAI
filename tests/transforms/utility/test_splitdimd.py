@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImaged
 from monai.transforms.utility.dictionary import SplitDimd
-from tests.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image, make_rand_affine
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image, make_rand_affine
 
 TESTS = []
 for p in TEST_NDARRAYS:

@@ -37,7 +37,7 @@ from monai.networks.nets import (
 )
 from monai.networks.nets.resnet import ResNetBlock
 from monai.utils import optional_import
-from tests.utils import (
+from tests.utils.utils import (
     SkipIfNoModule,
     equal_state_dict,
     skip_if_downloading_fails,

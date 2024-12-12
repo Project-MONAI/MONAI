@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import SavitzkyGolayFilter
-from tests.utils import skip_if_no_cuda
+from tests.utils.utils import skip_if_no_cuda
 
 # Zero-padding trivial tests
 

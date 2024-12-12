@@ -17,7 +17,7 @@ import unittest
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.data import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
-from tests.utils import skip_if_downloading_fails, skip_if_quick
+from tests.utils.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestCrossValidation(unittest.TestCase):

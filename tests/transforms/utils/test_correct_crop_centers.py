@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms.utils import correct_crop_centers
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 TESTS = [[[1, 5, 0], [2, 2, 2], [10, 10, 10]], [[4, 4, 4], [2, 2, 1], [10, 10, 10]]]
 

@@ -23,7 +23,7 @@ from parameterized import parameterized
 from monai.data import GDSDataset, json_hashing
 from monai.transforms import Compose, Flip, Identity, LoadImaged, SimulateDelayd, Transform
 from monai.utils import optional_import
-from tests.utils import TEST_NDARRAYS, assert_allclose, skip_if_no_cuda
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose, skip_if_no_cuda
 
 _, has_cp = optional_import("cupy")
 nib, has_nib = optional_import("nibabel")

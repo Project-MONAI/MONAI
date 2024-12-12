@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import JukeboxLoss
-from tests.utils import test_script_save
+from tests.utils.utils import test_script_save
 
 TEST_CASES = [
     [

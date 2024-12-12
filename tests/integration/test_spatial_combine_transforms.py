@@ -24,7 +24,7 @@ from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.transform import MapTransform
 from monai.utils import set_determinism
 from tests.lazy_transforms_utils import get_apply_param
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 TEST_2D = [
     [

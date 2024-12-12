@@ -36,7 +36,7 @@ from monai.apps.detection.transforms.dictionary import (
 )
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CastToTyped, Invertd
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose
 
 TESTS_3D = []
 boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]

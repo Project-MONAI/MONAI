@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import Quicknat
 from monai.utils import optional_import
-from tests.utils import test_script_save
+from tests.utils.utils import test_script_save
 
 _, has_se = optional_import("squeeze_and_excitation")
 
