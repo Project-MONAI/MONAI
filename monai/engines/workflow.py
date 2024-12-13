@@ -128,7 +128,6 @@ class Workflow(Engine):
 
             # set the epoch value for DistributedSampler objects when an epoch starts
             if isinstance(sampler, DistributedSampler):
-
                 @self.on(Events.EPOCH_STARTED)
                 def set_sampler_epoch(engine: Engine) -> None:
                     sampler.set_epoch(engine.state.epoch)
