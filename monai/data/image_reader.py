@@ -949,7 +949,7 @@ class NibabelReader(ImageReader):
             img_.append(img)  # type: ignore
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img) -> tuple[np.ndarray | "cp.ndarray", dict]:
+    def get_data(self, img) -> tuple[np.ndarray | cp.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -961,7 +961,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
-        img_array: list[np.ndarray | "cp.ndarray"] = []
+        img_array: list[np.ndarray | cp.ndarray] = []
         compatible_meta: dict = {}
 
         for i, filename in zip(ensure_tuple(img), self.filenames):
