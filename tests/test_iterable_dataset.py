@@ -18,12 +18,11 @@ import unittest
 
 import nibabel as nib
 import numpy as np
+import torch.nn as nn
 
 from monai.data import DataLoader, Dataset, IterableDataset
-from monai.transforms import Compose, LoadImaged, SimulateDelayd
 from monai.engines import SupervisedEvaluator
-
-import torch.nn as nn
+from monai.transforms import Compose, LoadImaged, SimulateDelayd
 
 
 class _Stream:
