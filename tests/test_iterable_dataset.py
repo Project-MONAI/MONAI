@@ -21,6 +21,9 @@ import numpy as np
 
 from monai.data import DataLoader, Dataset, IterableDataset
 from monai.transforms import Compose, LoadImaged, SimulateDelayd
+from monai.engines import SupervisedEvaluator
+
+import torch.nn as nn
 
 
 class _Stream:
@@ -58,6 +61,17 @@ class TestIterableDataset(unittest.TestCase):
             dataloader = DataLoader(dataset=dataset, batch_size=3, num_workers=num_workers)
             for d in dataloader:
                 self.assertTupleEqual(d["image"].shape[1:], expected_shape)
+
+    def test_supervisedevaluator(self):
+        """
+        Test that a SupervisedEvaluator is compatible with IterableDataset in conjunction with DataLoader.
+        """
+        data = list(range(10))
+        dl = DataLoader(IterableDataset(data))
+        evaluator = SupervisedEvaluator(device="cpu", val_data_loader=dl, network=nn.Identity())
+        evaluator.run()  # fails if the epoch length or other internal setup is not done correctly
+
+        self.assertEqual(evaluator.state.iteration, len(data))
 
 
 if __name__ == "__main__":
