@@ -883,7 +883,10 @@ class NibabelReader(ImageReader):
         to_gpu: If True, load the image into GPU memory using CuPy and Kvikio. This can accelerate data loading.
             Default is False. CuPy and Kvikio are required for this option.
             Note: For compressed NIfTI files, some operations may still be performed on CPU memory,
-            and the acceleration may not be significant.
+            and the acceleration may not be significant. In some cases, it may be slower than loading on CPU.
+            #TODO: the first kvikio call is slow since it will initialize internal buffers, cuFile, GDS, etc.
+            In practical use, it's recommended to add a warm up call before the actual loading.
+            A related tutorial will be prepared in the future, and the document will be updated accordingly.
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
@@ -1056,7 +1059,8 @@ class NibabelReader(ImageReader):
             if filename.endswith(".nii.gz"):
                 # for compressed data, have to tansfer to CPU to decompress
                 # and then transfer back to GPU. It is not efficient compared to .nii file
-                # but it's still faster than Nibabel's default reader.
+                # and may be slower than CPU loading in some cases.
+                warnings.warn("Loading compressed NIfTI file into GPU may not be efficient.")
                 compressed_data = cp.asnumpy(image)
                 with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
                     decompressed_data = gz_file.read()
