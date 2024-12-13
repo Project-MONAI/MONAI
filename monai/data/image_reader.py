@@ -12,16 +12,17 @@
 from __future__ import annotations
 
 import glob
-import os
-import re
 import gzip
 import io
+import os
+import re
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
 import numpy as np
 from torch.utils.data._utils.collate import np_str_obj_array_pattern
 
@@ -36,14 +37,14 @@ from monai.data.utils import (
 from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
 
 if TYPE_CHECKING:
+    import cupy as cp
     import itk
+    import kvikio
     import nibabel as nib
     import nrrd
     import pydicom
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
-    import cupy as cp
-    import kvikio
 
     has_nrrd = has_itk = has_nib = has_pil = has_pydicom = has_cp = has_kvikio = True
 else:
@@ -948,7 +949,7 @@ class NibabelReader(ImageReader):
             img_.append(img)  # type: ignore
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img) -> tuple[np.ndarray, dict]:
+    def get_data(self, img) -> tuple[np.ndarray | "cp.ndarray", dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -960,7 +961,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
-        img_array: list[np.ndarray] = []
+        img_array: list[np.ndarray | "cp.ndarray"] = []
         compatible_meta: dict = {}
 
         for i, filename in zip(ensure_tuple(img), self.filenames):
@@ -1047,12 +1048,12 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file.
 
         """
-        if self.gpu_load:
+        if self.to_gpu:
             file_size = os.path.getsize(filename)
             image = cp.empty(file_size, dtype=cp.uint8)
             with kvikio.CuFile(filename, "r") as f:
                 f.read(image)
-            if filename.endswith(".gz"):
+            if filename.endswith(".nii.gz"):
                 # for compressed data, have to tansfer to CPU to decompress
                 # and then transfer back to GPU. It is not efficient compared to .nii file
                 # but it's still faster than Nibabel's default reader.

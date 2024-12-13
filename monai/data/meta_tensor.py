@@ -558,7 +558,9 @@ class MetaTensor(MetaObj, torch.Tensor):
             By default, a `MetaTensor` is returned.
             However, if `get_track_meta()` is `False` or meta=None, a `torch.Tensor` is returned.
         """
-        img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None, device=device)  # potentially ascontiguousarray
+        img = convert_to_tensor(
+            im, track_meta=get_track_meta() and meta is not None, device=device
+        )  # potentially ascontiguousarray
         # if not tracking metadata, return `torch.Tensor`
         if not isinstance(img, MetaTensor):
             return img
