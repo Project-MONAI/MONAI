@@ -25,7 +25,7 @@ import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.error import ContentTooShortError, HTTPError, URLError
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 
 import requests
