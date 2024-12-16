@@ -68,7 +68,6 @@ class TestDecoderOnlyTransformer(unittest.TestCase):
 
     @skipUnless(has_einops, "Requires einops")
     def test_dropout_rate_negative(self):
-
         with self.assertRaises(ValueError):
             DecoderOnlyTransformer(
                 num_tokens=10,

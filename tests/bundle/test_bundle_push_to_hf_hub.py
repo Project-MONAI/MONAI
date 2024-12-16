@@ -28,7 +28,6 @@ TEST_CASE_1 = ["monai-test/test_bundle_push", "test_bundle"]
 
 
 class TestPushToHuggingFaceHub(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     @skip_if_quick
     @skipUnless(has_huggingface_hub, "Requires `huggingface_hub` package.")

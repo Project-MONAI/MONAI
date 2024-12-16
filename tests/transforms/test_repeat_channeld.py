@@ -31,7 +31,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRepeatChanneld(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RepeatChanneld(**input_param)(input_data)

@@ -23,7 +23,6 @@ from tests.utils import assert_allclose
 
 
 class TestHandlerCheckpointLoader(unittest.TestCase):
-
     def test_one_save_one_load(self):
         net1 = torch.nn.PReLU()
         data1 = net1.state_dict()

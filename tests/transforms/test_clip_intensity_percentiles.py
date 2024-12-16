@@ -45,7 +45,6 @@ def test_soft_clip_func(im, lower, upper):
 
 
 class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
-
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_two_sided(self, p):
         hard_clipper = ClipIntensityPercentiles(upper=95, lower=5)
@@ -130,7 +129,6 @@ class TestClipIntensityPercentiles2D(NumpyImageTestCase2D):
 
 
 class TestClipIntensityPercentiles3D(NumpyImageTestCase3D):
-
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_hard_clipping_two_sided(self, p):
         hard_clipper = ClipIntensityPercentiles(upper=95, lower=5)

@@ -33,7 +33,6 @@ VALID_CASES = [
 
 
 class TestRandZoom(NumpyImageTestCase2D):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, min_zoom, max_zoom, mode, keep_size, align_corners=None):
         for p in TEST_NDARRAYS_ALL:

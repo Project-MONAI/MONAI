@@ -78,7 +78,6 @@ TEST_CASE_RAND_ZOOM_2 = [
 @unittest.skipUnless(HAS_CUPY, "CuPy is required.")
 @unittest.skipUnless(has_cut, "cuCIM transforms are required.")
 class TestRandCuCIM(unittest.TestCase):
-
     @parameterized.expand(
         [
             TEST_CASE_COLOR_JITTER_1,

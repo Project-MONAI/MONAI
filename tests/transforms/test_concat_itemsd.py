@@ -22,7 +22,6 @@ from tests.utils import assert_allclose
 
 
 class TestConcatItemsd(unittest.TestCase):
-
     def test_tensor_values(self):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
         input_data = {

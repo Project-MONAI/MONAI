@@ -26,7 +26,6 @@ from tests.utils import skip_if_windows
 
 @skip_if_windows
 class TestCSVIterableDataset(unittest.TestCase):
-
     def test_values(self):
         with tempfile.TemporaryDirectory() as tempdir:
             test_data1 = [

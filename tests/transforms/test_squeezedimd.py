@@ -80,7 +80,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestSqueezeDim(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, test_data, expected_shape):
         result = SqueezeDimd(**input_param)(test_data)

@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-import os
 import unittest
+from pathlib import Path
 
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.data import MetaTensor
@@ -21,10 +21,9 @@ from tests.utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestCrossValidation(unittest.TestCase):
-
     @skip_if_quick
     def test_values(self):
-        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        testing_dir = Path(__file__).parents[1] / "testing_data"
         train_transform = Compose(
             [
                 LoadImaged(keys=["image", "label"]),

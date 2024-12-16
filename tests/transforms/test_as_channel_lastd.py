@@ -27,7 +27,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestAsChannelLastd(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_shape(self, in_type, input_param, expected_shape):
         test_data = {

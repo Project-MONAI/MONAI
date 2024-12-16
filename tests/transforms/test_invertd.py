@@ -43,7 +43,6 @@ KEYS = ["image", "label"]
 
 
 class TestInvertd(unittest.TestCase):
-
     def test_invert(self):
         set_determinism(seed=0)
         im_fname, seg_fname = (make_nifti_image(i) for i in create_test_image_3d(101, 100, 107, noise_max=100))

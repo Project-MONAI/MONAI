@@ -36,7 +36,6 @@ def update_fname(d):
 
 
 class TestResampleToMatchd(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()

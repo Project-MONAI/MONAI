@@ -81,7 +81,6 @@ TEST_CASE_ill_args = [
 
 @skip_if_quick
 class TestMaskedAutoencoderViT(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_MaskedAutoEncoderViT)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = MaskedAutoEncoderViT(**input_param)

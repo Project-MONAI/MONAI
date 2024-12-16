@@ -42,7 +42,6 @@ def main_worker(rank, ngpus_per_node, port):
 
 @skip_if_no_cuda
 class TestCV2Dist(unittest.TestCase):
-
     def test_cv2_cuda_ops(self):
         print_config()
         ngpus_per_node = torch.cuda.device_count()

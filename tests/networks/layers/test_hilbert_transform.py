@@ -114,7 +114,6 @@ else:
 
 @SkipIfNoModule("torch.fft")
 class TestHilbertTransformCPU(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_CPU + TEST_CASES_GPU)
     def test_value(self, arguments, image, expected_data, atol):
         result = HilbertTransform(**arguments)(image)
@@ -124,7 +123,6 @@ class TestHilbertTransformCPU(unittest.TestCase):
 
 @SkipIfModule("torch.fft")
 class TestHilbertTransformNoFFTMod(unittest.TestCase):
-
     def test_no_fft_module_error(self):
         self.assertRaises(OptionalImportError, HilbertTransform(), torch.randn(1, 1, 10))
 

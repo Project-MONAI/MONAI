@@ -196,7 +196,6 @@ VALID_CASES = [
 
 
 class TestFillHoles(unittest.TestCase):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, _, args, input_image, expected):
         key = CommonKeys.IMAGE

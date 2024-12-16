@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 import pickle
 import random
 import sys
@@ -48,20 +48,17 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 @unittest.skipUnless(sys.platform == "linux", "requires linux")
 @unittest.skipUnless(has_pil, "requires PIL")
 class TestLRFinder(unittest.TestCase):
-
     def setUp(self):
         self.root_dir = MONAIEnvVars.data_dir()
         if not self.root_dir:
-            self.root_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+            self.root_dir = Path(__file__).parents[1] / "testing_data"
 
-        self.transforms = Compose(
-            [
-                LoadImaged(keys="image"),
-                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
-                ScaleIntensityd(keys="image"),
-                ToTensord(keys="image"),
-            ]
-        )
+        self.transforms = Compose([
+            LoadImaged(keys="image"),
+            EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
+            ScaleIntensityd(keys="image"),
+            ToTensord(keys="image"),
+        ])
 
     def test_lr_finder(self):
         # 0.001 gives 54 examples
@@ -77,9 +74,7 @@ class TestLRFinder(unittest.TestCase):
         train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=2)
         num_classes = train_ds.get_num_classes()
 
-        model = DenseNet(
-            spatial_dims=2, in_channels=1, out_channels=num_classes, init_features=2, growth_rate=2, block_config=(2,)
-        )
+        model = DenseNet(spatial_dims=2, in_channels=1, out_channels=num_classes, init_features=2, growth_rate=2, block_config=(2,))
         loss_function = torch.nn.CrossEntropyLoss()
         learning_rate = 1e-5
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)

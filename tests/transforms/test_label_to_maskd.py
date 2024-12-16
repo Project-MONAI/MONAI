@@ -59,7 +59,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestLabelToMaskd(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_value(self, arguments, input_data, expected_data):
         result = LabelToMaskd(**arguments)(input_data)

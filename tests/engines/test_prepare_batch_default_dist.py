@@ -50,7 +50,6 @@ class TestNet(torch.nn.Module):
 
 
 class DistributedPrepareBatchDefault(DistTestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     @DistCall(nnodes=1, nproc_per_node=2, node_rank=0)
     def test_compute(self, dataloaders):

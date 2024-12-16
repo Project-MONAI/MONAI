@@ -33,7 +33,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestToTensor(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_array_input(self, test_data, expected_shape):
         result = ToTensor(dtype=torch.float32, device="cpu", wrap_sequence=True)(test_data)

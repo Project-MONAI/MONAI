@@ -24,7 +24,6 @@ from tests.utils import test_script_save
 
 
 class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
-
     def test_bin_seg_2d(self):
         target = torch.tensor([[0, 0, 0, 0], [0, 1, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0]])
 
@@ -161,7 +160,6 @@ class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):
 
         # define a model with one layer
         class OnelayerNet(nn.Module):
-
             def __init__(self):
                 super().__init__()
                 self.layer = nn.Linear(num_voxels, num_voxels * num_classes)

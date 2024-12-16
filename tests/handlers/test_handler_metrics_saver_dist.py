@@ -27,7 +27,6 @@ from tests.utils import DistCall, DistTestCase
 
 
 class DistributedMetricsSaver(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_content(self):
         with tempfile.TemporaryDirectory() as tempdir:

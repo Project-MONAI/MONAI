@@ -72,7 +72,6 @@ def run_test(batch_size, img_name, seg_name, output_dir, device="cuda:0"):
 
 @skip_if_quick
 class TestIntegrationSlidingWindow(DistTestCase):
-
     def setUp(self):
         set_determinism(seed=0)
 

@@ -21,7 +21,6 @@ from tests.utils import test_script_save
 
 
 class TestGeneralizedDiceFocalLoss(unittest.TestCase):
-
     def test_result_onehot_target_include_bg(self):
         size = [3, 3, 5, 5]
         label = torch.randint(low=0, high=2, size=size)

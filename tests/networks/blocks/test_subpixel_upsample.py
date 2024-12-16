@@ -68,7 +68,6 @@ for tests in list(TEST_CASE_SUBPIXEL):
 
 
 class TestSUBPIXEL(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_SUBPIXEL)
     def test_subpixel_shape(self, input_param, input_shape, expected_shape):
         net = SubpixelUpsample(**input_param)

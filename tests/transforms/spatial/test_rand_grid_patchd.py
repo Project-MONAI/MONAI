@@ -85,7 +85,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandGridPatchd(unittest.TestCase):
-
     def setUp(self):
         set_determinism(seed=1234)
 

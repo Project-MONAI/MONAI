@@ -28,7 +28,6 @@ class TestNet(torch.nn.Module):
 
 
 class TestPrepareBatchDefault(unittest.TestCase):
-
     @parameterized.expand(
         [
             (

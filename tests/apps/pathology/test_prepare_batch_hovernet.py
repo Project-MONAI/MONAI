@@ -35,7 +35,6 @@ class TestNet(torch.nn.Module):
 
 
 class TestPrepareBatchHoVerNet(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_0])
     def test_content(self, input_args, expected_value):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

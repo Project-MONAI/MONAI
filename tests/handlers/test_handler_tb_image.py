@@ -33,7 +33,6 @@ TEST_CASES = [[[20, 20]], [[2, 20, 20]], [[3, 20, 20]], [[20, 20, 20]], [[2, 20,
 @unittest.skipUnless(has_tb, "Requires SummaryWriter installation")
 @SkipIfBeforePyTorchVersion((1, 13))  # issue 6683
 class TestHandlerTBImage(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_tb_image_shape(self, shape):
         with tempfile.TemporaryDirectory() as tempdir:

@@ -43,7 +43,6 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestWatershed(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_output(self, args, image, hover_map, expected_shape):
         mask = GenerateWatershedMask()(image)

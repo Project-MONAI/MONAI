@@ -23,14 +23,16 @@ TEST_CASES_AFFINE = []
 for p in TEST_NDARRAYS:
     case_1d = p([[1.0, 0.0], [1.0, 1.0]]), p([[-1.0, 0.0], [1.0, 1.0]])
     TEST_CASES_AFFINE.append(case_1d)
-    case_2d_1 = p([[1.0, 0.0, 1.0], [1.0, 1.0, 1.0]]), p([[-1.0, 0.0, -1.0], [1.0, 1.0, 1.0]])
+    case_2d_1 = (p([[1.0, 0.0, 1.0], [1.0, 1.0, 1.0]]), p([[-1.0, 0.0, -1.0], [1.0, 1.0, 1.0]]))
     TEST_CASES_AFFINE.append(case_2d_1)
-    case_2d_2 = p([[1.0, 0.0, 1.0], [0.0, 1.0, 1.0], [1.0, 1.0, 1.0]]), p(
-        [[-1.0, 0.0, -1.0], [0.0, -1.0, -1.0], [1.0, 1.0, 1.0]]
+    case_2d_2 = (
+        p([[1.0, 0.0, 1.0], [0.0, 1.0, 1.0], [1.0, 1.0, 1.0]]),
+        p([[-1.0, 0.0, -1.0], [0.0, -1.0, -1.0], [1.0, 1.0, 1.0]]),
     )
     TEST_CASES_AFFINE.append(case_2d_2)
-    case_3d = p([[1.0, 0.0, 1.0, 1.0], [0.0, 1.0, 1.0, 2.0], [1.0, 1.0, 1.0, 3.0]]), p(
-        [[-1.0, 0.0, -1.0, -1.0], [0.0, -1.0, -1.0, -2.0], [1.0, 1.0, 1.0, 3.0]]
+    case_3d = (
+        p([[1.0, 0.0, 1.0, 1.0], [0.0, 1.0, 1.0, 2.0], [1.0, 1.0, 1.0, 3.0]]),
+        p([[-1.0, 0.0, -1.0, -1.0], [0.0, -1.0, -1.0, -2.0], [1.0, 1.0, 1.0, 3.0]]),
     )
     TEST_CASES_AFFINE.append(case_3d)
     case_4d = p(np.ones((5, 5))), p([[-1] * 5, [-1] * 5, [1] * 5, [1] * 5, [1] * 5])
@@ -38,7 +40,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestITKWriter(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_AFFINE)
     def test_ras_to_lps(self, param, expected):
         assert_allclose(orientation_ras_lps(param), expected)

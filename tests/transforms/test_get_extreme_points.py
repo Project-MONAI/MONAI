@@ -47,7 +47,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestGetExtremePoints(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_data, expected):
         result = get_extreme_points(**input_data)

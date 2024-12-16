@@ -77,7 +77,6 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandGridDistortiond(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_rand_grid_distortiond(self, input_param, seed, input_data, expected_val_img, expected_val_mask):
         g = RandGridDistortiond(**input_param)

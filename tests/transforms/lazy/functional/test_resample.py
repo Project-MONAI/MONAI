@@ -35,7 +35,6 @@ RESAMPLE_FUNCTION_CASES = [
 
 
 class TestResampleFunction(unittest.TestCase):
-
     @parameterized.expand(RESAMPLE_FUNCTION_CASES)
     def test_resample_function_impl(self, img, matrix, expected):
         out = resample(convert_to_tensor(img), matrix, {"lazy_shape": img.shape[1:], "lazy_padding_mode": "border"})

@@ -65,7 +65,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestAsDiscrete(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_value_shape(self, input_param, img, out, expected_shape):
         result = AsDiscrete(**input_param)(img)

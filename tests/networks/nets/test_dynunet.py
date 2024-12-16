@@ -117,7 +117,6 @@ for spatial_dims in [2, 3]:
 
 
 class TestDynUNet(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_DYNUNET_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)
@@ -137,7 +136,6 @@ class TestDynUNet(unittest.TestCase):
 @skip_if_no_cuda
 @skip_if_windows
 class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
-
     def setUp(self):
         try:
             layer = InstanceNorm3dNVFuser(num_features=1, affine=False).to("cuda:0")
@@ -171,7 +169,6 @@ class TestDynUNetWithInstanceNorm3dNVFuser(unittest.TestCase):
 
 
 class TestDynUNetDeepSupervision(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_DEEP_SUPERVISION)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = DynUNet(**input_param).to(device)

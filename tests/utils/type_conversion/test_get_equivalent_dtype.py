@@ -29,7 +29,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestGetEquivalentDtype(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_get_equivalent_dtype(self, im, input_dtype):
         out_dtype = get_equivalent_dtype(input_dtype, type(im))

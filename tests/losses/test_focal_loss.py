@@ -79,7 +79,6 @@ for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:
 
 
 class TestFocalLoss(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_result(self, input_param, input_data, expected_val):
         focal_loss = FocalLoss(**input_param)

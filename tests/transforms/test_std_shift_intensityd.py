@@ -21,7 +21,6 @@ from tests.utils import NumpyImageTestCase2D
 
 
 class TestStdShiftIntensityd(NumpyImageTestCase2D):
-
     def test_value(self):
         key = "img"
         factor = np.random.rand()

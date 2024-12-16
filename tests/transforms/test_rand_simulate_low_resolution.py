@@ -71,7 +71,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandGaussianSmooth(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         randsimlowres = RandSimulateLowResolution(**arguments)

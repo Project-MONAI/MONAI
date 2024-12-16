@@ -20,7 +20,6 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensityRangePercentilesd(NumpyImageTestCase2D):
-
     def test_scaling(self):
         img = self.imt
         lower = 10

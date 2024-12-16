@@ -51,7 +51,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestNormalizeIntensityd(NumpyImageTestCase2D):
-
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_image_normalize_intensityd(self, im_type):
         key = "img"

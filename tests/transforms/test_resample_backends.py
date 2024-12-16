@@ -44,7 +44,6 @@ for interp_s in SplineMode if not USE_COMPILED else []:  # type: ignore
 
 @SkipIfBeforePyTorchVersion((1, 9, 1))
 class TestResampleBackends(unittest.TestCase):
-
     @parameterized.expand(TEST_IDENTITY)
     def test_resample_identity(self, input_param, im_type, interp, padding, input_shape):
         """test resampling of an identity grid with padding 2, im_type, interp, padding, input_shape"""

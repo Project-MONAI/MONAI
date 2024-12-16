@@ -30,7 +30,6 @@ TEST_CASE_2 = ["False"]
 @SkipIfNoModule("onnx")
 @SkipIfBeforePyTorchVersion((1, 10))
 class TestONNXExport(unittest.TestCase):
-
     def setUp(self):
         self.device = os.environ.get("CUDA_VISIBLE_DEVICES")
         if not self.device:

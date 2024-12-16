@@ -48,7 +48,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestHistogramNormalized(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         result = HistogramNormalized(**arguments)(image)["img"]

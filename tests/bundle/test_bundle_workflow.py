@@ -234,7 +234,7 @@ class TestBundleWorkflow(unittest.TestCase):
         property_path = os.path.join(MODULE_PATH, "testing_data", "python_workflow_properties.json")
         sys.path.append(MODULE_PATH)
         workflow = create_workflow(
-            "nonconfig_workflow.PythonicWorkflowImpl",
+            "tests.nonconfig_workflow.PythonicWorkflowImpl",
             workflow_type="infer",
             config_file=config_file,
             meta_file=meta_file,

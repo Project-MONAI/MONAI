@@ -57,7 +57,6 @@ TEST_CASES = [
 @SkipIfBeforePyTorchVersion((1, 11))
 @skip_if_quick
 class TestVista3d(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_vista3d_shape(self, args, input_params, input_shape, expected_shape):
         segresnet = SegResNetDS2(

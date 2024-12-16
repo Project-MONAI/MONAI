@@ -28,7 +28,6 @@ TEST_CASES = [((128, 64),), ((64, 48, 80),)]
 @SkipIfBeforePyTorchVersion((1, 8))
 @SkipIfNoModule("torch.fft")
 class TestFourier(unittest.TestCase):
-
     def setUp(self):
         set_determinism(0)
         super().setUp()

@@ -26,9 +26,7 @@ from tests.utils import DistTestCase, TimedCall
 
 
 def run_test(batch_size=64, train_steps=200, device="cuda:0"):
-
     class _TestBatch(Dataset):
-
         def __init__(self, transforms):
             self.transforms = transforms
 
@@ -78,7 +76,6 @@ def run_test(batch_size=64, train_steps=200, device="cuda:0"):
 
 
 class TestDeterminism(DistTestCase):
-
     def setUp(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu:0")
 

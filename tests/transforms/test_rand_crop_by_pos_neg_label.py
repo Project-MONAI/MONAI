@@ -96,7 +96,6 @@ TESTS = [
 
 
 class TestRandCropByPosNegLabel(unittest.TestCase):
-
     @staticmethod
     def convert_data_type(im_type, d, keys=("img", "image", "label")):
         out = deepcopy(d)

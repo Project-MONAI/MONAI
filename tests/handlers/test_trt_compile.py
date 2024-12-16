@@ -52,7 +52,6 @@ class ListAdd(torch.nn.Module):
 @unittest.skipUnless(polygraphy_imported, "polygraphy is required")
 @SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestTRTCompile(unittest.TestCase):
-
     def setUp(self):
         self.gpu_device = torch.cuda.current_device()
 

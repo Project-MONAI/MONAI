@@ -71,7 +71,6 @@ pred_param = {"files_slices": slice(0, 1), "mode": "mean", "sigmoid": True}
 @SkipIfBeforePyTorchVersion((1, 11, 1))  # for mem_get_info
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestAutoRunner(unittest.TestCase):
-
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name

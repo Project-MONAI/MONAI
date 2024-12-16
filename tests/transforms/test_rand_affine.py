@@ -140,7 +140,6 @@ for cache_grid in (False, True):
 
 
 class TestRandAffine(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_rand_affine(self, input_param, input_data, expected_val):
         g = RandAffine(**input_param)

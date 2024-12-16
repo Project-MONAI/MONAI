@@ -22,7 +22,6 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensity(NumpyImageTestCase2D):
-
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_range_scale(self, p):
         scaler = ScaleIntensity(minv=1.0, maxv=2.0)

@@ -49,7 +49,6 @@ sim_datalist: dict[str, list[dict]] = {
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 @unittest.skipIf(not has_nnunet, "no nnunetv2")
 class TestnnUNetV2Runner(unittest.TestCase):
-
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name

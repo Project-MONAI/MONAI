@@ -34,7 +34,6 @@ for affine in (None, np.eye(4), torch.eye(4)):
 
 @unittest.skipUnless(has_nib, "Requires nibabel")
 class TestMakeNifti(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_make_nifti(self, params):
         im, _ = create_test_image_2d(100, 88)

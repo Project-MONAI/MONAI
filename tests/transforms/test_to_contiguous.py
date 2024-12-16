@@ -21,7 +21,6 @@ from tests.utils import assert_allclose
 
 
 class TestToContiguous(unittest.TestCase):
-
     def test_contiguous_dict(self):
         tochange = np.moveaxis(np.zeros((2, 3, 4)), 0, -1)
         test_dict = {"test_key": [[1]], 0: np.array(0), 1: np.array([0]), "nested": {"nested": [tochange]}}

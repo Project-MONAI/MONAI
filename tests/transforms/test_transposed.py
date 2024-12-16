@@ -30,7 +30,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestTranspose(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_transpose(self, im, indices):
         data = {"i": deepcopy(im), "j": deepcopy(im)}

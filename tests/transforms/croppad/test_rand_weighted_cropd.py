@@ -148,7 +148,6 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandWeightedCrop(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_rand_weighted_cropd(self, _, init_params, input_data, expected_shape, expected_centers):
         crop = RandWeightedCropd(**init_params)

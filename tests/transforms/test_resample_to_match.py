@@ -46,7 +46,6 @@ def get_rand_fname(len=10, suffix=".nii.gz"):
 
 @unittest.skipUnless(has_itk, "itk not installed")
 class TestResampleToMatch(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super(__class__, cls).setUpClass()

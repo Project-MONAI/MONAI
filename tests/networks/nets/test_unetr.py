@@ -57,7 +57,6 @@ for dropout_rate in [0.4]:
 
 @skip_if_quick
 class TestUNETR(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_UNETR)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = UNETR(**input_param)

@@ -33,7 +33,6 @@ _, has_dataset_tracking = optional_import("mlflow", "2.4.0")
 
 
 def get_event_filter(e):
-
     def event_filter(_, event):
         if event in e:
             return True
@@ -66,7 +65,6 @@ def dummy_train(tracking_folder):
 
 
 class TestHandlerMLFlow(unittest.TestCase):
-
     def setUp(self):
         self.tmpdir_list = []
 

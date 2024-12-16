@@ -24,7 +24,6 @@ from tests.utils import assert_allclose
 
 
 class TestNumpyReader(unittest.TestCase):
-
     def test_npy(self):
         test_data = np.random.randint(0, 256, size=[3, 4, 4])
         with tempfile.TemporaryDirectory() as tempdir:

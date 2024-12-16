@@ -30,7 +30,6 @@ seed = 0
 
 
 class TestRandGaussianNoised(NumpyImageTestCase2D):
-
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, im_type, keys, mean, std, sample_std):
         gaussian_fn = RandGaussianNoised(

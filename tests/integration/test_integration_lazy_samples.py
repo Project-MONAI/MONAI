@@ -160,7 +160,6 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
 @skip_if_quick
 @SkipIfBeforePyTorchVersion((1, 11))
 class IntegrationLazyResampling(DistTestCase):
-
     def setUp(self):
         monai.config.print_config()
         set_determinism(seed=0)

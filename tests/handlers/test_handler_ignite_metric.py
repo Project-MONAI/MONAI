@@ -99,7 +99,6 @@ TEST_CASES = [
 
 
 class TestHandlerIgniteMetricHandler(unittest.TestCase):
-
     @SkipIfNoModule("ignite")
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_metric_fn(self, loss_params, metric_params, handler_params, expected_avg):

@@ -81,7 +81,6 @@ TEST_CASE_7 = [
 
 
 class _InplaceXform(Transform):
-
     def __call__(self, data):
         if data:
             data[0] = data[0] + np.pi
@@ -92,7 +91,6 @@ class _InplaceXform(Transform):
 
 @skip_if_windows
 class TestLMDBDataset(unittest.TestCase):
-
     def test_cache(self):
         """testing no inplace change to the hashed item"""
         items = [[list(range(i))] for i in range(5)]

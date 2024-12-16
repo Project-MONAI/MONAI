@@ -29,7 +29,6 @@ pd, _ = optional_import("pandas")
 
 
 class TestWorkflowProfiler(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 

@@ -29,7 +29,6 @@ TEST_CASE_2 = [[{"label": torch.as_tensor([[3], [2]])}, {"label": np.asarray([[1
 
 
 class TestDataLoader(unittest.TestCase):
-
     def test_values(self):
         datalist = [
             {"image": "spleen_19.nii.gz", "label": "spleen_label_19.nii.gz"},
@@ -60,7 +59,6 @@ class TestDataLoader(unittest.TestCase):
 
 
 class _RandomDataset(torch.utils.data.Dataset, Randomizable):
-
     def __getitem__(self, index):
         return self.R.randint(0, 1000, (1,))
 

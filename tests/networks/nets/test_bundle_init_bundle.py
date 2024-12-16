@@ -23,7 +23,6 @@ from tests.utils import command_line_tests, skip_if_windows
 
 @skip_if_windows
 class TestBundleInit(unittest.TestCase):
-
     def test_bundle(self):
         with tempfile.TemporaryDirectory() as tempdir:
             net = UNet(2, 1, 1, [4, 8], [2])

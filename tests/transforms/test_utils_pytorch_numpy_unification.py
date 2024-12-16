@@ -36,7 +36,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestPytorchNumpyUnification(unittest.TestCase):
-
     def setUp(self) -> None:
         set_determinism(0)
 

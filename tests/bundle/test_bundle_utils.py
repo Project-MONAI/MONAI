@@ -51,7 +51,6 @@ test_json = """
 
 @skip_if_windows
 class TestLoadBundleConfig(unittest.TestCase):
-
     def setUp(self):
         self.bundle_dir = tempfile.TemporaryDirectory()
         self.dir_name = os.path.join(self.bundle_dir.name, "TestBundle")
@@ -135,7 +134,6 @@ class TestLoadBundleConfig(unittest.TestCase):
 
 
 class TestPPrintEdges(unittest.TestCase):
-
     def test_str(self):
         self.assertEqual(pprint_edges("", 0), "''")
         self.assertEqual(pprint_edges({"a": 1, "b": 2}, 0), "{'a': 1, 'b': 2}")

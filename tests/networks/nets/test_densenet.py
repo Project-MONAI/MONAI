@@ -79,7 +79,6 @@ TEST_PRETRAINED_2D_CASE_3 = [
 
 
 class TestPretrainedDENSENET(unittest.TestCase):
-
     @parameterized.expand([TEST_PRETRAINED_2D_CASE_1, TEST_PRETRAINED_2D_CASE_2])
     @skip_if_quick
     def test_121_2d_shape_pretrain(self, model, input_param, input_shape, expected_shape):
@@ -104,7 +103,6 @@ class TestPretrainedDENSENET(unittest.TestCase):
 
 
 class TestDENSENET(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_densenet_shape(self, model, input_param, input_shape, expected_shape):
         net = model(**input_param).to(device)

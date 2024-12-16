@@ -68,7 +68,6 @@ for p in TEST_NDARRAYS:
 @unittest.skipUnless(has_skimage, "Requires scikit-image library.")
 @unittest.skipUnless(has_scipy, "Requires scipy library.")
 class TestGenerateWatershedMarkersd(unittest.TestCase):
-
     @parameterized.expand(EXCEPTION_TESTS)
     def test_value(self, arguments, mask, border_map, exception_type):
         with self.assertRaises(exception_type):

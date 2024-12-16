@@ -86,7 +86,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestGaussianSmooth(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         result = GaussianSmooth(**arguments)(image)

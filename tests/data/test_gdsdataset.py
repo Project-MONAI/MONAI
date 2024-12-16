@@ -64,7 +64,6 @@ DTYPES = {
 
 
 class _InplaceXform(Transform):
-
     def __call__(self, data):
         data[0] = data[0] + 1
         return data
@@ -74,7 +73,6 @@ class _InplaceXform(Transform):
 @unittest.skipUnless(has_cp, "Requires CuPy library.")
 @unittest.skipUnless(has_cp and has_kvikio_numpy, "Requires CuPy and kvikio library.")
 class TestDataset(unittest.TestCase):
-
     def test_cache(self):
         """testing no inplace change to the hashed item"""
         for p in TEST_NDARRAYS[:2]:

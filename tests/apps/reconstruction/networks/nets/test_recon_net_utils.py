@@ -35,7 +35,7 @@ im_2d, im_3d = torch.ones([3, 4, 50, 70, 2]), torch.ones([3, 4, 50, 70, 80, 2])
 TEST_RESHAPE = [(im_2d,), (im_3d,)]
 
 # normalize test case
-im_2d, im_3d = torch.randint(0, 3, [3, 4, 50, 70]).float(), torch.randint(0, 3, [3, 4, 50, 70, 80]).float()
+im_2d, im_3d = (torch.randint(0, 3, [3, 4, 50, 70]).float(), torch.randint(0, 3, [3, 4, 50, 70, 80]).float())
 TEST_NORMALIZE = [(im_2d,), (im_3d,)]
 
 # pad test case
@@ -49,7 +49,6 @@ TEST_SENS = [(ksp_2d, sens_2d), (ksp_3d, sens_3d)]
 
 
 class TestReconNetUtils(unittest.TestCase):
-
     @parameterized.expand(TEST_RESHAPE)
     def test_reshape_channel_complex(self, test_data):
         result = reshape_complex_to_channel_dim(test_data)

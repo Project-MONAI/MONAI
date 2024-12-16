@@ -29,7 +29,6 @@ for shape in ((128, 64), (64, 48, 80)):
 
 
 class TestRandKSpaceSpikeNoise(unittest.TestCase):
-
     def setUp(self):
         set_determinism(0)
         super().setUp()

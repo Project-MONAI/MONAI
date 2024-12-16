@@ -109,7 +109,6 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRandRotated2D(NumpyImageTestCase2D):
-
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, degrees, keep_size, mode, padding_mode, align_corners):
         init_param = {
@@ -154,7 +153,6 @@ class TestRandRotated2D(NumpyImageTestCase2D):
 
 @unittest.skipIf(USE_COMPILED, "unit tests not for compiled version.")
 class TestRandRotated3D(NumpyImageTestCase3D):
-
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_shapes(self, im_type, x, y, z, keep_size, mode, padding_mode, align_corners, expected):
         init_param = {

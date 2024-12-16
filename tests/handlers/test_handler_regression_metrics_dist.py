@@ -57,7 +57,6 @@ SPATIAL_DIM = 3
 
 
 class DistributedMeanSquaredError(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)
@@ -104,7 +103,6 @@ class DistributedMeanSquaredError(DistTestCase):
 
 
 class DistributedMeanAbsoluteError(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)
@@ -151,7 +149,6 @@ class DistributedMeanAbsoluteError(DistTestCase):
 
 
 class DistributedRootMeanSquaredError(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)
@@ -198,7 +195,6 @@ class DistributedRootMeanSquaredError(DistTestCase):
 
 
 class DistributedPeakSignalToNoiseRatio(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_compute(self):
         set_determinism(123)

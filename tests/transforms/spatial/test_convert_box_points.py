@@ -99,7 +99,6 @@ TEST_CASES = TEST_CASE_POINTS_2D + TEST_CASE_POINTS_3D
 
 
 class TestConvertBoxToPoints(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_convert_box_to_points(self, boxes, mode, expected_points):
         transform = ConvertBoxToPoints(mode=mode)
@@ -108,7 +107,6 @@ class TestConvertBoxToPoints(unittest.TestCase):
 
 
 class TestConvertPointsToBoxes(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_convert_box_to_points(self, boxes, mode, points):
         transform = ConvertPointsToBoxes()

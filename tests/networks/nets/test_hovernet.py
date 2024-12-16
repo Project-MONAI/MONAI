@@ -154,7 +154,6 @@ def check_kernels(net, mode):
 
 
 class TestHoverNet(unittest.TestCase):
-
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shapes):
         input_param["decoder_padding"] = False

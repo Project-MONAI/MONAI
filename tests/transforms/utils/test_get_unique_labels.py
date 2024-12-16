@@ -35,7 +35,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestGetUniqueLabels(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_correct_results(self, args, expected):
         result = get_unique_labels(**args)

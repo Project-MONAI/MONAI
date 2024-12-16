@@ -40,7 +40,6 @@ TEST_CASE_2 = ["fp16"]
 @skip_if_quick
 @SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestConvertToTRT(unittest.TestCase):
-
     def setUp(self):
         self.gpu_device = torch.cuda.current_device()
 

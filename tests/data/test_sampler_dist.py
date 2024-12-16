@@ -24,7 +24,6 @@ from tests.utils import DistCall, DistTestCase, assert_allclose
 
 
 class DistributedSamplerTest(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_even(self):
         data = [1, 2, 3, 4, 5]

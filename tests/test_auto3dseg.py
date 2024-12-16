@@ -171,7 +171,6 @@ class TestImageAnalyzer(Analyzer):
 
 
 class TestDataAnalyzer(unittest.TestCase):
-
     def setUp(self):
         self.test_dir = tempfile.TemporaryDirectory()
         work_dir = self.test_dir.name

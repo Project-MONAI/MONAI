@@ -158,7 +158,6 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestCropForegroundd(unittest.TestCase):
-
     @parameterized.expand(TEST_POSITION + TESTS)
     def test_value(self, arguments, input_data, expected_data, _):
         cropper = CropForegroundd(**arguments)

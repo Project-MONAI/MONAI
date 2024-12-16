@@ -45,7 +45,6 @@ TEST_CASE_FAKE_TOKEN_2 = [
 @skip_if_windows
 @SkipIfNoModule("requests")
 class TestGetBundleData(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_3, TEST_CASE_4])
     @skip_if_quick
     def test_get_all_bundles_list(self, params):

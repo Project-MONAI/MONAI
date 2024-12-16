@@ -22,7 +22,6 @@ from tests.utils import assert_allclose
 
 
 class TestHandlerDecollateBatch(unittest.TestCase):
-
     def test_compute(self):
         data = [
             {"image": torch.tensor([[[[2.0], [3.0]]]]), "filename": ["test1"]},

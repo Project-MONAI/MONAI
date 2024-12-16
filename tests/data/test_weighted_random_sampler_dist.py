@@ -24,7 +24,6 @@ from tests.utils import DistCall, DistTestCase, skip_if_darwin, skip_if_windows
 @skip_if_windows
 @skip_if_darwin
 class DistributedWeightedRandomSamplerTest(DistTestCase):
-
     @DistCall(nnodes=1, nproc_per_node=2)
     def test_sampling(self):
         data = [1, 2, 3, 4, 5]

@@ -135,7 +135,6 @@ TEST_CASES_DICEFOCAL = [
 
 
 class TestDSLossDiceCE(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_DICECE)
     def test_result(self, input_param, input_param2, input_data, expected_val):
         diceceloss = DeepSupervisionLoss(DiceCELoss(**input_param), **input_param2)
@@ -161,7 +160,6 @@ class TestDSLossDiceCE(unittest.TestCase):
 
 @SkipIfBeforePyTorchVersion((1, 11))
 class TestDSLossDiceCE2(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_DICECE2)
     def test_result(self, input_param, input_param2, input_data, expected_val):
         diceceloss = DeepSupervisionLoss(DiceCELoss(**input_param), **input_param2)
@@ -171,7 +169,6 @@ class TestDSLossDiceCE2(unittest.TestCase):
 
 @SkipIfBeforePyTorchVersion((1, 11))
 class TestDSLossDice(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_DICE)
     def test_result(self, input_param, input_data, expected_val):
         loss = DeepSupervisionLoss(DiceLoss(**input_param))
@@ -181,7 +178,6 @@ class TestDSLossDice(unittest.TestCase):
 
 @SkipIfBeforePyTorchVersion((1, 11))
 class TestDSLossDiceFocal(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES_DICEFOCAL)
     def test_result(self, input_param, input_data, expected_val):
         loss = DeepSupervisionLoss(DiceFocalLoss(**input_param))

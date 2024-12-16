@@ -24,7 +24,6 @@ from tests.utils import assert_allclose
 
 
 class TestDataLoader(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
 

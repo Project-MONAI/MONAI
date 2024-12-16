@@ -79,7 +79,6 @@ fake_datalist: dict[str, list[dict]] = {
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestHPO(unittest.TestCase):
-
     def setUp(self) -> None:
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
@@ -155,7 +154,6 @@ class TestHPO(unittest.TestCase):
         algo = algo_dict[AlgoKeys.ALGO]
 
         class OptunaGenLearningRate(OptunaGen):
-
             def get_hyperparameters(self):
                 return {"learning_rate": self.trial.suggest_float("learning_rate", 0.00001, 0.1)}
 

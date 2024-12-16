@@ -127,7 +127,7 @@ def run_training_test(root_dir, train_x, train_y, val_x, val_y, device="cuda:0",
                 y_pred = torch.tensor([], dtype=torch.float32, device=device)
                 y = torch.tensor([], dtype=torch.long, device=device)
                 for val_data in val_loader:
-                    val_images, val_labels = val_data[0].to(device), val_data[1].to(device)
+                    val_images, val_labels = (val_data[0].to(device), val_data[1].to(device))
                     y_pred = torch.cat([y_pred, model(val_images)], dim=0)
                     y = torch.cat([y, val_labels], dim=0)
 

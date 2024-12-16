@@ -129,7 +129,6 @@ TEST_CASES_ERROR = [
 
 @SkipIfBeforePyTorchVersion((2, 0))
 class TestControlNet(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
     def test_shape_unconditioned_models(self, input_param, expected_num_down_blocks_residuals, expected_shape):

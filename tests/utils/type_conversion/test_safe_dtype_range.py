@@ -54,7 +54,6 @@ TESTS_CUPY = [[np.array(1.0), np.array(1.0), None], [np.array([-12]), np.array([
 
 
 class TesSafeDtypeRange(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_safe_dtype_range(self, in_image, im_out, out_dtype):
         result = safe_dtype_range(in_image, out_dtype)

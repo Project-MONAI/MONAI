@@ -23,7 +23,6 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestLambdad(NumpyImageTestCase2D):
-
     def test_lambdad_identity(self):
         for p in TEST_NDARRAYS:
             img = p(self.imt)

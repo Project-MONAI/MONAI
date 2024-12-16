@@ -21,7 +21,6 @@ from tests.utils import assert_allclose
 
 
 class TestMixup(unittest.TestCase):
-
     def test_mixup(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
@@ -74,7 +73,6 @@ class TestMixup(unittest.TestCase):
 
 
 class TestCutMix(unittest.TestCase):
-
     def test_cutmix(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims
@@ -99,7 +97,6 @@ class TestCutMix(unittest.TestCase):
 
 
 class TestCutOut(unittest.TestCase):
-
     def test_cutout(self):
         for dims in [2, 3]:
             shape = (6, 3) + (32,) * dims

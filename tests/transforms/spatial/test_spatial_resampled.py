@@ -94,7 +94,6 @@ for dst, expct in zip(destinations_2d, expected_2d):
 
 
 class TestSpatialResample(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_flips_inverse(self, img, device, dst_affine, kwargs, expected_output):
         img = MetaTensor(img, affine=torch.eye(4)).to(device)

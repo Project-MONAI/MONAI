@@ -22,7 +22,7 @@ from parameterized import parameterized
 from monai.bundle import ConfigParser, verify_metadata
 from tests.utils import command_line_tests, download_url_or_skip_test, skip_if_windows, testing_data_config
 
-TESTS_DIR = Path(__file__).parent.as_posix()
+TESTS_DIR = Path(__file__).parents[1]
 SCHEMA_FILE = os.path.join(TESTS_DIR, "testing_data", "schema.json")
 
 TEST_CASE_1 = [os.path.join(TESTS_DIR, "testing_data", "metadata.json"), SCHEMA_FILE]

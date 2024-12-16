@@ -77,7 +77,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestMorph(unittest.TestCase):
-
     @parameterized.expand(TESTS_SHAPE)
     def test_shape(self, input_data, expected_result):
         result1 = erode(input_data["mask"], input_data["filter_size"])

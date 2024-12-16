@@ -86,7 +86,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandGaussianSmoothd(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_value(self, arguments, image, expected_data):
         converter = RandGaussianSmoothd(**arguments)

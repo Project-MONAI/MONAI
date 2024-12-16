@@ -22,7 +22,6 @@ from tests.utils import assert_allclose
 
 
 class TestEnsureTyped(unittest.TestCase):
-
     def test_array_input(self):
         test_datas = [np.array([[1, 2], [3, 4]]), torch.as_tensor([[1, 2], [3, 4]])]
         if torch.cuda.is_available():

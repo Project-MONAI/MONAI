@@ -28,7 +28,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandGaussianNoise(NumpyImageTestCase2D):
-
     @parameterized.expand(TESTS)
     def test_correct_results(self, _, im_type, mean, std, sample_std):
         seed = 0

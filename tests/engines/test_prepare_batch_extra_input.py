@@ -43,7 +43,6 @@ class TestNet(torch.nn.Module):
 
 
 class TestPrepareBatchExtraInput(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1, TEST_CASE_2])
     def test_content(self, input_args, expected_value):
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

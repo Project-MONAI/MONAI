@@ -127,7 +127,6 @@ def run_training_test(root_dir, device="cuda:0"):
 
 @skip_if_quick
 class IntegrationWorkflowsGAN(DistTestCase):
-
     def setUp(self):
         set_determinism(seed=0)
 

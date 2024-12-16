@@ -147,7 +147,7 @@ def run_training_test(root_dir, device="cuda:0", cachedataset=0, readers=(None, 
                 val_labels = None
                 val_outputs = None
                 for val_data in val_loader:
-                    val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
+                    val_images, val_labels = (val_data["img"].to(device), val_data["seg"].to(device))
                     sw_batch_size, roi_size = 4, (96, 96, 96)
                     val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
                     # decollate prediction into a list and execute post processing for every item
@@ -221,7 +221,7 @@ def run_inference_test(root_dir, device="cuda:0"):
         # resampling with align_corners=True or dtype=float64 will generate
         # slight different results between PyTorch 1.5 an 1.6
         for val_data in val_loader:
-            val_images, val_labels = val_data["img"].to(device), val_data["seg"].to(device)
+            val_images, val_labels = (val_data["img"].to(device), val_data["seg"].to(device))
             # define sliding window size and batch size for windows inference
             sw_batch_size, roi_size = 4, (96, 96, 96)
             val_outputs = sliding_window_inference(val_images, roi_size, sw_batch_size, model)
@@ -235,7 +235,6 @@ def run_inference_test(root_dir, device="cuda:0"):
 
 @skip_if_quick
 class IntegrationSegmentation3D(DistTestCase):
-
     def setUp(self):
         set_determinism(seed=0)
 

@@ -24,7 +24,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRepeatChannel(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RepeatChannel(**input_param)(input_data)

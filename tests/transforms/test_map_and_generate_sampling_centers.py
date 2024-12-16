@@ -63,7 +63,6 @@ TEST_CASE_2 = [
 
 
 class TestMapAndGenerateSamplingCenters(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_map_and_generate_sampling_centers(self, input_data, expected_type, expected_count, expected_shape):
         results = []

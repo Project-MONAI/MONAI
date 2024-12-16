@@ -30,7 +30,6 @@ for invert_image in (True, False):
 
 
 class TestAdjustContrastd(NumpyImageTestCase2D):
-
     @parameterized.expand(TESTS)
     def test_correct_results(self, gamma, invert_image, retain_stats):
         adjuster = AdjustContrastd("img", gamma=gamma, invert_image=invert_image, retain_stats=retain_stats)

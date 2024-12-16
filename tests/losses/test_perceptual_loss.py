@@ -77,7 +77,6 @@ TEST_CASES = [
 @unittest.skipUnless(has_torchvision, "Requires torchvision")
 @skip_if_quick
 class TestPerceptualLoss(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, target_shape):
         with skip_if_downloading_fails():

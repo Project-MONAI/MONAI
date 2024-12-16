@@ -32,7 +32,6 @@ TEST_CASE_4 = [["img", "seg"], 2, ["img_1", "seg_1", "img_2", "seg_2"]]
 
 
 class TestCopyItemsd(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4])
     def test_numpy_values(self, keys, times, names):
         input_data = {"img": np.array([[0, 1], [1, 2]]), "seg": np.array([[3, 4], [4, 5]])}

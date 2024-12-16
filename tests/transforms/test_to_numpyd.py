@@ -25,7 +25,6 @@ cp, _ = optional_import("cupy")
 
 
 class TestToNumpyd(unittest.TestCase):
-
     @skipUnless(HAS_CUPY, "CuPy is required.")
     def test_cupy_input(self):
         test_data = cp.array([[1, 2], [3, 4]])

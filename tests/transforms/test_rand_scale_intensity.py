@@ -21,7 +21,6 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandScaleIntensity(NumpyImageTestCase2D):
-
     @parameterized.expand([[p] for p in TEST_NDARRAYS])
     def test_value(self, p):
         scaler = RandScaleIntensity(factors=0.5, prob=1.0)

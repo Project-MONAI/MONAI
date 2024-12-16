@@ -167,7 +167,6 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestAffine(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_affine(self, input_param, input_data, expected_val):
         input_copy = deepcopy(input_data["img"])
@@ -200,7 +199,6 @@ class TestAffine(unittest.TestCase):
 
 @unittest.skipUnless(optional_import("scipy")[1], "Requires scipy library.")
 class TestAffineConsistency(unittest.TestCase):
-
     @parameterized.expand([[7], [8], [9]])
     def test_affine_resize(self, s):
         """s"""

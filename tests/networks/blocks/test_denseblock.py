@@ -20,7 +20,6 @@ from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
 
 
 class TestDenseBlock2D(TorchImageTestCase2D):
-
     def test_block_empty(self):
         block = DenseBlock([])
         out = block(self.imt)
@@ -37,7 +36,6 @@ class TestDenseBlock2D(TorchImageTestCase2D):
 
 
 class TestDenseBlock3D(TorchImageTestCase3D):
-
     def test_block_conv(self):
         conv1 = nn.Conv3d(self.input_channels, self.output_channels, 3, padding=1)
         conv2 = nn.Conv3d(self.input_channels + self.output_channels, self.input_channels, 3, padding=1)
@@ -54,7 +52,6 @@ class TestDenseBlock3D(TorchImageTestCase3D):
 
 
 class TestConvDenseBlock2D(TorchImageTestCase2D):
-
     def test_block_empty(self):
         conv = ConvDenseBlock(spatial_dims=2, in_channels=self.input_channels, channels=[])
         out = conv(self.imt)
@@ -82,7 +79,6 @@ class TestConvDenseBlock2D(TorchImageTestCase2D):
 
 
 class TestConvDenseBlock3D(TorchImageTestCase3D):
-
     def test_block_empty(self):
         conv = ConvDenseBlock(spatial_dims=3, in_channels=self.input_channels, channels=[])
         out = conv(self.imt)

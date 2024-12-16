@@ -72,7 +72,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestNiftiLoadRead(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_orientation(self, array, affine, reader_param, expected):
         test_image = make_nifti_image(array, affine)

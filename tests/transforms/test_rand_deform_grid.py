@@ -126,7 +126,6 @@ TEST_CASES = [
 
 
 class TestRandDeformGrid(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_rand_deform_grid(self, input_param, input_data, expected_val):
         g = RandDeformGrid(**input_param)

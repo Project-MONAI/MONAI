@@ -114,7 +114,6 @@ for bs in [1, 2]:
 
 @skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
 class TestSamplePointsFromLabel(unittest.TestCase):
-
     @parameterized.expand(TESTS_SAMPLE_POINTS_FROM_LABEL)
     def test_shape(self, input_data, expected_point_shape, expected_point_label_shape):
         point, point_label = sample_points_from_label(**input_data)
@@ -123,7 +122,6 @@ class TestSamplePointsFromLabel(unittest.TestCase):
 
 
 class TestConvertPointsToDisc(unittest.TestCase):
-
     @parameterized.expand(TEST_CONVERT_POINTS_TO_DISC)
     def test_shape(self, input_data, expected_shape):
         result = convert_points_to_disc(**input_data)
@@ -140,7 +138,6 @@ class TestConvertPointsToDisc(unittest.TestCase):
 
 @skipUnless(has_measure or cucim_skimage, "skimage or cucim.skimage required")
 class TestKeepMergeComponentsWithPoints(unittest.TestCase):
-
     @skip_if_quick
     @skip_if_no_cuda
     @skipUnless(has_cp and cucim_skimage, "cupy and cucim.skimage required")

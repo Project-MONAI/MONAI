@@ -18,7 +18,6 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class IntensityScaleIntensityRanged(NumpyImageTestCase2D):
-
     def test_image_scale_intensity_ranged(self):
         key = "img"
         scaler = ScaleIntensityRanged(keys=key, a_min=20, a_max=108, b_min=50, b_max=80)

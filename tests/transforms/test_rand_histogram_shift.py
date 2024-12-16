@@ -56,7 +56,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRandHistogramShift(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_rand_histogram_shift(self, input_param, input_data, expected_val):
         g = RandHistogramShift(**input_param)

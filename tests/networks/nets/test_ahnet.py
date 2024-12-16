@@ -126,7 +126,6 @@ TEST_CASE_AHNET_3D_WITH_PRETRAIN_3 = [
 
 
 class TestFCN(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_FCN_1, TEST_CASE_FCN_2, TEST_CASE_FCN_3])
     @skip_if_quick
     def test_fcn_shape(self, input_param, input_shape, expected_shape):
@@ -137,7 +136,6 @@ class TestFCN(unittest.TestCase):
 
 
 class TestFCNWithPretrain(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_FCN_WITH_PRETRAIN_1, TEST_CASE_FCN_WITH_PRETRAIN_2])
     @skip_if_quick
     def test_fcn_shape(self, input_param, input_shape, expected_shape):
@@ -148,7 +146,6 @@ class TestFCNWithPretrain(unittest.TestCase):
 
 
 class TestMCFCN(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_MCFCN_1, TEST_CASE_MCFCN_2, TEST_CASE_MCFCN_3])
     def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
         net = MCFCN(**input_param).to(device)
@@ -158,7 +155,6 @@ class TestMCFCN(unittest.TestCase):
 
 
 class TestMCFCNWithPretrain(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_MCFCN_WITH_PRETRAIN_1, TEST_CASE_MCFCN_WITH_PRETRAIN_2])
     def test_mcfcn_shape(self, input_param, input_shape, expected_shape):
         net = test_pretrained_networks(MCFCN, input_param, device)
@@ -168,7 +164,6 @@ class TestMCFCNWithPretrain(unittest.TestCase):
 
 
 class TestAHNET(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_AHNET_2D_1, TEST_CASE_AHNET_2D_2, TEST_CASE_AHNET_2D_3])
     def test_ahnet_shape_2d(self, input_param, input_shape, expected_shape):
         net = AHNet(**input_param).to(device)
@@ -197,7 +192,6 @@ class TestAHNET(unittest.TestCase):
 
 
 class TestAHNETWithPretrain(unittest.TestCase):
-
     @parameterized.expand(
         [TEST_CASE_AHNET_3D_WITH_PRETRAIN_1, TEST_CASE_AHNET_3D_WITH_PRETRAIN_2, TEST_CASE_AHNET_3D_WITH_PRETRAIN_3]
     )

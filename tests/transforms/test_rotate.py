@@ -52,7 +52,6 @@ for p in TEST_NDARRAYS_ALL:
 
 
 class TestRotate2D(NumpyImageTestCase2D):
-
     @parameterized.expand(TEST_CASES_2D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         init_param = {
@@ -91,7 +90,6 @@ class TestRotate2D(NumpyImageTestCase2D):
 
 
 class TestRotate3D(NumpyImageTestCase3D):
-
     @parameterized.expand(TEST_CASES_3D)
     def test_correct_results(self, im_type, angle, keep_size, mode, padding_mode, align_corners):
         init_param = {

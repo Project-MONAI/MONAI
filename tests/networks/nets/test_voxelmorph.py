@@ -245,7 +245,6 @@ ILL_CASES_IN_SHAPE = [ILL_CASES_IN_SHAPE_0, ILL_CASES_IN_SHAPE_1]
 
 
 class TestVOXELMORPH(unittest.TestCase):
-
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = VoxelMorphUNet(**input_param).to(device)

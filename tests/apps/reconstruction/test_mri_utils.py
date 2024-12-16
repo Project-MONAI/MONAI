@@ -27,7 +27,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestMRIUtils(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_rss(self, test_data, res_data):
         result = root_sum_of_squares(test_data, spatial_dim=1)

@@ -41,7 +41,6 @@ for type_1 in {"relu", "relu6", "leakyrelu"}:
 
 
 class TestChannelSELayer(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES + TEST_CASES_3D)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ChannelSELayer(**input_param)
@@ -61,7 +60,6 @@ class TestChannelSELayer(unittest.TestCase):
 
 
 class TestResidualSELayer(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES[:1])
     def test_shape(self, input_param, input_shape, expected_shape):
         net = ResidualSELayer(**input_param)

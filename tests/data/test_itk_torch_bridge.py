@@ -49,7 +49,6 @@ RW_TESTS = TESTS + ["nrrd_example.nrrd"]
 
 @unittest.skipUnless(has_itk, "Requires `itk` package.")
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
-
     def setUp(self):
         set_determinism(seed=0)
         self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
@@ -494,7 +493,6 @@ class TestITKTorchAffineMatrixBridge(unittest.TestCase):
 @unittest.skipUnless(has_nib, "Requires `nibabel` package.")
 @skip_if_quick
 class TestITKTorchRW(unittest.TestCase):
-
     def setUp(self):
         TestITKTorchAffineMatrixBridge.setUp(self)
 

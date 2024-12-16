@@ -40,7 +40,6 @@ if has_pil:
 
 
 class TestToPIL(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     @skipUnless(has_pil, "Requires `pillow` package.")
     def test_value(self, test_data):

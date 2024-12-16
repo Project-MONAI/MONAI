@@ -68,7 +68,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestProbNMS(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_output(self, class_args, probs_map, expected):
         nms = ProbNMSD(keys="prob_map", **class_args)

@@ -36,7 +36,6 @@ TEST_CASES_SLOW = [
 
 @SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class TestGaussianFilterBackprop(unittest.TestCase):
-
     def code_to_run(self, input_args):
         input_dims = input_args.get("dims", (2, 3, 8))
         device = (
@@ -97,7 +96,6 @@ class TestGaussianFilterBackprop(unittest.TestCase):
 
 @SkipIfAtLeastPyTorchVersion((2, 2, 0))  # https://github.com/Project-MONAI/MONAI/issues/7445
 class GaussianFilterTestCase(unittest.TestCase):
-
     def test_1d(self):
         a = torch.ones(1, 8, 10)
         g = GaussianFilter(1, 3, 3).to(torch.device("cpu:0"))

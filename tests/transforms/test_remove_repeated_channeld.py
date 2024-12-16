@@ -34,7 +34,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestRemoveRepeatedChanneld(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RemoveRepeatedChanneld(**input_param)(input_data)

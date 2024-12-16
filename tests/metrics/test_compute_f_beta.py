@@ -24,7 +24,6 @@ _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 class TestFBetaScore(unittest.TestCase):
-
     def test_expecting_success_and_device(self):
         metric = FBetaScore()
         y_pred = torch.tensor([[1, 1, 1], [1, 1, 1], [1, 1, 1]], device=_device)

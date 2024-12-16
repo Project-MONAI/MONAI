@@ -24,7 +24,6 @@ from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 
 class CropTest(unittest.TestCase):
-
     @staticmethod
     def get_arr(shape):
         return np.random.randint(100, size=shape).astype(float)

@@ -25,7 +25,6 @@ MEDNIST_FULL_DATASET_LENGTH = 58954
 
 
 class TestMedNISTDataset(unittest.TestCase):
-
     @skip_if_quick
     def test_values(self):
         testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")

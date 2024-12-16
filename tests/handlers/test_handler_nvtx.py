@@ -36,7 +36,6 @@ TEST_CASE_1 = [[{"image": TENSOR_1}], TENSOR_1_EXPECTED]
 
 
 class TestHandlerDecollateBatch(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_0, TEST_CASE_1])
     @unittest.skipUnless(has_nvtx, "CUDA is required for NVTX!")
     def test_compute(self, data, expected):

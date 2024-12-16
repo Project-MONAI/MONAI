@@ -22,7 +22,6 @@ from tests.utils import assert_allclose, skip_if_no_cuda
 
 @skip_if_no_cuda
 class TestToDeviced(unittest.TestCase):
-
     def test_value(self):
         device = "cuda:0"
         data = [{"img": torch.tensor(i)} for i in range(4)]

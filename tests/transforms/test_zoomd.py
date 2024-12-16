@@ -34,7 +34,6 @@ INVALID_CASES = [("no_zoom", None, "bilinear", TypeError), ("invalid_order", 0.9
 
 
 class TestZoomd(NumpyImageTestCase2D):
-
     @parameterized.expand(VALID_CASES)
     def test_correct_results(self, zoom, mode, keep_size, align_corners=None):
         key = "img"

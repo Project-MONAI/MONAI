@@ -52,7 +52,6 @@ trange = partial(tqdm.trange, desc="training") if has_tqdm else range
 
 
 class TestTestTimeAugmentation(unittest.TestCase):
-
     @staticmethod
     def get_data(num_examples, input_size, data_type=np.asarray, include_label=True):
         custom_create_test_image_2d = partial(
@@ -114,7 +113,7 @@ class TestTestTimeAugmentation(unittest.TestCase):
             epoch_loss = 0
 
             for batch_data in train_loader:
-                inputs, labels = batch_data["image"].to(device), batch_data["label"].to(device)
+                inputs, labels = (batch_data["image"].to(device), batch_data["label"].to(device))
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = loss_function(outputs, labels)

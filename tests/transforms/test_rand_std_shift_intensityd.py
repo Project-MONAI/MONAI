@@ -20,7 +20,6 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandStdShiftIntensityd(NumpyImageTestCase2D):
-
     def test_value(self):
         for p in TEST_NDARRAYS:
             key = "img"

@@ -358,7 +358,6 @@ TEST_CASES = [
 @skip_if_no_cpp_extension
 @skip_if_quick
 class JointBilateralFilterTestCaseCpuPrecise(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_cpu_precise(self, test_case_description, sigmas, input, guide, expected):
         # Params to determine the implementation to test
@@ -482,7 +481,6 @@ class JointBilateralFilterTestCaseCpuPrecise(unittest.TestCase):
 @skip_if_no_cuda
 @skip_if_no_cpp_extension
 class JointBilateralFilterTestCaseCudaPrecise(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_cuda_precise(self, test_case_description, sigmas, input, guide, expected):
         # Skip this test

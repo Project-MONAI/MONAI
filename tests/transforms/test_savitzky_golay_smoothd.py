@@ -60,7 +60,6 @@ TEST_CASE_SINE_SMOOTH = [
 
 
 class TestSavitzkyGolaySmoothd(unittest.TestCase):
-
     @parameterized.expand(
         [TEST_CASE_SINGLE_VALUE, TEST_CASE_2D_AXIS_2, TEST_CASE_SINE_SMOOTH, TEST_CASE_SINGLE_VALUE_REP]
     )

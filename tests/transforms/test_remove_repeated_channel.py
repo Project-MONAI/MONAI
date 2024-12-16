@@ -24,7 +24,6 @@ for q in TEST_NDARRAYS:
 
 
 class TestRemoveRepeatedChannel(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_data, expected_shape):
         result = RemoveRepeatedChannel(**input_param)(input_data)

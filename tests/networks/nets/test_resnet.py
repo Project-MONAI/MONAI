@@ -242,7 +242,6 @@ CASE_EXTRACT_FEATURES = [
 
 
 class TestResNet(unittest.TestCase):
-
     def setUp(self):
         self.tmp_ckpt_filename = os.path.join("tests", "monai_unittest_tmp_ckpt.pth")
 
@@ -320,7 +319,6 @@ class TestResNet(unittest.TestCase):
 
 @SkipIfNoModule("hf_hub_download")
 class TestExtractFeatures(unittest.TestCase):
-
     @parameterized.expand(CASE_EXTRACT_FEATURES)
     def test_shape(self, input_param, input_shape, expected_shapes):
         device = "cuda" if torch.cuda.is_available() else "cpu"

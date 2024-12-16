@@ -59,7 +59,6 @@ TEST_CASES_3D = [
 
 
 class TestADN2D(TorchImageTestCase2D):
-
     @parameterized.expand(TEST_CASES_2D)
     def test_adn_2d(self, args):
         adn = ADN(**args)
@@ -74,7 +73,6 @@ class TestADN2D(TorchImageTestCase2D):
 
 
 class TestADN3D(TorchImageTestCase3D):
-
     @parameterized.expand(TEST_CASES_3D)
     def test_adn_3d(self, args):
         adn = ADN(**args)

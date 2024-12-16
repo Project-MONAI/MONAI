@@ -29,7 +29,6 @@ TEST_CASE_1 = [
 
 
 class TestLLTM(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1])
     @SkipIfNoModule("monai._C")
     def test_value(self, input_param, expected_h, expected_c):

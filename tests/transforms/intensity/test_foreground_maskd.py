@@ -89,7 +89,6 @@ for p in TEST_NDARRAYS:
 
 @unittest.skipUnless(has_skimage, "Requires sci-kit image")
 class TestForegroundMaskd(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_foreground_mask(self, in_type, arguments, data_dict, mask):
         data_dict[arguments["keys"]] = in_type(data_dict[arguments["keys"]])

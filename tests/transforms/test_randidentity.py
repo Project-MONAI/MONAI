@@ -19,13 +19,11 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class T(mt.Transform):
-
     def __call__(self, x):
         return x * 2
 
 
 class TestIdentity(NumpyImageTestCase2D):
-
     def test_identity(self):
         for p in TEST_NDARRAYS:
             img = p(self.imt)

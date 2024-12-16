@@ -21,7 +21,6 @@ from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensityFixedMean(NumpyImageTestCase2D):
-
     def test_factor_scale(self):
         for p in TEST_NDARRAYS:
             scaler = ScaleIntensityFixedMean(factor=0.1, fixed_mean=False)

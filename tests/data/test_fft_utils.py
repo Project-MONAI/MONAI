@@ -42,7 +42,6 @@ for p in TEST_NDARRAYS:
 
 
 class TestFFT(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test(self, test_data, res_data):
         result = fftn_centered(test_data, spatial_dims=2, is_complex=False)

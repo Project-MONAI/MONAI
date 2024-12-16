@@ -32,7 +32,6 @@ TEST_CASE_5 = [torch.tensor([[[0, 2], [1, 0], [4, 5]]]), 1, False, (0, 3, 2), to
 
 
 class TestSampleSlices(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_CASE_5])
     def test_shape(self, input_data, dim, as_indices, vals, expected_result):
         for p in TEST_NDARRAYS:

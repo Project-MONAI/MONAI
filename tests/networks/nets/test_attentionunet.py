@@ -26,7 +26,6 @@ def get_net_parameters(net: nn.Module) -> int:
 
 
 class TestAttentionUnet(unittest.TestCase):
-
     def test_attention_block(self):
         for dims in [2, 3]:
             block = att.AttentionBlock(dims, f_int=2, f_g=6, f_l=6)

@@ -107,7 +107,6 @@ def run_auto3dseg_before_bundlegen(test_path, work_dir):
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 @skip_if_quick
 class TestBundleGen(unittest.TestCase):
-
     def setUp(self) -> None:
         set_determinism(0)
         self.test_dir = tempfile.TemporaryDirectory()

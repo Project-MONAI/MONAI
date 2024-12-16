@@ -137,7 +137,6 @@ TEST_CASE_8_LARGER_SHAPE = [
 
 
 class AvgMergerTests(unittest.TestCase):
-
     @parameterized.expand(
         [
             TEST_CASE_0_DEFAULT_DTYPE,

@@ -44,7 +44,6 @@ for p in TEST_NDARRAYS:
 
 @skipUnless(has_matplotlib, "Matplotlib required")
 class TestBlendImages(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_blend(self, image, label, alpha):
         blended = blend_images(image, label, alpha)

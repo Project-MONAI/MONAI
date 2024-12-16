@@ -20,7 +20,6 @@ from tests.utils import assert_allclose
 
 
 class TestCumulative(unittest.TestCase):
-
     def test_single(self):
         c = Cumulative()
         c.extend([2, 3])

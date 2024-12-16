@@ -24,7 +24,6 @@ _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 
 class TestAllSurfaceDiceMetrics(unittest.TestCase):
-
     def test_tolerance_euclidean_distance_with_spacing(self):
         batch_size = 2
         n_class = 2
@@ -384,7 +383,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         np.testing.assert_equal(not_nans, torch.tensor([0], dtype=torch.float))
 
     def test_compute_surface_dice_subvoxel(self):
-        mask_gt, mask_pred = torch.zeros(1, 1, 128, 128, 128), torch.zeros(1, 1, 128, 128, 128)
+        mask_gt, mask_pred = (torch.zeros(1, 1, 128, 128, 128), torch.zeros(1, 1, 128, 128, 128))
         mask_gt[0, 0, 50, 60, 70] = 1
         res = compute_surface_dice(
             mask_pred, mask_gt, [1.0], include_background=True, spacing=(3, 2, 1), use_subvoxels=True
@@ -404,7 +403,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         assert_allclose(res, 0.5, type_test=False)
 
         d = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        mask_gt, mask_pred = torch.zeros(1, 1, 100, 100, 100, device=d), torch.zeros(1, 1, 100, 100, 100, device=d)
+        mask_gt, mask_pred = (torch.zeros(1, 1, 100, 100, 100, device=d), torch.zeros(1, 1, 100, 100, 100, device=d))
         mask_gt[0, 0, 0:50, :, :] = 1
         mask_pred[0, 0, 0:51, :, :] = 1
         res = compute_surface_dice(

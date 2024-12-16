@@ -236,7 +236,6 @@ TEST_CASE_ERROR_9 = [TENSOR_4x4, {"patch_size": (2, 2), "filter_fn": 1}, ValueEr
 
 
 class SlidingWindowSplitterTests(unittest.TestCase):
-
     @parameterized.expand(
         [
             TEST_CASE_TENSOR_0,

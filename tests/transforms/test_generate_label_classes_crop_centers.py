@@ -48,7 +48,6 @@ TEST_CASE_2 = [
 
 
 class TestGenerateLabelClassesCropCenters(unittest.TestCase):
-
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_type_shape(self, input_data, expected_type, expected_count, expected_shape):
         results = []

@@ -42,7 +42,6 @@ TEST_CASES = [
 
 @unittest.skipUnless(has_tv, "torchvision not installed")
 class TestDAF3D(unittest.TestCase):
-
     @parameterized.expand(TEST_CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         device = "cuda" if torch.cuda.is_available() else "cpu"

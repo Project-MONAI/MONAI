@@ -51,7 +51,6 @@ TESTS = [
 
 
 class TestGeneratePosNegLabelCropCenters(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_type_shape(self, input_data, expected_type, expected_count, expected_shape):
         results = []

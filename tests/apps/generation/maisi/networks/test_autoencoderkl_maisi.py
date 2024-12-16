@@ -77,7 +77,6 @@ else:
 
 
 class TestAutoencoderKlMaisi(unittest.TestCase):
-
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape):
         net = AutoencoderKlMaisi(**input_param).to(device)

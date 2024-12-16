@@ -52,7 +52,6 @@ for dropout_rate in np.linspace(0, 1, 4):
 
 
 class TestResBlock(unittest.TestCase):
-
     @parameterized.expand(TEST_CASE_SABLOCK)
     @skipUnless(has_einops, "Requires einops")
     @SkipIfBeforePyTorchVersion((2, 0))
@@ -163,7 +162,6 @@ class TestResBlock(unittest.TestCase):
         assert matrix_acess_blk.att_mat.shape == (input_shape[0], input_shape[0], input_shape[1], input_shape[1])
 
     def test_number_of_parameters(self):
-
         def count_sablock_params(*args, **kwargs):
             """Count the number of parameters in a SABlock."""
             sablock = SABlock(*args, **kwargs)

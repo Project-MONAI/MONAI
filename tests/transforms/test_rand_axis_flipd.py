@@ -23,7 +23,6 @@ from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase3D, assert_allclose
 
 
 class TestRandAxisFlip(NumpyImageTestCase3D):
-
     def test_correct_results(self):
         for p in TEST_NDARRAYS_ALL:
             flip = RandAxisFlipd(keys="img", prob=1.0)

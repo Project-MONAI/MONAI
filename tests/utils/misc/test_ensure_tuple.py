@@ -37,7 +37,6 @@ TESTS = [
 
 
 class TestEnsureTuple(unittest.TestCase):
-
     @parameterized.expand(TESTS)
     def test_value(self, input, expected_value, wrap_array=False):
         result = ensure_tuple(input, wrap_array)

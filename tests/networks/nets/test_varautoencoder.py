@@ -108,7 +108,6 @@ CASES = [TEST_CASE_0, TEST_CASE_1, TEST_CASE_2, TEST_CASE_3, TEST_CASE_4, TEST_C
 
 
 class TestVarAutoEncoder(unittest.TestCase):
-
     @parameterized.expand(CASES)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = VarAutoEncoder(**input_param).to(device)
