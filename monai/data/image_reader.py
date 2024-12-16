@@ -904,13 +904,9 @@ class NibabelReader(ImageReader):
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
-        if to_gpu is True:
-            if not has_cp:
-                warnings.warn("CuPy is not installed, fall back to use cpu load.")
-                to_gpu = False
-            if not has_kvikio:
-                warnings.warn("Kvikio is not installed, fall back to use cpu load.")
-                to_gpu = False
+        if to_gpu and (not has_cp or not has_kvikio):
+            warnings.warn("NibabelReader: CuPy and/or Kvikio not installed for GPU loading, falling back to CPU loading.")
+            to_gpu = False
 
         self.to_gpu = to_gpu
         self.kwargs = kwargs
