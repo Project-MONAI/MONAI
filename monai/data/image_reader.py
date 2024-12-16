@@ -37,16 +37,14 @@ from monai.data.utils import (
 from monai.utils import MetaKeys, SpaceKeys, TraceKeys, ensure_tuple, optional_import, require_pkg
 
 if TYPE_CHECKING:
-    import cupy as cp
     import itk
-    import kvikio
     import nibabel as nib
     import nrrd
     import pydicom
     from nibabel.nifti1 import Nifti1Image
     from PIL import Image as PILImage
 
-    has_nrrd = has_itk = has_nib = has_pil = has_pydicom = has_cp = has_kvikio = True
+    has_nrrd = has_itk = has_nib = has_pil = has_pydicom = True
 else:
     itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
     nib, has_nib = optional_import("nibabel")
@@ -54,8 +52,9 @@ else:
     PILImage, has_pil = optional_import("PIL.Image")
     pydicom, has_pydicom = optional_import("pydicom")
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
-    cp, has_cp = optional_import("cupy")
-    kvikio, has_kvikio = optional_import("kvikio")
+
+cp, has_cp = optional_import("cupy")
+kvikio, has_kvikio = optional_import("kvikio")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
@@ -905,7 +904,9 @@ class NibabelReader(ImageReader):
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
         if to_gpu and (not has_cp or not has_kvikio):
-            warnings.warn("NibabelReader: CuPy and/or Kvikio not installed for GPU loading, falling back to CPU loading.")
+            warnings.warn(
+                "NibabelReader: CuPy and/or Kvikio not installed for GPU loading, falling back to CPU loading."
+            )
             to_gpu = False
 
         self.to_gpu = to_gpu
@@ -948,7 +949,7 @@ class NibabelReader(ImageReader):
             img_.append(img)  # type: ignore
         return img_ if len(filenames) > 1 else img_[0]
 
-    def get_data(self, img) -> tuple[np.ndarray | cp.ndarray, dict]:
+    def get_data(self, img) -> tuple[np.ndarray, dict]:
         """
         Extract data array and metadata from loaded image and return them.
         This function returns two objects, first is numpy array of image data, second is dict of metadata.
@@ -960,7 +961,7 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
-        img_array: list[np.ndarray | cp.ndarray] = []
+        img_array: list[np.ndarray] = []
         compatible_meta: dict = {}
 
         for i, filename in zip(ensure_tuple(img), self.filenames):
