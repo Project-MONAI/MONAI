@@ -1045,6 +1045,7 @@ class NibabelReader(ImageReader):
 
         Args:
             img: a Nibabel image object loaded from an image file.
+            filename: file name of the image.
 
         """
         if self.to_gpu:
