@@ -16,6 +16,7 @@ import gzip
 import io
 import os
 import re
+import tempfile
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -909,8 +910,29 @@ class NibabelReader(ImageReader):
             )
             to_gpu = False
 
+        if to_gpu:
+            self.warmup_kvikio()
+
         self.to_gpu = to_gpu
         self.kwargs = kwargs
+
+    def warmup_kvikio(self):
+        """
+        Warm up the Kvikio library to initialize the internal buffers, cuFile, GDS, etc.
+        This can accelerate the data loading process when `to_gpu` is set to True.
+        """
+        if has_cp and has_kvikio:
+            print("warm up")
+            a = cp.arange(100)
+            with tempfile.NamedTemporaryFile() as tmp_file:
+                tmp_file_name = tmp_file.name
+                f = kvikio.CuFile(tmp_file_name, "w")
+                f.write(a)
+                f.close()
+
+                b = cp.empty_like(a)
+                f = kvikio.CuFile(tmp_file_name, "r")
+                f.read(b)
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -961,6 +983,9 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
+        # TODO: the actual type is list[np.ndarray | cp.ndarray]
+        # should figure out how to define correct types without having cupy not found error
+        # https://github.com/Project-MONAI/MONAI/pull/8188#discussion_r1886645918
         img_array: list[np.ndarray] = []
         compatible_meta: dict = {}
 
