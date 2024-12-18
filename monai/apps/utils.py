@@ -28,12 +28,12 @@ from urllib.error import ContentTooShortError, HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen, urlretrieve
 
-import requests
-
 from monai.config.type_definitions import PathLike
 from monai.utils import look_up_option, min_version, optional_import
 
+requests, has_requests = optional_import("requests")
 gdown, has_gdown = optional_import("gdown", "4.7.3")
+BeautifulSoup, has_bs4 = optional_import("bs4", name="BeautifulSoup")
 
 if TYPE_CHECKING:
     from tqdm import tqdm
@@ -303,14 +303,29 @@ def extractall(
 
 def get_filename_from_url(data_url: str):
     try:
-        response = requests.head(data_url, allow_redirects=True)
-        content_disposition = response.headers.get("Content-Disposition")
-        if content_disposition:
-            filename = re.findall("filename=(.+)", content_disposition)
-            return filename[0].strip('"').strip("'")
+        if "drive.google.com" in data_url:
+            response = requests.head(data_url, allow_redirects=True)
+            cd = response.headers.get("Content-Disposition")  # Normal size file case
+            if cd:
+                filename = cd.split('filename="')[1].split('"')[0]
+                return filename
+            response = requests.get(data_url)
+            if "text/html" in response.headers.get("Content-Type", ""):  # Big size file case
+                soup = BeautifulSoup(response.text, "html.parser")
+                filename_div = soup.find("span", {"class": "uc-name-size"})
+                if filename_div:
+                    filename = filename_div.find("a").text
+                    return filename
+            return None
         else:
-            filename = _basename(data_url)
-            return filename
+            response = requests.head(data_url, allow_redirects=True)
+            content_disposition = response.headers.get("Content-Disposition")
+            if content_disposition:
+                filename = re.findall("filename=(.+)", content_disposition)
+                return filename[0].strip('"').strip("'")
+            else:
+                filename = _basename(data_url)
+                return filename
     except Exception as e:
         raise Exception(f"Error processing URL: {e}")
 
@@ -344,21 +359,18 @@ def download_and_extract(
             be False.
         progress: whether to display progress bar.
     """
+    url_filename_ext = "".join(Path(get_filename_from_url(url)).suffixes)
+    filepath_ext = "".join(Path(_basename(filepath)).suffixes)
+    if filepath not in ["", "."]:
+        if filepath_ext == "":
+            new_filepath = Path(filepath).with_suffix(url_filename_ext)
+            logger.warning(
+                f"filepath={filepath}, which missing file extension. Auto-appending extension to: {new_filepath}"
+            )
+            filepath = new_filepath
+    if filepath_ext and filepath_ext != url_filename_ext:
+        raise ValueError(f"File extension mismatch: expected extension {url_filename_ext}, but get {filepath_ext}")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        if not filepath:
-            filename = get_filename_from_url(url)
-            full_path = Path(tmp_dir, filename)
-        elif os.path.isdir(filepath) or not os.path.splitext(filepath)[1]:
-            filename = get_filename_from_url(url)
-            full_path = Path(os.path.join(filepath, filename))
-            logger.warning(f"No compress file extension provided, downloading as: '{full_path}'")
-        else:
-            url_filename_ext = "".join(Path(".", _basename(url)).resolve().suffixes)
-            filepath_ext = "".join(Path(".", _basename(filepath)).resolve().suffixes)
-            if filepath_ext != url_filename_ext:
-                raise ValueError(
-                    f"File extension mismatch: expected extension {url_filename_ext}, but get {filepath_ext}"
-                )
-            full_path = Path(filepath)
-        download_url(url=url, filepath=full_path, hash_val=hash_val, hash_type=hash_type, progress=progress)
-        extractall(filepath=full_path, output_dir=output_dir, file_type=file_type, has_base=has_base)
+        filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
+        download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
+        extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
