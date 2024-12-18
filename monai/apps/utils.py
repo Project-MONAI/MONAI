@@ -301,7 +301,7 @@ def extractall(
     )
 
 
-def get_filename_from_url(data_url: str):
+def _get_filename_from_url(data_url: str):
     try:
         if "drive.google.com" in data_url:
             response = requests.head(data_url, allow_redirects=True)
@@ -327,7 +327,7 @@ def get_filename_from_url(data_url: str):
                 filename = _basename(data_url)
                 return filename
     except Exception as e:
-        raise Exception(f"Error processing URL: {e}")
+        raise Exception(f"Error processing URL: {e}") from e
 
 
 def download_and_extract(
@@ -359,7 +359,7 @@ def download_and_extract(
             be False.
         progress: whether to display progress bar.
     """
-    url_filename_ext = "".join(Path(get_filename_from_url(url)).suffixes)
+    url_filename_ext = "".join(Path(_get_filename_from_url(url)).suffixes)
     filepath_ext = "".join(Path(_basename(filepath)).suffixes)
     if filepath not in ["", "."]:
         if filepath_ext == "":
@@ -371,6 +371,6 @@ def download_and_extract(
     if filepath_ext and filepath_ext != url_filename_ext:
         raise ValueError(f"File extension mismatch: expected extension {url_filename_ext}, but get {filepath_ext}")
     with tempfile.TemporaryDirectory() as tmp_dir:
-        filename = filepath or Path(tmp_dir, get_filename_from_url(url)).resolve()
+        filename = filepath or Path(tmp_dir, _get_filename_from_url(url)).resolve()
         download_url(url=url, filepath=filename, hash_val=hash_val, hash_type=hash_type, progress=progress)
         extractall(filepath=filename, output_dir=output_dir, file_type=file_type, has_base=has_base)
