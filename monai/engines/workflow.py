@@ -133,9 +133,12 @@ class Workflow(Engine):
                 def set_sampler_epoch(engine: Engine) -> None:
                     sampler.set_epoch(engine.state.epoch)
 
-            # if the epoch_length isn't given, attempt to get it from the length of the data loader
-            if epoch_length is None and isinstance(data_loader.dataset, Sized):
-                epoch_length = len(data_loader.dataset)
+        # if the epoch_length isn't given, attempt to get it from the length of the data loader
+        if epoch_length is None and isinstance(data_loader, Sized):
+            try:
+                epoch_length = len(data_loader)
+            except TypeError:  # raised when data_loader has an iterable dataset with no length, or is some other type
+                pass  # deliberately leave epoch_length as None
 
         # set all sharable data for the workflow based on Ignite engine.state
         self.state: Any = State(
