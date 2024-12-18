@@ -301,7 +301,7 @@ def extractall(
     )
 
 
-def get_filename_from_url(data_url: str):
+def get_filename_from_url(data_url: str) -> str:
     try:
         if "drive.google.com" in data_url:
             response = requests.head(data_url, allow_redirects=True)
