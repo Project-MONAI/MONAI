@@ -302,30 +302,24 @@ def extractall(
 
 
 def get_filename_from_url(data_url: str) -> str:
+    """
+    Get the filename from the URL link.
+    """
     try:
+        response = requests.head(data_url, allow_redirects=True)
+        content_disposition = response.headers.get("Content-Disposition")
+        if content_disposition:
+            filename = re.findall('filename="?([^";]+)"?', content_disposition)
+            if filename:
+                return str(filename[0])
         if "drive.google.com" in data_url:
-            response = requests.head(data_url, allow_redirects=True)
-            cd = response.headers.get("Content-Disposition")  # Normal size file case
-            if cd:
-                filename = cd.split('filename="')[1].split('"')[0]
-                return filename
             response = requests.get(data_url)
-            if "text/html" in response.headers.get("Content-Type", ""):  # Big size file case
+            if "text/html" in response.headers.get("Content-Type", ""):
                 soup = BeautifulSoup(response.text, "html.parser")
                 filename_div = soup.find("span", {"class": "uc-name-size"})
                 if filename_div:
-                    filename = filename_div.find("a").text
-                    return filename
-            return None
-        else:
-            response = requests.head(data_url, allow_redirects=True)
-            content_disposition = response.headers.get("Content-Disposition")
-            if content_disposition:
-                filename = re.findall("filename=(.+)", content_disposition)
-                return filename[0].strip('"').strip("'")
-            else:
-                filename = _basename(data_url)
-                return filename
+                    return str(filename_div.find("a").text)
+        return _basename(data_url)
     except Exception as e:
         raise Exception(f"Error processing URL: {e}") from e
 
