@@ -1086,7 +1086,6 @@ class NibabelReader(ImageReader):
                 with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
                     decompressed_data = gz_file.read()
 
-                file_size = len(decompressed_data)
                 image = cp.frombuffer(decompressed_data, dtype=cp.uint8)
             data_shape = img.shape
             data_offset = img.dataobj.offset
