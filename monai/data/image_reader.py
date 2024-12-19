@@ -884,7 +884,6 @@ class NibabelReader(ImageReader):
             Default is False. CuPy and Kvikio are required for this option.
             Note: For compressed NIfTI files, some operations may still be performed on CPU memory,
             and the acceleration may not be significant. In some cases, it may be slower than loading on CPU.
-            #TODO: the first kvikio call is slow since it will initialize internal buffers, cuFile, GDS, etc.
             In practical use, it's recommended to add a warm up call before the actual loading.
             A related tutorial will be prepared in the future, and the document will be updated accordingly.
         kwargs: additional args for `nibabel.load` API. more details about available args:
