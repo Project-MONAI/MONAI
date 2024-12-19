@@ -922,7 +922,6 @@ class NibabelReader(ImageReader):
         This can accelerate the data loading process when `to_gpu` is set to True.
         """
         if has_cp and has_kvikio:
-            print("warm up")
             a = cp.arange(100)
             with tempfile.NamedTemporaryFile() as tmp_file:
                 tmp_file_name = tmp_file.name
