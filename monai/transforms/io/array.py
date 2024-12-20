@@ -164,7 +164,6 @@ class LoadImage(Transform):
                 e.g. ``prune_meta_pattern=".*_code$", prune_meta_sep=" "`` removes meta keys that ends with ``"_code"``.
             expanduser: if True cast filename to Path and call .expanduser on it, otherwise keep filename as is.
             args: additional parameters for reader if providing a reader name.
-            device: target device to put the loaded image.
             kwargs: additional parameters for reader if providing a reader name.
 
         Note:
@@ -186,7 +185,6 @@ class LoadImage(Transform):
         self.pattern = prune_meta_pattern
         self.sep = prune_meta_sep
         self.expanduser = expanduser
-        self.device = device
 
         self.readers: list[ImageReader] = []
         for r in SUPPORTED_READERS:  # set predefined readers as default
@@ -291,7 +289,7 @@ class LoadImage(Transform):
             )
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
-        img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype, device=self.device)[0]
+        img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
         if not isinstance(meta_data, dict):
             raise ValueError(f"`meta_data` must be a dict, got type {type(meta_data)}.")
         # make sure all elements in metadata are little endian
@@ -299,7 +297,7 @@ class LoadImage(Transform):
 
         meta_data[Key.FILENAME_OR_OBJ] = f"{ensure_tuple(filename)[0]}"  # Path obj should be strings for data loader
         img = MetaTensor.ensure_torch_and_prune_meta(
-            img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep, device=self.device
+            img_array, meta_data, self.simple_keys, pattern=self.pattern, sep=self.sep
         )
         if self.ensure_channel_first:
             img = EnsureChannelFirst()(img)

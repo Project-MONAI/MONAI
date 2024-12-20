@@ -537,7 +537,6 @@ class MetaTensor(MetaObj, torch.Tensor):
         simple_keys: bool = False,
         pattern: str | None = None,
         sep: str = ".",
-        device: None | str | torch.device = None,
     ):
         """
         Convert the image to MetaTensor (when meta is not None). If `affine` is in the `meta` dictionary,
@@ -552,15 +551,12 @@ class MetaTensor(MetaObj, torch.Tensor):
             sep: combined with `pattern`, used to match and delete keys in the metadata (nested dictionary).
                 default is ".", see also :py:class:`monai.transforms.DeleteItemsd`.
                 e.g. ``pattern=".*_code$", sep=" "`` removes any meta keys that ends with ``"_code"``.
-            device: target device to put the Tensor data.
 
         Returns:
             By default, a `MetaTensor` is returned.
             However, if `get_track_meta()` is `False` or meta=None, a `torch.Tensor` is returned.
         """
-        img = convert_to_tensor(
-            im, track_meta=get_track_meta() and meta is not None, device=device
-        )  # potentially ascontiguousarray
+        img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None)  # potentially ascontiguousarray
         # if not tracking metadata, return `torch.Tensor`
         if not isinstance(img, MetaTensor):
             return img
@@ -572,7 +568,7 @@ class MetaTensor(MetaObj, torch.Tensor):
         if simple_keys:
             # ensure affine is of type `torch.Tensor`
             if MetaKeys.AFFINE in meta:
-                meta[MetaKeys.AFFINE] = convert_to_tensor(meta[MetaKeys.AFFINE], device=device)  # bc-breaking
+                meta[MetaKeys.AFFINE] = convert_to_tensor(meta[MetaKeys.AFFINE])  # bc-breaking
             remove_extra_metadata(meta)  # bc-breaking
 
         if pattern is not None:
