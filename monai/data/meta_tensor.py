@@ -532,11 +532,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     @staticmethod
     def ensure_torch_and_prune_meta(
-        im: NdarrayTensor,
-        meta: dict | None,
-        simple_keys: bool = False,
-        pattern: str | None = None,
-        sep: str = ".",
+        im: NdarrayTensor, meta: dict | None, simple_keys: bool = False, pattern: str | None = None, sep: str = "."
     ):
         """
         Convert the image to MetaTensor (when meta is not None). If `affine` is in the `meta` dictionary,

@@ -139,7 +139,6 @@ class LoadImage(Transform):
         prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         expanduser: bool = True,
-        device: None | str | torch.device = None,
         *args,
         **kwargs,
     ) -> None:
