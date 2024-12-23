@@ -523,7 +523,9 @@ class Spacingd(MapTransform, InvertibleTransform, LazyTransform):
                 lazy=lazy_,
             )
             if isinstance(d[key], MetaTensor) and f"{key}_meta_dict" in d:
-                if 'filename_or_obj' in d[key].meta and is_supported_format(d[key].meta['filename_or_obj'], ["nii", "nii.gz"]):
+                if "filename_or_obj" in d[key].meta and is_supported_format(
+                    d[key].meta["filename_or_obj"], ["nii", "nii.gz"]
+                ):
                     d = transforms.sync_meta_info(key, d)
             if output_shape_k is None:
                 output_shape_k = d[key].peek_pending_shape() if isinstance(d[key], MetaTensor) else d[key].shape[1:]
