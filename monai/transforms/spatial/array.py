@@ -536,7 +536,7 @@ class Spacing(InvertibleTransform, LazyTransform):
             lazy=lazy_,
         )
         if isinstance(data_array, MetaTensor) and "pixdim" in data_array.meta:
-            data_array = data_array.clone()  # type: MetaTensor
+            data_array = cast(MetaTensor, data_array.clone())
             data_array.set_pixdim()
         if self.recompute_affine and isinstance(data_array, MetaTensor):
             if lazy_:
