@@ -479,7 +479,7 @@ class MetaTensor(MetaObj, torch.Tensor):
 
     def set_pixdim(self) -> None:
         """Update pixdim based on current affine."""
-        self.meta[MetaKeys.PIXDIM][1 : 1 + len(self.pixdim)] = affine_to_spacing(self.affine)
+        self.meta[MetaKeys.PIXDIM][1:1+len(self.pixdim)] = affine_to_spacing(self.affine)
 
     def peek_pending_shape(self):
         """
