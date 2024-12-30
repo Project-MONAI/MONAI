@@ -31,9 +31,11 @@ from monai.networks.layers import AffineTransform
 from monai.transforms.croppad.array import ResizeWithPadOrCrop
 from monai.transforms.intensity.array import GaussianSmooth
 from monai.transforms.inverse import TraceableTransform
+from monai.transforms.lazy.utils import apply_to_geometry
 from monai.transforms.utils import create_rotate, create_translate, resolves_modes, scale_affine
 from monai.transforms.utils_pytorch_numpy_unification import allclose
 from monai.utils import (
+    KindKeys,
     LazyAttr,
     TraceKeys,
     convert_to_dst_type,
@@ -229,7 +231,7 @@ def orientation(img, original_affine, spatial_ornt, lazy, transform_info) -> tor
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out  # type: ignore
 
 
-def flip(img, sp_axes, lazy, transform_info):
+def flip_impl(img, sp_axes, lazy, transform_info):
     """
     Functional implementation of flip.
     This function operates eagerly or lazily according to
@@ -258,11 +260,37 @@ def flip(img, sp_axes, lazy, transform_info):
     meta_info = TraceableTransform.track_transform_meta(
         img, sp_size=sp_size, affine=xform, extra_info=extra_info, transform_info=transform_info, lazy=lazy
     )
+    return axes, meta_info
+
+
+def flip_raster(img, sp_axes, lazy, transform_info):
+    axes, meta_info = flip_impl(img, sp_axes, lazy, transform_info)
     out = _maybe_new_metatensor(img)
     if lazy:
         return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
     out = torch.flip(out, axes)
     return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip_geom(img, sp_axes, lazy, transform_info):
+    _, meta_info = flip_impl(img, sp_axes, lazy, transform_info)
+    out = _maybe_new_metatensor(img)
+    if lazy:
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else meta_info
+    out = apply_to_geometry(out, meta_info)
+    return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+
+def flip(image, sp_axes, lazy, transform_info):
+    """
+    Flip the tensor / MetaTensor according to `sp_axes`.
+    """
+
+    if isinstance(image, MetaTensor):
+        if image.kind == KindKeys.RASTER:
+            return flip_raster(image, sp_axes, lazy, transform_info)
+        elif image.kind == KindKeys.GEOM:
+            return flip_geom(image, sp_axes, lazy, transform_info)
 
 
 def resize(
