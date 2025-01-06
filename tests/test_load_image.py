@@ -233,7 +233,7 @@ class TestLoadImage(unittest.TestCase):
             input_param_cpu = input_param.copy()
             input_param_cpu["to_gpu"] = False
             result_cpu = LoadImage(image_only=True, **input_param_cpu)(filenames)
-            self.assertTrue(torch.allclose(result_cpu, result.cpu(), atol=1e-6))
+            assert_allclose(result_cpu, result.cpu(), atol=1e-6)
 
     @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
