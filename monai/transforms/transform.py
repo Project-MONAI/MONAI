@@ -101,7 +101,7 @@ def _apply_transform(
 def apply_transform(
     transform: Callable[..., ReturnType],
     data: Any,
-    map_items: bool = True,
+    map_items: bool | int = True,
     unpack_items: bool = False,
     log_stats: bool | str = False,
     lazy: bool | None = None,
@@ -119,6 +119,7 @@ def apply_transform(
         data: an object to be transformed.
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
+            it can also be an int, if so, apply the transform to each item in the list `map_items` times.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
@@ -136,8 +137,15 @@ def apply_transform(
         Union[List[ReturnType], ReturnType]: The return type of `transform` or a list thereof.
     """
     try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [apply_transform(transform, item, map_items, unpack_items, log_stats, lazy, overrides) for item in data]
+        if isinstance(data, (list, tuple)) and isinstance(map_items, (int, bool)):
+            # if map_items is an int, apply the transform to each item in the list `map_items` times
+            if isinstance(map_items, int) and type(map_items) is not bool and map_items > 0:
+                return [
+                    apply_transform(transform, item, map_items - 2, unpack_items, log_stats, lazy, overrides)
+                    for item in data
+                ]
+            else:
+                return [_apply_transform(transform, item, unpack_items, lazy, overrides, log_stats) for item in data]
         return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
