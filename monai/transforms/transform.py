@@ -137,9 +137,9 @@ def apply_transform(
         Union[List[ReturnType], ReturnType]: The return type of `transform` or a list thereof.
     """
     try:
-        if isinstance(data, (list, tuple)) and isinstance(map_items, (int, bool)):
+        if isinstance(data, (list, tuple)) and (map_items or type(map_items) == int):
             # if map_items is an int, apply the transform to each item in the list `map_items` times
-            if isinstance(map_items, int) and type(map_items) is not bool and map_items > 0:
+            if type(map_items) == int and map_items > 0:
                 return [
                     apply_transform(transform, item, map_items - 2, unpack_items, log_stats, lazy, overrides)
                     for item in data
