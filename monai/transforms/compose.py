@@ -66,7 +66,7 @@ def execute_compose(
         data: a tensor-like object to be transformed
         transforms: a sequence of transforms to be carried out
         map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
-            defaults to `True`. If set to an integer, the transform will be applied to that index of the input `data`.
+            defaults to `True`. If set to an integer, recursively map the items in `data` `map_items` times.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         start: the index of the first transform to be executed. If not set, this defaults to 0
@@ -206,7 +206,7 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
     Args:
         transforms: sequence of callables.
         map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
-            defaults to `True`. If set to an integer, the transform will be applied to that index of the input `data`.
+            defaults to `True`. If set to an integer, recursively map the items in `data` `map_items` times.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
@@ -392,7 +392,7 @@ class OneOf(Compose):
         weights: probabilities corresponding to each callable in transforms.
             Probabilities are normalized to sum to one.
         map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
-            defaults to `True`.
+            defaults to `True`. If set to an integer, recursively map the items in `data` `map_items` times.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
@@ -414,7 +414,7 @@ class OneOf(Compose):
         self,
         transforms: Sequence[Callable] | Callable | None = None,
         weights: Sequence[float] | float | None = None,
-        map_items: bool = True,
+        map_items: bool | int = True,
         unpack_items: bool = False,
         log_stats: bool | str = False,
         lazy: bool | None = False,

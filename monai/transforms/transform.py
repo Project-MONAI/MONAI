@@ -106,7 +106,7 @@ def apply_transform(
     log_stats: bool | str = False,
     lazy: bool | None = None,
     overrides: dict | None = None,
-) -> list[ReturnType] | ReturnType:
+) -> list[Any] | ReturnType:
     """
     Transform `data` with `transform`.
 
@@ -119,7 +119,7 @@ def apply_transform(
         data: an object to be transformed.
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
-            it can also be an int, if so, apply the transform to each item in the list `map_items` times.
+            it can also be an int, if so, recursively map the items in `data` `map_items` times.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
