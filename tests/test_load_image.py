@@ -29,7 +29,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
 from monai.utils import optional_import
-from tests.utils import assert_allclose, skip_if_downloading_fails, testing_data_config
+from tests.utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 ITKReader, _ = optional_import("monai.data", name="ITKReader", as_type="decorator")
@@ -73,6 +73,22 @@ TEST_CASE_4_1 = [  # additional parameter
 ]
 
 TEST_CASE_5 = [{"reader": NibabelReader(mmap=False)}, ["test_image.nii.gz"], (128, 128, 128)]
+
+TEST_CASE_GPU_1 = [{"reader": "nibabelreader", "to_gpu": True}, ["test_image.nii.gz"], (128, 128, 128)]
+
+TEST_CASE_GPU_2 = [{"reader": "nibabelreader", "to_gpu": True}, ["test_image.nii"], (128, 128, 128)]
+
+TEST_CASE_GPU_3 = [
+    {"reader": "nibabelreader", "to_gpu": True},
+    ["test_image.nii", "test_image2.nii", "test_image3.nii"],
+    (3, 128, 128, 128),
+]
+
+TEST_CASE_GPU_4 = [
+    {"reader": "nibabelreader", "to_gpu": True},
+    ["test_image.nii.gz", "test_image2.nii.gz", "test_image3.nii.gz"],
+    (3, 128, 128, 128),
+]
 
 TEST_CASE_6 = [{"reader": ITKReader() if has_itk else "itkreader"}, ["test_image.nii.gz"], (128, 128, 128)]
 
@@ -195,6 +211,29 @@ class TestLoadImage(unittest.TestCase):
             self.assertEqual(result.meta["space"], "RAS")
             assert_allclose(result.affine, torch.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
+
+    @SkipIfNoModule("nibabel")
+    @SkipIfNoModule("cupy")
+    @SkipIfNoModule("kvikio")
+    @parameterized.expand([TEST_CASE_GPU_1, TEST_CASE_GPU_2, TEST_CASE_GPU_3, TEST_CASE_GPU_4])
+    def test_nibabel_reader_gpu(self, input_param, filenames, expected_shape):
+        test_image = np.random.rand(128, 128, 128)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for i, name in enumerate(filenames):
+                filenames[i] = os.path.join(tempdir, name)
+                nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
+            result = LoadImage(image_only=True, **input_param)(filenames)
+            ext = "".join(Path(name).suffixes)
+            self.assertEqual(result.meta["filename_or_obj"], os.path.join(tempdir, "test_image" + ext))
+            self.assertEqual(result.meta["space"], "RAS")
+            assert_allclose(result.affine, torch.eye(4))
+            self.assertTupleEqual(result.shape, expected_shape)
+
+            # verify gpu and cpu loaded data are the same
+            input_param_cpu = input_param.copy()
+            input_param_cpu["to_gpu"] = False
+            result_cpu = LoadImage(image_only=True, **input_param_cpu)(filenames)
+            self.assertTrue(torch.allclose(result_cpu, result.cpu(), atol=1e-6))
 
     @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):

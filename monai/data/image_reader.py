@@ -12,8 +12,11 @@
 from __future__ import annotations
 
 import glob
+import gzip
+import io
 import os
 import re
+import tempfile
 import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -50,6 +53,9 @@ else:
     PILImage, has_pil = optional_import("PIL.Image")
     pydicom, has_pydicom = optional_import("pydicom")
     nrrd, has_nrrd = optional_import("nrrd", allow_namespace_pkg=True)
+
+cp, has_cp = optional_import("cupy")
+kvikio, has_kvikio = optional_import("kvikio")
 
 __all__ = ["ImageReader", "ITKReader", "NibabelReader", "NumpyReader", "PILReader", "PydicomReader", "NrrdReader"]
 
@@ -137,14 +143,18 @@ def _copy_compatible_dict(from_dict: dict, to_dict: dict):
             )
 
 
-def _stack_images(image_list: list, meta_dict: dict):
+def _stack_images(image_list: list, meta_dict: dict, to_cupy: bool = False):
     if len(image_list) <= 1:
         return image_list[0]
     if not is_no_channel(meta_dict.get(MetaKeys.ORIGINAL_CHANNEL_DIM, None)):
         channel_dim = int(meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM])
+        if to_cupy and has_cp:
+            return cp.concatenate(image_list, axis=channel_dim)
         return np.concatenate(image_list, axis=channel_dim)
     # stack at a new first dim as the channel dim, if `'original_channel_dim'` is unspecified
     meta_dict[MetaKeys.ORIGINAL_CHANNEL_DIM] = 0
+    if to_cupy and has_cp:
+        return cp.stack(image_list, axis=0)
     return np.stack(image_list, axis=0)
 
 
@@ -864,12 +874,18 @@ class NibabelReader(ImageReader):
     Load NIfTI format images based on Nibabel library.
 
     Args:
-        as_closest_canonical: if True, load the image as closest to canonical axis format.
-        squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
         channel_dim: the channel dimension of the input image, default is None.
             this is used to set original_channel_dim in the metadata, EnsureChannelFirstD reads this field.
             if None, `original_channel_dim` will be either `no_channel` or `-1`.
             most Nifti files are usually "channel last", no need to specify this argument for them.
+        as_closest_canonical: if True, load the image as closest to canonical axis format.
+        squeeze_non_spatial_dims: if True, non-spatial singletons will be squeezed, e.g. (256,256,1,3) -> (256,256,3)
+        to_gpu: If True, load the image into GPU memory using CuPy and Kvikio. This can accelerate data loading.
+            Default is False. CuPy and Kvikio are required for this option.
+            Note: For compressed NIfTI files, some operations may still be performed on CPU memory,
+            and the acceleration may not be significant. In some cases, it may be slower than loading on CPU.
+            In practical use, it's recommended to add a warm up call before the actual loading.
+            A related tutorial will be prepared in the future, and the document will be updated accordingly.
         kwargs: additional args for `nibabel.load` API. more details about available args:
             https://github.com/nipy/nibabel/blob/master/nibabel/loadsave.py
 
@@ -880,13 +896,41 @@ class NibabelReader(ImageReader):
         channel_dim: str | int | None = None,
         as_closest_canonical: bool = False,
         squeeze_non_spatial_dims: bool = False,
+        to_gpu: bool = False,
         **kwargs,
     ):
         super().__init__()
         self.channel_dim = float("nan") if channel_dim == "no_channel" else channel_dim
         self.as_closest_canonical = as_closest_canonical
         self.squeeze_non_spatial_dims = squeeze_non_spatial_dims
+        if to_gpu and (not has_cp or not has_kvikio):
+            warnings.warn(
+                "NibabelReader: CuPy and/or Kvikio not installed for GPU loading, falling back to CPU loading."
+            )
+            to_gpu = False
+
+        if to_gpu:
+            self.warmup_kvikio()
+
+        self.to_gpu = to_gpu
         self.kwargs = kwargs
+
+    def warmup_kvikio(self):
+        """
+        Warm up the Kvikio library to initialize the internal buffers, cuFile, GDS, etc.
+        This can accelerate the data loading process when `to_gpu` is set to True.
+        """
+        if has_cp and has_kvikio:
+            a = cp.arange(100)
+            with tempfile.NamedTemporaryFile() as tmp_file:
+                tmp_file_name = tmp_file.name
+                f = kvikio.CuFile(tmp_file_name, "w")
+                f.write(a)
+                f.close()
+
+                b = cp.empty_like(a)
+                f = kvikio.CuFile(tmp_file_name, "r")
+                f.read(b)
 
     def verify_suffix(self, filename: Sequence[PathLike] | PathLike) -> bool:
         """
@@ -916,6 +960,7 @@ class NibabelReader(ImageReader):
         img_: list[Nifti1Image] = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
+        self.filenames = filenames
         kwargs_ = self.kwargs.copy()
         kwargs_.update(kwargs)
         for name in filenames:
@@ -936,10 +981,13 @@ class NibabelReader(ImageReader):
             img: a Nibabel image object loaded from an image file or a list of Nibabel image objects.
 
         """
+        # TODO: the actual type is list[np.ndarray | cp.ndarray]
+        # should figure out how to define correct types without having cupy not found error
+        # https://github.com/Project-MONAI/MONAI/pull/8188#discussion_r1886645918
         img_array: list[np.ndarray] = []
         compatible_meta: dict = {}
 
-        for i in ensure_tuple(img):
+        for i, filename in zip(ensure_tuple(img), self.filenames):
             header = self._get_meta_dict(i)
             header[MetaKeys.AFFINE] = self._get_affine(i)
             header[MetaKeys.ORIGINAL_AFFINE] = self._get_affine(i)
@@ -949,7 +997,7 @@ class NibabelReader(ImageReader):
                 header[MetaKeys.AFFINE] = self._get_affine(i)
             header[MetaKeys.SPATIAL_SHAPE] = self._get_spatial_shape(i)
             header[MetaKeys.SPACE] = SpaceKeys.RAS
-            data = self._get_array_data(i)
+            data = self._get_array_data(i, filename)
             if self.squeeze_non_spatial_dims:
                 for d in range(len(data.shape), len(header[MetaKeys.SPATIAL_SHAPE]), -1):
                     if data.shape[d - 1] == 1:
@@ -963,7 +1011,7 @@ class NibabelReader(ImageReader):
                 header[MetaKeys.ORIGINAL_CHANNEL_DIM] = self.channel_dim
             _copy_compatible_dict(header, compatible_meta)
 
-        return _stack_images(img_array, compatible_meta), compatible_meta
+        return _stack_images(img_array, compatible_meta, to_cupy=self.to_gpu), compatible_meta
 
     def _get_meta_dict(self, img) -> dict:
         """
@@ -1015,14 +1063,34 @@ class NibabelReader(ImageReader):
         spatial_rank = max(min(ndim, 3), 1)
         return np.asarray(size[:spatial_rank])
 
-    def _get_array_data(self, img):
+    def _get_array_data(self, img, filename):
         """
         Get the raw array data of the image, converted to Numpy array.
 
         Args:
             img: a Nibabel image object loaded from an image file.
+            filename: file name of the image.
 
         """
+        if self.to_gpu:
+            file_size = os.path.getsize(filename)
+            image = cp.empty(file_size, dtype=cp.uint8)
+            with kvikio.CuFile(filename, "r") as f:
+                f.read(image)
+            if filename.endswith(".nii.gz"):
+                # for compressed data, have to tansfer to CPU to decompress
+                # and then transfer back to GPU. It is not efficient compared to .nii file
+                # and may be slower than CPU loading in some cases.
+                warnings.warn("Loading compressed NIfTI file into GPU may not be efficient.")
+                compressed_data = cp.asnumpy(image)
+                with gzip.GzipFile(fileobj=io.BytesIO(compressed_data)) as gz_file:
+                    decompressed_data = gz_file.read()
+
+                image = cp.frombuffer(decompressed_data, dtype=cp.uint8)
+            data_shape = img.shape
+            data_offset = img.dataobj.offset
+            data_dtype = img.dataobj.dtype
+            return image[data_offset:].view(data_dtype).reshape(data_shape, order="F")
         return np.asanyarray(img.dataobj, order="C")
 
 

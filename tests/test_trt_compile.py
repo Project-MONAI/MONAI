@@ -19,11 +19,12 @@ from parameterized import parameterized
 
 from monai.handlers import TrtHandler
 from monai.networks import trt_compile
-from monai.networks.nets import UNet, cell_sam_wrapper, vista3d132
+from monai.networks.nets import cell_sam_wrapper, vista3d132
 from monai.utils import min_version, optional_import
-from tests.utils import SkipIfAtLeastPyTorchVersion, skip_if_no_cuda, skip_if_quick, skip_if_windows
+from tests.utils import SkipIfBeforeComputeCapabilityVersion, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 trt, trt_imported = optional_import("tensorrt", "10.1.0", min_version)
+torch_tensorrt, torch_trt_imported = optional_import("torch_tensorrt")
 polygraphy, polygraphy_imported = optional_import("polygraphy")
 build_sam_vit_b, has_sam = optional_import("segment_anything.build_sam", name="build_sam_vit_b")
 
@@ -31,11 +32,25 @@ TEST_CASE_1 = ["fp32"]
 TEST_CASE_2 = ["fp16"]
 
 
+class ListAdd(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x: list[torch.Tensor], y: torch.Tensor, z: torch.Tensor, bs: float = 0.1):
+        y1 = y.clone()
+        x1 = x.copy()
+        z1 = z + y
+        for xi in x:
+            y1 = y1 + xi + bs
+        return x1, [y1, z1], y1 + z1
+
+
 @skip_if_windows
 @skip_if_no_cuda
 @skip_if_quick
 @unittest.skipUnless(trt_imported, "tensorrt is required")
 @unittest.skipUnless(polygraphy_imported, "polygraphy is required")
+@SkipIfBeforeComputeCapabilityVersion((7, 5))
 class TestTRTCompile(unittest.TestCase):
 
     def setUp(self):
@@ -46,7 +61,7 @@ class TestTRTCompile(unittest.TestCase):
         if current_device != self.gpu_device:
             torch.cuda.set_device(self.gpu_device)
 
-    @SkipIfAtLeastPyTorchVersion((2, 5, 0))
+    # @unittest.skipUnless(torch_trt_imported, "torch_tensorrt is required")
     def test_handler(self):
         from ignite.engine import Engine
 
@@ -59,7 +74,7 @@ class TestTRTCompile(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tempdir:
             engine = Engine(lambda e, b: None)
-            args = {"method": "torch_trt"}
+            args = {"method": "onnx", "dynamic_batchsize": [1, 4, 8]}
             TrtHandler(net1, tempdir + "/trt_handler", args=args).attach(engine)
             engine.run([0] * 8, max_epochs=1)
             self.assertIsNotNone(net1._trt_compiler)
@@ -67,29 +82,23 @@ class TestTRTCompile(unittest.TestCase):
             net1.forward(torch.tensor([[0.0, 1.0], [1.0, 2.0]], device="cuda"))
             self.assertIsNotNone(net1._trt_compiler.engine)
 
-    @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
-    def test_unet_value(self, precision):
-        model = UNet(
-            spatial_dims=3,
-            in_channels=1,
-            out_channels=2,
-            channels=(2, 2, 4, 8, 4),
-            strides=(2, 2, 2, 2),
-            num_res_units=2,
-            norm="batch",
-        ).cuda()
+    def test_lists(self):
+        model = ListAdd().cuda()
+
         with torch.no_grad(), tempfile.TemporaryDirectory() as tmpdir:
-            model.eval()
-            input_example = torch.randn(2, 1, 96, 96, 96).cuda()
-            output_example = model(input_example)
-            args: dict = {"builder_optimization_level": 1}
-            trt_compile(
-                model,
-                f"{tmpdir}/test_unet_trt_compile",
-                args={"precision": precision, "build_args": args, "dynamic_batchsize": [1, 4, 8]},
-            )
+            args = {
+                "output_lists": [[-1], [2], []],
+                "export_args": {"dynamo": False, "verbose": True},
+                "dynamic_batchsize": [1, 4, 8],
+            }
+            x = torch.randn(1, 16).to("cuda")
+            y = torch.randn(1, 16).to("cuda")
+            z = torch.randn(1, 16).to("cuda")
+            input_example = ([x, y, z], y.clone(), z.clone())
+            output_example = model(*input_example)
+            trt_compile(model, f"{tmpdir}/test_lists", args=args)
             self.assertIsNone(model._trt_compiler.engine)
-            trt_output = model(input_example)
+            trt_output = model(*input_example)
             # Check that lazy TRT build succeeded
             self.assertIsNotNone(model._trt_compiler.engine)
             torch.testing.assert_close(trt_output, output_example, rtol=0.01, atol=0.01)
@@ -102,11 +111,7 @@ class TestTRTCompile(unittest.TestCase):
             model.eval()
             input_example = torch.randn(1, 3, 128, 128).to("cuda")
             output_example = model(input_example)
-            trt_compile(
-                model,
-                f"{tmpdir}/test_cell_sam_wrapper_trt_compile",
-                args={"precision": precision, "dynamic_batchsize": [1, 1, 1]},
-            )
+            trt_compile(model, f"{tmpdir}/test_cell_sam_wrapper_trt_compile", args={"precision": precision})
             self.assertIsNone(model._trt_compiler.engine)
             trt_output = model(input_example)
             # Check that lazy TRT build succeeded
@@ -123,7 +128,7 @@ class TestTRTCompile(unittest.TestCase):
             model = trt_compile(
                 model,
                 f"{tmpdir}/test_vista3d_trt_compile",
-                args={"precision": precision, "dynamic_batchsize": [1, 1, 1]},
+                args={"precision": precision, "dynamic_batchsize": [1, 2, 4]},
                 submodule=["image_encoder.encoder", "class_head"],
             )
             self.assertIsNotNone(model.image_encoder.encoder._trt_compiler)

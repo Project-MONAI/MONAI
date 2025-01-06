@@ -134,6 +134,12 @@ class TestImageFilter(unittest.TestCase):
         out_tensor = filter(image)
         self.assertTrue(isinstance(out_tensor, MetaTensor))
 
+    def test_gaussian_filter_without_filter_size(self):
+        "Test Gaussian filter without specifying filter_size"
+        filter = ImageFilter("gauss", sigma=2)
+        out_tensor = filter(SAMPLE_IMAGE_2D)
+        self.assertEqual(out_tensor.shape[1:], SAMPLE_IMAGE_2D.shape[1:])
+
 
 class TestImageFilterDict(unittest.TestCase):
 

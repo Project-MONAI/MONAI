@@ -24,6 +24,7 @@ pytype>=2020.6.1; platform_system != "Windows"
 types-setuptools
 mypy>=1.5.0, <1.12.0
 ninja
+torchio
 torchvision
 psutil
 cucim-cu12; platform_system == "Linux" and python_version >= "3.9" and python_version <= "3.10"
