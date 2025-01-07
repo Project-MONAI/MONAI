@@ -890,6 +890,61 @@ class PydicomReader(ImageReader):
 
         return all_segs, metadata
 
+    def _get_array_data_from_gpu(self, img, filename):
+        """
+        Get the raw array data of the image. This function is used when `to_gpu` is set to True.
+
+        Args:
+            img: a Pydicom dataset object.
+            filename: the file path of the image.
+
+        """
+        rows = getattr(img, "Rows", None)
+        columns = getattr(img, "Columns", None)
+        bits_allocated = getattr(img, "BitsAllocated", None)
+        samples_per_pixel = getattr(img, "SamplesPerPixel", 1)
+        number_of_frames = getattr(img, "NumberOfFrames", 1)
+        pixel_representation = getattr(img, "PixelRepresentation", 1)
+
+        if rows is None or columns is None or bits_allocated is None:
+            warnings.warn(
+                f"dicom data: {filename} does not have Rows, Columns or BitsAllocated, falling back to CPU loading."
+            )
+
+            if not hasattr(img, "pixel_array"):
+                raise ValueError(f"dicom data: {filename} does not have pixel_array.")
+            data = img.pixel_array
+
+            return data
+
+        if bits_allocated == 8:
+            dtype = cp.int8 if pixel_representation == 1 else cp.uint8
+        elif bits_allocated == 16:
+            dtype = cp.int16 if pixel_representation == 1 else cp.uint16
+        elif bits_allocated == 32:
+            dtype = cp.int32 if pixel_representation == 1 else cp.uint32
+        else:
+            raise ValueError("Unsupported BitsAllocated value")
+
+        bytes_per_pixel = bits_allocated // 8
+        total_pixels = rows * columns * samples_per_pixel * number_of_frames
+        expected_pixel_data_length = total_pixels * bytes_per_pixel
+
+        pixel_data_tag = pydicom.tag.Tag(0x7FE0, 0x0010)
+        if pixel_data_tag not in img:
+            raise ValueError(f"dicom data: {filename} does not have pixel data.")
+
+        pixel_data_element = img[pixel_data_tag]
+        offset = pixel_data_element.value_tell()
+
+        with kvikio.CuFile(filename, "r") as f:
+            buffer = cp.empty(expected_pixel_data_length, dtype=cp.int8)
+            f.read(buffer, expected_pixel_data_length, offset)
+
+        data = buffer.view(dtype).reshape((number_of_frames, rows, columns))
+
+        return data
+
     def _get_array_data(self, img, filename):
         """
         Get the array data of the image. If `RescaleSlope` and `RescaleIntercept` are available, the raw array data
@@ -903,34 +958,7 @@ class PydicomReader(ImageReader):
         # process Dicom series
 
         if self.to_gpu:
-            rows = img.Rows
-            columns = img.Columns
-            bits_allocated = img.BitsAllocated
-            samples_per_pixel = img.SamplesPerPixel
-            number_of_frames = getattr(img, "NumberOfFrames", 1)
-            pixel_representation = img.PixelRepresentation
-
-            if bits_allocated == 8:
-                dtype = cp.int8 if pixel_representation == 1 else cp.uint8
-            elif bits_allocated == 16:
-                dtype = cp.int16 if pixel_representation == 1 else cp.uint16
-            elif bits_allocated == 32:
-                dtype = cp.int32 if pixel_representation == 1 else cp.uint32
-            else:
-                raise ValueError("Unsupported BitsAllocated value")
-
-            bytes_per_pixel = bits_allocated // 8
-            total_pixels = rows * columns * samples_per_pixel * number_of_frames
-            expected_pixel_data_length = total_pixels * bytes_per_pixel
-
-            offset = img.get_item(0x7FE00010, keep_deferred=True).value_tell
-
-            with kvikio.CuFile(filename, "r") as f:
-                buffer = cp.empty(expected_pixel_data_length, dtype=cp.int8)
-                f.read(buffer, expected_pixel_data_length, offset)
-
-            data = buffer.view(dtype).reshape((number_of_frames, rows, columns))
-
+            data = self._get_array_data_from_gpu(img, filename)
         else:
             if not hasattr(img, "pixel_array"):
                 raise ValueError(f"dicom data: {filename} does not have pixel_array.")
