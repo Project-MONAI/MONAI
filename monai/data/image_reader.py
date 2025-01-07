@@ -933,7 +933,7 @@ class PydicomReader(ImageReader):
                 f.read(buffer, expected_pixel_data_length, offset)
 
             data = buffer.view(dtype).reshape((number_of_frames, rows, columns))
-        
+
         else:
             if not hasattr(img, "pixel_array"):
                 raise ValueError(f"dicom data: {filename} does not have pixel_array.")
