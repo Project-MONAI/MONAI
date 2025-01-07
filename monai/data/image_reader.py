@@ -654,7 +654,6 @@ class PydicomReader(ImageReader):
                     metadata[MetaKeys.SPATIAL_SHAPE] = data_array.shape
                 dicom_data.append((data_array, metadata))
 
-
         # TODO: the actual type is list[np.ndarray | cp.ndarray]
         # should figure out how to define correct types without having cupy not found error
         # https://github.com/Project-MONAI/MONAI/pull/8188#discussion_r1886645918
@@ -796,9 +795,7 @@ class PydicomReader(ImageReader):
         """
 
         if not hasattr(img, "PerFrameFunctionalGroupsSequence"):
-            raise NotImplementedError(
-                f"To read dicom seg: {filename}, 'PerFrameFunctionalGroupsSequence' is required."
-            )
+            raise NotImplementedError(f"To read dicom seg: {filename}, 'PerFrameFunctionalGroupsSequence' is required.")
 
         frame_seg_nums = []
         for f in img.PerFrameFunctionalGroupsSequence:
@@ -910,7 +907,7 @@ class PydicomReader(ImageReader):
             columns = img.Columns
             bits_allocated = img.BitsAllocated
             samples_per_pixel = img.SamplesPerPixel
-            number_of_frames = getattr(img, 'NumberOfFrames', 1)
+            number_of_frames = getattr(img, "NumberOfFrames", 1)
             pixel_representation = img.PixelRepresentation
 
             if bits_allocated == 8:
