@@ -523,7 +523,7 @@ class PydicomReader(ImageReader):
                     series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
                 else:
                     series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
-                self.filenames[i] = series_slcs
+                self.filenames[i] = series_slcs # type: ignore
                 slices = []
                 for slc in series_slcs:
                     try:
@@ -640,7 +640,7 @@ class PydicomReader(ImageReader):
             # a list of list, each inner list represents a dicom series
             else:
                 for i, series in enumerate(data):
-                    dicom_data.append(self._combine_dicom_series(series, self.filenames[i]))
+                    dicom_data.append(self._combine_dicom_series(series, self.filenames[i])) # type: ignore
         else:
             # a single pydicom dataset object
             if not isinstance(data, list):
@@ -934,8 +934,7 @@ class PydicomReader(ImageReader):
         if pixel_data_tag not in img:
             raise ValueError(f"dicom data: {filename} does not have pixel data.")
 
-        pixel_data_element = img[pixel_data_tag]
-        offset = pixel_data_element.value_tell()
+        offset = img.get_item(pixel_data_tag, keep_deferred=True).value_tell
 
         with kvikio.CuFile(filename, "r") as f:
             buffer = cp.empty(expected_pixel_data_length, dtype=cp.int8)
@@ -975,6 +974,8 @@ class PydicomReader(ImageReader):
 
         if rescale_flag:
             if self.to_gpu:
+                slope = cp.asarray(slope, dtype=cp.float32)
+                offset = cp.asarray(offset, dtype=cp.float32)
                 data = data.astype(cp.float32) * slope + offset
             else:
                 data = data.astype(np.float32) * slope + offset
