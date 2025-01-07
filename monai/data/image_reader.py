@@ -523,7 +523,7 @@ class PydicomReader(ImageReader):
                     series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
                 else:
                     series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
-                self.filenames[i] = series_slcs # type: ignore
+                self.filenames[i] = series_slcs  # type: ignore
                 slices = []
                 for slc in series_slcs:
                     try:
@@ -640,7 +640,7 @@ class PydicomReader(ImageReader):
             # a list of list, each inner list represents a dicom series
             else:
                 for i, series in enumerate(data):
-                    dicom_data.append(self._combine_dicom_series(series, self.filenames[i])) # type: ignore
+                    dicom_data.append(self._combine_dicom_series(series, self.filenames[i]))  # type: ignore
         else:
             # a single pydicom dataset object
             if not isinstance(data, list):
