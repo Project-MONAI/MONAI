@@ -27,7 +27,7 @@ from monai.transforms import (
     SaveImaged,
 )
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
+from tests.utils.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 
 def update_fname(d):

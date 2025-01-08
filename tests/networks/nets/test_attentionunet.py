@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 
 import monai.networks.nets.attentionunet as att
-from tests.utils import skip_if_no_cuda, skip_if_quick
+from tests.utils.utils import skip_if_no_cuda, skip_if_quick
 
 
 def get_net_parameters(net: nn.Module) -> int:

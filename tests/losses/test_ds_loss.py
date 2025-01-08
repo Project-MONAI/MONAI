@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DeepSupervisionLoss, DiceCELoss, DiceFocalLoss, DiceLoss
-from tests.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.utils.utils import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASES_DICECE = [
     [

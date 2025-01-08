@@ -26,7 +26,7 @@ from monai.apps.auto3dseg.utils import export_bundle_algo_history, import_bundle
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import set_determinism
-from tests.utils import (
+from tests.utils.utils import (
     SkipIfBeforePyTorchVersion,
     get_testing_algo_template_path,
     skip_if_downloading_fails,

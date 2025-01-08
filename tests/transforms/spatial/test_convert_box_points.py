@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.data.box_utils import convert_box_to_standard_mode
 from monai.transforms.spatial.array import ConvertBoxToPoints, ConvertPointsToBoxes
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 TEST_CASE_POINTS_2D = [
     [

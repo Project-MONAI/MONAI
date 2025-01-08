@@ -24,7 +24,7 @@ from monai import config
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
-from tests.utils import TEST_DEVICES, assert_allclose
+from tests.utils.utils import TEST_DEVICES, assert_allclose
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32]]
 TESTS = []

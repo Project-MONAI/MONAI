@@ -20,7 +20,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.array import RandWeightedCrop
 from monai.transforms.lazy.functional import apply_pending
 from tests.croppers import CropTest
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
 def get_data(ndim):

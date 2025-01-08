@@ -27,7 +27,7 @@ from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils import path_to_uri
-from tests.utils import SkipIfNoModule
+from tests.utils.utils import SkipIfNoModule
 
 _root_dir = Path(__file__).resolve().parents[3]
 _data_dir = os.path.join(_root_dir, "testing_data")

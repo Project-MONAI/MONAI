@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import GridSplit
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose
 
 A11 = torch.randn(3, 2, 2)
 A12 = torch.randn(3, 2, 2)

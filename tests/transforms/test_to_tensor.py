@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ToTensor
-from tests.utils import HAS_CUPY, TEST_NDARRAYS, assert_allclose, optional_import
+from tests.utils.utils import HAS_CUPY, TEST_NDARRAYS, assert_allclose, optional_import
 
 cp, _ = optional_import("cupy")
 

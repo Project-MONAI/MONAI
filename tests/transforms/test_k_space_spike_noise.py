@@ -22,7 +22,7 @@ from parameterized import parameterized
 from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import KSpaceSpikeNoise
 from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS
+from tests.utils.utils import TEST_NDARRAYS
 
 TESTS = []
 for shape in ((128, 64), (64, 48, 80)):

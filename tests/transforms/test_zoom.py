@@ -21,7 +21,7 @@ from scipy.ndimage import zoom as zoom_scipy
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Zoom
 from monai.transforms.lazy.functional import apply_pending
-from tests.utils import (
+from tests.utils.utils import (
     DEFAULT_TEST_AFFINE,
     TEST_NDARRAYS_ALL,
     NumpyImageTestCase2D,

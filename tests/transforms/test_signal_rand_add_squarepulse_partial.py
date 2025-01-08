@@ -22,7 +22,7 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddSquarePulsePartial
 from monai.utils import optional_import
 from monai.utils.type_conversion import convert_to_tensor
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.utils.utils import SkipIfBeforePyTorchVersion
 
 _, has_scipy = optional_import("scipy")
 TESTS_PATH = Path(__file__).parents[1]

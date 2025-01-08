@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.transforms import CopyItemsd
 from monai.utils import ensure_tuple
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 TEST_CASE_1 = ["img", 1, "img_1"]
 

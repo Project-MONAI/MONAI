@@ -24,7 +24,7 @@ from monai.transforms import (
     create_shear,
     create_translate,
 )
-from tests.utils import assert_allclose, is_tf32_env
+from tests.utils.utils import assert_allclose, is_tf32_env
 
 
 class TestCreateGrid(unittest.TestCase):

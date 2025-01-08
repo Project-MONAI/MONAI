@@ -15,7 +15,7 @@ import torch
 
 from monai.utils import evenly_divisible_all_gather
 from monai.utils.module import optional_import
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 hvd, has_hvd = optional_import("horovod", name="torch")
 

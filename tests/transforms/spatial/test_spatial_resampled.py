@@ -22,7 +22,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import to_affine_nd
 from monai.transforms.spatial.dictionary import SpatialResampled
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_DEVICES, assert_allclose
+from tests.utils.utils import TEST_DEVICES, assert_allclose
 
 ON_AARCH64 = platform.machine() == "aarch64"
 if ON_AARCH64:

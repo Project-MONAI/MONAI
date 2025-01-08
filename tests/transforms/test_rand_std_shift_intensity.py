@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandStdShiftIntensity
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestRandStdShiftIntensity(NumpyImageTestCase2D):

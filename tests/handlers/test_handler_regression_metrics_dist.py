@@ -20,7 +20,7 @@ from ignite.engine import Engine
 
 from monai.handlers import MeanAbsoluteError, MeanSquaredError, PeakSignalToNoiseRatio, RootMeanSquaredError
 from monai.utils import set_determinism
-from tests.utils import DistCall, DistTestCase
+from tests.utils.utils import DistCall, DistTestCase
 
 
 # define a numpy flatten function that only preserves batch dimension

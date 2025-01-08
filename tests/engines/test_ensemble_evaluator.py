@@ -18,7 +18,7 @@ from ignite.engine import EventEnum, Events
 from parameterized import parameterized
 
 from monai.engines import EnsembleEvaluator
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 TEST_CASE_1 = [["pred_0", "pred_1", "pred_2", "pred_3", "pred_4"]]
 

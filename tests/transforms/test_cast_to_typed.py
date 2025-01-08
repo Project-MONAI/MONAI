@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms import CastToTyped
 from monai.utils import optional_import
-from tests.utils import HAS_CUPY
+from tests.utils.utils import HAS_CUPY
 
 cp, _ = optional_import("cupy")
 

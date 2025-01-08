@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.reconstruction.transforms.dictionary import ReferenceBasedNormalizeIntensityd
 from monai.utils.type_conversion import convert_to_numpy
-from tests.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS_NO_META_TENSOR, assert_allclose
 
 # see test_normalize_intensityd for typical tests (like non-zero
 # normalization, device test, etc.)

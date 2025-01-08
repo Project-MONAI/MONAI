@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.utility.array import SplitDim
-from tests.utils import TEST_NDARRAYS
+from tests.utils.utils import TEST_NDARRAYS
 
 TESTS = []
 for p in TEST_NDARRAYS:

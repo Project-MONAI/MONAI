@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks.dynunet_block import UnetBasicBlock, UnetResBlock, UnetUpBlock, get_padding
-from tests.utils import test_script_save
+from tests.utils.utils import test_script_save
 
 TEST_CASE_RES_BASIC_BLOCK = []
 for spatial_dims in range(2, 4):

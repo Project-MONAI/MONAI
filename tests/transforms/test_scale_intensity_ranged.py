@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from monai.transforms import ScaleIntensityRanged
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class IntensityScaleIntensityRanged(NumpyImageTestCase2D):

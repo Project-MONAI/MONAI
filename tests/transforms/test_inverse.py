@@ -69,7 +69,7 @@ from monai.transforms import (
     reset_ops_id,
 )
 from monai.utils import first, get_seed, optional_import, set_determinism
-from tests.utils import make_nifti_image, make_rand_affine
+from tests.utils.utils import make_nifti_image, make_rand_affine
 
 if TYPE_CHECKING:
     has_nib = True

@@ -23,7 +23,7 @@ from monai.fl.client.monai_algo import MonaiAlgo
 from monai.fl.utils.constants import ExtraItems
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks import get_state_dict
-from tests.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion, SkipIfNoModule, skip_if_no_cuda
+from tests.utils.utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion, SkipIfNoModule, skip_if_no_cuda
 
 TESTS_PATH = TESTS_PATH = Path(__file__).parents[3].as_posix()
 _root_dir = os.path.abspath(pathjoin(TESTS_PATH))

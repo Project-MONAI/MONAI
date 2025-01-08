@@ -22,7 +22,7 @@ from monai.config import USE_COMPILED
 from monai.transforms import RandRotated
 from monai.utils import GridSampleMode, GridSamplePadMode
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
+from tests.utils.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, test_local_inversion
 
 TEST_CASES_2D: list[tuple] = []
 for p in TEST_NDARRAYS_ALL:

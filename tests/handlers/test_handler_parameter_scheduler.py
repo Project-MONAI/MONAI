@@ -17,7 +17,7 @@ from ignite.engine import Engine, Events
 from torch.nn import Module
 
 from monai.handlers.parameter_scheduler import ParamSchedulerHandler
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 
 class ToyNet(Module):

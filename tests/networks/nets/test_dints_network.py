@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DiNTS, TopologyInstance, TopologySearch
 from monai.networks.nets.dints import Cell
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.utils.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 TEST_CASES_3D = [
     [

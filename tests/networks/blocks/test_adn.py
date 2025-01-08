@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.networks.blocks import ADN
-from tests.utils import TorchImageTestCase2D, TorchImageTestCase3D
+from tests.utils.utils import TorchImageTestCase2D, TorchImageTestCase3D
 
 TEST_CASES_2D = [
     [{"act": None}],

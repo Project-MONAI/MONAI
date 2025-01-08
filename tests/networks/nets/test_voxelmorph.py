@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import VoxelMorph, VoxelMorphUNet
-from tests.utils import test_script_save
+from tests.utils.utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

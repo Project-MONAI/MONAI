@@ -27,7 +27,7 @@ from monai.data.wsi_reader import WSIReader
 from monai.transforms import Compose, LoadImaged, ToTensord
 from monai.utils import first, optional_import
 from monai.utils.enums import PostFix, WSIPatchKeys
-from tests.utils import assert_allclose, download_url_or_skip_test, skip_if_no_cuda, testing_data_config
+from tests.utils.utils import assert_allclose, download_url_or_skip_test, skip_if_no_cuda, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")

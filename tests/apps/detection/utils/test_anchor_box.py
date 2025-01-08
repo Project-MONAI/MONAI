@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.utils.anchor_utils import AnchorGenerator, AnchorGeneratorWithAnchorShape
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
+from tests.utils.utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 

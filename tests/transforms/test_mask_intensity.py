@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import MaskIntensity
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     {"mask_data": np.array([[[0, 0, 0], [0, 1, 0], [0, 0, 0]]])},

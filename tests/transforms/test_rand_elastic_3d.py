@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rand3DElastic
-from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
+from tests.utils.utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS_ALL:

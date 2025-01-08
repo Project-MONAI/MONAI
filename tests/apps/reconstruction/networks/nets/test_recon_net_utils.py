@@ -27,7 +27,7 @@ from monai.apps.reconstruction.networks.nets.utils import (
     sensitivity_map_expand,
     sensitivity_map_reduce,
 )
-from tests.utils import assert_allclose
+from tests.utils.utils import assert_allclose
 
 # no need for checking devices, these functions don't change device format
 # reshape test case

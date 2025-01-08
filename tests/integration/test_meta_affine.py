@@ -35,7 +35,7 @@ from monai.transforms import (
     Transform,
 )
 from monai.utils import convert_data_type, optional_import
-from tests.utils import assert_allclose, download_url_or_skip_test, testing_data_config
+from tests.utils.utils import assert_allclose, download_url_or_skip_test, testing_data_config
 
 itk, has_itk = optional_import("itk")
 TINY_DIFF = 1e-4

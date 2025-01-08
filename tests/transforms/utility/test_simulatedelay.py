@@ -18,7 +18,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.utility.array import SimulateDelay
-from tests.utils import NumpyImageTestCase2D
+from tests.utils.utils import NumpyImageTestCase2D
 
 
 class TestSimulateDelay(NumpyImageTestCase2D):
