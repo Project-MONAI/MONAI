@@ -553,7 +553,6 @@ class MetaTensor(MetaObj, torch.Tensor):
             However, if `get_track_meta()` is `False` or meta=None, a `torch.Tensor` is returned.
         """
         img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None)  # potentially ascontiguousarray
-
         # if not tracking metadata, return `torch.Tensor`
         if not isinstance(img, MetaTensor):
             return img
