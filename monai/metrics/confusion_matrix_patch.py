@@ -221,7 +221,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     # calculate metric
     numerator: torch.Tensor
     denominator: torch.Tensor | float
-    nan_tensor = torch.tensor(float("nan"), device=confusion_matrix.device) 
+    nan_tensor = torch.tensor(float("nan"), device=confusion_matrix.device)
 
     """
     1. tpr - True Positive Rate (Recall): The ratio of correctly predicted positive samples to the total number of samples that are actually positive.
@@ -246,7 +246,7 @@ def compute_confusion_matrix_metric(metric_name: str, confusion_matrix: torch.Te
     match metric:
         case "tpr":
             numerator, denominator = tp, p
-        case "tnr": # 
+        case "tnr": #
             numerator, denominator = tn, n
         case "ppv":
             numerator, denominator = tp, (tp + fp)
