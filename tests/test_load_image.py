@@ -217,7 +217,7 @@ class TestLoadImage(unittest.TestCase):
     @SkipIfNoModule("kvikio")
     @parameterized.expand([TEST_CASE_GPU_1, TEST_CASE_GPU_2, TEST_CASE_GPU_3, TEST_CASE_GPU_4])
     def test_nibabel_reader_gpu(self, input_param, filenames, expected_shape):
-        test_image = np.random.rand(128, 128, 128)
+        test_image = torch.randint(0, 256, (128, 128, 128), dtype=torch.uint8).numpy()
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
