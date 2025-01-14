@@ -907,7 +907,8 @@ class NormalizeIntensity(Transform):
             if self.divisor is not None and len(self.divisor) != len(img):
                 raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
 
-            img, *_ = convert_data_type(img, dtype=torch.float32)
+            if not img.dtype.is_floating_point:
+                img, *_ = convert_data_type(img, dtype=torch.float32)
 
             for i, d in enumerate(img):
                 img[i] = self._normalize(  # type: ignore
