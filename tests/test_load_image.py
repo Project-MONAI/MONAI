@@ -217,7 +217,12 @@ class TestLoadImage(unittest.TestCase):
     @SkipIfNoModule("kvikio")
     @parameterized.expand([TEST_CASE_GPU_1, TEST_CASE_GPU_2, TEST_CASE_GPU_3, TEST_CASE_GPU_4])
     def test_nibabel_reader_gpu(self, input_param, filenames, expected_shape):
-        test_image = np.random.rand(128, 128, 128)
+        if torch.__version__.endswith("nv24.8"):
+            # related issue: https://github.com/Project-MONAI/MONAI/issues/8274
+            # for this version, use randint test case to avoid the issue
+            test_image = torch.randint(0, 256, (128, 128, 128), dtype=torch.uint8).numpy()
+        else:
+            test_image = np.random.rand(128, 128, 128)
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
@@ -233,7 +238,7 @@ class TestLoadImage(unittest.TestCase):
             input_param_cpu = input_param.copy()
             input_param_cpu["to_gpu"] = False
             result_cpu = LoadImage(image_only=True, **input_param_cpu)(filenames)
-            self.assertTrue(torch.allclose(result_cpu, result.cpu(), atol=1e-6))
+            assert_allclose(result_cpu, result.cpu(), atol=1e-6)
 
     @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
