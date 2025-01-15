@@ -49,6 +49,7 @@ __all__ = [
     "normal_init",
     "icnr_init",
     "pixelshuffle",
+    "pixelunshuffle",
     "eval_mode",
     "train_mode",
     "get_state_dict",
@@ -410,6 +411,36 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
     x = x.permute(permute_indices).reshape(output_size)
     return x
 
+
+def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
+    """
+    Apply pixel unshuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
+    Inverse operation of pixelshuffle.
+
+    Args:
+        x: Input tensor
+        spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
+        scale_factor: factor to reduce the spatial dimensions by, must be >=1
+
+    Returns:
+        Unshuffled version of `x`.
+    """
+    dim, factor = spatial_dims, scale_factor
+    input_size = list(x.size())
+    batch_size, channels = input_size[:2]
+    
+    output_channels = channels * (factor**dim)
+    output_spatial = [d // factor for d in input_size[2:]]
+    output_size = [batch_size, output_channels] + output_spatial
+
+    x = x.reshape([batch_size, channels] + [factor] * dim + output_spatial)
+    
+    indices = list(range(2, 2 + 2 * dim))
+    indices = indices[dim:] + indices[:dim]
+    permute_indices = [0, 1] + indices
+    
+    x = x.permute(permute_indices).reshape(output_size)
+    return x
 
 @contextmanager
 def eval_mode(*nets: nn.Module):
