@@ -25,10 +25,12 @@ from tests.utils import assert_allclose
 np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")
 if has_zarr:
-    if version_geq(get_package_version('zarr'), "3.0.0"):
+    if version_geq(get_package_version("zarr"), "3.0.0"):
         directory_store = zarr.storage.LocalStore("test.zarr")
     else:
         directory_store = zarr.storage.DirectoryStore("test.zarr")
+else:
+    directory_store = None
 numcodecs, has_numcodecs = optional_import("numcodecs")
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
