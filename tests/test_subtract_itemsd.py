@@ -34,7 +34,7 @@ class TestSubtractItemsd(unittest.TestCase):
         self.assertIn("sub_img", result)
         result["sub_img"] += 1
         assert_allclose(result["img1"], torch.tensor([[0, 1], [1, 2]], device=device))
-        assert_allclose(result["sub_img"], torch.tensor([[0, 0], [0, 0]], device=device))
+        assert_allclose(result["sub_img"], torch.tensor([[1, 1], [1, 1]], device=device))
 
     def test_metatensor_values(self):
         device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu:0")
@@ -48,7 +48,7 @@ class TestSubtractItemsd(unittest.TestCase):
         self.assertEqual(result["img1"].meta, result["sub_img"].meta)
         result["sub_img"] += 1
         assert_allclose(result["img1"], torch.tensor([[0, 1], [1, 2]], device=device))
-        assert_allclose(result["sub_img"], torch.tensor([[0, 0], [0, 0]], device=device))
+        assert_allclose(result["sub_img"], torch.tensor([[1, 1], [1, 1]], device=device))
 
     def test_numpy_values(self):
         input_data = {"img1": np.array([[0, 1], [1, 2]]), "img2": np.array([[0, 1], [1, 2]])}
@@ -56,7 +56,7 @@ class TestSubtractItemsd(unittest.TestCase):
         self.assertIn("sub_img", result)
         result["sub_img"] += 1
         np.testing.assert_allclose(result["img1"], np.array([[0, 1], [1, 2]]))
-        np.testing.assert_allclose(result["sub_img"], np.array([[0, 0], [0, 0]]))
+        np.testing.assert_allclose(result["sub_img"], np.array([[1, 1], [1, 1]]))
 
 if __name__ == "__main__":
     unittest.main()
