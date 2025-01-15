@@ -1002,8 +1002,8 @@ class SubtractItemsd(MapTransform):
 
         if data_type is np.ndarray:
             d[self.name] = np.subtract(output[0], output[1])
-        elif issubclass(data_type, torch.Tensor):
-            d[self.name] = torch.sub(output[0], output[1])
+        elif issubclass(data_type, torch.Tensor):  # type: ignore
+            d[self.name] = torch.sub(output[0], output[1])  # type: ignore
         else:
             raise TypeError(
                 f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor, MetaTensor)."
