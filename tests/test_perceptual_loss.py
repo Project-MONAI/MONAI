@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.losses import PerceptualLoss
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_quick
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose, skip_if_downloading_fails, skip_if_quick
 
 _, has_torchvision = optional_import("torchvision")
 TEST_CASES = [
@@ -41,9 +41,29 @@ TEST_CASES = [
         (2, 1, 64, 64, 64),
     ],
     [
+        {"spatial_dims": 3, "network_type": "medicalnet_resnet10_23datasets", "is_fake_3d": False},
+        (2, 6, 64, 64, 64),
+        (2, 6, 64, 64, 64),
+    ],
+    [
+        {
+            "spatial_dims": 3,
+            "network_type": "medicalnet_resnet10_23datasets",
+            "is_fake_3d": False,
+            "channel_wise": True,
+        },
+        (2, 6, 64, 64, 64),
+        (2, 6, 64, 64, 64),
+    ],
+    [
         {"spatial_dims": 3, "network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False},
         (2, 1, 64, 64, 64),
         (2, 1, 64, 64, 64),
+    ],
+    [
+        {"spatial_dims": 3, "network_type": "medicalnet_resnet50_23datasets", "is_fake_3d": False},
+        (2, 6, 64, 64, 64),
+        (2, 6, 64, 64, 64),
     ],
     [
         {"spatial_dims": 3, "network_type": "resnet50", "is_fake_3d": True, "pretrained": True, "fake_3d_ratio": 0.2},
@@ -63,7 +83,11 @@ class TestPerceptualLoss(unittest.TestCase):
         with skip_if_downloading_fails():
             loss = PerceptualLoss(**input_param)
         result = loss(torch.randn(input_shape), torch.randn(target_shape))
-        self.assertEqual(result.shape, torch.Size([]))
+
+        if "channel_wise" in input_param.keys() and input_param["channel_wise"]:
+            self.assertEqual(result.shape, torch.Size([input_shape[1]]))
+        else:
+            self.assertEqual(result.shape, torch.Size([]))
 
     @parameterized.expand(TEST_CASES)
     def test_identical_input(self, input_param, input_shape, target_shape):
@@ -71,7 +95,11 @@ class TestPerceptualLoss(unittest.TestCase):
             loss = PerceptualLoss(**input_param)
         tensor = torch.randn(input_shape)
         result = loss(tensor, tensor)
-        self.assertEqual(result, torch.Tensor([0.0]))
+
+        if "channel_wise" in input_param.keys() and input_param["channel_wise"]:
+            assert_allclose(result, torch.Tensor([0.0] * input_shape[1]))
+        else:
+            self.assertEqual(result, torch.Tensor([0.0]))
 
     def test_different_shape(self):
         with skip_if_downloading_fails():
@@ -85,12 +113,10 @@ class TestPerceptualLoss(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             PerceptualLoss(spatial_dims=1)
 
-    def test_medicalnet_on_2d_data(self):
+    @parameterized.expand(["medicalnet_resnet10_23datasets", "medicalnet_resnet50_23datasets"])
+    def test_medicalnet_on_2d_data(self, network_type):
         with self.assertRaises(ValueError):
-            PerceptualLoss(spatial_dims=2, network_type="medicalnet_resnet10_23datasets")
-
-        with self.assertRaises(ValueError):
-            PerceptualLoss(spatial_dims=2, network_type="medicalnet_resnet50_23datasets")
+            PerceptualLoss(spatial_dims=2, network_type=network_type)
 
 
 if __name__ == "__main__":

@@ -56,7 +56,7 @@ class TestLookUpOption(unittest.TestCase):
 
     def test_str_enum(self):
         output = look_up_option("C", {"A", "B"}, default=None)
-        self.assertEqual(output, None)
+        self.assertIsNone(output)
         self.assertEqual(list(_CaseStrEnum), ["A", "B"])
         self.assertEqual(_CaseStrEnum.MODE_A, "A")
         self.assertEqual(str(_CaseStrEnum.MODE_A), "A")

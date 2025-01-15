@@ -20,7 +20,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from torch.nn import LayerNorm
-from typing_extensions import Final
 
 from monai.networks.blocks import MLPBlock as Mlp
 from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
@@ -51,8 +50,6 @@ class SwinUNETR(nn.Module):
     <https://arxiv.org/abs/2201.01266>"
     """
 
-    patch_size: Final[int] = 2
-
     @deprecated_arg(
         name="img_size",
         since="1.3",
@@ -65,18 +62,24 @@ class SwinUNETR(nn.Module):
         img_size: Sequence[int] | int,
         in_channels: int,
         out_channels: int,
+        patch_size: int = 2,
         depths: Sequence[int] = (2, 2, 2, 2),
         num_heads: Sequence[int] = (3, 6, 12, 24),
+        window_size: Sequence[int] | int = 7,
+        qkv_bias: bool = True,
+        mlp_ratio: float = 4.0,
         feature_size: int = 24,
         norm_name: tuple | str = "instance",
         drop_rate: float = 0.0,
         attn_drop_rate: float = 0.0,
         dropout_path_rate: float = 0.0,
         normalize: bool = True,
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
+        patch_norm: bool = False,
         use_checkpoint: bool = False,
         spatial_dims: int = 3,
-        downsample="merging",
-        use_v2=False,
+        downsample: str | nn.Module = "merging",
+        use_v2: bool = False,
     ) -> None:
         """
         Args:
@@ -86,14 +89,20 @@ class SwinUNETR(nn.Module):
                 It will be removed in an upcoming version.
             in_channels: dimension of input channels.
             out_channels: dimension of output channels.
+            patch_size: size of the patch token.
             feature_size: dimension of network feature size.
             depths: number of layers in each stage.
             num_heads: number of attention heads.
+            window_size: local window size.
+            qkv_bias: add a learnable bias to query, key, value.
+            mlp_ratio: ratio of mlp hidden dim to embedding dim.
             norm_name: feature normalization type and arguments.
             drop_rate: dropout rate.
             attn_drop_rate: attention dropout rate.
             dropout_path_rate: drop path rate.
             normalize: normalize output intermediate features in each stage.
+            norm_layer: normalization layer.
+            patch_norm: whether to apply normalization to the patch embedding. Default is False.
             use_checkpoint: use gradient checkpointing for reduced memory usage.
             spatial_dims: number of spatial dims.
             downsample: module used for downsampling, available options are `"mergingv2"`, `"merging"` and a
@@ -116,12 +125,14 @@ class SwinUNETR(nn.Module):
 
         super().__init__()
 
-        img_size = ensure_tuple_rep(img_size, spatial_dims)
-        patch_sizes = ensure_tuple_rep(self.patch_size, spatial_dims)
-        window_size = ensure_tuple_rep(7, spatial_dims)
-
         if spatial_dims not in (2, 3):
             raise ValueError("spatial dimension should be 2 or 3.")
+
+        self.patch_size = patch_size
+
+        img_size = ensure_tuple_rep(img_size, spatial_dims)
+        patch_sizes = ensure_tuple_rep(self.patch_size, spatial_dims)
+        window_size = ensure_tuple_rep(window_size, spatial_dims)
 
         self._check_input_size(img_size)
 
@@ -146,12 +157,13 @@ class SwinUNETR(nn.Module):
             patch_size=patch_sizes,
             depths=depths,
             num_heads=num_heads,
-            mlp_ratio=4.0,
-            qkv_bias=True,
+            mlp_ratio=mlp_ratio,
+            qkv_bias=qkv_bias,
             drop_rate=drop_rate,
             attn_drop_rate=attn_drop_rate,
             drop_path_rate=dropout_path_rate,
-            norm_layer=nn.LayerNorm,
+            norm_layer=norm_layer,
+            patch_norm=patch_norm,
             use_checkpoint=use_checkpoint,
             spatial_dims=spatial_dims,
             downsample=look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample,
@@ -320,7 +332,7 @@ class SwinUNETR(nn.Module):
             )
 
     def forward(self, x_in):
-        if not torch.jit.is_scripting():
+        if not torch.jit.is_scripting() and not torch.jit.is_tracing():
             self._check_input_size(x_in.shape[2:])
         hidden_states_out = self.swinViT(x_in, self.normalize)
         enc0 = self.encoder1(x_in)
@@ -347,7 +359,7 @@ def window_partition(x, window_size):
         x: input tensor.
         window_size: local window size.
     """
-    x_shape = x.size()
+    x_shape = x.size()  # length 4 or 5 only
     if len(x_shape) == 5:
         b, d, h, w, c = x_shape
         x = x.view(
@@ -363,10 +375,11 @@ def window_partition(x, window_size):
         windows = (
             x.permute(0, 1, 3, 5, 2, 4, 6, 7).contiguous().view(-1, window_size[0] * window_size[1] * window_size[2], c)
         )
-    elif len(x_shape) == 4:
+    else:  # if len(x_shape) == 4:
         b, h, w, c = x.shape
         x = x.view(b, h // window_size[0], window_size[0], w // window_size[1], window_size[1], c)
         windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0] * window_size[1], c)
+
     return windows
 
 
@@ -613,7 +626,7 @@ class SwinTransformerBlock(nn.Module):
             _, dp, hp, wp, _ = x.shape
             dims = [b, dp, hp, wp]
 
-        elif len(x_shape) == 4:
+        else:  # elif len(x_shape) == 4
             b, h, w, c = x.shape
             window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
             pad_l = pad_t = 0
@@ -769,9 +782,9 @@ class PatchMerging(PatchMergingV2):
         x1 = x[:, 1::2, 0::2, 0::2, :]
         x2 = x[:, 0::2, 1::2, 0::2, :]
         x3 = x[:, 0::2, 0::2, 1::2, :]
-        x4 = x[:, 1::2, 0::2, 1::2, :]
-        x5 = x[:, 0::2, 1::2, 0::2, :]
-        x6 = x[:, 0::2, 0::2, 1::2, :]
+        x4 = x[:, 1::2, 1::2, 0::2, :]
+        x5 = x[:, 1::2, 0::2, 1::2, :]
+        x6 = x[:, 0::2, 1::2, 1::2, :]
         x7 = x[:, 1::2, 1::2, 1::2, :]
         x = torch.cat([x0, x1, x2, x3, x4, x5, x6, x7], -1)
         x = self.norm(x)
@@ -1045,14 +1058,14 @@ class SwinTransformer(nn.Module):
 
     def proj_out(self, x, normalize=False):
         if normalize:
-            x_shape = x.size()
+            x_shape = x.shape
+            # Force trace() to generate a constant by casting to int
+            ch = int(x_shape[1])
             if len(x_shape) == 5:
-                n, ch, d, h, w = x_shape
                 x = rearrange(x, "n c d h w -> n d h w c")
                 x = F.layer_norm(x, [ch])
                 x = rearrange(x, "n d h w c -> n c d h w")
             elif len(x_shape) == 4:
-                n, ch, h, w = x_shape
                 x = rearrange(x, "n c h w -> n h w c")
                 x = F.layer_norm(x, [ch])
                 x = rearrange(x, "n h w c -> n c h w")

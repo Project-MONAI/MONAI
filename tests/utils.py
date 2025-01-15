@@ -47,7 +47,7 @@ from monai.data.meta_tensor import MetaTensor, get_track_meta
 from monai.networks import convert_to_onnx, convert_to_torchscript
 from monai.utils import optional_import
 from monai.utils.misc import MONAIEnvVars
-from monai.utils.module import pytorch_after
+from monai.utils.module import compute_capabilities_after, pytorch_after
 from monai.utils.tf32 import detect_default_tf32
 from monai.utils.type_conversion import convert_data_type
 
@@ -156,6 +156,7 @@ def skip_if_downloading_fails():
                 "limit",  # HTTP Error 503: Egress is over the account limit
                 "authenticate",
                 "timed out",  # urlopen error [Errno 110] Connection timed out
+                "HTTPError",  # HTTPError: 429 Client Error: Too Many Requests for huggingface hub
             )
         ):
             raise unittest.SkipTest(f"error while downloading: {rt_e}") from rt_e  # incomplete download
@@ -282,6 +283,20 @@ class SkipIfAtLeastPyTorchVersion:
     def __call__(self, obj):
         return unittest.skipIf(
             self.version_too_new, f"Skipping tests that fail on PyTorch versions at least: {self.max_version}"
+        )(obj)
+
+
+class SkipIfBeforeComputeCapabilityVersion:
+    """Decorator to be used if test should be skipped
+    with Compute Capability older than that given."""
+
+    def __init__(self, compute_capability_tuple):
+        self.min_version = compute_capability_tuple
+        self.version_too_old = not compute_capabilities_after(*compute_capability_tuple)
+
+    def __call__(self, obj):
+        return unittest.skipIf(
+            self.version_too_old, f"Skipping tests that fail on Compute Capability versions before: {self.min_version}"
         )(obj)
 
 
@@ -474,7 +489,7 @@ class DistCall:
             if self.verbose:
                 os.environ["NCCL_DEBUG"] = "INFO"
                 os.environ["NCCL_DEBUG_SUBSYS"] = "ALL"
-            os.environ["NCCL_BLOCKING_WAIT"] = str(1)
+            os.environ["TORCH_NCCL_BLOCKING_WAIT"] = str(1)
             os.environ["OMP_NUM_THREADS"] = str(1)
             os.environ["WORLD_SIZE"] = str(self.nproc_per_node * self.nnodes)
             os.environ["RANK"] = str(self.nproc_per_node * self.node_rank + local_rank)

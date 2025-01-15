@@ -37,9 +37,11 @@ from .giou_loss import BoxGIoULoss, giou
 from .hausdorff_loss import HausdorffDTLoss, LogHausdorffDTLoss
 from .image_dissimilarity import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from .multi_scale import MultiScaleLoss
+from .nacl_loss import NACLLoss
 from .perceptual import PerceptualLoss
 from .spatial_mask import MaskedLoss
 from .spectral_loss import JukeboxLoss
 from .ssim_loss import SSIMLoss
+from .sure_loss import SURELoss
 from .tversky import TverskyLoss
 from .unified_focal_loss import AsymmetricUnifiedFocalLoss

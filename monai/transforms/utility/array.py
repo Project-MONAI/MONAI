@@ -18,10 +18,10 @@ import logging
 import sys
 import time
 import warnings
-from collections.abc import Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
 from copy import deepcopy
 from functools import partial
-from typing import Any, Callable
+from typing import Any, Callable, Union
 
 import numpy as np
 import torch
@@ -31,7 +31,7 @@ from monai.config import DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import is_no_channel, no_collation
+from monai.data.utils import is_no_channel, no_collation, orientation_ras_lps
 from monai.networks.layers.simplelayers import (
     ApplyFilter,
     EllipticalFilter,
@@ -42,16 +42,17 @@ from monai.networks.layers.simplelayers import (
     SharpenFilter,
     median_filter,
 )
-from monai.transforms.inverse import InvertibleTransform
+from monai.transforms.inverse import InvertibleTransform, TraceableTransform
 from monai.transforms.traits import MultiSampleTrait
 from monai.transforms.transform import Randomizable, RandomizableTrait, RandomizableTransform, Transform
 from monai.transforms.utils import (
+    apply_affine_to_points,
     extreme_points_to_image,
     get_extreme_points,
     map_binary_to_indices,
     map_classes_to_indices,
 )
-from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, moveaxis, unravel_indices
+from monai.transforms.utils_pytorch_numpy_unification import concatenate, in1d, linalg_inv, moveaxis, unravel_indices
 from monai.utils import (
     MetaKeys,
     TraceKeys,
@@ -66,7 +67,7 @@ from monai.utils import (
 )
 from monai.utils.enums import TransformBackends
 from monai.utils.misc import is_module_ver_at_least
-from monai.utils.type_conversion import convert_to_dst_type, get_equivalent_dtype
+from monai.utils.type_conversion import convert_to_dst_type, get_dtype_string, get_equivalent_dtype
 
 PILImageImage, has_pil = optional_import("PIL.Image", name="Image")
 pil_image_fromarray, _ = optional_import("PIL.Image", name="fromarray")
@@ -98,14 +99,18 @@ __all__ = [
     "ConvertToMultiChannelBasedOnBratsClasses",
     "AddExtremePointsChannel",
     "TorchVision",
+    "TorchIO",
     "MapLabelValue",
     "IntensityStats",
     "ToDevice",
     "CuCIM",
     "RandCuCIM",
+    "RandTorchIO",
+    "RandTorchVision",
     "ToCupy",
     "ImageFilter",
     "RandImageFilter",
+    "ApplyTransformToPoints",
 ]
 
 
@@ -654,6 +659,7 @@ class DataStats(Transform):
         data_shape: bool = True,
         value_range: bool = True,
         data_value: bool = False,
+        meta_info: bool = False,
         additional_info: Callable | None = None,
         name: str = "DataStats",
     ) -> None:
@@ -665,6 +671,7 @@ class DataStats(Transform):
             value_range: whether to show the value range of input data.
             data_value: whether to show the raw value of input data.
                 a typical example is to print some properties of Nifti image: affine, pixdim, etc.
+            meta_info: whether to show the data of MetaTensor.
             additional_info: user can define callable function to extract additional info from input data.
             name: identifier of `logging.logger` to use, defaulting to "DataStats".
 
@@ -679,6 +686,7 @@ class DataStats(Transform):
         self.data_shape = data_shape
         self.value_range = value_range
         self.data_value = data_value
+        self.meta_info = meta_info
         if additional_info is not None and not callable(additional_info):
             raise TypeError(f"additional_info must be None or callable but is {type(additional_info).__name__}.")
         self.additional_info = additional_info
@@ -705,6 +713,7 @@ class DataStats(Transform):
         data_shape: bool | None = None,
         value_range: bool | None = None,
         data_value: bool | None = None,
+        meta_info: bool | None = None,
         additional_info: Callable | None = None,
     ) -> NdarrayOrTensor:
         """
@@ -725,6 +734,9 @@ class DataStats(Transform):
                 lines.append(f"Value range: (not a PyTorch or Numpy array, type: {type(img)})")
         if self.data_value if data_value is None else data_value:
             lines.append(f"Value: {img}")
+        if self.meta_info if meta_info is None else meta_info:
+            metadata = getattr(img, "meta", "(input is not a MetaTensor)")
+            lines.append(f"Meta info: {repr(metadata)}")
         additional_info = self.additional_info if additional_info is None else additional_info
         if additional_info is not None:
             lines.append(f"Additional info: {additional_info(img)}")
@@ -1042,12 +1054,11 @@ class ClassesToIndices(Transform, MultiSampleTrait):
 
 class ConvertToMultiChannelBasedOnBratsClasses(Transform):
     """
-    Convert labels to multi channels based on brats18 classes:
-    label 1 is the necrotic and non-enhancing tumor core
-    label 2 is the peritumoral edema
-    label 4 is the GD-enhancing tumor
-    The possible classes are TC (Tumor core), WT (Whole tumor)
-    and ET (Enhancing tumor).
+    Convert labels to multi channels based on `brats18 <https://www.med.upenn.edu/sbia/brats2018/data.html>`_ classes,
+    which include TC (Tumor core), WT (Whole tumor) and ET (Enhancing tumor):
+    label 1 is the necrotic and non-enhancing tumor core, which should be counted under TC and WT subregion,
+    label 2 is the peritumoral edema, which is counted only under WT subregion,
+    label 4 is the GD-enhancing tumor, which should be counted under ET, TC, WT subregions.
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
@@ -1127,12 +1138,10 @@ class AddExtremePointsChannel(Randomizable, Transform):
         return concatenate((img, points_image), axis=0)
 
 
-class TorchVision:
+class TorchVision(Transform):
     """
-    This is a wrapper transform for PyTorch TorchVision transform based on the specified transform name and args.
-    As most of the TorchVision transforms only work for PIL image and PyTorch Tensor, this transform expects input
-    data to be PyTorch Tensor, users can easily call `ToTensor` transform to convert a Numpy array to Tensor.
-
+    This is a wrapper transform for PyTorch TorchVision non-randomized transform based on the specified transform name and args.
+    Data is converted to a torch.tensor before applying the transform and then converted back to the original data type.
     """
 
     backend = [TransformBackends.TORCH]
@@ -1161,6 +1170,102 @@ class TorchVision:
         out = self.trans(img_t)
         out, *_ = convert_to_dst_type(src=out, dst=img)
         return out
+
+
+class RandTorchVision(Transform, RandomizableTrait):
+    """
+    This is a wrapper transform for PyTorch TorchVision randomized transform based on the specified transform name and args.
+    Data is converted to a torch.tensor before applying the transform and then converted back to the original data type.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchVision package.
+            args: parameters for the TorchVision transform.
+            kwargs: parameters for the TorchVision transform.
+
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchvision.transforms", "0.8.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: NdarrayOrTensor):
+        """
+        Args:
+            img: PyTorch Tensor data for the TorchVision transform.
+
+        """
+        img_t, *_ = convert_data_type(img, torch.Tensor)
+
+        out = self.trans(img_t)
+        out, *_ = convert_to_dst_type(src=out, dst=img)
+        return out
+
+
+class TorchIO(Transform):
+    """
+    This is a wrapper for TorchIO non-randomized transforms based on the specified transform name and args.
+    See https://torchio.readthedocs.io/transforms/transforms.html for more details.
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchIO package.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+        """
+        Args:
+            img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
+                 or dict containing 4D tensors as values
+
+        """
+        return self.trans(img)
+
+
+class RandTorchIO(Transform, RandomizableTrait):
+    """
+    This is a wrapper for TorchIO randomized transforms based on the specified transform name and args.
+    See https://torchio.readthedocs.io/transforms/transforms.html for more details.
+    Use this wrapper for all TorchIO transform inheriting from RandomTransform:
+    https://torchio.readthedocs.io/transforms/augmentation.html#randomtransform
+    """
+
+    backend = [TransformBackends.TORCH]
+
+    def __init__(self, name: str, *args, **kwargs) -> None:
+        """
+        Args:
+            name: The transform name in TorchIO package.
+            args: parameters for the TorchIO transform.
+            kwargs: parameters for the TorchIO transform.
+        """
+        super().__init__()
+        self.name = name
+        transform, _ = optional_import("torchio.transforms", "0.18.0", min_version, name=name)
+        self.trans = transform(*args, **kwargs)
+
+    def __call__(self, img: Union[NdarrayOrTensor, Mapping[Hashable, NdarrayOrTensor]]):
+        """
+        Args:
+            img: an instance of torchio.Subject, torchio.Image, numpy.ndarray, torch.Tensor, SimpleITK.Image,
+                 or dict containing 4D tensors as values
+
+        """
+        return self.trans(img)
 
 
 class MapLabelValue:
@@ -1600,9 +1705,9 @@ class ImageFilter(Transform):
 
     def _check_filter_format(self, filter: str | NdarrayOrTensor | nn.Module, filter_size: int | None = None) -> None:
         if isinstance(filter, str):
-            if not filter_size:
+            if filter != "gauss" and not filter_size:  # Gauss is the only filter that does not require `filter_size`
                 raise ValueError("`filter_size` must be specified when specifying filters by string.")
-            if filter_size % 2 == 0:
+            if filter_size and filter_size % 2 == 0:
                 raise ValueError("`filter_size` should be a single uneven integer.")
             if filter not in self.supported_filters:
                 raise NotImplementedError(f"{filter}. Supported filters are {self.supported_filters}.")
@@ -1715,3 +1820,143 @@ class RandImageFilter(RandomizableTransform):
         if self._do_transform:
             img = self.filter(img)
         return img
+
+
+class ApplyTransformToPoints(InvertibleTransform, Transform):
+    """
+    Transform points between image coordinates and world coordinates.
+    The input coordinates are assumed to be in the shape (C, N, 2 or 3), where C represents the number of channels
+    and N denotes the number of points. It will return a tensor with the same shape as the input.
+
+    Args:
+        dtype: The desired data type for the output.
+        affine: A 3x3 or 4x4 affine transformation matrix applied to points. This matrix typically originates
+            from the image. For 2D points, a 3x3 matrix can be provided, avoiding the need to add an unnecessary
+            Z dimension. While a 4x4 matrix is required for 3D transformations, it's important to note that when
+            applying a 4x4 matrix to 2D points, the additional dimensions are handled accordingly.
+            The matrix is always converted to float64 for computation, which can be computationally
+            expensive when applied to a large number of points.
+            If None, will try to use the affine matrix from the input data.
+        invert_affine: Whether to invert the affine transformation matrix applied to the points. Defaults to ``True``.
+            Typically, the affine matrix is derived from an image and represents its location in world space,
+            while the points are in world coordinates. A value of ``True`` represents transforming these
+            world space coordinates to the image's coordinate space, and ``False`` the inverse of this operation.
+        affine_lps_to_ras: Defaults to ``False``. Set to `True` if your point data is in the RAS coordinate system
+            or you're using `ITKReader` with `affine_lps_to_ras=True`.
+            This ensures the correct application of the affine transformation between LPS (left-posterior-superior)
+            and RAS (right-anterior-superior) coordinate systems. This argument ensures the points and the affine
+            matrix are in the same coordinate system.
+
+    Use Cases:
+        - Transforming points between world space and image space, and vice versa.
+        - Automatically handling inverse transformations between image space and world space.
+        - If points have an existing affine transformation, the class computes and
+          applies the required delta affine transformation.
+
+    """
+
+    def __init__(
+        self,
+        dtype: DtypeLike | torch.dtype | None = None,
+        affine: torch.Tensor | None = None,
+        invert_affine: bool = True,
+        affine_lps_to_ras: bool = False,
+    ) -> None:
+        self.dtype = dtype
+        self.affine = affine
+        self.invert_affine = invert_affine
+        self.affine_lps_to_ras = affine_lps_to_ras
+
+    def _compute_final_affine(self, affine: torch.Tensor, applied_affine: torch.Tensor | None = None) -> torch.Tensor:
+        """
+        Compute the final affine transformation matrix to apply to the point data.
+
+        Args:
+            data: Input coordinates assumed to be in the shape (C, N, 2 or 3).
+            affine: 3x3 or 4x4 affine transformation matrix.
+
+        Returns:
+            Final affine transformation matrix.
+        """
+
+        affine = convert_data_type(affine, dtype=torch.float64)[0]
+
+        if self.affine_lps_to_ras:
+            affine = orientation_ras_lps(affine)
+
+        if self.invert_affine:
+            affine = linalg_inv(affine)
+            if applied_affine is not None:
+                affine = affine @ applied_affine
+
+        return affine
+
+    def transform_coordinates(
+        self, data: torch.Tensor, affine: torch.Tensor | None = None
+    ) -> tuple[torch.Tensor, dict]:
+        """
+        Transform coordinates using an affine transformation matrix.
+
+        Args:
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
+            affine: 3x3 or 4x4 affine transformation matrix. The matrix is always converted to float64 for computation,
+                which can be computationally expensive when applied to a large number of points.
+
+        Returns:
+            Transformed coordinates.
+        """
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        if affine is None and self.invert_affine:
+            raise ValueError("affine must be provided when invert_affine is True.")
+        # applied_affine is the affine transformation matrix that has already been applied to the point data
+        applied_affine: torch.Tensor | None = getattr(data, "affine", None)
+        affine = applied_affine if affine is None else affine
+        if affine is None:
+            raise ValueError("affine must be provided if data does not have an affine matrix.")
+
+        final_affine = self._compute_final_affine(affine, applied_affine)
+        out = apply_affine_to_points(data, final_affine, dtype=self.dtype)
+
+        extra_info = {
+            "invert_affine": self.invert_affine,
+            "dtype": get_dtype_string(self.dtype),
+            "image_affine": affine,
+            "affine_lps_to_ras": self.affine_lps_to_ras,
+        }
+
+        xform = orientation_ras_lps(linalg_inv(final_affine)) if self.affine_lps_to_ras else linalg_inv(final_affine)
+        meta_info = TraceableTransform.track_transform_meta(
+            data, affine=xform, extra_info=extra_info, transform_info=self.get_transform_info()
+        )
+
+        return out, meta_info
+
+    def __call__(self, data: torch.Tensor, affine: torch.Tensor | None = None):
+        """
+        Args:
+            data: The input coordinates are assumed to be in the shape (C, N, 2 or 3),
+                where C represents the number of channels and N denotes the number of points.
+            affine: A 3x3 or 4x4 affine transformation matrix, this argument will take precedence over ``self.affine``.
+        """
+        if data.ndim != 3 or data.shape[-1] not in (2, 3):
+            raise ValueError(f"data should be in shape (C, N, 2 or 3), got {data.shape}.")
+        affine = self.affine if affine is None else affine
+        if affine is not None and affine.shape not in ((3, 3), (4, 4)):
+            raise ValueError(f"affine should be in shape (3, 3) or (4, 4), got {affine.shape}.")
+
+        out, meta_info = self.transform_coordinates(data, affine)
+
+        return out.copy_meta_from(meta_info) if isinstance(out, MetaTensor) else out
+
+    def inverse(self, data: torch.Tensor) -> torch.Tensor:
+        transform = self.pop_transform(data)
+        inverse_transform = ApplyTransformToPoints(
+            dtype=transform[TraceKeys.EXTRA_INFO]["dtype"],
+            invert_affine=not transform[TraceKeys.EXTRA_INFO]["invert_affine"],
+            affine_lps_to_ras=transform[TraceKeys.EXTRA_INFO]["affine_lps_to_ras"],
+        )
+        with inverse_transform.trace_transform(False):
+            data = inverse_transform(data, transform[TraceKeys.EXTRA_INFO]["image_affine"])
+
+        return data

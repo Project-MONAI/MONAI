@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import re
 import warnings
-from collections.abc import Sequence
-from typing import Any, Iterator
+from collections.abc import Iterator, Sequence
+from typing import Any
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
-from monai.bundle.utils import ID_REF_KEY, ID_SEP_KEY
+from monai.bundle.utils import DEPRECATED_ID_MAPPING, ID_REF_KEY, ID_SEP_KEY
 from monai.utils import allow_missing_reference, look_up_option
 
 __all__ = ["ReferenceResolver"]
@@ -192,6 +192,16 @@ class ReferenceResolver:
         """
         return self._resolve_one_item(id=id, **kwargs)
 
+    def remove_resolved_content(self, id: str) -> Any | None:
+        """
+        Remove the resolved ``ConfigItem`` by id.
+
+        Args:
+            id: id name of the expected item.
+
+        """
+        return self.resolved_content.pop(id) if id in self.resolved_content else None
+
     @classmethod
     def normalize_id(cls, id: str | int) -> str:
         """
@@ -201,6 +211,23 @@ class ReferenceResolver:
             id: id string to be normalized.
         """
         return str(id).replace("#", cls.sep)  # backward compatibility `#` is the old separator
+
+    def normalize_meta_id(self, config: Any) -> Any:
+        """
+        Update deprecated identifiers in `config` using `DEPRECATED_ID_MAPPING`.
+        This will replace names that are marked as deprecated with their replacement.
+
+        Args:
+            config: input config to be updated.
+        """
+        if isinstance(config, dict):
+            for _id, _new_id in DEPRECATED_ID_MAPPING.items():
+                if _id in config.keys():
+                    warnings.warn(
+                        f"Detected deprecated name '{_id}' in configuration file, replacing with '{_new_id}'."
+                    )
+                    config[_new_id] = config.pop(_id)
+        return config
 
     @classmethod
     def split_id(cls, id: str | int, last: bool = False) -> list[str]:

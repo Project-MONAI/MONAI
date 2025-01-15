@@ -59,8 +59,18 @@ class TestGeneralizedDiceFocalLoss(unittest.TestCase):
 
     def test_ill_shape(self):
         loss = GeneralizedDiceFocalLoss()
-        with self.assertRaisesRegex(ValueError, ""):
-            loss(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+        with self.assertRaises(AssertionError):
+            loss.forward(torch.ones((1, 2, 3)), torch.ones((1, 2, 5)))
+
+    def test_ill_shape2(self):
+        loss = GeneralizedDiceFocalLoss()
+        with self.assertRaises(ValueError):
+            loss.forward(torch.ones((1, 2, 3)), torch.ones((1, 1, 2, 3)))
+
+    def test_ill_shape3(self):
+        loss = GeneralizedDiceFocalLoss()
+        with self.assertRaises(ValueError):
+            loss.forward(torch.ones((1, 3, 4, 4)), torch.ones((1, 2, 4, 4)))
 
     def test_ill_lambda(self):
         with self.assertRaisesRegex(ValueError, ""):

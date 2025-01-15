@@ -93,6 +93,11 @@ Segmentation Losses
 .. autoclass:: SoftDiceclDiceLoss
     :members:
 
+`NACLLoss`
+~~~~~~~~~~
+.. autoclass:: NACLLoss
+    :members:
+
 Registration Losses
 -------------------
 
@@ -137,6 +142,11 @@ Reconstruction Losses
 `JukeboxLoss`
 ~~~~~~~~~~~~~~
 .. autoclass:: JukeboxLoss
+    :members:
+
+`SURELoss`
+~~~~~~~~~~
+.. autoclass:: SURELoss
     :members:
 
 

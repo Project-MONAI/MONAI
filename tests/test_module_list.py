@@ -58,13 +58,17 @@ class TestAllImport(unittest.TestCase):
                 continue
             with self.subTest(n=n):
                 basename = n[:-1]  # Transformd basename is Transform
+
+                # remove aliases to check, do this before the assert below so that a failed assert does skip this
+                for postfix in ("D", "d", "Dict"):
+                    remained.remove(f"{basename}{postfix}")
+
                 for docname in (f"{basename}", f"{basename}d"):
                     if docname in to_exclude_docs:
                         continue
                     if (contents is not None) and f"`{docname}`" not in f"{contents}":
                         self.assertTrue(False, f"please add `{docname}` to docs/source/transforms.rst")
-                for postfix in ("D", "d", "Dict"):
-                    remained.remove(f"{basename}{postfix}")
+
         self.assertFalse(remained)
 
 

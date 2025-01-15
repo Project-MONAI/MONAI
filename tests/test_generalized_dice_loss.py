@@ -34,6 +34,22 @@ TEST_CASES = [
         },
         0.416597,
     ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4, "soft_label": True},
+        {
+            "input": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+            "target": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+        },
+        0.0,
+    ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4, "soft_label": False},
+        {
+            "input": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+            "target": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+        },
+        0.307748,
+    ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True, "smooth_nr": 0.0, "smooth_dr": 0.0},
         {
@@ -184,7 +200,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss()
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_batch(self):
         prediction = torch.zeros(2, 3, 3, 3)
@@ -194,7 +210,7 @@ class TestGeneralizedDiceLoss(unittest.TestCase):
 
         generalized_dice_loss = GeneralizedDiceLoss(batch=True)
         loss = generalized_dice_loss(prediction, target)
-        self.assertNotEqual(loss.grad_fn, None)
+        self.assertIsNotNone(loss.grad_fn)
 
     def test_script(self):
         loss = GeneralizedDiceLoss()

@@ -29,10 +29,6 @@ jobs:
           - "PT210+CUDA121DOCKER"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-          - environment: PT19+CUDA114DOCKER
-            # 21.10: 1.10.0a0+0aef44c
-            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
-            base: "nvcr.io/nvidia/pytorch:21.10-py3"
           - environment: PT110+CUDA111
             pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu111"
             base: "nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu18.04"
@@ -47,6 +43,10 @@ jobs:
             # 23.08: 2.1.0a0+29c30b1
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
             base: "nvcr.io/nvidia/pytorch:23.08-py3"
+          - environment: PT210+CUDA121DOCKER
+            # 24.08: 2.3.0a0+40ec155e58.nv24.3
+            pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
+            base: "nvcr.io/nvidia/pytorch:24.08-py3"
     container:
       image: ${{ matrix.base }}
       options: --gpus all --env NVIDIA_DISABLE_REQUIRE=true  # workaround for unsatisfied condition: cuda>=11.6
@@ -62,7 +62,7 @@ jobs:
         if [ ${{ matrix.environment }} = "PT110+CUDA111" ] || \
           [ ${{ matrix.environment }} = "PT113+CUDA116" ]
         then
-        PYVER=3.8 PYSFX=3 DISTUTILS=python3-distutils && \
+        PYVER=3.9 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
           curl \
           pkg-config \
@@ -137,6 +137,6 @@ jobs:
       shell: bash
     - name: Upload coverage
       if: ${{ github.head_ref != 'dev' && github.event.pull_request.merged != true }}
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         files: ./coverage.xml

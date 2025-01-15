@@ -36,6 +36,7 @@ TEST_CASE_2 = [
 
 
 class TestNet(torch.nn.Module):
+    __test__ = False  # indicate to pytest that this class is not intended for collection
 
     def forward(self, x: torch.Tensor, t1=None, t2=None, t3=None):
         return {"x": x, "t1": t1, "t2": t2, "t3": t3}

@@ -17,7 +17,8 @@ Class names are ended with 'd' to denote dictionary-based transforms.
 
 from __future__ import annotations
 
-from typing import Callable, Hashable, Mapping, Sequence
+from collections.abc import Hashable, Mapping, Sequence
+from typing import Callable
 
 import numpy as np
 
@@ -26,6 +27,7 @@ from monai.config.type_definitions import NdarrayOrTensor
 from monai.data.meta_obj import get_track_meta
 from monai.transforms.intensity.array import (
     AdjustContrast,
+    ClipIntensityPercentiles,
     ComputeHoVerMaps,
     ForegroundMask,
     GaussianSharpen,
@@ -77,6 +79,7 @@ __all__ = [
     "NormalizeIntensityd",
     "ThresholdIntensityd",
     "ScaleIntensityRanged",
+    "ClipIntensityPercentilesd",
     "AdjustContrastd",
     "RandAdjustContrastd",
     "ScaleIntensityRangePercentilesd",
@@ -122,6 +125,8 @@ __all__ = [
     "ThresholdIntensityDict",
     "ScaleIntensityRangeD",
     "ScaleIntensityRangeDict",
+    "ClipIntensityPercentilesD",
+    "ClipIntensityPercentilesDict",
     "AdjustContrastD",
     "AdjustContrastDict",
     "RandAdjustContrastD",
@@ -886,6 +891,36 @@ class ScaleIntensityRanged(MapTransform):
         return d
 
 
+class ClipIntensityPercentilesd(MapTransform):
+    """
+    Dictionary-based wrapper of :py:class:`monai.transforms.ClipIntensityPercentiles`.
+    Clip the intensity values of input image to a specific range based on the intensity distribution of the input.
+    If `sharpness_factor` is provided, the intensity values will be soft clipped according to
+    f(x) = x + (1/sharpness_factor) * softplus(- c(x - minv)) - (1/sharpness_factor)*softplus(c(x - maxv))
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection,
+        lower: float | None,
+        upper: float | None,
+        sharpness_factor: float | None = None,
+        channel_wise: bool = False,
+        dtype: DtypeLike = np.float32,
+        allow_missing_keys: bool = False,
+    ) -> None:
+        super().__init__(keys, allow_missing_keys)
+        self.scaler = ClipIntensityPercentiles(
+            lower=lower, upper=upper, sharpness_factor=sharpness_factor, channel_wise=channel_wise, dtype=dtype
+        )
+
+    def __call__(self, data: dict) -> dict:
+        d = dict(data)
+        for key in self.key_iterator(d):
+            d[key] = self.scaler(d[key])
+        return d
+
+
 class AdjustContrastd(MapTransform):
     """
     Dictionary-based wrapper of :py:class:`monai.transforms.AdjustContrast`.
@@ -1423,10 +1458,11 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         keys: 'image', 'label', or ['image', 'label'] depending on which data
                 you need to transform.
         prob (float): probability of applying the transform.
-        alpha (float, List[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
+        alpha (float, Sequence[float]): Parametrizes the intensity of the Gibbs noise filter applied. Takes
             values in the interval [0,1] with alpha = 0 acting as the identity mapping.
             If a length-2 list is given as [a,b] then the value of alpha will be sampled
             uniformly from the interval [a,b].
+            If a float is given, then the value of alpha will be sampled uniformly from the interval [0, alpha].
         allow_missing_keys: do not raise exception if key is missing.
     """
 
@@ -1436,7 +1472,7 @@ class RandGibbsNoised(RandomizableTransform, MapTransform):
         self,
         keys: KeysCollection,
         prob: float = 0.1,
-        alpha: Sequence[float] = (0.0, 1.0),
+        alpha: float | Sequence[float] = (0.0, 1.0),
         allow_missing_keys: bool = False,
     ) -> None:
         MapTransform.__init__(self, keys, allow_missing_keys)
@@ -1928,6 +1964,7 @@ RandScaleIntensityFixedMeanD = RandScaleIntensityFixedMeanDict = RandScaleIntens
 NormalizeIntensityD = NormalizeIntensityDict = NormalizeIntensityd
 ThresholdIntensityD = ThresholdIntensityDict = ThresholdIntensityd
 ScaleIntensityRangeD = ScaleIntensityRangeDict = ScaleIntensityRanged
+ClipIntensityPercentilesD = ClipIntensityPercentilesDict = ClipIntensityPercentilesd
 AdjustContrastD = AdjustContrastDict = AdjustContrastd
 RandAdjustContrastD = RandAdjustContrastDict = RandAdjustContrastd
 ScaleIntensityRangePercentilesD = ScaleIntensityRangePercentilesDict = ScaleIntensityRangePercentilesd

@@ -46,7 +46,7 @@ def build_sincos_position_embedding(
         temperature (float): The temperature for the sin-cos position embedding.
 
     Returns:
-        pos_embed (nn.Parameter): The sin-cos position embedding as a learnable parameter.
+        pos_embed (nn.Parameter): The sin-cos position embedding as a fixed parameter.
     """
 
     if spatial_dims == 2:
@@ -56,7 +56,7 @@ def build_sincos_position_embedding(
         grid_h = torch.arange(h, dtype=torch.float32)
         grid_w = torch.arange(w, dtype=torch.float32)
 
-        grid_h, grid_w = torch.meshgrid(grid_h, grid_w, indexing="ij")
+        grid_h, grid_w = torch.meshgrid(grid_h, grid_w)
 
         if embed_dim % 4 != 0:
             raise AssertionError("Embed dimension must be divisible by 4 for 2D sin-cos position embedding")
@@ -75,7 +75,7 @@ def build_sincos_position_embedding(
         grid_w = torch.arange(w, dtype=torch.float32)
         grid_d = torch.arange(d, dtype=torch.float32)
 
-        grid_h, grid_w, grid_d = torch.meshgrid(grid_h, grid_w, grid_d, indexing="ij")
+        grid_h, grid_w, grid_d = torch.meshgrid(grid_h, grid_w, grid_d)
 
         if embed_dim % 6 != 0:
             raise AssertionError("Embed dimension must be divisible by 6 for 3D sin-cos position embedding")

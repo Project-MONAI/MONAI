@@ -34,6 +34,22 @@ TEST_CASES = [
         },
         0.416657,
     ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4, "soft_label": True},
+        {
+            "input": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+            "target": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+        },
+        0.0,
+    ],
+    [  # shape: (2, 1, 2, 2), (2, 1, 2, 2)
+        {"include_background": True, "smooth_nr": 1e-4, "smooth_dr": 1e-4, "soft_label": False},
+        {
+            "input": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+            "target": torch.tensor([[[[0.3, 0.4], [0.7, 0.9]]], [[[1.0, 0.1], [0.5, 0.3]]]]),
+        },
+        0.307773,
+    ],
     [  # shape: (2, 2, 3), (2, 1, 3)
         {"include_background": False, "to_onehot_y": True, "smooth_nr": 0, "smooth_dr": 0},
         {
@@ -165,17 +181,12 @@ class TestTverskyLoss(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, ""):
             TverskyLoss(reduction=None)(chn_input, chn_target)
 
-    def test_input_warnings(self):
+    @parameterized.expand([(False, False, False), (False, True, False), (False, False, True)])
+    def test_input_warnings(self, include_background, softmax, to_onehot_y):
         chn_input = torch.ones((1, 1, 3))
         chn_target = torch.ones((1, 1, 3))
         with self.assertWarns(Warning):
-            loss = TverskyLoss(include_background=False)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = TverskyLoss(softmax=True)
-            loss.forward(chn_input, chn_target)
-        with self.assertWarns(Warning):
-            loss = TverskyLoss(to_onehot_y=True)
+            loss = TverskyLoss(include_background=include_background, softmax=softmax, to_onehot_y=to_onehot_y)
             loss.forward(chn_input, chn_target)
 
     def test_script(self):

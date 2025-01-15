@@ -15,16 +15,17 @@ A collection of "vanilla" transforms for spatial operations.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from copy import deepcopy
 from itertools import zip_longest
-from typing import Any, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Optional, Union, cast
 
 import numpy as np
 import torch
 
 from monai.config import USE_COMPILED, DtypeLike
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data.box_utils import BoxMode, StandardMode
 from monai.data.meta_obj import get_track_meta, set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import AFFINE_TOL, affine_to_spacing, compute_shape_offset, iter_patch, to_affine_nd, zoom_affine
@@ -34,6 +35,8 @@ from monai.transforms.croppad.array import CenterSpatialCrop, ResizeWithPadOrCro
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.spatial.functional import (
     affine_func,
+    convert_box_to_points,
+    convert_points_to_box,
     flip,
     orientation,
     resize,
@@ -113,7 +116,7 @@ __all__ = [
     "RandSimulateLowResolution",
 ]
 
-RandRange = Optional[Union[Sequence[Union[Tuple[float, float], float]], float]]
+RandRange = Optional[Union[Sequence[Union[tuple[float, float], float]], float]]
 
 
 class SpatialResample(InvertibleTransform, LazyTransform):
@@ -3441,7 +3444,7 @@ class RandGridPatch(GridPatch, RandomizableTransform, MultiSampleTrait):
             idx = self.R.permutation(image_np.shape[0])
             idx = idx[: self.num_patches]
             idx_np = convert_data_type(idx, np.ndarray)[0]
-            image_np = image_np[idx]
+            image_np = image_np[idx]  # type: ignore[index]
             locations = locations[idx_np]
             return image_np, locations
         elif self.sort_fn not in (None, GridPatchSort.MIN, GridPatchSort.MAX):
@@ -3544,3 +3547,44 @@ class RandSimulateLowResolution(RandomizableTransform):
 
         else:
             return img
+
+
+class ConvertBoxToPoints(Transform):
+    """
+    Converts an axis-aligned bounding box to points. It can automatically convert the boxes to the points based on the box mode.
+    Bounding boxes of the shape (N, C) for N boxes. C is [x1, y1, x2, y2] for 2D or [x1, y1, z1, x2, y2, z2] for 3D for each box.
+    Return shape will be (N, 4, 2) for 2D or (N, 8, 3) for 3D.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self, mode: str | BoxMode | type[BoxMode] | None = None) -> None:
+        """
+        Args:
+            mode: the mode of the box, can be a string, a BoxMode instance or a BoxMode class. Defaults to StandardMode.
+        """
+        super().__init__()
+        self.mode = StandardMode if mode is None else mode
+
+    def __call__(self, data: Any):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        points = convert_box_to_points(data, mode=self.mode)
+        return convert_to_dst_type(points, data)[0]
+
+
+class ConvertPointsToBoxes(Transform):
+    """
+    Converts points to an axis-aligned bounding box.
+    Points representing the corners of the bounding box. Shape (N, 8, 3) for the 8 corners of a 3D cuboid or
+    (N, 4, 2) for the 4 corners of a 2D rectangle.
+    """
+
+    backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
+
+    def __init__(self) -> None:
+        super().__init__()
+
+    def __call__(self, data: Any):
+        data = convert_to_tensor(data, track_meta=get_track_meta())
+        box = convert_points_to_box(data)
+        return convert_to_dst_type(box, data)[0]

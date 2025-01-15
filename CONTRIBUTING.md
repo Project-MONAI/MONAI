@@ -123,7 +123,7 @@ or (for new features that would not break existing functionality):
 ```
 
 It is recommended that the new test `test_[module_name].py` is constructed by using only
-python 3.8+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
+python 3.9+ build-in functions, `torch`, `numpy`, `coverage` (for reporting code coverages) and `parameterized` (for organising test cases) packages.
 If it requires any other external packages, please make sure:
 - the packages are listed in [`requirements-dev.txt`](requirements-dev.txt)
 - the new test `test_[module_name].py` is added to the `exclude_cases` in [`./tests/min_tests.py`](./tests/min_tests.py) so that
@@ -383,3 +383,8 @@ then make PRs to the `releasing/[version number]` to fix the bugs via the regula
 If any error occurs after the release process, first check out a new hotfix branch from the `main` branch,
 make a patch version release following the semantic versioning, for example, `releasing/0.1.1`.
 Make sure the `releasing/0.1.1` is merged back into both `dev` and `main` and all the test pipelines succeed.
+
+
+<p align="right">
+  <a href="#introduction">⬆️ Back to Top</a>
+</p>

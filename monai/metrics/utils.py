@@ -12,9 +12,10 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterable, Sequence
 from functools import lru_cache, partial
 from types import ModuleType
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -35,9 +36,9 @@ from monai.utils import (
     optional_import,
 )
 
-binary_erosion, _ = optional_import("scipy.ndimage.morphology", name="binary_erosion")
-distance_transform_edt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_edt")
-distance_transform_cdt, _ = optional_import("scipy.ndimage.morphology", name="distance_transform_cdt")
+binary_erosion, _ = optional_import("scipy.ndimage", name="binary_erosion")
+distance_transform_edt, _ = optional_import("scipy.ndimage", name="distance_transform_edt")
+distance_transform_cdt, _ = optional_import("scipy.ndimage", name="distance_transform_cdt")
 
 __all__ = [
     "ignore_background",
