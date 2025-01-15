@@ -28,7 +28,7 @@ class TestSubtractItemsd(unittest.TestCase):
         input_data = {
             "img1": torch.tensor([[0, 1], [1, 2]], device=device),
             "img2": torch.tensor([[0, 1], [1, 2]], device=device),
-            "name" : "key_name"
+            "name": "key_name",
         }
         result = SubtractItemsd(keys=["img1", "img2"], name="sub_img")(input_data)
         self.assertIn("sub_img", result)
@@ -57,6 +57,7 @@ class TestSubtractItemsd(unittest.TestCase):
         result["sub_img"] += 1
         np.testing.assert_allclose(result["img1"], np.array([[0, 1], [1, 2]]))
         np.testing.assert_allclose(result["sub_img"], np.array([[1, 1], [1, 1]]))
+
 
 if __name__ == "__main__":
     unittest.main()
