@@ -25,7 +25,7 @@ from tests.utils import assert_allclose
 np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")
 if has_zarr:
-    if version_geq(f"{get_package_version('zarr')}", "3.0.0"):
+    if version_geq(get_package_version('zarr'), "3.0.0"):
         directory_store = zarr.storage.LocalStore("test.zarr")
     else:
         directory_store = zarr.storage.DirectoryStore("test.zarr")
