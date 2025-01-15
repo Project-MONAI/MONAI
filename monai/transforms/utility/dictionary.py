@@ -957,6 +957,7 @@ class CopyItemsd(MapTransform):
                 d[new_key] = MetaObj.copy_items(val) if isinstance(val, (torch.Tensor, np.ndarray)) else deepcopy(val)
         return d
 
+
 class SubtractItemsd(MapTransform):
     """
     Subtract specified items from data dictionary elementwise.
@@ -965,7 +966,6 @@ class SubtractItemsd(MapTransform):
     """
 
     backend = [TransformBackends.TORCH, TransformBackends.NUMPY]
-
 
     def __init__(self, keys: KeysCollection, name: str, allow_missing_keys: bool = False) -> None:
         """
@@ -1000,13 +1000,14 @@ class SubtractItemsd(MapTransform):
 
         if data_type is np.ndarray:
             d[self.name] = np.subtract(output[0], output[1])
-        elif issubclass(data_type, torch.Tensor):  
+        elif issubclass(data_type, torch.Tensor):
             d[self.name] = torch.sub(output[0], output[1])
         else:
             raise TypeError(
                 f"Unsupported data type: {data_type}, available options are (numpy.ndarray, torch.Tensor, MetaTensor)."
             )
         return d
+
 
 class ConcatItemsd(MapTransform):
     """
