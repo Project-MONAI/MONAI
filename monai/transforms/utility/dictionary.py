@@ -161,6 +161,8 @@ __all__ = [
     "SqueezeDimD",
     "SqueezeDimDict",
     "SqueezeDimd",
+    "SubtractItemsD",
+    "SubtractItemsDict",
     "SubtractItemsd",
     "ToCupyD",
     "ToCupyDict",
@@ -1979,6 +1981,7 @@ SqueezeDimD = SqueezeDimDict = SqueezeDimd
 DataStatsD = DataStatsDict = DataStatsd
 SimulateDelayD = SimulateDelayDict = SimulateDelayd
 CopyItemsD = CopyItemsDict = CopyItemsd
+SubtractItemsD = SubtractItemsDict = SubtractItemsd
 ConcatItemsD = ConcatItemsDict = ConcatItemsd
 LambdaD = LambdaDict = Lambdad
 LabelToMaskD = LabelToMaskDict = LabelToMaskd

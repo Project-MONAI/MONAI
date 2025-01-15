@@ -648,6 +648,8 @@ from .utility.dictionary import (
     SqueezeDimD,
     SqueezeDimDict,
     SubtractItemsd,
+    SubtractItemsD,
+    SubtractItemsDict,
     ToCupyd,
     ToCupyD,
     ToCupyDict,
