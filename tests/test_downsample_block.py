@@ -11,19 +11,10 @@
 
 from __future__ import annotations
 
-import unittest
-
-import os
-import sys
-
-# Add project root to Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, project_root)
-
-
+from collections.abc import Sequence
 
 import torch
-from parameterized import parameterized
+import torch.nn as nn
 
 from monai.networks import eval_mode
 from monai.networks.blocks import MaxAvgPool, SubpixelDownsample, SubpixelUpsample, DownSample
