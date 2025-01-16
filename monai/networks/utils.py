@@ -436,7 +436,7 @@ def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> tor
     x = x.reshape([batch_size, channels] + [factor] * dim + output_spatial)
     
     indices = list(range(2, 2 + 2 * dim))
-    indices = indices[dim:] + indices[:dim]
+    indices = indices[:dim] + indices[dim:]  
     permute_indices = [0, 1] + indices
     
     x = x.permute(permute_indices).reshape(output_size)
