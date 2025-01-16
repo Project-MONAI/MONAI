@@ -13,19 +13,11 @@ from __future__ import annotations
 
 import unittest
 
-import os
-import sys
-
-# Add project root to Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, project_root)
-
-
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
-from monai.networks.blocks import MaxAvgPool, SubpixelDownsample, SubpixelUpsample
+from monai.networks.blocks import MaxAvgPool, SubpixelDownsample, SubpixelUpsample, DownSample
 
 TEST_CASES = [
     [{"spatial_dims": 2, "kernel_size": 2}, (7, 4, 64, 48), (7, 8, 32, 24)],  # 4-channel 2D, batch 7
@@ -48,6 +40,35 @@ TEST_CASES_SUBPIXEL = [
     [{"spatial_dims": 3, "in_channels": 2, "scale_factor": 2}, (1, 2, 8, 8, 8), (1, 16, 4, 4, 4)],
     [{"spatial_dims": 1, "in_channels": 3, "scale_factor": 2}, (1, 3, 8), (1, 6, 4)],
 ]
+
+TEST_CASES_DOWNSAMPLE = [
+    [
+        {"spatial_dims": 2, "in_channels": 4, "mode": "conv"},
+        (1, 4, 16, 16),
+        (1, 4, 8, 8),
+    ],
+    [
+        {"spatial_dims": 2, "in_channels": 4, "out_channels": 8, "mode": "convgroup"},
+        (1, 4, 16, 16),
+        (1, 8, 8, 8),
+    ],
+    [
+        {"spatial_dims": 3, "in_channels": 2, "mode": "maxpool"},
+        (1, 2, 16, 16, 16),
+        (1, 2, 8, 8, 8),
+    ],
+    [
+        {"spatial_dims": 2, "in_channels": 4, "mode": "avgpool"},
+        (1, 4, 16, 16),
+        (1, 4, 8, 8),
+    ],
+    [
+        {"spatial_dims": 2, "in_channels": 1, "mode": "pixelunshuffle"},
+        (1, 1, 16, 16),
+        (1, 4, 8, 8),
+    ],
+]
+
 
 class TestMaxAvgPool(unittest.TestCase):
 
@@ -111,6 +132,36 @@ class TestSubpixelDownsample(unittest.TestCase):
         with eval_mode(downsampler):
             result = downsampler(torch.randn(1, 1, 4, 4))
             self.assertEqual(result.shape, (1, 8, 2, 2))
+
+
+class TestDownSample(unittest.TestCase):
+    @parameterized.expand(TEST_CASES_DOWNSAMPLE)
+    def test_shape(self, input_param, input_shape, expected_shape):
+        net = DownSample(**input_param)
+        with eval_mode(net):
+            result = net(torch.randn(input_shape))
+            self.assertEqual(result.shape, expected_shape)
+    
+    def test_pre_post_conv(self):
+        net = DownSample(
+            spatial_dims=2,
+            in_channels=4,
+            out_channels=8,
+            mode="maxpool",
+            pre_conv="default",
+            post_conv=torch.nn.Conv2d(8, 16, 1),
+        )
+        with eval_mode(net):
+            result = net(torch.randn(1, 4, 16, 16))
+            self.assertEqual(result.shape, (1, 16, 8, 8))
+
+    def test_invalid_mode(self):
+        with self.assertRaises(ValueError):
+            DownSample(spatial_dims=2, in_channels=4, mode="invalid")
+
+    def test_missing_channels(self):
+        with self.assertRaises(ValueError):
+            DownSample(spatial_dims=2, mode="conv")
 
 
 if __name__ == "__main__":
