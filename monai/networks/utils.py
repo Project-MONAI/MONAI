@@ -417,29 +417,41 @@ def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> tor
     Apply pixel unshuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
     Inverse operation of pixelshuffle.
 
+    See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
+
+    See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
+
     Args:
         x: Input tensor
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to reduce the spatial dimensions by, must be >=1
 
     Returns:
-        Unshuffled version of `x`.
+        Unshuffled version of `x` with shape (B, C*(r**d), H/r, W/r) for 2D
+        or (B, C*(r**d), D/r, H/r, W/r) for 3D, where r is the scale_factor
+        and d is spatial_dims.
+
+    Raises:
+        ValueError: When spatial dimensions are not divisible by scale_factor
     """
     dim, factor = spatial_dims, scale_factor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
-    
-    output_channels = channels * (factor**dim)
-    output_spatial = [d // factor for d in input_size[2:]]
-    output_size = [batch_size, output_channels] + output_spatial
+    scale_factor_mult = factor**dim
+    new_channels = channels * scale_factor_mult 
 
-    x = x.reshape([batch_size, channels] + [factor] * dim + output_spatial)
+    if any(d % factor != 0 for d in input_size[2:]):
+        raise ValueError(
+            f"All spatial dimensions must be divisible by factor {factor}. "
+            f"Got spatial dimensions: {input_size[2:]}"
+        )
+    output_size = [batch_size, new_channels] + [d // factor for d in input_size[2:]]
+    reshaped_size = [batch_size, channels] + sum([[d // factor, factor] for d in input_size[2:]], [])
     
-    indices = list(range(2, 2 + 2 * dim))
-    indices = indices[:dim] + indices[dim:]  
-    permute_indices = [0, 1] + indices
-    
-    x = x.permute(permute_indices).reshape(output_size)
+    permute_indices = [0, 1] + [(2 * i + 3) for i in range(spatial_dims)] + [(2 * i + 2) for i in range(spatial_dims)]
+    x=x.reshape(reshaped_size).permute(permute_indices)
+    x=x.reshape(output_size)
     return x
 
 @contextmanager
