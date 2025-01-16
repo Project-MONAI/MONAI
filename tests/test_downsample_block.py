@@ -13,6 +13,15 @@ from __future__ import annotations
 
 import unittest
 
+import os
+import sys
+
+# Add project root to Python path
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, project_root)
+
+
+
 import torch
 from parameterized import parameterized
 
@@ -154,6 +163,38 @@ class TestDownSample(unittest.TestCase):
         with eval_mode(net):
             result = net(torch.randn(1, 4, 16, 16))
             self.assertEqual(result.shape, (1, 16, 8, 8))
+
+    def test_pixelunshuffle_equivalence(self):
+        class DownSample_local(torch.nn.Module):
+            def __init__(self, n_feat: int):
+                super().__init__()
+                self.conv = torch.nn.Conv2d(n_feat, n_feat//2, kernel_size=3, stride=1, padding=1, bias=False)
+                self.pixelunshuffle = torch.nn.PixelUnshuffle(2)
+                
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                x = self.conv(x)
+                return self.pixelunshuffle(x)
+        n_feat = 2
+        x = torch.randn(1, n_feat, 64, 64)
+        
+        fix_weight_conv = torch.nn.Conv2d(n_feat, n_feat//2, kernel_size=3, stride=1, padding=1, bias=False)
+        
+        monai_down = DownSample(
+            spatial_dims=2,
+            in_channels=n_feat,
+            out_channels=n_feat//2,
+            mode="pixelunshuffle",
+            pre_conv=fix_weight_conv
+        )
+        
+        local_down = DownSample_local(n_feat)
+        local_down.conv.weight.data = fix_weight_conv.weight.data.clone()
+        
+        with eval_mode(monai_down), eval_mode(local_down):
+            out_monai = monai_down(x)
+            out_local = local_down(x)
+            
+        self.assertTrue(torch.allclose(out_monai, out_local, rtol=1e-5))
 
     def test_invalid_mode(self):
         with self.assertRaises(ValueError):
