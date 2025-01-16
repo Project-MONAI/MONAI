@@ -65,6 +65,173 @@ class MaxAvgPool(nn.Module):
         return torch.cat([self.max_pool(x), self.avg_pool(x)], dim=1)
 
 
+class DownSample(nn.Sequential):
+    """
+    Downsamples data by `scale_factor`.
+
+    Supported modes are:
+
+    - "conv": uses a strided convolution for learnable downsampling.
+    - "convgroup": uses a grouped strided convolution for efficient feature reduction.
+    - "nontrainable": uses :py:class:`torch.nn.Upsample` with inverse scale factor.
+    - "pixelunshuffle": uses :py:class:`monai.networks.blocks.PixelUnshuffle` for channel-space rearrangement.
+
+    This operation will cause non-deterministic behavior when ``mode`` is ``DownsampleMode.NONTRAINABLE``.
+    Please check the link below for more details:
+    https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
+
+    This module can optionally take a pre-convolution
+    (often used to map the number of features from `in_channels` to `out_channels`).
+    """
+
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int | None = None,
+        out_channels: int | None = None,
+        scale_factor: Sequence[float] | float = 2,
+        kernel_size: Sequence[float] | float | None = None,
+        mode: str = "conv",  # conv, convgroup, nontrainable, pixelunshuffle
+        pre_conv: nn.Module | str | None = "default",
+        post_conv: nn.Module | None = None,
+        bias: bool = True,
+    ) -> None:
+        """
+        Downsamples data by `scale_factor`.
+        Supported modes are:
+
+            - "conv": uses a strided convolution for learnable downsampling.
+            - "convgroup": uses a grouped strided convolution for efficient feature reduction.
+            - "maxpool": uses maxpooling for non-learnable downsampling.
+            - "avgpool": uses average pooling for non-learnable downsampling.
+            - "pixelunshuffle": uses :py:class:`monai.networks.blocks.SubpixelDownsample`.
+
+        This operation will cause non-deterministic behavior when ``mode`` is ``DownsampleMode.NONTRAINABLE``.
+        Please check the link below for more details:
+        https://pytorch.org/docs/stable/generated/torch.use_deterministic_algorithms.html#torch.use_deterministic_algorithms
+
+        This module can optionally take a pre-convolution and post-convolution
+        (often used to map the number of features from `in_channels` to `out_channels`).
+
+        Args:
+            spatial_dims: number of spatial dimensions of the input image.
+            in_channels: number of channels of the input image.
+            out_channels: number of channels of the output image. Defaults to `in_channels`.
+            scale_factor: multiplier for spatial size reduction. Has to match input size if it is a tuple. Defaults to 2.
+            kernel_size: kernel size used during convolutions. Defaults to `scale_factor`.
+            mode: {``"conv"``, ``"convgroup"``, ``"maxpool"``, ``"avgpool"``, ``"pixelunshuffle"``}. Defaults to ``"conv"``.
+            pre_conv: a conv block applied before downsampling. Defaults to "default".
+                When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized.
+                Only used in the "maxpool", "avgpool" or "pixelunshuffle" modes.
+            post_conv: a conv block applied after downsampling. Defaults to None. Only used in the "maxpool" and "avgpool" modes.
+            bias: whether to have a bias term in the default preconv and conv layers. Defaults to True.
+        """
+        super().__init__()
+        
+        scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
+        down_mode = look_up_option(mode, DownsampleMode)
+
+        if not kernel_size:
+            kernel_size_ = scale_factor_
+            padding = 0
+        else:
+            kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
+            padding = tuple((k - 1) // 2 for k in kernel_size_)
+
+        if down_mode == "conv":
+            if not in_channels:
+                raise ValueError("in_channels needs to be specified in conv mode")
+            self.add_module(
+                "conv",
+                Conv[Conv.CONV, spatial_dims](
+                    in_channels=in_channels,
+                    out_channels=out_channels or in_channels,
+                    kernel_size=kernel_size_,
+                    stride=scale_factor_,
+                    padding=padding,
+                    bias=bias,
+                ),
+            )
+        elif down_mode == "convgroup":
+            if not in_channels:
+                raise ValueError("in_channels needs to be specified")
+            if out_channels is None:
+                out_channels = in_channels
+            groups = in_channels if out_channels % in_channels == 0 else 1
+            self.add_module(
+                "convgroup",
+                Conv[Conv.CONV, spatial_dims](
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size_,
+                    stride=scale_factor_,
+                    padding=padding,
+                    groups=groups,
+                    bias=bias,
+                ),
+            )
+        elif down_mode == DownsampleMode.MAXPOOL:
+            if pre_conv == "default" and (out_channels != in_channels):
+                if not in_channels:
+                    raise ValueError("in_channels needs to be specified")
+                self.add_module(
+                    "preconv",
+                    Conv[Conv.CONV, spatial_dims](
+                        in_channels=in_channels,
+                        out_channels=out_channels or in_channels,
+                        kernel_size=1,
+                        bias=bias
+                    ),
+                )
+            self.add_module(
+                "maxpool",
+                Pool[Pool.MAX, spatial_dims](
+                    kernel_size=kernel_size_,
+                    stride=scale_factor_,
+                    padding=padding
+                )
+            )
+            if post_conv:
+                self.add_module("postconv", post_conv)
+
+        elif down_mode == DownsampleMode.AVGPOOL:
+            if pre_conv == "default" and (out_channels != in_channels):
+                if not in_channels:
+                    raise ValueError("in_channels needs to be specified")
+                self.add_module(
+                    "preconv",
+                    Conv[Conv.CONV, spatial_dims](
+                        in_channels=in_channels,
+                        out_channels=out_channels or in_channels,
+                        kernel_size=1,
+                        bias=bias
+                    ),
+                )
+            self.add_module(
+                "avgpool",
+                Pool[Pool.AVG, spatial_dims](
+                    kernel_size=kernel_size_,
+                    stride=scale_factor_,
+                    padding=padding
+                )
+            )
+            if post_conv:
+                self.add_module("postconv", post_conv)
+
+        elif down_mode == "pixelunshuffle":
+            self.add_module(
+                "pixelunshuffle",
+                SubpixelDownsample(
+                    spatial_dims=spatial_dims,
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    scale_factor=scale_factor_[0],
+                    conv_block=pre_conv,
+                    bias=bias,
+                ),
+            )
+
+
 class SubpixelDownsample(nn.Module):
     """
     Downsample via using a subpixel CNN. This module supports 1D, 2D and 3D input images.
