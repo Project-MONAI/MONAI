@@ -14,17 +14,21 @@ class TestPixelUnshuffle(unittest.TestCase):
         out = pixelunshuffle(x, spatial_dims=3, scale_factor=2)
         self.assertEqual(out.shape, (2, 32, 8, 8, 8))
 
-    def test_inverse_pixelshuffle(self):
-        x = torch.randn(2, 4, 16, 16)
-        shuffled = pixelshuffle(x, spatial_dims=2, scale_factor=2) 
-        unshuffled = pixelunshuffle(shuffled, spatial_dims=2, scale_factor=2)
-        torch.testing.assert_close(x, unshuffled)
+    def test_non_square_input(self):
+        x = torch.arange(192).reshape(1, 2, 12, 8)
+        out = pixelunshuffle(x, spatial_dims=2, scale_factor=2)
+        torch.testing.assert_close(out, torch.pixel_unshuffle(x, 2))
 
-    def test_compare_torch_pixel_unshuffle(self):
-        x = torch.randn(2, 4, 16, 16)
-        monai_out = pixelunshuffle(x, spatial_dims=2, scale_factor=2)
-        torch_out = torch.pixel_unshuffle(x, downscale_factor=2)
-        torch.testing.assert_close(monai_out, torch_out)
+    def test_different_scale_factor(self):
+        x = torch.arange(360).reshape(1, 2, 12, 15)
+        out = pixelunshuffle(x, spatial_dims=2, scale_factor=3)
+        torch.testing.assert_close(out, torch.pixel_unshuffle(x, 3))
+
+    def test_inverse_operation(self):
+        x = torch.arange(4096).reshape(1, 8, 8, 8, 8)
+        shuffled = pixelshuffle(x, spatial_dims=3, scale_factor=2)
+        unshuffled = pixelunshuffle(shuffled, spatial_dims=3, scale_factor=2)
+        torch.testing.assert_close(x, unshuffled)
 
     def test_invalid_scale(self):
         x = torch.randn(2, 4, 15, 15)
