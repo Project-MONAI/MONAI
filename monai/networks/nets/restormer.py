@@ -1,116 +1,41 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))
-
-
-
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+from __future__ import annotations
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+
 from monai.networks.blocks.upsample import UpSample, UpsampleMode
 from monai.networks.blocks.downsample import DownSample, DownsampleMode
 from monai.networks.layers.factories import Norm
-from einops import rearrange
-
-class FeedForward(nn.Module):
-    """Gated-DConv Feed-Forward Network (GDFN) that controls feature flow using gating mechanism.
-    Uses depth-wise convolutions for local context mixing and GELU-activated gating for refined feature selection."""
-    def __init__(self, dim: int, ffn_expansion_factor: float, bias: bool):
-        super().__init__()
-        hidden_features = int(dim * ffn_expansion_factor)
-        self.project_in = nn.Conv2d(dim, hidden_features*2, kernel_size=1, bias=bias)
-        self.dwconv = nn.Conv2d(hidden_features*2, hidden_features*2, kernel_size=3, 
-                               stride=1, padding=1, groups=hidden_features*2, bias=bias)
-        self.project_out = nn.Conv2d(hidden_features, dim, kernel_size=1, bias=bias)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.project_in(x)
-        x1, x2 = self.dwconv(x).chunk(2, dim=1)
-        return self.project_out(F.gelu(x1) * x2)
-
-class Attention(nn.Module):
-    """Multi-DConv Head Transposed Self-Attention (MDTA) Differs from standard self-attention
-    by operating on feature channels instead of spatial dimensions. Incorporates depth-wise
-    convolutions for local mixing before attention, achieving linear complexity vs quadratic
-    in vanilla attention."""
-    def __init__(self, dim: int, num_heads: int, bias: bool, flash_attention: bool = False):
-        super().__init__()
-        if flash_attention and not hasattr(F, 'scaled_dot_product_attention'):
-            raise ValueError("Flash attention not available")
-            
-        self.num_heads = num_heads
-        self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1))
-        self.flash_attention = flash_attention
-        self.qkv = nn.Conv2d(dim, dim*3, kernel_size=1, bias=bias)
-        self.qkv_dwconv = nn.Conv2d(dim*3, dim*3, kernel_size=3, stride=1, 
-                                   padding=1, groups=dim*3, bias=bias)
-        self.project_out = nn.Conv2d(dim, dim, kernel_size=1, bias=bias)
-        self._attention_fn = self._get_attention_fn()
-
-    def _get_attention_fn(self):
-        if self.flash_attention:
-            return self._flash_attention
-        return self._normal_attention
-    def _flash_attention(self, q, k, v):
-        """Flash attention implementation using scaled dot-product attention."""
-        scale = float(self.temperature.mean())  
-        out = F.scaled_dot_product_attention(
-            q,
-            k, 
-            v,
-            scale=scale,
-            dropout_p=0.0,
-            is_causal=False
-        )
-        return out
-
-    def _normal_attention(self, q, k, v):
-        """Attention matrix multiplication with depth-wise convolutions."""
-        attn = (q @ k.transpose(-2, -1)) * self.temperature
-        attn = attn.softmax(dim=-1)
-        return attn @ v
-    def forward(self, x):
-        """Forward pass for MDTA attention. 
-        1. Apply depth-wise convolutions to Q, K, V
-        2. Reshape Q, K, V for multi-head attention
-        3. Compute attention matrix using flash or normal attention
-        4. Reshape and project out attention output"""
-        b,c,h,w = x.shape
-
-        qkv = self.qkv_dwconv(self.qkv(x))
-        q,k,v = qkv.chunk(3, dim=1)   
-        
-        q = rearrange(q, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        k = rearrange(k, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        v = rearrange(v, 'b (head c) h w -> b head c (h w)', head=self.num_heads)
-        q = torch.nn.functional.normalize(q, dim=-1)
-        k = torch.nn.functional.normalize(k, dim=-1)
-        
-        out = self._attention_fn(q, k, v)        
-        out = rearrange(out, 'b head c (h w) -> b (head c) h w', head=self.num_heads, h=h, w=w)
-        out = self.project_out(out)
-        return out
+from monai.networks.blocks.cablock import FeedForward, CABlock
+from monai.networks.blocks.convolutions import Convolution
 
 
-class TransformerBlock(nn.Module):
+class MDTATransformerBlock(nn.Module):
     """Basic transformer unit combining MDTA and GDFN with skip connections.
     Unlike standard transformers that use LayerNorm, this block uses Instance Norm
     for better adaptation to image restoration tasks."""
     
-    def __init__(self, dim: int, num_heads: int, ffn_expansion_factor: float,
+    def __init__(self, spatial_dims: int, dim: int, num_heads: int, ffn_expansion_factor: float,
                  bias: bool, LayerNorm_type: str, flash_attention: bool = False):
         super().__init__()
         use_bias = LayerNorm_type != 'BiasFree'        
         self.norm1 = Norm[Norm.INSTANCE, 2](dim, affine=use_bias)
-        self.attn = Attention(dim, num_heads, bias, flash_attention)
+        self.attn = CABlock(spatial_dims, dim, num_heads, bias, flash_attention)
         self.norm2 = Norm[Norm.INSTANCE, 2](dim, affine=use_bias)
-        self.ffn = FeedForward(dim, ffn_expansion_factor, bias)
+        self.ffn = FeedForward(spatial_dims, dim, ffn_expansion_factor, bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        #print(f'x shape in transformer block: {x.shape}')
-
         x = x + self.attn(self.norm1(x))
         x = x + self.ffn(self.norm2(x))
         return x
@@ -121,31 +46,21 @@ class OverlapPatchEmbed(nn.Module):
     Unlike standard patch embeddings that use non-overlapping patches,
     this approach maintains spatial continuity through 3x3 convolutions."""
     
-    def __init__(self, in_c: int = 3, embed_dim: int = 48, bias: bool = False):
+    def __init__(self, spatial_dims: int, in_c: int = 3, embed_dim: int = 48, bias: bool = False):
         super().__init__()
-        self.proj = nn.Conv2d(in_c, embed_dim, kernel_size=3, 
-                             stride=1, padding=1, bias=bias)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.proj(x)
-
-
-
-class DownSample_local(nn.Module):
-    """Downsampling module that halves spatial dimensions while doubling channels.
-    Uses PixelUnshuffle for efficient feature map manipulation."""
-    
-    def __init__(self, n_feat: int):
-        super().__init__()
-        self.body = nn.Sequential(
-            nn.Conv2d(n_feat, n_feat//2, kernel_size=3, 
-                     stride=1, padding=1, bias=False),
-            nn.PixelUnshuffle(2)
+        self.proj = Convolution(
+            spatial_dims=spatial_dims,
+            in_channels=in_c,
+            out_channels=embed_dim,
+            kernel_size=3,
+            strides=1,
+            padding=1,
+            bias=bias,
+            conv_only=True
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.body(x)
-
+        return self.proj(x)
 
 
 class Restormer_new(nn.Module):
@@ -164,6 +79,7 @@ class Restormer_new(nn.Module):
         - Refinement: Final feature enhancement
     """
     def __init__(self, 
+                 spatial_dims=2,
                  inp_channels=3,
                  out_channels=3,
                  dim=48,
@@ -197,7 +113,7 @@ class Restormer_new(nn.Module):
         assert all([n > 0 for n in num_blocks]), "Number of blocks must be greater than 0"
         
         # Initial feature extraction
-        self.patch_embed = OverlapPatchEmbed(inp_channels, dim)
+        self.patch_embed = OverlapPatchEmbed(spatial_dims, inp_channels, dim)
         self.encoder_levels = nn.ModuleList()
         self.downsamples = nn.ModuleList()
         self.decoder_levels = nn.ModuleList()
@@ -205,13 +121,15 @@ class Restormer_new(nn.Module):
         self.reduce_channels = nn.ModuleList()
         num_steps = len(num_blocks) - 1 
         self.num_steps = num_steps
+        self.spatial_dims=spatial_dims
 
         # Define encoder levels
         for n in range(num_steps):
             current_dim = dim * 2**n
             self.encoder_levels.append(
                 nn.Sequential(*[
-                    TransformerBlock(
+                    MDTATransformerBlock(
+                        spatial_dims=spatial_dims,
                         dim=current_dim,
                         num_heads=heads[n],
                         ffn_expansion_factor=ffn_expansion_factor,
@@ -221,13 +139,10 @@ class Restormer_new(nn.Module):
                     ) for _ in range(num_blocks[n])
                 ])
             )
-            print(f' Encoder layer {n}')
-            print(f'input channels to the downsampler: {current_dim}')
-            print(f'output channels from the downsampler: {current_dim//2}')
+
             self.downsamples.append(
-                #DownSample_local(current_dim)
                 DownSample(
-                spatial_dims=2,
+                spatial_dims=self.spatial_dims,
                 in_channels=current_dim,
                 out_channels=current_dim//2,
                 mode=DownsampleMode.PIXELUNSHUFFLE,
@@ -239,7 +154,8 @@ class Restormer_new(nn.Module):
         # Define latent space
         latent_dim = dim * 2**num_steps
         self.latent = nn.Sequential(*[
-            TransformerBlock(
+            MDTATransformerBlock(
+                spatial_dims=spatial_dims,
                 dim=latent_dim,
                 num_heads=heads[num_steps],
                 ffn_expansion_factor=ffn_expansion_factor,
@@ -255,7 +171,7 @@ class Restormer_new(nn.Module):
             next_dim = dim * 2**(n+1)
             self.upsamples.append(
                 UpSample(
-                spatial_dims=2,
+                spatial_dims=self.spatial_dims,
                 in_channels=next_dim,
                 out_channels=(next_dim//2),
                 mode=UpsampleMode.PIXELSHUFFLE,
@@ -268,15 +184,23 @@ class Restormer_new(nn.Module):
             # Reduce channel layers to deal with skip connections
             if n != 0:
                 self.reduce_channels.append(
-                    nn.Conv2d(next_dim, current_dim, kernel_size=1, bias=bias)
+                    Convolution(
+                        spatial_dims=self.spatial_dims,
+                        in_channels=next_dim,
+                        out_channels=current_dim,
+                        kernel_size=1,
+                        bias=bias,
+                        conv_only=True
                     )
+                )
                 decoder_dim = current_dim
             else:
                 decoder_dim = next_dim
             
             self.decoder_levels.append(
                 nn.Sequential(*[
-                    TransformerBlock(
+                    MDTATransformerBlock(
+                        spatial_dims=spatial_dims,
                         dim=decoder_dim,
                         num_heads=heads[n],
                         ffn_expansion_factor=ffn_expansion_factor,
@@ -289,7 +213,8 @@ class Restormer_new(nn.Module):
 
         # Final refinement and output
         self.refinement = nn.Sequential(*[
-            TransformerBlock(
+            MDTATransformerBlock(
+                spatial_dims=spatial_dims,
                 dim=decoder_dim,
                 num_heads=heads[0],
                 ffn_expansion_factor=ffn_expansion_factor,
@@ -300,14 +225,25 @@ class Restormer_new(nn.Module):
         ])
         self.dual_pixel_task = dual_pixel_task
         if self.dual_pixel_task:
-            self.skip_conv = nn.Conv2d(dim, int(dim*2**1), kernel_size=1, bias=bias)
+            self.skip_conv = Convolution(
+                spatial_dims=self.spatial_dims,
+                in_channels=dim,
+                out_channels=int(dim*2**1),
+                kernel_size=1,
+                bias=bias,
+                conv_only=True
+            )
             
-        self.output = nn.Conv2d(int(dim*2**1), out_channels, kernel_size=3, stride=1, padding=1, bias=bias)
-
-        #print(f'downsample layer in new model: {self.downsamples}')
-        print(f'======================')
-        print(f'======================')
-        #print(f'upsamples layer in new model: {self.upsamples}')
+        self.output = Convolution(
+            spatial_dims=self.spatial_dims,
+            in_channels=int(dim*2**1),
+            out_channels=out_channels,
+            kernel_size=3,
+            strides=1,
+            padding=1,
+            bias=bias,
+            conv_only=True
+        )
 
     def forward(self, x):
         """Forward pass of Restormer.
@@ -326,12 +262,9 @@ class Restormer_new(nn.Module):
 
         # Encoding path
         for idx, (encoder, downsample) in enumerate(zip(self.encoder_levels, self.downsamples)):
-            print(f'image shape at input: {x.shape}')
             x = encoder(x)
             skip_connections.append(x)
-            print(f'x shape in new model encoder: {x.shape}')
             x = downsample(x)
-            print(f'x shape in new model downsample: {x.shape}')
 
         # Latent space
         x = self.latent(x)
@@ -354,6 +287,3 @@ class Restormer_new(nn.Module):
             x = self.output(x)
 
         return x
-
-
-
