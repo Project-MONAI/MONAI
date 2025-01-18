@@ -821,6 +821,7 @@ class NormalizeIntensity(Transform):
     mean and std on each channel separately.
     When `channel_wise` is True, the first dimension of `subtrahend` and `divisor` should
     be the number of image channels if they are not None.
+    If the input is not of floating point type, it will be converted to float32
 
     Args:
         subtrahend: the amount to subtract by (usually the mean).
