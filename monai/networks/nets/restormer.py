@@ -30,9 +30,9 @@ class MDTATransformerBlock(nn.Module):
                  bias: bool, LayerNorm_type: str, flash_attention: bool = False):
         super().__init__()
         use_bias = LayerNorm_type != 'BiasFree'        
-        self.norm1 = Norm[Norm.INSTANCE, 2](dim, affine=use_bias)
+        self.norm1 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=use_bias)
         self.attn = CABlock(spatial_dims, dim, num_heads, bias, flash_attention)
-        self.norm2 = Norm[Norm.INSTANCE, 2](dim, affine=use_bias)
+        self.norm2 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=use_bias)
         self.ffn = FeedForward(spatial_dims, dim, ffn_expansion_factor, bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -122,10 +122,12 @@ class Restormer_new(nn.Module):
         num_steps = len(num_blocks) - 1 
         self.num_steps = num_steps
         self.spatial_dims=spatial_dims
-
+        spatial_multiplier = 2**(spatial_dims - 1)
+        
         # Define encoder levels
         for n in range(num_steps):
-            current_dim = dim * 2**n
+            current_dim = dim * (2)**(n)
+            next_dim=current_dim//spatial_multiplier
             self.encoder_levels.append(
                 nn.Sequential(*[
                     MDTATransformerBlock(
@@ -144,7 +146,7 @@ class Restormer_new(nn.Module):
                 DownSample(
                 spatial_dims=self.spatial_dims,
                 in_channels=current_dim,
-                out_channels=current_dim//2,
+                out_channels=next_dim,
                 mode=DownsampleMode.PIXELUNSHUFFLE,
                 scale_factor=2,
                 bias=bias,
@@ -152,7 +154,7 @@ class Restormer_new(nn.Module):
             )
 
         # Define latent space
-        latent_dim = dim * 2**num_steps
+        latent_dim = dim * (2)**(num_steps)
         self.latent = nn.Sequential(*[
             MDTATransformerBlock(
                 spatial_dims=spatial_dims,
@@ -167,13 +169,13 @@ class Restormer_new(nn.Module):
 
         # Define decoder levels
         for n in reversed(range(num_steps)):
-            current_dim = dim * 2**n
-            next_dim = dim * 2**(n+1)
+            current_dim = dim * (2)**(n)
+            next_dim = dim * (2)**(n+1)
             self.upsamples.append(
                 UpSample(
                 spatial_dims=self.spatial_dims,
                 in_channels=next_dim,
-                out_channels=(next_dim//2),
+                out_channels=(current_dim),
                 mode=UpsampleMode.PIXELSHUFFLE,
                 scale_factor=2,
                 bias=bias,
@@ -228,15 +230,14 @@ class Restormer_new(nn.Module):
             self.skip_conv = Convolution(
                 spatial_dims=self.spatial_dims,
                 in_channels=dim,
-                out_channels=int(dim*2**1),
+                out_channels=dim*2,
                 kernel_size=1,
                 bias=bias,
                 conv_only=True
             )
-            
         self.output = Convolution(
             spatial_dims=self.spatial_dims,
-            in_channels=int(dim*2**1),
+            in_channels=dim*2,
             out_channels=out_channels,
             kernel_size=3,
             strides=1,
@@ -244,7 +245,6 @@ class Restormer_new(nn.Module):
             bias=bias,
             conv_only=True
         )
-
     def forward(self, x):
         """Forward pass of Restormer.
         Processes input through encoder-decoder architecture with skip connections.
