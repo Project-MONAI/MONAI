@@ -63,7 +63,7 @@ class OverlapPatchEmbed(nn.Module):
         return self.proj(x)
 
 
-class Restormer_new(nn.Module):
+class Restormer(nn.Module):
     """Restormer: Efficient Transformer for High-Resolution Image Restoration.
     
     Implements a U-Net style architecture with transformer blocks, combining:
