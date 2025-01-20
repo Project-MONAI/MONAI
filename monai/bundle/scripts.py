@@ -218,7 +218,7 @@ def _remove_ngc_prefix(name: str, prefix: str = "monai_") -> str:
     return name
 
 
-def _get_all_download_files(request_url, headers=None) -> list[str]:
+def _get_all_download_files(request_url: str, headers: dict | None = None) -> list[str]:
     if not has_requests:
         raise ValueError("requests package is required, please install it.")
     headers = {} if headers is None else headers
