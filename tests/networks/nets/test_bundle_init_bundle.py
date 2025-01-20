@@ -18,7 +18,7 @@ import unittest
 import torch
 
 from monai.networks.nets import UNet
-from tests.utils.utils import command_line_tests, skip_if_windows
+from tests.util import command_line_tests, skip_if_windows
 
 
 @skip_if_windows

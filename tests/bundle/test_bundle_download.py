@@ -27,7 +27,7 @@ from monai.apps import check_hash
 from monai.bundle import ConfigParser, create_workflow, load
 from monai.bundle.scripts import _examine_monai_version, _list_latest_versions, download
 from monai.utils import optional_import
-from tests.utils.utils import (
+from tests.util import (
     SkipIfBeforePyTorchVersion,
     assert_allclose,
     command_line_tests,

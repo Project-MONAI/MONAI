@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.utils import sample_slices
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 # test data[:, [1, ], ...]
 TEST_CASE_1 = [torch.tensor([[[0, 2], [1, 0]]]), 1, True, (1,), torch.tensor([[[1, 0]]])]

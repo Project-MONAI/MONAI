@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.transforms import TorchVision
 from monai.utils import set_determinism
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:

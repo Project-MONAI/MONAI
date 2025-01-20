@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,7 +26,7 @@ from tests.utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick
 class TestDownloadAndExtract(unittest.TestCase):
     @skip_if_quick
     def test_actions(self):
-        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        testing_dir = Path(__file__).parents[1] / "testing_data"
         config_dict = testing_data_config("images", "mednist")
         url = config_dict["url"]
         filepath = Path(testing_dir) / "MedNIST.tar.gz"

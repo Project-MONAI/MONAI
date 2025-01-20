@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.apps.reconstruction.mri_utils import root_sum_of_squares
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 # root_sum_of_squares
 im = [[3.0, 4.0], [3.0, 4.0]]

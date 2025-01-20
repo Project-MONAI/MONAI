@@ -25,7 +25,7 @@ from monai.apps.pathology.transforms.post.dictionary import (
 )
 from monai.transforms import Compose
 from monai.utils import min_version, optional_import
-from tests.utils.utils import TEST_NDARRAYS
+from tests.util import TEST_NDARRAYS
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)

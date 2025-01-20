@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import MapLabelValued
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "seg", "orig_labels": [3, 2, 1], "target_labels": [0, 1, 2]},

@@ -15,7 +15,7 @@ import unittest
 
 from monai.data import ITKReader, NibabelReader, NrrdReader, NumpyReader, PILReader, PydicomReader
 from monai.transforms import LoadImage, LoadImaged
-from tests.utils.utils import SkipIfNoModule
+from tests.util import SkipIfNoModule
 
 
 class TestInitLoadImage(unittest.TestCase):

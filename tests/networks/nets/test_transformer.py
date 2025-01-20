@@ -24,7 +24,7 @@ from monai.apps import download_url
 from monai.networks import eval_mode
 from monai.networks.nets import DecoderOnlyTransformer
 from monai.utils import optional_import
-from tests.utils.utils import skip_if_downloading_fails, testing_data_config
+from tests.util import skip_if_downloading_fails, testing_data_config
 
 _, has_einops = optional_import("einops")
 TEST_CASES = []

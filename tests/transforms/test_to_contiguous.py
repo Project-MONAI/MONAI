@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.transforms import convert_to_contiguous
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 
 class TestToContiguous(unittest.TestCase):

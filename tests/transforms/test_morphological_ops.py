@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms.utils_morphological_ops import dilate, erode, get_morphological_filter_result_t
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 TESTS_SHAPE = []
 for p in TEST_NDARRAYS:

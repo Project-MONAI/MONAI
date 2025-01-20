@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from monai.utils import optional_import
-from tests.utils.utils import skip_if_no_cpp_extension
+from tests.util import skip_if_no_cpp_extension
 
 b, _ = optional_import("monai._C", name="BoundType")
 p, _ = optional_import("monai._C", name="InterpolationType")

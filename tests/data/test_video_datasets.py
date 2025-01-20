@@ -21,7 +21,7 @@ import monai.transforms as mt
 from monai.data.dataloader import DataLoader
 from monai.data.video_dataset import CameraDataset, VideoDataset, VideoFileDataset
 from monai.utils.module import optional_import
-from tests.utils.utils import assert_allclose, download_url_or_skip_test, testing_data_config
+from tests.util import assert_allclose, download_url_or_skip_test, testing_data_config
 
 cv2, has_cv2 = optional_import("cv2")
 

@@ -14,18 +14,19 @@ from __future__ import annotations
 import os
 import shutil
 import unittest
+from pathlib import Path
 
 from monai.apps import TciaDataset
 from monai.apps.tcia import DCM_FILENAME_REGEX, TCIA_LABEL_DICT
 from monai.data import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
-from tests.utils.utils import skip_if_downloading_fails, skip_if_quick
+from tests.util import skip_if_downloading_fails, skip_if_quick
 
 
 class TestTciaDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
-        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        testing_dir = Path(__file__).parents[1] / "testing_data"
         download_len = 1
         val_frac = 1.0
         collection = "QIN-PROSTATE-Repeatability"

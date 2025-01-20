@@ -16,7 +16,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import ScaleIntensityd
-from tests.utils.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.util import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensityd(NumpyImageTestCase2D):

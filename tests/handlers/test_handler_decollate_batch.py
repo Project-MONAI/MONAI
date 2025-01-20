@@ -18,7 +18,7 @@ import torch
 from monai.engines import SupervisedEvaluator
 from monai.handlers import DecollateBatch, PostProcessing
 from monai.transforms import Activationsd, AsDiscreted, Compose, CopyItemsd
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 
 class TestHandlerDecollateBatch(unittest.TestCase):

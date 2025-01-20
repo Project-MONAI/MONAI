@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.blocks import CRF
-from tests.utils.utils import skip_if_no_cpp_extension
+from tests.util import skip_if_no_cpp_extension
 
 TEST_CASES = [
     [

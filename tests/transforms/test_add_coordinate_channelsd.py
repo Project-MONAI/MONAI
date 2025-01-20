@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import AddCoordinateChannelsd
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 TESTS, TEST_CASES_ERROR_1, TEST_CASES_ERROR_2 = [], [], []
 for p in TEST_NDARRAYS:

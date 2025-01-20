@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
-from tests.utils.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.util import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 TEST_CASE_UNETR = []
 for dropout_rate in [0.4]:

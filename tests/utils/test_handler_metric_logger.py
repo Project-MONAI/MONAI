@@ -16,7 +16,7 @@ import unittest
 import torch
 
 from monai.utils import optional_import
-from tests.utils.utils import SkipIfNoModule
+from tests.util import SkipIfNoModule
 
 try:
     _, has_ignite = optional_import("ignite")

@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.transforms import CastToType
 from monai.utils import optional_import
 from monai.utils.type_conversion import get_equivalent_dtype
-from tests.utils.utils import HAS_CUPY, TEST_NDARRAYS
+from tests.util import HAS_CUPY, TEST_NDARRAYS
 
 cp, _ = optional_import("cupy")
 

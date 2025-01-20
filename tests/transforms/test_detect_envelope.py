@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms import DetectEnvelope
 from monai.utils import OptionalImportError
-from tests.utils.utils import TEST_NDARRAYS, SkipIfModule, SkipIfNoModule, assert_allclose
+from tests.util import TEST_NDARRAYS, SkipIfModule, SkipIfNoModule, assert_allclose
 
 n_samples = 500
 hann_windowed_sine = np.sin(2 * np.pi * 10 * np.linspace(0, 1, n_samples)) * np.hanning(n_samples)

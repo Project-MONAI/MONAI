@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.reconstruction.transforms.dictionary import ReferenceBasedSpatialCropd
-from tests.utils.utils import TEST_NDARRAYS
+from tests.util import TEST_NDARRAYS
 
 # see test_spatial_cropd for typical tests (like roi_start,
 # roi_slices, etc.)

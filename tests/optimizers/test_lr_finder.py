@@ -11,11 +11,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import pickle
 import random
 import sys
 import unittest
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import torch
@@ -27,7 +27,7 @@ from monai.optimizers import LearningRateFinder
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
 from monai.utils.misc import MONAIEnvVars
-from tests.utils.utils import skip_if_downloading_fails
+from tests.util import skip_if_downloading_fails
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt
@@ -53,12 +53,14 @@ class TestLRFinder(unittest.TestCase):
         if not self.root_dir:
             self.root_dir = Path(__file__).parents[1] / "testing_data"
 
-        self.transforms = Compose([
-            LoadImaged(keys="image"),
-            EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
-            ScaleIntensityd(keys="image"),
-            ToTensord(keys="image"),
-        ])
+        self.transforms = Compose(
+            [
+                LoadImaged(keys="image"),
+                EnsureChannelFirstd(keys="image", channel_dim="no_channel"),
+                ScaleIntensityd(keys="image"),
+                ToTensord(keys="image"),
+            ]
+        )
 
     def test_lr_finder(self):
         # 0.001 gives 54 examples
@@ -74,7 +76,9 @@ class TestLRFinder(unittest.TestCase):
         train_loader = DataLoader(train_ds, batch_size=300, shuffle=True, num_workers=2)
         num_classes = train_ds.get_num_classes()
 
-        model = DenseNet(spatial_dims=2, in_channels=1, out_channels=num_classes, init_features=2, growth_rate=2, block_config=(2,))
+        model = DenseNet(
+            spatial_dims=2, in_channels=1, out_channels=num_classes, init_features=2, growth_rate=2, block_config=(2,)
+        )
         loss_function = torch.nn.CrossEntropyLoss()
         learning_rate = 1e-5
         optimizer = torch.optim.Adam(model.parameters(), learning_rate)

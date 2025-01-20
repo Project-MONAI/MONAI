@@ -19,7 +19,7 @@ import torch
 
 from monai.transforms import ToCupy
 from monai.utils import optional_import
-from tests.utils.utils import HAS_CUPY, skip_if_no_cuda
+from tests.util import HAS_CUPY, skip_if_no_cuda
 
 cp, _ = optional_import("cupy")
 

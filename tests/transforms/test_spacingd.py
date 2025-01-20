@@ -23,7 +23,7 @@ from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacingd
 from monai.utils import ensure_tuple_rep
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils.utils import TEST_DEVICES, assert_allclose, skip_if_quick
+from tests.util import TEST_DEVICES, assert_allclose, skip_if_quick
 
 TESTS: list[tuple] = []
 for device in TEST_DEVICES:

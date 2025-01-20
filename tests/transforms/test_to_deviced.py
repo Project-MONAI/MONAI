@@ -17,7 +17,7 @@ import torch
 
 from monai.data import CacheDataset, ThreadDataLoader
 from monai.transforms import ToDeviced
-from tests.utils.utils import assert_allclose, skip_if_no_cuda
+from tests.util import assert_allclose, skip_if_no_cuda
 
 
 @skip_if_no_cuda

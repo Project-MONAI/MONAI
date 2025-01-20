@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandGaussianNoise
-from tests.utils.utils import TEST_NDARRAYS, NumpyImageTestCase2D
+from tests.util import TEST_NDARRAYS, NumpyImageTestCase2D
 
 TESTS = []
 for p in TEST_NDARRAYS:

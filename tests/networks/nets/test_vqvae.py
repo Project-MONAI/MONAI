@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vqvae import VQVAE
-from tests.utils.utils import SkipIfBeforePyTorchVersion
+from tests.util import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
     [

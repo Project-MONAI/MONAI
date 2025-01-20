@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-from tests.utils.utils import DistCall, DistTestCase
+from tests.util import DistCall, DistTestCase
 
 
 class DistributedCallTest(DistTestCase):

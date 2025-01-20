@@ -20,7 +20,7 @@ from monai.apps.detection.networks.retinanet_network import RetinaNet, resnet_fp
 from monai.networks import eval_mode
 from monai.networks.nets import resnet10, resnet18, resnet34, resnet50, resnet101, resnet152, resnet200
 from monai.utils import ensure_tuple, optional_import
-from tests.utils.utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_onnx_save, test_script_save
+from tests.util import SkipIfBeforePyTorchVersion, skip_if_quick, test_onnx_save, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 

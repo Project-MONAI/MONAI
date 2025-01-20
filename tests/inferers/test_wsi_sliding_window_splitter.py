@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.data import CuCIMWSIReader, ImageReader, OpenSlideWSIReader, WSIReader
 from monai.inferers import WSISlidingWindowSplitter
-from tests.utils.utils import download_url_or_skip_test, optional_import, testing_data_config
+from tests.util import download_url_or_skip_test, optional_import, testing_data_config
 
 cucim, has_cucim = optional_import("cucim")
 has_cucim = has_cucim and hasattr(cucim, "CuImage")

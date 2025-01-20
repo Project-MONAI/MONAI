@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.masked_autoencoder_vit import MaskedAutoEncoderViT
-from tests.utils.utils import skip_if_quick
+from tests.util import skip_if_quick
 
 TEST_CASE_MaskedAutoEncoderViT = []
 for masking_ratio in [0.5]:

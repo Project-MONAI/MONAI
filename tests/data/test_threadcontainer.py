@@ -22,7 +22,7 @@ import torch
 from monai.data import DataLoader
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import CommonKeys
-from tests.utils.utils import SkipIfNoModule
+from tests.util import SkipIfNoModule
 
 try:
     _, has_ignite = optional_import("ignite")

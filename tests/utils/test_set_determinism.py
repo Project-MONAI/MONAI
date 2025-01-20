@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.utils import get_seed, set_determinism
-from tests.utils.utils import SkipIfBeforePyTorchVersion, skip_if_no_cuda
+from tests.util import SkipIfBeforePyTorchVersion, skip_if_no_cuda
 
 
 class TestSetDeterminism(unittest.TestCase):

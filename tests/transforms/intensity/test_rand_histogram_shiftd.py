@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms.intensity.dictionary import RandHistogramShiftd
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:

@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks import SubpixelUpsample
 from monai.networks.layers.factories import Conv
-from tests.utils.utils import SkipIfBeforePyTorchVersion, test_script_save
+from tests.util import SkipIfBeforePyTorchVersion, test_script_save
 
 TEST_CASE_SUBPIXEL = []
 for inch in range(1, 5):

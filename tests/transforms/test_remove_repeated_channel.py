@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import RemoveRepeatedChannel
-from tests.utils.utils import TEST_NDARRAYS
+from tests.util import TEST_NDARRAYS
 
 TEST_CASES = []
 for q in TEST_NDARRAYS:

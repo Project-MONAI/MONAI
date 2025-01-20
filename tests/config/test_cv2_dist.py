@@ -20,7 +20,7 @@ from torch.cuda.amp import autocast
 
 # FIXME: test for the workaround of https://github.com/Project-MONAI/MONAI/issues/5291
 from monai.config.deviceconfig import print_config
-from tests.utils.utils import skip_if_no_cuda
+from tests.util import skip_if_no_cuda
 
 
 def main_worker(rank, ngpus_per_node, port):

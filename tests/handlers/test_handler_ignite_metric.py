@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.handlers import IgniteMetricHandler, from_engine
 from monai.losses import DiceLoss
 from monai.metrics import LossMetric
-from tests.utils.utils import SkipIfNoModule, assert_allclose, optional_import
+from tests.util import SkipIfNoModule, assert_allclose, optional_import
 
 try:
     _, has_ignite = optional_import("ignite")

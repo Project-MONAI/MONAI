@@ -19,7 +19,7 @@ import unittest
 import torch.distributed as dist
 
 from monai.utils import RankFilter
-from tests.utils.utils import DistCall, DistTestCase
+from tests.util import DistCall, DistTestCase
 
 
 class DistributedRankFilterTest(DistTestCase):

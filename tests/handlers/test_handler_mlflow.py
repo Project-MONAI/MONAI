@@ -27,7 +27,7 @@ from monai.apps import download_and_extract
 from monai.bundle import ConfigWorkflow, download
 from monai.handlers import MLFlowHandler
 from monai.utils import optional_import, path_to_uri
-from tests.utils.utils import skip_if_downloading_fails, skip_if_quick
+from tests.util import skip_if_downloading_fails, skip_if_quick
 
 _, has_dataset_tracking = optional_import("mlflow", "2.4.0")
 

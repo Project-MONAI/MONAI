@@ -19,7 +19,7 @@ from torch.nn.functional import avg_pool2d, pad
 
 from monai.data.meta_tensor import MetaTensor
 from monai.inferers import AvgMerger, PatchInferer, SlidingWindowSplitter
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 TENSOR_2x2 = avg_pool2d(TENSOR_4x4, 2, 2)

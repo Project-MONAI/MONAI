@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data import Dataset, MaskedPatchWSIDataset
 from monai.transforms import Lambdad
 from monai.utils import ProbMapKeys, WSIPatchKeys, optional_import, set_determinism
-from tests.utils.utils import download_url_or_skip_test, testing_data_config
+from tests.util import download_url_or_skip_test, testing_data_config
 
 set_determinism(0)
 

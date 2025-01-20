@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandGridDistortiond
-from tests.utils.utils import TEST_NDARRAYS_ALL, assert_allclose
+from tests.util import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 num_cells = 2

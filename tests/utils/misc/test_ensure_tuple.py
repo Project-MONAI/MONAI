@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.utils.misc import ensure_tuple
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 TESTS = [
     ["test", ("test",)],

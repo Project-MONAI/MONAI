@@ -23,7 +23,7 @@ from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from monai.utils import optional_import
-from tests.utils.utils import (
+from tests.util import (
     SkipIfBeforeComputeCapabilityVersion,
     command_line_tests,
     skip_if_no_cuda,

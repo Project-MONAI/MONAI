@@ -18,7 +18,7 @@ import numpy as np
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rotate90d
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
+from tests.util import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 
 class TestRotate90d(NumpyImageTestCase2D):

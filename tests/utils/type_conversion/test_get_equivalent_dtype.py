@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.utils.type_conversion import get_equivalent_dtype, get_numpy_dtype_from_string, get_torch_dtype_from_string
-from tests.utils.utils import TEST_NDARRAYS
+from tests.util import TEST_NDARRAYS
 
 DTYPES = [torch.float32, np.float32, np.dtype(np.float32)]
 

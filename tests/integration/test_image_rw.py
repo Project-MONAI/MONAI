@@ -26,7 +26,7 @@ from monai.data.image_writer import ITKWriter, NibabelWriter, PILWriter, registe
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage, SaveImage, moveaxis
 from monai.utils import MetaKeys, OptionalImportError, optional_import
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 _, has_itk = optional_import("itk", allow_namespace_pkg=True)
 

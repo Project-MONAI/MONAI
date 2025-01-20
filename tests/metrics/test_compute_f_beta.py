@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import FBetaScore
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 

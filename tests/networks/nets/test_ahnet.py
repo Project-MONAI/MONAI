@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks import FCN, MCFCN
 from monai.networks.nets import AHNet
-from tests.utils.utils import skip_if_quick, test_pretrained_networks, test_script_save
+from tests.util import skip_if_quick, test_pretrained_networks, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

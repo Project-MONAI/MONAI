@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandCropByPosNegLabel
 from monai.transforms.lazy.functional import apply_pending
-from tests.utils.utils import TEST_NDARRAYS_ALL, assert_allclose
+from tests.util import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = [
     [

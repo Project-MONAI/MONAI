@@ -19,7 +19,7 @@ from pathlib import Path
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, verify_net_in_out
-from tests.utils.utils import command_line_tests, skip_if_no_cuda, skip_if_windows
+from tests.util import command_line_tests, skip_if_no_cuda, skip_if_windows
 
 TESTS_PATH = Path(__file__).parents[1].as_posix()
 

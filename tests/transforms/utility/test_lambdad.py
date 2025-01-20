@@ -19,7 +19,7 @@ from torch import Tensor
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.utility.dictionary import Lambdad
 from monai.utils.type_conversion import convert_to_numpy, convert_to_tensor
-from tests.utils.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.util import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestLambdad(NumpyImageTestCase2D):

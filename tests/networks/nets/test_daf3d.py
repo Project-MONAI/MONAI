@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DAF3D
 from monai.utils import optional_import
-from tests.utils.utils import test_script_save
+from tests.util import test_script_save
 
 _, has_tv = optional_import("torchvision")
 

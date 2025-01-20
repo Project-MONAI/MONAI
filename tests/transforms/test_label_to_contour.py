@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.transforms import LabelToContour
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 expected_output_for_cube = [
     [

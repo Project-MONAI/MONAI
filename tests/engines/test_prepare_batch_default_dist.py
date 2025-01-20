@@ -18,7 +18,7 @@ import torch.distributed as dist
 from parameterized import parameterized
 
 from monai.engines import PrepareBatchDefault, SupervisedEvaluator
-from tests.utils.utils import DistCall, DistTestCase, assert_allclose
+from tests.util import DistCall, DistTestCase, assert_allclose
 
 TEST_CASE_1 = [
     [

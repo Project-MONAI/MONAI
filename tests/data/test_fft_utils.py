@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.data.fft_utils import fftn_centered, ifftn_centered
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 #
 im = [[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]]

@@ -16,7 +16,7 @@ from copy import deepcopy
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import InvertibleTransform, MapTransform, Randomizable
 from monai.transforms.lazy.functional import apply_pending
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 apply_transforms_kwargs = ("pending", "mode", "padding_mode", "dtype", "align_corners")
 

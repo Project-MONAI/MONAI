@@ -19,7 +19,7 @@ import torch
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandAxisFlipd
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase3D, assert_allclose, test_local_inversion
+from tests.util import TEST_NDARRAYS_ALL, NumpyImageTestCase3D, assert_allclose, test_local_inversion
 
 
 class TestRandAxisFlip(NumpyImageTestCase3D):

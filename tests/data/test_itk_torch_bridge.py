@@ -15,6 +15,7 @@ import itertools
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -35,7 +36,7 @@ from monai.data.itk_torch_bridge import (
 from monai.networks.blocks import Warp
 from monai.transforms import Affine
 from monai.utils import optional_import, set_determinism
-from tests.utils.utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, test_is_quick, testing_data_config
+from tests.util import assert_allclose, skip_if_downloading_fails, skip_if_quick, test_is_quick, testing_data_config
 
 itk, has_itk = optional_import("itk")
 _, has_nib = optional_import("nibabel")
@@ -51,7 +52,7 @@ RW_TESTS = TESTS + ["nrrd_example.nrrd"]
 class TestITKTorchAffineMatrixBridge(unittest.TestCase):
     def setUp(self):
         set_determinism(seed=0)
-        self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        self.data_dir = Path(__file__).parents[1] / "testing_data"
         self.reader = ITKReader(pixel_type=itk.F)
 
         for file_name in RW_TESTS:

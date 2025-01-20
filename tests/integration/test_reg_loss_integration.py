@@ -19,7 +19,7 @@ import torch.optim as optim
 from parameterized import parameterized
 
 from monai.losses import BendingEnergyLoss, GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
-from tests.utils.utils import SkipIfBeforePyTorchVersion
+from tests.util import SkipIfBeforePyTorchVersion
 
 TEST_CASES = [
     [BendingEnergyLoss, {}, ["pred"], 3],

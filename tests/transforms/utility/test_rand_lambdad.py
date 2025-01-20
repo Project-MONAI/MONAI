@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.transform import Randomizable
 from monai.transforms.utility.dictionary import RandLambdad
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 
 class RandTest(Randomizable):

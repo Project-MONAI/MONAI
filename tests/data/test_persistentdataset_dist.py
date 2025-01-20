@@ -21,7 +21,7 @@ import torch.distributed as dist
 
 from monai.data import PersistentDataset, json_hashing
 from monai.transforms import Transform
-from tests.utils.utils import DistCall, DistTestCase
+from tests.util import DistCall, DistTestCase
 
 
 class _InplaceXform(Transform):

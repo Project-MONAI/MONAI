@@ -23,7 +23,7 @@ from monai.apps.auto3dseg import AutoRunner
 from monai.bundle.config_parser import ConfigParser
 from monai.data import create_test_image_3d
 from monai.utils import optional_import
-from tests.utils.utils import (
+from tests.util import (
     SkipIfBeforePyTorchVersion,
     get_testing_algo_template_path,
     skip_if_downloading_fails,

@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, DivisiblePadd, RandSpatialCropSamplesd
 from monai.transforms.lazy.functional import apply_pending
-from tests.utils.utils import TEST_NDARRAYS_ALL, assert_allclose
+from tests.util import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
     {"keys": ["img", "seg"], "num_samples": 4, "roi_size": [2, 2, 2], "random_center": True, "random_size": True},

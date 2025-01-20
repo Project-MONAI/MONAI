@@ -19,7 +19,7 @@ from pathlib import Path
 from monai.apps import MedNISTDataset
 from monai.data import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
-from tests.utils.utils import skip_if_downloading_fails, skip_if_quick
+from tests.util import skip_if_downloading_fails, skip_if_quick
 
 MEDNIST_FULL_DATASET_LENGTH = 58954
 
@@ -27,7 +27,7 @@ MEDNIST_FULL_DATASET_LENGTH = 58954
 class TestMedNISTDataset(unittest.TestCase):
     @skip_if_quick
     def test_values(self):
-        testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+        testing_dir = Path(__file__).parents[1] / "testing_data"
         transform = Compose(
             [
                 LoadImaged(keys="image"),

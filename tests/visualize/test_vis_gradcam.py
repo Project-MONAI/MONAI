@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DenseNet, DenseNet121, SEResNet50
 from monai.visualize import GradCAM, GradCAMpp
-from tests.utils.utils import assert_allclose, skip_if_quick
+from tests.util import assert_allclose, skip_if_quick
 
 
 class DenseNetAdjoint(DenseNet121):

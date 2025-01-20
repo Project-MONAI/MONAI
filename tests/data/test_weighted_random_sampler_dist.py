@@ -18,7 +18,7 @@ import torch
 import torch.distributed as dist
 
 from monai.data import DistributedWeightedRandomSampler
-from tests.utils.utils import DistCall, DistTestCase, skip_if_darwin, skip_if_windows
+from tests.util import DistCall, DistTestCase, skip_if_darwin, skip_if_windows
 
 
 @skip_if_windows

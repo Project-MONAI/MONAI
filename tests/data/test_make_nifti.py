@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.data.synthetic import create_test_image_2d
 from monai.utils import optional_import
-from tests.utils.utils import make_nifti_image
+from tests.util import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
 

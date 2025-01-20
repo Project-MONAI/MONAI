@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import skipUnless
 
@@ -23,7 +24,7 @@ import monai.networks.nets.senet as se_mod
 from monai.networks import eval_mode
 from monai.networks.nets import SENet, SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from monai.utils import optional_import
-from tests.utils.utils import test_is_quick, test_pretrained_networks, test_script_save, testing_data_config
+from tests.util import test_is_quick, test_pretrained_networks, test_script_save, testing_data_config
 
 if TYPE_CHECKING:
     import pretrainedmodels
@@ -86,7 +87,7 @@ class TestPretrainedSENET(unittest.TestCase):
                 if "certificate" in str(rt_e):  # [SSL: CERTIFICATE_VERIFY_FAILED]
                     replace_url = True
         if replace_url:
-            testing_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "testing_data")
+            testing_dir = Path(__file__).parents[1] / "testing_data"
             testing_data_urls = {
                 "senet154": {
                     "url": testing_data_config("models", "senet154-c7b49a05", "url"),

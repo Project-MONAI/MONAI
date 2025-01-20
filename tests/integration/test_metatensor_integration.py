@@ -26,7 +26,7 @@ from monai.data import CacheDataset, DataLoader, MetaTensor, decollate_batch
 from monai.data.utils import TraceKeys
 from monai.transforms import InvertD, SaveImageD, reset_ops_id
 from monai.utils import optional_import, set_determinism
-from tests.utils.utils import assert_allclose, download_url_or_skip_test, testing_data_config
+from tests.util import assert_allclose, download_url_or_skip_test, testing_data_config
 
 nib, has_nib = optional_import("nibabel")
 TINY_DIFF = 0.1

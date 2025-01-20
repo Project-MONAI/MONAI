@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCrop
 from monai.transforms.lazy.functional import apply_pending
-from tests.utils.utils import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
+from tests.util import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
 
 TEST_CASES = [
     [{"spatial_size": [15, 8, 8], "mode": "constant"}, (3, 8, 8, 4), (3, 15, 8, 8), True],

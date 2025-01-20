@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import RepeatChannel
-from tests.utils.utils import TEST_NDARRAYS
+from tests.util import TEST_NDARRAYS
 
 TESTS = []
 for p in TEST_NDARRAYS:

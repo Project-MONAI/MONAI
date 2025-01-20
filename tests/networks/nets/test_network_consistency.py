@@ -24,7 +24,7 @@ from parameterized.parameterized import parameterized
 import monai.networks.nets as nets
 from monai.utils import set_determinism
 from monai.utils.misc import MONAIEnvVars
-from tests.utils.utils import assert_allclose
+from tests.util import assert_allclose
 
 extra_test_data_dir = MONAIEnvVars.extra_test_data()
 

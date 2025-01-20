@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import RandGaussianSharpen
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 

@@ -54,7 +54,7 @@ from monai.transforms import (
     ToDeviced,
 )
 from monai.utils.enums import DataStatsKeys
-from tests.utils.utils import skip_if_no_cuda
+from tests.util import skip_if_no_cuda
 
 device = "cpu"
 n_workers = 2

@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks.layers.factories import Act
 from monai.transforms import Activations
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose
+from tests.util import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES = []
 for p in TEST_NDARRAYS:

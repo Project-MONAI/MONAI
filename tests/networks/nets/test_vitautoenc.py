@@ -17,7 +17,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vitautoenc import ViTAutoEnc
-from tests.utils.utils import skip_if_quick, skip_if_windows
+from tests.util import skip_if_quick, skip_if_windows
 
 TEST_CASE_Vitautoenc = []
 for in_channels in [1, 4]:

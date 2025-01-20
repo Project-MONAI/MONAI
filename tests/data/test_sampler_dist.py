@@ -20,7 +20,7 @@ from torch.multiprocessing import Manager
 
 from monai.data import CacheDataset, DataLoader, DistributedSampler
 from monai.transforms import ToTensor
-from tests.utils.utils import DistCall, DistTestCase, assert_allclose
+from tests.util import DistCall, DistTestCase, assert_allclose
 
 
 class DistributedSamplerTest(DistTestCase):

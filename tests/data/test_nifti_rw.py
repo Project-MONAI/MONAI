@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.data import NibabelWriter
 from monai.transforms import LoadImage, Orientation, Spacing
-from tests.utils.utils import TEST_NDARRAYS, assert_allclose, make_nifti_image
+from tests.util import TEST_NDARRAYS, assert_allclose, make_nifti_image
 
 TESTS = []
 for p in TEST_NDARRAYS:

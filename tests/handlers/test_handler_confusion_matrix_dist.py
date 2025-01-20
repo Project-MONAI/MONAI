@@ -19,7 +19,7 @@ import torch.distributed as dist
 from ignite.engine import Engine
 
 from monai.handlers import ConfusionMatrix
-from tests.utils.utils import DistCall, DistTestCase
+from tests.util import DistCall, DistTestCase
 
 
 class DistributedConfusionMatrix(DistTestCase):

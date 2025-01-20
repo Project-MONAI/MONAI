@@ -21,7 +21,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks import Warp
 from monai.networks.nets import GlobalNet
 from monai.networks.nets.regunet import AffineHead
-from tests.utils.utils import assert_allclose, test_script_save
+from tests.util import assert_allclose, test_script_save
 
 TEST_CASES_AFFINE_TRANSFORM = [
     [
