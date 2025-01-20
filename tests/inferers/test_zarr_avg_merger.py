@@ -19,11 +19,18 @@ from parameterized import parameterized
 from torch.nn.functional import pad
 
 from monai.inferers import ZarrAvgMerger
-from monai.utils import optional_import
-from tests.utils.utils import assert_allclose
+from monai.utils import get_package_version, optional_import, version_geq
+from tests.utils import assert_allclose
 
 np.seterr(divide="ignore", invalid="ignore")
 zarr, has_zarr = optional_import("zarr")
+if has_zarr:
+    if version_geq(get_package_version("zarr"), "3.0.0"):
+        directory_store = zarr.storage.LocalStore("test.zarr")
+    else:
+        directory_store = zarr.storage.DirectoryStore("test.zarr")
+else:
+    directory_store = None
 numcodecs, has_numcodecs = optional_import("numcodecs")
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
@@ -154,7 +161,7 @@ TEST_CASE_9_LARGER_SHAPE = [
 
 # explicit directory store
 TEST_CASE_10_DIRECTORY_STORE = [
-    dict(merged_shape=TENSOR_4x4.shape, store=zarr.storage.DirectoryStore("test.zarr")),
+    dict(merged_shape=TENSOR_4x4.shape, store=directory_store),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),

@@ -29,6 +29,17 @@ class TestInitLoadImage(unittest.TestCase):
             inst = LoadImaged("image", reader=r)
             self.assertIsInstance(inst, LoadImaged)
 
+    @SkipIfNoModule("nibabel")
+    @SkipIfNoModule("cupy")
+    @SkipIfNoModule("kvikio")
+    def test_load_image_to_gpu(self):
+        for to_gpu in [True, False]:
+            instance1 = LoadImage(reader="NibabelReader", to_gpu=to_gpu)
+            self.assertIsInstance(instance1, LoadImage)
+
+            instance2 = LoadImaged("image", reader="NibabelReader", to_gpu=to_gpu)
+            self.assertIsInstance(instance2, LoadImaged)
+
     @SkipIfNoModule("itk")
     @SkipIfNoModule("nibabel")
     @SkipIfNoModule("PIL")
@@ -56,6 +67,14 @@ class TestInitLoadImage(unittest.TestCase):
 
         inst = NrrdReader()
         self.assertIsInstance(inst, NrrdReader)
+
+    @SkipIfNoModule("nibabel")
+    @SkipIfNoModule("cupy")
+    @SkipIfNoModule("kvikio")
+    def test_readers_to_gpu(self):
+        for to_gpu in [True, False]:
+            inst = NibabelReader(to_gpu=to_gpu)
+            self.assertIsInstance(inst, NibabelReader)
 
 
 if __name__ == "__main__":
