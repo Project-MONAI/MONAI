@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 from unittest import skipUnless
 
 from numpy.testing import assert_array_equal

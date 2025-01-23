@@ -19,7 +19,6 @@ import importlib
 import json
 import operator
 import os
-from pathlib import Path
 import queue
 import ssl
 import subprocess
@@ -31,6 +30,7 @@ import unittest
 import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
+from pathlib import Path
 from subprocess import PIPE, Popen
 from typing import Callable
 from urllib.error import ContentTooShortError, HTTPError
