@@ -20,7 +20,7 @@ from monai.networks.layers.factories import Conv, Pool
 from monai.networks.utils import pixelunshuffle
 from monai.utils import  InterpolateMode, DownsampleMode, ensure_tuple_rep, look_up_option
 
-__all__ = ["MaxAvgPool", "DownSample", "SubpixelDownsample"]
+__all__ = ["MaxAvgPool", "DownSample", "Downsample", "SubpixelDownsample", "SubpixelDownSample", "Subpixeldownsample"]
 
 class MaxAvgPool(nn.Module):
     """
@@ -312,3 +312,6 @@ class SubpixelDownsample(nn.Module):
             )
         x = pixelunshuffle(x, self.dimensions, self.scale_factor)
         return x
+
+Downsample = DownSample
+SubpixelDownSample = Subpixeldownsample = SubpixelDownsample

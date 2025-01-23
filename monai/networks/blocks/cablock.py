@@ -17,7 +17,7 @@ import torch.nn.functional as F
 from monai.networks.blocks.convolutions import Convolution
 from einops import rearrange
 
-__all__ = ["FeedForward"]
+__all__ = ["FeedForward", "CABlock"]
 
 
 class FeedForward(nn.Module):
@@ -65,10 +65,10 @@ class FeedForward(nn.Module):
 
 
 class CABlock(nn.Module):
-    """Multi-DConv Head Transposed Self-Attention (MDTA) Differs from standard self-attention
+    """Multi-DConv Head Transposed Self-Attention (MDTA): Differs from standard self-attention
     by operating on feature channels instead of spatial dimensions. Incorporates depth-wise
     convolutions for local mixing before attention, achieving linear complexity vs quadratic
-    in vanilla attention."""
+    in vanilla attention. Based on SW Zamir, et al., 2022 <https://arxiv.org/abs/2111.09881>"""
     def __init__(self, spatial_dims, dim: int, num_heads: int, bias: bool, flash_attention: bool = False):
         super().__init__()
         if flash_attention and not hasattr(F, 'scaled_dot_product_attention'):
