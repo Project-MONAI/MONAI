@@ -212,7 +212,7 @@ class IntegrationClassification2D(DistTestCase):
             image_classes.extend([i] * len(image_files[i]))
 
         # split train, val, test
-        valid_frac, test_frac = 0.01, 0.01
+        valid_frac, test_frac = 0.1, 0.1
         self.train_x, self.train_y = [], []
         self.val_x, self.val_y = [], []
         self.test_x, self.test_y = [], []
