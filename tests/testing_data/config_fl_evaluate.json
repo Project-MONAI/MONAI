@@ -1,0 +1,18 @@
+{
+    "validate#handlers": [
+        {
+            "_target_": "CheckpointLoader",
+            "load_path": "$@bundle_root + '/models/model.pt'",
+            "load_dict": {
+                "model": "@network"
+            }
+        },
+        {
+            "_target_": "StatsHandler",
+            "iteration_log": false
+        }
+    ],
+    "run": [
+        "$@validate#evaluator.run()"
+    ]
+}
