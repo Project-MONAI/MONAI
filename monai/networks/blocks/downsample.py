@@ -18,7 +18,7 @@ import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Pool
 from monai.networks.utils import pixelunshuffle
-from monai.utils import DownsampleMode, InterpolateMode, ensure_tuple_rep, look_up_option
+from monai.utils import DownsampleMode, ensure_tuple_rep, look_up_option
 
 __all__ = ["MaxAvgPool", "DownSample", "Downsample", "SubpixelDownsample", "SubpixelDownSample", "Subpixeldownsample"]
 

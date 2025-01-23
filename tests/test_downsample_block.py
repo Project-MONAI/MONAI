@@ -12,10 +12,8 @@
 from __future__ import annotations
 
 import unittest
-from collections.abc import Sequence
 
 import torch
-import torch.nn as nn
 from parameterized import parameterized
 
 from monai.networks import eval_mode
