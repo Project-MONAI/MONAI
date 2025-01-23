@@ -120,7 +120,7 @@ class CABlock(nn.Module):
         attn = attn.softmax(dim=-1)
         return attn @ v
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         """Forward pass for MDTA attention.
         1. Apply depth-wise convolutions to Q, K, V
         2. Reshape Q, K, V for multi-head attention

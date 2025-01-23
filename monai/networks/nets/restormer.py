@@ -268,7 +268,7 @@ class Restormer(nn.Module):
             conv_only=True,
         )
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         """Forward pass of Restormer.
         Processes input through encoder-decoder architecture with skip connections.
         Args:
