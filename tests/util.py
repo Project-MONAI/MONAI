@@ -19,6 +19,7 @@ import importlib
 import json
 import operator
 import os
+from pathlib import Path
 import queue
 import ssl
 import subprocess
@@ -58,11 +59,13 @@ quick_test_var = "QUICKTEST"
 _tf32_enabled = None
 _test_data_config: dict = {}
 
+MODULE_PATH = Path(__file__).resolve().parents[1]
+
 
 def testing_data_config(*keys):
     """get _test_data_config[keys0][keys1]...[keysN]"""
     if not _test_data_config:
-        with open(os.path.join(os.path.dirname(__file__), "testing_data", "data_config.json")) as c:
+        with open(f"{MODULE_PATH}/tests/testing_data/data_config.json") as c:
             _config = json.load(c)
             for k, v in _config.items():
                 _test_data_config[k] = v
