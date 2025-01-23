@@ -157,7 +157,7 @@ class TestWarp(unittest.TestCase):
                 gradcheck(warp_layer, (input_image, ddf), atol=1e-2, eps=1e-2)
 
 
-TESTS_PATH = Path(__file__).parents[1]
+TESTS_PATH = Path(__file__).parents[3]
 FILE_PATH = os.path.join(TESTS_PATH, "testing_data", "temp_" + "mri.nii")
 
 
