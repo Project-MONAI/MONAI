@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import unittest
 from unittest import skipUnless
 
@@ -34,7 +35,7 @@ has_tiff = has_tiff and has_codec
 
 FILE_KEY = "wsi_generic_tiff"
 FILE_URL = testing_data_config("images", FILE_KEY, "url")
-TESTS_PATH = os.path.dirname(os.path.realpath(__file__))
+TESTS_PATH = Path(__file__).parents[1]
 FILE_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{FILE_KEY}.tiff")
 
 TEST_CASE_0 = [
