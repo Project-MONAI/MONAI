@@ -10,12 +10,12 @@
 # limitations under the License.
 from __future__ import annotations
 
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from monai.networks.blocks.convolutions import Convolution
 from einops import rearrange
+
+from monai.networks.blocks.convolutions import Convolution
 
 __all__ = ["FeedForward", "CABlock"]
 
@@ -27,26 +27,26 @@ class FeedForward(nn.Module):
     def __init__(self, spatial_dims: int, dim: int, ffn_expansion_factor: float, bias: bool):
         super().__init__()
         hidden_features = int(dim * ffn_expansion_factor)
-        
+
         self.project_in = Convolution(
             spatial_dims=spatial_dims,
             in_channels=dim,
-            out_channels=hidden_features*2,
+            out_channels=hidden_features * 2,
             kernel_size=1,
             bias=bias,
-            conv_only=True
+            conv_only=True,
         )
 
         self.dwconv = Convolution(
             spatial_dims=spatial_dims,
-            in_channels=hidden_features*2,
-            out_channels=hidden_features*2,
+            in_channels=hidden_features * 2,
+            out_channels=hidden_features * 2,
             kernel_size=3,
             strides=1,
             padding=1,
-            groups=hidden_features*2,
+            groups=hidden_features * 2,
             bias=bias,
-            conv_only=True
+            conv_only=True,
         )
 
         self.project_out = Convolution(
@@ -55,7 +55,7 @@ class FeedForward(nn.Module):
             out_channels=dim,
             kernel_size=1,
             bias=bias,
-            conv_only=True
+            conv_only=True,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -69,9 +69,10 @@ class CABlock(nn.Module):
     by operating on feature channels instead of spatial dimensions. Incorporates depth-wise
     convolutions for local mixing before attention, achieving linear complexity vs quadratic
     in vanilla attention. Based on SW Zamir, et al., 2022 <https://arxiv.org/abs/2111.09881>"""
+
     def __init__(self, spatial_dims, dim: int, num_heads: int, bias: bool, flash_attention: bool = False):
         super().__init__()
-        if flash_attention and not hasattr(F, 'scaled_dot_product_attention'):
+        if flash_attention and not hasattr(F, "scaled_dot_product_attention"):
             raise ValueError("Flash attention not available")
         if spatial_dims > 3:
             raise ValueError(f"Only 2D and 3D inputs are supported. Got spatial_dims={spatial_dims}")
@@ -79,53 +80,38 @@ class CABlock(nn.Module):
         self.num_heads = num_heads
         self.temperature = nn.Parameter(torch.ones(num_heads, 1, 1))
         self.flash_attention = flash_attention
-        
+
         self.qkv = Convolution(
-            spatial_dims=spatial_dims,
-            in_channels=dim,
-            out_channels=dim*3,
-            kernel_size=1,
-            bias=bias,
-            conv_only=True
+            spatial_dims=spatial_dims, in_channels=dim, out_channels=dim * 3, kernel_size=1, bias=bias, conv_only=True
         )
-        
+
         self.qkv_dwconv = Convolution(
             spatial_dims=spatial_dims,
-            in_channels=dim*3,
-            out_channels=dim*3,
+            in_channels=dim * 3,
+            out_channels=dim * 3,
             kernel_size=3,
             strides=1,
             padding=1,
-            groups=dim*3,
+            groups=dim * 3,
             bias=bias,
-            conv_only=True
+            conv_only=True,
         )
-        
+
         self.project_out = Convolution(
-            spatial_dims=spatial_dims,
-            in_channels=dim,
-            out_channels=dim,
-            kernel_size=1,
-            bias=bias,
-            conv_only=True
+            spatial_dims=spatial_dims, in_channels=dim, out_channels=dim, kernel_size=1, bias=bias, conv_only=True
         )
-        
+
         self._attention_fn = self._get_attention_fn()
+
     def _get_attention_fn(self):
         if self.flash_attention:
             return self._flash_attention
         return self._normal_attention
+
     def _flash_attention(self, q, k, v):
         """Flash attention implementation using scaled dot-product attention."""
-        scale = float(self.temperature.mean())  
-        out = F.scaled_dot_product_attention(
-            q,
-            k, 
-            v,
-            scale=scale,
-            dropout_p=0.0,
-            is_causal=False
-        )
+        scale = float(self.temperature.mean())
+        out = F.scaled_dot_product_attention(q, k, v, scale=scale, dropout_p=0.0, is_causal=False)
         return out
 
     def _normal_attention(self, q, k, v):
@@ -133,35 +119,41 @@ class CABlock(nn.Module):
         attn = (q @ k.transpose(-2, -1)) * self.temperature
         attn = attn.softmax(dim=-1)
         return attn @ v
+
     def forward(self, x):
-        """Forward pass for MDTA attention. 
+        """Forward pass for MDTA attention.
         1. Apply depth-wise convolutions to Q, K, V
         2. Reshape Q, K, V for multi-head attention
         3. Compute attention matrix using flash or normal attention
         4. Reshape and project out attention output"""
         spatial_dims = x.shape[2:]
-        
-        # Project and mix 
+
+        # Project and mix
         qkv = self.qkv_dwconv(self.qkv(x))
         q, k, v = qkv.chunk(3, dim=1)
-        
+
         # Select attention
         if self.spatial_dims == 2:
-            qkv_to_multihead = 'b (head c) h w -> b head c (h w)'
-            multihead_to_qkv = 'b head c (h w) -> b (head c) h w'
+            qkv_to_multihead = "b (head c) h w -> b head c (h w)"
+            multihead_to_qkv = "b head c (h w) -> b (head c) h w"
         else:  # dims == 3
-            qkv_to_multihead = 'b (head c) d h w -> b head c (d h w)'
-            multihead_to_qkv = 'b head c (d h w) -> b (head c) d h w'
-            
+            qkv_to_multihead = "b (head c) d h w -> b head c (d h w)"
+            multihead_to_qkv = "b head c (d h w) -> b (head c) d h w"
+
         # Reconstruct and project feature map
         q = rearrange(q, qkv_to_multihead, head=self.num_heads)
         k = rearrange(k, qkv_to_multihead, head=self.num_heads)
         v = rearrange(v, qkv_to_multihead, head=self.num_heads)
-        
+
         q = torch.nn.functional.normalize(q, dim=-1)
         k = torch.nn.functional.normalize(k, dim=-1)
-        
+
         out = self._attention_fn(q, k, v)
-        out = rearrange(out, multihead_to_qkv, head=self.num_heads, **dict(zip(['h','w'] if self.spatial_dims==2 else ['d','h','w'], spatial_dims)))
-        
+        out = rearrange(
+            out,
+            multihead_to_qkv,
+            head=self.num_heads,
+            **dict(zip(["h", "w"] if self.spatial_dims == 2 else ["d", "h", "w"], spatial_dims)),
+        )
+
         return self.project_out(out)

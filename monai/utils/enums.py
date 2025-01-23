@@ -190,8 +190,8 @@ class DownsampleMode(StrEnum):
     CONV = "conv"  # e.g. using strided convolution
     CONVGROUP = "convgroup"  # e.g. using grouped strided convolution
     PIXELUNSHUFFLE = "pixelunshuffle"
-    MAXPOOL = "maxpool"  
-    AVGPOOL = "avgpool"  
+    MAXPOOL = "maxpool"
+    AVGPOOL = "avgpool"
 
 
 class BlendMode(StrEnum):

@@ -11,12 +11,13 @@
 
 from __future__ import annotations
 
-
 import unittest
+
 import torch
 from parameterized import parameterized
-from monai.networks.nets.restormer import MDTATransformerBlock, OverlapPatchEmbed, Restormer
+
 from monai.networks import eval_mode
+from monai.networks.nets.restormer import MDTATransformerBlock, OverlapPatchEmbed, Restormer
 
 TEST_CASES_TRANSFORMER = [
     # [spatial_dims, dim, num_heads, ffn_factor, bias, norm_type, flash_attn, input_shape]
@@ -46,41 +47,43 @@ RESTORMER_CONFIGS = [
 TEST_CASES_RESTORMER = []
 for config in RESTORMER_CONFIGS:
     # 2D cases
-    TEST_CASES_RESTORMER.extend([
+    TEST_CASES_RESTORMER.extend(
         [
-            {
-                "spatial_dims": 2, 
-                "inp_channels": 1, 
-                "out_channels": 1, 
-                "dim": 48,
-                "num_blocks": config["num_blocks"],
-                "heads": config["heads"],
-                "num_refinement_blocks": 2,
-                "ffn_expansion_factor": 1.5
-            },
-            (2, 1, 64, 64),
-            (2, 1, 64, 64)
-        ],
-        # 3D cases
-        [
-            {
-                "spatial_dims": 3, 
-                "inp_channels": 1, 
-                "out_channels": 1, 
-                "dim": 48,
-                "num_blocks": config["num_blocks"],
-                "heads": config["heads"],
-                "num_refinement_blocks": 2,
-                "ffn_expansion_factor": 1.5
-            },
-            (2, 1, 32, 32, 32),
-            (2, 1, 32, 32, 32)
+            [
+                {
+                    "spatial_dims": 2,
+                    "inp_channels": 1,
+                    "out_channels": 1,
+                    "dim": 48,
+                    "num_blocks": config["num_blocks"],
+                    "heads": config["heads"],
+                    "num_refinement_blocks": 2,
+                    "ffn_expansion_factor": 1.5,
+                },
+                (2, 1, 64, 64),
+                (2, 1, 64, 64),
+            ],
+            # 3D cases
+            [
+                {
+                    "spatial_dims": 3,
+                    "inp_channels": 1,
+                    "out_channels": 1,
+                    "dim": 48,
+                    "num_blocks": config["num_blocks"],
+                    "heads": config["heads"],
+                    "num_refinement_blocks": 2,
+                    "ffn_expansion_factor": 1.5,
+                },
+                (2, 1, 32, 32, 32),
+                (2, 1, 32, 32, 32),
+            ],
         ]
-    ])
+    )
 
 
 class TestMDTATransformerBlock(unittest.TestCase):
-    
+
     @parameterized.expand(TEST_CASES_TRANSFORMER)
     def test_shape(self, spatial_dims, dim, heads, ffn_factor, bias, norm_type, flash, shape):
         block = MDTATransformerBlock(
@@ -90,7 +93,7 @@ class TestMDTATransformerBlock(unittest.TestCase):
             ffn_expansion_factor=ffn_factor,
             bias=bias,
             LayerNorm_type=norm_type,
-            flash_attention=flash
+            flash_attention=flash,
         )
         with eval_mode(block):
             x = torch.randn(shape)
@@ -99,37 +102,34 @@ class TestMDTATransformerBlock(unittest.TestCase):
 
 
 class TestOverlapPatchEmbed(unittest.TestCase):
-    
+
     @parameterized.expand(TEST_CASES_PATCHEMBED)
     def test_shape(self, spatial_dims, in_c, embed_dim, input_shape, expected_shape):
-        net = OverlapPatchEmbed(
-            spatial_dims=spatial_dims,
-            in_c=in_c,
-            embed_dim=embed_dim
-        )
+        net = OverlapPatchEmbed(spatial_dims=spatial_dims, in_c=in_c, embed_dim=embed_dim)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
-    
+
 
 class TestRestormer(unittest.TestCase):
-    
+
     @parameterized.expand(TEST_CASES_RESTORMER)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = Restormer(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
-    
+
     def test_small_input_error_2d(self):
         net = Restormer(spatial_dims=2, inp_channels=1, out_channels=1)
         with self.assertRaises(AssertionError):
             net(torch.randn(1, 1, 8, 8))
-            
+
     def test_small_input_error_3d(self):
         net = Restormer(spatial_dims=3, inp_channels=1, out_channels=1)
         with self.assertRaises(AssertionError):
             net(torch.randn(1, 1, 8, 8, 8))
+
 
 if __name__ == "__main__":
     unittest.main()

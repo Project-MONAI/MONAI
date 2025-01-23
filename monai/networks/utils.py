@@ -439,20 +439,20 @@ def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> tor
     input_size = list(x.size())
     batch_size, channels = input_size[:2]
     scale_factor_mult = factor**dim
-    new_channels = channels * scale_factor_mult 
+    new_channels = channels * scale_factor_mult
 
     if any(d % factor != 0 for d in input_size[2:]):
         raise ValueError(
-            f"All spatial dimensions must be divisible by factor {factor}. "
-            f"Got spatial dimensions: {input_size[2:]}"
+            f"All spatial dimensions must be divisible by factor {factor}. " f"Got spatial dimensions: {input_size[2:]}"
         )
     output_size = [batch_size, new_channels] + [d // factor for d in input_size[2:]]
     reshaped_size = [batch_size, channels] + sum([[d // factor, factor] for d in input_size[2:]], [])
-    
+
     permute_indices = [0, 1] + [(2 * i + 3) for i in range(spatial_dims)] + [(2 * i + 2) for i in range(spatial_dims)]
-    x=x.reshape(reshaped_size).permute(permute_indices)
-    x=x.reshape(output_size)
+    x = x.reshape(reshaped_size).permute(permute_indices)
+    x = x.reshape(output_size)
     return x
+
 
 @contextmanager
 def eval_mode(*nets: nn.Module):

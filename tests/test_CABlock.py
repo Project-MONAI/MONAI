@@ -11,16 +11,17 @@
 
 from __future__ import annotations
 
-
 import unittest
 from unittest import skipUnless
-import torch
+
 import numpy as np
+import torch
 from parameterized import parameterized
+
 from monai.networks import eval_mode
 from monai.networks.blocks.cablock import CABlock, FeedForward
-from tests.utils import assert_allclose, SkipIfBeforePyTorchVersion
 from monai.utils import optional_import
+from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose
 
 einops, has_einops = optional_import("einops")
 
@@ -36,10 +37,10 @@ for spatial_dims in [2, 3]:
                         "dim": dim,
                         "num_heads": num_heads,
                         "bias": bias,
-                        "flash_attention": False
+                        "flash_attention": False,
                     },
-                    (2, dim, *([16] * spatial_dims)), 
-                    (2, dim, *([16] * spatial_dims))
+                    (2, dim, *([16] * spatial_dims)),
+                    (2, dim, *([16] * spatial_dims)),
                 ]
                 TEST_CASES_CAB.append(test_case)
 
@@ -53,31 +54,30 @@ TEST_CASES_FEEDFORWARD = [
 
 
 class TestFeedForward(unittest.TestCase):
-    
+
     @parameterized.expand(TEST_CASES_FEEDFORWARD)
     def test_shape(self, input_param, input_shape):
         net = FeedForward(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, input_shape)
-            
+
     def test_gating_mechanism(self):
         net = FeedForward(spatial_dims=2, dim=32, ffn_expansion_factor=2.0, bias=True)
         x = torch.ones(1, 32, 16, 16)
         out = net(x)
         self.assertNotEqual(torch.sum(out), torch.sum(x))
-        
 
 
 class TestCABlock(unittest.TestCase):
-    
+
     @parameterized.expand(TEST_CASES_CAB)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = CABlock(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
-    
+
     def test_invalid_spatial_dims(self):
         with self.assertRaises(ValueError):
             CABlock(spatial_dims=4, dim=64, num_heads=4, bias=True)
@@ -112,14 +112,14 @@ class TestCABlock(unittest.TestCase):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         block_flash = CABlock(spatial_dims=2, dim=64, num_heads=4, bias=True, flash_attention=True).to(device)
         block_normal = CABlock(spatial_dims=2, dim=64, num_heads=4, bias=True, flash_attention=False).to(device)
-        
+
         block_normal.load_state_dict(block_flash.state_dict())
-        
+
         x = torch.randn(2, 64, 32, 32).to(device)
         with torch.no_grad():
             out_flash = block_flash(x)
             out_normal = block_normal(x)
-            
+
         assert_allclose(out_flash, out_normal, atol=1e-4)
 
     def test_deterministic_small_input(self):
@@ -130,17 +130,14 @@ class TestCABlock(unittest.TestCase):
             block.temperature.data.fill_(1.0)
             block.project_out.conv.weight.data.fill_(1.0)
 
-        x = torch.tensor([
-            [[[1.0, 2.0], 
-              [3.0, 4.0]],
-              [[5.0, 6.0],
-               [7.0, 8.0]]]], 
-               dtype=torch.float32)
+        x = torch.tensor([[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]], dtype=torch.float32)
 
         output = block(x)
         # Channel attention: sum([1..8]) * (qkv_conv=1) * (dwconv=1) * (attn_weights=1) * (proj=1) = 36 * 2 = 72
         expected = torch.full_like(x, 72.0)
 
         assert_allclose(output, expected, atol=1e-6)
+
+
 if __name__ == "__main__":
     unittest.main()

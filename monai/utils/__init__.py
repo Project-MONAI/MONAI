@@ -29,6 +29,7 @@ from .enums import (
     CommonKeys,
     CompInitMode,
     DiceCEReduction,
+    DownsampleMode,
     EngineStatsKeys,
     FastMRIKeys,
     ForwardMode,
@@ -62,7 +63,6 @@ from .enums import (
     TraceStatusKeys,
     TransformBackends,
     UpsampleMode,
-    DownsampleMode,
     Weight,
     WSIPatchKeys,
 )

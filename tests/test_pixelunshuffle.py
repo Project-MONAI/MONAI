@@ -14,7 +14,9 @@ from __future__ import annotations
 import unittest
 
 import torch
-from monai.networks.utils import pixelunshuffle, pixelshuffle
+
+from monai.networks.utils import pixelshuffle, pixelunshuffle
+
 
 class TestPixelUnshuffle(unittest.TestCase):
 
@@ -24,7 +26,7 @@ class TestPixelUnshuffle(unittest.TestCase):
         self.assertEqual(out.shape, (2, 16, 8, 8))
 
     def test_3d_basic(self):
-        x = torch.randn(2, 4, 16, 16, 16) 
+        x = torch.randn(2, 4, 16, 16, 16)
         out = pixelunshuffle(x, spatial_dims=3, scale_factor=2)
         self.assertEqual(out.shape, (2, 32, 8, 8, 8))
 
@@ -48,6 +50,7 @@ class TestPixelUnshuffle(unittest.TestCase):
         x = torch.randn(2, 4, 15, 15)
         with self.assertRaises(RuntimeError):
             pixelunshuffle(x, spatial_dims=2, scale_factor=2)
+
 
 if __name__ == "__main__":
     unittest.main()

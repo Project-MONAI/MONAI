@@ -18,9 +18,10 @@ import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Pool
 from monai.networks.utils import pixelunshuffle
-from monai.utils import  InterpolateMode, DownsampleMode, ensure_tuple_rep, look_up_option
+from monai.utils import DownsampleMode, InterpolateMode, ensure_tuple_rep, look_up_option
 
 __all__ = ["MaxAvgPool", "DownSample", "Downsample", "SubpixelDownsample", "SubpixelDownSample", "Subpixeldownsample"]
+
 
 class MaxAvgPool(nn.Module):
     """
@@ -127,7 +128,7 @@ class DownSample(nn.Sequential):
             bias: whether to have a bias term in the default preconv and conv layers. Defaults to True.
         """
         super().__init__()
-        
+
         scale_factor_ = ensure_tuple_rep(scale_factor, spatial_dims)
         down_mode = look_up_option(mode, DownsampleMode)
 
@@ -177,19 +178,11 @@ class DownSample(nn.Sequential):
                 self.add_module(
                     "preconv",
                     Conv[Conv.CONV, spatial_dims](
-                        in_channels=in_channels,
-                        out_channels=out_channels or in_channels,
-                        kernel_size=1,
-                        bias=bias
+                        in_channels=in_channels, out_channels=out_channels or in_channels, kernel_size=1, bias=bias
                     ),
                 )
             self.add_module(
-                "maxpool",
-                Pool[Pool.MAX, spatial_dims](
-                    kernel_size=kernel_size_,
-                    stride=scale_factor_,
-                    padding=padding
-                )
+                "maxpool", Pool[Pool.MAX, spatial_dims](kernel_size=kernel_size_, stride=scale_factor_, padding=padding)
             )
             if post_conv:
                 self.add_module("postconv", post_conv)
@@ -201,19 +194,11 @@ class DownSample(nn.Sequential):
                 self.add_module(
                     "preconv",
                     Conv[Conv.CONV, spatial_dims](
-                        in_channels=in_channels,
-                        out_channels=out_channels or in_channels,
-                        kernel_size=1,
-                        bias=bias
+                        in_channels=in_channels, out_channels=out_channels or in_channels, kernel_size=1, bias=bias
                     ),
                 )
             self.add_module(
-                "avgpool",
-                Pool[Pool.AVG, spatial_dims](
-                    kernel_size=kernel_size_,
-                    stride=scale_factor_,
-                    padding=padding
-                )
+                "avgpool", Pool[Pool.AVG, spatial_dims](kernel_size=kernel_size_, stride=scale_factor_, padding=padding)
             )
             if post_conv:
                 self.add_module("postconv", post_conv)
@@ -239,9 +224,9 @@ class SubpixelDownsample(nn.Module):
     to adjust the number of channels. Secondly, a pixel unshuffle manipulation
     rearranges the spatial information into channel space, effectively reducing
     spatial dimensions while increasing channel depth.
-    
-    The pixel unshuffle operation is the inverse of pixel shuffle, rearranging dimensions 
-    from (B, C, H*r, W*r) to (B, C*r², H, W). 
+
+    The pixel unshuffle operation is the inverse of pixel shuffle, rearranging dimensions
+    from (B, C, H*r, W*r) to (B, C*r², H, W).
     Example: (1, 1, 4, 4) with r=2 becomes (1, 4, 2, 2).
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
@@ -285,12 +270,7 @@ class SubpixelDownsample(nn.Module):
                 raise ValueError("in_channels need to be specified.")
             out_channels = out_channels or in_channels
             self.conv_block = Conv[Conv.CONV, self.dimensions](
-                in_channels=in_channels,
-                out_channels=out_channels,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                bias=bias
+                in_channels=in_channels, out_channels=out_channels, kernel_size=3, stride=1, padding=1, bias=bias
             )
         elif conv_block is None:
             self.conv_block = nn.Identity()
@@ -307,11 +287,11 @@ class SubpixelDownsample(nn.Module):
         x = self.conv_block(x)
         if not all(d % self.scale_factor == 0 for d in x.shape[2:]):
             raise ValueError(
-                f"All spatial dimensions {x.shape[2:]} must be evenly "
-                f"divisible by scale_factor {self.scale_factor}"
+                f"All spatial dimensions {x.shape[2:]} must be evenly " f"divisible by scale_factor {self.scale_factor}"
             )
         x = pixelunshuffle(x, self.dimensions, self.scale_factor)
         return x
+
 
 Downsample = DownSample
 SubpixelDownSample = Subpixeldownsample = SubpixelDownsample
