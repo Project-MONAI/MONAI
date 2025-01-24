@@ -247,6 +247,7 @@ class ZarrAvgMerger(Merger):
         self.value_dtype = value_dtype
         self.count_dtype = count_dtype
         self.store = store
+        self.tmpdir: TemporaryDirectory | None
         if version_geq(get_package_version("zarr"), "3.0.0"):
             if value_store is None:
                 self.tmpdir = TemporaryDirectory()
