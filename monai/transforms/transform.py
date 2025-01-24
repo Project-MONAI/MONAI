@@ -144,7 +144,7 @@ def apply_transform(
         map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
         if isinstance(data, (list, tuple)) and map_items_ > 0:
             return [
-                apply_transform(transform, item, map_items - 1, unpack_items, log_stats, lazy, overrides)
+                apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
                 for item in data
             ]
         return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
