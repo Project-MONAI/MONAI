@@ -249,16 +249,17 @@ class ZarrAvgMerger(Merger):
         self.store = store
         if version_geq(get_package_version("zarr"), "3.0.0"):
             if value_store is None:
-                tmpdir = TemporaryDirectory()
-                self.value_store = zarr.storage.LocalStore(tmpdir.name)
+                self.tmpdir = TemporaryDirectory()
+                self.value_store = zarr.storage.LocalStore(self.tmpdir.name)
             else:
                 self.value_store = value_store
             if count_store is None:
-                tmpdir = TemporaryDirectory()
-                self.count_store = zarr.storage.LocalStore(tmpdir.name)
+                self.tmpdir = TemporaryDirectory()
+                self.count_store = zarr.storage.LocalStore(self.tmpdir.name)
             else:
                 self.count_store = count_store
         else:
+            self.tmpdir = None
             self.value_store = zarr.storage.TempStore() if value_store is None else value_store
             self.count_store = zarr.storage.TempStore() if count_store is None else count_store
         self.chunks = chunks
