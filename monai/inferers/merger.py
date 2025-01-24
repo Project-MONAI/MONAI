@@ -15,12 +15,13 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from contextlib import nullcontext
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import torch
 
-from monai.utils import ensure_tuple_size, optional_import, require_pkg
+from monai.utils import ensure_tuple_size, get_package_version, optional_import, require_pkg, version_geq
 
 if TYPE_CHECKING:
     import zarr
@@ -233,7 +234,7 @@ class ZarrAvgMerger(Merger):
         store: zarr.storage.Store | str = "merged.zarr",
         value_store: zarr.storage.Store | str | None = None,
         count_store: zarr.storage.Store | str | None = None,
-        compressor: str = "default",
+        compressor: str | None = None,
         value_compressor: str | None = None,
         count_compressor: str | None = None,
         chunks: Sequence[int] | bool = True,
@@ -246,8 +247,20 @@ class ZarrAvgMerger(Merger):
         self.value_dtype = value_dtype
         self.count_dtype = count_dtype
         self.store = store
-        self.value_store = zarr.storage.TempStore() if value_store is None else value_store
-        self.count_store = zarr.storage.TempStore() if count_store is None else count_store
+        if version_geq(get_package_version("zarr"), "3.0.0"):
+            if value_store is None:
+                with TemporaryDirectory() as tmpdir:
+                    self.value_store = zarr.storage.LocalStore(tmpdir)
+            else:
+                self.value_store = value_store
+            if count_store is None:
+                with TemporaryDirectory() as tmpdir:
+                    self.count_store = zarr.storage.LocalStore(tmpdir)
+            else:
+                self.count_store = count_store
+        else:
+            self.value_store = zarr.storage.TempStore() if value_store is None else value_store
+            self.count_store = zarr.storage.TempStore() if count_store is None else count_store
         self.chunks = chunks
         self.compressor = compressor
         self.value_compressor = value_compressor

@@ -289,13 +289,17 @@ class ZarrAvgMergerTests(unittest.TestCase):
     def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):
         if "compressor" in arguments:
             if arguments["compressor"] != "default":
-                arguments["compressor"] = zarr.codec_registry[arguments["compressor"].lower()]()
+                arguments["compressor"] = numcodecs.registry.codec_registry[arguments["compressor"].lower()]()
         if "value_compressor" in arguments:
             if arguments["value_compressor"] != "default":
-                arguments["value_compressor"] = zarr.codec_registry[arguments["value_compressor"].lower()]()
+                arguments["value_compressor"] = numcodecs.registry.codec_registry[
+                    arguments["value_compressor"].lower()
+                ]()
         if "count_compressor" in arguments:
             if arguments["count_compressor"] != "default":
-                arguments["count_compressor"] = zarr.codec_registry[arguments["count_compressor"].lower()]()
+                arguments["count_compressor"] = numcodecs.registry.codec_registry[
+                    arguments["count_compressor"].lower()
+                ]()
         merger = ZarrAvgMerger(**arguments)
         for pl in patch_locations:
             merger.aggregate(pl[0], pl[1])
