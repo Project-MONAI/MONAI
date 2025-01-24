@@ -137,15 +137,12 @@ def apply_transform(
         Union[List[ReturnType], ReturnType]: The return type of `transform` or a list thereof.
     """
     try:
-        if isinstance(data, (list, tuple)) and (map_items or type(map_items) is int):
-            # if map_items is an int, apply the transform to each item in the list `map_items` times
-            if type(map_items) is int and map_items > 0:
-                return [
-                    apply_transform(transform, item, map_items - 2, unpack_items, log_stats, lazy, overrides)
-                    for item in data
-                ]
-            else:
-                return [_apply_transform(transform, item, unpack_items, lazy, overrides, log_stats) for item in data]
+        map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
+        if isinstance(data, (list, tuple)) and map_items_ > 0:
+            return [
+                apply_transform(transform, item, map_items - 1, unpack_items, log_stats, lazy, overrides)
+                for item in data
+            ]
         return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint
