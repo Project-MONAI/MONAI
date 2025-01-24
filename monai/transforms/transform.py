@@ -120,6 +120,13 @@ def apply_transform(
         map_items: whether to apply transform to each item in `data`,
             if `data` is a list or tuple. Defaults to True.
             it can also be an int, if so, recursively map the items in `data` `map_items` times.
+        map_items: Controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
+            it can behave as follows:
+            - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
+              to the first level of items in `data`.
+            - If an integer is provided, it specifies the maximum level of nesting to which the transformation
+              should be recursively applied. This allows treating multi-sample transforms applied after another
+              multi-sample transform while controlling how deep the mapping goes.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
