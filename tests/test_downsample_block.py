@@ -18,6 +18,9 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks import DownSample, MaxAvgPool, SubpixelDownsample, SubpixelUpsample
+from monai.utils import optional_import
+
+einops, has_einops = optional_import("einops")
 
 TEST_CASES = [
     [{"spatial_dims": 2, "kernel_size": 2}, (7, 4, 64, 48), (7, 8, 32, 24)],  # 4-channel 2D, batch 7
@@ -82,7 +85,7 @@ class TestSubpixelDownsample(unittest.TestCase):
             self.assertTrue(torch.all(result[0, 8:11] == 2))
             self.assertTrue(torch.all(result[0, 12:15] == 3))
 
-    def test_reconstruction_2D(self):
+    def test_reconstruction_2d(self):
         input_tensor = torch.randn(1, 1, 4, 4)
         down = SubpixelDownsample(spatial_dims=2, in_channels=1, scale_factor=2, conv_block=None)
         up = SubpixelUpsample(spatial_dims=2, in_channels=4, scale_factor=2, conv_block=None, apply_pad_pool=False)
@@ -91,7 +94,7 @@ class TestSubpixelDownsample(unittest.TestCase):
             reconstructed = up(downsampled)
             self.assertTrue(torch.allclose(input_tensor, reconstructed, rtol=1e-5))
 
-    def test_reconstruction_3D(self):
+    def test_reconstruction_3d(self):
         input_tensor = torch.randn(1, 1, 4, 4, 4)
         down = SubpixelDownsample(spatial_dims=3, in_channels=1, scale_factor=2, conv_block=None)
         up = SubpixelUpsample(spatial_dims=3, in_channels=4, scale_factor=2, conv_block=None, apply_pad_pool=False)
@@ -135,7 +138,7 @@ class TestDownSample(unittest.TestCase):
             self.assertEqual(result.shape, (1, 16, 8, 8))
 
     def test_pixelunshuffle_equivalence(self):
-        class DownSample_local(torch.nn.Module):
+        class DownSampleLocal(torch.nn.Module):
             def __init__(self, n_feat: int):
                 super().__init__()
                 self.conv = torch.nn.Conv2d(n_feat, n_feat // 2, kernel_size=3, stride=1, padding=1, bias=False)
@@ -158,7 +161,7 @@ class TestDownSample(unittest.TestCase):
             pre_conv=fix_weight_conv,
         )
 
-        local_down = DownSample_local(n_feat)
+        local_down = DownSampleLocal(n_feat)
         local_down.conv.weight.data = fix_weight_conv.weight.data.clone()
 
         with eval_mode(monai_down), eval_mode(local_down):
