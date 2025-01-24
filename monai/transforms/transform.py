@@ -117,10 +117,7 @@ def apply_transform(
     Args:
         transform: a callable to be used to transform `data`.
         data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
-            if `data` is a list or tuple. Defaults to True.
-            it can also be an int, if so, recursively map the items in `data` `map_items` times.
-        map_items: Controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
+        map_items: controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
             it can behave as follows:
             - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
               to the first level of items in `data`.

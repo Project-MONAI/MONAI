@@ -65,8 +65,13 @@ def execute_compose(
     Args:
         data: a tensor-like object to be transformed
         transforms: a sequence of transforms to be carried out
-        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
-            defaults to `True`. If set to an integer, recursively map the items in `data` `map_items` times.
+        map_items: controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
+            it can behave as follows:
+            - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
+              to the first level of items in `data`.
+            - If an integer is provided, it specifies the maximum level of nesting to which the transformation
+              should be recursively applied. This allows treating multi-sample transforms applied after another
+              multi-sample transform while controlling how deep the mapping goes.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         start: the index of the first transform to be executed. If not set, this defaults to 0
@@ -205,8 +210,13 @@ class Compose(Randomizable, InvertibleTransform, LazyTransform):
 
     Args:
         transforms: sequence of callables.
-        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
-            defaults to `True`. If set to an integer, recursively map the items in `data` `map_items` times.
+        map_items: controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
+            it can behave as follows:
+            - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
+              to the first level of items in `data`.
+            - If an integer is provided, it specifies the maximum level of nesting to which the transformation
+              should be recursively applied. This allows treating multi-sample transforms applied after another
+              multi-sample transform while controlling how deep the mapping goes.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
@@ -391,8 +401,13 @@ class OneOf(Compose):
         transforms: sequence of callables.
         weights: probabilities corresponding to each callable in transforms.
             Probabilities are normalized to sum to one.
-        map_items: whether to apply transform to each item in the input `data` if `data` is a list or tuple.
-            defaults to `True`. If set to an integer, recursively map the items in `data` `map_items` times.
+        map_items: controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
+            it can behave as follows:
+            - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
+              to the first level of items in `data`.
+            - If an integer is provided, it specifies the maximum level of nesting to which the transformation
+              should be recursively applied. This allows treating multi-sample transforms applied after another
+              multi-sample transform while controlling how deep the mapping goes.
         unpack_items: whether to unpack input `data` with `*` as parameters for the callable function of transform.
             defaults to `False`.
         log_stats: this optional parameter allows you to specify a logger by name for logging of pipeline execution.
