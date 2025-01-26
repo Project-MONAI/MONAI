@@ -507,7 +507,7 @@ class PydicomReader(ImageReader):
         img_ = []
 
         filenames: Sequence[PathLike] = ensure_tuple(data)
-        self.filenames = filenames
+        self.filenames = list(filenames)
         kwargs_ = self.kwargs.copy()
         if self.to_gpu:
             kwargs["defer_size"] = "100 KB"
