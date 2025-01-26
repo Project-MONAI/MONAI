@@ -599,8 +599,8 @@ class PydicomReader(ImageReader):
                 stack_array = np.stack(stack_array, axis=-1)
             stack_metadata = self._get_meta_dict(first_slice)
             stack_metadata["spacing"] = np.asarray(spacing)
-            if hasattr(slices[-1], "ImagePositionPatient"):
-                stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1].ImagePositionPatient)
+            if hasattr(slices[-1][0], "ImagePositionPatient"):
+                stack_metadata["lastImagePositionPatient"] = np.asarray(slices[-1][0].ImagePositionPatient)
             stack_metadata[MetaKeys.SPATIAL_SHAPE] = shape + (len(slices),)
         else:
             stack_array = stack_array[0]
