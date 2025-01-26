@@ -523,21 +523,25 @@ class PydicomReader(ImageReader):
                     series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if re.match(self.fname_regex, slc)]
                 else:
                     series_slcs = [slc for slc in glob.glob(os.path.join(name, "*")) if pydicom.misc.is_dicom(slc)]
-                self.filenames[i] = series_slcs  # type: ignore
                 slices = []
+                loaded_slc_names = []
                 for slc in series_slcs:
                     try:
                         slices.append(pydicom.dcmread(fp=slc, **kwargs_))
+                        loaded_slc_names.append(slc)
                     except pydicom.errors.InvalidDicomError as e:
                         warnings.warn(f"Failed to read {slc} with exception: \n{e}.", stacklevel=2)
-                img_.append(slices if len(slices) > 1 else slices[0])
                 if len(slices) > 1:
                     self.has_series = True
+                    img_.append(slices)
+                    self.filenames[i] = loaded_slc_names  # type: ignore
+                else:
+                    img_.append(slices[0])  # type: ignore
+                    self.filenames[i] = loaded_slc_names[0]  # type: ignore
             else:
                 ds = pydicom.dcmread(fp=name, **kwargs_)
-                img_.append(ds)
+                img_.append(ds)  # type: ignore
         if len(filenames) == 1:
-            self.filenames = self.filenames[0]  # type: ignore
             return img_[0]
         return img_
 
@@ -638,7 +642,8 @@ class PydicomReader(ImageReader):
         if self.has_series is True:
             # a list, all objects within a list belong to one dicom series
             if not isinstance(data[0], list):
-                dicom_data.append(self._combine_dicom_series(data, self.filenames))
+                # input is a dir, self.filenames is a list of list of filenames
+                dicom_data.append(self._combine_dicom_series(data, self.filenames[0]))  # type: ignore
             # a list of list, each inner list represents a dicom series
             else:
                 for i, series in enumerate(data):
