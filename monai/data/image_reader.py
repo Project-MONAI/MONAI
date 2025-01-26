@@ -942,7 +942,8 @@ class PydicomReader(ImageReader):
             buffer = cp.empty(expected_pixel_data_length, dtype=cp.int8)
             f.read(buffer, expected_pixel_data_length, offset)
 
-        data = buffer.view(dtype).reshape((number_of_frames, rows, columns))
+        new_shape = (number_of_frames, rows, columns) if number_of_frames > 1 else (rows, columns)
+        data = buffer.view(dtype).reshape(new_shape)
 
         return data
 
