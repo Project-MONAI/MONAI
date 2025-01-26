@@ -536,7 +536,10 @@ class PydicomReader(ImageReader):
             else:
                 ds = pydicom.dcmread(fp=name, **kwargs_)
                 img_.append(ds)
-        return img_ if len(filenames) > 1 else img_[0]
+        if len(filenames) == 1:
+            self.filenames = self.filenames[0]  # type: ignore
+            return img_[0]
+        return img_
 
     def _combine_dicom_series(self, data: Iterable, filenames: Sequence[PathLike]):
         """
@@ -564,7 +567,6 @@ class PydicomReader(ImageReader):
             else:
                 warnings.warn(f"slice: {filename} does not have InstanceNumber tag, skip it.")
         slices = sorted(slices, key=lambda s: s[0].InstanceNumber)
-
         if len(slices) == 0:
             raise ValueError("the input does not have valid slices.")
 
@@ -572,14 +574,14 @@ class PydicomReader(ImageReader):
         average_distance = 0.0
         first_array = self._get_array_data(first_slice, first_filename)
         shape = first_array.shape
-        spacing = getattr(first_slice, "PixelSpacing", [1.0, 1.0, 1.0])
+        spacing = getattr(first_slice, "PixelSpacing", [1.0] * len(shape))
         prev_pos = getattr(first_slice, "ImagePositionPatient", (0.0, 0.0, 0.0))[2]
         stack_array = [first_array]
         for idx in range(1, len(slices)):
             slc_array = self._get_array_data(slices[idx][0], slices[idx][1])
             slc_shape = slc_array.shape
-            slc_spacing = getattr(slices[idx], "PixelSpacing", (1.0, 1.0, 1.0))
-            slc_pos = getattr(slices[idx], "ImagePositionPatient", (0.0, 0.0, float(idx)))[2]
+            slc_spacing = getattr(slices[idx][0], "PixelSpacing", [1.0] * len(shape))
+            slc_pos = getattr(slices[idx][0], "ImagePositionPatient", (0.0, 0.0, float(idx)))[2]
             if not np.allclose(slc_spacing, spacing):
                 warnings.warn(f"the list contains slices that have different spacings {spacing} and {slc_spacing}.")
             if shape != slc_shape:
