@@ -168,6 +168,16 @@ TEST_CASE_21 = [
 # test reader consistency between PydicomReader and ITKReader on dicom data
 TEST_CASE_22 = ["tests/testing_data/CT_DICOM"]
 
+# test pydicom gpu reader
+TEST_CASE_GPU_5 = [{"reader": "PydicomReader", "to_gpu": True}, "tests/testing_data/CT_DICOM", (16, 16, 4), (16, 16, 4)]
+
+TEST_CASE_GPU_6 = [
+    {"reader": "PydicomReader", "ensure_channel_first": True, "force": True, "to_gpu": True},
+    "tests/testing_data/CT_DICOM",
+    (16, 16, 4),
+    (1, 16, 16, 4),
+]
+
 TESTS_META = []
 for track_meta in (False, True):
     TESTS_META.append([{}, (128, 128, 128), track_meta])
@@ -242,20 +252,41 @@ class TestLoadImage(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_6, TEST_CASE_7, TEST_CASE_8, TEST_CASE_8_1, TEST_CASE_9])
     def test_itk_reader(self, input_param, filenames, expected_shape):
-        test_image = np.random.rand(128, 128, 128)
+        test_image = torch.randint(0, 256, (128, 128, 128), dtype=torch.uint8).numpy()
+        print("Test image value range:", test_image.min(), test_image.max())
         with tempfile.TemporaryDirectory() as tempdir:
             for i, name in enumerate(filenames):
                 filenames[i] = os.path.join(tempdir, name)
-                itk_np_view = itk.image_view_from_array(test_image)
-                itk.imwrite(itk_np_view, filenames[i])
+                nib.save(nib.Nifti1Image(test_image, np.eye(4)), filenames[i])
             result = LoadImage(image_only=True, **input_param)(filenames)
-            self.assertEqual(result.meta["filename_or_obj"], os.path.join(tempdir, "test_image.nii.gz"))
-            diag = torch.as_tensor(np.diag([-1, -1, 1, 1]))
-            np.testing.assert_allclose(result.affine, diag)
+            ext = "".join(Path(name).suffixes)
+            self.assertEqual(result.meta["filename_or_obj"], os.path.join(tempdir, "test_image" + ext))
+            self.assertEqual(result.meta["space"], "RAS")
+            assert_allclose(result.affine, torch.eye(4))
             self.assertTupleEqual(result.shape, expected_shape)
 
     @parameterized.expand([TEST_CASE_10, TEST_CASE_11, TEST_CASE_12, TEST_CASE_19, TEST_CASE_20, TEST_CASE_21])
     def test_itk_dicom_series_reader(self, input_param, filenames, expected_shape, expected_np_shape):
+        result = LoadImage(image_only=True, **input_param)(filenames)
+        self.assertEqual(result.meta["filename_or_obj"], f"{Path(filenames)}")
+        assert_allclose(
+            result.affine,
+            torch.tensor(
+                [
+                    [-0.488281, 0.0, 0.0, 125.0],
+                    [0.0, -0.488281, 0.0, 128.100006],
+                    [0.0, 0.0, 68.33333333, -99.480003],
+                    [0.0, 0.0, 0.0, 1.0],
+                ]
+            ),
+        )
+        self.assertTupleEqual(result.shape, expected_np_shape)
+
+    @SkipIfNoModule("pydicom")
+    @SkipIfNoModule("cupy")
+    @SkipIfNoModule("kvikio")
+    @parameterized.expand([TEST_CASE_GPU_5, TEST_CASE_GPU_6])
+    def test_pydicom_gpu_reader(self, input_param, filenames, expected_shape, expected_np_shape):
         result = LoadImage(image_only=True, **input_param)(filenames)
         self.assertEqual(result.meta["filename_or_obj"], f"{Path(filenames)}")
         assert_allclose(
@@ -316,6 +347,21 @@ class TestLoadImage(unittest.TestCase):
             pydicom_result = LoadImage(image_only=True, **pydicom_param)(filenames)
             np.testing.assert_allclose(pydicom_result, itk_result)
             np.testing.assert_allclose(pydicom_result.affine, itk_result.affine)
+
+    @SkipIfNoModule("pydicom")
+    @SkipIfNoModule("cupy")
+    @SkipIfNoModule("kvikio")
+    @parameterized.expand([TEST_CASE_22])
+    def test_pydicom_reader_gpu_cpu_consistency(self, filenames):
+        gpu_param = {"reader": "PydicomReader", "to_gpu": True}
+        cpu_param = {"reader": "PydicomReader", "to_gpu": False}
+        for affine_flag in [True, False]:
+            gpu_param["affine_lps_to_ras"] = affine_flag
+            cpu_param["affine_lps_to_ras"] = affine_flag
+            gpu_result = LoadImage(image_only=True, **gpu_param)(filenames)
+            cpu_result = LoadImage(image_only=True, **cpu_param)(filenames)
+            np.testing.assert_allclose(gpu_result.cpu(), cpu_result)
+            np.testing.assert_allclose(gpu_result.affine.cpu(), cpu_result.affine)
 
     def test_dicom_reader_consistency_single(self):
         itk_param = {"reader": "ITKReader"}
