@@ -43,7 +43,9 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import is_no_channel
 from monai.transforms.transform import Transform
 from monai.transforms.utility.array import EnsureChannelFirst
-from monai.utils import GridSamplePadMode
+from monai.utils import (
+    GridSamplePadMode,
+)
 from monai.utils import ImageMetaKey as Key
 from monai.utils import (
     MetaKeys,
