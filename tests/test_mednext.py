@@ -75,8 +75,10 @@ class TestMedNeXt(unittest.TestCase):
         with eval_mode(net):
             result = net(torch.randn(input_shape).to(device))
             if input_param["deep_supervision"] and net.training:
-                assert isinstance(result, tuple)
-                self.assertEqual(result[0].shape, expected_shape, msg=str(input_param))
+                assert isinstance(result, torch.Tensor)
+                result = torch.unbind(result, dim=1)
+                for r in result:
+                    self.assertEqual(r.shape, expected_shape, msg=str(input_param))
             else:
                 self.assertEqual(result.shape, expected_shape, msg=str(input_param))
 
@@ -87,8 +89,10 @@ class TestMedNeXt(unittest.TestCase):
         net.train()
         result = net(torch.randn(input_shape).to(device))
         if input_param["deep_supervision"]:
-            assert isinstance(result, tuple)
-            self.assertEqual(result[0].shape, expected_shape, msg=str(input_param))
+            assert isinstance(result, torch.Tensor)
+            result = torch.unbind(result, dim=1)
+            for r in result:
+                self.assertEqual(r.shape, expected_shape, msg=str(input_param))
         else:
             assert isinstance(result, torch.Tensor)
             self.assertEqual(result.shape, expected_shape, msg=str(input_param))
