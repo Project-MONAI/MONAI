@@ -607,3 +607,6 @@ class MetaTensor(MetaObj, torch.Tensor):
         print(self)
         if self.meta is not None:
             print(self.meta.__repr__())
+
+
+torch.serialization.add_safe_globals([MetaTensor])
