@@ -202,7 +202,7 @@ TEST_CASE_12_CHUNKS = [
 
 # test for LZ4 compressor
 TEST_CASE_13_COMPRESSOR_LZ4 = [
-    dict(merged_shape=TENSOR_4x4.shape, compressor=zarr.codecs.BloscCodec),
+    dict(merged_shape=TENSOR_4x4.shape, compressor="LZ4"),
     [
         (TENSOR_4x4[..., :2, :2], (0, 0)),
         (TENSOR_4x4[..., :2, 2:], (0, 2)),
@@ -291,7 +291,7 @@ class ZarrAvgMergerTests(unittest.TestCase):
         codec_reg = numcodecs.registry.codec_registry
         if "compressor" in arguments:
             if arguments["compressor"] != "default":
-                arguments["compressor"] = arguments["compressor"]
+                arguments["compressor"] = codec_reg[arguments["compressor"].lower()]()
         if "value_compressor" in arguments:
             if arguments["value_compressor"] != "default":
                 arguments["value_compressor"] = codec_reg[arguments["value_compressor"].lower()]()

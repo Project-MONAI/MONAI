@@ -256,7 +256,7 @@ class TestMetaTensor(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             fname = os.path.join(tmp_dir, "im.pt")
             torch.save(m, fname)
-            m2 = torch.load(fname, weights_only=False)
+            m2 = torch.load(fname)
             if not isinstance(m2, MetaTensor) and not pytorch_after(1, 8, 1):
                 warnings.warn("Old version of pytorch. pickling converts `MetaTensor` to `torch.Tensor`.")
                 m = m.as_tensor()
