@@ -65,11 +65,11 @@ def _image3_animated_gif(
     img_str = b""
     for b_data in PIL.GifImagePlugin.getheader(ims[0])[0]:
         img_str += b_data
-    img_str += b"\x21\xFF\x0B\x4E\x45\x54\x53\x43\x41\x50" b"\x45\x32\x2E\x30\x03\x01\x00\x00\x00"
+    img_str += b"\x21\xff\x0b\x4e\x45\x54\x53\x43\x41\x50" b"\x45\x32\x2e\x30\x03\x01\x00\x00\x00"
     for i in ims:
         for b_data in PIL.GifImagePlugin.getdata(i):
             img_str += b_data
-    img_str += b"\x3B"
+    img_str += b"\x3b"
 
     summary = SummaryX if has_tensorboardx and isinstance(writer, SummaryWriterX) else Summary
     summary_image_str = summary.Image(height=10, width=10, colorspace=1, encoded_image_string=img_str)

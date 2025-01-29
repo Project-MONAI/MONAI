@@ -609,5 +609,6 @@ class MetaTensor(MetaObj, torch.Tensor):
             print(self.meta.__repr__())
 
 
-if hasattr(torch.serialization,"add_safe_globals"):
+# needed in later versions of Pytorch to indicate the class is safe for serialisation
+if hasattr(torch.serialization, "add_safe_globals"):
     torch.serialization.add_safe_globals([MetaTensor])
