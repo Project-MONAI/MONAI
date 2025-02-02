@@ -145,7 +145,7 @@ class VideoDataset:
             cap = self._get_cap()
             ret, frame = cap.read()
             cap.release()
-        else:   
+        else:
             ret, frame = self._get_cap().read()
         if not ret:
             raise RuntimeError("Failed to read frame.")
