@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.fl.utils.constants import WeightType
 from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils.module import optional_import
-from tests.util import SkipIfNoModule
+from tests.test_utils import SkipIfNoModule
 
 models, has_torchvision = optional_import("torchvision.models")
 

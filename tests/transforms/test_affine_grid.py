@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import AffineGrid
-from tests.util import TEST_NDARRAYS_ALL, assert_allclose, is_tf32_env
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose, is_tf32_env
 
 TESTS = []
 for p in TEST_NDARRAYS_ALL:

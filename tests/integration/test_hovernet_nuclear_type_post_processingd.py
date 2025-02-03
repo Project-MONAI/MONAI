@@ -23,7 +23,7 @@ from monai.apps.pathology.transforms.post.dictionary import (
 from monai.transforms import ComputeHoVerMaps
 from monai.utils import min_version, optional_import
 from monai.utils.enums import HoVerNetBranch
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)

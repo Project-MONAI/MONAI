@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.apps.detection.utils.box_selector import BoxSelector
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 num_anchors = 7

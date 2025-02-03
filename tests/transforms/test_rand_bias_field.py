@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import RandBiasField
-from tests.util import TEST_NDARRAYS
+from tests.test_utils import TEST_NDARRAYS
 
 TEST_CASES_2D = [{"prob": 1.0}, (3, 32, 32)]
 TEST_CASES_3D = [{"prob": 1.0}, (3, 32, 32, 32)]

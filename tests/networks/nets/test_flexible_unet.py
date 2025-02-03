@@ -27,7 +27,7 @@ from monai.networks.nets import (
     ResNetFeatures,
 )
 from monai.utils import optional_import
-from tests.util import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick
+from tests.test_utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick
 
 torchvision, has_torchvision = optional_import("torchvision")
 PIL, has_pil = optional_import("PIL")

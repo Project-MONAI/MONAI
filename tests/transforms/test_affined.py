@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.transforms import Affined
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.util import TEST_NDARRAYS_ALL, assert_allclose, test_local_inversion
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose, test_local_inversion
 
 TESTS = []
 for p in TEST_NDARRAYS_ALL:

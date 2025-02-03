@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.array import GenerateInstanceType
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 y, x = np.ogrid[0:30, 0:30]
 

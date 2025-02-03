@@ -22,7 +22,7 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.util import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
 
 einops, has_einops = optional_import("einops")
 

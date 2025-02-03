@@ -21,7 +21,7 @@ from scipy.ndimage import zoom as zoom_scipy
 from monai.config import USE_COMPILED
 from monai.transforms import RandZoomd
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.util import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
+from tests.test_utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [
     (0.8, 1.2, "nearest", None, False),

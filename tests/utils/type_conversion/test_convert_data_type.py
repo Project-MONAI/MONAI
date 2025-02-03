@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type, get_equivalent_dtype
-from tests.util import TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS: list[tuple] = []
 for in_type in TEST_NDARRAYS_ALL + (int, float):

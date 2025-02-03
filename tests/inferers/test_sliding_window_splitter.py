@@ -18,7 +18,7 @@ from parameterized import parameterized
 from torch.nn.functional import pad
 
 from monai.inferers import SlidingWindowSplitter
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 # ----------------------------------------------------------------------------
 # Tensor test cases

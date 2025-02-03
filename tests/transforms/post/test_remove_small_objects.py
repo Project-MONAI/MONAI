@@ -21,7 +21,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms.post.array import RemoveSmallObjects
 from monai.transforms.post.dictionary import RemoveSmallObjectsd
 from monai.utils import optional_import
-from tests.util import TEST_NDARRAYS, SkipIfNoModule, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, SkipIfNoModule, assert_allclose
 
 morphology, has_morphology = optional_import("skimage.morphology")
 

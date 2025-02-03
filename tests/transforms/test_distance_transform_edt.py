@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import DistanceTransformEDT, DistanceTransformEDTd
-from tests.util import HAS_CUPY, assert_allclose, optional_import, skip_if_no_cuda
+from tests.test_utils import HAS_CUPY, assert_allclose, optional_import, skip_if_no_cuda
 
 momorphology, has_cucim = optional_import("cucim.core.operations.morphology")
 ndimage, has_ndimage = optional_import("scipy.ndimage")

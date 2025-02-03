@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.metrics import PanopticQualityMetric, compute_panoptic_quality
-from tests.util import SkipIfNoModule
+from tests.test_utils import SkipIfNoModule
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 

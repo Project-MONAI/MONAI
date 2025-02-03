@@ -37,7 +37,7 @@ from monai.transforms import (
     Spacing,
 )
 from monai.utils import set_determinism
-from tests.util import assert_allclose, make_nifti_image
+from tests.test_utils import assert_allclose, make_nifti_image
 
 
 class TestInvert(unittest.TestCase):

@@ -25,7 +25,7 @@ from monai.apps import download_mmar, load_from_mmar
 from monai.apps.mmars import MODEL_DESC
 from monai.apps.mmars.mmars import _get_val
 from monai.utils import version_leq
-from tests.util import skip_if_downloading_fails, skip_if_quick
+from tests.test_utils import skip_if_downloading_fails, skip_if_quick
 
 TEST_CASES = [["clara_pt_prostate_mri_segmentation"], ["clara_pt_covid19_ct_lesion_segmentation"]]
 TEST_EXTRACT_CASES = [

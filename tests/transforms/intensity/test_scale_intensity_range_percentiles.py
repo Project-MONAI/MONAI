@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.transforms.intensity.array import ScaleIntensityRangePercentiles
-from tests.util import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestScaleIntensityRangePercentiles(NumpyImageTestCase2D):

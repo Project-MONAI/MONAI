@@ -21,7 +21,7 @@ from monai.apps.detection.networks.retinanet_detector import RetinaNetDetector, 
 from monai.apps.detection.utils.anchor_utils import AnchorGeneratorWithAnchorShape
 from monai.networks import eval_mode, train_mode
 from monai.utils import optional_import
-from tests.util import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
 
 _, has_torchvision = optional_import("torchvision")
 

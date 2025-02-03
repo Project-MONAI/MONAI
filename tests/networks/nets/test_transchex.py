@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.transchex import Transchex
-from tests.util import skip_if_quick
+from tests.test_utils import skip_if_quick
 
 TEST_CASE_TRANSCHEX = []
 for drop_out in [0.4]:

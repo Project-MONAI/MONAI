@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms import RandCoarseDropout
 from monai.utils import fall_back_tuple
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_0 = [
     {"holes": 2, "spatial_size": [2, 2, 2], "fill_value": 5, "prob": 1.0},

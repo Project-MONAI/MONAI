@@ -22,7 +22,7 @@ import torch.optim as optim
 from monai.data import create_test_image_2d
 from monai.networks.layers import AffineTransform
 from monai.utils import set_determinism
-from tests.util import DistTestCase, TimedCall
+from tests.test_utils import DistTestCase, TimedCall
 
 
 class STNBenchmark(nn.Module):

@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.nets.dints import Cell, MixedOp
-from tests.util import test_script_save
+from tests.test_utils import test_script_save
 
 TEST_CASES_3D = [
     [

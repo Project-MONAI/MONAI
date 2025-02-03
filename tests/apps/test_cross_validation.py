@@ -17,7 +17,7 @@ from pathlib import Path
 from monai.apps import CrossValidation, DecathlonDataset
 from monai.data import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd
-from tests.util import skip_if_downloading_fails, skip_if_quick
+from tests.test_utils import skip_if_downloading_fails, skip_if_quick
 
 
 class TestCrossValidation(unittest.TestCase):

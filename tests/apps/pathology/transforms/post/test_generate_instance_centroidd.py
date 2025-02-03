@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.apps.pathology.transforms.post.dictionary import GenerateInstanceCentroidd
 from monai.transforms import BoundingRect
 from monai.utils import min_version, optional_import
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 _, has_skimage = optional_import("skimage", "0.19.3", min_version)
 

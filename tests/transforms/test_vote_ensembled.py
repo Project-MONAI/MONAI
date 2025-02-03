@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import VoteEnsembled
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:

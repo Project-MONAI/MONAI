@@ -28,7 +28,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirstD, FromMetaTensord, LoadImaged, SaveImageD
 from monai.transforms.meta_utility.dictionary import ToMetaTensord
 from monai.utils import optional_import
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 

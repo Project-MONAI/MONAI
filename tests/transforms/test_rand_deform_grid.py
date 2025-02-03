@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandDeformGrid
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 TEST_CASES = [
     [

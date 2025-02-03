@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.losses import DiceFocalLoss, DiceLoss, FocalLoss
-from tests.util import test_script_save
+from tests.test_utils import test_script_save
 
 
 class TestDiceFocalLoss(unittest.TestCase):

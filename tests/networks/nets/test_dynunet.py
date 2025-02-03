@@ -22,7 +22,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import DynUNet
 from monai.utils import optional_import
-from tests.util import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
+from tests.test_utils import assert_allclose, skip_if_no_cuda, skip_if_windows, test_script_save
 
 InstanceNorm3dNVFuser, _ = optional_import("apex.normalization", name="InstanceNorm3dNVFuser")
 

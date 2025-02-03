@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.utils.detector_utils import preprocess_images
 from monai.utils import ensure_tuple
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 TEST_CASE_1 = [  # 3D, batch 3, 2 input channel
     {

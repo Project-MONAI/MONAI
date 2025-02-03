@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.apps.pathology.engines import PrepareBatchHoVerNet
 from monai.engines import SupervisedEvaluator
 from monai.utils.enums import HoVerNetBranch
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 TEST_CASE_0 = [
     {"extra_keys": ["extra_label1", "extra_label2"]},

@@ -16,7 +16,7 @@ import unittest
 import numpy as np
 
 from monai.transforms import ShiftIntensity
-from tests.util import NumpyImageTestCase2D
+from tests.test_utils import NumpyImageTestCase2D
 
 
 class TestShiftIntensity(NumpyImageTestCase2D):

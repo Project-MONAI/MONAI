@@ -16,7 +16,7 @@ import unittest
 import torch.nn as nn
 
 from monai.networks.blocks import ConvDenseBlock, DenseBlock
-from tests.util import TorchImageTestCase2D, TorchImageTestCase3D
+from tests.test_utils import TorchImageTestCase2D, TorchImageTestCase3D
 
 
 class TestDenseBlock2D(TorchImageTestCase2D):

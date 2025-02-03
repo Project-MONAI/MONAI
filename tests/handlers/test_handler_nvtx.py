@@ -21,7 +21,7 @@ from monai.engines import SupervisedEvaluator
 from monai.handlers import StatsHandler, from_engine
 from monai.handlers.nvtx_handlers import MarkHandler, RangeHandler, RangePopHandler, RangePushHandler
 from monai.utils import optional_import
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 

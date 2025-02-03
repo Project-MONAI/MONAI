@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.blocks.patchembedding import PatchEmbed, PatchEmbeddingBlock
 from monai.utils import optional_import
-from tests.util import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion
 
 einops, has_einops = optional_import("einops")
 

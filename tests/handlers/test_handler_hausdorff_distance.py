@@ -18,7 +18,7 @@ import torch
 from ignite.engine import Engine
 
 from monai.handlers import HausdorffDistance
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 def create_spherical_seg_3d(

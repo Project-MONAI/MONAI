@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.transforms import KeepLargestConnectedComponent
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils.type_conversion import convert_to_dst_type
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 
 def to_onehot(x):

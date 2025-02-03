@@ -18,7 +18,7 @@ import torch
 
 from monai.data import DataLoader
 from monai.utils import set_determinism
-from tests.util import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
+from tests.test_utils import DistTestCase, SkipIfBeforePyTorchVersion, TimedCall, skip_if_no_cuda, skip_if_quick
 
 
 def run_loading_test(num_workers=50, device=None, pw=False):

@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import unittest
 
-from tests.util import SkipIfAtLeastPyTorchVersion, skip_if_no_cuda
+from tests.test_utils import SkipIfAtLeastPyTorchVersion, skip_if_no_cuda
 
 
 class TestVisibleDevices(unittest.TestCase):

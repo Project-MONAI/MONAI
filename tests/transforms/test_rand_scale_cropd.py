@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import RandScaleCropd
 from tests.croppers import CropTest
-from tests.util import TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_SHAPES = [
     [{"keys": "img", "roi_scale": [1.0, 1.0, -1.0], "random_center": True}, (3, 3, 3, 4), (3, 3, 3, 4)],

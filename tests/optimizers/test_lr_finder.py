@@ -27,7 +27,7 @@ from monai.optimizers import LearningRateFinder
 from monai.transforms import Compose, EnsureChannelFirstd, LoadImaged, ScaleIntensityd, ToTensord
 from monai.utils import optional_import, set_determinism
 from monai.utils.misc import MONAIEnvVars
-from tests.util import skip_if_downloading_fails
+from tests.test_utils import skip_if_downloading_fails
 
 if TYPE_CHECKING:
     import matplotlib.pyplot as plt

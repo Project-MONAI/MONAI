@@ -22,7 +22,7 @@ from monai.data import MetaTensor
 from monai.transforms import Resample
 from monai.transforms.utils import create_grid
 from monai.utils import GridSampleMode, GridSamplePadMode, NdimageMode, SplineMode, convert_to_numpy
-from tests.util import SkipIfBeforePyTorchVersion, assert_allclose, is_tf32_env
+from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, is_tf32_env
 
 _rtol = 1e-3 if is_tf32_env() else 1e-4
 

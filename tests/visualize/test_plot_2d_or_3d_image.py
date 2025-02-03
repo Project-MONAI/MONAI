@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.utils import optional_import
 from monai.visualize import plot_2d_or_3d_image
-from tests.util import SkipIfBeforePyTorchVersion, SkipIfNoModule
+from tests.test_utils import SkipIfBeforePyTorchVersion, SkipIfNoModule
 
 SummaryWriter, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 

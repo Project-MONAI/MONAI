@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.transforms.utils import convert_points_to_disc, keep_merge_components_with_points, sample_points_from_label
 from monai.utils import min_version
 from monai.utils.module import optional_import
-from tests.util import skip_if_no_cuda, skip_if_quick
+from tests.test_utils import skip_if_no_cuda, skip_if_quick
 
 cp, has_cp = optional_import("cupy")
 cucim_skimage, has_cucim = optional_import("cucim.skimage")

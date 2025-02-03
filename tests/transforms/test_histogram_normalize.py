@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import HistogramNormalize
 from monai.utils import get_equivalent_dtype
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:

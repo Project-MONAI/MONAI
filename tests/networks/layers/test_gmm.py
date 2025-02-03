@@ -22,7 +22,7 @@ from parameterized import parameterized
 
 from monai._extensions import load_module
 from monai.networks.layers import GaussianMixtureModel
-from tests.util import skip_if_darwin, skip_if_no_cuda, skip_if_quick, skip_if_windows
+from tests.test_utils import skip_if_darwin, skip_if_no_cuda, skip_if_quick, skip_if_windows
 
 TEST_CASES = [
     [

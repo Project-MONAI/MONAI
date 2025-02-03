@@ -19,7 +19,7 @@ import torch.optim as optim
 from ignite.engine import Engine, Events
 
 from monai.handlers import CheckpointLoader, CheckpointSaver
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 class TestHandlerCheckpointLoader(unittest.TestCase):

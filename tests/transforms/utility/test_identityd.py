@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from monai.transforms.utility.dictionary import Identityd
-from tests.util import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestIdentityd(NumpyImageTestCase2D):

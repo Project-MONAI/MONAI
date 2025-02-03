@@ -32,7 +32,7 @@ from monai.data import create_test_image_3d
 from monai.transforms import SaveImage
 from monai.utils import check_parent_dir, optional_import, set_determinism
 from monai.utils.enums import AlgoKeys
-from tests.util import (
+from tests.test_utils import (
     SkipIfBeforePyTorchVersion,
     get_testing_algo_template_path,
     skip_if_downloading_fails,

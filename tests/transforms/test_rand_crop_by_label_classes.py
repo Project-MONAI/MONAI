@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ClassesToIndices, RandCropByLabelClasses
 from monai.transforms.lazy.functional import apply_pending
-from tests.util import TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS_INDICES, TESTS_SHAPE = [], []
 for p in TEST_NDARRAYS_ALL:

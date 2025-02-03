@@ -20,7 +20,7 @@ from monai.config import USE_COMPILED
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CropForeground
 from monai.transforms.lazy.functional import apply_pending
-from tests.util import TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_COORDS, TESTS, TEST_LAZY_ERROR = [], [], []
 

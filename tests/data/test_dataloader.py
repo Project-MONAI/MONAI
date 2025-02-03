@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data import CacheDataset, DataLoader, Dataset, ZipDataset
 from monai.transforms import Compose, DataStatsd, Randomizable, SimulateDelayd
 from monai.utils import convert_to_numpy, set_determinism
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 TEST_CASE_1 = [[{"image": np.asarray([1, 2, 3])}, {"image": np.asarray([4, 5])}]]
 

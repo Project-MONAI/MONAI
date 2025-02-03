@@ -24,7 +24,7 @@ from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
 from monai.utils import fall_back_tuple
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.util import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
+from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
 
 TESTS: list[list] = []
 for device in TEST_DEVICES:

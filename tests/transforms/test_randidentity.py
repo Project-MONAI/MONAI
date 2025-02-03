@@ -15,7 +15,7 @@ import unittest
 
 import monai.transforms as mt
 from monai.data import CacheDataset
-from tests.util import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class T(mt.Transform):

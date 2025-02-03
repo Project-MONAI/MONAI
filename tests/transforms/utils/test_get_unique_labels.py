@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms.utils import get_unique_labels
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
-from tests.util import TEST_NDARRAYS
+from tests.test_utils import TEST_NDARRAYS
 
 grid_raw = [[0, 0, 0], [0, 0, 1], [2, 2, 3], [5, 5, 6], [3, 6, 2], [5, 6, 6]]
 grid = torch.Tensor(grid_raw).unsqueeze(0).to(torch.int64)

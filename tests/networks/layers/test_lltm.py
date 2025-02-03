@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.layers import LLTM
-from tests.util import SkipIfNoModule, assert_allclose, is_tf32_env
+from tests.test_utils import SkipIfNoModule, assert_allclose, is_tf32_env
 
 _rtol = 0.001 if is_tf32_env() else 0.0001
 

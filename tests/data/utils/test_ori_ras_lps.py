@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.data.utils import orientation_ras_lps
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASES_AFFINE = []
 for p in TEST_NDARRAYS:

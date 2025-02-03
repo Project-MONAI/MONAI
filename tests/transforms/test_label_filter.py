@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import LabelFilter
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 grid_1 = torch.tensor([[[[1, 2, 3], [4, 5, 6], [7, 8, 9]]]])
 

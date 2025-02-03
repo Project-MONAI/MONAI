@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.losses.dice import DiceFocalLoss, DiceLoss
 from monai.losses.spatial_mask import MaskedLoss
 from monai.utils import set_determinism
-from tests.util import test_script_save
+from tests.test_utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

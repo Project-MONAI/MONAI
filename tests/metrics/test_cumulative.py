@@ -16,7 +16,7 @@ import unittest
 import torch
 
 from monai.metrics import Cumulative
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 class TestCumulative(unittest.TestCase):

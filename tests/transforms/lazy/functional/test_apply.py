@@ -19,7 +19,7 @@ import torch
 from monai.transforms.lazy.functional import apply_pending
 from monai.transforms.utils import create_rotate
 from monai.utils import LazyAttr, convert_to_tensor
-from tests.util import get_arange_img
+from tests.test_utils import get_arange_img
 
 
 def single_2d_transform_cases():

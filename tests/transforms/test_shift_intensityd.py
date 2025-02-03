@@ -17,7 +17,7 @@ import numpy as np
 
 from monai.transforms import IntensityStatsd, ShiftIntensityd
 from monai.utils.enums import PostFix
-from tests.util import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 
 class TestShiftIntensityd(NumpyImageTestCase2D):

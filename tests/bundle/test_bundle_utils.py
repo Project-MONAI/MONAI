@@ -22,7 +22,7 @@ from monai.bundle import update_kwargs
 from monai.bundle.utils import load_bundle_config
 from monai.networks.nets import UNet
 from monai.utils import pprint_edges
-from tests.util import command_line_tests, skip_if_windows
+from tests.test_utils import command_line_tests, skip_if_windows
 
 metadata = """
 {

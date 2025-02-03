@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.losses import FocalLoss
 from monai.networks import one_hot
-from tests.util import test_script_save
+from tests.test_utils import test_script_save
 
 TEST_CASES = []
 for device in ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"]:

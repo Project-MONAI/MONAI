@@ -21,7 +21,7 @@ import pandas as pd
 
 from monai.data import CSVIterableDataset, DataLoader
 from monai.transforms import ToNumpyd
-from tests.util import skip_if_windows
+from tests.test_utils import skip_if_windows
 
 
 @skip_if_windows

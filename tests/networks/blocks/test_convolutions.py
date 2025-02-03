@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from monai.networks.blocks import Convolution, ResidualUnit
-from tests.util import TorchImageTestCase2D, TorchImageTestCase3D
+from tests.test_utils import TorchImageTestCase2D, TorchImageTestCase3D
 
 
 class TestConvolution2D(TorchImageTestCase2D):

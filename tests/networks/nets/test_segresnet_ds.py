@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import SegResNetDS, SegResNetDS2
-from tests.util import SkipIfBeforePyTorchVersion, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 TEST_CASE_SEGRESNET_DS = []

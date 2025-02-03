@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor
 from monai.transforms import SqueezeDimd
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TESTS, TESTS_FAIL = [], []
 for p in TEST_NDARRAYS:

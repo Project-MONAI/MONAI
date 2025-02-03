@@ -20,7 +20,7 @@ import numpy as np
 
 from monai.data import DataLoader, Dataset, NumpyReader
 from monai.transforms import LoadImage, LoadImaged
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 class TestNumpyReader(unittest.TestCase):

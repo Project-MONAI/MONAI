@@ -21,7 +21,7 @@ from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import RandGibbsNoise
 from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 _, has_torch_fft = optional_import("torch.fft", name="fftshift")
 

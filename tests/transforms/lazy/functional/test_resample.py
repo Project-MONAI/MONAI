@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms.lazy.functional import resample
 from monai.utils import convert_to_tensor
-from tests.util import assert_allclose, get_arange_img
+from tests.test_utils import assert_allclose, get_arange_img
 
 
 def rotate_90_2d():

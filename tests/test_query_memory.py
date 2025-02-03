@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-from tests.util import query_memory
+from tests.test_utils import query_memory
 
 
 class TestQueryMemory(unittest.TestCase):

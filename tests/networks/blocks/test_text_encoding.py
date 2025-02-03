@@ -14,7 +14,7 @@ from __future__ import annotations
 import unittest
 
 from monai.networks.blocks.text_embedding import TextEncoder
-from tests.util import skip_if_downloading_fails
+from tests.test_utils import skip_if_downloading_fails
 
 
 class TestTextEncoder(unittest.TestCase):

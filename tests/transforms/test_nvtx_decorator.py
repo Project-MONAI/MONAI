@@ -35,7 +35,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.utils import Range, optional_import
-from tests.util import HAS_CUPY
+from tests.test_utils import HAS_CUPY
 
 _, has_nvtx = optional_import("torch._C._nvtx", descriptor="NVTX is not installed. Are you sure you have a CUDA build?")
 _, has_tvt = optional_import("torchvision.transforms")

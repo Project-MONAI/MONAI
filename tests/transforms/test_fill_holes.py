@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import FillHoles
-from tests.util import TEST_NDARRAYS, assert_allclose, clone
+from tests.test_utils import TEST_NDARRAYS, assert_allclose, clone
 
 grid_1_raw = [[1, 1, 1], [1, 0, 1], [1, 1, 1]]
 

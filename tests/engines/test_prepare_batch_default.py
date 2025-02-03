@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.engines import PrepareBatchDefault, SupervisedEvaluator
-from tests.util import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 class TestNet(torch.nn.Module):

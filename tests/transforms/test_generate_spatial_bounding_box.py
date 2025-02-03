@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import generate_spatial_bounding_box
-from tests.util import TEST_NDARRAYS
+from tests.test_utils import TEST_NDARRAYS
 
 TESTS = []
 for p in TEST_NDARRAYS:

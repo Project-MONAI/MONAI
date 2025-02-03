@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms.utils_pytorch_numpy_unification import max, min, mode, percentile
 from monai.utils import set_determinism
-from tests.util import TEST_NDARRAYS, assert_allclose, skip_if_quick
+from tests.test_utils import TEST_NDARRAYS, assert_allclose, skip_if_quick
 
 TEST_MODE = []
 for p in TEST_NDARRAYS:

@@ -43,7 +43,7 @@ from monai.transforms import (
     Rotated,
 )
 from monai.utils import optional_import, set_determinism
-from tests.util import make_nifti_image
+from tests.test_utils import make_nifti_image
 
 if TYPE_CHECKING:
     has_nib = True

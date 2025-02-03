@@ -26,7 +26,7 @@ import monai.transforms as mt
 from monai.data import create_test_image_3d, decollate_batch
 from monai.transforms.utils import has_status_keys
 from monai.utils import TraceStatusKeys, set_determinism
-from tests.util import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.test_utils import HAS_CUPY, DistTestCase, SkipIfBeforePyTorchVersion, skip_if_quick
 
 
 def _no_op(x):

@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.utils import optional_import
 from monai.utils.type_conversion import get_equivalent_dtype, safe_dtype_range
-from tests.util import HAS_CUPY, TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import HAS_CUPY, TEST_NDARRAYS_ALL, assert_allclose
 
 cp, _ = optional_import("cupy")
 

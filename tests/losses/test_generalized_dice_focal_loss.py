@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from monai.losses import FocalLoss, GeneralizedDiceFocalLoss, GeneralizedDiceLoss
-from tests.util import test_script_save
+from tests.test_utils import test_script_save
 
 
 class TestGeneralizedDiceFocalLoss(unittest.TestCase):

@@ -19,7 +19,7 @@ import torch
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import RandRotate90d
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.util import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
+from tests.test_utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 
 class TestRandRotate90d(NumpyImageTestCase2D):

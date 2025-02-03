@@ -21,7 +21,7 @@ from parameterized import parameterized
 
 from monai.data import LMDBDataset, json_hashing
 from monai.transforms import Compose, LoadImaged, SimulateDelayd, Transform
-from tests.util import skip_if_windows
+from tests.test_utils import skip_if_windows
 
 TEST_CASE_1 = [
     Compose(

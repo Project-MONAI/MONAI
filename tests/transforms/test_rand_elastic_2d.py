@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import Rand2DElastic
-from tests.util import TEST_NDARRAYS_ALL, assert_allclose, is_tf32_env
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose, is_tf32_env
 
 _rtol = 5e-3 if is_tf32_env() else 1e-4
 

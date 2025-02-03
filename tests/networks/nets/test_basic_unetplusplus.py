@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets import BasicUNetPlusPlus
-from tests.util import test_script_save
+from tests.test_utils import test_script_save
 
 CASES_1D = []
 for mode in ["pixelshuffle", "nontrainable", "deconv", None]:

@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import generate_pos_neg_label_crop_centers
 from monai.utils.misc import set_determinism
-from tests.util import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = [
     [
