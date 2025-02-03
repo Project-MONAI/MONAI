@@ -260,31 +260,33 @@ TEST_CASE_17_WITHOUT_LOCK = [
     TENSOR_4x4,
 ]
 
+ALL_TESTS = [
+    TEST_CASE_0_DEFAULT_DTYPE,
+    TEST_CASE_1_DEFAULT_DTYPE,
+    TEST_CASE_2_DEFAULT_DTYPE,
+    TEST_CASE_3_DEFAULT_DTYPE,
+    TEST_CASE_4_DEFAULT_DTYPE,
+    TEST_CASE_5_VALUE_DTYPE,
+    TEST_CASE_6_COUNT_DTYPE,
+    TEST_CASE_7_COUNT_VALUE_DTYPE,
+    TEST_CASE_8_DTYPE,
+    TEST_CASE_9_LARGER_SHAPE,
+    TEST_CASE_10_DIRECTORY_STORE,
+    TEST_CASE_11_MEMORY_STORE,
+    TEST_CASE_12_CHUNKS,
+    TEST_CASE_16_WITH_LOCK,
+    TEST_CASE_17_WITHOUT_LOCK,
+]
+
+# add compression tests only when using Zarr version before 3.0
+if not version_geq(get_package_version("zarr"), "3.0.0"):
+    ALL_TESTS += [TEST_CASE_13_COMPRESSOR_LZ4, TEST_CASE_14_COMPRESSOR_PICKLE, TEST_CASE_15_COMPRESSOR_LZMA]
+
 
 @unittest.skipUnless(has_zarr and has_numcodecs, "Requires zarr (and numcodecs) packages.)")
 class ZarrAvgMergerTests(unittest.TestCase):
-    @parameterized.expand(
-        [
-            TEST_CASE_0_DEFAULT_DTYPE,
-            TEST_CASE_1_DEFAULT_DTYPE,
-            TEST_CASE_2_DEFAULT_DTYPE,
-            TEST_CASE_3_DEFAULT_DTYPE,
-            TEST_CASE_4_DEFAULT_DTYPE,
-            TEST_CASE_5_VALUE_DTYPE,
-            TEST_CASE_6_COUNT_DTYPE,
-            TEST_CASE_7_COUNT_VALUE_DTYPE,
-            TEST_CASE_8_DTYPE,
-            TEST_CASE_9_LARGER_SHAPE,
-            TEST_CASE_10_DIRECTORY_STORE,
-            TEST_CASE_11_MEMORY_STORE,
-            TEST_CASE_12_CHUNKS,
-            TEST_CASE_13_COMPRESSOR_LZ4,
-            TEST_CASE_14_COMPRESSOR_PICKLE,
-            TEST_CASE_15_COMPRESSOR_LZMA,
-            TEST_CASE_16_WITH_LOCK,
-            TEST_CASE_17_WITHOUT_LOCK,
-        ]
-    )
+
+    @parameterized.expand(ALL_TESTS)
     def test_zarr_avg_merger_patches(self, arguments, patch_locations, expected):
         codec_reg = numcodecs.registry.codec_registry
         if "compressor" in arguments:

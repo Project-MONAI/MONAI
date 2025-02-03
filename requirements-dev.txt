@@ -18,7 +18,7 @@ pep8-naming
 pycodestyle
 pyflakes
 black>=22.12
-isort>=5.1,<6
+isort>=5.1, <6.0
 ruff
 pytype>=2020.6.1; platform_system != "Windows"
 types-setuptools
