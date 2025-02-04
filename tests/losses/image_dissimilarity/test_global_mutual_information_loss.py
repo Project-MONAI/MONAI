@@ -24,7 +24,7 @@ from tests.test_utils import SkipIfBeforePyTorchVersion, download_url_or_skip_te
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-TESTS_PATH = Path(__file__).parents[1]
+TESTS_PATH = Path(__file__).parents[2]
 FILE_PATH = os.path.join(TESTS_PATH, "testing_data", "temp_" + "mri.nii")
 
 EXPECTED_VALUE = {

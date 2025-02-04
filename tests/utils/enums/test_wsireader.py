@@ -36,7 +36,7 @@ imwrite, has_tiff = optional_import("tifffile", name="imwrite")
 _, has_codec = optional_import("imagecodecs")
 has_tiff = has_tiff and has_codec
 
-TESTS_PATH = Path(__file__).parents[1]
+TESTS_PATH = Path(__file__).parents[2]
 WSI_GENERIC_TIFF_KEY = "wsi_generic_tiff"
 WSI_GENERIC_TIFF_PATH = os.path.join(TESTS_PATH, "testing_data", f"temp_{WSI_GENERIC_TIFF_KEY}.tiff")
 
