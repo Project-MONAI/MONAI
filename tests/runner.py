@@ -12,13 +12,13 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 import inspect
 import os
 import re
 import sys
 import time
 import unittest
+from pathlib import Path
 
 from monai.utils import PerfContext
 
