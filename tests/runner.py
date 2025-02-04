@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import argparse
-import glob
+from pathlib import Path
 import inspect
 import os
 import re
@@ -124,11 +124,18 @@ if __name__ == "__main__":
     # Get all test names (optionally from some path with some pattern)
     with PerfContext() as pc:
         # the files are searched from `tests/` folder, starting with `test_`
-        files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))
+        tests_path = Path(__file__).parent / args.path
+        files = {
+            file.relative_to(tests_path).as_posix().replace("/", ".").replace(".py", "")
+            for file in tests_path.rglob("test_*.py")
+        }
+        # import pdb
+        # pdb.set_trace()
+
         cases = []
-        for test_module in {os.path.basename(f)[:-3] for f in files}:
+        for test_module in files:
             if re.match(args.pattern, test_module):
-                cases.append(f"tests.{test_module}")
+                cases.append(f"{test_module}")
             else:
                 print(f"monai test runner: excluding tests.{test_module}")
         print(cases)
