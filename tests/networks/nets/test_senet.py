@@ -87,7 +87,7 @@ class TestPretrainedSENET(unittest.TestCase):
                 if "certificate" in str(rt_e):  # [SSL: CERTIFICATE_VERIFY_FAILED]
                     replace_url = True
         if replace_url:
-            testing_dir = Path(__file__).parents[1] / "testing_data"
+            testing_dir = Path(__file__).parents[2] / "testing_data"
             testing_data_urls = {
                 "senet154": {
                     "url": testing_data_config("models", "senet154-c7b49a05", "url"),

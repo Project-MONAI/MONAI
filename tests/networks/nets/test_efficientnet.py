@@ -31,7 +31,7 @@ from monai.networks.nets import (
 from monai.utils import optional_import
 from tests.test_utils import skip_if_downloading_fails, skip_if_quick, test_pretrained_networks, test_script_save
 
-TESTS_PATH = Path(__file__).parents[1]
+TESTS_PATH = Path(__file__).parents[2]
 
 if TYPE_CHECKING:
     import torchvision

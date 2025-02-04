@@ -45,7 +45,7 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         name = self.getDescription(test)
         self.stream.write(f"Finished test: {name} ({elapsed:.03}s)\n")
         if name in results:
-            raise AssertionError("expected all keys to be unique")
+            raise AssertionError(f"expected all keys to be unique, but {name} is duplicated")
         results[name] = elapsed
         super().stopTest(test)
 
@@ -129,13 +129,10 @@ if __name__ == "__main__":
             file.relative_to(tests_path).as_posix().replace("/", ".").replace(".py", "")
             for file in tests_path.rglob("test_*.py")
         }
-        # import pdb
-        # pdb.set_trace()
-
         cases = []
         for test_module in files:
             if re.match(args.pattern, test_module):
-                cases.append(f"{test_module}")
+                cases.append(test_module)
             else:
                 print(f"monai test runner: excluding {test_module}")
         print(cases)
@@ -146,7 +143,8 @@ if __name__ == "__main__":
     test_runner = unittest.runner.TextTestRunner(
         resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast
     )
-
+    import pdb
+    pdb.set_trace()
     # Use try catches to print the current results if encountering exception or keyboard interruption
     try:
         test_result = test_runner.run(tests)

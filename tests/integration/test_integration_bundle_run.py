@@ -68,7 +68,7 @@ class TestBundleRun(unittest.TestCase):
         with open(config_file, "w") as f:
             json.dump(
                 {
-                    "trainer": {"_target_": "tests.test_integration_bundle_run._Runnable42", "val": 42},
+                    "trainer": {"_target_": "tests.integration.test_integration_bundle_run._Runnable42", "val": 42},
                     # keep this test case to cover the "run_id" arg
                     "training": "$@trainer.run()",
                 },
