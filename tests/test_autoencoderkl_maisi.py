@@ -75,28 +75,38 @@ if has_einops:
 else:
     CASES = CASES_NO_ATTENTION
 
+test_dtypes = [torch.float32]
+if device.type == "cuda":
+    test_dtypes.append(torch.bfloat16)
+    test_dtypes.append(torch.float16)
+
+DTYPE_CASES = []
+for dtype in test_dtypes:
+    for case in CASES:
+        DTYPE_CASES.append(case + [dtype])
+
 
 class TestAutoencoderKlMaisi(unittest.TestCase):
 
-    @parameterized.expand(CASES)
-    def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape):
-        net = AutoencoderKlMaisi(**input_param).to(device)
+    @parameterized.expand(DTYPE_CASES)
+    def test_shape(self, input_param, input_shape, expected_shape, expected_latent_shape, dtype):
+        net = AutoencoderKlMaisi(**input_param).to(device=device, dtype=dtype)
         with eval_mode(net):
-            result = net.forward(torch.randn(input_shape).to(device))
+            result = net.forward(torch.randn(input_shape).to(device=device, dtype=dtype))
             self.assertEqual(result[0].shape, expected_shape)
             self.assertEqual(result[1].shape, expected_latent_shape)
             self.assertEqual(result[2].shape, expected_latent_shape)
 
-    @parameterized.expand(CASES)
+    @parameterized.expand(DTYPE_CASES)
     @SkipIfBeforePyTorchVersion((1, 11))
     def test_shape_with_convtranspose_and_checkpointing(
-        self, input_param, input_shape, expected_shape, expected_latent_shape
+        self, input_param, input_shape, expected_shape, expected_latent_shape, dtype
     ):
         input_param = input_param.copy()
         input_param.update({"use_checkpointing": True, "use_convtranspose": True})
-        net = AutoencoderKlMaisi(**input_param).to(device)
+        net = AutoencoderKlMaisi(**input_param).to(device=device, dtype=dtype)
         with eval_mode(net):
-            result = net.forward(torch.randn(input_shape).to(device))
+            result = net.forward(torch.randn(input_shape).to(device=device, dtype=dtype))
             self.assertEqual(result[0].shape, expected_shape)
             self.assertEqual(result[1].shape, expected_latent_shape)
             self.assertEqual(result[2].shape, expected_latent_shape)
