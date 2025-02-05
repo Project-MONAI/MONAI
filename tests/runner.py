@@ -143,8 +143,6 @@ if __name__ == "__main__":
     test_runner = unittest.runner.TextTestRunner(
         resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast
     )
-    import pdb
-    pdb.set_trace()
     # Use try catches to print the current results if encountering exception or keyboard interruption
     try:
         test_result = test_runner.run(tests)
