@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from .config_item import ComponentLocator, ConfigComponent, ConfigExpression, ConfigItem, Instantiable
 from .config_parser import ConfigParser
-from .nnunet import get_nnunet_monai_predictor, get_nnunet_trainer, nnUNetMONAIModelWrapper
+from .nnunet import ModelnnUNetWrapper, convert_nnunet_to_monai_bundle, get_nnunet_monai_predictor, get_nnunet_trainer
 from .properties import InferProperties, MetaProperties, TrainProperties
 from .reference_resolver import ReferenceResolver
 from .scripts import (
