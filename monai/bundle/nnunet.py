@@ -16,7 +16,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from torch._dynamo import OptimizedModule
 from torch.backends import cudnn
 
 from monai.data.meta_tensor import MetaTensor
@@ -249,7 +248,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         if (
             ("nnUNet_compile" in os.environ.keys())
             and (os.environ["nnUNet_compile"].lower() in ("true", "1", "t"))
-            and not isinstance(predictor.network, OptimizedModule)
+            #and not isinstance(predictor.network, OptimizedModule)
         ):
             print("Using torch.compile")
             predictor.network = torch.compile(self.network)
