@@ -86,7 +86,7 @@ class TestnnUNetBundle(unittest.TestCase):
         self.test_path = test_path
 
     @skip_if_no_cuda
-    def test_nnunetBundle_get_trainer(self) -> None:
+    def test_nnunetBundle(self) -> None:
         runner = nnUNetV2Runner(input_config=self.data_src_cfg, trainer_class_name="nnUNetTrainer_1epoch")
         with skip_if_downloading_fails():
             runner.run(run_train=False, run_find_best_configuration=False, run_predict_ensemble_postprocessing=False)
@@ -103,10 +103,7 @@ class TestnnUNetBundle(unittest.TestCase):
             print("LR Scheduler: ", nnunet_trainer.lr_scheduler)
             print("Device: ", nnunet_trainer.device)
             runner.train("3d_fullres")
-    @skip_if_no_cuda
-    def test_nnunetBundle_convert_bundle(self) -> None:
 
-            
             nnunet_config = {
                 "dataset_name_or_id": "001",
                 "nnunet_trainer": "nnUNetTrainer_1epoch",
@@ -116,8 +113,6 @@ class TestnnUNetBundle(unittest.TestCase):
             Path(self.bundle_root).joinpath("models").mkdir(parents=True, exist_ok=True)
             convert_nnunet_to_monai_bundle(nnunet_config, self.bundle_root, 0)
 
-
-    def test_nnunetBundle_predict_from_bundle(self) -> None:
             data_transforms = Compose([
                 LoadImaged(keys="image"),
                 EnsureChannelFirstd(keys="image"),
