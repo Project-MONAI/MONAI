@@ -16,7 +16,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import nibabel as nib
 import numpy as np
 
 from monai.apps.nnunet import nnUNetV2Runner
@@ -54,6 +53,8 @@ sim_datalist: dict[str, list[dict]] = {
 class TestnnUNetBundle(unittest.TestCase):
 
     def setUp(self) -> None:
+        import nibabel as nib
+
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
 
@@ -86,7 +87,9 @@ class TestnnUNetBundle(unittest.TestCase):
 
     @skip_if_no_cuda
     def test_nnunet_bundle(self) -> None:
-        runner = nnUNetV2Runner(input_config=self.data_src_cfg, trainer_class_name="nnUNetTrainer_1epoch",work_dir=self.test_path)
+        runner = nnUNetV2Runner(
+            input_config=self.data_src_cfg, trainer_class_name="nnUNetTrainer_1epoch", work_dir=self.test_path
+        )
         with skip_if_downloading_fails():
             runner.run(run_train=False, run_find_best_configuration=False, run_predict_ensemble_postprocessing=False)
 
