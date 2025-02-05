@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 import json
 import os
 import tempfile
@@ -22,6 +23,8 @@ from monai.bundle import ConfigParser
 from monai.data import load_net_with_metadata
 from monai.networks import save_state
 from tests.test_utils import command_line_tests, skip_if_windows
+
+TESTS_PATH = Path(__file__).parents[1]
 
 TEST_CASE_1 = ["", ""]
 
@@ -46,8 +49,8 @@ class TestCKPTExport(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_export(self, key_in_ckpt, use_trace):
-        meta_file = os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json")
-        config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
+        meta_file = os.path.join(TESTS_PATH, "testing_data", "metadata.json")
+        config_file = os.path.join(TESTS_PATH, "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.yaml")
@@ -78,7 +81,7 @@ class TestCKPTExport(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2, TEST_CASE_3])
     def test_default_value(self, key_in_ckpt, use_trace):
-        config_file = os.path.join(os.path.dirname(__file__), "testing_data", "inference.json")
+        config_file = os.path.join(TESTS_PATH, "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
             def_args = {"meta_file": "will be replaced by `meta_file` arg"}
             def_args_file = os.path.join(tempdir, "def_args.yaml")
