@@ -11,11 +11,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
 from parameterized import parameterized
 
