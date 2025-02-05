@@ -53,7 +53,7 @@ sim_datalist: dict[str, list[dict]] = {
 class TestnnUNetBundle(unittest.TestCase):
 
     def setUp(self) -> None:
-        
+
         import nibabel as nib
 
         self.test_dir = tempfile.TemporaryDirectory()
