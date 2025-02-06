@@ -34,6 +34,13 @@ Model Bundle
     :members:
     :special-members:
 
+
+`nnUNet Bundle`
+---------------
+.. autoclass:: ModelnnUNetWrapper
+    :members:
+    :special-members:
+
 `Scripts`
 ---------
 .. autofunction:: ckpt_export
@@ -50,3 +57,6 @@ Model Bundle
 .. autofunction:: init_bundle
 .. autofunction:: push_to_hf_hub
 .. autofunction:: update_kwargs
+.. autofunction:: get_nnunet_trainer
+.. autofunction:: get_nnunet_monai_predictor
+.. autofunction:: convert_nnunet_to_monai_bundle
