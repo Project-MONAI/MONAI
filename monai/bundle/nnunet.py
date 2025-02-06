@@ -279,7 +279,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
             - If the input is a collated batch, the filenames are extracted from the metadata of the input tensor.
             - The filenames are used to generate predictions using the nnUNet predictor.
             - The predictions are converted to torch tensors, with added batch and channel dimensions.
-            - The output tensor is concatenated along the batch dimension and returned as a MetaTensor with the same metadata as the input.
+            - The output tensor is concatenated along the batch dimension and returned as a MetaTensor with the same metadata.
         """
         if type(x) is tuple:  # if batch is decollated (list of tensors)
             input_files = [img.meta["filename_or_obj"][0] for img in x]
