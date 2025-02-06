@@ -231,7 +231,7 @@ class MaisiConvolution(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.print_info:
             logger.info(f"Number of splits: {self.num_splits}")
-        
+
         if self.dim_split<=1 and self.num_splits<=1:
             x = self.conv(x)
             return x
