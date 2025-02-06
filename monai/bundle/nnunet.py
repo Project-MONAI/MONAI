@@ -200,7 +200,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
 
         parameters = []
         for i, f in enumerate(use_folds):
-            f = int(f) if f != "all" else f
+            f = str(f) if f != "all" else f
             checkpoint = torch.load(
                 join(model_training_output_dir, "nnunet_checkpoint.pth"), map_location=torch.device("cpu")
             )
@@ -263,7 +263,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
             input_files = [img.meta["filename_or_obj"][0] for img in x]
         else:  # if batch is collated
             input_files = x.meta["filename_or_obj"]
-            if type(input_files) is str:
+            if isinstance(input_files, str):
                 input_files = [input_files]
 
         # input_files should be a list of file paths, one per modality
