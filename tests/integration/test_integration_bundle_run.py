@@ -104,7 +104,7 @@ class TestBundleRun(unittest.TestCase):
                 {
                     "imports": ["$import scripts"],
                     "trainer": {
-                        "_target_": "tests.test_integration_bundle_run._Runnable43",
+                        "_target_": "tests.integration.test_integration_bundle_run._Runnable43",
                         "func": "$scripts.tiny_test",
                     },
                     # keep this test case to cover the "run_id" arg
