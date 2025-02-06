@@ -49,25 +49,25 @@ def get_nnunet_trainer(
     The returned nnUNet trainer can be used to initialize the SupervisedTrainer for training, including the network,
     optimizer, loss function, DataLoader, etc.
 
-    ```python
-    from monai.apps import SupervisedTrainer
-    from monai.bundle.nnunet import get_nnunet_trainer
+    Example::
+        
+        from monai.apps import SupervisedTrainer
+        from monai.bundle.nnunet import get_nnunet_trainer
 
-    dataset_name_or_id = 'Task101_PROSTATE'
-    fold = 0
-    configuration = '3d_fullres'
-    nnunet_trainer = get_nnunet_trainer(dataset_name_or_id, configuration, fold)
+        dataset_name_or_id = 'Task101_PROSTATE'
+        fold = 0
+        configuration = '3d_fullres'
+        nnunet_trainer = get_nnunet_trainer(dataset_name_or_id, configuration, fold)
 
-    trainer = SupervisedTrainer(
-        device=nnunet_trainer.device,
-        max_epochs=nnunet_trainer.num_epochs,
-        train_data_loader=nnunet_trainer.dataloader_train,
-        network=nnunet_trainer.network,
-        optimizer=nnunet_trainer.optimizer,
-        loss_function=nnunet_trainer.loss_function,
-        epoch_length=nnunet_trainer.num_iterations_per_epoch,
-
-    ```
+        trainer = SupervisedTrainer(
+            device=nnunet_trainer.device,
+            max_epochs=nnunet_trainer.num_epochs,
+            train_data_loader=nnunet_trainer.dataloader_train,
+            network=nnunet_trainer.network,
+            optimizer=nnunet_trainer.optimizer,
+            loss_function=nnunet_trainer.loss_function,
+            epoch_length=nnunet_trainer.num_iterations_per_epoch,
+        )
 
     Parameters
     ----------
@@ -162,16 +162,19 @@ class ModelnnUNetWrapper(torch.nn.Module):
         The folder path where the model and related files are stored.
     model_name : str, optional
         The name of the model file, by default "model.pt".
+    
     Attributes
     ----------
-    predictor : object
-        The predictor object used for inference.
+    predictor : nnUNetPredictor
+        The nnUNet predictor object used for inference.
     network_weights : torch.nn.Module
         The network weights of the model.
+    
     Methods
     -------
     forward(x)
         Perform forward pass and prediction on the input data.
+    
     Notes
     -----
     This class integrates nnUNet model with MONAI framework by loading necessary configurations,
@@ -183,7 +186,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         self.predictor = predictor
 
         model_training_output_dir = model_folder
-        use_folds = "0"
+        use_folds = ["0"]
 
         from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 
@@ -290,27 +293,28 @@ class ModelnnUNetWrapper(torch.nn.Module):
 
 def get_nnunet_monai_predictor(model_folder, model_name="model.pt"):
     """
-    Initializes and returns a nnUNetMONAIModelWrapper with a nnUNetPredictor.
+    Initializes and returns a `nnUNetMONAIModelWrapper` containing the corresponding `nnUNetPredictor`.
     The model folder should contain the following files, created during training:
-    - dataset.json: from the nnUNet results folder.
-    - plans.json: from the nnUNet results folder.
-    - nnunet_checkpoint.pth: The nnUNet checkpoint file, containing the nnUNet training configuration
-    (`init_kwargs`, `trainer_name`, `inference_allowed_mirroring_axes`).
-    - model.pt: The checkpoint file containing the model weights.
-
+    
+        - dataset.json: from the nnUNet results folder
+        - plans.json: from the nnUNet results folder
+        - nnunet_checkpoint.pth: The nnUNet checkpoint file, containing the nnUNet training configuration (`init_kwargs`, `trainer_name`, `inference_allowed_mirroring_axes`)
+        - model.pt: The checkpoint file containing the model weights.
+    
     The returned wrapper object can be used for inference with MONAI framework:
-    ```python
-    from monai.bundle.nnunet import get_nnunet_monai_predictor
+    
+    Example::
+        
+        from monai.bundle.nnunet import get_nnunet_monai_predictor
 
-    model_folder = 'path/to/monai_bundle/model'
-    model_name = 'model.pt'
-    wrapper = get_nnunet_monai_predictor(model_folder, model_name)
+        model_folder = 'path/to/monai_bundle/model'
+        model_name = 'model.pt'
+        wrapper = get_nnunet_monai_predictor(model_folder, model_name)
 
-    # Perform inference
-    input_data = ...
-    output = wrapper(input_data)
+        # Perform inference
+        input_data = ...
+        output = wrapper(input_data)
 
-    ```
 
     Parameters
     ----------

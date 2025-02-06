@@ -107,7 +107,7 @@ class TestnnUNetBundle(unittest.TestCase):
             print("Loss Function: ", nnunet_trainer.loss)
             print("LR Scheduler: ", nnunet_trainer.lr_scheduler)
             print("Device: ", nnunet_trainer.device)
-            runner.train_single_model("3d_fullres", fold="0")
+            runner.train_single_model("3d_fullres", fold=0)
 
         nnunet_config = {"dataset_name_or_id": "001", "nnunet_trainer": "nnUNetTrainer_1epoch"}
         self.bundle_root = os.path.join("bundle_root")
