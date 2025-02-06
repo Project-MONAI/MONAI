@@ -43,7 +43,7 @@ class TestONNXExport(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_1, TEST_CASE_2])
     def test_onnx_export(self, use_trace):
-        tests_path = Path(__file__).parents[2]
+        tests_path = Path(__file__).parents[1]
         meta_file = os.path.join(tests_path, "testing_data", "metadata.json")
         config_file = os.path.join(tests_path, "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
