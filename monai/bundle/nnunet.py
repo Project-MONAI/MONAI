@@ -170,11 +170,6 @@ class ModelnnUNetWrapper(torch.nn.Module):
     network_weights : torch.nn.Module
         The network weights of the model.
 
-    Methods
-    -------
-    forward(x)
-        Perform forward pass and prediction on the input data.
-
     Notes
     -----
     This class integrates nnUNet model with MONAI framework by loading necessary configurations,
