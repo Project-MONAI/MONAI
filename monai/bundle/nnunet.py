@@ -259,6 +259,28 @@ class ModelnnUNetWrapper(torch.nn.Module):
         self.network_weights = self.predictor.network
 
     def forward(self, x):
+        """
+        Forward pass for the nnUNet model.
+
+        :no-index:
+
+        Args:
+            x (Union[torch.Tensor, Tuple[MetaTensor]]): Input tensor or a tuple of MetaTensors. If the input is a tuple,
+                it is assumed to be a decollated batch (list of tensors). Otherwise, it is assumed to be a collated batch.
+
+        Returns:
+            MetaTensor: The output tensor with the same metadata as the input.
+
+        Raises:
+            TypeError: If the input is not a torch.Tensor or a tuple of MetaTensors.
+
+        Notes:
+            - If the input is a tuple, the filenames are extracted from the metadata of each tensor in the tuple.
+            - If the input is a collated batch, the filenames are extracted from the metadata of the input tensor.
+            - The filenames are used to generate predictions using the nnUNet predictor.
+            - The predictions are converted to torch tensors, with added batch and channel dimensions.
+            - The output tensor is concatenated along the batch dimension and returned as a MetaTensor with the same metadata as the input.
+        """
         if type(x) is tuple:  # if batch is decollated (list of tensors)
             input_files = [img.meta["filename_or_obj"][0] for img in x]
         else:  # if batch is collated
