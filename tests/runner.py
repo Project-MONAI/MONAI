@@ -126,15 +126,18 @@ if __name__ == "__main__":
         # the files are searched from `tests/` folder, starting with `test_`
         tests_path = Path(__file__).parent / args.path
         files = {
-            file.relative_to(tests_path).as_posix().replace("/", ".").replace(".py", "")
-            for file in tests_path.rglob("test_*.py")
+            file.relative_to(tests_path).as_posix()
+            for file in tests_path.rglob("test_*py")
+            if re.search(args.pattern, file.name)
         }
+        print(files)
         cases = []
-        for test_module in files:
-            if re.match(args.pattern, test_module):
-                cases.append(test_module)
+        for test_module in tests_path.rglob("test_*py"):
+            case_str = str(test_module.relative_to(tests_path).as_posix()).replace("/", ".")[:-3]
+            if case_str in files:
+                cases.append(f"tests.{case_str}")
             else:
-                print(f"monai test runner: excluding {test_module}")
+                print(f"monai test runner: excluding {test_module.name}")
         print(cases)
         tests = unittest.TestLoader().loadTestsFromNames(cases)
     discovery_time = pc.total_time
