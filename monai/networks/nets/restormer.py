@@ -32,14 +32,13 @@ class MDTATransformerBlock(nn.Module):
         num_heads: int,
         ffn_expansion_factor: float,
         bias: bool,
-        layer_norm_type: str = "BiasFree",
+        layer_norm_use_bias: bool = False,
         flash_attention: bool = False,
     ):
         super().__init__()
-        use_bias = layer_norm_type != "BiasFree"
-        self.norm1 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=use_bias)
+        self.norm1 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=layer_norm_use_bias)
         self.attn = CABlock(spatial_dims, dim, num_heads, bias, flash_attention)
-        self.norm2 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=use_bias)
+        self.norm2 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=layer_norm_use_bias)
         self.ffn = FeedForward(spatial_dims, dim, ffn_expansion_factor, bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -53,11 +52,11 @@ class OverlapPatchEmbed(nn.Module):
     Unlike standard patch embeddings that use non-overlapping patches,
     this approach maintains spatial continuity through 3x3 convolutions."""
 
-    def __init__(self, spatial_dims: int, in_c: int = 3, embed_dim: int = 48, bias: bool = False):
+    def __init__(self, spatial_dims: int, in_channels: int = 3, embed_dim: int = 48, bias: bool = False):
         super().__init__()
         self.proj = Convolution(
             spatial_dims=spatial_dims,
-            in_channels=in_c,
+            in_channels=in_channels,
             out_channels=embed_dim,
             kernel_size=3,
             strides=1,
@@ -89,7 +88,7 @@ class Restormer(nn.Module):
     def __init__(
         self,
         spatial_dims: int = 2,
-        inp_channels: int = 3,
+        in_channels: int = 3,
         out_channels: int = 3,
         dim: int = 48,
         num_blocks: tuple[int, ...] = (1, 1, 1, 1),
@@ -97,7 +96,7 @@ class Restormer(nn.Module):
         num_refinement_blocks: int = 4,
         ffn_expansion_factor: float = 2.66,
         bias: bool = False,
-        layer_norm_type: str = "WithBias",
+        layer_norm_use_bias: str = True,
         dual_pixel_task: bool = False,
         flash_attention: bool = False,
     ) -> None:
@@ -105,7 +104,7 @@ class Restormer(nn.Module):
         """Initialize Restormer model.
 
         Args:
-            inp_channels: Number of input image channels
+            in_channels: Number of input image channels
             out_channels: Number of output image channels
             dim: Base feature dimension
             num_blocks: Number of transformer blocks at each scale
@@ -113,7 +112,7 @@ class Restormer(nn.Module):
             heads: Number of attention heads at each scale
             ffn_expansion_factor: Expansion factor for feed-forward network
             bias: Whether to use bias in convolutions
-            layer_norm_type: Type of normalization ('WithBias' or 'BiasFree')
+            layer_norm_use_bias: Whether to use bias in layer normalization. Default is True.
             dual_pixel_task: Enable dual-pixel specific processing
             flash_attention: Use flash attention if available
         """
@@ -123,7 +122,7 @@ class Restormer(nn.Module):
         assert all(n > 0 for n in num_blocks), "Number of blocks must be greater than 0"
 
         # Initial feature extraction
-        self.patch_embed = OverlapPatchEmbed(spatial_dims, inp_channels, dim)
+        self.patch_embed = OverlapPatchEmbed(spatial_dims, in_channels, dim)
         self.encoder_levels = nn.ModuleList()
         self.downsamples = nn.ModuleList()
         self.decoder_levels = nn.ModuleList()
@@ -147,7 +146,7 @@ class Restormer(nn.Module):
                             num_heads=heads[n],
                             ffn_expansion_factor=ffn_expansion_factor,
                             bias=bias,
-                            layer_norm_type=layer_norm_type,
+                            layer_norm_use_bias=layer_norm_use_bias,
                             flash_attention=flash_attention,
                         )
                         for _ in range(num_blocks[n])
@@ -176,7 +175,7 @@ class Restormer(nn.Module):
                     num_heads=heads[num_steps],
                     ffn_expansion_factor=ffn_expansion_factor,
                     bias=bias,
-                    layer_norm_type=layer_norm_type,
+                    layer_norm_use_bias=layer_norm_use_bias,
                     flash_attention=flash_attention,
                 )
                 for _ in range(num_blocks[num_steps])
@@ -224,7 +223,7 @@ class Restormer(nn.Module):
                             num_heads=heads[n],
                             ffn_expansion_factor=ffn_expansion_factor,
                             bias=bias,
-                            layer_norm_type=layer_norm_type,
+                            layer_norm_use_bias=layer_norm_use_bias,
                             flash_attention=flash_attention,
                         )
                         for _ in range(num_blocks[n])
@@ -241,7 +240,7 @@ class Restormer(nn.Module):
                     num_heads=heads[0],
                     ffn_expansion_factor=ffn_expansion_factor,
                     bias=bias,
-                    layer_norm_type=layer_norm_type,
+                    layer_norm_use_bias=layer_norm_use_bias,
                     flash_attention=flash_attention,
                 )
                 for _ in range(num_refinement_blocks)
@@ -272,14 +271,14 @@ class Restormer(nn.Module):
         """Forward pass of Restormer.
         Processes input through encoder-decoder architecture with skip connections.
         Args:
-            inp_img: Input image tensor of shape (B, C, H, W)
+            inp_img: Input image tensor of shape (B, C, H, W, [D])
 
         Returns:
-            Restored image tensor of shape (B, C, H, W)
+            Restored image tensor of shape (B, C, H, W, [D])
         """
-        assert (
-            x.shape[-1] > 2 ** self.num_steps and x.shape[-2] > 2**self.num_steps
-        ), "Input dimensions should be larger than 2^number_of_step"
+        assert all(
+            x.shape[-i] > 2 ** self.num_steps for i in range(1, self.spatial_dims + 1)
+        ), "All spatial dimensions should be larger than 2^number_of_step"
 
         # Patch embedding
         x = self.patch_embed(x)
