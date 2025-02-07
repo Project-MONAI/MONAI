@@ -377,7 +377,7 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
     Args:
-        x: Input tensor
+        x: Input tensor with shape BCHW[D]
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to rescale the spatial dimensions by, must be >=1
 
@@ -423,7 +423,7 @@ def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> tor
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
     Args:
-        x: Input tensor
+        x: Input tensor with shape BCHW[D]
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to reduce the spatial dimensions by, must be >=1
 
@@ -443,7 +443,7 @@ def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> tor
 
     if any(d % factor != 0 for d in input_size[2:]):
         raise ValueError(
-            f"All spatial dimensions must be divisible by factor {factor}. " f"Got spatial dimensions: {input_size[2:]}"
+            f"All spatial dimensions must be divisible by factor {factor}. " f", spatial shape is: {input_size[2:]}"
         )
     output_size = [batch_size, new_channels] + [d // factor for d in input_size[2:]]
     reshaped_size = [batch_size, channels] + sum([[d // factor, factor] for d in input_size[2:]], [])
