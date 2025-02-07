@@ -15,12 +15,17 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "../"))
 import unittest
+from unittest import skipUnless
+
 
 import torch
 from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.restormer import MDTATransformerBlock, OverlapPatchEmbed, Restormer
+from monai.utils import optional_import
+
+einops, has_einops = optional_import("einops")
 
 TEST_CASES_TRANSFORMER = [
     # [spatial_dims, dim, num_heads, ffn_factor, bias, layer_norm_use_bias, flash_attn, input_shape]
@@ -86,7 +91,8 @@ for config in RESTORMER_CONFIGS:
 
 
 class TestMDTATransformerBlock(unittest.TestCase):
-
+    
+    @skipUnless(has_einops, "Requires einops")
     @parameterized.expand(TEST_CASES_TRANSFORMER)
     def test_shape(self, spatial_dims, dim, heads, ffn_factor, bias, layer_norm_use_bias, flash, shape):
         block = MDTATransformerBlock(
@@ -116,6 +122,7 @@ class TestOverlapPatchEmbed(unittest.TestCase):
 
 class TestRestormer(unittest.TestCase):
 
+    @skipUnless(has_einops, "Requires einops")
     @parameterized.expand(TEST_CASES_RESTORMER)
     def test_shape(self, input_param, input_shape, expected_shape):
         net = Restormer(**input_param)
@@ -123,11 +130,13 @@ class TestRestormer(unittest.TestCase):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_small_input_error_2d(self):
         net = Restormer(spatial_dims=2, in_channels=1, out_channels=1)
         with self.assertRaises(AssertionError):
             net(torch.randn(1, 1, 8, 8))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_small_input_error_3d(self):
         net = Restormer(spatial_dims=3, in_channels=1, out_channels=1)
         with self.assertRaises(AssertionError):
