@@ -188,7 +188,7 @@ Blocks
 .. autoclass:: DownSample
     :members:
 .. autoclass:: Downsample
-.. autoclass:: SubpixelDownSample
+.. autoclass:: SubpixelDownsample
     :members:
 .. autoclass:: Subpixeldownsample
 .. autoclass:: SubpixelDownSample
