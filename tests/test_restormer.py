@@ -91,7 +91,7 @@ for config in RESTORMER_CONFIGS:
 
 
 class TestMDTATransformerBlock(unittest.TestCase):
-    
+
     @skipUnless(has_einops, "Requires einops")
     @parameterized.expand(TEST_CASES_TRANSFORMER)
     def test_shape(self, spatial_dims, dim, heads, ffn_factor, bias, layer_norm_use_bias, flash, shape):
