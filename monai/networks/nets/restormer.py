@@ -57,7 +57,7 @@ class MDTATransformerBlock(nn.Module):
         return x
 
 
-class OverlapPatchEmbed(nn.Module):
+class OverlapPatchEmbed(Convolution):
     """Initial feature extraction using overlapped convolutions.
     Unlike standard patch embeddings that use non-overlapping patches,
     this approach maintains spatial continuity through 3x3 convolutions.
@@ -70,8 +70,7 @@ class OverlapPatchEmbed(nn.Module):
     """
 
     def __init__(self, spatial_dims: int, in_channels: int = 3, embed_dim: int = 48, bias: bool = False):
-        super().__init__()
-        self.proj = Convolution(
+        super().__init__(
             spatial_dims=spatial_dims,
             in_channels=in_channels,
             out_channels=embed_dim,
@@ -82,8 +81,8 @@ class OverlapPatchEmbed(nn.Module):
             conv_only=True,
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.proj(x)
+def forward(self, x: torch.Tensor) -> torch.Tensor:
+    return super().forward(x)
 
 
 class Restormer(nn.Module):
