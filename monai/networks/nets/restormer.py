@@ -32,11 +32,11 @@ class MDTATransformerBlock(nn.Module):
         num_heads: int,
         ffn_expansion_factor: float,
         bias: bool,
-        LayerNorm_type: str,
+        layer_norm_type: str = "BiasFree",
         flash_attention: bool = False,
     ):
         super().__init__()
-        use_bias = LayerNorm_type != "BiasFree"
+        use_bias = layer_norm_type != "BiasFree"
         self.norm1 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=use_bias)
         self.attn = CABlock(spatial_dims, dim, num_heads, bias, flash_attention)
         self.norm2 = Norm[Norm.INSTANCE, spatial_dims](dim, affine=use_bias)
@@ -88,19 +88,19 @@ class Restormer(nn.Module):
 
     def __init__(
         self,
-        spatial_dims=2,
-        inp_channels=3,
-        out_channels=3,
-        dim=48,
-        num_blocks=[1, 1, 1, 1],
-        heads=[1, 1, 1, 1],
-        num_refinement_blocks=4,
-        ffn_expansion_factor=2.66,
-        bias=False,
-        LayerNorm_type="WithBias",
-        dual_pixel_task=False,
-        flash_attention=False,
-    ):
+        spatial_dims: int = 2,
+        inp_channels: int = 3,
+        out_channels: int = 3,
+        dim: int = 48,
+        num_blocks: tuple[int, ...] = (1, 1, 1, 1),
+        heads: tuple[int, ...] = (1, 1, 1, 1),
+        num_refinement_blocks: int = 4,
+        ffn_expansion_factor: float = 2.66,
+        bias: bool = False,
+        layer_norm_type: str = "WithBias",
+        dual_pixel_task: bool = False,
+        flash_attention: bool = False,
+    ) -> None:
         super().__init__()
         """Initialize Restormer model.
 
@@ -113,14 +113,14 @@ class Restormer(nn.Module):
             heads: Number of attention heads at each scale
             ffn_expansion_factor: Expansion factor for feed-forward network
             bias: Whether to use bias in convolutions
-            LayerNorm_type: Type of normalization ('WithBias' or 'BiasFree')
+            layer_norm_type: Type of normalization ('WithBias' or 'BiasFree')
             dual_pixel_task: Enable dual-pixel specific processing
             flash_attention: Use flash attention if available
         """
         # Check input parameters
         assert len(num_blocks) > 1, "Number of blocks must be greater than 1"
         assert len(num_blocks) == len(heads), "Number of blocks and heads must be equal"
-        assert all([n > 0 for n in num_blocks]), "Number of blocks must be greater than 0"
+        assert all(n > 0 for n in num_blocks), "Number of blocks must be greater than 0"
 
         # Initial feature extraction
         self.patch_embed = OverlapPatchEmbed(spatial_dims, inp_channels, dim)
@@ -147,7 +147,7 @@ class Restormer(nn.Module):
                             num_heads=heads[n],
                             ffn_expansion_factor=ffn_expansion_factor,
                             bias=bias,
-                            LayerNorm_type=LayerNorm_type,
+                            layer_norm_type=layer_norm_type,
                             flash_attention=flash_attention,
                         )
                         for _ in range(num_blocks[n])
@@ -176,7 +176,7 @@ class Restormer(nn.Module):
                     num_heads=heads[num_steps],
                     ffn_expansion_factor=ffn_expansion_factor,
                     bias=bias,
-                    LayerNorm_type=LayerNorm_type,
+                    layer_norm_type=layer_norm_type,
                     flash_attention=flash_attention,
                 )
                 for _ in range(num_blocks[num_steps])
@@ -224,7 +224,7 @@ class Restormer(nn.Module):
                             num_heads=heads[n],
                             ffn_expansion_factor=ffn_expansion_factor,
                             bias=bias,
-                            LayerNorm_type=LayerNorm_type,
+                            layer_norm_type=layer_norm_type,
                             flash_attention=flash_attention,
                         )
                         for _ in range(num_blocks[n])
@@ -241,7 +241,7 @@ class Restormer(nn.Module):
                     num_heads=heads[0],
                     ffn_expansion_factor=ffn_expansion_factor,
                     bias=bias,
-                    LayerNorm_type=LayerNorm_type,
+                    layer_norm_type=layer_norm_type,
                     flash_attention=flash_attention,
                 )
                 for _ in range(num_refinement_blocks)
@@ -286,7 +286,7 @@ class Restormer(nn.Module):
         skip_connections = []
 
         # Encoding path
-        for idx, (encoder, downsample) in enumerate(zip(self.encoder_levels, self.downsamples)):
+        for _idx, (encoder, downsample) in enumerate(zip(self.encoder_levels, self.downsamples)):
             x = encoder(x)
             skip_connections.append(x)
             x = downsample(x)
