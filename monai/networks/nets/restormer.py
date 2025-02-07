@@ -23,7 +23,17 @@ from monai.networks.layers.factories import Norm
 class MDTATransformerBlock(nn.Module):
     """Basic transformer unit combining MDTA and GDFN with skip connections.
     Unlike standard transformers that use LayerNorm, this block uses Instance Norm
-    for better adaptation to image restoration tasks."""
+    for better adaptation to image restoration tasks.
+
+    Args:
+        spatial_dims: Number of spatial dimensions (2D or 3D)
+        dim: Number of input channels
+        num_heads: Number of attention heads
+        ffn_expansion_factor: Expansion factor for feed-forward network
+        bias: Whether to use bias in attention layers
+        layer_norm_use_bias: Whether to use bias in layer normalization. Defaults to False.
+        flash_attention: Whether to use flash attention optimization. Defaults to False.
+    """
 
     def __init__(
         self,
@@ -50,7 +60,14 @@ class MDTATransformerBlock(nn.Module):
 class OverlapPatchEmbed(nn.Module):
     """Initial feature extraction using overlapped convolutions.
     Unlike standard patch embeddings that use non-overlapping patches,
-    this approach maintains spatial continuity through 3x3 convolutions."""
+    this approach maintains spatial continuity through 3x3 convolutions.
+    
+    Args:
+        spatial_dims: Number of spatial dimensions (2D or 3D)
+        in_channels: Number of input channels
+        embed_dim: Dimension of embedded features. Defaults to 48.
+        bias: Whether to use bias in convolution layer. Defaults to False.
+    """
 
     def __init__(self, spatial_dims: int, in_channels: int = 3, embed_dim: int = 48, bias: bool = False):
         super().__init__()
@@ -104,17 +121,23 @@ class Restormer(nn.Module):
         """Initialize Restormer model.
 
         Args:
+            spatial_dims: Number of spatial dimensions (2D or 3D)
             in_channels: Number of input image channels
             out_channels: Number of output image channels
-            dim: Base feature dimension
-            num_blocks: Number of transformer blocks at each scale
-            num_refinement_blocks: Number of final refinement blocks
-            heads: Number of attention heads at each scale
-            ffn_expansion_factor: Expansion factor for feed-forward network
-            bias: Whether to use bias in convolutions
-            layer_norm_use_bias: Whether to use bias in layer normalization. Default is True.
-            dual_pixel_task: Enable dual-pixel specific processing
-            flash_attention: Use flash attention if available
+            dim: Base feature dimension. Defaults to 48.
+            num_blocks: Number of transformer blocks at each scale. Defaults to (1,1,1,1).
+            heads: Number of attention heads at each scale. Defaults to (1,1,1,1).
+            num_refinement_blocks: Number of final refinement blocks. Defaults to 4.
+            ffn_expansion_factor: Expansion factor for feed-forward network. Defaults to 2.66.
+            bias: Whether to use bias in convolutions. Defaults to False.
+            layer_norm_use_bias: Whether to use bias in layer normalization. Defaults to True.
+            dual_pixel_task: Enable dual-pixel specific processing. Defaults to False.
+            flash_attention: Use flash attention if available. Defaults to False.
+
+        Note:
+            The number of blocks must be greater than 1
+            The length of num_blocks and heads must be equal
+            All values in num_blocks must be greater than 0
         """
         # Check input parameters
         assert len(num_blocks) > 1, "Number of blocks must be greater than 1"
