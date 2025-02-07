@@ -21,7 +21,7 @@ from monai.networks.blocks.cablock import CABlock, FeedForward
 from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose
 
-einops, has_einops = optional_import("einops")
+rearrange, _ = optional_import("einops", name="rearrange")
 
 
 TEST_CASES_CAB = []
