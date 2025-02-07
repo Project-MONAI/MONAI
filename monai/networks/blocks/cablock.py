@@ -24,7 +24,14 @@ __all__ = ["FeedForward", "CABlock"]
 
 class FeedForward(nn.Module):
     """Gated-DConv Feed-Forward Network (GDFN) that controls feature flow using gating mechanism.
-    Uses depth-wise convolutions for local context mixing and GELU-activated gating for refined feature selection."""
+    Uses depth-wise convolutions for local context mixing and GELU-activated gating for refined feature selection.
+    
+    Args:
+        spatial_dims: Number of spatial dimensions (2D or 3D)
+        dim: Number of input channels
+        ffn_expansion_factor: Factor to expand hidden features dimension
+        bias: Whether to use bias in convolution layers
+    """
 
     def __init__(self, spatial_dims: int, dim: int, ffn_expansion_factor: float, bias: bool):
         super().__init__()
@@ -70,7 +77,19 @@ class CABlock(nn.Module):
     """Multi-DConv Head Transposed Self-Attention (MDTA): Differs from standard self-attention
     by operating on feature channels instead of spatial dimensions. Incorporates depth-wise
     convolutions for local mixing before attention, achieving linear complexity vs quadratic
-    in vanilla attention. Based on SW Zamir, et al., 2022 <https://arxiv.org/abs/2111.09881>"""
+    in vanilla attention. Based on SW Zamir, et al., 2022 <https://arxiv.org/abs/2111.09881>
+    
+    Args:
+        spatial_dims: Number of spatial dimensions (2D or 3D)
+        dim: Number of input channels
+        num_heads: Number of attention heads
+        bias: Whether to use bias in convolution layers
+        flash_attention: Whether to use flash attention optimization. Defaults to False.
+
+    Raises:
+        ValueError: If flash attention is not available in current PyTorch version
+        ValueError: If spatial_dims is greater than 3
+    """
 
     def __init__(self, spatial_dims, dim: int, num_heads: int, bias: bool, flash_attention: bool = False):
         super().__init__()
