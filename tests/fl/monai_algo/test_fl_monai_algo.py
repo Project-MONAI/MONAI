@@ -29,7 +29,7 @@ from monai.fl.utils.exchange_object import ExchangeObject
 from monai.utils import path_to_uri
 from tests.test_utils import SkipIfNoModule
 
-_root_dir = Path(__file__).resolve().parents[3]
+_root_dir = Path(__file__).resolve().parents[2]
 _data_dir = os.path.join(_root_dir, "testing_data")
 _logging_file = pathjoin(_data_dir, "logging.conf")
 

@@ -25,7 +25,7 @@ from monai.fl.utils.exchange_object import ExchangeObject
 from monai.networks import get_state_dict
 from tests.test_utils import DistCall, DistTestCase, SkipIfBeforePyTorchVersion, SkipIfNoModule, skip_if_no_cuda
 
-TESTS_PATH = TESTS_PATH = Path(__file__).parents[3].as_posix()
+TESTS_PATH = TESTS_PATH = Path(__file__).parents[2].as_posix()
 _root_dir = os.path.abspath(pathjoin(TESTS_PATH))
 _data_dir = pathjoin(_root_dir, "testing_data")
 _logging_file = pathjoin(_data_dir, "logging.conf")
