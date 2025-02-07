@@ -226,7 +226,8 @@ class SubpixelDownsample(nn.Module):
     spatial dimensions while increasing channel depth.
 
     The pixel unshuffle operation is the inverse of pixel shuffle, rearranging dimensions
-    from (B, C, H*r, W*r) to (B, C*r², H, W).
+    from (B, C, H*r, W*r) to (B, C*r², H, W) for 2D images or from (B, C, H*r, W*r, D*r) to (B, C*r³, H, W, D) in 3D case.
+
     Example: (1, 1, 4, 4) with r=2 becomes (1, 4, 2, 2).
 
     See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
@@ -246,15 +247,18 @@ class SubpixelDownsample(nn.Module):
         bias: bool = True,
     ) -> None:
         """
+        Downsamples data by rearranging spatial information into channel space.
+        This reduces spatial dimensions while increasing channel depth.
+        
         Args:
             spatial_dims: number of spatial dimensions of the input image.
             in_channels: number of channels of the input image.
             out_channels: optional number of channels of the output image.
             scale_factor: factor to reduce the spatial dimensions by. Defaults to 2.
             conv_block: a conv block to adjust channels before downsampling. Defaults to None.
-                - When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized.
-                - When ``conv_block`` is an ``nn.module``,
-                  please ensure the input number of channels matches requirements.
+                When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized.
+                When ``conv_block`` is an ``nn.module``,
+                please ensure the input number of channels matches requirements.
             bias: whether to have a bias term in the default conv_block. Defaults to True.
         """
         super().__init__()
