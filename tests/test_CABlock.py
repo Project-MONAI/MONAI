@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import skipUnless
 
 import torch
 from parameterized import parameterized
@@ -21,7 +22,7 @@ from monai.networks.blocks.cablock import CABlock, FeedForward
 from monai.utils import optional_import
 from tests.utils import SkipIfBeforePyTorchVersion, assert_allclose
 
-rearrange, _ = optional_import("einops", name="rearrange")
+einops, has_einops = optional_import("einops")
 
 
 TEST_CASES_CAB = []
@@ -70,17 +71,20 @@ class TestFeedForward(unittest.TestCase):
 class TestCABlock(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES_CAB)
+    @skipUnless(has_einops, "Requires einops")
     def test_shape(self, input_param, input_shape, expected_shape):
         net = CABlock(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_invalid_spatial_dims(self):
         with self.assertRaises(ValueError):
             CABlock(spatial_dims=4, dim=64, num_heads=4, bias=True)
 
     @SkipIfBeforePyTorchVersion((2, 0))
+    @skipUnless(has_einops, "Requires einops")
     def test_flash_attention(self):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         block = CABlock(spatial_dims=2, dim=64, num_heads=4, bias=True, flash_attention=True).to(device)
@@ -88,17 +92,20 @@ class TestCABlock(unittest.TestCase):
         output = block(x)
         self.assertEqual(output.shape, x.shape)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_temperature_parameter(self):
         block = CABlock(spatial_dims=2, dim=64, num_heads=4, bias=True)
         self.assertTrue(isinstance(block.temperature, torch.nn.Parameter))
         self.assertEqual(block.temperature.shape, (4, 1, 1))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_qkv_transformation_2d(self):
         block = CABlock(spatial_dims=2, dim=64, num_heads=4, bias=True)
         x = torch.randn(2, 64, 32, 32)
         qkv = block.qkv(x)
         self.assertEqual(qkv.shape, (2, 192, 32, 32))
 
+    @skipUnless(has_einops, "Requires einops")
     def test_qkv_transformation_3d(self):
         block = CABlock(spatial_dims=3, dim=64, num_heads=4, bias=True)
         x = torch.randn(2, 64, 16, 16, 16)
@@ -106,6 +113,7 @@ class TestCABlock(unittest.TestCase):
         self.assertEqual(qkv.shape, (2, 192, 16, 16, 16))
 
     @SkipIfBeforePyTorchVersion((2, 0))
+    @skipUnless(has_einops, "Requires einops")
     def test_flash_vs_normal_attention(self):
         device = "cuda" if torch.cuda.is_available() else "cpu"
         block_flash = CABlock(spatial_dims=2, dim=64, num_heads=4, bias=True, flash_attention=True).to(device)
@@ -120,6 +128,7 @@ class TestCABlock(unittest.TestCase):
 
         assert_allclose(out_flash, out_normal, atol=1e-4)
 
+    @skipUnless(has_einops, "Requires einops")
     def test_deterministic_small_input(self):
         block = CABlock(spatial_dims=2, dim=2, num_heads=1, bias=False)
         with torch.no_grad():
