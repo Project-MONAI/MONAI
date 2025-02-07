@@ -139,7 +139,7 @@ class DownSample(nn.Sequential):
             kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
             padding = tuple((k - 1) // 2 for k in kernel_size_)
 
-        if down_mode == "conv":
+        if down_mode == DownsampleMode.CONV:
             if not in_channels:
                 raise ValueError("in_channels needs to be specified in conv mode")
             self.add_module(
@@ -153,7 +153,7 @@ class DownSample(nn.Sequential):
                     bias=bias,
                 ),
             )
-        elif down_mode == "convgroup":
+        elif down_mode == DownsampleMode.CONVGROUP:
             if not in_channels:
                 raise ValueError("in_channels needs to be specified")
             if out_channels is None:
@@ -203,7 +203,7 @@ class DownSample(nn.Sequential):
             if post_conv:
                 self.add_module("postconv", post_conv)
 
-        elif down_mode == "pixelunshuffle":
+        elif down_mode == DownsampleMode.PIXELUNSHUFFLE:
             self.add_module(
                 "pixelunshuffle",
                 SubpixelDownsample(
