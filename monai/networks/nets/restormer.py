@@ -61,7 +61,7 @@ class OverlapPatchEmbed(nn.Module):
     """Initial feature extraction using overlapped convolutions.
     Unlike standard patch embeddings that use non-overlapping patches,
     this approach maintains spatial continuity through 3x3 convolutions.
-    
+
     Args:
         spatial_dims: Number of spatial dimensions (2D or 3D)
         in_channels: Number of input channels
@@ -300,7 +300,7 @@ class Restormer(nn.Module):
             Restored image tensor of shape (B, C, H, W, [D])
         """
         assert all(
-            x.shape[-i] > 2 ** self.num_steps for i in range(1, self.spatial_dims + 1)
+            x.shape[-i] > 2**self.num_steps for i in range(1, self.spatial_dims + 1)
         ), "All spatial dimensions should be larger than 2^number_of_step"
 
         # Patch embedding

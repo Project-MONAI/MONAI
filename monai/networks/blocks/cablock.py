@@ -13,11 +13,11 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from monai.networks.blocks.convolutions import Convolution
 from monai.utils import optional_import
 
 rearrange, _ = optional_import("einops", name="rearrange")
-
-from monai.networks.blocks.convolutions import Convolution
 
 __all__ = ["FeedForward", "CABlock"]
 
