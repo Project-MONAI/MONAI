@@ -25,7 +25,7 @@ __all__ = ["FeedForward", "CABlock"]
 class FeedForward(nn.Module):
     """Gated-DConv Feed-Forward Network (GDFN) that controls feature flow using gating mechanism.
     Uses depth-wise convolutions for local context mixing and GELU-activated gating for refined feature selection.
-    
+
     Args:
         spatial_dims: Number of spatial dimensions (2D or 3D)
         dim: Number of input channels
@@ -78,7 +78,7 @@ class CABlock(nn.Module):
     by operating on feature channels instead of spatial dimensions. Incorporates depth-wise
     convolutions for local mixing before attention, achieving linear complexity vs quadratic
     in vanilla attention. Based on SW Zamir, et al., 2022 <https://arxiv.org/abs/2111.09881>
-    
+
     Args:
         spatial_dims: Number of spatial dimensions (2D or 3D)
         dim: Number of input channels

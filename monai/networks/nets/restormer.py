@@ -81,6 +81,7 @@ class OverlapPatchEmbed(Convolution):
             conv_only=True,
         )
 
+
 def forward(self, x: torch.Tensor) -> torch.Tensor:
     return super().forward(x)
 
