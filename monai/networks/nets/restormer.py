@@ -113,7 +113,7 @@ class Restormer(nn.Module):
         num_refinement_blocks: int = 4,
         ffn_expansion_factor: float = 2.66,
         bias: bool = False,
-        layer_norm_use_bias: str = True,
+        layer_norm_use_bias: bool = True,
         dual_pixel_task: bool = False,
         flash_attention: bool = False,
     ) -> None:

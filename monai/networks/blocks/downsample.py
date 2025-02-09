@@ -249,7 +249,7 @@ class SubpixelDownsample(nn.Module):
         """
         Downsamples data by rearranging spatial information into channel space.
         This reduces spatial dimensions while increasing channel depth.
-        
+
         Args:
             spatial_dims: number of spatial dimensions of the input image.
             in_channels: number of channels of the input image.
