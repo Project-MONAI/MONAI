@@ -91,6 +91,8 @@ class TestMDTATransformerBlock(unittest.TestCase):
     @skipUnless(has_einops, "Requires einops")
     @parameterized.expand(TEST_CASES_TRANSFORMER)
     def test_shape(self, spatial_dims, dim, heads, ffn_factor, bias, layer_norm_use_bias, flash, shape):
+        if flash and not torch.cuda.is_available():
+            self.skipTest("Flash attention requires CUDA")
         block = MDTATransformerBlock(
             spatial_dims=spatial_dims,
             dim=dim,
@@ -121,6 +123,8 @@ class TestRestormer(unittest.TestCase):
     @skipUnless(has_einops, "Requires einops")
     @parameterized.expand(TEST_CASES_RESTORMER)
     def test_shape(self, input_param, input_shape, expected_shape):
+        if input_param.get('flash_attention', False) and not torch.cuda.is_available():
+            self.skipTest("Flash attention requires CUDA")
         net = Restormer(**input_param)
         with eval_mode(net):
             result = net(torch.randn(input_shape))

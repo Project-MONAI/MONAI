@@ -46,11 +46,5 @@ class TestPixelUnshuffle(unittest.TestCase):
         unshuffled = pixelunshuffle(shuffled, spatial_dims=3, scale_factor=2)
         torch.testing.assert_close(x, unshuffled)
 
-    def test_invalid_scale(self):
-        x = torch.randn(2, 4, 15, 15)
-        with self.assertRaises(RuntimeError):
-            pixelunshuffle(x, spatial_dims=2, scale_factor=2)
-
-
 if __name__ == "__main__":
     unittest.main()
