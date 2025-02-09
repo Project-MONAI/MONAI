@@ -123,7 +123,7 @@ class TestRestormer(unittest.TestCase):
     @skipUnless(has_einops, "Requires einops")
     @parameterized.expand(TEST_CASES_RESTORMER)
     def test_shape(self, input_param, input_shape, expected_shape):
-        if input_param.get('flash_attention', False) and not torch.cuda.is_available():
+        if input_param.get("flash_attention", False) and not torch.cuda.is_available():
             self.skipTest("Flash attention requires CUDA")
         net = Restormer(**input_param)
         with eval_mode(net):

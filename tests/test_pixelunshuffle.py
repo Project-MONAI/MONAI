@@ -46,5 +46,6 @@ class TestPixelUnshuffle(unittest.TestCase):
         unshuffled = pixelunshuffle(shuffled, spatial_dims=3, scale_factor=2)
         torch.testing.assert_close(x, unshuffled)
 
+
 if __name__ == "__main__":
     unittest.main()
