@@ -10,7 +10,6 @@
 # limitations under the License.
 from __future__ import annotations
 
-import os
 import unittest
 from pathlib import Path
 
@@ -158,7 +157,7 @@ class TestWarp(unittest.TestCase):
 
 
 TESTS_PATH = Path(__file__).parents[3]
-FILE_PATH = os.path.join(TESTS_PATH, "testing_data", "temp_" + "mri.nii")
+FILE_PATH = TESTS_PATH / "testing_data" / "temp_" / "mri.nii"
 
 
 def load_img_and_sample_ddf():
