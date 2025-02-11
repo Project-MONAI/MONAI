@@ -19,7 +19,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import Transposed
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:

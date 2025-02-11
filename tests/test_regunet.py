@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.regunet import RegUNet
-from tests.utils import test_script_save
+from tests.test_utils import test_script_save
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

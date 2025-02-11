@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ToDevice
-from tests.utils import assert_allclose, skip_if_no_cuda
+from tests.test_utils import assert_allclose, skip_if_no_cuda
 
 TEST_CASE_1 = ["cuda:0"]
 

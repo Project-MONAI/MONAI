@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.blocks import ChannelSELayer, ResidualSELayer
-from tests.utils import test_script_save
+from tests.test_utils import test_script_save
 
 TEST_CASES = [  # single channel 3D, batch 16
     [{"spatial_dims": 2, "in_channels": 4, "r": 3}, (7, 4, 64, 48), (7, 4, 64, 48)],  # 4-channel 2D, batch 7

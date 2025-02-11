@@ -23,7 +23,7 @@ from ignite.engine import Engine, Events
 from monai.handlers import MetricsSaver
 from monai.utils import evenly_divisible_all_gather
 from monai.utils.enums import PostFix
-from tests.utils import DistCall, DistTestCase
+from tests.test_utils import DistCall, DistTestCase
 
 
 class DistributedMetricsSaver(DistTestCase):

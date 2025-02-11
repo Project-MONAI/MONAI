@@ -18,7 +18,7 @@ from parameterized import parameterized
 from torch.nn.functional import pad
 
 from monai.inferers import AvgMerger
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 TENSOR_4x4 = torch.randint(low=0, high=255, size=(2, 3, 4, 4), dtype=torch.float32)
 TENSOR_4x4_WITH_NAN = TENSOR_4x4.clone()

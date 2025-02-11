@@ -23,7 +23,7 @@ from ignite.engine import Engine
 
 from monai.data import decollate_batch
 from monai.handlers import ClassificationSaver
-from tests.utils import DistCall, DistTestCase
+from tests.test_utils import DistCall, DistTestCase
 
 
 class DistributedHandlerClassificationSaver(DistTestCase):

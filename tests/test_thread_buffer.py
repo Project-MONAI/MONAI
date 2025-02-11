@@ -20,7 +20,7 @@ import torch
 from monai.data import DataLoader, Dataset, ThreadBuffer, ThreadDataLoader
 from monai.transforms import Compose, SimulateDelayd
 from monai.utils import PerfContext, set_determinism
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 class TestDataLoader(unittest.TestCase):

@@ -22,7 +22,7 @@ from monai.config.deviceconfig import USE_COMPILED
 from monai.networks.blocks.warp import Warp
 from monai.transforms import LoadImaged
 from monai.utils import GridSampleMode, GridSamplePadMode
-from tests.utils import (
+from tests.test_utils import (
     SkipIfBeforePyTorchVersion,
     SkipIfNoModule,
     download_url_or_skip_test,

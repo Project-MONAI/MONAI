@@ -20,7 +20,7 @@ from monai.bundle import ConfigWorkflow
 from monai.fl.client import MonaiAlgoStats
 from monai.fl.utils.constants import ExtraItems, FlStatistics
 from monai.fl.utils.exchange_object import ExchangeObject
-from tests.utils import SkipIfNoModule
+from tests.test_utils import SkipIfNoModule
 
 _root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 _data_dir = os.path.join(_root_dir, "testing_data")

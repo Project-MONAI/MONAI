@@ -19,7 +19,7 @@ import torch
 
 from monai.transforms import SignalFillEmpty
 from monai.utils.type_conversion import convert_to_tensor
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion
 
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")
 

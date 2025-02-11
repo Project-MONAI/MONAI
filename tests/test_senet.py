@@ -23,7 +23,7 @@ import monai.networks.nets.senet as se_mod
 from monai.networks import eval_mode
 from monai.networks.nets import SENet, SENet154, SEResNet50, SEResNet101, SEResNet152, SEResNext50, SEResNext101
 from monai.utils import optional_import
-from tests.utils import test_is_quick, test_pretrained_networks, test_script_save, testing_data_config
+from tests.test_utils import test_is_quick, test_pretrained_networks, test_script_save, testing_data_config
 
 if TYPE_CHECKING:
     import pretrainedmodels

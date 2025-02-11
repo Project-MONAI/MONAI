@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import AdjustContrast
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TESTS = []
 for invert_image in (True, False):

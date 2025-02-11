@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms import map_and_generate_sampling_centers
 from monai.utils.misc import set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TEST_CASE_1 = [
     # test Argmax data

@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.networks import eval_mode
 from monai.networks.nets import VISTA3D, SegResNetDS2
 from monai.networks.nets.vista3d import ClassMappingClassify, PointMappingSAM
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_quick
+from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_quick
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 

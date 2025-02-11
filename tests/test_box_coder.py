@@ -17,7 +17,7 @@ import torch
 
 from monai.apps.detection.utils.box_coder import BoxCoder
 from monai.transforms import CastToType
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 class TestBoxTransform(unittest.TestCase):

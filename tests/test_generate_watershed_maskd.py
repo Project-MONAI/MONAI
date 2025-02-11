@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.apps.pathology.transforms.post.dictionary import GenerateWatershedMaskd
 from monai.utils import min_version, optional_import
-from tests.utils import TEST_NDARRAYS
+from tests.test_utils import TEST_NDARRAYS
 
 _, has_scipy = optional_import("scipy", "1.8.1", min_version)
 

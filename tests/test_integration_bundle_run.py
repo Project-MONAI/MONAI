@@ -29,7 +29,7 @@ from monai.bundle import ConfigParser
 from monai.bundle.utils import DEFAULT_HANDLERS_ID
 from monai.transforms import LoadImage
 from monai.utils import path_to_uri
-from tests.utils import command_line_tests
+from tests.test_utils import command_line_tests
 
 TEST_CASE_1 = [os.path.join(os.path.dirname(__file__), "testing_data", "inference.json"), (128, 128, 128)]
 

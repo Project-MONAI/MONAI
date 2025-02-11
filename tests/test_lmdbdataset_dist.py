@@ -19,7 +19,7 @@ import numpy as np
 
 from monai.data import LMDBDataset, json_hashing
 from monai.transforms import Transform
-from tests.utils import DistCall, DistTestCase, skip_if_windows
+from tests.test_utils import DistCall, DistTestCase, skip_if_windows
 
 
 class _InplaceXform(Transform):

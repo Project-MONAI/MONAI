@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.networks.utils import meshgrid_xy
 from monai.transforms import RandSmoothDeformd, RandSmoothFieldAdjustContrastd, RandSmoothFieldAdjustIntensityd
-from tests.utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
+from tests.test_utils import TEST_NDARRAYS, assert_allclose, is_tf32_env
 
 _rtol = 5e-3 if is_tf32_env() else 1e-4
 

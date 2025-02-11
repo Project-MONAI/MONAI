@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.networks.schedulers import DDPMScheduler
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 TEST_2D_CASE = []
 for beta_schedule in ["linear_beta", "scaled_linear_beta"]:

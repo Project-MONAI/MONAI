@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.transforms import RandTorchIOd
 from monai.utils import optional_import, set_determinism
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 _, has_torchio = optional_import("torchio")
 

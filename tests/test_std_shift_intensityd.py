@@ -17,7 +17,7 @@ import numpy as np
 
 from monai.transforms import ShiftIntensityd, StdShiftIntensityd
 from monai.utils import dtype_numpy_to_torch
-from tests.utils import NumpyImageTestCase2D
+from tests.test_utils import NumpyImageTestCase2D
 
 
 class TestStdShiftIntensityd(NumpyImageTestCase2D):

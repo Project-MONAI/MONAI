@@ -24,7 +24,7 @@ from monai.apps.mmars import MODEL_DESC, load_from_mmar
 from monai.bundle import download, load
 from monai.config import print_debug_info
 from monai.networks.utils import copy_model_state
-from tests.utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, skip_if_windows
+from tests.test_utils import assert_allclose, skip_if_downloading_fails, skip_if_quick, skip_if_windows
 
 TEST_CASE_NGC_1 = [
     "spleen_ct_segmentation",

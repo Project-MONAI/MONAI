@@ -24,7 +24,7 @@ from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
 from monai.utils import optional_import
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
 
 TESTS = []
 

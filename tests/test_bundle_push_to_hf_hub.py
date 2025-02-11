@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.bundle import push_to_hf_hub
 from monai.utils import optional_import
-from tests.utils import skip_if_quick
+from tests.test_utils import skip_if_quick
 
 huggingface_hub, has_huggingface_hub = optional_import("huggingface_hub")
 

@@ -23,7 +23,7 @@ from monai.data import Dataset, ThreadDataLoader
 from monai.utils import first, optional_import
 from monai.utils.enums import CommonKeys
 from monai.utils.profiling import ProfileHandler, ProfileResult, WorkflowProfiler
-from tests.utils import SkipIfNoModule
+from tests.test_utils import SkipIfNoModule
 
 pd, _ = optional_import("pandas")
 
