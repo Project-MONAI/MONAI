@@ -133,9 +133,10 @@ if __name__ == "__main__":
         print(files)
         cases = []
         for test_module in tests_path.rglob("test_*py"):
-            case_str = str(test_module.relative_to(tests_path).as_posix()).replace("/", ".")[:-3]
-            if case_str in files:
-                cases.append(f"tests.{case_str}")
+            test_file = str(test_module.relative_to(tests_path).as_posix())
+            case_str = test_file.replace("/", ".")[:-3]
+            if test_file in files:
+                cases.append(case_str)
             else:
                 print(f"monai test runner: excluding {test_module.name}")
         print(cases)
