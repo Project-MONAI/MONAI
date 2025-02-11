@@ -135,6 +135,7 @@ if __name__ == "__main__":
         for test_module in tests_path.rglob("test_*py"):
             test_file = str(test_module.relative_to(tests_path).as_posix())
             case_str = test_file.replace("/", ".")[:-3]
+            case_str = f"tests.{case_str}"
             if test_file in files:
                 cases.append(case_str)
             else:
