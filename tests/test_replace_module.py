@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks.nets import DenseNet121
 from monai.networks.utils import replace_modules, replace_modules_temp
-from tests.utils import TEST_DEVICES
+from tests.test_utils import TEST_DEVICES
 
 TESTS = []
 for device in TEST_DEVICES:

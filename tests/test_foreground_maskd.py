@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms.intensity.dictionary import ForegroundMaskd
 from monai.utils import min_version, optional_import, set_determinism
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 skimage, has_skimage = optional_import("skimage", "0.19.0", min_version)
 set_determinism(1234)

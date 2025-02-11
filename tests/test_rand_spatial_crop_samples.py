@@ -20,7 +20,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms import RandSpatialCropSamples
 from monai.transforms.lazy.functional import apply_pending
 from tests.croppers import CropTest
-from tests.utils import TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose
 
 TEST_CASE_1 = [
     {"roi_size": [3, 3, 3], "num_samples": 4, "random_center": True, "random_size": False},

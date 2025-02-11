@@ -20,7 +20,7 @@ from parameterized import parameterized
 
 from monai.transforms import ToPILd
 from monai.utils import optional_import
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImageImage

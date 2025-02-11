@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.apps.detection.utils.ATSS_matcher import ATSSMatcher
 from monai.data.box_utils import box_iou
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 TEST_CASES = [
     [

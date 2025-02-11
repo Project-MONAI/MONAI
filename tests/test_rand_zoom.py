@@ -22,7 +22,7 @@ from monai.config import USE_COMPILED
 from monai.transforms import RandZoom
 from monai.utils import InterpolateMode
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
+from tests.test_utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, assert_allclose, test_local_inversion
 
 VALID_CASES = [
     (0.8, 1.2, "nearest", False),

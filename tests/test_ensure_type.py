@@ -18,7 +18,7 @@ import torch
 
 from monai.data import MetaTensor
 from monai.transforms import EnsureType
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 
 class TestEnsureType(unittest.TestCase):

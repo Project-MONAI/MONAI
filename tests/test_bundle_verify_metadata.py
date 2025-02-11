@@ -19,7 +19,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, verify_metadata
-from tests.utils import command_line_tests, download_url_or_skip_test, skip_if_windows, testing_data_config
+from tests.test_utils import command_line_tests, download_url_or_skip_test, skip_if_windows, testing_data_config
 
 SCHEMA_FILE = os.path.join(os.path.dirname(__file__), "testing_data", "schema.json")
 

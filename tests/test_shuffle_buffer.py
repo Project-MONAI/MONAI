@@ -18,7 +18,7 @@ import numpy as np
 
 from monai.data import DataLoader, ShuffleBuffer
 from monai.utils import convert_data_type
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion
 
 
 @SkipIfBeforePyTorchVersion((1, 12))

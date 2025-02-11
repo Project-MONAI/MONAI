@@ -53,8 +53,8 @@ from monai.transforms import (
     ScaleIntensityd,
 )
 from monai.utils import optional_import, set_determinism
+from tests.test_utils import DistTestCase, TimedCall, assert_allclose, pytorch_after, skip_if_quick
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, assert_allclose, pytorch_after, skip_if_quick
 
 SummaryWriter, _ = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 

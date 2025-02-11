@@ -19,7 +19,7 @@ from parameterized import parameterized
 from torch.autograd import gradcheck
 
 from monai.networks.layers.filtering import BilateralFilter
-from tests.utils import skip_if_no_cpp_extension, skip_if_no_cuda, skip_if_quick
+from tests.test_utils import skip_if_no_cpp_extension, skip_if_no_cuda, skip_if_quick
 
 TEST_CASES = [
     [

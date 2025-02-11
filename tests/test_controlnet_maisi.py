@@ -20,7 +20,7 @@ from parameterized import parameterized
 from monai.apps.generation.maisi.networks.controlnet_maisi import ControlNetMaisi
 from monai.networks import eval_mode
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion
 
 _, has_einops = optional_import("einops")
 

@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.transforms import TorchVisiond
 from monai.utils import set_determinism
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 TEST_CASE_1 = [
     {"keys": "img", "name": "ColorJitter"},

@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.transforms import SignalRandAddSquarePulse
 from monai.utils import optional_import
 from monai.utils.type_conversion import convert_to_tensor
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion
 
 _, has_scipy = optional_import("scipy")
 TEST_SIGNAL = os.path.join(os.path.dirname(__file__), "testing_data", "signal.npy")

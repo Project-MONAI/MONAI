@@ -24,7 +24,7 @@ from monai.metrics import (
     do_metric_reduction,
     get_confusion_matrix,
 )
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 _device = "cuda:0" if torch.cuda.is_available() else "cpu"
 # input data

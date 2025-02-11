@@ -38,8 +38,8 @@ from monai.transforms import (
     Transpose,
 )
 from monai.utils import set_determinism
+from tests.test_utils import DistTestCase, TimedCall, skip_if_downloading_fails, skip_if_quick, testing_data_config
 from tests.testing_data.integration_answers import test_integration_value
-from tests.utils import DistTestCase, TimedCall, skip_if_downloading_fails, skip_if_quick, testing_data_config
 
 TASK = "integration_classification_2d"
 

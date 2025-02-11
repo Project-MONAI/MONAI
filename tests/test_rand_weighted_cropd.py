@@ -19,7 +19,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.croppad.dictionary import RandWeightedCropd
 from monai.transforms.lazy.functional import apply_pending
-from tests.utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS_ALL, NumpyImageTestCase2D, NumpyImageTestCase3D, assert_allclose
 
 
 def get_data(ndim):

@@ -20,7 +20,7 @@ from urllib.error import ContentTooShortError, HTTPError
 from parameterized import parameterized
 
 from monai.apps import download_and_extract, download_url, extractall
-from tests.utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick, testing_data_config
+from tests.test_utils import SkipIfNoModule, skip_if_downloading_fails, skip_if_quick, testing_data_config
 
 
 @SkipIfNoModule("requests")

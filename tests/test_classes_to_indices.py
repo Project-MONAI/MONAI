@@ -16,7 +16,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.transforms import ClassesToIndices
-from tests.utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
 TESTS_CASES = []
 for p in TEST_NDARRAYS:

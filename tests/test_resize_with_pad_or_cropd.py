@@ -22,7 +22,7 @@ from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCropd
 from monai.transforms.lazy.functional import apply_pending
 from tests.test_resize_with_pad_or_crop import TESTS_PENDING_MODE
-from tests.utils import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
+from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
 
 TEST_CASES = [
     [{"keys": "img", "spatial_size": [15, 8, 8], "mode": "constant"}, {"img": np.zeros((3, 8, 8, 4))}, (3, 15, 8, 8)],

@@ -22,7 +22,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import Orientation, create_rotate, create_translate
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import TEST_DEVICES, assert_allclose
+from tests.test_utils import TEST_DEVICES, assert_allclose
 
 TESTS = []
 for device in TEST_DEVICES:
