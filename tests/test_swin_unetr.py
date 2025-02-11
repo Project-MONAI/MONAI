@@ -24,7 +24,7 @@ from monai.networks import eval_mode
 from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR, filter_swinunetr
 from monai.networks.utils import copy_model_state
 from monai.utils import optional_import
-from tests.utils import (
+from tests.test_utils import (
     assert_allclose,
     pytorch_after,
     skip_if_downloading_fails,

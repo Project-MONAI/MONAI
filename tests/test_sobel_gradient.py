@@ -17,7 +17,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import SobelGradients
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 IMAGE = torch.zeros(1, 16, 16, dtype=torch.float32)
 IMAGE[0, 8, :] = 1

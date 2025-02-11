@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import ToTensord
-from tests.utils import HAS_CUPY, TEST_NDARRAYS, assert_allclose, optional_import
+from tests.test_utils import HAS_CUPY, TEST_NDARRAYS, assert_allclose, optional_import
 
 cp, _ = optional_import("cupy")
 

@@ -18,7 +18,7 @@ import unittest
 from parameterized import parameterized
 
 from monai.bundle import ConfigParser, verify_net_in_out
-from tests.utils import command_line_tests, skip_if_no_cuda, skip_if_windows
+from tests.test_utils import command_line_tests, skip_if_no_cuda, skip_if_windows
 
 TEST_CASE_1 = [
     os.path.join(os.path.dirname(__file__), "testing_data", "metadata.json"),

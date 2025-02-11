@@ -21,7 +21,7 @@ from monai.transforms import Affine, Rotate90
 from monai.transforms.lazy.functional import apply_pending
 from monai.utils import optional_import
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.utils import (
+from tests.test_utils import (
     TEST_NDARRAYS_ALL,
     NumpyImageTestCase2D,
     NumpyImageTestCase3D,

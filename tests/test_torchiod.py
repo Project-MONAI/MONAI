@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.transforms import TorchIOd
 from monai.utils import optional_import
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 _, has_torchio = optional_import("torchio")
 

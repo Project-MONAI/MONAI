@@ -23,7 +23,7 @@ from parameterized import parameterized
 from monai.data import decollate_batch
 from monai.handlers import TensorBoardImageHandler
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion
+from tests.test_utils import SkipIfBeforePyTorchVersion
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 

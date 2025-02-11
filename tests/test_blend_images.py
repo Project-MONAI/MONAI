@@ -22,7 +22,7 @@ from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms.utils_pytorch_numpy_unification import moveaxis
 from monai.utils.module import optional_import
 from monai.visualize.utils import blend_images
-from tests.utils import TEST_NDARRAYS
+from tests.test_utils import TEST_NDARRAYS
 
 plt, has_matplotlib = optional_import("matplotlib.pyplot")
 

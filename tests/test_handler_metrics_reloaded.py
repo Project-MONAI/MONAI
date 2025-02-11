@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.handlers import MetricsReloadedBinaryHandler, MetricsReloadedCategoricalHandler, from_engine
 from monai.utils import optional_import
-from tests.utils import assert_allclose
+from tests.test_utils import assert_allclose
 
 _, has_metrics = optional_import("MetricsReloaded")
 

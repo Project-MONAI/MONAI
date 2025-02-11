@@ -20,7 +20,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from monai.losses import GeneralizedWassersteinDiceLoss
-from tests.utils import test_script_save
+from tests.test_utils import test_script_save
 
 
 class TestGeneralizedWassersteinDiceLoss(unittest.TestCase):

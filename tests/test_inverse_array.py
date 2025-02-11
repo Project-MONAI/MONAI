@@ -20,7 +20,7 @@ from monai.data import MetaTensor
 from monai.transforms import Compose, EnsureChannelFirst, Flip, Orientation, Spacing
 from monai.transforms.inverse import InvertibleTransform
 from monai.utils import optional_import
-from tests.utils import TEST_DEVICES
+from tests.test_utils import TEST_DEVICES
 
 _, has_nib = optional_import("nibabel")
 

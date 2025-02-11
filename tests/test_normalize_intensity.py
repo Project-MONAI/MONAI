@@ -18,7 +18,7 @@ import torch
 from parameterized import parameterized
 
 from monai.transforms import NormalizeIntensity
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TESTS = []
 for p in TEST_NDARRAYS:

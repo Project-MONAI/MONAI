@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.networks import normalize_transform, to_norm_affine
 from monai.networks.layers import AffineTransform
-from tests.utils import is_tf32_env
+from tests.test_utils import is_tf32_env
 
 _rtol = 1e-4 if not is_tf32_env() else 5e-3
 

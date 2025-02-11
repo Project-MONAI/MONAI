@@ -22,7 +22,7 @@ from monai.losses import DiceLoss
 from monai.networks.nets import UNet
 from monai.transforms import Compose, EnsureChannelFirst, RandRotate90, RandSpatialCrop, ScaleIntensity
 from monai.utils import set_determinism
-from tests.utils import DistTestCase, TimedCall
+from tests.test_utils import DistTestCase, TimedCall
 
 
 def run_test(batch_size=64, train_steps=200, device="cuda:0"):

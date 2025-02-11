@@ -40,7 +40,7 @@ from monai.transforms.inverse_batch_transform import Decollated
 from monai.transforms.spatial.dictionary import RandAffined, RandRotate90d
 from monai.utils import optional_import, set_determinism
 from monai.utils.enums import PostFix, TraceKeys
-from tests.utils import make_nifti_image
+from tests.test_utils import make_nifti_image
 
 _, has_nib = optional_import("nibabel")
 

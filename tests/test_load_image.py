@@ -29,7 +29,7 @@ from monai.data.meta_obj import set_track_meta
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import LoadImage
 from monai.utils import optional_import
-from tests.utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, testing_data_config
+from tests.test_utils import SkipIfNoModule, assert_allclose, skip_if_downloading_fails, testing_data_config
 
 itk, has_itk = optional_import("itk", allow_namespace_pkg=True)
 ITKReader, _ = optional_import("monai.data", name="ITKReader", as_type="decorator")

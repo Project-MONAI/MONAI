@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data.utils import list_data_collate
 from monai.inferers import SlidingWindowInferer, SlidingWindowInfererAdapt, sliding_window_inference
 from monai.utils import optional_import
-from tests.utils import TEST_TORCH_AND_META_TENSORS, skip_if_no_cuda, test_is_quick
+from tests.test_utils import TEST_TORCH_AND_META_TENSORS, skip_if_no_cuda, test_is_quick
 
 _, has_tqdm = optional_import("tqdm")
 

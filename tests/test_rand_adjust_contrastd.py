@@ -17,7 +17,7 @@ import numpy as np
 from parameterized import parameterized
 
 from monai.transforms import RandAdjustContrastd
-from tests.utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, NumpyImageTestCase2D, assert_allclose
 
 TEST_CASE_1 = [(0.5, 4.5)]
 
