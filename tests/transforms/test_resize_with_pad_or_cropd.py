@@ -21,7 +21,7 @@ from parameterized import parameterized
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import ResizeWithPadOrCropd
 from monai.transforms.lazy.functional import apply_pending
-from tests.test_resize_with_pad_or_crop import TESTS_PENDING_MODE
+from tests.transforms.test_resize_with_pad_or_crop import TESTS_PENDING_MODE
 from tests.test_utils import TEST_NDARRAYS_ALL, assert_allclose, pytorch_after
 
 TEST_CASES = [
