@@ -508,8 +508,10 @@ class SegResNetDS2(SegResNetDS):
 
         outputs: list[torch.Tensor] = []
         outputs_auto: list[torch.Tensor] = []
-        x_ = x.clone()
+        x_ = x
         if with_point:
+            if with_label:
+                x_ = x.clone()
             i = 0
             for level in self.up_layers:
                 x = level["upsample"](x)

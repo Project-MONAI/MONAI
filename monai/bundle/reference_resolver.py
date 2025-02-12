@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import re
 import warnings
-from collections.abc import Sequence
-from typing import Any, Iterator
+from collections.abc import Iterator, Sequence
+from typing import Any
 
 from monai.bundle.config_item import ConfigComponent, ConfigExpression, ConfigItem
 from monai.bundle.utils import DEPRECATED_ID_MAPPING, ID_REF_KEY, ID_SEP_KEY
@@ -191,6 +191,16 @@ class ReferenceResolver:
 
         """
         return self._resolve_one_item(id=id, **kwargs)
+
+    def remove_resolved_content(self, id: str) -> Any | None:
+        """
+        Remove the resolved ``ConfigItem`` by id.
+
+        Args:
+            id: id name of the expected item.
+
+        """
+        return self.resolved_content.pop(id) if id in self.resolved_content else None
 
     @classmethod
     def normalize_id(cls, id: str | int) -> str:

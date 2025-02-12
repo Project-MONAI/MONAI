@@ -630,6 +630,11 @@ Nets
 .. autoclass:: ViTAutoEnc
   :members:
 
+`MaskedAutoEncoderViT`
+~~~~~~~~~~~~~~~~~~~~~~
+.. autoclass:: MaskedAutoEncoderViT
+  :members:
+
 `FullyConnectedNet`
 ~~~~~~~~~~~~~~~~~~~
 .. autoclass:: FullyConnectedNet
@@ -735,13 +740,8 @@ Nets
 .. autoclass:: VoxelMorphUNet
    :members:
 
-.. autoclass:: voxelmorphunet
-   :members:
-
 .. autoclass:: VoxelMorph
    :members:
-
-.. autoclass:: voxelmorph
 
 Utilities
 ---------

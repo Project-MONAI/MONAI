@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -154,10 +154,12 @@ class SABlock(nn.Module):
         )
         self.input_size = input_size
 
-    def forward(self, x):
+    def forward(self, x, attn_mask: Optional[torch.Tensor] = None):
         """
         Args:
             x (torch.Tensor): input tensor. B x (s_dim_1 * ... * s_dim_n) x C
+            attn_mask (torch.Tensor, optional): mask to apply to the attention matrix.
+            B x (s_dim_1 * ... * s_dim_n). Defaults to None.
 
         Return:
             torch.Tensor: B x (s_dim_1 * ... * s_dim_n) x C
@@ -176,7 +178,13 @@ class SABlock(nn.Module):
 
         if self.use_flash_attention:
             x = F.scaled_dot_product_attention(
-                query=q, key=k, value=v, scale=self.scale, dropout_p=self.dropout_rate, is_causal=self.causal
+                query=q,
+                key=k,
+                value=v,
+                attn_mask=attn_mask,
+                scale=self.scale,
+                dropout_p=self.dropout_rate,
+                is_causal=self.causal,
             )
         else:
             att_mat = torch.einsum("blxd,blyd->blxy", q, k) * self.scale
@@ -186,10 +194,16 @@ class SABlock(nn.Module):
                 att_mat = self.rel_positional_embedding(x, att_mat, q)
 
             if self.causal:
+                if attn_mask is not None:
+                    raise ValueError("Causal attention does not support attention masks.")
                 att_mat = att_mat.masked_fill(self.causal_mask[:, :, : x.shape[-2], : x.shape[-2]] == 0, float("-inf"))
 
-            att_mat = att_mat.softmax(dim=-1)
+            if attn_mask is not None:
+                attn_mask = attn_mask.unsqueeze(1).unsqueeze(2)
+                attn_mask = attn_mask.expand(-1, self.num_heads, -1, -1)
+                att_mat = att_mat.masked_fill(attn_mask == 0, float("-inf"))
 
+            att_mat = att_mat.softmax(dim=-1)
             if self.save_attn:
                 # no gradients and new tensor;
                 # https://pytorch.org/docs/stable/generated/torch.Tensor.detach.html

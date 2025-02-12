@@ -821,6 +821,7 @@ class NormalizeIntensity(Transform):
     mean and std on each channel separately.
     When `channel_wise` is True, the first dimension of `subtrahend` and `divisor` should
     be the number of image channels if they are not None.
+    If the input is not of floating point type, it will be converted to float32
 
     Args:
         subtrahend: the amount to subtract by (usually the mean).
@@ -906,6 +907,9 @@ class NormalizeIntensity(Transform):
                 raise ValueError(f"img has {len(img)} channels, but subtrahend has {len(self.subtrahend)} components.")
             if self.divisor is not None and len(self.divisor) != len(img):
                 raise ValueError(f"img has {len(img)} channels, but divisor has {len(self.divisor)} components.")
+
+            if not img.dtype.is_floating_point:
+                img, *_ = convert_data_type(img, dtype=torch.float32)
 
             for i, d in enumerate(img):
                 img[i] = self._normalize(  # type: ignore
@@ -1411,7 +1415,7 @@ class ScaleIntensityRangePercentiles(Transform):
         else:
             img_t = self._normalize(img=img_t)
 
-        return convert_to_dst_type(img_t, dst=img)[0]
+        return convert_to_dst_type(img_t, dst=img, dtype=self.dtype)[0]
 
 
 class MaskIntensity(Transform):

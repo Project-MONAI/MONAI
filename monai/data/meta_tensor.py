@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import functools
 import warnings
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 import torch
@@ -552,7 +553,6 @@ class MetaTensor(MetaObj, torch.Tensor):
             However, if `get_track_meta()` is `False` or meta=None, a `torch.Tensor` is returned.
         """
         img = convert_to_tensor(im, track_meta=get_track_meta() and meta is not None)  # potentially ascontiguousarray
-
         # if not tracking metadata, return `torch.Tensor`
         if not isinstance(img, MetaTensor):
             return img
@@ -607,3 +607,8 @@ class MetaTensor(MetaObj, torch.Tensor):
         print(self)
         if self.meta is not None:
             print(self.meta.__repr__())
+
+
+# needed in later versions of Pytorch to indicate the class is safe for serialisation
+if hasattr(torch.serialization, "add_safe_globals"):
+    torch.serialization.add_safe_globals([MetaTensor])
