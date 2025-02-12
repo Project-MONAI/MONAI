@@ -18,7 +18,6 @@ from tests.test_utils import SkipIfAtLeastPyTorchVersion, skip_if_no_cuda
 
 
 class TestVisibleDevices(unittest.TestCase):
-
     @staticmethod
     def run_process_and_get_exit_code(code_to_execute):
         value = os.system(code_to_execute)
