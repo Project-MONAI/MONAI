@@ -11,7 +11,6 @@
 """
 A collection of "vanilla" transforms for IO functions.
 """
-
 from __future__ import annotations
 
 import inspect
@@ -286,7 +285,6 @@ class LoadImage(Transform):
                 "    https://docs.monai.io/en/latest/installation.html#installing-the-recommended-dependencies.\n"
                 f"   The current registered: {self.readers}.\n{msg}"
             )
-
         img_array: NdarrayOrTensor
         img_array, meta_data = reader.get_data(img)
         img_array = convert_to_dst_type(img_array, dst=img_array, dtype=self.dtype)[0]
