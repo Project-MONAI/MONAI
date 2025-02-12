@@ -128,7 +128,7 @@ if __name__ == "__main__":
         files = {
             file.relative_to(tests_path).as_posix()
             for file in tests_path.rglob("test_*py")
-            if re.search(args.pattern, file.name)
+            if re.search(args.pattern, file.name[:-3])
         }
         print(files)
         cases = []
