@@ -21,7 +21,6 @@ hvd, has_hvd = optional_import("horovod", name="torch")
 
 
 class HvdEvenlyDivisibleAllGather:
-
     def test_data(self):
         # initialize Horovod
         hvd.init()

@@ -64,7 +64,7 @@ def test_resampler_lazy(
     resampler.lazy = True
     pending_output = resampler(**deepcopy(call_param))
     if output_idx is not None:
-        expected_output, pending_output = expected_output[output_idx], pending_output[output_idx]
+        expected_output, pending_output = (expected_output[output_idx], pending_output[output_idx])
     if output_key is not None:
         non_lazy_out, lazy_out = expected_output[output_key], pending_output[output_key]
     else:

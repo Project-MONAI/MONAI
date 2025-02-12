@@ -31,7 +31,6 @@ TEST_PARAMS = [[{"keys": ["img1", "img2"], "name": "RandomAffine"}, {"img1": TES
 
 @skipUnless(has_torchio, "Requires torchio")
 class TestRandTorchIOd(unittest.TestCase):
-
     @parameterized.expand(TEST_PARAMS)
     def test_random_transform(self, input_param, input_data):
         set_determinism(seed=0)

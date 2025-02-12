@@ -36,7 +36,6 @@ TEST_PARAMS = [
 
 @skipUnless(has_torchio, "Requires torchio")
 class TestTorchIOd(unittest.TestCase):
-
     @parameterized.expand(TEST_PARAMS)
     def test_value(self, input_param, input_data, expected_value):
         result = TorchIOd(**input_param)(input_data)
