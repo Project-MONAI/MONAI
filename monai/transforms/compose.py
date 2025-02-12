@@ -404,7 +404,7 @@ class OneOf(Compose):
             Probabilities are normalized to sum to one.
         map_items: controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
             it can behave as follows:
-            
+
                 - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
                   to the first level of items in `data`.
                 - If an integer is provided, it specifies the maximum level of nesting to which the transformation
