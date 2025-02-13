@@ -29,7 +29,8 @@ from .metric import CumulativeIterationMetric
 class AveragePrecisionMetric(CumulativeIterationMetric):
     """
     Computes Average Precision (AP). AP is a useful metric to evaluate a classifier when the classes are
-    imbalanced. It summarizes a Precision-Recall curve as the weighted mean of precisions achieved at each
+    imbalanced. It can take values between 0.0 and 1.0, 1.0 being the best possible score.
+    It summarizes a Precision-Recall curve as the weighted mean of precisions achieved at each
     threshold, with the increase in recall from the previous threshold used as the weight:
 
     .. math::
