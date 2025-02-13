@@ -26,16 +26,25 @@ from .metric import CumulativeIterationMetric
 
 
 class R2Metric(CumulativeIterationMetric):
-    r"""Computes :math:`R^{2}` score (coefficient of determination):
+    r"""Computes :math:`R^{2}` score (coefficient of determination). :math:`R^{2}` is used to evaluate
+    a regression model. In the best case, when the predictions match exactly the observed values, :math:`R^{2} = 1`.
+    It has no lower bound, and the more negative it is, the worse the model is. Finally, a baseline model, which always
+    predicts the mean of observed values, will get :math:`R^{2} = 0`.
 
     .. math::
         \operatorname {R^{2}}\left(Y, \hat{Y}\right) = 1 - \frac {\sum _{i=1}^{n}\left(y_i-\hat{y_i} \right)^{2}}
         {\sum _{i=1}^{n}\left(y_i-\bar{y} \right)^{2}},
+        :label: r2
 
-    where :math:`\bar{y}` is the mean of observed :math:`y` ; or adjusted :math:`R^{2}` score:
+    where :math:`\bar{y}` is the mean of observed :math:`y`. 
+
+    However, :math:`R^{2}` automatically increases when extra
+    variables are added to the model. To account for this phenomenon and penalize the addition of unnecessary variables,
+    :math:`adjusted \ R^{2}` (:math:`\bar{R}^{2}`) is defined:
 
     .. math::
         \operatorname {\bar{R}^{2}} = 1 - (1-R^{2}) \frac {n-1}{n-p-1},
+        :label: r2_adjusted
 
     where :math:`p` is the number of independant variables used for the regression.
 
@@ -57,7 +66,7 @@ class R2Metric(CumulativeIterationMetric):
             - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances of
               each individual output.
         p: non-negative integer.
-            Number of independent variables used for regression. ``p`` is used to compute adjusted :math:`R^{2}` score.
+            Number of independent variables used for regression. ``p`` is used to compute :math:`\bar{R}^{2}` score.
             Defaults to 0 (standard :math:`R^{2}` score).
 
     """
@@ -121,7 +130,8 @@ def _calculate(y_pred: np.ndarray, y: np.ndarray, p: int) -> float:
 def compute_r2_score(
     y_pred: torch.Tensor, y: torch.Tensor, multi_output: MultiOutput | str = MultiOutput.UNIFORM, p: int = 0
 ) -> np.ndarray | float | npt.ArrayLike:
-    """Computes :math:`R^{2}` score (coefficient of determination).
+    """Computes :math:`R^{2}` score (coefficient of determination). :math:`R^{2}` is used to evaluate
+    a regression model according to equations :eq:`r2` and :eq:`r2_adjusted`.
 
     Args:
         y_pred: input data to compute :math:`R^{2}` score, the first dim must be batch.
@@ -137,7 +147,7 @@ def compute_r2_score(
             - ``"variance_weighted"``: the scores of all outputs are averaged, weighted by the variances
               each individual output.
         p: non-negative integer.
-            Number of independent variables used for regression. ``p`` is used to compute adjusted :math:`R^{2}` score.
+            Number of independent variables used for regression. ``p`` is used to compute :math:`\bar{R}^{2}` score.
             Defaults to 0 (standard :math:`R^{2}` score).
 
     Raises:
