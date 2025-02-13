@@ -28,8 +28,19 @@ from .metric import CumulativeIterationMetric
 
 class AveragePrecisionMetric(CumulativeIterationMetric):
     """
-    Computes Average Precision (AP). Referring to: `sklearn.metrics.average_precision_score
+    Computes Average Precision (AP). AP is a useful metric to evaluate a classifier when the classes are
+    imbalanced. It summarizes a Precision-Recall curve as the weighted mean of precisions achieved at each
+    threshold, with the increase in recall from the previous threshold used as the weight:
+
+    .. math::
+        \\text{AP} = \\sum_n (R_n - R_{n-1}) P_n
+        :label: ap
+
+    where :math:`P_n` and :math:`R_n` are the precision and recall at the :math:`n^{th}` threshold.
+
+    Referring to: `sklearn.metrics.average_precision_score
     <https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score>`_.
+
     The input `y_pred` and `y` can be a list of `channel-first` Tensor or a `batch-first` Tensor.
 
     Example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
@@ -107,7 +118,9 @@ def _calculate(y_pred: torch.Tensor, y: torch.Tensor) -> float:
 def compute_average_precision(
     y_pred: torch.Tensor, y: torch.Tensor, average: Average | str = Average.MACRO
 ) -> np.ndarray | float | npt.ArrayLike:
-    """Computes Average Precision (AP). Referring to: `sklearn.metrics.average_precision_score
+    """Computes Average Precision (AP). AP is a useful metric to evaluate a classifier when the classes are
+    imbalanced. It summarizes a Precision-Recall according to equation :eq:`ap`.
+    Referring to: `sklearn.metrics.average_precision_score
     <https://scikit-learn.org/stable/modules/generated/sklearn.metrics.average_precision_score>`_.
 
     Args:
