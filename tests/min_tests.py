@@ -77,7 +77,6 @@ def run_testsuit():
         "test_gmm",
         "test_handler_metrics_reloaded",
         "test_handler_average_precision",
-        "test_handler_average_precision_dist",
         "test_handler_checkpoint_loader",
         "test_handler_checkpoint_saver",
         "test_handler_classification_saver",
