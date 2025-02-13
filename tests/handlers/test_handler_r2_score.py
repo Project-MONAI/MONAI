@@ -49,6 +49,7 @@ class DistributedR2Score(DistTestCase):
         if dist.get_rank() == 0:
             y_pred = [torch.tensor([0.1, 1.0], device=device), torch.tensor([-0.25, 0.5], device=device)]
             y = [torch.tensor([0.1, 0.82], device=device), torch.tensor([-0.2, 0.01], device=device)]
+            r2_score.update([y_pred, y])
 
         if dist.get_rank() == 1:
             y_pred = [
@@ -61,8 +62,7 @@ class DistributedR2Score(DistTestCase):
                 torch.tensor([1.58, 2.0], device=device),
                 torch.tensor([-1.0, -0.1], device=device),
             ]
-
-        r2_score.update([y_pred, y])
+            r2_score.update([y_pred, y])
 
         result = r2_score.compute()
         np.testing.assert_allclose(0.829185, result, rtol=1e-5)
