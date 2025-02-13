@@ -19,7 +19,7 @@ import torch.distributed as dist
 
 from monai.handlers import AveragePrecision
 from monai.transforms import Activations, AsDiscrete
-from tests.utils import DistCall, DistTestCase
+from tests.test_utils import DistCall, DistTestCase
 
 
 class TestHandlerAveragePrecision(unittest.TestCase):
