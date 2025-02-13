@@ -67,5 +67,6 @@ class DistributedR2Score(DistTestCase):
         result = r2_score.compute()
         np.testing.assert_allclose(0.829185, result, rtol=1e-5)
 
+
 if __name__ == "__main__":
     unittest.main()

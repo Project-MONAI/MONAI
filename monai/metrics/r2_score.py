@@ -120,7 +120,7 @@ def _check_r2_params(multi_output: MultiOutput | str, p: int) -> tuple[MultiOutp
 def _calculate(y_pred: np.ndarray, y: np.ndarray, p: int) -> float:
     num_obs = len(y)
     rss = np.sum((y_pred - y) ** 2)
-    tss = np.sum(y**2) - np.sum(y) ** 2 / num_obs
+    tss = np.sum((y - np.mean(y)) ** 2)
     r2 = 1 - (rss / tss)
     r2_adjusted = 1 - (1 - r2) * (num_obs - 1) / (num_obs - p - 1)
 
