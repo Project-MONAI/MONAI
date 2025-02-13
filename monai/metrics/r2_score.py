@@ -36,7 +36,7 @@ class R2Metric(CumulativeIterationMetric):
         {\sum _{i=1}^{n}\left(y_i-\bar{y} \right)^{2}},
         :label: r2
 
-    where :math:`\bar{y}` is the mean of observed :math:`y`. 
+    where :math:`\bar{y}` is the mean of observed :math:`y`.
 
     However, :math:`R^{2}` automatically increases when extra
     variables are added to the model. To account for this phenomenon and penalize the addition of unnecessary variables,
