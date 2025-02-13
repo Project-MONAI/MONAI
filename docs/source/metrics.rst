@@ -81,7 +81,7 @@ Metrics
     :members:
 
 `Average Precision`
---------------------------
+-------------------
 .. autofunction:: compute_average_precision
 
 .. autoclass:: AveragePrecisionMetric
