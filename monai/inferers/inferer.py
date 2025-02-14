@@ -18,7 +18,6 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from functools import partial
 from pydoc import locate
 from typing import Any
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -1202,9 +1201,10 @@ class LatentDiffusionInferer(DiffusionInferer):
 
         if self.autoencoder_latent_shape is not None:
             latent = torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(latent)], 0)
-            latent_intermediates = [
-                torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0) for l in latent_intermediates
-            ]
+            if save_intermediates:
+                latent_intermediates = [
+                    torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0) for l in latent_intermediates
+                ]
 
         decode = autoencoder_model.decode_stage_2_outputs
         if isinstance(autoencoder_model, SPADEAutoencoderKL):
@@ -1727,9 +1727,10 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
 
         if self.autoencoder_latent_shape is not None:
             latent = torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(latent)], 0)
-            latent_intermediates = [
-                torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0) for l in latent_intermediates
-            ]
+            if save_intermediates:
+                latent_intermediates = [
+                    torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0) for l in latent_intermediates
+                ]
 
         decode = autoencoder_model.decode_stage_2_outputs
         if isinstance(autoencoder_model, SPADEAutoencoderKL):
