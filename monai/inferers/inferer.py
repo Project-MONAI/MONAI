@@ -18,6 +18,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from functools import partial
 from pydoc import locate
 from typing import Any
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -1203,7 +1204,8 @@ class LatentDiffusionInferer(DiffusionInferer):
             latent = torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(latent)], 0)
             if save_intermediates:
                 latent_intermediates = [
-                    torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0) for l in latent_intermediates
+                    torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0)
+                    for l in latent_intermediates
                 ]
 
         decode = autoencoder_model.decode_stage_2_outputs
@@ -1729,7 +1731,8 @@ class ControlNetLatentDiffusionInferer(ControlNetDiffusionInferer):
             latent = torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(latent)], 0)
             if save_intermediates:
                 latent_intermediates = [
-                    torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0) for l in latent_intermediates
+                    torch.stack([self.autoencoder_resizer(i) for i in decollate_batch(l)], 0)
+                    for l in latent_intermediates
                 ]
 
         decode = autoencoder_model.decode_stage_2_outputs
