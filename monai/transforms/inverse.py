@@ -21,7 +21,7 @@ import torch
 from monai import transforms
 from monai.data.meta_obj import MetaObj, get_track_meta
 from monai.data.meta_tensor import MetaTensor
-from monai.data.utils import to_affine_nd
+from monai.data.utils import to_affine_nd, affine_to_spacing
 from monai.transforms.traits import InvertibleTrait
 from monai.transforms.transform import Transform
 from monai.utils import (
@@ -197,6 +197,8 @@ class TraceableTransform(Transform):
                 else:
                     raise
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
+            out_obj.meta[MetaKeys.PIXDIM] = affine_to_spacing(out_obj.meta[MetaKeys.AFFINE])
+
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
             if isinstance(data, Mapping):
