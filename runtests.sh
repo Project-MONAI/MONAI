@@ -728,7 +728,7 @@ if [ $doDistTests = true ]
 then
     echo "${separator}${blue}run distributed unit test cases${noColor}"
     torch_validate
-    for i in tests/test_*_dist.py
+    for i in  $(find ./tests/ -name "*_dist.py")
     do
         echo "$i"
         ${cmdPrefix}${cmd} "$i"
@@ -740,7 +740,7 @@ if [ $doNetTests = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}integration${noColor}"
-    for i in tests/*integration_*.py
+    for i in tests/integration/*.py
     do
         echo "$i"
         ${cmdPrefix}${cmd} "$i"
