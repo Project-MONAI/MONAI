@@ -198,7 +198,7 @@ class TraceableTransform(Transform):
                     raise
             out_obj.meta[MetaKeys.AFFINE] = convert_to_tensor(affine, device=torch.device("cpu"), dtype=torch.float64)
             spacing = affine_to_spacing(out_obj.meta[MetaKeys.AFFINE])
-            out_obj.meta[MetaKeys.PIXDIM][1:1+len(spacing)] = spacing
+            out_obj.meta[MetaKeys.PIXDIM][1 : 1 + len(spacing)] = spacing
 
         if not (get_track_meta() and transform_info and transform_info.get(TraceKeys.TRACING)):
             if isinstance(data, Mapping):
