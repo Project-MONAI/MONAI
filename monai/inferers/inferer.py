@@ -1214,7 +1214,6 @@ class LatentDiffusionInferer(DiffusionInferer):
         print("Decoding latents...")
         print(latent.shape)
         image = decode(latent / self.scale_factor)
-        print(image.shape)
         if save_intermediates:
             intermediates = []
             for latent_intermediate in latent_intermediates:
