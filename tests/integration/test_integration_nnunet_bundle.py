@@ -24,7 +24,7 @@ from monai.bundle.nnunet import convert_nnunet_to_monai_bundle, get_nnunet_monai
 from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.transforms import Compose, Decollated, EnsureChannelFirstd, LoadImaged, SaveImaged, Transposed
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
+from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 _, has_nnunet = optional_import("nnunetv2")
