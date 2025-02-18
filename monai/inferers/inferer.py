@@ -1211,8 +1211,10 @@ class LatentDiffusionInferer(DiffusionInferer):
         decode = autoencoder_model.decode_stage_2_outputs
         if isinstance(autoencoder_model, SPADEAutoencoderKL):
             decode = partial(autoencoder_model.decode_stage_2_outputs, seg=seg)
+        print("Decoding latents...")
+        print(latent.shape)
         image = decode(latent / self.scale_factor)
-
+        print(image.shape)
         if save_intermediates:
             intermediates = []
             for latent_intermediate in latent_intermediates:
