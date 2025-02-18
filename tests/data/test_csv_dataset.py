@@ -179,6 +179,23 @@ class TestCSVDataset(unittest.TestCase):
                 },
             )
 
+            # test pre-loaded DataFrame subset
+            df = pd.read_csv(filepath1)
+            df_subset = df.iloc[[1, 3, 4]]
+            dataset = CSVDataset(src=df_subset)
+            self.assertDictEqual(
+                {k: round(v, 4) if not isinstance(v, str) else v for k, v in dataset[2].items()},
+                {
+                    "subject_id": "s000004",
+                    "label": 9,
+                    "image": "./imgs/s000004.png",
+                    "ehr_0": 6.4275,
+                    "ehr_1": 6.2549,
+                    "ehr_2": 5.9765,
+                },
+            )
+            self.assertEqual(len(dataset), 3)
+
             # test pre-loaded multiple DataFrames, join tables with kwargs
             dfs = [pd.read_csv(i) for i in filepaths]
             dataset = CSVDataset(src=dfs, on="subject_id")
