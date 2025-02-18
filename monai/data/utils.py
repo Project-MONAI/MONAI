@@ -1484,7 +1484,7 @@ def convert_tables_to_dicts(
                 rows.append(i)
 
     # convert to a list of dictionaries corresponding to every row
-    data_ = df.loc[rows] if col_names is None else df.loc[rows, col_names]
+    data_ = df.iloc[rows] if col_names is None else df.iloc[rows][col_names]
     if isinstance(col_types, dict):
         # fill default values for NaN
         defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
