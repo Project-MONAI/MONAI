@@ -1500,7 +1500,7 @@ def convert_tables_to_dicts(
     if col_groups is not None:
         groups: dict[str, list] = {}
         for name, cols in col_groups.items():
-            groups[name] = df.loc[rows, cols].values
+            groups[name] = df.iloc[rows][cols].values
         # invert items of groups to every row of data
         data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
 
