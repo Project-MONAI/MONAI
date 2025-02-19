@@ -131,6 +131,7 @@ ALL_TESTS = [
     TEST_CASE_12,
 ]
 
+
 class TestComputeAveragePrecision(unittest.TestCase):
 
     @parameterized.expand(ALL_TESTS)
