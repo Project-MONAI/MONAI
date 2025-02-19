@@ -30,9 +30,10 @@ import unittest
 import warnings
 from contextlib import contextmanager
 from functools import partial, reduce
+from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Callable
+from typing import Callable, Literal
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -861,6 +862,21 @@ TEST_NDARRAYS_ALL = TEST_NDARRAYS
 TEST_DEVICES = [[torch.device("cpu")]]
 if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
+
+
+def dict_product(trailing=False, format: Literal["list", "dict"] = "dict", **items):
+    keys = items.keys()
+    values = items.values()
+    for pvalues in product(*values):
+        dict_comb = dict(zip(keys, pvalues))
+        if format == "dict":
+            if trailing:
+                yield [dict_comb] + list(pvalues)
+            else:
+                yield dict_comb
+        else:
+            yield pvalues
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="util")
