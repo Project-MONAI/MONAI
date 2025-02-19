@@ -599,6 +599,7 @@ def is_module_ver_at_least(module, version):
         `True` if module is the given version or newer.
     """
     test_ver = ".".join(map(str, version))
+
     return module.__version__ != test_ver and version_leq(test_ver, module.__version__)
 
 
