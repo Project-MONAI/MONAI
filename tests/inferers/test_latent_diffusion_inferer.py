@@ -714,7 +714,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES_DIFF_SHAPES)
     @skipUnless(has_einops, "Requires einops")
-    def test_sample_shape_different_latents(
+    def test_shape_different_latents(
         self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
     ):
         stage_1 = None
@@ -771,6 +771,66 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 inputs=input, autoencoder_model=stage_1, diffusion_model=stage_2, noise=noise, timesteps=timesteps
             )
         self.assertEqual(prediction.shape, latent_shape)
+
+    @parameterized.expand(TEST_CASES_DIFF_SHAPES)
+    @skipUnless(has_einops, "Requires einops")
+    def test_sample_shape_different_latents(
+        self, ae_model_type, autoencoder_params, dm_model_type, stage_2_params, input_shape, latent_shape
+    ):
+        stage_1 = None
+
+        if ae_model_type == "AutoencoderKL":
+            stage_1 = AutoencoderKL(**autoencoder_params)
+        if ae_model_type == "VQVAE":
+            stage_1 = VQVAE(**autoencoder_params)
+        if ae_model_type == "SPADEAutoencoderKL":
+            stage_1 = SPADEAutoencoderKL(**autoencoder_params)
+        if dm_model_type == "SPADEDiffusionModelUNet":
+            stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
+        else:
+            stage_2 = DiffusionModelUNet(**stage_2_params)
+
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        stage_1.to(device)
+        stage_2.to(device)
+        stage_1.eval()
+        stage_2.eval()
+
+        noise = torch.randn(latent_shape).to(device)
+        scheduler = DDPMScheduler(num_train_timesteps=10)
+        # We infer the VAE shape
+        if ae_model_type == "VQVAE":
+            autoencoder_latent_shape = [i // (2 ** (len(autoencoder_params["channels"]))) for i in input_shape[2:]]
+        else:
+            autoencoder_latent_shape = [i // (2 ** (len(autoencoder_params["channels"]) - 1)) for i in input_shape[2:]]
+
+        inferer = LatentDiffusionInferer(
+            scheduler=scheduler,
+            scale_factor=1.0,
+            ldm_latent_shape=list(latent_shape[2:]),
+            autoencoder_latent_shape=autoencoder_latent_shape,
+        )
+        scheduler.set_timesteps(num_inference_steps=10)
+
+        if dm_model_type == "SPADEDiffusionModelUNet" or ae_model_type == "SPADEAutoencoderKL":
+            input_shape_seg = list(input_shape)
+            if "label_nc" in stage_2_params.keys():
+                input_shape_seg[1] = stage_2_params["label_nc"]
+            else:
+                input_shape_seg[1] = autoencoder_params["label_nc"]
+            input_seg = torch.randn(input_shape_seg).to(device)
+            prediction, _ = inferer.sample(
+                autoencoder_model=stage_1,
+                diffusion_model=stage_2,
+                input_noise=noise,
+                save_intermediates=True,
+                seg=input_seg,
+            )
+        else:
+            prediction = inferer.sample(
+                autoencoder_model=stage_1, diffusion_model=stage_2, input_noise=noise, save_intermediates=False
+            )
+        self.assertEqual(prediction.shape, input_shape)
 
     @skipUnless(has_einops, "Requires einops")
     def test_incompatible_spade_setup(self):

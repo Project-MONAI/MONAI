@@ -64,7 +64,7 @@ class TestConvertToOnnx(unittest.TestCase):
                 rtol=rtol,
                 atol=atol,
             )
-        self.assertTrue(isinstance(onnx_model, onnx.ModelProto))
+            self.assertTrue(isinstance(onnx_model, onnx.ModelProto))
 
     @parameterized.expand(TESTS_ORT)
     @SkipIfBeforePyTorchVersion((1, 12))
