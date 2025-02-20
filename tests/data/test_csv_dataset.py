@@ -184,10 +184,7 @@ class TestCSVDataset(unittest.TestCase):
             df_subset = df.iloc[[1, 3, 4]]
             dataset = CSVDataset(src=df_subset, col_groups={"ehr": [f"ehr_{i}" for i in range(3)]})
             self.assertEqual(len(dataset), 3)
-            np.testing.assert_allclose(
-                [round(i, 4) for i in dataset[1]["ehr"]],
-                [3.3333, 3.2353, 3.4000],
-            )
+            np.testing.assert_allclose([round(i, 4) for i in dataset[1]["ehr"]], [3.3333, 3.2353, 3.4000])
 
             # test pre-loaded multiple DataFrames, join tables with kwargs
             dfs = [pd.read_csv(i) for i in filepaths]
