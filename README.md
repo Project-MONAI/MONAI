@@ -23,8 +23,8 @@ Its ambitions are as follows:
 - Creating state-of-the-art, end-to-end training workflows for healthcare imaging;
 - Providing researchers with the optimized and standardized way to create and evaluate deep learning models.
 
-
 ## Features
+
 > _Please see [the technical highlights](https://docs.monai.io/en/latest/highlights.html) and [What's New](https://docs.monai.io/en/latest/whatsnew.html) of the milestone releases._
 
 - flexible pre-processing for multi-dimensional medical imaging data;
