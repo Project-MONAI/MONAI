@@ -21,14 +21,12 @@ from monai.data.synthetic import create_test_image_2d, create_test_image_3d
 from monai.transforms import GibbsNoise
 from monai.utils.misc import set_determinism
 from monai.utils.module import optional_import
-from tests.test_utils import TEST_NDARRAYS, assert_allclose
+from tests.test_utils import TEST_NDARRAYS, assert_allclose, dict_product
 
 _, has_torch_fft = optional_import("torch.fft", name="fftshift")
 
-TEST_CASES = []
-for shape in ((128, 64), (64, 48, 80)):
-    for input_type in TEST_NDARRAYS if has_torch_fft else [np.array]:
-        TEST_CASES.append((shape, input_type))
+params = {"shape": ((128, 64), (64, 48, 80)), "input_type": TEST_NDARRAYS if has_torch_fft else [np.array]}
+TEST_CASES = list(dict_product(format="list", **params))
 
 
 class TestGibbsNoise(unittest.TestCase):
