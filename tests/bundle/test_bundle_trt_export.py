@@ -108,7 +108,7 @@ class TestTRTExport(unittest.TestCase):
         has_onnx and has_torchtrt and has_tensorrt, "Onnx and TensorRT are required for onnx-trt conversion!"
     )
     def test_onnx_trt_export(self, convert_precision, input_shape, dynamic_batch):
-        tests_dir = Path(__file__).resolve().parent
+        tests_dir = Path(__file__).resolve().parents[1]
         meta_file = os.path.join(tests_dir, "testing_data", "metadata.json")
         config_file = os.path.join(tests_dir, "testing_data", "inference.json")
         with tempfile.TemporaryDirectory() as tempdir:
