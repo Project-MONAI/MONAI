@@ -15,6 +15,7 @@ import ast
 import json
 import os
 import re
+import urllib
 import warnings
 import zipfile
 from collections.abc import Mapping, Sequence
@@ -25,6 +26,7 @@ from shutil import copyfile
 from textwrap import dedent
 from typing import Any, Callable
 
+import requests
 import torch
 from torch.cuda import is_available
 
@@ -206,6 +208,16 @@ def _download_from_monaihosting(download_path: Path, filename: str, version: str
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
 
 
+def _download_from_bundle_info(download_path: Path, filename: str, version: str, progress: bool) -> None:
+    bundle_info = get_bundle_info(name=filename, version=version)
+    if not bundle_info:
+        raise ValueError(f"Bundle info not found for {filename} v{version}.")
+    url = bundle_info["source"]
+    filepath = download_path / f"{filename}_v{version}.zip"
+    download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
+    extractall(filepath=filepath, output_dir=download_path, has_base=True)
+
+
 def _add_ngc_prefix(name: str, prefix: str = "monai_") -> str:
     if name.startswith(prefix):
         return name
@@ -307,10 +319,10 @@ def _get_latest_bundle_version_monaihosting(name):
     if has_requests:
         resp = requests_get(full_url)
         resp.raise_for_status()
-    else:
-        raise ValueError("NGC API requires requests package. Please install it.")
-    model_info = json.loads(resp.text)
-    return model_info["model"]["latestVersionIdStr"]
+        model_info = json.loads(resp.text)
+        return model_info["model"]["latestVersionIdStr"]
+
+    raise ValueError("NGC API requires requests package. Please install it.")
 
 
 def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
@@ -416,7 +428,11 @@ def _get_latest_bundle_version(
         name = _add_ngc_prefix(name)
         return _get_latest_bundle_version_ngc(name)
     elif source == "monaihosting":
-        return _get_latest_bundle_version_monaihosting(name)
+        try:
+            return _get_latest_bundle_version_monaihosting(name)
+        except requests.exceptions.HTTPError:
+            # for monaihosting bundles, if cannot find the version, get from model zoo model_info.json
+            return get_bundle_versions(name)["latest_version"]
     elif source == "ngc_private":
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
@@ -585,7 +601,16 @@ def download(
             name_ver = "_v".join([name_, version_]) if version_ is not None else name_
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_ver, progress=progress_)
         elif source_ == "monaihosting":
-            _download_from_monaihosting(download_path=bundle_dir_, filename=name_, version=version_, progress=progress_)
+            try:
+                _download_from_monaihosting(
+                    download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
+                )
+            except urllib.error.HTTPError:
+                # for monaihosting bundles, if cannot download from default host, download according to bundle_info
+                _download_from_bundle_info(
+                    download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
+                )
+
         elif source_ == "ngc":
             _download_from_ngc(
                 download_path=bundle_dir_,
