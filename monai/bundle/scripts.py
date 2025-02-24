@@ -209,10 +209,10 @@ def _download_from_monaihosting(download_path: Path, filename: str, version: str
 
 
 def _download_from_bundle_info(download_path: Path, filename: str, version: str, progress: bool) -> None:
-    bundle_info = get_bundle_info(name=filename, version=version)
+    bundle_info = get_bundle_info(bundle_name=filename, version=version)
     if not bundle_info:
         raise ValueError(f"Bundle info not found for {filename} v{version}.")
-    url = bundle_info["source"]
+    url = bundle_info["browser_download_url"]
     filepath = download_path / f"{filename}_v{version}.zip"
     download_url(url=url, filepath=filepath, hash_val=None, progress=progress)
     extractall(filepath=filepath, output_dir=download_path, has_base=True)
