@@ -1334,12 +1334,14 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             raise NotImplementedError(f"{mode} condition is not supported")
 
         noisy_image = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
-        down_block_res_samples, mid_block_res_sample = controlnet(
-            x=noisy_image, timesteps=timesteps, controlnet_cond=cn_cond
-        )
+
         if mode == "concat" and condition is not None:
             noisy_image = torch.cat([noisy_image, condition], dim=1)
             condition = None
+
+        down_block_res_samples, mid_block_res_sample = controlnet(
+            x=noisy_image, timesteps=timesteps, controlnet_cond=cn_cond, context=condition
+        )
 
         diffuse = diffusion_model
         if isinstance(diffusion_model, SPADEDiffusionModelUNet):
@@ -1396,17 +1398,21 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             progress_bar = iter(scheduler.timesteps)
         intermediates = []
         for t in progress_bar:
-            # 1. ControlNet forward
-            down_block_res_samples, mid_block_res_sample = controlnet(
-                x=image, timesteps=torch.Tensor((t,)).to(input_noise.device), controlnet_cond=cn_cond
-            )
-            # 2. predict noise model_output
             diffuse = diffusion_model
             if isinstance(diffusion_model, SPADEDiffusionModelUNet):
                 diffuse = partial(diffusion_model, seg=seg)
 
             if mode == "concat" and conditioning is not None:
+                # 1. Conditioning
                 model_input = torch.cat([image, conditioning], dim=1)
+                # 2. ControlNet forward
+                down_block_res_samples, mid_block_res_sample = controlnet(
+                    x=model_input,
+                    timesteps=torch.Tensor((t,)).to(input_noise.device),
+                    controlnet_cond=cn_cond,
+                    context=None,
+                )
+                # 3. predict noise model_output
                 model_output = diffuse(
                     model_input,
                     timesteps=torch.Tensor((t,)).to(input_noise.device),
@@ -1415,6 +1421,12 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                     mid_block_additional_residual=mid_block_res_sample,
                 )
             else:
+                down_block_res_samples, mid_block_res_sample = controlnet(
+                    x=image,
+                    timesteps=torch.Tensor((t,)).to(input_noise.device),
+                    controlnet_cond=cn_cond,
+                    context=conditioning,
+                )
                 model_output = diffuse(
                     image,
                     timesteps=torch.Tensor((t,)).to(input_noise.device),
@@ -1485,9 +1497,6 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         for t in progress_bar:
             timesteps = torch.full(inputs.shape[:1], t, device=inputs.device).long()
             noisy_image = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
-            down_block_res_samples, mid_block_res_sample = controlnet(
-                x=noisy_image, timesteps=torch.Tensor((t,)).to(inputs.device), controlnet_cond=cn_cond
-            )
 
             diffuse = diffusion_model
             if isinstance(diffusion_model, SPADEDiffusionModelUNet):
@@ -1495,6 +1504,9 @@ class ControlNetDiffusionInferer(DiffusionInferer):
 
             if mode == "concat" and conditioning is not None:
                 noisy_image = torch.cat([noisy_image, conditioning], dim=1)
+                down_block_res_samples, mid_block_res_sample = controlnet(
+                    x=noisy_image, timesteps=torch.Tensor((t,)).to(inputs.device), controlnet_cond=cn_cond, context=None
+                )
                 model_output = diffuse(
                     noisy_image,
                     timesteps=timesteps,
@@ -1503,6 +1515,12 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                     mid_block_additional_residual=mid_block_res_sample,
                 )
             else:
+                down_block_res_samples, mid_block_res_sample = controlnet(
+                    x=noisy_image,
+                    timesteps=torch.Tensor((t,)).to(inputs.device),
+                    controlnet_cond=cn_cond,
+                    context=conditioning,
+                )
                 model_output = diffuse(
                     x=noisy_image,
                     timesteps=timesteps,
