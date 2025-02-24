@@ -26,7 +26,6 @@ from shutil import copyfile
 from textwrap import dedent
 from typing import Any, Callable
 
-import requests
 import torch
 from torch.cuda import is_available
 
@@ -60,7 +59,7 @@ from monai.utils import (
 validate, _ = optional_import("jsonschema", name="validate")
 ValidationError, _ = optional_import("jsonschema.exceptions", name="ValidationError")
 Checkpoint, has_ignite = optional_import("ignite.handlers", IgniteInfo.OPT_IMPORT_VERSION, min_version, "Checkpoint")
-requests_get, has_requests = optional_import("requests", name="get")
+requests, has_requests = optional_import("requests")
 onnx, _ = optional_import("onnx")
 huggingface_hub, _ = optional_import("huggingface_hub")
 
@@ -234,7 +233,7 @@ def _get_all_download_files(request_url: str, headers: dict | None = None) -> li
     if not has_requests:
         raise ValueError("requests package is required, please install it.")
     headers = {} if headers is None else headers
-    response = requests_get(request_url, headers=headers)
+    response = requests.get(request_url, headers=headers)
     response.raise_for_status()
     model_info = json.loads(response.text)
 
@@ -278,7 +277,7 @@ def _download_from_ngc_private(
     request_url = _get_ngc_private_bundle_url(model_name=filename, version=version, repo=repo)
     if has_requests:
         headers = {} if headers is None else headers
-        response = requests_get(request_url, headers=headers)
+        response = requests.get(request_url, headers=headers)
         response.raise_for_status()
     else:
         raise ValueError("NGC API requires requests package. Please install it.")
@@ -301,7 +300,7 @@ def _get_ngc_token(api_key, retry=0):
     url = "https://authn.nvidia.com/token?service=ngc"
     headers = {"Accept": "application/json", "Authorization": "ApiKey " + api_key}
     if has_requests:
-        response = requests_get(url, headers=headers)
+        response = requests.get(url, headers=headers)
         if not response.ok:
             # retry 3 times, if failed, raise an error.
             if retry < 3:
@@ -315,12 +314,15 @@ def _get_ngc_token(api_key, retry=0):
 
 def _get_latest_bundle_version_monaihosting(name):
     full_url = f"{MONAI_HOSTING_BASE_URL}/{name.lower()}"
-    requests_get, has_requests = optional_import("requests", name="get")
     if has_requests:
-        resp = requests_get(full_url)
-        resp.raise_for_status()
-        model_info = json.loads(resp.text)
-        return model_info["model"]["latestVersionIdStr"]
+        resp = requests.get(full_url)
+        try:
+            resp.raise_for_status()
+            model_info = json.loads(resp.text)
+            return model_info["model"]["latestVersionIdStr"]
+        except requests.exceptions.HTTPError:
+            # for monaihosting bundles, if cannot find the version, get from model zoo model_info.json
+            return get_bundle_versions(name)["latest_version"]
 
     raise ValueError("NGC API requires requests package. Please install it.")
 
@@ -400,14 +402,14 @@ def _get_latest_bundle_version_ngc(name: str, repo: str | None = None, headers: 
     version_header = {"Accept-Encoding": "gzip, deflate"}  # Excluding 'zstd' to fit NGC requirements
     if headers:
         version_header.update(headers)
-    resp = requests_get(version_endpoint, headers=version_header)
+    resp = requests.get(version_endpoint, headers=version_header)
     resp.raise_for_status()
     model_info = json.loads(resp.text)
     latest_versions = _list_latest_versions(model_info)
 
     for version in latest_versions:
         file_endpoint = base_url + f"/{name.lower()}/versions/{version}/files/configs/metadata.json"
-        resp = requests_get(file_endpoint, headers=headers)
+        resp = requests.get(file_endpoint, headers=headers)
         metadata = json.loads(resp.text)
         resp.raise_for_status()
         # if the package version is not available or the model is compatible with the package version
@@ -428,11 +430,7 @@ def _get_latest_bundle_version(
         name = _add_ngc_prefix(name)
         return _get_latest_bundle_version_ngc(name)
     elif source == "monaihosting":
-        try:
-            return _get_latest_bundle_version_monaihosting(name)
-        except requests.exceptions.HTTPError:
-            # for monaihosting bundles, if cannot find the version, get from model zoo model_info.json
-            return get_bundle_versions(name)["latest_version"]
+        return _get_latest_bundle_version_monaihosting(name)
     elif source == "ngc_private":
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
@@ -817,9 +815,9 @@ def _get_all_bundles_info(
 
         if auth_token is not None:
             headers = {"Authorization": f"Bearer {auth_token}"}
-            resp = requests_get(request_url, headers=headers)
+            resp = requests.get(request_url, headers=headers)
         else:
-            resp = requests_get(request_url)
+            resp = requests.get(request_url)
         resp.raise_for_status()
     else:
         raise ValueError("requests package is required, please install it.")
