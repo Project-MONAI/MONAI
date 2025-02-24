@@ -152,7 +152,7 @@ def get_nnunet_trainer(
 class ModelnnUNetWrapper(torch.nn.Module):
     """
     A wrapper class for nnUNet model integration with MONAI framework.
-    The wrapper can be use to integrate the nnUNet Bundle within MONAI framework for inference.
+    The wrapper can be used to integrate the nnUNet Bundle within MONAI framework for inference.
 
     Parameters
     ----------
