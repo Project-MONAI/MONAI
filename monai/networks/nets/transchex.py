@@ -68,7 +68,8 @@ class BertPreTrainedModel(nn.Module):
         weights_path = cached_file(path_or_repo_id, filename, cache_dir=cache_dir)
         model = cls(num_language_layers, num_vision_layers, num_mixed_layers, bert_config, *inputs, **kwargs)
         if state_dict is None and not from_tf:
-            state_dict = torch.load(weights_path, map_location="cpu" if not torch.cuda.is_available() else None)
+            map_location = "cpu" if not torch.cuda.is_available() else None
+            state_dict = torch.load(weights_path, map_location=map_location, weights_only=True)
         if from_tf:
             return load_tf_weights_in_bert(model, weights_path)
         old_keys = []

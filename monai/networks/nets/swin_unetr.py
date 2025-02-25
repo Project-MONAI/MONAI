@@ -1118,7 +1118,7 @@ def filter_swinunetr(key, value):
         )
         ssl_weights_path = "./ssl_pretrained_weights.pth"
         download_url(resource, ssl_weights_path)
-        ssl_weights = torch.load(ssl_weights_path)["model"]
+        ssl_weights = torch.load(ssl_weights_path, weights_only=True)["model"]
 
         dst_dict, loaded, not_loaded = copy_model_state(model, ssl_weights, filter_func=filter_swinunetr)
 

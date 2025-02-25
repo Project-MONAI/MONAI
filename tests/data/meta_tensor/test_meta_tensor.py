@@ -245,7 +245,7 @@ class TestMetaTensor(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             fname = os.path.join(tmp_dir, "im.pt")
             torch.save(m, fname)
-            m2 = torch.load(fname)
+            m2 = torch.load(fname, weights_only=True)
         self.check(m2, m, ids=False)
 
     @skip_if_no_cuda
