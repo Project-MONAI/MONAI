@@ -492,7 +492,7 @@ class EnsembleEvaluator(Evaluator):
         for idx, network in enumerate(engine.networks):
             with engine.mode(network):
                 if engine.amp:
-                    with torch.autocast("cuda",**engine.amp_kwargs):
+                    with torch.autocast("cuda", **engine.amp_kwargs):
                         if isinstance(engine.state.output, dict):
                             engine.state.output.update(
                                 {engine.pred_keys[idx]: engine.inferer(inputs, network, *args, **kwargs)}

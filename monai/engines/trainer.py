@@ -255,7 +255,7 @@ class SupervisedTrainer(Trainer):
         engine.optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
 
         if engine.amp and engine.scaler is not None:
-            with torch.autocast("cuda",**engine.amp_kwargs):
+            with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_pred_loss()
             engine.scaler.scale(engine.state.output[Keys.LOSS]).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
@@ -689,7 +689,7 @@ class AdversarialTrainer(Trainer):
         engine.state.g_optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
 
         if engine.amp and engine.state.g_scaler is not None:
-            with torch.autocast("cuda",**engine.amp_kwargs):
+            with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_generator_loss()
 
             engine.state.output[Keys.LOSS] = (
@@ -737,7 +737,7 @@ class AdversarialTrainer(Trainer):
         engine.state.d_network.zero_grad(set_to_none=engine.optim_set_to_none)
 
         if engine.amp and engine.state.d_scaler is not None:
-            with torch.autocast("cuda",**engine.amp_kwargs):
+            with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_discriminator_loss()
 
             engine.state.d_scaler.scale(engine.state.output[AdversarialKeys.DISCRIMINATOR_LOSS]).backward()
