@@ -22,7 +22,6 @@ import time
 import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
-from inspect import signature
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
