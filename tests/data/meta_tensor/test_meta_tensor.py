@@ -256,7 +256,7 @@ class TestMetaTensor(unittest.TestCase):
         conv = torch.nn.Conv2d(im.shape[1], 5, 3)
         conv.to(device)
         im_conv = conv(im)
-        with torch.cuda.amp.autocast():
+        with torch.autocast("cuda"):
             im_conv2 = conv(im)
         self.check(im_conv2, im_conv, ids=False, rtol=1e-2, atol=1e-2)
 

@@ -1256,9 +1256,8 @@ def verify_net_in_out(
         if input_dtype == torch.float16:
             # fp16 can only be executed in gpu mode
             net.to("cuda")
-            from torch.cuda.amp import autocast
 
-            with autocast():
+            with torch.autocast("cuda"):
                 output = net(test_data.cuda(), **extra_forward_args_)
             net.to(device_)
         else:
