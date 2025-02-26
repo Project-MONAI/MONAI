@@ -17,8 +17,8 @@ import torch
 import torch.nn as nn
 
 from monai.networks.layers.factories import Conv, Pad, Pool
-from monai.networks.utils import CastTempType, icnr_init, pixelshuffle
-from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep, look_up_option, pytorch_after
+from monai.networks.utils import icnr_init, pixelshuffle
+from monai.utils import InterpolateMode, UpsampleMode, ensure_tuple_rep, look_up_option
 
 __all__ = ["Upsample", "UpSample", "SubpixelUpsample", "Subpixelupsample", "SubpixelUpSample"]
 
@@ -164,15 +164,7 @@ class UpSample(nn.Sequential):
                 align_corners=align_corners,
             )
 
-            # Cast to float32 as 'upsample_nearest2d_out_frame' op does not support bfloat16
-            # https://github.com/pytorch/pytorch/issues/86679. This issue is solved in PyTorch 2.1
-            if pytorch_after(major=2, minor=1):
-                self.add_module("upsample_non_trainable", upsample)
-            else:
-                self.add_module(
-                    "upsample_non_trainable",
-                    CastTempType(initial_type=torch.bfloat16, temporary_type=torch.float32, submodule=upsample),
-                )
+            self.add_module("upsample_non_trainable", upsample)
             if post_conv:
                 self.add_module("postconv", post_conv)
         elif up_mode == UpsampleMode.PIXELSHUFFLE:

@@ -76,8 +76,7 @@ class TestBundleRun(unittest.TestCase):
             )
         with open(meta_file, "w") as f:
             json.dump(
-                {"version": "0.1.0", "monai_version": "1.1.0", "pytorch_version": "1.13.1", "numpy_version": "1.22.2"},
-                f,
+                {"version": "0.1.0", "monai_version": "1.1.0", "pytorch_version": "2.2.0", "numpy_version": "1.22.2"}, f
             )
         cmd = ["coverage", "run", "-m", "monai.bundle"]
         # test both CLI entry "run" and "run_workflow"
@@ -114,8 +113,7 @@ class TestBundleRun(unittest.TestCase):
             )
         with open(meta_file, "w") as f:
             json.dump(
-                {"version": "0.1.0", "monai_version": "1.1.0", "pytorch_version": "1.13.1", "numpy_version": "1.22.2"},
-                f,
+                {"version": "0.1.0", "monai_version": "1.1.0", "pytorch_version": "2.2.0", "numpy_version": "1.22.2"}, f
             )
 
         os.mkdir(scripts_dir)
