@@ -2,7 +2,7 @@
 requires = [
   "wheel",
   "setuptools",
-  "torch>=2.2.0",
+  "torch>=2.3.0",
   "ninja",
   "packaging"
 ]
