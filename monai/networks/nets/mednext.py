@@ -80,9 +80,7 @@ class MedNeXt(nn.Module):
 
         encoder_kernel_size = decoder_kernel_size = self.config.kernel_size
 
-        conv = nn.Conv2d
-
-        self.stem = conv(self.config.in_channels, self.config.init_filters, kernel_size=1)
+        self.stem = nn.Conv2d(self.config.in_channels, self.config.init_filters, kernel_size=1)
 
         enc_stages = []
         down_blocks = []
