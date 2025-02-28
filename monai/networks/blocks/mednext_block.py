@@ -83,6 +83,7 @@ class MedNeXtBlock(nn.Module):
         x1 = self.act(self.conv2(self.norm(x1)))
 
         x1 = self.conv3(x1)
+        x1 = x + x1
 
         return x1
 
@@ -113,6 +114,13 @@ class MedNeXtDownBlock(MedNeXtBlock):
             kernel_size,
         )
 
+        self.res_conv = nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=2,
+        )
+
         # Overwrite the first convolution layer with stride 2
         self.conv1 = nn.Conv2d(
             in_channels=in_channels,
@@ -138,6 +146,10 @@ class MedNeXtDownBlock(MedNeXtBlock):
         x1 = self.act(self.conv2(self.norm(x1)))
 
         x1 = self.conv3(x1)
+        x1 = x + x1
+
+        res = self.res_conv(x)
+        x1 = x1 + res
 
         return x1
 
@@ -171,7 +183,14 @@ class MedNeXtUpBlock(MedNeXtBlock):
             kernel_size,
         )
 
-        self.conv1 = nn.ConvTranspose2d( # type: ignore
+        self.res_conv = nn.ConvTranspose2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=2,
+        )
+
+        self.conv1 = nn.ConvTranspose2d(  # type: ignore
             in_channels=in_channels,
             out_channels=in_channels,
             kernel_size=kernel_size,
@@ -195,8 +214,14 @@ class MedNeXtUpBlock(MedNeXtBlock):
         x1 = self.act(self.conv2(self.norm(x1)))
 
         x1 = self.conv3(x1)
+        x1 = x + x1
 
         x1 = torch.nn.functional.pad(x1, (1, 0, 1, 0))
+
+        res = self.res_conv(x)
+        res = torch.nn.functional.pad(res, (1, 0, 1, 0))
+
+        x1 = x1 + res
 
         return x1
 
