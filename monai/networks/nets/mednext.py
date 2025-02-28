@@ -247,3 +247,38 @@ MED_NEXT_LARGE = {
     "blocks_up": (8, 8, 4, 3),
 }
 
+
+def create_mednext(
+    variant: str = "S",
+    in_channels: int | None = None,
+    out_channels: int | None = None,
+) -> MedNeXt:
+    """
+    Create a MedNeXt model.
+
+    Args:
+        variant: the variant of the model to create. Defaults to "S".
+        in_channels: number of input channels for the network. Defaults to 4.
+        out_channels: number of output channels for the network. Defaults to 3.
+
+    Returns:
+        MedNeXt: the created model.
+    """
+
+    if variant == "S":
+        config = MedNextConfig(**MED_NEXT_SMALL)  # type: ignore
+    elif variant == "B":
+        config = MedNextConfig(**MED_NEXT_BASE)  # type: ignore
+    elif variant == "M":
+        config = MedNextConfig(**MED_NEXT_MEDIUM)  # type: ignore
+    elif variant == "L":
+        config = MedNextConfig(**MED_NEXT_LARGE)  # type: ignore
+    else:
+        raise ValueError(f"Unknown variant: {variant}")
+
+    if in_channels:
+        config.in_channels = in_channels
+    if out_channels:
+        config.out_channels = out_channels
+
+    return MedNeXt(config)
