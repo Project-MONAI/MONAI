@@ -226,7 +226,8 @@ class GridSamplePadMode(StrEnum):
 
 class Average(StrEnum):
     """
-    See also: :py:class:`monai.metrics.rocauc.compute_roc_auc`
+    See also: :py:class:`monai.metrics.rocauc.compute_roc_auc` or
+    :py:class:`monai.metrics.average_precision.compute_average_precision`
     """
 
     MACRO = "macro"
@@ -348,7 +349,7 @@ class CommonKeys(StrEnum):
     `LABEL` is the training or evaluation label of segmentation or classification task.
     `PRED` is the prediction data of model output.
     `LOSS` is the loss value of current iteration.
-    `INFO` is some useful information during training or evaluation, like loss value, etc.
+    `METADATA` is some useful information during training or evaluation, like loss value, etc.
 
     """
 

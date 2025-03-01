@@ -12,13 +12,13 @@
 from __future__ import annotations
 
 import argparse
-import glob
 import inspect
 import os
 import re
 import sys
 import time
 import unittest
+from pathlib import Path
 
 from monai.utils import PerfContext
 
@@ -45,7 +45,7 @@ class TimeLoggingTestResult(unittest.TextTestResult):
         name = self.getDescription(test)
         self.stream.write(f"Finished test: {name} ({elapsed:.03}s)\n")
         if name in results:
-            raise AssertionError("expected all keys to be unique")
+            raise AssertionError(f"expected all keys to be unique, but {name} is duplicated")
         results[name] = elapsed
         super().stopTest(test)
 
@@ -124,13 +124,22 @@ if __name__ == "__main__":
     # Get all test names (optionally from some path with some pattern)
     with PerfContext() as pc:
         # the files are searched from `tests/` folder, starting with `test_`
-        files = glob.glob(os.path.join(os.path.dirname(__file__), "test_*.py"))
+        tests_path = Path(__file__).parent / args.path
+        files = {
+            file.relative_to(tests_path).as_posix()
+            for file in tests_path.rglob("test_*py")
+            if re.search(args.pattern, file.name[:-3])
+        }
+        print(files)
         cases = []
-        for test_module in {os.path.basename(f)[:-3] for f in files}:
-            if re.match(args.pattern, test_module):
-                cases.append(f"tests.{test_module}")
+        for test_module in tests_path.rglob("test_*py"):
+            test_file = str(test_module.relative_to(tests_path).as_posix())
+            case_str = test_file.replace("/", ".")[:-3]
+            case_str = f"tests.{case_str}"
+            if test_file in files:
+                cases.append(case_str)
             else:
-                print(f"monai test runner: excluding tests.{test_module}")
+                print(f"monai test runner: excluding {test_module.name}")
         print(cases)
         tests = unittest.TestLoader().loadTestsFromNames(cases)
     discovery_time = pc.total_time
@@ -139,7 +148,6 @@ if __name__ == "__main__":
     test_runner = unittest.runner.TextTestRunner(
         resultclass=TimeLoggingTestResult, verbosity=args.verbosity, failfast=args.failfast
     )
-
     # Use try catches to print the current results if encountering exception or keyboard interruption
     try:
         test_result = test_runner.run(tests)
