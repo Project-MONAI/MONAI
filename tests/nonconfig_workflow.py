@@ -65,7 +65,7 @@ class NonConfigWorkflow(BundleWorkflow):
             self._monai_version = "1.1.0"
 
         if self._pytorch_version is None:
-            self._pytorch_version = "1.13.1"
+            self._pytorch_version = "2.3.0"
 
         if self._numpy_version is None:
             self._numpy_version = "1.22.2"
