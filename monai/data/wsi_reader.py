@@ -1067,7 +1067,7 @@ class OpenSlideWSIReader(BaseWSIReader):
             and "tiff.YResolution" in wsi.properties
             and wsi.properties["tiff.YResolution"]
             and wsi.properties["tiff.XResolution"]
-        ): 
+        ):
             unit = wsi.properties.get("tiff.ResolutionUnit")
             if unit is None:
                 warnings.warn("The resolution unit is missing, `micrometer` will be used as default.")
