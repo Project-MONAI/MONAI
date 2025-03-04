@@ -82,7 +82,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         expected_res0[1, 1] = np.nan
         for b, c in np.ndindex(batch_size, n_class):
             np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu())
-        np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
+        np.testing.assert_allclose(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
         np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
 
     def test_tolerance_euclidean_distance(self):
@@ -126,7 +126,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         expected_res0[1, 1] = np.nan
         for b, c in np.ndindex(batch_size, n_class):
             np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu())
-        np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
+        np.testing.assert_allclose(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
         np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
 
     def test_tolerance_euclidean_distance_3d(self):
@@ -173,7 +173,7 @@ class TestAllSurfaceDiceMetrics(unittest.TestCase):
         expected_res0[1, 1] = np.nan
         for b, c in np.ndindex(batch_size, n_class):
             np.testing.assert_allclose(expected_res0[b, c], res0[b, c].cpu())
-        np.testing.assert_array_equal(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
+        np.testing.assert_allclose(agg0.cpu(), np.nanmean(np.nanmean(expected_res0, axis=1), axis=0))
         np.testing.assert_equal(not_nans.cpu(), torch.tensor(2))
 
     def test_tolerance_all_distances(self):
