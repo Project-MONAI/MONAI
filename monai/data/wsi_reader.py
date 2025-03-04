@@ -842,7 +842,7 @@ class CuCIMWSIReader(BaseWSIReader):
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(wsi.resolutions["level_count"])]
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
 
-        within_tolerance, closest_level_is_bigger = super()._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
+        within_tolerance, closest_level_is_bigger = self._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
 
         if within_tolerance:
             # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
@@ -962,7 +962,7 @@ class CuCIMWSIReader(BaseWSIReader):
 
         closest_lvl_dim = wsi.resolutions["level_dimensions"][closest_lvl]
 
-        target_res_x, target_res_y = super()._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
+        target_res_x, target_res_y = self._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
 
         wsi_arr = cp.array(wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim, num_workers=self.num_workers))
         closest_lvl_wsi = cucim_resize(wsi_arr, (target_res_x, target_res_y), order=1)
@@ -1067,7 +1067,7 @@ class OpenSlideWSIReader(BaseWSIReader):
             and "tiff.YResolution" in wsi.properties
             and wsi.properties["tiff.YResolution"]
             and wsi.properties["tiff.XResolution"]
-        ):
+        ): 
             unit = wsi.properties.get("tiff.ResolutionUnit")
             if unit is None:
                 warnings.warn("The resolution unit is missing, `micrometer` will be used as default.")
@@ -1102,7 +1102,7 @@ class OpenSlideWSIReader(BaseWSIReader):
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(wsi.level_count)]
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
 
-        within_tolerance, closest_level_is_bigger = super()._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
+        within_tolerance, closest_level_is_bigger = self._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
 
         if within_tolerance:
             # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
@@ -1207,7 +1207,7 @@ class OpenSlideWSIReader(BaseWSIReader):
 
         closest_lvl_dim = wsi.level_dimensions[closest_lvl]
 
-        target_res_x, target_res_y = super()._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
+        target_res_x, target_res_y = self._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
 
         closest_lvl_wsi = wsi.read_region((0, 0), level=closest_lvl, size=closest_lvl_dim)
         closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
@@ -1339,7 +1339,7 @@ class TiffFileWSIReader(BaseWSIReader):
         mpp_list = [self.get_mpp(wsi, lvl) for lvl in range(len(wsi.pages))]  # Fails for some Tifffiles
         closest_lvl = self._find_closest_level("mpp", mpp, mpp_list, 0, 5)
 
-        within_tolerance, closest_level_is_bigger = super()._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
+        within_tolerance, closest_level_is_bigger = self._compute_mpp_tolerances(closest_lvl, mpp_list, mpp, atol, rtol)
 
         if within_tolerance:
             # If the image at the desired mpp resolution is within tolerances, return the image at closest_level.
@@ -1449,7 +1449,7 @@ class TiffFileWSIReader(BaseWSIReader):
 
         closest_lvl_dim = self.get_size(wsi, closest_lvl)
 
-        target_res_x, target_res_y = super()._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
+        target_res_x, target_res_y = self._compute_mpp_target_res(closest_lvl, closest_lvl_dim, mpp_list, user_mpp)
 
         closest_lvl_wsi = pil_image.fromarray(wsi.pages[closest_lvl].asarray())
         closest_lvl_wsi = closest_lvl_wsi.resize((target_res_x, target_res_y), pil_image.BILINEAR)
