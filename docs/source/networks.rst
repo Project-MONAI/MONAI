@@ -755,22 +755,32 @@ Noise Schedulers
 ----------------
 .. currentmodule:: monai.networks.schedulers
 
-`AHNet`
-~~~~~~~
+`Scheduler`
+~~~~~~~~~~~
 .. autoclass:: Scheduler
   :members:
 
+`NoiseSchedules`
+~~~~~~~~~~~~~~~~
 .. autoclass:: NoiseSchedules
   :members:
 
+`DDPMScheduler`
+~~~~~~~~~~~~~~~
 .. autoclass:: DDPMScheduler
   :members:
 
+`DDIMScheduler`
+~~~~~~~~~~~~~~~
 .. autoclass:: DDIMScheduler
   :members:
 
+`PNDMScheduler`
+~~~~~~~~~~~~~~~
 .. autoclass:: PNDMScheduler
   :members:
 
+`RFlowScheduler`
+~~~~~~~~~~~~~~~~
 .. autoclass:: RFlowScheduler
   :members:
