@@ -19,7 +19,7 @@ from parameterized import parameterized
 
 from monai.inferers import DiffusionInferer
 from monai.networks.nets import DiffusionModelUNet
-from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
+from monai.networks.schedulers import DDIMScheduler, DDPMScheduler, RFlowScheduler
 from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
@@ -113,6 +113,22 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         model.eval()
         noise = torch.randn(input_shape).to(device)
         scheduler = DDIMScheduler(num_train_timesteps=1000)
+        inferer = DiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        sample, intermediates = inferer.sample(
+            input_noise=noise, diffusion_model=model, scheduler=scheduler, save_intermediates=True, intermediate_steps=1
+        )
+        self.assertEqual(len(intermediates), 10)
+
+    @parameterized.expand(TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
+    def test_rflow_sampler(self, model_params, input_shape):
+        model = DiffusionModelUNet(**model_params)
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        model.eval()
+        noise = torch.randn(input_shape).to(device)
+        scheduler = RFlowScheduler(num_train_timesteps=1000)
         inferer = DiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
