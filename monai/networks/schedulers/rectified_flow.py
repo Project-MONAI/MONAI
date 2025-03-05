@@ -71,7 +71,7 @@ class RFlowScheduler(Scheduler):
     Supports uniform and logit-normal sampling methods, timestep transformation for
     different resolutions, and noise addition during diffusion.
 
-    Attributes:
+    Args:
         num_train_timesteps (int): Total number of training timesteps.
         use_discrete_timesteps (bool): Whether to use discrete timesteps.
         sample_method (str): Training time step sampling method ('uniform' or 'logit-normal').

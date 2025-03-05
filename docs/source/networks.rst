@@ -753,6 +753,7 @@ Utilities
 
 Noise Schedulers
 ----------------
+.. automodule:: monai.networks.schedulers
 .. currentmodule:: monai.networks.schedulers
 
 `Scheduler`
