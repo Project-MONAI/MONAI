@@ -196,9 +196,10 @@ class RFlowScheduler(Scheduler):
             device: target device to put the data.
             input_img_size_numel: int, H*W*D of the image, used with self.use_timestep_transform is True.
         """
-        if num_inference_steps > self.num_train_timesteps:
+        if num_inference_steps > self.num_train_timesteps or num_inference_steps < 1:
             raise ValueError(
-                f"`num_inference_steps`: {num_inference_steps} cannot be larger than `self.num_train_timesteps`:"
+                f"`num_inference_steps`: {num_inference_steps} should be at least 1, "
+                "and cannot be larger than `self.num_train_timesteps`:"
                 f" {self.num_train_timesteps} as the unet model trained with this scheduler can only handle"
                 f" maximal {self.num_train_timesteps} timesteps."
             )
