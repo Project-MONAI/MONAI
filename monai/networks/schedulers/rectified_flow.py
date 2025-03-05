@@ -97,7 +97,7 @@ class RFlowScheduler(Scheduler):
             )
 
             # during training
-            inputs = torch.ones(2,4,64,64,64)
+            inputs = torch.ones(2,4,64,64,32)
             noise = torch.randn_like(inputs)
             timesteps = noise_scheduler.sample_timesteps(inputs)
             noisy_inputs = noise_scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
@@ -108,7 +108,7 @@ class RFlowScheduler(Scheduler):
             loss = loss_l1(predicted_velocity, (inputs - noise))
 
             # during inference
-            noisy_inputs = torch.randn(2,4,64,64,64)
+            noisy_inputs = torch.randn(2,4,64,64,32)
             input_img_size_numel = torch.prod(torch.tensor(noisy_inputs.shape[-3:])
             noise_scheduler.set_timesteps(
                 num_inference_steps=30, input_img_size_numel=input_img_size_numel)
