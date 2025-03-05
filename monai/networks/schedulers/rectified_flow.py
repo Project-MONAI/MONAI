@@ -291,6 +291,6 @@ class RFlowScheduler(Scheduler):
             )  # Avoid division by zero
 
         pred_post_sample = sample + v_pred * dt
-        pred_original_sample = sample + v_pred * timestep/self.num_train_timesteps
-        
+        pred_original_sample = sample + v_pred * timestep / self.num_train_timesteps
+
         return pred_post_sample, pred_original_sample
