@@ -159,19 +159,17 @@ class RFlowScheduler(Scheduler):
         self.transform_scale = transform_scale
         self.steps_offset = steps_offset
 
-    def add_noise(
-        self, original_samples: torch.FloatTensor, noise: torch.FloatTensor, timesteps: torch.IntTensor
-    ) -> torch.FloatTensor:
+    def add_noise(self, original_samples: torch.Tensor, noise: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         """
-        Adds noise to the original samples based on the given timesteps.
+        Add noise to the original samples.
 
         Args:
-            original_samples (torch.FloatTensor): The original sample tensor.
-            noise (torch.FloatTensor): Noise tensor to be added.
-            timesteps (torch.IntTensor): Timesteps corresponding to each sample.
+            original_samples: original samples
+            noise: noise to add to samples
+            timesteps: timesteps tensor indicating the timestep to be computed for each sample.
 
         Returns:
-            torch.FloatTensor: The noisy sample tensor.
+            noisy_samples: sample with added noise
         """
         timepoints = timesteps.float() / self.num_train_timesteps
         timepoints = 1 - timepoints  # [1,1/1000]
@@ -221,10 +219,10 @@ class RFlowScheduler(Scheduler):
                 )
                 for t in timesteps
             ]
-        timesteps = np.array(timesteps).astype(np.float16)
+        timesteps_np = np.array(timesteps).astype(np.float16)
         if self.use_discrete_timesteps:
-            timesteps = timesteps.astype(np.int64)
-        self.timesteps = torch.from_numpy(timesteps).to(device)
+            timesteps_np = timesteps_np.astype(np.int64)
+        self.timesteps = torch.from_numpy(timesteps_np).to(device)
         self.timesteps += self.steps_offset
 
     def sample_timesteps(self, x_start):
@@ -257,7 +255,7 @@ class RFlowScheduler(Scheduler):
         return t
 
     def step(
-        self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor, next_timestep=None
+        self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor, next_timestep: int | None = None
     ) -> tuple[torch.Tensor, Any]:
         """
         Predict the sample at the previous timestep. Core function to propagate the diffusion
