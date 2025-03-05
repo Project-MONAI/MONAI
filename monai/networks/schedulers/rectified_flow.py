@@ -258,7 +258,7 @@ class RFlowScheduler(Scheduler):
 
     def step(
         self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor, next_timestep: Union[int, None] = None
-    ) -> tuple[torch.Tensor, None]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Predicts the next sample in the diffusion process.
 
@@ -290,5 +290,7 @@ class RFlowScheduler(Scheduler):
                 1.0 / float(self.num_inference_steps) if self.num_inference_steps > 0 else 0.0
             )  # Avoid division by zero
 
-        z = sample + v_pred * dt
-        return z, None
+        pred_post_sample = sample + v_pred * dt
+        pred_original_sample = sample + v_pred * timestep/self.num_train_timesteps
+        
+        return pred_post_sample, pred_original_sample
