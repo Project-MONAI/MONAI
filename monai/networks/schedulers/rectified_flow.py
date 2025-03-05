@@ -28,7 +28,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import torch
@@ -171,15 +171,16 @@ class RFlowScheduler(Scheduler):
         Returns:
             noisy_samples: sample with added noise
         """
-        timepoints = timesteps.float() / self.num_train_timesteps
+        timepoints: torch.Tensor = timesteps.float() / self.num_train_timesteps
         timepoints = 1 - timepoints  # [1,1/1000]
 
         # timepoint  (bsz) noise: (bsz, 4, frame, w ,h)
         # expand timepoint to noise shape
         timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1).unsqueeze(1)
         timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3], noise.shape[4])
+        noisy_samples: torch.Tensor = timepoints * original_samples + (1 - timepoints) * noise
 
-        return timepoints * original_samples + (1 - timepoints) * noise
+        return noisy_samples
 
     def set_timesteps(
         self,
@@ -255,27 +256,38 @@ class RFlowScheduler(Scheduler):
         return t
 
     def step(
-        self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor, next_timestep: int | None = None
-    ) -> tuple[torch.Tensor, Any]:
+        self, model_output: torch.Tensor, timestep: int, sample: torch.Tensor, next_timestep: Union[int, None] = None
+    ) -> tuple[torch.Tensor, None]:
         """
-        Predict the sample at the previous timestep. Core function to propagate the diffusion
-        process from the learned model outputs.
+        Predicts the next sample in the diffusion process.
 
         Args:
-            model_output: direct output from learned diffusion model.
-            timestep: current discrete timestep in the diffusion chain.
-            sample: current instance of sample being created by diffusion process.
-            next_timestep: next discrete timestep in the diffusion chain.
-        Returns:
-            pred_prev_sample: Predicted previous sample
-            None
-        """
-        v_pred = model_output
-        if next_timestep is None:
-            dt = 1.0 / self.num_inference_steps
-        else:
-            dt = timestep - next_timestep
-            dt = dt / self.num_train_timesteps
-        z = sample + v_pred * dt
+            model_output (torch.Tensor): Output from the trained diffusion model.
+            timestep (int): Current timestep in the diffusion chain.
+            sample (torch.Tensor): Current sample in the process.
+            next_timestep (Union[int, None]): Optional next timestep.
 
+        Returns:
+            tuple[torch.Tensor, None]: Predicted sample at the next step and additional info.
+        """
+        # Ensure num_inference_steps exists and is a valid integer
+        if not hasattr(self, "num_inference_steps") or not isinstance(self.num_inference_steps, int):
+            raise AttributeError(
+                "num_inference_steps is missing or not an integer in the class."
+                "Please run self.set_timesteps(num_inference_steps,device,input_img_size_numel) to set it."
+            )
+
+        v_pred = model_output
+
+        if next_timestep is not None:
+            next_timestep = int(next_timestep)
+            dt: float = (
+                float(timestep - next_timestep) / self.num_train_timesteps
+            )  # Now next_timestep is guaranteed to be int
+        else:
+            dt = (
+                1.0 / float(self.num_inference_steps) if self.num_inference_steps > 0 else 0.0
+            )  # Avoid division by zero
+
+        z = sample + v_pred * dt
         return z, None
