@@ -269,7 +269,7 @@ class RFlowScheduler(Scheduler):
             next_timestep (Union[int, None]): Optional next timestep.
 
         Returns:
-            tuple[torch.Tensor, None]: Predicted sample at the next step and additional info.
+            tuple[torch.Tensor, torch.Tensor]: Predicted sample at the next step and additional info.
         """
         # Ensure num_inference_steps exists and is a valid integer
         if not hasattr(self, "num_inference_steps") or not isinstance(self.num_inference_steps, int):
