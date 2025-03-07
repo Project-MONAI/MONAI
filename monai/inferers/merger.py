@@ -53,6 +53,9 @@ class Merger(ABC):
         cropped_shape: Sequence[int] | None = None,
         device: torch.device | str | None = None,
     ) -> None:
+        if merged_shape is None:
+            raise ValueError("Argument `merged_shape` must be provided")
+        
         self.merged_shape: tuple[int, ...] = tuple(merged_shape)
         self.cropped_shape: tuple[int, ...] = tuple(self.merged_shape if cropped_shape is None else cropped_shape)
         self.device = device
