@@ -53,8 +53,8 @@ class Merger(ABC):
         cropped_shape: Sequence[int] | None = None,
         device: torch.device | str | None = None,
     ) -> None:
-        self.merged_shape = merged_shape
-        self.cropped_shape = self.merged_shape if cropped_shape is None else cropped_shape
+        self.merged_shape: tuple[int, ...] = tuple(merged_shape)
+        self.cropped_shape: tuple[int, ...] = tuple(self.merged_shape if cropped_shape is None else cropped_shape)
         self.device = device
         self.is_finalized = False
 
@@ -231,9 +231,9 @@ class ZarrAvgMerger(Merger):
         dtype: np.dtype | str = "float32",
         value_dtype: np.dtype | str = "float32",
         count_dtype: np.dtype | str = "uint8",
-        store: zarr.storage.Store | str = "merged.zarr",
-        value_store: zarr.storage.Store | str | None = None,
-        count_store: zarr.storage.Store | str | None = None,
+        store: zarr.storage.Store | str = "merged.zarr",  # type: ignore
+        value_store: zarr.storage.Store | str | None = None,  # type: ignore
+        count_store: zarr.storage.Store | str | None = None,  # type: ignore
         compressor: str | None = None,
         value_compressor: str | None = None,
         count_compressor: str | None = None,
@@ -251,18 +251,18 @@ class ZarrAvgMerger(Merger):
         if version_geq(get_package_version("zarr"), "3.0.0"):
             if value_store is None:
                 self.tmpdir = TemporaryDirectory()
-                self.value_store = zarr.storage.LocalStore(self.tmpdir.name)
+                self.value_store = zarr.storage.LocalStore(self.tmpdir.name)  # type: ignore
             else:
-                self.value_store = value_store
+                self.value_store = value_store  # type: ignore
             if count_store is None:
                 self.tmpdir = TemporaryDirectory()
-                self.count_store = zarr.storage.LocalStore(self.tmpdir.name)
+                self.count_store = zarr.storage.LocalStore(self.tmpdir.name)  # type: ignore
             else:
-                self.count_store = count_store
+                self.count_store = count_store  # type: ignore
         else:
             self.tmpdir = None
-            self.value_store = zarr.storage.TempStore() if value_store is None else value_store
-            self.count_store = zarr.storage.TempStore() if count_store is None else count_store
+            self.value_store = zarr.storage.TempStore() if value_store is None else value_store  # type: ignore
+            self.count_store = zarr.storage.TempStore() if count_store is None else count_store  # type: ignore
         self.chunks = chunks
         self.compressor = compressor
         self.value_compressor = value_compressor
@@ -314,7 +314,7 @@ class ZarrAvgMerger(Merger):
         map_slice = ensure_tuple_size(map_slice, values.ndim, pad_val=slice(None), pad_from_start=True)
         with self.lock:
             self.values[map_slice] += values.numpy()
-            self.counts[map_slice] += 1
+            self.counts[map_slice] += 1  # type: ignore[operator]
 
     def finalize(self) -> zarr.Array:
         """
@@ -332,7 +332,7 @@ class ZarrAvgMerger(Merger):
         if not self.is_finalized:
             # use chunks for division to fit into memory
             for chunk in iterate_over_chunks(self.values.chunks, self.values.cdata_shape):
-                self.output[chunk] = self.values[chunk] / self.counts[chunk]
+                self.output[chunk] = self.values[chunk] / self.counts[chunk]  # type: ignore[operator]
             # finalize the shape
             self.output.resize(self.cropped_shape)
             # set finalize flag to protect performing in-place division again

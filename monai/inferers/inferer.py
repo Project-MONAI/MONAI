@@ -882,7 +882,7 @@ class DiffusionInferer(Inferer):
                 )
 
             # 2. compute previous image: x_t -> x_t-1
-            image, _ = scheduler.step(model_output, t, image)
+            image, _ = scheduler.step(model_output, t, image)  # type: ignore[operator]
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
         if save_intermediates:
@@ -986,8 +986,8 @@ class DiffusionInferer(Inferer):
             predicted_mean = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * noisy_image
 
             # get the posterior mean and variance
-            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)
-            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)
+            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)  # type: ignore[operator]
+            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)  # type: ignore[operator]
 
             log_posterior_variance = torch.log(posterior_variance)
             log_predicted_variance = torch.log(predicted_variance) if predicted_variance else log_posterior_variance
@@ -1436,7 +1436,7 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                 )
 
             # 3. compute previous image: x_t -> x_t-1
-            image, _ = scheduler.step(model_output, t, image)
+            image, _ = scheduler.step(model_output, t, image)  # type: ignore[operator]
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
         if save_intermediates:
@@ -1562,8 +1562,8 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             predicted_mean = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * noisy_image
 
             # get the posterior mean and variance
-            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)
-            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)
+            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)  # type: ignore[operator]
+            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)  # type: ignore[operator]
 
             log_posterior_variance = torch.log(posterior_variance)
             log_predicted_variance = torch.log(predicted_variance) if predicted_variance else log_posterior_variance

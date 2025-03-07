@@ -22,7 +22,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 import torch
@@ -1291,7 +1291,8 @@ def simple_replace(base_t: type[nn.Module], dest_t: type[nn.Module]) -> Callable
     def expansion_fn(mod: nn.Module) -> nn.Module | None:
         if not isinstance(mod, base_t):
             return None
-        args = [getattr(mod, name, None) for name in mod.__constants__]
+        constants: Iterable = mod.__constants__  # type: ignore[assignment]
+        args = [getattr(mod, name, None) for name in constants]
         out = dest_t(*args)
         return out
 
