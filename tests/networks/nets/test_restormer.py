@@ -150,7 +150,7 @@ if has_einops:
 else:
     class TestRestormer(unittest.TestCase):
         def test_placeholder(self):
-            self.skipTest("Einops module not available")    
+            self.skipTest("Einops module not available")
 
 if __name__ == "__main__":
     unittest.main()
