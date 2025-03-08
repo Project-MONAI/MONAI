@@ -122,7 +122,7 @@ class CheckpointLoader:
         Args:
             engine: Ignite Engine, it can be a trainer, validator or evaluator.
         """
-        checkpoint = torch.load(self.load_path, map_location=self.map_location)
+        checkpoint = torch.load(self.load_path, map_location=self.map_location, weights_only=False)
 
         k, _ = list(self.load_dict.items())[0]
         # single object and checkpoint is directly a state_dict

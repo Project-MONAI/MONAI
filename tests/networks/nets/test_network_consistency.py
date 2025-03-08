@@ -55,7 +55,7 @@ class TestNetworkConsistency(unittest.TestCase):
         print("JSON path: " + json_path)
 
         # Load data
-        loaded_data = torch.load(data_path)
+        loaded_data = torch.load(data_path, weights_only=True)
 
         # Load json from file
         json_file = open(json_path)

@@ -186,7 +186,7 @@ class IntegrationFastTrain(DistTestCase):
                 step += 1
                 optimizer.zero_grad()
                 # set AMP for training
-                with torch.cuda.amp.autocast():
+                with torch.autocast("cuda"):
                     outputs = model(batch_data["image"])
                     loss = loss_function(outputs, batch_data["label"])
                 scaler.scale(loss).backward()
@@ -207,7 +207,7 @@ class IntegrationFastTrain(DistTestCase):
                         roi_size = (96, 96, 96)
                         sw_batch_size = 4
                         # set AMP for validation
-                        with torch.cuda.amp.autocast():
+                        with torch.autocast("cuda"):
                             val_outputs = sliding_window_inference(val_data["image"], roi_size, sw_batch_size, model)
 
                         val_outputs = [post_pred(i) for i in decollate_batch(val_outputs)]
