@@ -40,10 +40,10 @@ TEST_CASES_PATCHEMBED = [
 ]
 
 RESTORMER_CONFIGS = [
-    # 2-level architecture
+    # 2-level architecture test
     {"num_blocks": [1, 1], "heads": [1, 1]},
     {"num_blocks": [2, 1], "heads": [2, 1]},
-    # 3-level architecture
+    # 3-level architecture test
     {"num_blocks": [1, 1, 1], "heads": [1, 1, 1]},
     {"num_blocks": [2, 1, 1], "heads": [2, 1, 1]},
 ]
