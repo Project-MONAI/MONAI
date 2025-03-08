@@ -86,26 +86,31 @@ for config in RESTORMER_CONFIGS:
     )
 
 
-class TestMDTATransformerBlock(unittest.TestCase):
+if has_einops:
+    class TestMDTATransformerBlock(unittest.TestCase):
 
-    @parameterized.expand(TEST_CASES_TRANSFORMER)
-    @skipUnless(has_einops, "Requires einops")
-    def test_shape(self, spatial_dims, dim, heads, ffn_factor, bias, layer_norm_use_bias, flash, shape):
-        if flash and not torch.cuda.is_available():
-            self.skipTest("Flash attention requires CUDA")
-        block = MDTATransformerBlock(
-            spatial_dims=spatial_dims,
-            dim=dim,
-            num_heads=heads,
-            ffn_expansion_factor=ffn_factor,
-            bias=bias,
-            layer_norm_use_bias=layer_norm_use_bias,
-            flash_attention=flash,
-        )
-        with eval_mode(block):
-            x = torch.randn(shape)
-            output = block(x)
-            self.assertEqual(output.shape, x.shape)
+        @parameterized.expand(TEST_CASES_TRANSFORMER)
+        @skipUnless(has_einops, "Requires einops")
+        def test_shape(self, spatial_dims, dim, heads, ffn_factor, bias, layer_norm_use_bias, flash, shape):
+            if flash and not torch.cuda.is_available():
+                self.skipTest("Flash attention requires CUDA")
+            block = MDTATransformerBlock(
+                spatial_dims=spatial_dims,
+                dim=dim,
+                num_heads=heads,
+                ffn_expansion_factor=ffn_factor,
+                bias=bias,
+                layer_norm_use_bias=layer_norm_use_bias,
+                flash_attention=flash,
+            )
+            with eval_mode(block):
+                x = torch.randn(shape)
+                output = block(x)
+                self.assertEqual(output.shape, x.shape)
+else:
+    class TestMDTATransformerBlock(unittest.TestCase):
+        def test_placeholder(self):
+            self.skipTest("Einops module not available")
 
 
 class TestOverlapPatchEmbed(unittest.TestCase):
@@ -118,31 +123,34 @@ class TestOverlapPatchEmbed(unittest.TestCase):
             result = net(torch.randn(input_shape))
             self.assertEqual(result.shape, expected_shape)
 
+if has_einops:
+    class TestRestormer(unittest.TestCase):
 
-class TestRestormer(unittest.TestCase):
+        @parameterized.expand(TEST_CASES_RESTORMER)
+        @skipUnless(has_einops, "Requires einops")
+        def test_shape(self, input_param, input_shape, expected_shape):
+            if input_param.get("flash_attention", False) and not torch.cuda.is_available():
+                self.skipTest("Flash attention requires CUDA")
+            net = Restormer(**input_param)
+            with eval_mode(net):
+                result = net(torch.randn(input_shape))
+                self.assertEqual(result.shape, expected_shape)
 
-    @parameterized.expand(TEST_CASES_RESTORMER)
-    @skipUnless(has_einops, "Requires einops")
-    def test_shape(self, input_param, input_shape, expected_shape):
-        if input_param.get("flash_attention", False) and not torch.cuda.is_available():
-            self.skipTest("Flash attention requires CUDA")
-        net = Restormer(**input_param)
-        with eval_mode(net):
-            result = net(torch.randn(input_shape))
-            self.assertEqual(result.shape, expected_shape)
+        @skipUnless(has_einops, "Requires einops")
+        def test_small_input_error_2d(self):
+            net = Restormer(spatial_dims=2, in_channels=1, out_channels=1)
+            with self.assertRaises(AssertionError):
+                net(torch.randn(1, 1, 8, 8))
 
-    @skipUnless(has_einops, "Requires einops")
-    def test_small_input_error_2d(self):
-        net = Restormer(spatial_dims=2, in_channels=1, out_channels=1)
-        with self.assertRaises(AssertionError):
-            net(torch.randn(1, 1, 8, 8))
-
-    @skipUnless(has_einops, "Requires einops")
-    def test_small_input_error_3d(self):
-        net = Restormer(spatial_dims=3, in_channels=1, out_channels=1)
-        with self.assertRaises(AssertionError):
-            net(torch.randn(1, 1, 8, 8, 8))
-
+        @skipUnless(has_einops, "Requires einops")
+        def test_small_input_error_3d(self):
+            net = Restormer(spatial_dims=3, in_channels=1, out_channels=1)
+            with self.assertRaises(AssertionError):
+                net(torch.randn(1, 1, 8, 8, 8))
+else:
+    class TestRestormer(unittest.TestCase):
+        def test_placeholder(self):
+            self.skipTest("Einops module not available")    
 
 if __name__ == "__main__":
     unittest.main()
