@@ -753,7 +753,7 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
     else:
-        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))
+        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))  # type: ignore[operator]
     if suppress_zeros:
         spacing[spacing == 0] = 1.0
     spacing_, *_ = convert_to_dst_type(spacing, dst=affine, dtype=dtype)
