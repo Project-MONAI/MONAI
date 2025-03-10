@@ -280,18 +280,18 @@ class ModelnnUNetWrapper(torch.nn.Module):
             - The predictions are converted to torch tensors, with added batch and channel dimensions.
             - The output tensor is concatenated along the batch dimension and returned as a MetaTensor with the same metadata.
         """
-        #if isinstance(x, tuple):  # if batch is decollated (list of tensors)
+        # if isinstance(x, tuple):  # if batch is decollated (list of tensors)
         #    properties_or_list_of_properties = []
         #    image_or_list_of_images = []
 
-            # for img in x:
-            # if isinstance(img, MetaTensor):
-            #    properties_or_list_of_properties.append({"spacing": img.meta['pixdim'][0][1:4].numpy().tolist()})
-            #    image_or_list_of_images.append(img.cpu().numpy()[0,:])
-            # else:
-            #    raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
+        # for img in x:
+        # if isinstance(img, MetaTensor):
+        #    properties_or_list_of_properties.append({"spacing": img.meta['pixdim'][0][1:4].numpy().tolist()})
+        #    image_or_list_of_images.append(img.cpu().numpy()[0,:])
+        # else:
+        #    raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
 
-        #else:  # if batch is collated
+        # else:  # if batch is collated
         if isinstance(x, MetaTensor):
             if "pixdim" in x.meta:
                 properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
@@ -299,7 +299,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
                 properties_or_list_of_properties = {"spacing": [1.0, 1.0, 1.0]}
         else:
             raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
-        
+
         image_or_list_of_images = x.cpu().numpy()[0, :]
 
         # input_files should be a list of file paths, one per modality
@@ -319,9 +319,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
             out_tensors.append(torch.from_numpy(np.expand_dims(np.expand_dims(out, 0), 0)))
         out_tensor = torch.cat(out_tensors, 0)  # Concatenate along batch dimension
 
-        #if type(x) is tuple:
+        # if type(x) is tuple:
         #    return MetaTensor(out_tensor, meta=x[0].meta)
-        #else:
+        # else:
         return MetaTensor(out_tensor, meta=x.meta)
 
 
