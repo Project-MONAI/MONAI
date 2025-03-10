@@ -54,7 +54,7 @@ class TestRFlowScheduler(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_step_shape(self, input_param, input_shape, expected_shape):
-        scheduler = RFlowScheduler(**input_param)        
+        scheduler = RFlowScheduler(**input_param)
         model_output = torch.randn(input_shape)
         sample = torch.randn(input_shape)
         scheduler.set_timesteps(num_inference_steps=100, input_img_size_numel=torch.numel(sample[0,0,...]))
@@ -64,7 +64,7 @@ class TestRFlowScheduler(unittest.TestCase):
 
     @parameterized.expand(TEST_FULl_LOOP)
     def test_full_timestep_loop(self, input_param, input_shape, expected_output):
-        scheduler = RFlowScheduler(**input_param)        
+        scheduler = RFlowScheduler(**input_param)
         torch.manual_seed(42)
         model_output = torch.randn(input_shape)
         sample = torch.randn(input_shape)

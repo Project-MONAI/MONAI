@@ -587,7 +587,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         controlnet.eval()
         mask = torch.randn(input_shape).to(device)
         noise = torch.randn(input_shape).to(device)
-        
+
         # DDIM
         scheduler = DDIMScheduler(num_train_timesteps=1000)
         inferer = ControlNetDiffusionInferer(scheduler=scheduler)
@@ -759,7 +759,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
             inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
             timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
-    
+
             if dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
