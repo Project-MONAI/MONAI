@@ -141,7 +141,7 @@ class RFlowScheduler(Scheduler):
         transform_scale: float = 1.0,
         steps_offset: int = 0,
         base_img_size_numel: int = 32 * 32 * 32,
-        spatial_dim: int = 3
+        spatial_dim: int = 3,
     ):
         self.num_train_timesteps = num_train_timesteps
         self.use_discrete_timesteps = use_discrete_timesteps
@@ -179,12 +179,12 @@ class RFlowScheduler(Scheduler):
         timepoints = 1 - timepoints  # [1,1/1000]
 
         # expand timepoint to noise shape
-        if len(noise.shape) == 5:
-            timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1).unsqueeze(1)
-            timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3], noise.shape[4])
-        elif len(noise.shape) == 4:
-            timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1)
-            timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3])
+        if noise.ndim == 5:
+            timepoints = timepoints[..., None, None, None, None].expand(-1, *noise.shape[1:])
+        elif noise.ndim == 4:
+            timepoints = timepoints[..., None, None, None].expand(-1, *noise.shape[1:])
+        else:
+            raise ValueError(f"noise tensor has to be 4D or 5D tensor, yet got shape of {noise.shape}")
 
         noisy_samples: torch.Tensor = timepoints * original_samples + (1 - timepoints) * noise
 
@@ -226,7 +226,7 @@ class RFlowScheduler(Scheduler):
                     input_img_size_numel=input_img_size_numel,
                     base_img_size_numel=self.base_img_size_numel,
                     num_train_timesteps=self.num_train_timesteps,
-                    spatial_dim = self.spatial_dim
+                    spatial_dim=self.spatial_dim,
                 )
                 for t in timesteps
             ]
@@ -261,7 +261,7 @@ class RFlowScheduler(Scheduler):
                 input_img_size_numel=input_img_size_numel,
                 base_img_size_numel=self.base_img_size_numel,
                 num_train_timesteps=self.num_train_timesteps,
-                spatial_dim = len(x_start.shape)-2
+                spatial_dim=len(x_start.shape) - 2,
             )
 
         return t
