@@ -13,7 +13,6 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Union
 
 import numpy as np
 import torch
@@ -299,7 +298,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
                 properties_or_list_of_properties = {"spacing": [1.0, 1.0, 1.0]}
         else:
             raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
-        
+
         image_or_list_of_images = x.cpu().numpy()[0, :]
 
         # input_files should be a list of file paths, one per modality
