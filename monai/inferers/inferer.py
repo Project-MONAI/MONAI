@@ -889,9 +889,9 @@ class DiffusionInferer(Inferer):
 
             # 2. compute previous image: x_t -> x_t-1
             if not isinstance(scheduler, RFlowScheduler):
-                image, _ = scheduler.step(model_output, t, image)
+                image, _ = scheduler.step(model_output, t, image) # type: ignore
             else:
-                image, _ = scheduler.step(model_output, t, image, next_t)
+                image, _ = scheduler.step(model_output, t, image, next_t) # type: ignore
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
 
@@ -1453,9 +1453,9 @@ class ControlNetDiffusionInferer(DiffusionInferer):
 
             # 3. compute previous image: x_t -> x_t-1
             if not isinstance(scheduler, RFlowScheduler):
-                image, _ = scheduler.step(model_output, t, image)
+                image, _ = scheduler.step(model_output, t, image) # type: ignore
             else:
-                image, _ = scheduler.step(model_output, t, image, next_t)
+                image, _ = scheduler.step(model_output, t, image, next_t) # type: ignore
 
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
