@@ -179,7 +179,6 @@ class RFlowScheduler(Scheduler):
         timepoints = 1 - timepoints  # [1,1/1000]
 
         # expand timepoint to noise shape
-        # Just in case timepoints is not 1D or 2D tensor, make it to be same shape as noise
         if len(noise.shape) == 5:
             timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1).unsqueeze(1)
             timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3], noise.shape[4])
