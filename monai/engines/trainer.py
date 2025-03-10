@@ -125,8 +125,8 @@ class SupervisedTrainer(Trainer):
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
         compile: whether to use `torch.compile`, default is False. If True, MetaTensor inputs will be converted to
             `torch.Tensor` before forward pass,  then converted back afterward with copied meta information.
         compile_kwargs: dict of the args for `torch.compile()` API, for more details:
@@ -249,7 +249,7 @@ class SupervisedTrainer(Trainer):
         engine.optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
 
         if engine.amp and engine.scaler is not None:
-            with torch.cuda.amp.autocast(**engine.amp_kwargs):
+            with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_pred_loss()
             engine.scaler.scale(engine.state.output[Keys.LOSS]).backward()
             engine.fire_event(IterationEvents.BACKWARD_COMPLETED)
@@ -335,8 +335,8 @@ class GanTrainer(Trainer):
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
 
     """
 
@@ -512,8 +512,8 @@ class AdversarialTrainer(Trainer):
             more details: https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
     """
 
     def __init__(
@@ -683,7 +683,7 @@ class AdversarialTrainer(Trainer):
         engine.state.g_optimizer.zero_grad(set_to_none=engine.optim_set_to_none)
 
         if engine.amp and engine.state.g_scaler is not None:
-            with torch.cuda.amp.autocast(**engine.amp_kwargs):
+            with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_generator_loss()
 
             engine.state.output[Keys.LOSS] = (
@@ -731,7 +731,7 @@ class AdversarialTrainer(Trainer):
         engine.state.d_network.zero_grad(set_to_none=engine.optim_set_to_none)
 
         if engine.amp and engine.state.d_scaler is not None:
-            with torch.cuda.amp.autocast(**engine.amp_kwargs):
+            with torch.autocast("cuda", **engine.amp_kwargs):
                 _compute_discriminator_loss()
 
             engine.state.d_scaler.scale(engine.state.output[AdversarialKeys.DISCRIMINATOR_LOSS]).backward()

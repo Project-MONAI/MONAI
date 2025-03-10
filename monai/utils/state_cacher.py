@@ -124,7 +124,7 @@ class StateCacher:
         fn = self.cached[key]["obj"]  # pytype: disable=attribute-error
         if not os.path.exists(fn):  # pytype: disable=wrong-arg-types
             raise RuntimeError(f"Failed to load state in {fn}. File doesn't exist anymore.")
-        data_obj = torch.load(fn, map_location=lambda storage, location: storage)
+        data_obj = torch.load(fn, map_location=lambda storage, location: storage, weights_only=False)
         # copy back to device if necessary
         if "device" in self.cached[key]:
             data_obj = data_obj.to(self.cached[key]["device"])
