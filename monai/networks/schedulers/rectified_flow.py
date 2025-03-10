@@ -55,7 +55,7 @@ def timestep_transform(
         torch.Tensor: Transformed timestep(s).
     """
     t = t / num_train_timesteps
-    ratio_space = (input_img_size_numel / base_img_size_numel).pow(1.0 / spatial_dim)
+    ratio_space = (input_img_size_numel / base_img_size_numel) ** (1.0 / spatial_dim)
 
     ratio = ratio_space * scale
     new_t = ratio * t / (1 + (ratio - 1) * t)
