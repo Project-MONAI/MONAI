@@ -22,7 +22,7 @@ from monai.apps.nnunet import nnUNetV2Runner
 from monai.bundle.config_parser import ConfigParser
 from monai.apps.nnunet.nnunet_bundle import convert_nnunet_to_monai_bundle, get_nnunet_monai_predictor, get_nnunet_trainer
 from monai.data import DataLoader, Dataset, create_test_image_3d
-from monai.transforms import Compose, Decollated, EnsureChannelFirstd, LoadImaged, SaveImaged, Transposed
+from monai.transforms import Compose, Decollated, EnsureChannelFirstd, LoadImaged, SaveImaged
 from monai.utils import optional_import
 from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
