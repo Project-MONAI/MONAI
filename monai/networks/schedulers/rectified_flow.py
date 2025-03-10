@@ -82,6 +82,7 @@ class RFlowScheduler(Scheduler):
         transform_scale (float): Scaling factor for timestep transformation, used only if use_timestep_transform=True.
         steps_offset (int): Offset added to computed timesteps, used only if use_timestep_transform=True.
         base_img_size_numel (int): Reference image volume size for scaling, used only if use_timestep_transform=True.
+        spatial_dim (int): 2 or 3, incidcating 2D or 3D images, used only if use_timestep_transform=True.
 
     Example:
 
@@ -93,7 +94,8 @@ class RFlowScheduler(Scheduler):
                 use_discrete_timesteps = True,
                 sample_method = 'logit-normal',
                 use_timestep_transform = True,
-                base_img_size_numel = 32 * 32 * 32
+                base_img_size_numel = 32 * 32 * 32,
+                spatial_dim = 3
             )
 
             # during training
@@ -139,10 +141,12 @@ class RFlowScheduler(Scheduler):
         transform_scale: float = 1.0,
         steps_offset: int = 0,
         base_img_size_numel: int = 32 * 32 * 32,
+        spatial_dim: int = 3
     ):
         self.num_train_timesteps = num_train_timesteps
         self.use_discrete_timesteps = use_discrete_timesteps
         self.base_img_size_numel = base_img_size_numel
+        self.spatial_dim = spatial_dim
 
         # sample method
         if sample_method not in ["uniform", "logit-normal"]:
@@ -166,7 +170,7 @@ class RFlowScheduler(Scheduler):
         Args:
             original_samples: original samples
             noise: noise to add to samples
-            timesteps: timesteps tensor indicating the timestep to be computed for each sample.
+            timesteps: timesteps tensor with shape of (N,), indicating the timestep to be computed for each sample.
 
         Returns:
             noisy_samples: sample with added noise
@@ -175,14 +179,14 @@ class RFlowScheduler(Scheduler):
         timepoints = 1 - timepoints  # [1,1/1000]
 
         # expand timepoint to noise shape
+        # Just in case timepoints is not 1D or 2D tensor, make it to be same shape as noise
         if len(noise.shape) == 5:
             timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1).unsqueeze(1)
             timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3], noise.shape[4])
         elif len(noise.shape) == 4:
             timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1)
             timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3])
-        else:
-            raise ValueError(f"noise has to be 4D or 5D tensor. yet got shape of {noise.shape}.")
+
         noisy_samples: torch.Tensor = timepoints * original_samples + (1 - timepoints) * noise
 
         return noisy_samples
@@ -223,6 +227,7 @@ class RFlowScheduler(Scheduler):
                     input_img_size_numel=input_img_size_numel,
                     base_img_size_numel=self.base_img_size_numel,
                     num_train_timesteps=self.num_train_timesteps,
+                    spatial_dim = self.spatial_dim
                 )
                 for t in timesteps
             ]
@@ -257,6 +262,7 @@ class RFlowScheduler(Scheduler):
                 input_img_size_numel=input_img_size_numel,
                 base_img_size_numel=self.base_img_size_numel,
                 num_train_timesteps=self.num_train_timesteps,
+                spatial_dim = len(x_start.shape)-2
             )
 
         return t
