@@ -257,14 +257,14 @@ class ModelnnUNetWrapper(torch.nn.Module):
         # End Block
         self.network_weights = self.predictor.network
 
-    def forward(self, x: Union[MetaTensor, tuple[MetaTensor]]):
+    def forward(self, x: MetaTensor) -> MetaTensor:
         """
         Forward pass for the nnUNet model.
 
         :no-index:
 
         Args:
-            x (Union[MetaTensor, Tuple[MetaTensor]]): Input tensor or a tuple of MetaTensors. If the input is a tuple,
+            x (MetaTensor): Input tensor. If the input is a tuple,
                 it is assumed to be a decollated batch (list of tensors). Otherwise, it is assumed to be a collated batch.
 
         Returns:
@@ -280,9 +280,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
             - The predictions are converted to torch tensors, with added batch and channel dimensions.
             - The output tensor is concatenated along the batch dimension and returned as a MetaTensor with the same metadata.
         """
-        if isinstance(x, tuple):  # if batch is decollated (list of tensors)
-            properties_or_list_of_properties = []
-            image_or_list_of_images = []
+        #if isinstance(x, tuple):  # if batch is decollated (list of tensors)
+        #    properties_or_list_of_properties = []
+        #    image_or_list_of_images = []
 
             # for img in x:
             # if isinstance(img, MetaTensor):
@@ -291,15 +291,16 @@ class ModelnnUNetWrapper(torch.nn.Module):
             # else:
             #    raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
 
-        else:  # if batch is collated
-            if isinstance(x, MetaTensor):
-                if "pixdim" in x.meta:
-                    properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
-                else:
-                    properties_or_list_of_properties = {"spacing": [1.0, 1.0, 1.0]}
+        #else:  # if batch is collated
+        if isinstance(x, MetaTensor):
+            if "pixdim" in x.meta:
+                properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
             else:
-                raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
-            image_or_list_of_images = x.cpu().numpy()[0, :]
+                properties_or_list_of_properties = {"spacing": [1.0, 1.0, 1.0]}
+        else:
+            raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
+        
+        image_or_list_of_images = x.cpu().numpy()[0, :]
 
         # input_files should be a list of file paths, one per modality
         prediction_output = self.predictor.predict_from_list_of_npy_arrays(
@@ -318,10 +319,10 @@ class ModelnnUNetWrapper(torch.nn.Module):
             out_tensors.append(torch.from_numpy(np.expand_dims(np.expand_dims(out, 0), 0)))
         out_tensor = torch.cat(out_tensors, 0)  # Concatenate along batch dimension
 
-        if type(x) is tuple:
-            return MetaTensor(out_tensor, meta=x[0].meta)
-        else:
-            return MetaTensor(out_tensor, meta=x.meta)
+        #if type(x) is tuple:
+        #    return MetaTensor(out_tensor, meta=x[0].meta)
+        #else:
+        return MetaTensor(out_tensor, meta=x.meta)
 
 
 def get_nnunet_monai_predictor(model_folder, model_name="model.pt"):
