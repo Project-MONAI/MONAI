@@ -1402,12 +1402,18 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         if not scheduler:
             scheduler = self.scheduler
         image = input_noise
+
+        all_next_timesteps = torch.cat((scheduler.timesteps[1:], torch.tensor([0], dtype=scheduler.timesteps.dtype)))
         if verbose and has_tqdm:
-            progress_bar = tqdm(scheduler.timesteps)
+            progress_bar = tqdm(
+                zip(scheduler.timesteps, all_next_timesteps),
+                total=min(len(scheduler.timesteps), len(all_next_timesteps)),
+            )
         else:
-            progress_bar = iter(scheduler.timesteps)
+            progress_bar = iter(zip(scheduler.timesteps, all_next_timesteps))
         intermediates = []
-        for t in progress_bar:
+
+        for t, next_t in progress_bar:
             diffuse = diffusion_model
             if isinstance(diffusion_model, SPADEDiffusionModelUNet):
                 diffuse = partial(diffusion_model, seg=seg)
@@ -1446,7 +1452,11 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                 )
 
             # 3. compute previous image: x_t -> x_t-1
-            image, _ = scheduler.step(model_output, t, image)  # type: ignore[operator]
+            if not isinstance(scheduler, RFlowScheduler):
+                image, _ = scheduler.step(model_output, t, image)
+            else:
+                image, _ = scheduler.step(model_output, t, image, next_t)
+
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
         if save_intermediates:

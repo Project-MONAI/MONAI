@@ -21,18 +21,34 @@ from tests.test_utils import assert_allclose
 
 TEST_2D_CASE = []
 for sample_method in ["uniform", "logit-normal"]:
-    TEST_2D_CASE.append([{"sample_method": sample_method, "use_timestep_transform": False}, (2, 6, 16, 16), (2, 6, 16, 16)])
+    TEST_2D_CASE.append(
+        [{"sample_method": sample_method, "use_timestep_transform": False}, (2, 6, 16, 16), (2, 6, 16, 16)]
+    )
 
 for sample_method in ["uniform", "logit-normal"]:
-    TEST_2D_CASE.append([{"sample_method": sample_method, "use_timestep_transform": True, "spatial_dim": 2}, (2, 6, 16, 16), (2, 6, 16, 16)])
+    TEST_2D_CASE.append(
+        [
+            {"sample_method": sample_method, "use_timestep_transform": True, "spatial_dim": 2},
+            (2, 6, 16, 16),
+            (2, 6, 16, 16),
+        ]
+    )
 
 
 TEST_3D_CASE = []
 for sample_method in ["uniform", "logit-normal"]:
-    TEST_3D_CASE.append([{"sample_method": sample_method, "use_timestep_transform": False}, (2, 6, 16, 16, 16), (2, 6, 16, 16, 16)])
+    TEST_3D_CASE.append(
+        [{"sample_method": sample_method, "use_timestep_transform": False}, (2, 6, 16, 16, 16), (2, 6, 16, 16, 16)]
+    )
 
 for sample_method in ["uniform", "logit-normal"]:
-    TEST_3D_CASE.append([{"sample_method": sample_method, "use_timestep_transform": True, "spatial_dim": 3}, (2, 6, 16, 16, 16), (2, 6, 16, 16, 16)])
+    TEST_3D_CASE.append(
+        [
+            {"sample_method": sample_method, "use_timestep_transform": True, "spatial_dim": 3},
+            (2, 6, 16, 16, 16),
+            (2, 6, 16, 16, 16),
+        ]
+    )
 
 TEST_CASES = TEST_2D_CASE + TEST_3D_CASE
 
@@ -54,35 +70,35 @@ class TestRFlowScheduler(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_step_shape(self, input_param, input_shape, expected_shape):
-        scheduler = RFlowScheduler(**input_param)        
+        scheduler = RFlowScheduler(**input_param)
         model_output = torch.randn(input_shape)
         sample = torch.randn(input_shape)
-        scheduler.set_timesteps(num_inference_steps=100, input_img_size_numel=torch.numel(sample[0,0,...]))
+        scheduler.set_timesteps(num_inference_steps=100, input_img_size_numel=torch.numel(sample[0, 0, ...]))
         output_step = scheduler.step(model_output=model_output, timestep=500, sample=sample)
         self.assertEqual(output_step[0].shape, expected_shape)
         self.assertEqual(output_step[1].shape, expected_shape)
 
     @parameterized.expand(TEST_FULl_LOOP)
     def test_full_timestep_loop(self, input_param, input_shape, expected_output):
-        scheduler = RFlowScheduler(**input_param)        
+        scheduler = RFlowScheduler(**input_param)
         torch.manual_seed(42)
         model_output = torch.randn(input_shape)
         sample = torch.randn(input_shape)
-        scheduler.set_timesteps(50, input_img_size_numel=torch.numel(sample[0,0,...]))
+        scheduler.set_timesteps(50, input_img_size_numel=torch.numel(sample[0, 0, ...]))
         for t in range(50):
             sample, _ = scheduler.step(model_output=model_output, timestep=t, sample=sample)
         assert_allclose(sample, expected_output, rtol=1e-3, atol=1e-3)
 
     def test_set_timesteps(self):
         scheduler = RFlowScheduler(num_train_timesteps=1000)
-        scheduler.set_timesteps(num_inference_steps=100, input_img_size_numel=16*16*16)
+        scheduler.set_timesteps(num_inference_steps=100, input_img_size_numel=16 * 16 * 16)
         self.assertEqual(scheduler.num_inference_steps, 100)
         self.assertEqual(len(scheduler.timesteps), 100)
 
     def test_set_timesteps_with_num_inference_steps_bigger_than_num_train_timesteps(self):
         scheduler = RFlowScheduler(num_train_timesteps=1000)
         with self.assertRaises(ValueError):
-            scheduler.set_timesteps(num_inference_steps=2000, input_img_size_numel=16*16*16)
+            scheduler.set_timesteps(num_inference_steps=2000, input_img_size_numel=16 * 16 * 16)
 
 
 if __name__ == "__main__":
