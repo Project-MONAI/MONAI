@@ -18,10 +18,9 @@ import numpy as np
 import torch
 from torch.backends import cudnn
 
-from typing import Union, Tuple
+from typing import Union
 from monai.data.meta_tensor import MetaTensor
 from monai.utils import optional_import
-from nnunetv2.training.logging.nnunet_logger import nnUNetLogger
 
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
 load_json, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_json")
@@ -258,7 +257,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         # End Block
         self.network_weights = self.predictor.network
 
-    def forward(self, x: Union[MetaTensor, Tuple[MetaTensor]]):
+    def forward(self, x: Union[MetaTensor, tuple[MetaTensor]]):
         """
         Forward pass for the nnUNet model.
 
@@ -291,7 +290,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
                 #    image_or_list_of_images.append(img.cpu().numpy()[0,:])
                 #else:
                 #    raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
-                
+
         else:  # if batch is collated
             if isinstance(x, MetaTensor):
                 if 'pixdim' in x.meta:
@@ -307,7 +306,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
             image_or_list_of_images,
             None,
             properties_or_list_of_properties,
-            truncated_ofname=None,        
+            truncated_ofname=None,
             save_probabilities=False,
             num_processes=2,
             num_processes_segmentation_export=2
@@ -441,7 +440,7 @@ def convert_nnunet_to_monai_bundle(nnunet_config, bundle_root_folder, fold=0):
         shutil.copy(
         Path(nnunet_model_folder).joinpath("plans.json"), Path(bundle_root_folder).joinpath("models", "plans.json")
         )
-    
+
     if not os.path.exists(os.path.join(bundle_root_folder, "models", "dataset.json")):
         shutil.copy(
             Path(nnunet_model_folder).joinpath("dataset.json"), Path(bundle_root_folder).joinpath("models", "dataset.json")
