@@ -339,12 +339,12 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
 
         input = torch.randn(input_shape).to(device)
         noise = torch.randn(latent_shape).to(device)
-        
+
         for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
             inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
             timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
-    
+
             if dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
@@ -393,7 +393,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
             inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
-    
+
             if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
@@ -443,7 +443,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
             inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
-    
+
             if ae_model_type == "SPADEAutoencoderKL" or dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
@@ -620,9 +620,9 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
             inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
-    
+
             timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
-    
+
             if dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
@@ -687,7 +687,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
             inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
-    
+
             if dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
@@ -751,9 +751,9 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 autoencoder_latent_shape=autoencoder_latent_shape,
             )
             scheduler.set_timesteps(num_inference_steps=10)
-    
+
             timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
-    
+
             if dm_model_type == "SPADEDiffusionModelUNet":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
@@ -805,8 +805,10 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
             if ae_model_type == "VQVAE":
                 autoencoder_latent_shape = [i // (2 ** (len(autoencoder_params["channels"]))) for i in input_shape[2:]]
             else:
-                autoencoder_latent_shape = [i // (2 ** (len(autoencoder_params["channels"]) - 1)) for i in input_shape[2:]]
-    
+                autoencoder_latent_shape = [
+                    i // (2 ** (len(autoencoder_params["channels"]) - 1)) for i in input_shape[2:]
+                ]
+
             inferer = LatentDiffusionInferer(
                 scheduler=scheduler,
                 scale_factor=1.0,
@@ -814,7 +816,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
                 autoencoder_latent_shape=autoencoder_latent_shape,
             )
             scheduler.set_timesteps(num_inference_steps=10)
-    
+
             if dm_model_type == "SPADEDiffusionModelUNet" or ae_model_type == "SPADEAutoencoderKL":
                 input_shape_seg = list(input_shape)
                 if "label_nc" in stage_2_params.keys():
@@ -873,7 +875,7 @@ class TestDiffusionSamplingInferer(unittest.TestCase):
         for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
             inferer = LatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
             scheduler.set_timesteps(num_inference_steps=10)
-    
+
             with self.assertRaises(ValueError):
                 _ = inferer.sample(
                     input_noise=noise,
