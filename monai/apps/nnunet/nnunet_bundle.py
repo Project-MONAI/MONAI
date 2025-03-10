@@ -55,7 +55,7 @@ def get_nnunet_trainer(
         from monai.apps import SupervisedTrainer
         from monai.bundle.nnunet import get_nnunet_trainer
 
-        dataset_name_or_id = 'Task101_PROSTATE'
+        dataset_name_or_id = 'Task009_Spleen'
         fold = 0
         configuration = '3d_fullres'
         nnunet_trainer = get_nnunet_trainer(dataset_name_or_id, configuration, fold)
