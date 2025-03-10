@@ -309,7 +309,7 @@ class VPredictionPrepareBatch(DiffusionPrepareBatch):
         self.scheduler = scheduler
 
     def get_target(self, images, noise, timesteps):
-        return self.scheduler.get_velocity(images, noise, timesteps)
+        return self.scheduler.get_velocity(images, noise, timesteps)  # type: ignore[operator]
 
 
 def default_make_latent(

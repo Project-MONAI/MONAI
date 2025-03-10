@@ -22,7 +22,6 @@ import time
 import warnings
 from collections.abc import Callable, Sequence
 from copy import copy, deepcopy
-from inspect import signature
 from multiprocessing.managers import ListProxy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
@@ -372,10 +371,7 @@ class PersistentDataset(Dataset):
 
         if hashfile is not None and hashfile.is_file():  # cache hit
             try:
-                if "weights_only" in signature(torch.load).parameters:
-                    return torch.load(hashfile, weights_only=False)
-                else:
-                    return torch.load(hashfile)
+                return torch.load(hashfile, weights_only=False)
             except PermissionError as e:
                 if sys.platform != "win32":
                     raise e
@@ -1674,7 +1670,4 @@ class GDSDataset(PersistentDataset):
         if meta_hash_file_name in self._meta_cache:
             return self._meta_cache[meta_hash_file_name]
         else:
-            if "weights_only" in signature(torch.load).parameters:
-                return torch.load(self.cache_dir / meta_hash_file_name, weights_only=False)
-            else:
-                return torch.load(self.cache_dir / meta_hash_file_name)
+            return torch.load(self.cache_dir / meta_hash_file_name, weights_only=False)

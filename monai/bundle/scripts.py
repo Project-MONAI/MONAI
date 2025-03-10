@@ -760,7 +760,7 @@ def load(
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
     # loading with `torch.load`
-    model_dict = torch.load(full_path, map_location=torch.device(device))
+    model_dict = torch.load(full_path, map_location=torch.device(device), weights_only=True)
 
     if not isinstance(model_dict, Mapping):
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
@@ -1279,9 +1279,8 @@ def verify_net_in_out(
         if input_dtype == torch.float16:
             # fp16 can only be executed in gpu mode
             net.to("cuda")
-            from torch.cuda.amp import autocast
 
-            with autocast():
+            with torch.autocast("cuda"):
                 output = net(test_data.cuda(), **extra_forward_args_)
             net.to(device_)
         else:
@@ -1330,7 +1329,7 @@ def _export(
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
         Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
     else:
-        ckpt = torch.load(ckpt_file)
+        ckpt = torch.load(ckpt_file, weights_only=True)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
 
     # Use the given converter to convert a model and save with metadata, config content
