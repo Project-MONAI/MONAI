@@ -126,7 +126,7 @@ class TestnnUNetBundle(unittest.TestCase):
         data_loader = DataLoader(dataset, batch_size=1)
         input = next(iter(data_loader))
 
-        predictor = get_nnunet_monai_predictor(Path(self.bundle_root).joinpath("models","fold_0"))
+        predictor = get_nnunet_monai_predictor(Path(self.bundle_root).joinpath("models", "fold_0"))
         pred_batch = predictor(input["image"])
         Path(self.sim_dataroot).joinpath("predictions").mkdir(parents=True, exist_ok=True)
 
