@@ -252,7 +252,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
             # and not isinstance(predictor.network, OptimizedModule)
         ):
             print("Using torch.compile")
-            predictor.network = torch.compile(self.network)
+            # predictor.network = torch.compile(self.network)
         # End Block
         self.network_weights = self.predictor.network
 
