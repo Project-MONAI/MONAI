@@ -129,6 +129,7 @@ class TestnnUNetBundle(unittest.TestCase):
         post_processing_transforms = Compose(
             [
                 Decollated(keys=None, detach=True),
+                # Not needed after reading the data directly from the MONAI Transform
                 #Transposed(keys="pred", indices=[0, 3, 2, 1]),
                 SaveImaged(
                     keys="pred", output_dir=Path(self.sim_dataroot).joinpath("predictions"), output_postfix="pred"
