@@ -867,7 +867,6 @@ class DiffusionInferer(Inferer):
                 total=min(len(scheduler.timesteps), len(all_next_timesteps)),
             )
         else:
-            progress_bar = iter(scheduler.timesteps)
             progress_bar = iter(zip(scheduler.timesteps, all_next_timesteps))
         intermediates = []
 
