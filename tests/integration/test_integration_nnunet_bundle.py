@@ -19,8 +19,12 @@ from pathlib import Path
 import numpy as np
 
 from monai.apps.nnunet import nnUNetV2Runner
+from monai.apps.nnunet.nnunet_bundle import (
+    convert_nnunet_to_monai_bundle,
+    get_nnunet_monai_predictor,
+    get_nnunet_trainer,
+)
 from monai.bundle.config_parser import ConfigParser
-from monai.apps.nnunet.nnunet_bundle import convert_nnunet_to_monai_bundle, get_nnunet_monai_predictor, get_nnunet_trainer
 from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.transforms import Compose, Decollated, EnsureChannelFirstd, LoadImaged, SaveImaged
 from monai.utils import optional_import
@@ -122,7 +126,7 @@ class TestnnUNetBundle(unittest.TestCase):
         data_loader = DataLoader(dataset, batch_size=1)
         input = next(iter(data_loader))
 
-        predictor = get_nnunet_monai_predictor(Path(self.bundle_root).joinpath("models"))
+        predictor = get_nnunet_monai_predictor(Path(self.bundle_root).joinpath("models","fold_0"))
         pred_batch = predictor(input["image"])
         Path(self.sim_dataroot).joinpath("predictions").mkdir(parents=True, exist_ok=True)
 
@@ -130,7 +134,7 @@ class TestnnUNetBundle(unittest.TestCase):
             [
                 Decollated(keys=None, detach=True),
                 # Not needed after reading the data directly from the MONAI Transform
-                #Transposed(keys="pred", indices=[0, 3, 2, 1]),
+                # Transposed(keys="pred", indices=[0, 3, 2, 1]),
                 SaveImaged(
                     keys="pred", output_dir=Path(self.sim_dataroot).joinpath("predictions"), output_postfix="pred"
                 ),

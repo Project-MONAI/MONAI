@@ -13,12 +13,12 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
+from typing import Union
 
 import numpy as np
 import torch
 from torch.backends import cudnn
 
-from typing import Union
 from monai.data.meta_tensor import MetaTensor
 from monai.utils import optional_import
 
@@ -210,7 +210,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
                     else None
                 )
 
-            if 'network_weights' in monai_checkpoint.keys():
+            if "network_weights" in monai_checkpoint.keys():
                 parameters.append(monai_checkpoint["network_weights"])
             else:
                 parameters.append(monai_checkpoint)
@@ -284,22 +284,22 @@ class ModelnnUNetWrapper(torch.nn.Module):
             properties_or_list_of_properties = []
             image_or_list_of_images = []
 
-            #for img in x:
-                #if isinstance(img, MetaTensor):
-                #    properties_or_list_of_properties.append({"spacing": img.meta['pixdim'][0][1:4].numpy().tolist()})
-                #    image_or_list_of_images.append(img.cpu().numpy()[0,:])
-                #else:
-                #    raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
+            # for img in x:
+            # if isinstance(img, MetaTensor):
+            #    properties_or_list_of_properties.append({"spacing": img.meta['pixdim'][0][1:4].numpy().tolist()})
+            #    image_or_list_of_images.append(img.cpu().numpy()[0,:])
+            # else:
+            #    raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
 
         else:  # if batch is collated
             if isinstance(x, MetaTensor):
-                if 'pixdim' in x.meta:
-                    properties_or_list_of_properties = {"spacing": x.meta['pixdim'][0][1:4].numpy().tolist()}
+                if "pixdim" in x.meta:
+                    properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
                 else:
                     properties_or_list_of_properties = {"spacing": [1.0, 1.0, 1.0]}
             else:
                 raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
-            image_or_list_of_images = x.cpu().numpy()[0,:]
+            image_or_list_of_images = x.cpu().numpy()[0, :]
 
         # input_files should be a list of file paths, one per modality
         prediction_output = self.predictor.predict_from_list_of_npy_arrays(
@@ -309,7 +309,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
             truncated_ofname=None,
             save_probabilities=False,
             num_processes=2,
-            num_processes_segmentation_export=2
+            num_processes_segmentation_export=2,
         )
         # prediction_output is a list of numpy arrays, with dimensions (H, W, D), output from ArgMax
 
@@ -434,14 +434,15 @@ def convert_nnunet_to_monai_bundle(nnunet_config, bundle_root_folder, fold=0):
 
     monai_best_checkpoint = {}
     monai_best_checkpoint["network_weights"] = nnunet_checkpoint_best["network_weights"]
-    torch.save(monai_best_checkpoint, Path(bundle_root_folder).joinpath("models",f"fold_{fold}", "best_model.pt"))
+    torch.save(monai_best_checkpoint, Path(bundle_root_folder).joinpath("models", f"fold_{fold}", "best_model.pt"))
 
     if not os.path.exists(os.path.join(bundle_root_folder, "models", "plans.json")):
         shutil.copy(
-        Path(nnunet_model_folder).joinpath("plans.json"), Path(bundle_root_folder).joinpath("models", "plans.json")
+            Path(nnunet_model_folder).joinpath("plans.json"), Path(bundle_root_folder).joinpath("models", "plans.json")
         )
 
     if not os.path.exists(os.path.join(bundle_root_folder, "models", "dataset.json")):
         shutil.copy(
-            Path(nnunet_model_folder).joinpath("dataset.json"), Path(bundle_root_folder).joinpath("models", "dataset.json")
+            Path(nnunet_model_folder).joinpath("dataset.json"),
+            Path(bundle_root_folder).joinpath("models", "dataset.json"),
         )
