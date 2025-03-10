@@ -174,10 +174,15 @@ class RFlowScheduler(Scheduler):
         timepoints: torch.Tensor = timesteps.float() / self.num_train_timesteps
         timepoints = 1 - timepoints  # [1,1/1000]
 
-        # timepoint  (bsz) noise: (bsz, 4, frame, w ,h)
         # expand timepoint to noise shape
-        timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3], noise.shape[4])
+        if len(noise.shape) == 5:
+            timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1).unsqueeze(1)
+            timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3], noise.shape[4])
+        elif len(noise.shape) == 4:
+            timepoints = timepoints.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+            timepoints = timepoints.repeat(1, noise.shape[1], noise.shape[2], noise.shape[3])
+        else:
+            raise ValueError(f"noise has to be 4D or 5D tensor. yet got shape of {noise.shape}.")
         noisy_samples: torch.Tensor = timepoints * original_samples + (1 - timepoints) * noise
 
         return noisy_samples
@@ -246,7 +251,7 @@ class RFlowScheduler(Scheduler):
             t = t.long()
 
         if self.use_timestep_transform:
-            input_img_size_numel = torch.prod(torch.tensor(x_start.shape[-3:]))
+            input_img_size_numel = torch.prod(torch.tensor(x_start.shape[2:]))
             t = timestep_transform(
                 t,
                 input_img_size_numel=input_img_size_numel,
