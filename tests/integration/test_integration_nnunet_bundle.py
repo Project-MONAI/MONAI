@@ -20,7 +20,7 @@ import numpy as np
 
 from monai.apps.nnunet import nnUNetV2Runner
 from monai.bundle.config_parser import ConfigParser
-from monai.bundle.nnunet import convert_nnunet_to_monai_bundle, get_nnunet_monai_predictor, get_nnunet_trainer
+from monai.apps.nnunet.nnunet_bundle import convert_nnunet_to_monai_bundle, get_nnunet_monai_predictor, get_nnunet_trainer
 from monai.data import DataLoader, Dataset, create_test_image_3d
 from monai.transforms import Compose, Decollated, EnsureChannelFirstd, LoadImaged, SaveImaged, Transposed
 from monai.utils import optional_import
@@ -129,7 +129,7 @@ class TestnnUNetBundle(unittest.TestCase):
         post_processing_transforms = Compose(
             [
                 Decollated(keys=None, detach=True),
-                Transposed(keys="pred", indices=[0, 3, 2, 1]),
+                #Transposed(keys="pred", indices=[0, 3, 2, 1]),
                 SaveImaged(
                     keys="pred", output_dir=Path(self.sim_dataroot).joinpath("predictions"), output_postfix="pred"
                 ),
