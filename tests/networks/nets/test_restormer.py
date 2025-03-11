@@ -144,5 +144,4 @@ class TestRestormer(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    print(f'has_einops: {has_einops}')
     unittest.main()
