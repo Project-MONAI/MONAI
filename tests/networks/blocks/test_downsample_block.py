@@ -146,7 +146,8 @@ class TestDownSample(unittest.TestCase):
 
             def forward(self, x: torch.Tensor) -> torch.Tensor:
                 x = self.conv(x)
-                return self.pixelunshuffle(x)
+                x = self.pixelunshuffle(x)
+                return x
 
         n_feat = 2
         x = torch.randn(1, n_feat, 64, 64)

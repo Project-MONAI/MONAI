@@ -92,7 +92,7 @@ class DownSample(nn.Sequential):
         out_channels: int | None = None,
         scale_factor: Sequence[float] | float = 2,
         kernel_size: Sequence[float] | float | None = None,
-        mode: str = "conv",  # conv, convgroup, nontrainable, pixelunshuffle
+        mode: DownsampleMode | str = DownsampleMode.CONV,
         pre_conv: nn.Module | str | None = "default",
         post_conv: nn.Module | None = None,
         bias: bool = True,
@@ -101,11 +101,11 @@ class DownSample(nn.Sequential):
         Downsamples data by `scale_factor`.
         Supported modes are:
 
-            - "conv": uses a strided convolution for learnable downsampling.
-            - "convgroup": uses a grouped strided convolution for efficient feature reduction.
-            - "maxpool": uses maxpooling for non-learnable downsampling.
-            - "avgpool": uses average pooling for non-learnable downsampling.
-            - "pixelunshuffle": uses :py:class:`monai.networks.blocks.SubpixelDownsample`.
+            - DownsampleMode.CONV: uses a strided convolution for learnable downsampling.
+            - DownsampleMode.CONVGROUP: uses a grouped strided convolution for efficient feature reduction.
+            - DownsampleMode.MAXPOOL: uses maxpooling for non-learnable downsampling.
+            - DownsampleMode.AVGPOOL: uses average pooling for non-learnable downsampling.
+            - DownsampleMode.PIXELUNSHUFFLE: uses :py:class:`monai.networks.blocks.SubpixelDownsample`.
 
         This operation will cause non-deterministic behavior when ``mode`` is ``DownsampleMode.NONTRAINABLE``.
         Please check the link below for more details:
@@ -120,7 +120,8 @@ class DownSample(nn.Sequential):
             out_channels: number of channels of the output image. Defaults to `in_channels`.
             scale_factor: multiplier for spatial size reduction. Has to match input size if it is a tuple. Defaults to 2.
             kernel_size: kernel size used during convolutions. Defaults to `scale_factor`.
-            mode: {``"conv"``, ``"convgroup"``, ``"maxpool"``, ``"avgpool"``, ``"pixelunshuffle"``}. Defaults to ``"conv"``.
+            mode: {``DownsampleMode.CONV``, ``DownsampleMode.CONVGROUP``, ``DownsampleMode.MAXPOOL``, ``DownsampleMode.AVGPOOL``,
+                ``DownsampleMode.PIXELUNSHUFFLE``}. Defaults to ``DownsampleMode.CONV``.
             pre_conv: a conv block applied before downsampling. Defaults to "default".
                 When ``conv_block`` is ``"default"``, one reserved conv layer will be utilized.
                 Only used in the "maxpool", "avgpool" or "pixelunshuffle" modes.
@@ -134,7 +135,7 @@ class DownSample(nn.Sequential):
 
         if not kernel_size:
             kernel_size_ = scale_factor_
-            padding = 0
+            padding = ensure_tuple_rep(0, spatial_dims)
         else:
             kernel_size_ = ensure_tuple_rep(kernel_size, spatial_dims)
             padding = tuple((k - 1) // 2 for k in kernel_size_)

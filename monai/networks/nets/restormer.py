@@ -15,9 +15,10 @@ import torch.nn as nn
 
 from monai.networks.blocks.cablock import CABlock, FeedForward
 from monai.networks.blocks.convolutions import Convolution
-from monai.networks.blocks.downsample import DownSample, DownsampleMode
-from monai.networks.blocks.upsample import UpSample, UpsampleMode
+from monai.networks.blocks.downsample import DownSample
+from monai.networks.blocks.upsample import UpSample
 from monai.networks.layers.factories import Norm
+from monai.utils.enums import DownsampleMode, UpsampleMode
 
 
 class MDTATransformerBlock(nn.Module):
@@ -81,9 +82,9 @@ class OverlapPatchEmbed(Convolution):
             conv_only=True,
         )
 
-
-def forward(self, x: torch.Tensor) -> torch.Tensor:
-    return super().forward(x)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = super().forward(x)
+        return x
 
 
 class Restormer(nn.Module):
@@ -290,7 +291,7 @@ class Restormer(nn.Module):
             conv_only=True,
         )
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass of Restormer.
         Processes input through encoder-decoder architecture with skip connections.
         Args:

@@ -10,6 +10,8 @@
 # limitations under the License.
 from __future__ import annotations
 
+from typing import cast
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -70,7 +72,7 @@ class FeedForward(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.project_in(x)
         x1, x2 = self.dwconv(x).chunk(2, dim=1)
-        return self.project_out(F.gelu(x1) * x2)
+        return cast(torch.Tensor, self.project_out(F.gelu(x1) * x2))
 
 
 class CABlock(nn.Module):
@@ -141,7 +143,7 @@ class CABlock(nn.Module):
         attn = attn.softmax(dim=-1)
         return attn @ v
 
-    def forward(self, x) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass for MDTA attention.
         1. Apply depth-wise convolutions to Q, K, V
         2. Reshape Q, K, V for multi-head attention
@@ -177,4 +179,4 @@ class CABlock(nn.Module):
             **dict(zip(["h", "w"] if self.spatial_dims == 2 else ["d", "h", "w"], spatial_dims)),
         )
 
-        return self.project_out(out)
+        return cast(torch.Tensor, self.project_out(out))
