@@ -47,7 +47,7 @@ class RFlowPredictionType(StrEnum):
     v_prediction: velocity prediction, see section 2.4 https://imagen.research.google/video/paper.pdf
     """
     V_PREDICTION = DDPMPredictionType.V_PREDICTION
-    
+
 def timestep_transform(
     t, input_img_size_numel, base_img_size_numel=32 * 32 * 32, scale=1.0, num_train_timesteps=1000, spatial_dim=3
 ):
@@ -156,7 +156,7 @@ class RFlowScheduler(Scheduler):
     ):
         # rectified flow only accepts velocity prediction
         self.prediction_type = RFlowPredictionType.V_PREDICTION
-        
+
         self.num_train_timesteps = num_train_timesteps
         self.use_discrete_timesteps = use_discrete_timesteps
         self.base_img_size_numel = base_img_size_numel
