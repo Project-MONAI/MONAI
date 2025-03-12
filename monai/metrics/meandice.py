@@ -40,6 +40,29 @@ class DiceMetric(CumulativeIterationMetric):
 
     An example of the typical execution steps of this metric class follows :py:class:`monai.metrics.metric.Cumulative`.
 
+    Example:
+
+    .. code-block:: python
+
+        import torch
+        from monai.metrics import DiceMetric
+
+        batch_size, n_classes, h, w = 7, 5, 128, 128
+
+        y_pred = torch.rand(batch_size, n_classes, h, w)  # network predictions
+        y_pred = torch.argmax(y_pred, 1, True)  # convert to label map
+
+        # ground truth as label map
+        y = torch.randint(0, n_classes, size=(batch_size, 1, h, w))  
+
+        dm = DiceMetric(
+            reduction="mean_batch", return_with_label=True, num_classes=n_classes
+        )
+
+        raw_scores = dm(y_pred, y)
+        print(dm.aggregate())
+
+
     Args:
         include_background: whether to include Dice computation on the first channel/category of the prediction and
             ground truth. Defaults to ``True``, use ``False`` to exclude the background class.  
