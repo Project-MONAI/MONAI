@@ -232,6 +232,10 @@ class MaisiConvolution(nn.Module):
         if self.print_info:
             logger.info(f"Number of splits: {self.num_splits}")
 
+        if self.dim_split <= 1 and self.num_splits <= 1:
+            x = self.conv(x)
+            return x
+
         # compute size of splits
         l = x.size(self.dim_split + 2)
         split_size = l // self.num_splits

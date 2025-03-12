@@ -208,7 +208,7 @@ class TestControlNet(unittest.TestCase):
             weight_path = os.path.join(tmpdir, filename)
             download_url(url=url, filepath=weight_path, hash_val=hash_val, hash_type=hash_type)
 
-            net.load_old_state_dict(torch.load(weight_path), verbose=False)
+            net.load_old_state_dict(torch.load(weight_path, weights_only=True), verbose=False)
 
 
 if __name__ == "__main__":

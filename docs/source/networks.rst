@@ -750,3 +750,38 @@ Utilities
 
 .. automodule:: monai.apps.reconstruction.networks.nets.utils
   :members:
+
+Noise Schedulers
+----------------
+.. automodule:: monai.networks.schedulers
+.. currentmodule:: monai.networks.schedulers
+
+`Scheduler`
+~~~~~~~~~~~
+.. autoclass:: Scheduler
+  :members:
+
+`NoiseSchedules`
+~~~~~~~~~~~~~~~~
+.. autoclass:: NoiseSchedules
+  :members:
+
+`DDPMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDPMScheduler
+  :members:
+
+`DDIMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDIMScheduler
+  :members:
+
+`PNDMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: PNDMScheduler
+  :members:
+
+`RFlowScheduler`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RFlowScheduler
+  :members:

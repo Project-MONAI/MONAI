@@ -64,7 +64,7 @@ class TestSaveState(unittest.TestCase):
             if kwargs is None:
                 kwargs = {}
             save_state(src=src, path=path, create_dir=create_dir, atomic=atomic, func=func, **kwargs)
-            ckpt = dict(torch.load(path))
+            ckpt = dict(torch.load(path, weights_only=True))
             for k in ckpt.keys():
                 self.assertIn(k, expected_keys)
 
