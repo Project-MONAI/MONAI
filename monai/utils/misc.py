@@ -891,12 +891,11 @@ def run_cmd(cmd_list: list[str], **kwargs: Any) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(cmd_list, **kwargs)
     except subprocess.CalledProcessError as e:
-        errors = str(e.stderr.decode(errors="replace"))
-        output = str(e.stdout.decode(errors="replace"))
         if not debug:
-            raise RuntimeError(f"subprocess call error {e.returncode}: {errors}.") from e
-        else:
-            raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
+            raise
+        output = str(e.stdout.decode(errors="replace"))
+        errors = str(e.stderr.decode(errors="replace"))
+        raise RuntimeError(f"subprocess call error {e.returncode}: {errors}, {output}.") from e
 
 
 def is_sqrt(num: Sequence[int] | int) -> bool:
