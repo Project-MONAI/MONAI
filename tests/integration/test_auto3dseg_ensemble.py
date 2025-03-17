@@ -107,7 +107,6 @@ def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
             nib.save(nib_image, label_fpath)
 
 
-
 @skip_if_quick
 @skip_if_no_cuda
 @SkipIfAtLeastPyTorchVersion((2, 6, 0))
