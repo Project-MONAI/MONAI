@@ -33,7 +33,7 @@ from monai.transforms import SaveImage
 from monai.utils import check_parent_dir, optional_import, set_determinism
 from monai.utils.enums import AlgoKeys
 from tests.test_utils import (
-    SkipIfBeforePyTorchVersion,
+    SkipIfAtLeastPyTorchVersion,
     get_testing_algo_template_path,
     skip_if_downloading_fails,
     skip_if_no_cuda,
@@ -109,7 +109,7 @@ def create_sim_data(dataroot, sim_datalist, sim_dim, **kwargs):
 
 @skip_if_quick
 @skip_if_no_cuda
-@SkipIfBeforePyTorchVersion((1, 11, 1))
+@SkipIfAtLeastPyTorchVersion((2, 6, 0))
 @unittest.skipIf(not has_tb, "no tensorboard summary writer")
 class TestEnsembleBuilder(unittest.TestCase):
     def setUp(self) -> None:
