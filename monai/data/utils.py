@@ -1473,7 +1473,7 @@ def convert_tables_to_dicts(
     # parse row indices
     rows: list[int | str] = []
     if row_indices is None:
-        rows = slice(df.shape[0])  # type: ignore
+        rows = df.index.tolist()
     else:
         for i in row_indices:
             if isinstance(i, (tuple, list)):
@@ -1484,7 +1484,7 @@ def convert_tables_to_dicts(
                 rows.append(i)
 
     # convert to a list of dictionaries corresponding to every row
-    data_ = df.iloc[rows] if col_names is None else df.iloc[rows][col_names]
+    data_ = df.loc[rows] if col_names is None else df.loc[rows, col_names]
     if isinstance(col_types, dict):
         # fill default values for NaN
         defaults = {k: v["default"] for k, v in col_types.items() if v is not None and v.get("default") is not None}
@@ -1500,7 +1500,7 @@ def convert_tables_to_dicts(
     if col_groups is not None:
         groups: dict[str, list] = {}
         for name, cols in col_groups.items():
-            groups[name] = df.iloc[rows][cols].values
+            groups[name] = df.loc[rows, cols].values
         # invert items of groups to every row of data
         data = [dict(d, **{k: v[i] for k, v in groups.items()}) for i, d in enumerate(data)]
 
