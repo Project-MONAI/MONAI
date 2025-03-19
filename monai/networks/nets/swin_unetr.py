@@ -272,53 +272,50 @@ class SwinUNETR(nn.Module):
         self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
 
     def load_from(self, weights):
+        layers1_0: BasicLayer = self.swinViT.layers1[0]  # type: ignore[assignment]
+        layers2_0: BasicLayer = self.swinViT.layers2[0]  # type: ignore[assignment]
+        layers3_0: BasicLayer = self.swinViT.layers3[0]  # type: ignore[assignment]
+        layers4_0: BasicLayer = self.swinViT.layers4[0]  # type: ignore[assignment]
+        wstate = weights["state_dict"]
+
         with torch.no_grad():
-            self.swinViT.patch_embed.proj.weight.copy_(weights["state_dict"]["module.patch_embed.proj.weight"])
-            self.swinViT.patch_embed.proj.bias.copy_(weights["state_dict"]["module.patch_embed.proj.bias"])
-            for bname, block in self.swinViT.layers1[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers1")
-            self.swinViT.layers1[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers1.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers1[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers1.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers1[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers1.0.downsample.norm.bias"]
-            )
-            for bname, block in self.swinViT.layers2[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers2")
-            self.swinViT.layers2[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers2.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers2[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers2.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers2[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers2.0.downsample.norm.bias"]
-            )
-            for bname, block in self.swinViT.layers3[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers3")
-            self.swinViT.layers3[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers3.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers3[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers3.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers3[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers3.0.downsample.norm.bias"]
-            )
-            for bname, block in self.swinViT.layers4[0].blocks.named_children():
-                block.load_from(weights, n_block=bname, layer="layers4")
-            self.swinViT.layers4[0].downsample.reduction.weight.copy_(
-                weights["state_dict"]["module.layers4.0.downsample.reduction.weight"]
-            )
-            self.swinViT.layers4[0].downsample.norm.weight.copy_(
-                weights["state_dict"]["module.layers4.0.downsample.norm.weight"]
-            )
-            self.swinViT.layers4[0].downsample.norm.bias.copy_(
-                weights["state_dict"]["module.layers4.0.downsample.norm.bias"]
-            )
+            self.swinViT.patch_embed.proj.weight.copy_(wstate["module.patch_embed.proj.weight"])
+            self.swinViT.patch_embed.proj.bias.copy_(wstate["module.patch_embed.proj.bias"])
+            for bname, block in layers1_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers1")  # type: ignore[operator]
+
+            if layers1_0.downsample is not None:
+                d = layers1_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers1.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers1.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers1.0.downsample.norm.bias"])  # type: ignore
+
+            for bname, block in layers2_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers2")  # type: ignore[operator]
+
+            if layers2_0.downsample is not None:
+                d = layers2_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers2.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers2.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers2.0.downsample.norm.bias"])  # type: ignore
+
+            for bname, block in layers3_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers3")  # type: ignore[operator]
+
+            if layers3_0.downsample is not None:
+                d = layers3_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers3.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers3.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers3.0.downsample.norm.bias"])  # type: ignore
+
+            for bname, block in layers4_0.blocks.named_children():
+                block.load_from(weights, n_block=bname, layer="layers4")  # type: ignore[operator]
+
+            if layers4_0.downsample is not None:
+                d = layers4_0.downsample
+                d.reduction.weight.copy_(wstate["module.layers4.0.downsample.reduction.weight"])  # type: ignore
+                d.norm.weight.copy_(wstate["module.layers4.0.downsample.norm.weight"])  # type: ignore
+                d.norm.bias.copy_(wstate["module.layers4.0.downsample.norm.bias"])  # type: ignore
 
     @torch.jit.unused
     def _check_input_size(self, spatial_shape):
@@ -532,7 +529,7 @@ class WindowAttention(nn.Module):
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[
-            self.relative_position_index.clone()[:n, :n].reshape(-1)
+            self.relative_position_index.clone()[:n, :n].reshape(-1)  # type: ignore[operator]
         ].reshape(n, n, -1)
         relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous()
         attn = attn + relative_position_bias.unsqueeze(0)
@@ -691,7 +688,7 @@ class SwinTransformerBlock(nn.Module):
             self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
             self.norm1.bias.copy_(weights["state_dict"][root + block_names[1]])
             self.attn.relative_position_bias_table.copy_(weights["state_dict"][root + block_names[2]])
-            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])
+            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])  # type: ignore[operator]
             self.attn.qkv.weight.copy_(weights["state_dict"][root + block_names[4]])
             self.attn.qkv.bias.copy_(weights["state_dict"][root + block_names[5]])
             self.attn.proj.weight.copy_(weights["state_dict"][root + block_names[6]])
@@ -1118,7 +1115,7 @@ def filter_swinunetr(key, value):
         )
         ssl_weights_path = "./ssl_pretrained_weights.pth"
         download_url(resource, ssl_weights_path)
-        ssl_weights = torch.load(ssl_weights_path)["model"]
+        ssl_weights = torch.load(ssl_weights_path, weights_only=True)["model"]
 
         dst_dict, loaded, not_loaded = copy_model_state(model, ssl_weights, filter_func=filter_swinunetr)
 
