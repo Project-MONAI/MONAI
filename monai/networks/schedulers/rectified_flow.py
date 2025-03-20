@@ -34,7 +34,20 @@ import numpy as np
 import torch
 from torch.distributions import LogisticNormal
 
+from monai.utils import StrEnum
+
+from .ddpm import DDPMPredictionType
 from .scheduler import Scheduler
+
+
+class RFlowPredictionType(StrEnum):
+    """
+    Set of valid prediction type names for the RFlow scheduler's `prediction_type` argument.
+
+    v_prediction: velocity prediction, see section 2.4 https://imagen.research.google/video/paper.pdf
+    """
+
+    V_PREDICTION = DDPMPredictionType.V_PREDICTION
 
 
 def timestep_transform(
@@ -143,6 +156,9 @@ class RFlowScheduler(Scheduler):
         base_img_size_numel: int = 32 * 32 * 32,
         spatial_dim: int = 3,
     ):
+        # rectified flow only accepts velocity prediction
+        self.prediction_type = RFlowPredictionType.V_PREDICTION
+
         self.num_train_timesteps = num_train_timesteps
         self.use_discrete_timesteps = use_discrete_timesteps
         self.base_img_size_numel = base_img_size_numel
