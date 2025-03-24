@@ -277,3 +277,13 @@ FastMRIReader
 
 .. autoclass:: monai.apps.nnunet.nnUNetV2Runner
   :members:
+
+`nnUNet Bundle`
+---------------
+.. autoclass:: monai.apps.nnunet.ModelnnUNetWrapper
+    :members:
+    :special-members:
+
+.. autofunction:: monai.apps.nnunet.get_nnunet_trainer
+.. autofunction:: monai.apps.nnunet.get_nnunet_monai_predictor
+.. autofunction:: monai.apps.nnunet.convert_nnunet_to_monai_bundle

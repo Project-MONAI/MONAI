@@ -14,19 +14,21 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from pathlib import Path
 
-import nibabel as nib
 import numpy as np
 
 from monai.apps.nnunet import nnUNetV2Runner
-from monai.bundle.nnunet import get_nnunet_trainer, convert_nnunet_to_monai_bundle, get_nnunet_monai_predictor
-from monai.transforms import LoadImaged, SaveImaged, Transposed, EnsureChannelFirstd, Compose, Decollated
-from monai.data import DataLoader, Dataset
-from pathlib import Path
+from monai.apps.nnunet.nnunet_bundle import (
+    convert_nnunet_to_monai_bundle,
+    get_nnunet_monai_predictor,
+    get_nnunet_trainer,
+)
 from monai.bundle.config_parser import ConfigParser
-from monai.data import create_test_image_3d
+from monai.data import DataLoader, Dataset, create_test_image_3d
+from monai.transforms import Compose, Decollated, EnsureChannelFirstd, LoadImaged, SaveImaged
 from monai.utils import optional_import
-from tests.utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
+from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_downloading_fails, skip_if_no_cuda, skip_if_quick
 
 _, has_tb = optional_import("torch.utils.tensorboard", name="SummaryWriter")
 _, has_nnunet = optional_import("nnunetv2")
@@ -55,6 +57,9 @@ sim_datalist: dict[str, list[dict]] = {
 class TestnnUNetBundle(unittest.TestCase):
 
     def setUp(self) -> None:
+
+        import nibabel as nib
+
         self.test_dir = tempfile.TemporaryDirectory()
         test_path = self.test_dir.name
 
@@ -86,52 +91,56 @@ class TestnnUNetBundle(unittest.TestCase):
         self.test_path = test_path
 
     @skip_if_no_cuda
-    def test_nnunetBundle(self) -> None:
-        runner = nnUNetV2Runner(input_config=self.data_src_cfg, trainer_class_name="nnUNetTrainer_1epoch")
+    def test_nnunet_bundle(self) -> None:
+        runner = nnUNetV2Runner(
+            input_config=self.data_src_cfg, trainer_class_name="nnUNetTrainer_1epoch", work_dir=self.test_path
+        )
         with skip_if_downloading_fails():
             runner.run(run_train=False, run_find_best_configuration=False, run_predict_ensemble_postprocessing=False)
 
-            nnunet_trainer = get_nnunet_trainer(dataset_name_or_id=runner.dataset_name, fold=0,configuration="3d_fullres")
-            
+            nnunet_trainer = get_nnunet_trainer(
+                dataset_name_or_id=runner.dataset_name, fold=0, configuration="3d_fullres"
+            )
+
             print("Max Epochs: ", nnunet_trainer.num_epochs)
             print("Num Iterations: ", nnunet_trainer.num_iterations_per_epoch)
-            print("Train Batch dims: ", next(nnunet_trainer.dataloader_train.generator)['data'].shape)
-            print("Val Batch dims: ", next(nnunet_trainer.dataloader_val.generator)['data'].shape)
+            print("Train Batch dims: ", next(nnunet_trainer.dataloader_train.generator)["data"].shape)
+            print("Val Batch dims: ", next(nnunet_trainer.dataloader_val.generator)["data"].shape)
             print("Network: ", nnunet_trainer.network)
             print("Optimizer: ", nnunet_trainer.optimizer)
             print("Loss Function: ", nnunet_trainer.loss)
             print("LR Scheduler: ", nnunet_trainer.lr_scheduler)
             print("Device: ", nnunet_trainer.device)
-            runner.train("3d_fullres")
+            runner.train_single_model("3d_fullres", fold=0)
 
-            nnunet_config = {
-                "dataset_name_or_id": "001",
-                "nnunet_trainer": "nnUNetTrainer_1epoch",
-            }
-            self.bundle_root = os.path.join("bundle_root")
-            
-            Path(self.bundle_root).joinpath("models").mkdir(parents=True, exist_ok=True)
-            convert_nnunet_to_monai_bundle(nnunet_config, self.bundle_root, 0)
+        nnunet_config = {"dataset_name_or_id": "001", "nnunet_trainer": "nnUNetTrainer_1epoch"}
+        self.bundle_root = os.path.join("bundle_root")
 
-            data_transforms = Compose([
-                LoadImaged(keys="image"),
-                EnsureChannelFirstd(keys="image"),
-            ])
-            dataset = Dataset(data=[{"image": os.path.join(self.test_path, "dataroot", "val_001.fake.nii.gz")}],
-                              transform=data_transforms)
-            data_loader = DataLoader(dataset, batch_size=1)
-            input = next(iter(data_loader))
-            
-            predictor = get_nnunet_monai_predictor(Path(self.bundle_root).joinpath("models"))
-            pred_batch = predictor(input["image"])
-            Path(self.sim_dataroot).joinpath("predictions").mkdir(parents=True, exist_ok=True)
+        Path(self.bundle_root).joinpath("models").mkdir(parents=True, exist_ok=True)
+        convert_nnunet_to_monai_bundle(nnunet_config, self.bundle_root, 0)
 
-            post_processing_transforms = Compose([
+        data_transforms = Compose([LoadImaged(keys="image"), EnsureChannelFirstd(keys="image")])
+        dataset = Dataset(
+            data=[{"image": os.path.join(self.test_path, "dataroot", "val_001.fake.nii.gz")}], transform=data_transforms
+        )
+        data_loader = DataLoader(dataset, batch_size=1)
+        input = next(iter(data_loader))
+
+        predictor = get_nnunet_monai_predictor(Path(self.bundle_root).joinpath("models", "fold_0"))
+        pred_batch = predictor(input["image"])
+        Path(self.sim_dataroot).joinpath("predictions").mkdir(parents=True, exist_ok=True)
+
+        post_processing_transforms = Compose(
+            [
                 Decollated(keys=None, detach=True),
-                Transposed(keys="pred", indices=[0, 3, 2, 1]),
-                SaveImaged(keys="pred", output_dir=Path(self.sim_dataroot).joinpath("predictions"), output_postfix="pred"),
-            ])
-            post_processing_transforms({"pred": pred_batch})
+                # Not needed after reading the data directly from the MONAI LoadImaged Transform
+                # Transposed(keys="pred", indices=[0, 3, 2, 1]),
+                SaveImaged(
+                    keys="pred", output_dir=Path(self.sim_dataroot).joinpath("predictions"), output_postfix="pred"
+                ),
+            ]
+        )
+        post_processing_transforms({"pred": pred_batch})
 
     def tearDown(self) -> None:
         self.test_dir.cleanup()
