@@ -153,6 +153,8 @@ def sliding_window_inference(
     device = device or inputs.device
     sw_device = sw_device or inputs.device
 
+    condition = kwargs.pop("condition", None)
+
     temp_meta = None
     if isinstance(inputs, MetaTensor):
         temp_meta = MetaTensor([]).copy_meta_from(inputs, copy_attr=False)
@@ -168,6 +170,8 @@ def sliding_window_inference(
         pad_size.extend([half, diff - half])
     if any(pad_size):
         inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
+        if condition is not None:
+            condition = F.pad(condition, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode), value=cval)
 
     # Store all slices
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
@@ -220,13 +224,19 @@ def sliding_window_inference(
         ]
         if sw_batch_size > 1:
             win_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice]).to(sw_device)
+            if condition is not None:
+                win_condition = torch.cat([condition[win_slice] for win_slice in unravel_slice]).to(sw_device)
+                kwargs["condition"] = win_condition
         else:
             win_data = inputs[unravel_slice[0]].to(sw_device)
-        if with_coord:
-            seg_prob_out = predictor(win_data, unravel_slice, *args, **kwargs)  # batched patch
-        else:
-            seg_prob_out = predictor(win_data, *args, **kwargs)  # batched patch
+            if condition is not None:
+                win_condition = condition[unravel_slice[0]].to(sw_device)
+                kwargs["condition"] = win_condition
 
+        if with_coord:
+            seg_prob_out = predictor(win_data, unravel_slice, *args, **kwargs)
+        else:
+            seg_prob_out = predictor(win_data, *args, **kwargs)
         # convert seg_prob_out to tuple seg_tuple, this does not allocate new memory.
         dict_keys, seg_tuple = _flatten_struct(seg_prob_out)
         if process_fn:

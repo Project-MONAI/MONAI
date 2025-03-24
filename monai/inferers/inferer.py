@@ -324,6 +324,9 @@ class PatchInferer(Inferer):
             kwargs: optional keyword args to be passed to ``network``.
 
         """
+        # check if there is a conditioning signal
+        condition = kwargs.pop("condition", None)
+
         patches_locations: Iterable[tuple[torch.Tensor, Sequence[int]]] | MetaTensor
         if self.splitter is None:
             # handle situations where the splitter is not provided
@@ -350,14 +353,28 @@ class PatchInferer(Inferer):
 
         ratios: list[float] = []
         mergers: list[Merger] = []
-        for patches, locations, batch_size in self._batch_sampler(patches_locations):
-            # run inference
-            outputs = self._run_inference(network, patches, *args, **kwargs)
-            # initialize the mergers
-            if not mergers:
-                mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
-            # aggregate outputs
-            self._aggregate(outputs, locations, batch_size, mergers, ratios)
+        if condition is not None:
+            for (patches, locations, batch_size), (condition_patches, _, _) in zip(
+                self._batch_sampler(patches_locations), self._batch_sampler(condition_locations)
+            ):
+                # add patched condition to kwargs
+                kwargs["condition"] = condition_patches
+                # run inference
+                outputs = self._run_inference(network, patches, *args, **kwargs)
+                # initialize the mergers
+                if not mergers:
+                    mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
+                # aggregate outputs
+                self._aggregate(outputs, locations, batch_size, mergers, ratios)
+        else:
+            for patches, locations, batch_size in self._batch_sampler(patches_locations):
+                # run inference
+                outputs = self._run_inference(network, patches, *args, **kwargs)
+                # initialize the mergers
+                if not mergers:
+                    mergers, ratios = self._initialize_mergers(inputs, outputs, patches, batch_size)
+                # aggregate outputs
+                self._aggregate(outputs, locations, batch_size, mergers, ratios)
 
         # finalize the mergers and get the results
         merged_outputs = [merger.finalize() for merger in mergers]
@@ -742,7 +759,18 @@ class SliceInferer(SlidingWindowInferer):
                 f"Currently, only 2D `roi_size` ({self.orig_roi_size}) with 3D `inputs` tensor (shape={inputs.shape}) is supported."
             )
 
-        return super().__call__(inputs=inputs, network=lambda x: self.network_wrapper(network, x, *args, **kwargs))
+        # check if there is a conditioning signal
+        condition = kwargs.get("condition", None)
+        if condition is not None:
+            return super().__call__(
+                inputs=inputs,
+                network=lambda x, *args, **kwargs: self.network_wrapper(network, x, *args, **kwargs),
+                condition=condition,
+            )
+        else:
+            return super().__call__(
+                inputs=inputs, network=lambda x, *args, **kwargs: self.network_wrapper(network, x, *args, **kwargs)
+            )
 
     def network_wrapper(
         self,
