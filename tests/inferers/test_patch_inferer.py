@@ -305,7 +305,6 @@ class PatchInfererTests(unittest.TestCase):
             inferer(inputs=inputs, network=lambda x: x)
 
 
-
 # ----------------------------------------------------------------------------
 # Error test cases with conditionign
 # ----------------------------------------------------------------------------
@@ -477,7 +476,6 @@ TEST_CASE_0_DICT_c = [
     lambda x, condition: {"model_output": x + condition},
     {"model_output": TENSOR_4x4 * 2},
 ]
-
 
 
 class PatchInfererTests_cond(unittest.TestCase):

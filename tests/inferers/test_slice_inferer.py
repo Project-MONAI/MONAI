@@ -86,5 +86,6 @@ class TestSliceInferer_cond(unittest.TestCase):
         # test that the inferer can be run multiple times
         result = inferer(input_volume, model, condition=condition_volume)
 
+
 if __name__ == "__main__":
     unittest.main()
