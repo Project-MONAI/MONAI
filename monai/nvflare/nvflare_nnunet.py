@@ -305,6 +305,7 @@ def prepare_data_folder(
     experiment_name,
     client_name,
     dataset_format,
+    modality_list = None,
     tracking_uri=None,
     mlflow_token=None,
     subfolder_suffix=None,
@@ -332,6 +333,8 @@ def prepare_data_folder(
         Format of the dataset. Supported formats are "subfolders", "decathlon", and "nnunet".
     tracking_uri : str, optional
         URI for MLflow tracking server.
+    modality_list : list, optional
+        List of modalities. Default is None.
     mlflow_token : str, optional
         Token for MLflow authentication.
     subfolder_suffix : str, optional
@@ -438,9 +441,12 @@ def prepare_data_folder(
 
     os.makedirs(nnunet_root_dir, exist_ok=True)
 
+    if modality_list is None:
+        modality_list = [k for k in modality_dict.keys() if k != "label"]
+    
     data_src_cfg = os.path.join(nnunet_root_dir, "data_src_cfg.yaml")
     data_src = {
-        "modality": [k for k in modality_dict.keys() if k != "label"],
+        "modality": modality_list,
         "dataset_name_or_id": dataset_name_or_id,
         "datalist": str(datalist_file),
         "dataroot": str(data_dir),

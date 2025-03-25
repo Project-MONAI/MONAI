@@ -77,6 +77,8 @@ class nnUNetExecutor(Executor):
         Extra configurations for training.
     exclude_vars : list, optional
         List of variables to exclude.
+    modality_list : list, optional
+        List of modalities.
 
     Methods
     -------
@@ -119,6 +121,7 @@ class nnUNetExecutor(Executor):
         tracking_uri=None,
         mlflow_token=None,
         bundle_root=None,
+        modality_list=None,
         train_extra_configs=None,
         exclude_vars=None,
     ):
@@ -143,6 +146,7 @@ class nnUNetExecutor(Executor):
         self.prepare_bundle_name = prepare_bundle_name
         self.bundle_root = bundle_root
         self.train_extra_configs = train_extra_configs
+        self.modality_list = modality_list
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
@@ -211,6 +215,7 @@ class nnUNetExecutor(Executor):
             mlflow_token=self.mlflow_token,
             subfolder_suffix=self.subfolder_suffix,
             trainer_class_name=nnunet_trainer_name,
+            modality_list=self.modality_list,
         )
 
         outgoing_dxo = DXO(data_kind=DataKind.COLLECTION, data=data_list, meta={})
