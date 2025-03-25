@@ -135,7 +135,7 @@ def prepare_config(clients, experiment, root_dir, script_dir, nvflare_exec):
             ],
         }
 
-        if "modality_list" in experiment["modality_list"]:
+        if "modality_list" in experiment:
             client["executors"][0]["executor"]["args"]["modality_list"] = experiment["modality_list"]
 
         if "subfolder_suffix" in clients[client_id]:
