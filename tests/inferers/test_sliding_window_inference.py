@@ -373,7 +373,7 @@ class TestSlidingWindowInference(unittest.TestCase):
             np.testing.assert_allclose(result_dict[rr].cpu().numpy(), expected_dict[rr], rtol=1e-4)
 
 
-class TestSlidingWindowInference_cond(unittest.TestCase):
+class TestSlidingWindowInferenceCond(unittest.TestCase):
     @parameterized.expand(TEST_CASES)
     def test_sliding_window_default(self, image_shape, roi_shape, sw_batch_size, overlap, mode, device):
         n_total = np.prod(image_shape)

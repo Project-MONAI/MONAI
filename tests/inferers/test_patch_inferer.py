@@ -478,7 +478,7 @@ TEST_CASE_0_DICT_c = [
 ]
 
 
-class PatchInfererTests_cond(unittest.TestCase):
+class PatchInfererTestsCond(unittest.TestCase):
     @parameterized.expand(
         [
             TEST_CASE_0_TENSOR_c,

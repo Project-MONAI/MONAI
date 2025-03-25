@@ -53,7 +53,7 @@ class TestSliceInferer(unittest.TestCase):
         result = inferer(input_volume, model)
 
 
-class TestSliceInferer_cond(unittest.TestCase):
+class TestSliceInfererCond(unittest.TestCase):
 
     @parameterized.expand(TEST_CASES)
     def test_shape(self, spatial_dim):
