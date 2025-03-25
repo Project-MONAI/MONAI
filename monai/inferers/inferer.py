@@ -347,9 +347,14 @@ class PatchInferer(Inferer):
                         f"The provided inputs type is {type(inputs)}."
                     )
             patches_locations = inputs
+            if condition is not None:
+                condition_locations = condition
         else:
             # apply splitter
             patches_locations = self.splitter(inputs)
+            if condition is not None:
+                # apply splitter to condition
+                condition_locations = self.splitter(condition)
 
         ratios: list[float] = []
         mergers: list[Merger] = []
@@ -776,6 +781,7 @@ class SliceInferer(SlidingWindowInferer):
         self,
         network: Callable[..., torch.Tensor | Sequence[torch.Tensor] | dict[Any, torch.Tensor]],
         x: torch.Tensor,
+        condition: torch.Tensor | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> torch.Tensor | tuple[torch.Tensor, ...] | dict[Any, torch.Tensor]:
@@ -784,7 +790,12 @@ class SliceInferer(SlidingWindowInferer):
         """
         #  Pass 4D input [N, C, H, W]/[N, C, D, W]/[N, C, D, H] to the model as it is 2D.
         x = x.squeeze(dim=self.spatial_dim + 2)
-        out = network(x, *args, **kwargs)
+
+        if condition is not None:
+            condition = condition.squeeze(dim=self.spatial_dim + 2)
+            out = network(x, condition, *args, **kwargs)
+        else:
+            out = network(x, *args, **kwargs)
 
         #  Unsqueeze the network output so it is [N, C, D, H, W] as expected by
         # the default SlidingWindowInferer class
