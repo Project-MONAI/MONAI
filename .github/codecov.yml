@@ -27,10 +27,10 @@ coverage:
 comment: # enable code coverage comment on PR
   layout: "diff, flags, files"
   behavior: default
-  require_changes: false  
-  require_base: false    
-  require_head: true    
-  hide_project_coverage: true 
+  require_changes: false
+  require_base: false
+  require_head: true
+  hide_project_coverage: true
 
 ignore:
   - "versioneer.py"
