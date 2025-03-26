@@ -24,8 +24,13 @@ coverage:
         flags: null
         paths: null
 
-# Disable comments on PR
-comment: false
+comment: # enable code coverage comment on PR
+  layout: "diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  hide_project_coverage: true
 
 ignore:
   - "versioneer.py"
