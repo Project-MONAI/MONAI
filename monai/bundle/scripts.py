@@ -600,11 +600,15 @@ def download(
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_ver, progress=progress_)
         elif source_ == "monaihosting":
             try:
+                extract_path = os.path.join(bundle_dir_, name_)
+                huggingface_hub.snapshot_download(repo_id=f"MONAI/{name_}", revision=version_, local_dir=extract_path)
+            except (huggingface_hub.errors.RevisionNotFoundError, huggingface_hub.errors.RepositoryNotFoundError):
+                # if bundle or version not found from huggingface, download from ngc monaihosting
                 _download_from_monaihosting(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )
             except urllib.error.HTTPError:
-                # for monaihosting bundles, if cannot download from default host, download according to bundle_info
+                # if also cannot download from ngc monaihosting, download according to bundle_info
                 _download_from_bundle_info(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )

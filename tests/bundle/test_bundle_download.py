@@ -63,6 +63,8 @@ TEST_CASE_5 = [
 
 TEST_CASE_6 = [["models/model.pt", "configs/train.json"], "renalStructures_CECT_segmentation", "0.1.0"]
 
+TEST_CASE_6_HF = [["models/model.pt", "configs/train.yaml"], "mednist_ddpm", "1.0.1"]
+
 TEST_CASE_7 = [
     ["model.pt", "model.ts", "network.json", "test_output.pt", "test_input.pt"],
     "test_bundle",
@@ -193,6 +195,7 @@ class TestDownload(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_6])
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     def test_monaihosting_source_download_bundle(self, bundle_files, bundle_name, version):
         with skip_if_downloading_fails():
             # download a single file from url, also use `args_file`
@@ -239,6 +242,7 @@ class TestDownload(unittest.TestCase):
         self.assertEqual(_list_latest_versions(data), ["1.1", "1.0"])
 
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     @patch("monai.bundle.scripts.get_versions", return_value={"version": "1.2"})
     def test_download_monaihosting(self, mock_get_versions):
         """Test checking MONAI version from a metadata file."""
@@ -333,6 +337,7 @@ class TestLoad(unittest.TestCase):
 
     @parameterized.expand([TEST_CASE_8])
     @skip_if_quick
+    @skipUnless(has_huggingface_hub, "Requires `huggingface_hub`.")
     def test_load_weights_with_net_override(self, bundle_name, device, net_override):
         with skip_if_downloading_fails():
             # download bundle, and load weights from the downloaded path
