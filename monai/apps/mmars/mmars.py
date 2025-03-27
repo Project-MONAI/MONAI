@@ -241,7 +241,7 @@ def load_from_mmar(
         return torch.jit.load(_model_file, map_location=map_location)
 
     # loading with `torch.load`
-    model_dict = torch.load(_model_file, map_location=map_location)
+    model_dict = torch.load(_model_file, map_location=map_location, weights_only=True)
     if weights_only:
         return model_dict.get(model_key, model_dict)  # model_dict[model_key] or model_dict directly
 

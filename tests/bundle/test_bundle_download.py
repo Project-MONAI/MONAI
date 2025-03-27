@@ -266,6 +266,7 @@ class TestLoad(unittest.TestCase):
         with skip_if_downloading_fails():
             # download bundle, and load weights from the downloaded path
             with tempfile.TemporaryDirectory() as tempdir:
+                bundle_root = os.path.join(tempdir, bundle_name)
                 # load weights
                 weights = load(
                     name=bundle_name,
@@ -278,7 +279,7 @@ class TestLoad(unittest.TestCase):
                     return_state_dict=True,
                 )
                 # prepare network
-                with open(os.path.join(tempdir, bundle_name, bundle_files[2])) as f:
+                with open(os.path.join(bundle_root, bundle_files[2])) as f:
                     net_args = json.load(f)["network_def"]
                 model_name = net_args["_target_"]
                 del net_args["_target_"]
@@ -288,9 +289,13 @@ class TestLoad(unittest.TestCase):
                 model.eval()
 
                 # prepare data and test
-                input_tensor = torch.load(os.path.join(tempdir, bundle_name, bundle_files[4]), map_location=device)
+                input_tensor = torch.load(
+                    os.path.join(bundle_root, bundle_files[4]), map_location=device, weights_only=True
+                )
                 output = model.forward(input_tensor)
-                expected_output = torch.load(os.path.join(tempdir, bundle_name, bundle_files[3]), map_location=device)
+                expected_output = torch.load(
+                    os.path.join(bundle_root, bundle_files[3]), map_location=device, weights_only=True
+                )
                 assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
                 # load instantiated model directly and test, since the bundle has been downloaded,
@@ -350,7 +355,7 @@ class TestLoad(unittest.TestCase):
                     config_file=f"{tempdir}/spleen_ct_segmentation/configs/train.json", workflow_type="train"
                 )
                 expected_model = workflow.network_def.to(device)
-                expected_model.load_state_dict(torch.load(model_path))
+                expected_model.load_state_dict(torch.load(model_path, weights_only=True))
                 expected_output = expected_model(input_tensor)
                 assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
 
@@ -378,6 +383,7 @@ class TestLoad(unittest.TestCase):
         with skip_if_downloading_fails():
             # load ts module
             with tempfile.TemporaryDirectory() as tempdir:
+                bundle_root = os.path.join(tempdir, bundle_name)
                 # load ts module
                 model_ts, metadata, extra_file_dict = load(
                     name=bundle_name,
@@ -393,9 +399,13 @@ class TestLoad(unittest.TestCase):
                 )
 
                 # prepare and test ts
-                input_tensor = torch.load(os.path.join(tempdir, bundle_name, bundle_files[1]), map_location=device)
+                input_tensor = torch.load(
+                    os.path.join(bundle_root, bundle_files[1]), map_location=device, weights_only=True
+                )
                 output = model_ts.forward(input_tensor)
-                expected_output = torch.load(os.path.join(tempdir, bundle_name, bundle_files[0]), map_location=device)
+                expected_output = torch.load(
+                    os.path.join(bundle_root, bundle_files[0]), map_location=device, weights_only=True
+                )
                 assert_allclose(output, expected_output, atol=1e-4, rtol=1e-4, type_test=False)
                 # test metadata
                 self.assertTrue(metadata["pytorch_version"] == "1.7.1")

@@ -39,7 +39,7 @@ from monai.networks.nets import (
     SPADEAutoencoderKL,
     SPADEDiffusionModelUNet,
 )
-from monai.networks.schedulers import Scheduler
+from monai.networks.schedulers import RFlowScheduler, Scheduler
 from monai.transforms import CenterSpatialCrop, SpatialPad
 from monai.utils import BlendMode, Ordering, PatchKeys, PytorchPadMode, ensure_tuple, optional_import
 from monai.visualize import CAM, GradCAM, GradCAMpp
@@ -859,12 +859,18 @@ class DiffusionInferer(Inferer):
         if not scheduler:
             scheduler = self.scheduler
         image = input_noise
+
+        all_next_timesteps = torch.cat((scheduler.timesteps[1:], torch.tensor([0], dtype=scheduler.timesteps.dtype)))
         if verbose and has_tqdm:
-            progress_bar = tqdm(scheduler.timesteps)
+            progress_bar = tqdm(
+                zip(scheduler.timesteps, all_next_timesteps),
+                total=min(len(scheduler.timesteps), len(all_next_timesteps)),
+            )
         else:
-            progress_bar = iter(scheduler.timesteps)
+            progress_bar = iter(zip(scheduler.timesteps, all_next_timesteps))
         intermediates = []
-        for t in progress_bar:
+
+        for t, next_t in progress_bar:
             # 1. predict noise model_output
             diffusion_model = (
                 partial(diffusion_model, seg=seg)
@@ -882,9 +888,13 @@ class DiffusionInferer(Inferer):
                 )
 
             # 2. compute previous image: x_t -> x_t-1
-            image, _ = scheduler.step(model_output, t, image)
+            if not isinstance(scheduler, RFlowScheduler):
+                image, _ = scheduler.step(model_output, t, image)  # type: ignore
+            else:
+                image, _ = scheduler.step(model_output, t, image, next_t)  # type: ignore
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
+
         if save_intermediates:
             return image, intermediates
         else:
@@ -986,8 +996,8 @@ class DiffusionInferer(Inferer):
             predicted_mean = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * noisy_image
 
             # get the posterior mean and variance
-            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)
-            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)
+            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)  # type: ignore[operator]
+            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)  # type: ignore[operator]
 
             log_posterior_variance = torch.log(posterior_variance)
             log_predicted_variance = torch.log(predicted_variance) if predicted_variance else log_posterior_variance
@@ -1392,12 +1402,18 @@ class ControlNetDiffusionInferer(DiffusionInferer):
         if not scheduler:
             scheduler = self.scheduler
         image = input_noise
+
+        all_next_timesteps = torch.cat((scheduler.timesteps[1:], torch.tensor([0], dtype=scheduler.timesteps.dtype)))
         if verbose and has_tqdm:
-            progress_bar = tqdm(scheduler.timesteps)
+            progress_bar = tqdm(
+                zip(scheduler.timesteps, all_next_timesteps),
+                total=min(len(scheduler.timesteps), len(all_next_timesteps)),
+            )
         else:
-            progress_bar = iter(scheduler.timesteps)
+            progress_bar = iter(zip(scheduler.timesteps, all_next_timesteps))
         intermediates = []
-        for t in progress_bar:
+
+        for t, next_t in progress_bar:
             diffuse = diffusion_model
             if isinstance(diffusion_model, SPADEDiffusionModelUNet):
                 diffuse = partial(diffusion_model, seg=seg)
@@ -1436,7 +1452,11 @@ class ControlNetDiffusionInferer(DiffusionInferer):
                 )
 
             # 3. compute previous image: x_t -> x_t-1
-            image, _ = scheduler.step(model_output, t, image)
+            if not isinstance(scheduler, RFlowScheduler):
+                image, _ = scheduler.step(model_output, t, image)  # type: ignore
+            else:
+                image, _ = scheduler.step(model_output, t, image, next_t)  # type: ignore
+
             if save_intermediates and t % intermediate_steps == 0:
                 intermediates.append(image)
         if save_intermediates:
@@ -1562,8 +1582,8 @@ class ControlNetDiffusionInferer(DiffusionInferer):
             predicted_mean = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * noisy_image
 
             # get the posterior mean and variance
-            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)
-            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)
+            posterior_mean = scheduler._get_mean(timestep=t, x_0=inputs, x_t=noisy_image)  # type: ignore[operator]
+            posterior_variance = scheduler._get_variance(timestep=t, predicted_variance=predicted_variance)  # type: ignore[operator]
 
             log_posterior_variance = torch.log(posterior_variance)
             log_predicted_variance = torch.log(predicted_variance) if predicted_variance else log_posterior_variance

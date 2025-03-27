@@ -1856,7 +1856,7 @@ class RandHistogramShift(RandomizableTransform):
         indices = ns.searchsorted(xp.reshape(-1), x.reshape(-1)) - 1
         indices = ns.clip(indices, 0, len(m) - 1)
 
-        f = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
+        f: NdarrayOrTensor = (m[indices] * x.reshape(-1) + b[indices]).reshape(x.shape)
         f[x < xp[0]] = fp[0]
         f[x > xp[-1]] = fp[-1]
         return f
