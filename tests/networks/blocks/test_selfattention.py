@@ -22,33 +22,35 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, dict_product, test_script_save
 
 einops, has_einops = optional_import("einops")
 
 TEST_CASE_SABLOCK = []
-for dropout_rate in np.linspace(0, 1, 4):
-    for hidden_size in [360, 480, 600, 768]:
-        for num_heads in [4, 6, 8, 12]:
-            for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
-                for input_size in [(16, 32), (8, 8, 8)]:
-                    for include_fc in [True, False]:
-                        for use_combined_linear in [True, False]:
-                            test_case = [
-                                {
-                                    "hidden_size": hidden_size,
-                                    "num_heads": num_heads,
-                                    "dropout_rate": dropout_rate,
-                                    "rel_pos_embedding": rel_pos_embedding,
-                                    "input_size": input_size,
-                                    "include_fc": include_fc,
-                                    "use_combined_linear": use_combined_linear,
-                                    "use_flash_attention": True if rel_pos_embedding is None else False,
-                                },
-                                (2, 512, hidden_size),
-                                (2, 512, hidden_size),
-                            ]
-                            TEST_CASE_SABLOCK.append(test_case)
+for params in dict_product(
+    dropout_rate=np.linspace(0, 1, 4),
+    hidden_size=[360, 480, 600, 768],
+    num_heads=[4, 6, 8, 12],
+    rel_pos_embedding=[None, RelPosEmbedding.DECOMPOSED],
+    input_size=[(16, 32), (8, 8, 8)],
+    include_fc=[True, False],
+    use_combined_linear=[True, False],
+):
+    test_case = [
+        {
+            "hidden_size": params["hidden_size"],
+            "num_heads": params["num_heads"],
+            "dropout_rate": params["dropout_rate"],
+            "rel_pos_embedding": params["rel_pos_embedding"],
+            "input_size": params["input_size"],
+            "include_fc": params["include_fc"],
+            "use_combined_linear": params["use_combined_linear"],
+            "use_flash_attention": True if params["rel_pos_embedding"] is None else False,
+        },
+        (2, 512, params["hidden_size"]),
+        (2, 512, params["hidden_size"]),
+    ]
+    TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
