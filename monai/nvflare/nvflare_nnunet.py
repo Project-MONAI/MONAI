@@ -198,6 +198,7 @@ def preprocess(nnunet_root_dir, dataset_name_or_id, nnunet_plans_file_path=None,
     if nnunet_plans_file_path is not None:
         with open(nnunet_plans_file_path, "r") as f:
             nnunet_plans = json.load(f)
+            nnunet_plans["original_dataset_name"] = nnunet_plans["dataset_name"]
             nnunet_plans["dataset_name"] = dataset_name
             json.dump(
                 nnunet_plans,
