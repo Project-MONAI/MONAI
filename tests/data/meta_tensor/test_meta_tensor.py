@@ -32,13 +32,17 @@ from monai.data.meta_tensor import MetaTensor
 from monai.data.utils import decollate_batch, list_data_collate
 from monai.transforms import BorderPadd, Compose, DivisiblePadd, FromMetaTensord, ToMetaTensord
 from monai.utils.enums import PostFix
-from tests.test_utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, skip_if_no_cuda
+from tests.test_utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_allclose, dict_product, skip_if_no_cuda
 
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32], [None]]
+
+# Replace nested loops with dict_product
 TESTS = []
-for _device in TEST_DEVICES:
-    for _dtype in DTYPES:
-        TESTS.append((*_device, *_dtype))  # type: ignore
+for params in dict_product(
+    device=TEST_DEVICES,
+    dtype=DTYPES
+):
+    TESTS.append((*params["device"], *params["dtype"]))  # type: ignore
 
 
 def rand_string(min_len=5, max_len=10):
