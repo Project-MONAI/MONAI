@@ -57,12 +57,7 @@ for params in dict_product(
 
 TEST_CASE_PATCHEMBED = []
 for params in dict_product(
-    patch_size=[2],
-    in_chans=[1, 4],
-    img_size=[96],
-    embed_dim=[6, 12],
-    norm_layer=[nn.LayerNorm],
-    nd=[2, 3],
+    patch_size=[2], in_chans=[1, 4], img_size=[96], embed_dim=[6, 12], norm_layer=[nn.LayerNorm], nd=[2, 3]
 ):
     test_case = [
         {

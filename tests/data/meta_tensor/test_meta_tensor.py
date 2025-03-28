@@ -38,10 +38,7 @@ DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [tor
 
 # Replace nested loops with dict_product
 TESTS = []
-for params in dict_product(
-    device=TEST_DEVICES,
-    dtype=DTYPES
-):
+for params in dict_product(device=TEST_DEVICES, dtype=DTYPES):
     TESTS.append((*params["device"], *params["dtype"]))  # type: ignore
 
 

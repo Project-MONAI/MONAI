@@ -73,8 +73,7 @@ TESTS_2D = []
 for params in dict_product(ndarray_type=TEST_NDARRAYS):
     p = params["ndarray_type"]
     TESTS_2D.append(
-        [{"boxes": p(boxes_2d), "image": p(image_2d), "labels": p(labels_2d)},
-         p([[[0, 2], [0, 2]], [[1, 0], [0, 0]]])]
+        [{"boxes": p(boxes_2d), "image": p(image_2d), "labels": p(labels_2d)}, p([[[0, 2], [0, 2]], [[1, 0], [0, 0]]])]
     )
 
 # Use dict_product for TESTS_2D_mask
