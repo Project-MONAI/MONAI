@@ -101,12 +101,12 @@ def _apply_transform(
 def apply_transform(
     transform: Callable[..., ReturnType],
     data: Any,
-    map_items: bool = True,
+    map_items: bool | int = True,
     unpack_items: bool = False,
     log_stats: bool | str = False,
     lazy: bool | None = None,
     overrides: dict | None = None,
-) -> list[ReturnType] | ReturnType:
+) -> list[Any] | ReturnType:
     """
     Transform `data` with `transform`.
 
@@ -117,8 +117,13 @@ def apply_transform(
     Args:
         transform: a callable to be used to transform `data`.
         data: an object to be transformed.
-        map_items: whether to apply transform to each item in `data`,
-            if `data` is a list or tuple. Defaults to True.
+        map_items: controls whether to apply a transformation to each item in `data`. If `data` is a list or tuple,
+            it can behave as follows:
+            - Defaults to True, which is equivalent to `map_items=1`, meaning the transformation will be applied
+              to the first level of items in `data`.
+            - If an integer is provided, it specifies the maximum level of nesting to which the transformation
+              should be recursively applied. This allows treating multi-sample transforms applied after another
+              multi-sample transform while controlling how deep the mapping goes.
         unpack_items: whether to unpack parameters using `*`. Defaults to False.
         log_stats: log errors when they occur in the processing pipeline. By default, this is set to False, which
             disables the logger for processing pipeline errors. Setting it to None or True will enable logging to the
@@ -136,8 +141,12 @@ def apply_transform(
         Union[List[ReturnType], ReturnType]: The return type of `transform` or a list thereof.
     """
     try:
-        if isinstance(data, (list, tuple)) and map_items:
-            return [_apply_transform(transform, item, unpack_items, lazy, overrides, log_stats) for item in data]
+        map_items_ = int(map_items) if isinstance(map_items, bool) else map_items
+        if isinstance(data, (list, tuple)) and map_items_ > 0:
+            return [
+                apply_transform(transform, item, map_items_ - 1, unpack_items, log_stats, lazy, overrides)
+                for item in data
+            ]
         return _apply_transform(transform, data, unpack_items, lazy, overrides, log_stats)
     except Exception as e:
         # if in debug mode, don't swallow exception so that the breakpoint

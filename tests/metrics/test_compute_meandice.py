@@ -267,15 +267,15 @@ class TestComputeMeanDice(unittest.TestCase):
     @parameterized.expand([TEST_CASE_3])
     def test_helper(self, input_data, _unused):
         vals = {"y_pred": dict(input_data).pop("y_pred"), "y": dict(input_data).pop("y")}
-        result = DiceHelper(sigmoid=True)(**vals)
+        result = DiceHelper(threshold=True)(**vals)
         np.testing.assert_allclose(result[0].cpu().numpy(), [0.0, 0.0, 0.0], atol=1e-4)
         np.testing.assert_allclose(sorted(result[1].cpu().numpy()), [0.0, 1.0, 2.0], atol=1e-4)
-        result = DiceHelper(softmax=True, get_not_nans=False)(**vals)
+        result = DiceHelper(apply_argmax=True, get_not_nans=False)(**vals)
         np.testing.assert_allclose(result[0].cpu().numpy(), [0.0, 0.0], atol=1e-4)
 
         num_classes = vals["y_pred"].shape[1]
         vals["y_pred"] = torch.argmax(vals["y_pred"], dim=1, keepdim=True)
-        result = DiceHelper(sigmoid=True, num_classes=num_classes)(**vals)
+        result = DiceHelper(threshold=True, num_classes=num_classes)(**vals)
         np.testing.assert_allclose(result[0].cpu().numpy(), [0.0, 0.0, 0.0], atol=1e-4)
 
     # DiceMetric class tests

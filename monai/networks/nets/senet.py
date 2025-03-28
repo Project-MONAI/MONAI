@@ -302,7 +302,7 @@ def _load_state_dict(model: nn.Module, arch: str, progress: bool):
 
     if isinstance(model_url, dict):
         download_url(model_url["url"], filepath=model_url["filename"])
-        state_dict = torch.load(model_url["filename"], map_location=None)
+        state_dict = torch.load(model_url["filename"], map_location=None, weights_only=True)
     else:
         state_dict = load_state_dict_from_url(model_url, progress=progress)
     for key in list(state_dict.keys()):

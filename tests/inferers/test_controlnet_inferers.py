@@ -26,7 +26,7 @@ from monai.networks.nets import (
     SPADEAutoencoderKL,
     SPADEDiffusionModelUNet,
 )
-from monai.networks.schedulers import DDIMScheduler, DDPMScheduler
+from monai.networks.schedulers import DDIMScheduler, DDPMScheduler, RFlowScheduler
 from monai.utils import optional_import
 
 _, has_scipy = optional_import("scipy")
@@ -547,9 +547,7 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
 
     @parameterized.expand(CNDM_TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
-    def test_sampler_conditioned(self, model_params, controlnet_params, input_shape):
-        model_params["with_conditioning"] = True
-        model_params["cross_attention_dim"] = 3
+    def test_rflow_sampler(self, model_params, controlnet_params, input_shape):
         model = DiffusionModelUNet(**model_params)
         controlnet = ControlNet(**controlnet_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -559,7 +557,56 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         controlnet.eval()
         mask = torch.randn(input_shape).to(device)
         noise = torch.randn(input_shape).to(device)
+        scheduler = RFlowScheduler(num_train_timesteps=1000)
+        inferer = ControlNetDiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        sample, intermediates = inferer.sample(
+            input_noise=noise,
+            diffusion_model=model,
+            scheduler=scheduler,
+            controlnet=controlnet,
+            cn_cond=mask,
+            save_intermediates=True,
+            intermediate_steps=1,
+        )
+        self.assertEqual(len(intermediates), 10)
+
+    @parameterized.expand(CNDM_TEST_CASES)
+    @skipUnless(has_einops, "Requires einops")
+    def test_sampler_conditioned(self, model_params, controlnet_params, input_shape):
+        model_params["with_conditioning"] = True
+        model_params["cross_attention_dim"] = 3
+        controlnet_params["with_conditioning"] = True
+        controlnet_params["cross_attention_dim"] = 3
+        model = DiffusionModelUNet(**model_params)
+        controlnet = ControlNet(**controlnet_params)
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        model.to(device)
+        model.eval()
+        controlnet.to(device)
+        controlnet.eval()
+        mask = torch.randn(input_shape).to(device)
+        noise = torch.randn(input_shape).to(device)
+
+        # DDIM
         scheduler = DDIMScheduler(num_train_timesteps=1000)
+        inferer = ControlNetDiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        conditioning = torch.randn([input_shape[0], 1, 3]).to(device)
+        sample, intermediates = inferer.sample(
+            input_noise=noise,
+            diffusion_model=model,
+            controlnet=controlnet,
+            cn_cond=mask,
+            scheduler=scheduler,
+            save_intermediates=True,
+            intermediate_steps=1,
+            conditioning=conditioning,
+        )
+        self.assertEqual(len(intermediates), 10)
+
+        # RFlow
+        scheduler = RFlowScheduler(num_train_timesteps=1000)
         inferer = ControlNetDiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         conditioning = torch.randn([input_shape[0], 1, 3]).to(device)
@@ -619,8 +666,11 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         model_params = model_params.copy()
         n_concat_channel = 2
         model_params["in_channels"] = model_params["in_channels"] + n_concat_channel
+        controlnet_params["in_channels"] = controlnet_params["in_channels"] + n_concat_channel
         model_params["cross_attention_dim"] = None
+        controlnet_params["cross_attention_dim"] = None
         model_params["with_conditioning"] = False
+        controlnet_params["with_conditioning"] = False
         model = DiffusionModelUNet(**model_params)
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
         model.to(device)
@@ -633,7 +683,26 @@ class ControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         conditioning_shape = list(input_shape)
         conditioning_shape[1] = n_concat_channel
         conditioning = torch.randn(conditioning_shape).to(device)
+
+        # DDIM
         scheduler = DDIMScheduler(num_train_timesteps=1000)
+        inferer = ControlNetDiffusionInferer(scheduler=scheduler)
+        scheduler.set_timesteps(num_inference_steps=10)
+        sample, intermediates = inferer.sample(
+            input_noise=noise,
+            diffusion_model=model,
+            controlnet=controlnet,
+            cn_cond=mask,
+            scheduler=scheduler,
+            save_intermediates=True,
+            intermediate_steps=1,
+            conditioning=conditioning,
+            mode="concat",
+        )
+        self.assertEqual(len(intermediates), 10)
+
+        # RFlow
+        scheduler = RFlowScheduler(num_train_timesteps=1000)
         inferer = ControlNetDiffusionInferer(scheduler=scheduler)
         scheduler.set_timesteps(num_inference_steps=10)
         sample, intermediates = inferer.sample(
@@ -686,43 +755,43 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         input = torch.randn(input_shape).to(device)
         mask = torch.randn(input_shape).to(device)
         noise = torch.randn(latent_shape).to(device)
-        scheduler = DDPMScheduler(num_train_timesteps=10)
-        inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
-        scheduler.set_timesteps(num_inference_steps=10)
-        timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
 
-        if dm_model_type == "SPADEDiffusionModelUNet":
-            input_shape_seg = list(input_shape)
-            if "label_nc" in stage_2_params.keys():
-                input_shape_seg[1] = stage_2_params["label_nc"]
+        for scheduler in [DDPMScheduler(num_train_timesteps=10), RFlowScheduler(num_train_timesteps=1000)]:
+            inferer = ControlNetLatentDiffusionInferer(scheduler=scheduler, scale_factor=1.0)
+            scheduler.set_timesteps(num_inference_steps=10)
+            timesteps = torch.randint(0, scheduler.num_train_timesteps, (input_shape[0],), device=input.device).long()
+            if dm_model_type == "SPADEDiffusionModelUNet":
+                input_shape_seg = list(input_shape)
+                if "label_nc" in stage_2_params.keys():
+                    input_shape_seg[1] = stage_2_params["label_nc"]
+                else:
+                    input_shape_seg[1] = autoencoder_params["label_nc"]
+                input_seg = torch.randn(input_shape_seg).to(device)
+                prediction = inferer(
+                    inputs=input,
+                    autoencoder_model=stage_1,
+                    diffusion_model=stage_2,
+                    controlnet=controlnet,
+                    cn_cond=mask,
+                    seg=input_seg,
+                    noise=noise,
+                    timesteps=timesteps,
+                )
             else:
-                input_shape_seg[1] = autoencoder_params["label_nc"]
-            input_seg = torch.randn(input_shape_seg).to(device)
-            prediction = inferer(
-                inputs=input,
-                autoencoder_model=stage_1,
-                diffusion_model=stage_2,
-                controlnet=controlnet,
-                cn_cond=mask,
-                seg=input_seg,
-                noise=noise,
-                timesteps=timesteps,
-            )
-        else:
-            prediction = inferer(
-                inputs=input,
-                autoencoder_model=stage_1,
-                diffusion_model=stage_2,
-                noise=noise,
-                timesteps=timesteps,
-                controlnet=controlnet,
-                cn_cond=mask,
-            )
-        self.assertEqual(prediction.shape, latent_shape)
+                prediction = inferer(
+                    inputs=input,
+                    autoencoder_model=stage_1,
+                    diffusion_model=stage_2,
+                    noise=noise,
+                    timesteps=timesteps,
+                    controlnet=controlnet,
+                    cn_cond=mask,
+                )
+            self.assertEqual(prediction.shape, latent_shape)
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES)
     @skipUnless(has_einops, "Requires einops")
-    def test_sample_shape(
+    def test_pred_shape(
         self,
         ae_model_type,
         autoencoder_params,
@@ -1023,8 +1092,10 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         if ae_model_type == "SPADEAutoencoderKL":
             stage_1 = SPADEAutoencoderKL(**autoencoder_params)
         stage_2_params = stage_2_params.copy()
+        controlnet_params = controlnet_params.copy()
         n_concat_channel = 3
         stage_2_params["in_channels"] = stage_2_params["in_channels"] + n_concat_channel
+        controlnet_params["in_channels"] = controlnet_params["in_channels"] + n_concat_channel
         if dm_model_type == "SPADEDiffusionModelUNet":
             stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
         else:
@@ -1106,8 +1177,10 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
         if ae_model_type == "SPADEAutoencoderKL":
             stage_1 = SPADEAutoencoderKL(**autoencoder_params)
         stage_2_params = stage_2_params.copy()
+        controlnet_params = controlnet_params.copy()
         n_concat_channel = 3
         stage_2_params["in_channels"] = stage_2_params["in_channels"] + n_concat_channel
+        controlnet_params["in_channels"] = controlnet_params["in_channels"] + n_concat_channel
         if dm_model_type == "SPADEDiffusionModelUNet":
             stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
         else:
@@ -1165,7 +1238,7 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
 
     @parameterized.expand(LATENT_CNDM_TEST_CASES_DIFF_SHAPES)
     @skipUnless(has_einops, "Requires einops")
-    def test_sample_shape_different_latents(
+    def test_shape_different_latents(
         self,
         ae_model_type,
         autoencoder_params,
@@ -1241,6 +1314,84 @@ class LatentControlNetTestDiffusionSamplingInferer(unittest.TestCase):
                 timesteps=timesteps,
             )
         self.assertEqual(prediction.shape, latent_shape)
+
+    @parameterized.expand(LATENT_CNDM_TEST_CASES_DIFF_SHAPES)
+    @skipUnless(has_einops, "Requires einops")
+    def test_sample_shape_different_latents(
+        self,
+        ae_model_type,
+        autoencoder_params,
+        dm_model_type,
+        stage_2_params,
+        controlnet_params,
+        input_shape,
+        latent_shape,
+    ):
+        stage_1 = None
+
+        if ae_model_type == "AutoencoderKL":
+            stage_1 = AutoencoderKL(**autoencoder_params)
+        if ae_model_type == "VQVAE":
+            stage_1 = VQVAE(**autoencoder_params)
+        if ae_model_type == "SPADEAutoencoderKL":
+            stage_1 = SPADEAutoencoderKL(**autoencoder_params)
+        if dm_model_type == "SPADEDiffusionModelUNet":
+            stage_2 = SPADEDiffusionModelUNet(**stage_2_params)
+        else:
+            stage_2 = DiffusionModelUNet(**stage_2_params)
+        controlnet = ControlNet(**controlnet_params)
+
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        stage_1.to(device)
+        stage_2.to(device)
+        controlnet.to(device)
+        stage_1.eval()
+        stage_2.eval()
+        controlnet.eval()
+
+        noise = torch.randn(latent_shape).to(device)
+        mask = torch.randn(input_shape).to(device)
+        scheduler = DDPMScheduler(num_train_timesteps=10)
+        # We infer the VAE shape
+        if ae_model_type == "VQVAE":
+            autoencoder_latent_shape = [i // (2 ** (len(autoencoder_params["channels"]))) for i in input_shape[2:]]
+        else:
+            autoencoder_latent_shape = [i // (2 ** (len(autoencoder_params["channels"]) - 1)) for i in input_shape[2:]]
+
+        inferer = ControlNetLatentDiffusionInferer(
+            scheduler=scheduler,
+            scale_factor=1.0,
+            ldm_latent_shape=list(latent_shape[2:]),
+            autoencoder_latent_shape=autoencoder_latent_shape,
+        )
+        scheduler.set_timesteps(num_inference_steps=10)
+
+        if dm_model_type == "SPADEDiffusionModelUNet" or ae_model_type == "SPADEAutoencoderKL":
+            input_shape_seg = list(input_shape)
+            if "label_nc" in stage_2_params.keys():
+                input_shape_seg[1] = stage_2_params["label_nc"]
+            else:
+                input_shape_seg[1] = autoencoder_params["label_nc"]
+            input_seg = torch.randn(input_shape_seg).to(device)
+            prediction, _ = inferer.sample(
+                autoencoder_model=stage_1,
+                diffusion_model=stage_2,
+                controlnet=controlnet,
+                cn_cond=mask,
+                input_noise=noise,
+                seg=input_seg,
+                save_intermediates=True,
+            )
+        else:
+            prediction = inferer.sample(
+                autoencoder_model=stage_1,
+                diffusion_model=stage_2,
+                input_noise=noise,
+                controlnet=controlnet,
+                cn_cond=mask,
+                save_intermediates=False,
+            )
+        self.assertEqual(prediction.shape, input_shape)
 
     @skipUnless(has_einops, "Requires einops")
     def test_incompatible_spade_setup(self):
