@@ -32,7 +32,7 @@ class TestMultiScaleSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.023176
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertAlmostEqual(expected_value, result.item(), 4)
 
     def test2d_uniform(self):
         set_determinism(0)
@@ -45,7 +45,7 @@ class TestMultiScaleSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.022655
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertAlmostEqual(expected_value, result.item(), 4)
 
     def test3d_gaussian(self):
         set_determinism(0)
@@ -58,7 +58,7 @@ class TestMultiScaleSSIMMetric(unittest.TestCase):
         metric(preds, target)
         result = metric.aggregate()
         expected_value = 0.061796
-        self.assertTrue(expected_value - result.item() < 0.000001)
+        self.assertAlmostEqual(expected_value, result.item(), 4)
 
     def input_ill_input_shape2d(self):
         metric = MultiScaleSSIMMetric(spatial_dims=3, weights=[0.5, 0.5])

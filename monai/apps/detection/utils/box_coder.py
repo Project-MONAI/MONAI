@@ -221,7 +221,7 @@ class BoxCoder:
 
             pred_ctr_xyx_axis = dxyz_axis * whd_axis[:, None] + ctr_xyz_axis[:, None]
             pred_whd_axis = torch.exp(dwhd_axis) * whd_axis[:, None]
-            pred_whd_axis = pred_whd_axis.to(dxyz_axis.dtype)
+            pred_whd_axis = pred_whd_axis.to(dxyz_axis.dtype)  # type: ignore[union-attr]
 
             # When convert float32 to float16, Inf or Nan may occur
             if torch.isnan(pred_whd_axis).any() or torch.isinf(pred_whd_axis).any():
@@ -229,7 +229,7 @@ class BoxCoder:
 
             # Distance from center to box's corner.
             c_to_c_whd_axis = (
-                torch.tensor(0.5, dtype=pred_ctr_xyx_axis.dtype, device=pred_whd_axis.device) * pred_whd_axis
+                torch.tensor(0.5, dtype=pred_ctr_xyx_axis.dtype, device=pred_whd_axis.device) * pred_whd_axis  # type: ignore[arg-type]
             )
 
             pred_boxes.append(pred_ctr_xyx_axis - c_to_c_whd_axis)

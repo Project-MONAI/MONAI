@@ -22,7 +22,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from typing import Any
+from typing import Any, Iterable
 
 import numpy as np
 import torch
@@ -49,6 +49,7 @@ __all__ = [
     "normal_init",
     "icnr_init",
     "pixelshuffle",
+    "pixelunshuffle",
     "eval_mode",
     "train_mode",
     "get_state_dict",
@@ -376,7 +377,7 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
     See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
 
     Args:
-        x: Input tensor
+        x: Input tensor with shape BCHW[D]
         spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
         scale_factor: factor to rescale the spatial dimensions by, must be >=1
 
@@ -408,6 +409,48 @@ def pixelshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch
 
     x = x.reshape([batch_size, org_channels] + [factor] * dim + input_size[2:])
     x = x.permute(permute_indices).reshape(output_size)
+    return x
+
+
+def pixelunshuffle(x: torch.Tensor, spatial_dims: int, scale_factor: int) -> torch.Tensor:
+    """
+    Apply pixel unshuffle to the tensor `x` with spatial dimensions `spatial_dims` and scaling factor `scale_factor`.
+    Inverse operation of pixelshuffle.
+
+    See: Shi et al., 2016, "Real-Time Single Image and Video Super-Resolution
+    Using an Efficient Sub-Pixel Convolutional Neural Network."
+
+    See: Aitken et al., 2017, "Checkerboard artifact free sub-pixel convolution".
+
+    Args:
+        x: Input tensor with shape BCHW[D]
+        spatial_dims: number of spatial dimensions, typically 2 or 3 for 2D or 3D
+        scale_factor: factor to reduce the spatial dimensions by, must be >=1
+
+    Returns:
+        Unshuffled version of `x` with shape (B, C*(r**d), H/r, W/r) for 2D
+        or (B, C*(r**d), D/r, H/r, W/r) for 3D, where r is the scale_factor
+        and d is spatial_dims.
+
+    Raises:
+        ValueError: When spatial dimensions are not divisible by scale_factor
+    """
+    dim, factor = spatial_dims, scale_factor
+    input_size = list(x.size())
+    batch_size, channels = input_size[:2]
+    scale_factor_mult = factor**dim
+    new_channels = channels * scale_factor_mult
+
+    if any(d % factor != 0 for d in input_size[2:]):
+        raise ValueError(
+            f"All spatial dimensions must be divisible by factor {factor}. " f", spatial shape is: {input_size[2:]}"
+        )
+    output_size = [batch_size, new_channels] + [d // factor for d in input_size[2:]]
+    reshaped_size = [batch_size, channels] + sum([[d // factor, factor] for d in input_size[2:]], [])
+
+    permute_indices = [0, 1] + [(2 * i + 3) for i in range(spatial_dims)] + [(2 * i + 2) for i in range(spatial_dims)]
+    x = x.reshape(reshaped_size).permute(permute_indices)
+    x = x.reshape(output_size)
     return x
 
 
@@ -1238,7 +1281,7 @@ class CastToFloat(torch.nn.Module):
 
     def forward(self, x):
         dtype = x.dtype
-        with torch.amp.autocast("cuda", enabled=False):
+        with torch.autocast("cuda", enabled=False):
             ret = self.mod.forward(x.to(torch.float32)).to(dtype)
         return ret
 
@@ -1255,7 +1298,7 @@ class CastToFloatAll(torch.nn.Module):
 
     def forward(self, *args):
         from_dtype = args[0].dtype
-        with torch.amp.autocast("cuda", enabled=False):
+        with torch.autocast("cuda", enabled=False):
             ret = self.mod.forward(*cast_all(args, from_dtype=from_dtype, to_dtype=torch.float32))
         return cast_all(ret, from_dtype=torch.float32, to_dtype=from_dtype)
 
@@ -1291,7 +1334,8 @@ def simple_replace(base_t: type[nn.Module], dest_t: type[nn.Module]) -> Callable
     def expansion_fn(mod: nn.Module) -> nn.Module | None:
         if not isinstance(mod, base_t):
             return None
-        args = [getattr(mod, name, None) for name in mod.__constants__]
+        constants: Iterable = mod.__constants__  # type: ignore[assignment]
+        args = [getattr(mod, name, None) for name in constants]
         out = dest_t(*args)
         return out
 

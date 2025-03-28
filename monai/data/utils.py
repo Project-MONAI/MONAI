@@ -753,7 +753,7 @@ def affine_to_spacing(affine: NdarrayTensor, r: int = 3, dtype=float, suppress_z
     if isinstance(_affine, torch.Tensor):
         spacing = torch.sqrt(torch.sum(_affine * _affine, dim=0))
     else:
-        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))
+        spacing = np.sqrt(np.sum(_affine * _affine, axis=0))  # type: ignore[operator]
     if suppress_zeros:
         spacing[spacing == 0] = 1.0
     spacing_, *_ = convert_to_dst_type(spacing, dst=affine, dtype=dtype)
@@ -1473,7 +1473,7 @@ def convert_tables_to_dicts(
     # parse row indices
     rows: list[int | str] = []
     if row_indices is None:
-        rows = slice(df.shape[0])  # type: ignore
+        rows = df.index.tolist()
     else:
         for i in row_indices:
             if isinstance(i, (tuple, list)):

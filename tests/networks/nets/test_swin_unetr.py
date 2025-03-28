@@ -128,7 +128,7 @@ class TestSWINUNETR(unittest.TestCase):
                     data_spec["url"], weight_path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"]
                 )
 
-                ssl_weight = torch.load(weight_path)["model"]
+                ssl_weight = torch.load(weight_path, weights_only=True)["model"]
                 net = SwinUNETR(**input_param)
                 dst_dict, loaded, not_loaded = copy_model_state(net, ssl_weight, filter_func=filter_swinunetr)
                 assert_allclose(dst_dict[key][:8], value, atol=1e-4, rtol=1e-4, type_test=False)
