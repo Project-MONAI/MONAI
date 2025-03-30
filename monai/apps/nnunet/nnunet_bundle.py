@@ -235,7 +235,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         predictor.label_manager = plans_manager.get_label_manager(dataset_json)  # type: ignore
         if ("nnUNet_compile" in os.environ.keys()) and (os.environ["nnUNet_compile"].lower() in ("true", "1", "t")):
             print("Using torch.compile")
-        # End Block 
+        # End Block
         self.network_weights = self.predictor.network  # type: ignore
 
     def forward(self, x: MetaTensor) -> MetaTensor:
