@@ -244,8 +244,6 @@ class ModelnnUNetWrapper(torch.nn.Module):
         """
         Forward pass for the nnUNet model.
 
-        :no-index:
-
         Args:
             x (MetaTensor): Input tensor. If the input is a tuple,
                 it is assumed to be a decollated batch (list of tensors). Otherwise, it is assumed to be a collated batch.
