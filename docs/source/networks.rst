@@ -109,6 +109,16 @@ Blocks
 .. autoclass:: SABlock
     :members:
 
+`CABlock Block`
+~~~~~~~~~~~~~~~
+.. autoclass:: CABlock
+    :members:
+
+`FeedForward Block`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FeedForward
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -172,6 +182,16 @@ Blocks
     :members:
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
+
+`Downsampling`
+~~~~~~~~~~~~~~
+.. autoclass:: DownSample
+    :members:
+.. autoclass:: Downsample
+.. autoclass:: SubpixelDownsample
+    :members:
+.. autoclass:: Subpixeldownsample
+.. autoclass:: SubpixelDownSample
 
 `Registration Residual Conv Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -623,6 +643,11 @@ Nets
 `ViT`
 ~~~~~
 .. autoclass:: ViT
+  :members:
+
+`Restormer`
+~~~~~~~~~~~
+.. autoclass:: restormer
   :members:
 
 `ViTAutoEnc`
