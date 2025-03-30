@@ -24,8 +24,6 @@ from monai.utils import optional_import
 
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
 load_json, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_json")
-nnUNetTrainer, _ = optional_import("nnunetv2.training.nnUNetTrainer", name="nnUNetTrainer")
-nnUNetPredictor, _ = optional_import("nnunetv2.inference.predict_from_raw_data", name="nnUNetPredictor")
 
 __all__ = [
     "get_nnunet_trainer",
@@ -49,7 +47,7 @@ def get_nnunet_trainer(
     disable_checkpointing: bool = False,
     device: str = "cuda",
     pretrained_model: Optional[str] = None,
-) -> Union[nnUNetTrainer, Any]:  # type: ignore
+) -> Any:  # type: ignore
     """
     Get the nnUNet trainer instance based on the provided configuration.
     The returned nnUNet trainer can be used to initialize the SupervisedTrainer for training, including the network,
@@ -172,7 +170,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
     restoring network architecture, and setting up the predictor for inference.
     """
 
-    def __init__(self, predictor: nnUNetPredictor, model_folder: Union[str, Path], model_name: str = "model.pt"):  # type: ignore
+    def __init__(self, predictor: object, model_folder: Union[str, Path], model_name: str = "model.pt"):  # type: ignore
         super().__init__()
         self.predictor = predictor
 
