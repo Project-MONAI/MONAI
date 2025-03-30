@@ -82,7 +82,8 @@ def get_nnunet_trainer(
     fold : Union[int, str]
         The fold number or 'all' for cross-validation.
     trainer_class_name : str, optional
-        The class name of the trainer to be used. Default is 'nnUNetTrainer'.
+        The class name of the trainer to be used. Default is 'nnUNetTrainer'. 
+        For a complete list of supported trainers, see https://github.com/MIC-DKFZ/nnUNet/tree/master/nnunetv2/training/nnUNetTrainer/variants
     plans_identifier : str, optional
         Identifier for the plans to be used. Default is 'nnUNetPlans'.
     use_compressed_data : bool, optional
