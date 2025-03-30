@@ -522,9 +522,9 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
         folder: str, join: bool = True, prefix: Optional[str] = None, suffix: Optional[str] = None, sort: bool = True
     ) -> list[str]:
         if join:
-            l = os.path.join  # noqa: E741
+            l = os.path.join
         else:
-            l = lambda x, y: y  # noqa: E741, E731
+            l = lambda x, y: y  # noqa: E731
         res = [
             l(folder, i.name)
             for i in Path(folder).iterdir()
