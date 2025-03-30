@@ -203,7 +203,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
                 parameters.append(monai_checkpoint)
 
         configuration_manager = plans_manager.get_configuration(configuration_name)
-
+        # restore network
         import nnunetv2
         from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
         from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
@@ -522,9 +522,9 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
         folder: str, join: bool = True, prefix: Optional[str] = None, suffix: Optional[str] = None, sort: bool = True
     ) -> list[str]:
         if join:
-            l = os.path.join
+            l = os.path.join  # noqa: E741
         else:
-            l = lambda x, y: y  # noqa: E731
+            l = lambda x, y: y  # noqa: E741, E731
         res = [
             l(folder, i.name)
             for i in Path(folder).iterdir()
