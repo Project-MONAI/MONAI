@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, Union, Any
+from typing import Any, Optional, Union
 
 import numpy as np
 import torch
@@ -48,7 +48,7 @@ def get_nnunet_trainer(
     disable_checkpointing: bool = False,
     device: str = "cuda",
     pretrained_model: Optional[str] = None,
-) -> Union[nnUNetTrainer, Any]: # type: ignore
+) -> Union[nnUNetTrainer, Any]:  # type: ignore
     """
     Get the nnUNet trainer instance based on the provided configuration.
     The returned nnUNet trainer can be used to initialize the SupervisedTrainer for training, including the network,
@@ -170,7 +170,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
     This class integrates nnUNet model with MONAI framework by loading necessary configurations,
     restoring network architecture, and setting up the predictor for inference.
     """
+
     from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+
     def __init__(self, predictor: nnUNetPredictor, model_folder: Union[str, Path], model_name: str = "model.pt"):
         super().__init__()
         self.predictor = predictor
@@ -546,7 +548,8 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
 
     nnunet_checkpoint: dict = torch.load(f"{bundle_root_folder}/models/nnunet_checkpoint.pth")
     latest_checkpoints: list[str] = subfiles(
-        Path(bundle_root_folder).joinpath("models", f"fold_{fold}"), prefix="checkpoint_epoch", sort=True)
+        Path(bundle_root_folder).joinpath("models", f"fold_{fold}"), prefix="checkpoint_epoch", sort=True
+    )
     epochs: list[int] = []
     for latest_checkpoint in latest_checkpoints:
         epochs.append(int(latest_checkpoint[len("checkpoint_epoch=") : -len(".pt")]))
@@ -558,9 +561,7 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
     )
 
     best_checkpoints: list[str] = subfiles(
-        Path(bundle_root_folder).joinpath("models", f"fold_{fold}"),
-        prefix="checkpoint_key_metric",
-        sort=True,
+        Path(bundle_root_folder).joinpath("models", f"fold_{fold}"), prefix="checkpoint_key_metric", sort=True
     )
     key_metrics: list[str] = []
     for best_checkpoint in best_checkpoints:
