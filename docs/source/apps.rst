@@ -287,3 +287,5 @@ FastMRIReader
 .. autofunction:: monai.apps.nnunet.get_nnunet_trainer
 .. autofunction:: monai.apps.nnunet.get_nnunet_monai_predictor
 .. autofunction:: monai.apps.nnunet.convert_nnunet_to_monai_bundle
+.. autofunction:: monai.apps.nnunet.convert_monai_bundle_to_nnunet
+.. autofunction:: monai.apps.nnunet.get_network_from_nnunet_plans

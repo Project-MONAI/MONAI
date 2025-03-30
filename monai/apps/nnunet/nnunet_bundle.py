@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -21,11 +22,17 @@ from torch.backends import cudnn
 from monai.data.meta_tensor import MetaTensor
 from monai.utils import optional_import
 
-from typing import Union, Optional
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
 load_json, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_json")
 
-__all__ = ["get_nnunet_trainer", "get_nnunet_monai_predictor", "convert_nnunet_to_monai_bundle", "convert_monai_bundle_to_nnunet","ModelnnUNetWrapper"]
+__all__ = [
+    "get_nnunet_trainer",
+    "get_nnunet_monai_predictor",
+    "get_network_from_nnunet_plans",
+    "convert_nnunet_to_monai_bundle",
+    "convert_monai_bundle_to_nnunet",
+    "ModelnnUNetWrapper",
+]
 
 
 def get_nnunet_trainer(
@@ -107,7 +114,6 @@ def get_nnunet_trainer(
                 )
                 raise e
 
-
     from nnunetv2.run.run_training import get_trainer_from_args, maybe_load_checkpoint
 
     nnunet_trainer = get_trainer_from_args(
@@ -178,7 +184,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         plans_manager = PlansManager(plans)
 
         parameters = []
-       
+
         checkpoint = torch.load(
             join(Path(model_training_output_dir).parent, "nnunet_checkpoint.pth"), map_location=torch.device("cpu")
         )
@@ -190,9 +196,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
             else None
         )
         if Path(model_training_output_dir).joinpath(model_name).is_file():
-            monai_checkpoint = torch.load(
-                join(model_training_output_dir, model_name), map_location=torch.device("cpu")
-            )
+            monai_checkpoint = torch.load(join(model_training_output_dir, model_name), map_location=torch.device("cpu"))
             if "network_weights" in monai_checkpoint.keys():
                 parameters.append(monai_checkpoint["network_weights"])
             else:
@@ -230,10 +234,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         predictor.trainer_name = trainer_name
         predictor.allowed_mirroring_axes = inference_allowed_mirroring_axes
         predictor.label_manager = plans_manager.get_label_manager(dataset_json)
-        if (
-            ("nnUNet_compile" in os.environ.keys())
-            and (os.environ["nnUNet_compile"].lower() in ("true", "1", "t"))
-        ):
+        if ("nnUNet_compile" in os.environ.keys()) and (os.environ["nnUNet_compile"].lower() in ("true", "1", "t")):
             print("Using torch.compile")
         # End Block
         self.network_weights = self.predictor.network
@@ -265,7 +266,11 @@ class ModelnnUNetWrapper(torch.nn.Module):
             if "pixdim" in x.meta:
                 properties_or_list_of_properties = {"spacing": x.meta["pixdim"][0][1:4].numpy().tolist()}
             elif "affine" in x.meta:
-                spacing = [abs(x.meta['affine'][0][0].item()), abs(x.meta['affine'][1][1].item()), abs(x.meta['affine'][2][2].item())]
+                spacing = [
+                    abs(x.meta["affine"][0][0].item()),
+                    abs(x.meta["affine"][1][1].item()),
+                    abs(x.meta["affine"][2][2].item()),
+                ]
                 properties_or_list_of_properties = {"spacing": spacing}
             else:
                 properties_or_list_of_properties = {"spacing": [1.0, 1.0, 1.0]}
@@ -348,9 +353,7 @@ def get_nnunet_monai_predictor(model_folder: str, model_name: str = "model.pt") 
     return wrapper
 
 
-def convert_nnunet_to_monai_bundle(
-    nnunet_config: dict, bundle_root_folder: str, fold: int = 0
-) -> None:
+def convert_nnunet_to_monai_bundle(nnunet_config: dict, bundle_root_folder: str, fold: int = 0) -> None:
     """
     Convert nnUNet model checkpoints and configuration to MONAI bundle format.
 
@@ -421,14 +424,14 @@ def convert_nnunet_to_monai_bundle(
 
 
 def get_network_from_nnunet_plans(
-    plans_file: str, 
-    dataset_file: str, 
-    configuration: str, 
-    model_ckpt: Optional[str] = None, 
-    model_key_in_ckpt: str = "model"
+    plans_file: str,
+    dataset_file: str,
+    configuration: str,
+    model_ckpt: Optional[str] = None,
+    model_key_in_ckpt: str = "model",
 ) -> torch.nn.Module:
     """
-    Load and initialize a neural network based on nnUNet plans and configuration.
+    Load and initialize a nnUNet network based on nnUNet plans and configuration.
 
     Parameters
     ----------
@@ -481,11 +484,7 @@ def get_network_from_nnunet_plans(
         return network
 
 
-def convert_monai_bundle_to_nnunet(
-    nnunet_config: dict, 
-    bundle_root_folder: str, 
-    fold: int = 0
-) -> None:
+def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str, fold: int = 0) -> None:
     """
     Convert a MONAI bundle to nnU-Net format.
 
@@ -520,11 +519,7 @@ def convert_monai_bundle_to_nnunet(
     from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
     def subfiles(
-        folder: str, 
-        join: bool = True, 
-        prefix: Optional[str] = None, 
-        suffix: Optional[str] = None, 
-        sort: bool = True
+        folder: str, join: bool = True, prefix: Optional[str] = None, suffix: Optional[str] = None, sort: bool = True
     ) -> list[str]:
         if join:
             l = os.path.join  # noqa: E741
@@ -562,7 +557,9 @@ def convert_monai_bundle_to_nnunet(
 
     epochs.sort()
     final_epoch: int = epochs[-1]
-    monai_last_checkpoint: dict = torch.load(f"{bundle_root_folder}/models/fold_{fold}/checkpoint_epoch={final_epoch}.pt")
+    monai_last_checkpoint: dict = torch.load(
+        f"{bundle_root_folder}/models/fold_{fold}/checkpoint_epoch={final_epoch}.pt"
+    )
 
     best_checkpoints: list[str] = subfiles(
         Path(bundle_root_folder).joinpath("models", f"fold_{fold}"),
