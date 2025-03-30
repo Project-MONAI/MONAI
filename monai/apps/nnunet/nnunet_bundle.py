@@ -25,6 +25,7 @@ from monai.utils import optional_import
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
 load_json, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_json")
 nnUNetTrainer, _ = optional_import("nnunetv2.training.nnUNetTrainer", name="nnUNetTrainer")
+nnUNetPredictor, _ = optional_import("nnunetv2.inference.predict_from_raw_data", name="nnUNetPredictor")
 
 __all__ = [
     "get_nnunet_trainer",
@@ -171,9 +172,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
     restoring network architecture, and setting up the predictor for inference.
     """
 
-    from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
-
-    def __init__(self, predictor: nnUNetPredictor, model_folder: Union[str, Path], model_name: str = "model.pt"):
+    def __init__(self, predictor: nnUNetPredictor, model_folder: Union[str, Path], model_name: str = "model.pt"):  # type: ignore
         super().__init__()
         self.predictor = predictor
 
@@ -228,18 +227,18 @@ class ModelnnUNetWrapper(torch.nn.Module):
             enable_deep_supervision=False,
         )
 
-        predictor.plans_manager = plans_manager
-        predictor.configuration_manager = configuration_manager
-        predictor.list_of_parameters = parameters
-        predictor.network = network
-        predictor.dataset_json = dataset_json
-        predictor.trainer_name = trainer_name
-        predictor.allowed_mirroring_axes = inference_allowed_mirroring_axes
-        predictor.label_manager = plans_manager.get_label_manager(dataset_json)
+        predictor.plans_manager = plans_manager  # type: ignore
+        predictor.configuration_manager = configuration_manager  # type: ignore
+        predictor.list_of_parameters = parameters  # type: ignore
+        predictor.network = network  # type: ignore
+        predictor.dataset_json = dataset_json  # type: ignore
+        predictor.trainer_name = trainer_name  # type: ignore
+        predictor.allowed_mirroring_axes = inference_allowed_mirroring_axes  # type: ignore
+        predictor.label_manager = plans_manager.get_label_manager(dataset_json)  # type: ignore
         if ("nnUNet_compile" in os.environ.keys()) and (os.environ["nnUNet_compile"].lower() in ("true", "1", "t")):
             print("Using torch.compile")
         # End Block
-        self.network_weights = self.predictor.network
+        self.network_weights = self.predictor.network  # type: ignore
 
     def forward(self, x: MetaTensor) -> MetaTensor:
         """
@@ -282,7 +281,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         image_or_list_of_images = x.cpu().numpy()[0, :]
 
         # input_files should be a list of file paths, one per modality
-        prediction_output = self.predictor.predict_from_list_of_npy_arrays(
+        prediction_output = self.predictor.predict_from_list_of_npy_arrays(  # type: ignore
             image_or_list_of_images,
             None,
             properties_or_list_of_properties,
