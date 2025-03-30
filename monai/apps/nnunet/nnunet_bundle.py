@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import shutil
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Any
 
 import numpy as np
 import torch
@@ -24,6 +24,7 @@ from monai.utils import optional_import
 
 join, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="join")
 load_json, _ = optional_import("batchgenerators.utilities.file_and_folder_operations", name="load_json")
+nnUNetTrainer, _ = optional_import("nnunetv2.training.nnUNetTrainer", name="nnUNetTrainer")
 
 __all__ = [
     "get_nnunet_trainer",
@@ -47,7 +48,7 @@ def get_nnunet_trainer(
     disable_checkpointing: bool = False,
     device: str = "cuda",
     pretrained_model: Optional[str] = None,
-) -> object:
+) -> Union[nnUNetTrainer, Any]: # type: ignore
     """
     Get the nnUNet trainer instance based on the provided configuration.
     The returned nnUNet trainer can be used to initialize the SupervisedTrainer for training, including the network,
@@ -150,9 +151,9 @@ class ModelnnUNetWrapper(torch.nn.Module):
 
     Parameters
     ----------
-    predictor : object
+    predictor : nnUNetPredictor
         The nnUNet predictor object used for inference.
-    model_folder : str
+    model_folder : Union[str, Path]
         The folder path where the model and related files are stored.
     model_name : str, optional
         The name of the model file, by default "model.pt".
@@ -169,8 +170,8 @@ class ModelnnUNetWrapper(torch.nn.Module):
     This class integrates nnUNet model with MONAI framework by loading necessary configurations,
     restoring network architecture, and setting up the predictor for inference.
     """
-
-    def __init__(self, predictor: object, model_folder: str, model_name: str = "model.pt"):
+    from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+    def __init__(self, predictor: nnUNetPredictor, model_folder: Union[str, Path], model_name: str = "model.pt"):
         super().__init__()
         self.predictor = predictor
 
@@ -299,7 +300,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         return MetaTensor(out_tensor, meta=x.meta)
 
 
-def get_nnunet_monai_predictor(model_folder: str, model_name: str = "model.pt") -> ModelnnUNetWrapper:
+def get_nnunet_monai_predictor(model_folder: Union[str, Path], model_name: str = "model.pt") -> ModelnnUNetWrapper:
     """
     Initializes and returns a `nnUNetMONAIModelWrapper` containing the corresponding `nnUNetPredictor`.
     The model folder should contain the following files, created during training:
@@ -326,7 +327,7 @@ def get_nnunet_monai_predictor(model_folder: str, model_name: str = "model.pt") 
 
     Parameters
     ----------
-    model_folder : str
+    model_folder : Union[str, Path]
         The folder where the model is stored.
     model_name : str, optional
         The name of the model file, by default "model.pt".
@@ -429,7 +430,7 @@ def get_network_from_nnunet_plans(
     configuration: str,
     model_ckpt: Optional[str] = None,
     model_key_in_ckpt: str = "model",
-) -> torch.nn.Module:
+) -> Union[torch.nn.Module, Any]:
     """
     Load and initialize a nnUNet network based on nnUNet plans and configuration.
 
@@ -519,14 +520,10 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
     from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 
     def subfiles(
-        folder: str, join: bool = True, prefix: Optional[str] = None, suffix: Optional[str] = None, sort: bool = True
+        folder: Union[str, Path], prefix: Optional[str] = None, suffix: Optional[str] = None, sort: bool = True
     ) -> list[str]:
-        if join:
-            l = os.path.join  # noqa: E741
-        else:
-            l = lambda x, y: y  # noqa: E741, E731
         res = [
-            l(folder, i.name)
+            i.name
             for i in Path(folder).iterdir()
             if i.is_file()
             and (prefix is None or i.name.startswith(prefix))
@@ -549,8 +546,7 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
 
     nnunet_checkpoint: dict = torch.load(f"{bundle_root_folder}/models/nnunet_checkpoint.pth")
     latest_checkpoints: list[str] = subfiles(
-        Path(bundle_root_folder).joinpath("models", f"fold_{fold}"), prefix="checkpoint_epoch", sort=True, join=False
-    )
+        Path(bundle_root_folder).joinpath("models", f"fold_{fold}"), prefix="checkpoint_epoch", sort=True)
     epochs: list[int] = []
     for latest_checkpoint in latest_checkpoints:
         epochs.append(int(latest_checkpoint[len("checkpoint_epoch=") : -len(".pt")]))
@@ -565,7 +561,6 @@ def convert_monai_bundle_to_nnunet(nnunet_config: dict, bundle_root_folder: str,
         Path(bundle_root_folder).joinpath("models", f"fold_{fold}"),
         prefix="checkpoint_key_metric",
         sort=True,
-        join=False,
     )
     key_metrics: list[str] = []
     for best_checkpoint in best_checkpoints:
