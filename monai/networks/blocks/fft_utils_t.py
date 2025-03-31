@@ -187,20 +187,19 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
             output2 = fftn_centered(im, spatial_dims=2, is_complex=True)
     """
     # define spatial dims to perform ifftshift, fftshift, and fft
-    shift = list(range(-spatial_dims, 0))
+    dims = list(range(-spatial_dims, 0))
     if is_complex:
         if im.shape[-1] != 2:
             raise ValueError(f"img.shape[-1] is not 2 ({im.shape[-1]}).")
-        shift = list(range(-spatial_dims - 1, -1))
-    dims = list(range(-spatial_dims, 0))
-
-    x = ifftshift(im, shift)
+        x = ifftshift(im, [d - 1 for d in dims])
+    else:
+        x = ifftshift(im, dims)
 
     if is_complex:
         x = torch.view_as_real(torch.fft.fftn(torch.view_as_complex(x), dim=dims, norm="ortho"))
     else:
         x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
 
-    out: Tensor = fftshift(x, shift)
+    out: Tensor = fftshift(x, [d - 1 for d in dims])
 
     return out
