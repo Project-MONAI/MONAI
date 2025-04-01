@@ -47,7 +47,7 @@ for params in dict_product(
             "proj_type": params["proj_type"],
             "pos_embed_type": params["pos_embed_type"],
             "dropout_rate": params["dropout_rate"],
-            "spatial_dims": 2 if params["nd"] == 2 else None,
+            "spatial_dims": params["nd"],
         },
         (2, params["in_channels"], *[params["img_size"]] * params["nd"]),
         (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"]),
