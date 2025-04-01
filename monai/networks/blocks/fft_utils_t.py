@@ -147,7 +147,7 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
     else:
         x = ifftshift(ksp, dims)
 
-    x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
+    x = torch.view_as_real(torch.fft.ifftn(x, dim=dims, norm="ortho"))
 
     out: Tensor = fftshift(x, [d - 1 for d in dims])
 
