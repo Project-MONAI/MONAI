@@ -145,7 +145,7 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
             raise ValueError(f"ksp.shape[-1] is not 2 ({ksp.shape[-1]}).")
         x = torch.view_as_complex(ksp)
 
-    x = ifftshift(ksp, dims)
+    x = ifftshift(x, dims)
 
     x = fftshift(torch.fft.ifftn(x, dim=dims, norm="ortho"), dims)
 
