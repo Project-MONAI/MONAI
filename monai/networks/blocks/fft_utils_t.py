@@ -143,13 +143,13 @@ def ifftn_centered_t(ksp: Tensor, spatial_dims: int, is_complex: bool = True) ->
     if is_complex:
         if ksp.shape[-1] != 2:
             raise ValueError(f"ksp.shape[-1] is not 2 ({ksp.shape[-1]}).")
-        x = torch.view_as_complex(ksp)
+        x = torch.view_as_complex(ifftshift(ksp, [d - 1 for d in dims]))
+    else:
+        x = ifftshift(ksp, dims)
 
-    x = ifftshift(x, dims)
+    x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
 
-    x = fftshift(torch.fft.ifftn(x, dim=dims, norm="ortho"), dims)
-
-    out: Tensor = torch.view_as_real(x)
+    out: Tensor = fftshift(x, [d - 1 for d in dims])
 
     return out
 
@@ -187,12 +187,12 @@ def fftn_centered_t(im: Tensor, spatial_dims: int, is_complex: bool = True) -> T
     if is_complex:
         if im.shape[-1] != 2:
             raise ValueError(f"img.shape[-1] is not 2 ({im.shape[-1]}).")
-        x = torch.view_as_complex(im)
+        x = torch.view_as_complex(ifftshift(im, [d - 1 for d in dims]))
+    else:
+        x = ifftshift(im, dims)
 
-    x = ifftshift(im, dims)
+    x = torch.view_as_real(torch.fft.fftn(x, dim=dims, norm="ortho"))
 
-    x = fftshift(torch.fft.fftn(x, dim=dims, norm="ortho"), dims)
-
-    out: Tensor = torch.view_as_real(x)
+    out: Tensor = fftshift(x, [d - 1 for d in dims])
 
     return out
