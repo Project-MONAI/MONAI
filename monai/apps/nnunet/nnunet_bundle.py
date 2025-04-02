@@ -124,7 +124,6 @@ def get_nnunet_trainer(
         fold,
         trainer_class_name,
         plans_identifier,
-        use_compressed_data,
         device=torch.device(device),
     )
     if disable_checkpointing:
