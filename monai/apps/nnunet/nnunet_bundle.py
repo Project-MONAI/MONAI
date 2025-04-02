@@ -234,9 +234,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         predictor.trainer_name = trainer_name  # type: ignore
         predictor.allowed_mirroring_axes = inference_allowed_mirroring_axes  # type: ignore
         predictor.label_manager = plans_manager.get_label_manager(dataset_json)  # type: ignore
-        if ("nnUNet_compile" in os.environ.keys()) and (os.environ["nnUNet_compile"].lower() in ("true", "1", "t")):
-            print("Using torch.compile")
-        # End Block
+
         self.network_weights = self.predictor.network  # type: ignore
 
     def forward(self, x: MetaTensor) -> MetaTensor:
