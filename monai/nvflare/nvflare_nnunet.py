@@ -97,6 +97,7 @@ def train(
             mlflow_run_name="run_" + client_name,
             tracking_uri=tracking_uri,
             fold_id=fold,
+            nnunet_root_folder=nnunet_root_dir,
         )
         nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}
         convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
