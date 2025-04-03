@@ -97,7 +97,7 @@ def train(
         os.environ["PYTHONPATH"] = os.environ["PYTHONPATH"] + ":" + bundle_root
         config_files = os.path.join(bundle_root, "configs", "train_resume.yaml")
         if continue_training:
-            config_files = [os.path.join(bundle_root, "configs", "train.yaml"), os.path.join(bundle_root, "configs", "train_continue.yaml")]
+            config_files = [os.path.join(bundle_root, "configs", "train.yaml"), os.path.join(bundle_root, "configs", "train_resume.yaml")]
         monai.bundle.run(
             config_file=config_files,
             bundle_root=bundle_root,
