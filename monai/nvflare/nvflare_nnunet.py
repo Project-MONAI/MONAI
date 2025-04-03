@@ -46,6 +46,8 @@ def train(
     fold=0,
     bundle_root=None,
     mlflow_token=None,
+    continue_training=False,
+    resume_epoch="latest",
 ):
     """
 
@@ -75,6 +77,10 @@ def train(
         Root directory for MONAI bundle, by default None.
     mlflow_token : str, optional
         Token for MLflow authentication, by default None.
+    continue_training : bool, optional
+        Whether to continue training from a checkpoint, by default False.
+    resume_epoch : int, optional
+        Epoch to resume training from, by default "latest".
 
     Returns
     -------
@@ -89,8 +95,11 @@ def train(
     else:
         os.environ["BUNDLE_ROOT"] = bundle_root
         os.environ["PYTHONPATH"] = os.environ["PYTHONPATH"] + ":" + bundle_root
+        config_files = os.path.join(bundle_root, "configs", "train_resume.yaml")
+        if continue_training:
+            config_files = [os.path.join(bundle_root, "configs", "train.yaml"), os.path.join(bundle_root, "configs", "train_continue.yaml")]
         monai.bundle.run(
-            config_file=Path(bundle_root).joinpath("configs/train.yaml"),
+            config_file=config_files,
             bundle_root=bundle_root,
             nnunet_trainer_class_name=trainer_class_name,
             mlflow_experiment_name=experiment_name,
@@ -98,6 +107,7 @@ def train(
             tracking_uri=tracking_uri,
             fold_id=fold,
             nnunet_root_folder=nnunet_root_dir,
+            reload_checkpoint_epoch=resume_epoch
         )
         nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}
         convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
@@ -619,6 +629,7 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
         train_config["mlflow_run_name"] = bundle_config["mlflow_run_name"]
 
         train_config["data_src_cfg"] = "$@nnunet_root_folder+'/data_src_cfg.yaml'"
+        train_config["nnunet_root_folder"] = "."
         train_config["runner"] = {
             "_target_": "nnUNetV2Runner",
             "input_config": "$@data_src_cfg",

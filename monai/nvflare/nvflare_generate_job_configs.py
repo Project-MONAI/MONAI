@@ -665,7 +665,7 @@ def train_config(clients, experiment, root_dir, script_dir, nvflare_exec):
                     "min_responses_required": 0,
                     "wait_time_after_min_received": 10,
                     "task_name": task_name,
-                    "timeout": 6000,
+                    "timeout": 600000,
                 },
             }
         ],
@@ -699,6 +699,7 @@ def train_config(clients, experiment, root_dir, script_dir, nvflare_exec):
                             },
                             "client_name": clients[client_id]["client_name"],
                             "tracking_uri": experiment["tracking_uri"],
+                            "continue_training": experiment["continue_training"],
                         },
                     },
                 }

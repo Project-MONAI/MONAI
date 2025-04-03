@@ -124,6 +124,7 @@ class nnUNetExecutor(Executor):
         modality_list=None,
         train_extra_configs=None,
         exclude_vars=None,
+        continue_training=False,
     ):
         super().__init__()
 
@@ -147,6 +148,7 @@ class nnUNetExecutor(Executor):
         self.bundle_root = bundle_root
         self.train_extra_configs = train_extra_configs
         self.modality_list = modality_list
+        self.continue_training = continue_training
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
@@ -305,6 +307,7 @@ class nnUNetExecutor(Executor):
             dataset_name_or_id=self.nnunet_config["dataset_name_or_id"],
             run_with_bundle=True if self.bundle_root is not None else False,
             bundle_root=self.bundle_root,
+            continue_training=self.continue_training
         )
         outgoing_dxo = DXO(data_kind=DataKind.COLLECTION, data=validation_summary, meta={})
         return outgoing_dxo.to_shareable()
