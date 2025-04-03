@@ -91,7 +91,10 @@ def train(
     runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
 
     if not run_with_bundle:
-        runner.train_single_model(config="3d_fullres", fold=fold)
+        if continue_training:
+            runner.train_single_model(config="3d_fullres", fold=fold, c=True)
+        else:
+            runner.train_single_model(config="3d_fullres", fold=fold)
     else:
         os.environ["BUNDLE_ROOT"] = bundle_root
         os.environ["PYTHONPATH"] = os.environ["PYTHONPATH"] + ":" + bundle_root

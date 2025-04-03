@@ -698,14 +698,14 @@ def train_config(clients, experiment, root_dir, script_dir, nvflare_exec):
                                 "experiment_name": experiment["experiment_name"],
                             },
                             "client_name": clients[client_id]["client_name"],
-                            "tracking_uri": experiment["tracking_uri"],
-                            "continue_training": experiment["continue_training"],
+                            "tracking_uri": experiment["tracking_uri"]
                         },
                     },
                 }
             ],
         }
-
+        if "continue_training" in experiment:
+            client["executors"][0]["executor"]["args"]["continue_training"] = experiment["continue_training"]
         if "nnunet_plans" in experiment:
             client["executors"][0]["executor"]["args"]["nnunet_config"]["nnunet_plans"] = experiment["nnunet_plans"]
 
