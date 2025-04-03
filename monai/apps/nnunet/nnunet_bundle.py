@@ -119,12 +119,7 @@ def get_nnunet_trainer(
     from nnunetv2.run.run_training import get_trainer_from_args, maybe_load_checkpoint
 
     nnunet_trainer = get_trainer_from_args(
-        str(dataset_name_or_id),
-        configuration,
-        fold,
-        trainer_class_name,
-        plans_identifier,
-        device=torch.device(device),
+        str(dataset_name_or_id), configuration, fold, trainer_class_name, plans_identifier, device=torch.device(device)
     )
     if disable_checkpointing:
         nnunet_trainer.disable_checkpointing = disable_checkpointing
