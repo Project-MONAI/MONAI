@@ -28,6 +28,7 @@ import torch
 from monai import config
 from monai.config.type_definitions import KeysCollection, NdarrayOrTensor, PathLike
 from monai.data.csv_saver import CSVSaver
+from monai.data.meta_obj import get_meta_dict_name
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.post.array import (
@@ -797,6 +798,8 @@ class SaveClassificationd(MapTransform):
             if meta_key is None and meta_key_postfix is not None:
                 meta_key = f"{key}_{meta_key_postfix}"
             meta_data = d[meta_key] if meta_key is not None else None
+            if meta_data is None:
+                meta_data = d.get(get_meta_dict_name(key, d), None)
             self.saver.save(data=d[key], meta_data=meta_data)
             if self.flush:
                 self.saver.finalize()

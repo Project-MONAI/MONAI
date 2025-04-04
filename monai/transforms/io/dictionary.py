@@ -169,6 +169,7 @@ class LoadImaged(MapTransform):
                         f"loader must return a tuple or list (because image_only=False was used), got {type(data)}."
                     )
                 d[key] = data[0]
+                data[1]['tensor_name'] = key
                 if not isinstance(data[1], dict):
                     raise ValueError(f"metadata must be a dict, got {type(data[1])}.")
                 meta_key = meta_key or f"{key}_{meta_key_postfix}"

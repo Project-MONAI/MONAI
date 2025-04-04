@@ -242,3 +242,11 @@ class MetaObj:
     def is_batch(self, val: bool) -> None:
         """Set whether object is part of batch or not."""
         self._is_batch = val
+
+
+def get_meta_dict_name(key, dictionary):
+    for kv, kd in dictionary.items():
+        if isinstance(kd, dict):
+            if kd.get("tensor_name", None) == key:
+                return kv
+    return None
