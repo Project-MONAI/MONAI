@@ -15,6 +15,7 @@ import warnings
 from collections.abc import Hashable, Mapping
 from contextlib import contextmanager
 from typing import Any
+import threading
 
 import torch
 
@@ -70,11 +71,35 @@ class TraceableTransform(Transform):
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
 
-    tracing = MONAIEnvVars.trace_transform() != "0"
+    # tracing = MONAIEnvVars.trace_transform() != "0"
 
-    def set_tracing(self, tracing: bool) -> None:
-        """Set whether to trace transforms."""
-        self.tracing = tracing
+    # def set_tracing(self, tracing: bool) -> None:
+    #     """Set whether to trace transforms."""
+    #     self.tracing = tracing
+
+    def _init_trace_threadlocal(self):
+        # needed since this class is meant to be a trait with no constructor
+        if not hasattr(self, "_tracing"):
+            self._tracing = threading.local()
+
+        # This is True while the above initialising _tracing is False when this is 
+        # called from a different thread than the one initialising _tracing.
+        if not hasattr(self._tracing, "value"):
+            self._tracing.value = MONAIEnvVars.trace_transform() != "0"
+
+    @property
+    def tracing(self) -> bool:
+        """
+        Returns the tracing state, which is thread-local and initialised to `MONAIEnvVars.trace_transform() != "0"`.
+        """
+        self._init_trace_threadlocal()
+        return self._tracing.value
+
+    @tracing.setter
+    def tracing(self, val: bool):
+        """Sets the thread-local tracing state to `val`."""
+        self._init_trace_threadlocal()
+        self._tracing.value = val
 
     @staticmethod
     def trace_key(key: Hashable = None):
@@ -291,7 +316,7 @@ class TraceableTransform(Transform):
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
-        Get most recent transform for the stack.
+        Get most recent matching transform for the current class from the sequence of applied operations.
 
         Args:
             data: dictionary of data or `MetaTensor`.
@@ -316,9 +341,28 @@ class TraceableTransform(Transform):
                 all_transforms = data.get(self.trace_key(key), MetaTensor.get_default_applied_operations())
         else:
             raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
+
+        # Find the last transform whose name matches that of this class, this allows Invertd to ignore applied
+        # operations added by transforms it is not trying to invert, ie. those added in postprocessing.
+        idx=-1
+        # for i in reversed(range(len(all_transforms))):
+        #     xform_name = all_transforms[i].get(TraceKeys.CLASS_NAME, "")
+        #     if xform_name == self.__class__.__name__:
+        #         idx=i  # if nothing found, idx remains -1 so replicating previous behaviour
+        #         break
+
+        # print(f"get_most_recent_transform {id(data):x} {type(data).__name__} {pop} {id(all_transforms):x} {len(all_transforms)}")
+
+        if not all_transforms:
+            raise ValueError(f"Item of type {type(data)} (key: {key}, pop: {pop}) has empty 'applied_operations'")
+
         if check:
-            self.check_transforms_match(all_transforms[-1])
-        return all_transforms.pop() if pop else all_transforms[-1]
+            if not (-len(all_transforms)<=idx<len(all_transforms)):
+                raise IndexError(f"Index '{idx}' not valid for list of applied operations '{all_transforms}'")
+
+            self.check_transforms_match(all_transforms[idx])
+
+        return all_transforms.pop(idx) if pop else all_transforms[idx]
 
     def pop_transform(self, data, key: Hashable = None, check: bool = True):
         """
