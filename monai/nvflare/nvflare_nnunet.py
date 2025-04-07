@@ -88,7 +88,7 @@ def train(
     dict
         Dictionary containing validation summary metrics.
     """
-    data_src_cfg = os.path.join(nnunet_root_dir, "data_src_cfg.yaml")
+    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
     runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
 
     if not run_with_bundle:
@@ -196,7 +196,7 @@ def preprocess(nnunet_root_dir, dataset_name_or_id, nnunet_plans_file_path=None,
         The nnUNet plans dictionary.
     """
 
-    data_src_cfg = os.path.join(nnunet_root_dir, "data_src_cfg.yaml")
+    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
     runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
 
     nnunet_plans_name = nnunet_plans_file_path.name.split(".")[0]
@@ -268,7 +268,7 @@ def plan_and_preprocess(
         The nnUNet plans as a dictionary.
     """
 
-    data_src_cfg = os.path.join(nnunet_root_dir, "data_src_cfg.yaml")
+    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
 
     runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
 
@@ -460,7 +460,7 @@ def prepare_data_folder(
     if modality_list is None:
         modality_list = [k for k in modality_dict.keys() if k != "label"]
     
-    data_src_cfg = os.path.join(nnunet_root_dir, "data_src_cfg.yaml")
+    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
     data_src = {
         "modality": modality_list,
         "dataset_name_or_id": dataset_name_or_id,
@@ -798,7 +798,7 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
     torch.save(new_checkpoint_dict, Path(bundle_root).joinpath("models",f"fold_{fold}","checkpoint_key_metric=1.0.pt"))
     
     if validate_with_nnunet:
-        data_src_cfg = os.path.join(nnunet_root_dir, "data_src_cfg.yaml")
+        data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
         runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
 
         nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}

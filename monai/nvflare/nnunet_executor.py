@@ -112,6 +112,7 @@ class nnUNetExecutor(Executor):
         plan_and_preprocess_task_name="plan_and_preprocess",
         preprocess_task_name="preprocess",
         training_task_name="train",
+        finalize_task_name="finalize",
         prepare_bundle_name="prepare_bundle",
         subfolder_suffix=None,
         dataset_format="subfolders",
@@ -150,6 +151,7 @@ class nnUNetExecutor(Executor):
         self.train_extra_configs = train_extra_configs
         self.modality_list = modality_list
         self.continue_training = continue_training
+        self.finalize_task_name = finalize_task_name
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
@@ -193,6 +195,8 @@ class nnUNetExecutor(Executor):
                 return self.train()
             elif task_name == self.prepare_bundle_name:
                 return self.prepare_bundle()
+            elif task_name == self.finalize_task_name:
+                return self.finalize_bundle()
             else:
                 return make_reply(ReturnCode.TASK_UNKNOWN)
         except Exception as e:
