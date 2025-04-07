@@ -1238,3 +1238,4 @@ def generate_configs(client_files, experiment_file, script_dir, job_dir, nvflare
     train_config(clients, experiment, job_dir, script_dir, nvflare_exec)
     prepare_bundle_config(clients, experiment, job_dir, script_dir, nvflare_exec)
     train_fl_config(clients, experiment, job_dir, script_dir, nvflare_exec)
+    finalize_config(clients, experiment, job_dir, script_dir, nvflare_exec)
