@@ -758,6 +758,15 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
         trains a single model, and logs validation metrics to MLflow.
     - The function creates and saves nnUNet-compatible checkpoints in the `models` directory.
     """
+    print("Finalizing bundle...")
+    if nnunet_root_dir is None:
+        raise ValueError("nnunet_root_dir must be provided if validate_with_nnunet is True")
+    if not Path(bundle_root).joinpath("models", "plans.json").exists():
+        raise ValueError("plans.json file not found in the models directory of the bundle")
+    if not Path(bundle_root).joinpath("models", "dataset.json").exists():
+        raise ValueError("dataset.json file not found in the models directory of the bundle")
+    
+    print("Converting bundle to nnUNet format...")
     
     with open(Path(bundle_root).joinpath("models","plans.json"),"r") as f:
         plans = json.load(f)
