@@ -22,6 +22,7 @@ import subprocess
 from importlib.metadata import version
 from pathlib import Path
 
+import torch
 import mlflow
 import numpy as np
 import pandas as pd
@@ -708,3 +709,147 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
 
     with open(Path(bundle_config["bundle_root"]).joinpath("configs", "evaluate.yaml"), "w") as f:
         yaml.dump(evaluate_config, f)
+
+
+def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True,
+                    experiment_name=None, client_name=None, tracking_uri=None,
+                    dataset_name_or_id=None, trainer_class_name="nnUNetTrainer",
+                    nnunet_plans_name="nnUNetPlans", fold=0, mlflow_token=None):
+    """
+    Finalizes a MONAI bundle by converting model and dataset configurations to nnUNet format,
+    saving checkpoints, and optionally validating the model using nnUNet.
+    
+    Parameters
+    ----------
+    bundle_root : str
+        Path to the root directory of the MONAI bundle.
+    nnunet_root_dir : str, optional
+        Path to the nnUNet root directory. Required if `validate_with_nnunet` is True.
+    validate_with_nnunet : bool, optional
+        Whether to validate the model using nnUNet. Default is True.
+    experiment_name : str, optional
+        Name of the MLflow experiment for logging validation metrics.
+    client_name : str, optional
+        Name of the client for tagging MLflow runs.
+    tracking_uri : str, optional
+        URI of the MLflow tracking server.
+    dataset_name_or_id : str, optional
+        Name or ID of the dataset for nnUNet validation.
+    trainer_class_name : str, optional
+        Name of the nnUNet trainer class. Default is "nnUNetTrainer".
+    nnunet_plans_name : str, optional
+        Name of the nnUNet plans. Default is "nnUNetPlans".
+    fold : int, optional
+        Fold number for nnUNet training and validation. Default is 0.
+    mlflow_token : str, optional
+        Token for authenticating with the MLflow tracking server.
+    
+    Returns
+    -------
+    dict
+        A dictionary containing the validation summary metrics if `validate_with_nnunet` is True.
+        Otherwise, returns None.
+    
+    Notes
+    -----
+    - This function assumes the MONAI bundle contains `plans.json` and `dataset.json` files
+        in the `models` directory.
+    - If `validate_with_nnunet` is True, the function converts the MONAI bundle to nnUNet format,
+        trains a single model, and logs validation metrics to MLflow.
+    - The function creates and saves nnUNet-compatible checkpoints in the `models` directory.
+    """
+    
+    with open(Path(bundle_root).joinpath("models","plans.json"),"r") as f:
+        plans = json.load(f)
+
+    with open(Path(bundle_root).joinpath("configs","plans.yaml"),"w") as f:
+        yaml.dump({"plans": plans}, f)
+
+    with open(Path(bundle_root).joinpath("models","dataset.json"),"r") as f:
+        dataset_json = json.load(f)
+        
+    with open(Path(bundle_root).joinpath("configs","dataset.yaml"),"w") as f:
+        yaml.dump({"dataset_json": dataset_json}, f)
+        
+    checkpoint = {
+        "trainer_name": trainer_class_name,
+        "inference_allowed_mirroring_axes": (0, 1, 2),
+        "init_args": {
+            "configuration": "3d_fullres",
+    }
+    }
+    
+    torch.save(checkpoint, Path(bundle_root).joinpath("models","nnunet_checkpoint.pth"))
+    
+    checkpoint_dict = torch.load(Path(bundle_root).joinpath("models",f"fold_{fold}","FL_global_model.pt"))
+    
+    new_checkpoint_dict = {}
+    new_checkpoint_dict["network_weights"] = checkpoint_dict["model"]
+    torch.save(new_checkpoint_dict, Path(bundle_root).joinpath("models",f"fold_{fold}","checkpoint_epoch=1000.pt"))
+    torch.save(new_checkpoint_dict, Path(bundle_root).joinpath("models",f"fold_{fold}","checkpoint_key_metric=1.0.pt"))
+    
+    if validate_with_nnunet:
+        data_src_cfg = os.path.join(nnunet_root_dir, "data_src_cfg.yaml")
+        runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
+
+        nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}
+        convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
+        
+        runner.train_single_model(config="3d_fullres", fold=fold, val="")
+        
+        if mlflow_token is not None:
+            os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
+        if tracking_uri is not None:
+            mlflow.set_tracking_uri(tracking_uri)
+
+        try:
+            mlflow.create_experiment(experiment_name)
+        except Exception as e:
+            print(e)
+            mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name(experiment_name).experiment_id))
+
+        filter = f"""
+        tags."client" = "{client_name}"
+        """
+
+        runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
+
+        validation_summary = os.path.join(
+            runner.nnunet_results,
+            runner.dataset_name,
+            f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
+            f"fold_{fold}",
+            "validation",
+            "summary.json",
+        )
+
+        dataset_file = os.path.join(
+            runner.nnunet_results,
+            runner.dataset_name,
+            f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
+            "dataset.json",
+        )
+
+        with open(dataset_file, "r") as f:
+            dataset_dict = json.load(f)
+            labels = dataset_dict["labels"]
+            labels = {str(v): k for k, v in labels.items()}
+
+        with open(validation_summary, "r") as f:
+            validation_summary_dict = json.load(f)
+
+        if len(runs) == 0:
+            with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+                for label in validation_summary_dict["mean"]:
+                    for metric in validation_summary_dict["mean"][label]:
+                        label_name = labels[label]
+                        mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
+
+        else:
+            with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+                for label in validation_summary_dict["mean"]:
+                    for metric in validation_summary_dict["mean"][label]:
+                        label_name = labels[label]
+                        mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
+
+        return validation_summary_dict

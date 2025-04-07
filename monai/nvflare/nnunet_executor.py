@@ -29,6 +29,7 @@ from monai.nvflare.nvflare_nnunet import (  # check_host_config,
     prepare_data_folder,
     preprocess,
     train,
+    finalize_bundle
 )
 
 
@@ -335,3 +336,30 @@ class nnUNetExecutor(Executor):
         prepare_bundle(bundle_config, self.train_extra_configs)
 
         return make_reply(ReturnCode.OK)
+
+    def finalize_bundle(self):
+        
+        if "nnunet_trainer" not in self.nnunet_config:
+            nnunet_trainer_name = "nnUNetTrainer"
+        else:
+            nnunet_trainer_name = self.nnunet_config["nnunet_trainer"]
+
+        if "nnunet_plans" not in self.nnunet_config:
+            nnunet_plans_name = "nnUNetPlans"
+        else:
+            nnunet_plans_name = self.nnunet_config["nnunet_plans"]
+
+        validation_summary = finalize_bundle(
+            self.bundle_root,
+            self.nnunet_root_folder,
+            trainer_class_name=nnunet_trainer_name,
+            fold=0,
+            experiment_name=self.nnunet_config["experiment_name"],
+            client_name=self.client_name,
+            tracking_uri=self.tracking_uri,
+            nnunet_plans_name=nnunet_plans_name,
+            dataset_name_or_id=self.nnunet_config["dataset_name_or_id"]
+        )
+        outgoing_dxo = DXO(data_kind=DataKind.COLLECTION, data=validation_summary, meta={})
+        return outgoing_dxo.to_shareable()
+        

@@ -1046,6 +1046,160 @@ def train_fl_config(clients, experiment, root_dir, script_dir, nvflare_exec):
         ]
     )
 
+def finalize_config(clients, experiment, root_dir, script_dir, nvflare_exec):
+    """
+    Generate and finalize configuration files for an nnUNet MONAI Bundle job in NVFlare.
+
+    Parameters
+    ----------
+    clients : dict
+        A dictionary where keys are client IDs and values are dictionaries containing client-specific configurations.
+        Example:
+            "client1": {
+                "nnunet_root_folder": "/path/to/nnunet",
+                "client_name": "Client1",
+                "bundle_root": "/path/to/bundle"
+            ...
+    experiment : dict
+        A dictionary containing experiment-specific configurations.
+        Example:
+            "dataset_name_or_id": "Dataset123",
+            "experiment_name": "ExperimentABC",
+            "tracking_uri": "http://tracking.server",
+            "nnunet_plans": "nnUNetPlans",
+            "nnunet_trainer": "nnUNetTrainer"
+    root_dir : str
+        The root directory where the configuration files and job directories will be created.
+    script_dir : str
+        The directory containing the scripts required for the NVFlare job.
+    nvflare_exec : str
+        The path to the NVFlare executable.
+
+    Returns
+    -------
+    None
+        This function does not return any value. It creates configuration files and directories as a side effect.
+
+    Notes
+    -----
+    - This function generates `info.conf`, `meta.conf`, and `config_fed_server.conf` for the server.
+    - It also generates `config_fed_client.conf` for each client based on the provided configurations.
+    - The NVFlare job is created using the `nvflare_exec` command-line tool.
+    - The function ensures that all necessary directories are created before writing the configuration files.
+    """
+    task_name = "finalize"
+    Path(root_dir).joinpath(task_name).mkdir(parents=True, exist_ok=True)
+
+    info = {"description": "Finalize nnUNet MONAI Bundle and optionally run nnUNet Validation", "client_category": "Executor", "controller_type": "server"}
+
+    meta = {
+        "name": f"{task_name}_nnUNet",
+        "resource_spec": {},
+        "deploy_map": {f"{task_name}-server": ["server"]},
+        "min_clients": 1,
+        "mandatory_clients": list(clients.keys()),
+    }
+    for client_id in clients:
+        meta["deploy_map"][f"{task_name}-client-{client_id}"] = [client_id]
+
+    with open(Path(root_dir).joinpath(task_name).joinpath("info.conf"), "w") as f:
+        f.write("{\n")
+        f.write(HOCONConverter.to_hocon(ConfigFactory.from_dict(info)))
+        f.write("\n}")
+
+    with open(Path(root_dir).joinpath(task_name).joinpath("meta.conf"), "w") as f:
+        f.write("{\n")
+        f.write(HOCONConverter.to_hocon(ConfigFactory.from_dict(meta)))
+        f.write("\n}")
+
+    server = {
+        "format_version": 2,
+        "server": {"heart_beat_timeout": 600},
+        "task_data_filters": [],
+        "task_result_filters": [],
+        "components": [
+            {"id": "nnunet_processor", "path": "monai.nvflare.response_processor.nnUNetTrainProcessor", "args": {}},
+            {"id": "json_generator", "path": "monai.nvflare.json_generator.nnUNetValSummaryJsonGenerator", "args": {}},
+        ],
+        "workflows": [
+            {
+                "id": "broadcast_and_process",
+                "name": "BroadcastAndProcess",
+                "args": {
+                    "processor": "nnunet_processor",
+                    "min_responses_required": 0,
+                    "wait_time_after_min_received": 10,
+                    "task_name": task_name,
+                    "timeout": 600000,
+                },
+            }
+        ],
+    }
+    Path(root_dir).joinpath(task_name).joinpath(f"{task_name}-server").mkdir(parents=True, exist_ok=True)
+    with open(Path(root_dir).joinpath(task_name).joinpath(f"{task_name}-server", "config_fed_server.conf"), "w") as f:
+        f.write("{\n")
+        f.write(HOCONConverter.to_hocon(ConfigFactory.from_dict(server)))
+        f.write("\n}")
+
+    for client_id in clients:
+        client = {
+            "format_version": 2,
+            "task_result_filters": [],
+            "task_data_filters": [],
+            "components": [],
+            "executors": [
+                {
+                    "tasks": [task_name],
+                    "executor": {
+                        "path": "monai.nvflare.nnunet_executor.nnUNetExecutor",
+                        "args": {
+                            "nnunet_root_folder": clients[client_id]["nnunet_root_folder"],
+                            "nnunet_config": {
+                                "dataset_name_or_id": experiment["dataset_name_or_id"],
+                                "experiment_name": experiment["experiment_name"],
+                            },
+                            "client_name": clients[client_id]["client_name"],
+                            "tracking_uri": experiment["tracking_uri"]
+                        },
+                    },
+                }
+            ],
+        }
+
+        if "nnunet_plans" in experiment:
+            client["executors"][0]["executor"]["args"]["nnunet_config"]["nnunet_plans"] = experiment["nnunet_plans"]
+
+        if "nnunet_trainer" in experiment:
+            client["executors"][0]["executor"]["args"]["nnunet_config"]["nnunet_trainer"] = experiment["nnunet_trainer"]
+
+        if "bundle_root" in clients[client_id]:
+            client["executors"][0]["executor"]["args"]["bundle_root"] = clients[client_id]["bundle_root"]
+
+        Path(root_dir).joinpath(task_name).joinpath(f"{task_name}-client-{client_id}").mkdir(
+            parents=True, exist_ok=True
+        )
+        with open(
+            Path(root_dir).joinpath(task_name).joinpath(f"{task_name}-client-{client_id}", "config_fed_client.conf"),
+            "w",
+        ) as f:
+            f.write("{\n")
+            f.write(HOCONConverter.to_hocon(ConfigFactory.from_dict(client)))
+            f.write("\n}")
+
+    subprocess.run(
+        [
+            nvflare_exec,
+            "job",
+            "create",
+            "-j",
+            Path(root_dir).joinpath("jobs", task_name),
+            "-w",
+            Path(root_dir).joinpath(task_name),
+            "-sd",
+            script_dir,
+            "--force",
+        ]
+    )
 
 def generate_configs(client_files, experiment_file, script_dir, job_dir, nvflare_exec="nvflare"):
     """
