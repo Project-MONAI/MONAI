@@ -33,7 +33,56 @@ import monai
 from monai.apps.nnunet import nnUNetV2Runner
 from monai.apps.nnunet.nnunet_bundle import convert_monai_bundle_to_nnunet
 from monai.bundle import ConfigParser
+from pyhocon import ConfigFactory
+from pyhocon.converter import HOCONConverter
 
+
+def run_job(sess, task_name, job_folder, clients=None):
+    """
+    Submits a job to the session with the specified task name and job folder. Optionally, 
+    generates a meta configuration file for the job if clients are provided.
+    
+    Parameters
+    ----------
+    sess : object
+        The session object used to submit the job.
+    task_name : str
+        The name of the task to be executed.
+    job_folder : str or Path
+        The path to the folder where the job configuration and related files are stored.
+    clients : dict, optional
+        A dictionary of client IDs as keys and their respective configurations as values. 
+        If provided, a meta configuration file is generated for the job.
+    
+    Raises
+    ------
+    FileNotFoundError
+        If the specified job folder or task folder does not exist.
+    IOError
+        If there is an error writing the meta configuration file.
+    
+    Notes
+    -----
+    - The `meta.conf` file is created in the task folder within the job folder if `clients` is provided.
+    - The `sess.submit_job` method is called to submit the job to the session.
+    """
+    if clients is not None:
+        meta = {
+            "name": f"{task_name}_nnUNet",
+            "resource_spec": {},
+            "deploy_map": {f"{task_name}-server": ["server"]},
+            "min_clients": 1,
+            "mandatory_clients": list(clients.keys()),
+        }
+        for client_id in clients:
+            meta["deploy_map"][f"{task_name}-client-{client_id}"] = [client_id]
+
+        with open(Path(job_folder).joinpath(task_name).joinpath("meta.conf"), "w") as f:
+            f.write("{\n")
+            f.write(HOCONConverter.to_hocon(ConfigFactory.from_dict(meta)))
+            f.write("\n}")
+            
+    sess.submit_job(str(Path(job_folder).joinpath(task_name)))
 
 def train(
     nnunet_root_dir,
