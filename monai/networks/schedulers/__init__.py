@@ -14,4 +14,5 @@ from __future__ import annotations
 from .ddim import DDIMScheduler
 from .ddpm import DDPMScheduler
 from .pndm import PNDMScheduler
+from .rectified_flow import RFlowScheduler
 from .scheduler import NoiseSchedules, Scheduler

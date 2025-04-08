@@ -1473,7 +1473,7 @@ def convert_tables_to_dicts(
     # parse row indices
     rows: list[int | str] = []
     if row_indices is None:
-        rows = slice(df.shape[0])  # type: ignore
+        rows = df.index.tolist()
     else:
         for i in row_indices:
             if isinstance(i, (tuple, list)):
