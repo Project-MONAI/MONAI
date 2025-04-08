@@ -313,28 +313,6 @@ class nnUNetBundlePrepareProcessor(ResponseProcessor):
         return Shareable()
 
     def process_client_response(self, client: Client, task_name: str, response: Shareable, fl_ctx: FLContext) -> bool:
-        if not isinstance(response, Shareable):
-            self.log_error(
-                fl_ctx,
-                f"bad response from client {client.name}: " f"response must be Shareable but got {type(response)}",
-            )
-            return False
-
-        try:
-            dxo = from_shareable(response)
-
-        except Exception:
-            self.log_exception(fl_ctx, f"bad response from client {client.name}: " f"it does not contain DXO")
-            return False
-
-        if dxo.data_kind != DataKind.COLLECTION:
-            self.log_error(
-                fl_ctx,
-                f"bad response from client {client.name}: "
-                f"data_kind should be DataKind.COLLECTION but got {dxo.data_kind}",
-            )
-            return False
-
         return True
 
     def final_process(self, fl_ctx: FLContext) -> bool:
