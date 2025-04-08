@@ -67,15 +67,9 @@ class TraceableTransform(Transform):
     The information in the stack of applied transforms must be compatible with the
     default collate, by only storing strings, numbers and arrays.
 
-    `tracing` could be enabled by `self.set_tracing` or setting
+    `tracing` could be enabled by assigning to `self.tracing` or setting
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
-
-    # tracing = MONAIEnvVars.trace_transform() != "0"
-
-    # def set_tracing(self, tracing: bool) -> None:
-    #     """Set whether to trace transforms."""
-    #     self.tracing = tracing
 
     def _init_trace_threadlocal(self):
         # needed since this class is meant to be a trait with no constructor
@@ -345,13 +339,11 @@ class TraceableTransform(Transform):
         # Find the last transform whose name matches that of this class, this allows Invertd to ignore applied
         # operations added by transforms it is not trying to invert, ie. those added in postprocessing.
         idx=-1
-        # for i in reversed(range(len(all_transforms))):
-        #     xform_name = all_transforms[i].get(TraceKeys.CLASS_NAME, "")
-        #     if xform_name == self.__class__.__name__:
-        #         idx=i  # if nothing found, idx remains -1 so replicating previous behaviour
-        #         break
-
-        # print(f"get_most_recent_transform {id(data):x} {type(data).__name__} {pop} {id(all_transforms):x} {len(all_transforms)}")
+        for i in reversed(range(len(all_transforms))):
+            xform_name = all_transforms[i].get(TraceKeys.CLASS_NAME, "")
+            if xform_name == self.__class__.__name__:
+                idx=i  # if nothing found, idx remains -1 so replicating previous behaviour
+                break
 
         if not all_transforms:
             raise ValueError(f"Item of type {type(data)} (key: {key}, pop: {pop}) has empty 'applied_operations'")
