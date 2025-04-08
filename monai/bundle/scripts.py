@@ -528,7 +528,9 @@ def download(
             If source is "ngc_private", you need specify the NGC_API_KEY in the environment variable.
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
-            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
+            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name". Please note that
+            bundles for "monaihosting" source are also hosted on Hugging Face Hub, but the "repo_id" is always in the form
+            of "MONAI/bundle_name", therefore, this argument is not required for "monaihosting" source.
             If `source` is "ngc_private", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
             or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
