@@ -82,7 +82,7 @@ def run_job(sess, task_name, job_folder, clients=None):
             f.write(HOCONConverter.to_hocon(ConfigFactory.from_dict(meta)))
             f.write("\n}")
             
-    sess.submit_job(str(Path(job_folder).joinpath(task_name)))
+    job_id = sess.submit_job(str(Path(job_folder).joinpath(task_name)))
 
 def train(
     nnunet_root_dir,
