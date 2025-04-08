@@ -849,6 +849,7 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
 
         if len(runs) == 0:
             with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+                mlflow.log_dict(validation_summary_dict, "validation_summary.json")
                 for label in validation_summary_dict["mean"]:
                     for metric in validation_summary_dict["mean"][label]:
                         label_name = labels[label]
@@ -856,6 +857,7 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
 
         else:
             with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+                mlflow.log_dict(validation_summary_dict, "validation_summary.json")
                 for label in validation_summary_dict["mean"]:
                     for metric in validation_summary_dict["mean"][label]:
                         label_name = labels[label]
