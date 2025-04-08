@@ -278,7 +278,7 @@ def preprocess(nnunet_root_dir, dataset_name_or_id, nnunet_plans_file_path=None,
     runner.extract_fingerprints(npfp=2, verify_dataset_integrity=True)
     runner.preprocess(c=["3d_fullres"], n_proc=[2], overwrite_plans_name=nnunet_plans_name)
 
-    return nnunet_plans
+    return {"original_dataset_name": nnunet_plans["original_dataset_name"], "dataset_name": nnunet_plans["dataset_name"]}
 
 
 def plan_and_preprocess(
