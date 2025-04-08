@@ -83,6 +83,8 @@ def run_job(sess, task_name, job_folder, clients=None):
             f.write("\n}")
             
     job_id = sess.submit_job(str(Path(job_folder).joinpath(task_name)))
+    
+    return job_id
 
 def train(
     nnunet_root_dir,
@@ -681,7 +683,8 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
         train_config["mlflow_experiment_name"] = bundle_config["mlflow_experiment_name"]
         train_config["mlflow_run_name"] = bundle_config["mlflow_run_name"]
 
-        train_config["data_src_cfg"] = "$@nnunet_root_folder+'/data_src_cfg.yaml'"
+        train_config["dataset_name_or_id"] = bundle_config["dataset_name_or_id"]
+        train_config["data_src_cfg"] = "$@nnunet_root_folder+'/Task'+@dataset_name_or_id+'_data_src_cfg.yaml'"
         train_config["nnunet_root_folder"] = "."
         train_config["runner"] = {
             "_target_": "nnUNetV2Runner",
@@ -710,6 +713,11 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
             ]
         else:
             train_config["initialize"] = ["$monai.utils.set_determinism(seed=123)", "$@runner.dataset_name_or_id"]
+            
+        if train_extra_configs is not None:
+            for key in train_extra_configs:
+                if key != "resume_epoch":
+                    train_config[key] = train_extra_configs[key]
 
         if "Val_Dice" in train_config["val_key_metric"]:
             train_config["val_key_metric"] = {"Val_Dice_Local": train_config["val_key_metric"]["Val_Dice"]}

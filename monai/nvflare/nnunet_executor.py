@@ -335,6 +335,7 @@ class nnUNetExecutor(Executor):
             "mlflow_run_name": self.client_name,
             "nnunet_plans_identifier": nnunet_plans_name,
             "nnunet_trainer_class_name": nnunet_trainer_name,
+            "dataset_name_or_id": self.nnunet_config["dataset_name_or_id"]
         }
 
         prepare_bundle(bundle_config, self.train_extra_configs)
