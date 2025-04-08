@@ -11,18 +11,17 @@
 
 from __future__ import annotations
 
-from itertools import product
 import unittest
+from itertools import product
 
 import torch
 from parameterized import parameterized
 
-from monai.data import MetaTensor, create_test_image_2d, Dataset, ThreadDataLoader, DataLoader
+from monai.data import DataLoader, Dataset, MetaTensor, ThreadDataLoader, create_test_image_2d
 from monai.engines.evaluator import SupervisedEvaluator
 from monai.transforms import Compose, EnsureChannelFirstd, Invertd, Spacingd
 from monai.transforms.utility.dictionary import Lambdad
 from monai.utils.enums import CommonKeys
-
 from tests.test_utils import TEST_DEVICES
 
 
@@ -48,12 +47,12 @@ class TestInvertDict(unittest.TestCase):
     @parameterized.expand(TEST_DEVICES)
     def test_simple_processing(self, device):
         """
-        Tests postprocessing operations perform correctly, in particular that `Invertd` does inversion correctly. 
-        
-        This will apply the preprocessing sequence which resizes the result, then the postprocess sequence which 
-        returns it to the original shape using Invertd. This tests that the shape of the output is the same as the 
-        original image. This will also test that Invertd doesn't get confused if transforms in the postprocessing 
-        sequence are tracing and so adding information to `applied_operations`, this is what `Lambdad` is doing in 
+        Tests postprocessing operations perform correctly, in particular that `Invertd` does inversion correctly.
+
+        This will apply the preprocessing sequence which resizes the result, then the postprocess sequence which
+        returns it to the original shape using Invertd. This tests that the shape of the output is the same as the
+        original image. This will also test that Invertd doesn't get confused if transforms in the postprocessing
+        sequence are tracing and so adding information to `applied_operations`, this is what `Lambdad` is doing in
         `self.postprocessing`.
         """
 
@@ -77,8 +76,8 @@ class TestInvertDict(unittest.TestCase):
     @parameterized.expand(product(sum(TEST_DEVICES, []), [True, False]))
     def test_workflow(self, device, use_threads):
         """
-        This tests the interaction between pre and postprocesing transform sequences being executed in parallel. 
-        
+        This tests the interaction between pre and postprocesing transform sequences being executed in parallel.
+
         When the `ThreadDataLoader` is used to load batches, this is done in parallel at times with the execution of
         the post-process transform sequence. Previously this encountered a race condition at times because the
         `TraceableTransform.tracing` variables of transforms was being toggled in different threads, so at times a
