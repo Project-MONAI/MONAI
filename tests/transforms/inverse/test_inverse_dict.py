@@ -20,7 +20,6 @@ from parameterized import parameterized
 from monai.data import DataLoader, Dataset, MetaTensor, ThreadDataLoader, create_test_image_2d
 from monai.engines.evaluator import SupervisedEvaluator
 from monai.transforms import Compose, EnsureChannelFirstd, Invertd, Spacingd
-from monai.transforms.utility.dictionary import Lambdad
 from monai.utils.enums import CommonKeys
 from tests.test_utils import TEST_DEVICES, SkipIfNoModule
 
