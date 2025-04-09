@@ -36,11 +36,7 @@ class TestInvertDict(unittest.TestCase):
 
         self.preprocessing = Compose([EnsureChannelFirstd(self.key), Spacingd(self.key, pixdim=[self.new_pixdim] * 2)])
 
-        self.postprocessing = Compose(
-            [
-                Invertd(self.pred, transform=self.preprocessing, orig_keys=self.key),
-            ]
-        )
+        self.postprocessing = Compose([Invertd(self.pred, transform=self.preprocessing, orig_keys=self.key)])
 
     @parameterized.expand(TEST_DEVICES)
     def test_simple_processing(self, device):
