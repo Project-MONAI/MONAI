@@ -72,8 +72,8 @@ class TestInvertDict(unittest.TestCase):
             post[self.pred].shape, (1, *self.orig_size), "Result does not have same shape as original input"
         )
 
-    @SkipIfNoModule("ignite")
     @parameterized.expand(product(sum(TEST_DEVICES, []), [True, False]))
+    @SkipIfNoModule("ignite")
     def test_workflow(self, device, use_threads):
         """
         This tests the interaction between pre and postprocesing transform sequences being executed in parallel.
