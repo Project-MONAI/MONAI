@@ -22,7 +22,7 @@ from monai.engines.evaluator import SupervisedEvaluator
 from monai.transforms import Compose, EnsureChannelFirstd, Invertd, Spacingd
 from monai.transforms.utility.dictionary import Lambdad
 from monai.utils.enums import CommonKeys
-from tests.test_utils import TEST_DEVICES
+from tests.test_utils import TEST_DEVICES, SkipIfNoModule
 
 
 class TestInvertDict(unittest.TestCase):
@@ -73,6 +73,7 @@ class TestInvertDict(unittest.TestCase):
             post[self.pred].shape, (1, *self.orig_size), "Result does not have same shape as original input"
         )
 
+    @SkipIfNoModule("ignite")
     @parameterized.expand(product(sum(TEST_DEVICES, []), [True, False]))
     def test_workflow(self, device, use_threads):
         """
