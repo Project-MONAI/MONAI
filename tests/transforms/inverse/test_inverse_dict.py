@@ -39,7 +39,6 @@ class TestInvertDict(unittest.TestCase):
 
         self.postprocessing = Compose(
             [
-                Lambdad(self.pred, func=lambda x: x),  # tests that added postprocess transforms don't confuse Invertd
                 Invertd(self.pred, transform=self.preprocessing, orig_keys=self.key),
             ]
         )

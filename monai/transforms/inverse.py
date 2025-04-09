@@ -336,25 +336,13 @@ class TraceableTransform(Transform):
         else:
             raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
 
-        # Find the last transform whose name matches that of this class, this allows Invertd to ignore applied
-        # operations added by transforms it is not trying to invert, ie. those added in postprocessing.
-        idx = -1
-        for i in reversed(range(len(all_transforms))):
-            xform_name = all_transforms[i].get(TraceKeys.CLASS_NAME, "")
-            if xform_name == self.__class__.__name__:
-                idx = i  # if nothing found, idx remains -1 so replicating previous behaviour
-                break
-
         if not all_transforms:
             raise ValueError(f"Item of type {type(data)} (key: {key}, pop: {pop}) has empty 'applied_operations'")
 
         if check:
-            if not (-len(all_transforms) <= idx < len(all_transforms)):
-                raise IndexError(f"Index '{idx}' not valid for list of applied operations '{all_transforms}'")
+            self.check_transforms_match(all_transforms[-1])
 
-            self.check_transforms_match(all_transforms[idx])
-
-        return all_transforms.pop(idx) if pop else all_transforms[idx]
+        return all_transforms.pop(-1) if pop else all_transforms[-1]
 
     def pop_transform(self, data, key: Hashable = None, check: bool = True):
         """
