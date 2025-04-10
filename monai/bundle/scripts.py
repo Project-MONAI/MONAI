@@ -312,10 +312,6 @@ def _get_ngc_token(api_key, retry=0):
         return token
 
 
-def _get_latest_bundle_version_monaihosting(name):
-    return get_bundle_versions(name, repo="Project-MONAI/model-zoo", tag="dev")["latest_version"]
-
-
 def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
     """Examine if the package version is compatible with the MONAI version in the metadata."""
     version_dict = get_versions()
@@ -419,7 +415,7 @@ def _get_latest_bundle_version(
         name = _add_ngc_prefix(name)
         return _get_latest_bundle_version_ngc(name)
     elif source == "monaihosting":
-        return _get_latest_bundle_version_monaihosting(name)
+        return get_bundle_versions(name, repo="Project-MONAI/model-zoo", tag="dev")["latest_version"]
     elif source == "ngc_private":
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
