@@ -313,7 +313,7 @@ def _get_ngc_token(api_key, retry=0):
 
 
 def _get_latest_bundle_version_monaihosting(name):
-    return get_bundle_versions(name, repo="MONAI/model-zoo", tag="dev")["latest_version"]
+    return get_bundle_versions(name, repo="Project-MONAI/model-zoo", tag="dev")["latest_version"]
 
 
 def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
