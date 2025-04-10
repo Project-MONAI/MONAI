@@ -313,18 +313,7 @@ def _get_ngc_token(api_key, retry=0):
 
 
 def _get_latest_bundle_version_monaihosting(name):
-    full_url = f"{MONAI_HOSTING_BASE_URL}/{name.lower()}"
-    if has_requests:
-        resp = requests.get(full_url)
-        try:
-            resp.raise_for_status()
-            model_info = json.loads(resp.text)
-            return model_info["model"]["latestVersionIdStr"]
-        except requests.exceptions.HTTPError:
-            # for monaihosting bundles, if cannot find the version, get from model zoo model_info.json
-            return get_bundle_versions(name)["latest_version"]
-
-    raise ValueError("NGC API requires requests package. Please install it.")
+    return get_bundle_versions(name, repo="MONAI/model-zoo", tag="dev")["latest_version"]
 
 
 def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
