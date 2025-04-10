@@ -83,10 +83,11 @@ class TraceableTransform(Transform):
             self._tracing.value = MONAIEnvVars.trace_transform() != "0"
 
     def __getstate__(self):
-        """When pickling, delete the `_tracing` member first, if present, since it's not picklable."""
-        if hasattr(self, "_tracing"):
-            del self._tracing  # this can always be re-created with the default value
-        return super().__getstate__()
+        """When pickling, remove the `_tracing` member from the output, if present, since it's not picklable."""
+        _dict = dict(getattr(self, "__dict__", {}))  # this makes __dict__ always present in the unpickled object
+        _slots = getattr(self, "__slots__", None)
+        _dict.pop("_tracing", None)  # remove tracing
+        return _dict if _slots is None else (_dict, _slots)
 
     @property
     def tracing(self) -> bool:
