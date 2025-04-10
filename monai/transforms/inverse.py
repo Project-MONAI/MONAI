@@ -72,6 +72,7 @@ class TraceableTransform(Transform):
     """
 
     def _init_trace_threadlocal(self):
+        """Create a `_tracing` instance member to store the thread-local tracing state value."""
         # needed since this class is meant to be a trait with no constructor
         if not hasattr(self, "_tracing"):
             self._tracing = threading.local()
@@ -80,6 +81,12 @@ class TraceableTransform(Transform):
         # called from a different thread than the one initialising _tracing.
         if not hasattr(self._tracing, "value"):
             self._tracing.value = MONAIEnvVars.trace_transform() != "0"
+
+    def __getstate__(self):
+        """When pickling, delete the `_tracing` member first, if present, since it's not picklable."""
+        if hasattr(self, "_tracing"):
+            del self._tracing  # this can always be re-created with the default value
+        return super().__getstate__()
 
     @property
     def tracing(self) -> bool:
