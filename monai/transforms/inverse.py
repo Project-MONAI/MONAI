@@ -85,9 +85,9 @@ class TraceableTransform(Transform):
     def __getstate__(self):
         """When pickling, remove the `_tracing` member from the output, if present, since it's not picklable."""
         _dict = dict(getattr(self, "__dict__", {}))  # this makes __dict__ always present in the unpickled object
-        _slots = getattr(self, "__slots__", None)
+        _slots = {k: getattr(self, k) for k in getattr(self, "__slots__", [])}
         _dict.pop("_tracing", None)  # remove tracing
-        return _dict if _slots is None else (_dict, _slots)
+        return _dict if len(_slots) == 0 else (_dict, _slots)
 
     @property
     def tracing(self) -> bool:
