@@ -36,23 +36,20 @@ from monai.apps.detection.transforms.dictionary import (
 )
 from monai.data.meta_tensor import MetaTensor
 from monai.transforms import CastToTyped, Invertd
-from tests.test_utils import TEST_NDARRAYS, assert_allclose, dict_product
+from tests.test_utils import TEST_NDARRAYS, assert_allclose
 
-# Define common test data
-boxes_3d = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]
-labels_3d = [1, 1, 0]
-scores_3d = [[0.2, 0.8], [0.3, 0.7], [0.6, 0.4]]
-image_size_3d = [1, 4, 6, 4]
-image_3d = np.zeros(image_size_3d)
-
-# Use dict_product for TESTS_3D
 TESTS_3D = []
-for params in dict_product(ndarray_type=TEST_NDARRAYS):
-    p = params["ndarray_type"]
+boxes = [[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 3, 3], [0, 1, 1, 2, 3, 4]]
+labels = [1, 1, 0]
+scores = [[0.2, 0.8], [0.3, 0.7], [0.6, 0.4]]
+image_size = [1, 4, 6, 4]
+image = np.zeros(image_size)
+
+for p in TEST_NDARRAYS:
     TESTS_3D.append(
         [
             {"box_keys": "boxes", "dst_mode": "xyzwhd"},
-            {"boxes": p(boxes_3d), "image": p(image_3d), "labels": p(labels_3d), "scores": p(scores_3d)},
+            {"boxes": p(boxes), "image": p(image), "labels": p(labels), "scores": p(scores)},
             p([[0, 0, 0, 0, 0, 0], [0, 1, 0, 2, 2, 3], [0, 1, 1, 2, 2, 3]]),
             p([[0, 0, 0, 0, 0, 0], [0, 3, 0, 1, 9, 4.5], [0, 3, 1.5, 1, 9, 6]]),
             p([[1, -6, -1, 1, -6, -1], [1, -3, -1, 2, 3, 3.5], [1, -3, 0.5, 2, 3, 5]]),
@@ -62,31 +59,23 @@ for params in dict_product(ndarray_type=TEST_NDARRAYS):
         ]
     )
 
-# 2D test data
-boxes_2d = [[0, 1, 2, 2], [0, 0, 1, 1]]
-labels_2d = [1, 0]
-image_size_2d = [1, 2, 2]
-image_2d = np.zeros(image_size_2d)
-
-# Use dict_product for TESTS_2D
 TESTS_2D = []
-for params in dict_product(ndarray_type=TEST_NDARRAYS):
-    p = params["ndarray_type"]
+boxes = [[0, 1, 2, 2], [0, 0, 1, 1]]
+labels = [1, 0]
+image_size = [1, 2, 2]
+image = np.zeros(image_size)
+for p in TEST_NDARRAYS:
     TESTS_2D.append(
-        [{"boxes": p(boxes_2d), "image": p(image_2d), "labels": p(labels_2d)}, p([[[0, 2], [0, 2]], [[1, 0], [0, 0]]])]
+        [{"boxes": p(boxes), "image": p(image), "labels": p(labels)}, p([[[0, 2], [0, 2]], [[1, 0], [0, 0]]])]
     )
 
-# Use dict_product for TESTS_2D_mask
 TESTS_2D_mask = []
-boxes_mask_1 = [[[-1, 0], [0, -1]]]
-for params in dict_product(ndarray_type=TEST_NDARRAYS):
-    p = params["ndarray_type"]
-    TESTS_2D_mask.append([p(boxes_mask_1), (p([[0.0, 0.0, 2.0, 2.0]]), p([0]))])
-
-boxes_mask_2 = [[[-1, 0], [0, -1]], [[-1, 1], [1, -1]]]
-for params in dict_product(ndarray_type=TEST_NDARRAYS):
-    p = params["ndarray_type"]
-    TESTS_2D_mask.append([p(boxes_mask_2), (p([[0.0, 0.0, 2.0, 2.0], [0.0, 0.0, 2.0, 2.0]]), p([0, 1]))])
+boxes_mask = [[[-1, 0], [0, -1]]]
+for p in TEST_NDARRAYS:
+    TESTS_2D_mask.append([p(boxes_mask), (p([[0.0, 0.0, 2.0, 2.0]]), p([0]))])
+boxes_mask = [[[-1, 0], [0, -1]], [[-1, 1], [1, -1]]]
+for p in TEST_NDARRAYS:
+    TESTS_2D_mask.append([p(boxes_mask), (p([[0.0, 0.0, 2.0, 2.0], [0.0, 0.0, 2.0, 2.0]]), p([0, 1]))])
 
 
 class TestBoxTransform(unittest.TestCase):
