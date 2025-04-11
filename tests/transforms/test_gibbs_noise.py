@@ -26,9 +26,8 @@ from tests.test_utils import TEST_NDARRAYS, assert_allclose, dict_product
 _, has_torch_fft = optional_import("torch.fft", name="fftshift")
 
 TEST_CASES = dict_product(shape=((128, 64), (64, 48, 80)), input_type=TEST_NDARRAYS if has_torch_fft else [np.array])
-TEST_CASES = [
-    [p_dict["shape"], p_dict["input_type"]] for p_dict in TEST_CASES
-]
+TEST_CASES = [[p_dict["shape"], p_dict["input_type"]] for p_dict in TEST_CASES]
+
 
 class TestGibbsNoise(unittest.TestCase):
     def setUp(self):

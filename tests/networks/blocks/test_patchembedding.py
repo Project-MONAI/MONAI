@@ -53,11 +53,7 @@ TEST_CASE_PATCHEMBED = [
         (2, params["embed_dim"], *([img_size // params["patch_size"]]) * params["spatial_dims"]),
     ]
     for params in dict_product(
-        patch_size=[2],
-        in_chans=[1, 4],
-        embed_dim=[6, 12],
-        norm_layer=[nn.LayerNorm],
-        spatial_dims=[2, 3],
+        patch_size=[2], in_chans=[1, 4], embed_dim=[6, 12], norm_layer=[nn.LayerNorm], spatial_dims=[2, 3]
     )
 ]
 
