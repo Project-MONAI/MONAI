@@ -1,3 +1,14 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import annotations
 
 import unittest
@@ -28,7 +39,7 @@ class TestTestUtils(unittest.TestCase):
                                                     "proj_type": proj_type,
                                                     "pos_embed_type": pos_embed_type,
                                                     "dropout_rate": dropout_rate,
-                                                    "spatial_dims": nd
+                                                    "spatial_dims": nd,
                                                 },
                                                 (2, in_channels, *([img_size] * nd)),
                                                 (2, (img_size // patch_size) ** nd, hidden_size),
@@ -50,40 +61,25 @@ class TestTestUtils(unittest.TestCase):
             nd=[2, 3],
         )
         test_case_patchembeddingblock = [
-                [
-                    params,
-                    (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
-                    (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"]),
-                ]
-                for params in test_case_patchembeddingblock
+            [
+                params,
+                (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+                (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"]),
+            ]
+            for params in test_case_patchembeddingblock
         ]
 
         self.assertIsInstance(test_case_patchembeddingblock, list)
         self.assertGreater(len(test_case_patchembeddingblock), 0)
+        self.assertEqual(len(test_case_patchembeddingblock), len(self.test_case_patchembeddingblock))
+        self.assertEqual(len(test_case_patchembeddingblock[0]), len(self.test_case_patchembeddingblock[0]))
+        self.assertEqual(len(test_case_patchembeddingblock[0][0]), len(self.test_case_patchembeddingblock[0][0]))
         self.assertEqual(
-            len(test_case_patchembeddingblock),
-            len(self.test_case_patchembeddingblock),
+            test_case_patchembeddingblock[0][0]["in_channels"], self.test_case_patchembeddingblock[0][0]["in_channels"]
         )
-        self.assertEqual(
-            len(test_case_patchembeddingblock[0]),
-            len(self.test_case_patchembeddingblock[0]),
-        )
-        self.assertEqual(
-            len(test_case_patchembeddingblock[0][0]),
-            len(self.test_case_patchembeddingblock[0][0]),
-        )
-        self.assertEqual(
-            test_case_patchembeddingblock[0][0]["in_channels"],
-            self.test_case_patchembeddingblock[0][0]["in_channels"],
-        )
-        self.assertEqual(
-            test_case_patchembeddingblock[0][1],
-            self.test_case_patchembeddingblock[0][1],
-        )
-        self.assertEqual(
-            test_case_patchembeddingblock[0][2],
-            self.test_case_patchembeddingblock[0][2],
-        )
+        self.assertEqual(test_case_patchembeddingblock[0][1], self.test_case_patchembeddingblock[0][1])
+        self.assertEqual(test_case_patchembeddingblock[0][2], self.test_case_patchembeddingblock[0][2])
+
 
 if __name__ == "__main__":
     unittest.main()
