@@ -864,18 +864,24 @@ if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
 
-def dict_product(trailing=False, format: Literal["list", "dict"] = "dict", **items):
+def dict_product(**items: dict[str, list]) -> list[dict]:
+    """Create cartesian product, equivalent to a nested for-loop, combinations of the items dict.
+
+    Args:
+        items: dict of items to be combined.
+
+    Returns:
+        list: list of dictionaries with the combinations of the input items.
+
+    Example:
+        >>> dict_product(x=[1, 2], y=[3, 4])
+        [{'x': 1, 'y': 3}, {'x': 1, 'y': 4}, {'x': 2, 'y': 3}, {'x': 2, 'y': 4}]
+    """
     keys = items.keys()
     values = items.values()
-    for pvalues in product(*values):
-        dict_comb = dict(zip(keys, pvalues))
-        if format == "dict":
-            if trailing:
-                yield [dict_comb] + list(pvalues)
-            else:
-                yield dict_comb
-        else:
-            yield pvalues
+    prod_values = product(*values)
+    prod_dict = [dict(zip(keys, v)) for v in prod_values]
+    return prod_dict
 
 
 if __name__ == "__main__":

@@ -25,8 +25,8 @@ from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_PATCHEMBEDDINGBLOCK = []
-for params in dict_product(
+
+TEST_CASE_PATCHEMBEDDINGBLOCK = dict_product(
     dropout_rate=[0.5],
     in_channels=[1, 4],
     hidden_size=[96, 288],
@@ -36,41 +36,27 @@ for params in dict_product(
     proj_type=["conv", "perceptron"],
     pos_embed_type=["none", "learnable", "sincos"],
     nd=[2, 3],
-):
-    test_case = [
-        {
-            "in_channels": params["in_channels"],
-            "img_size": (params["img_size"],) * params["nd"],
-            "patch_size": (params["patch_size"],) * params["nd"],
-            "hidden_size": params["hidden_size"],
-            "num_heads": params["num_heads"],
-            "proj_type": params["proj_type"],
-            "pos_embed_type": params["pos_embed_type"],
-            "dropout_rate": params["dropout_rate"],
-            "spatial_dims": params["nd"],
-        },
-        (2, params["in_channels"], *[params["img_size"]] * params["nd"]),
-        (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"]),
-    ]
-    TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
+)
+TEST_CASE_PATCHEMBEDDINGBLOCK = [
+                [
+                    params,
+                    (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+                    (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"]),
+                ]
+                for params in TEST_CASE_PATCHEMBEDDINGBLOCK
+        ]
 
-TEST_CASE_PATCHEMBED = []
-for params in dict_product(
+TEST_CASE_PATCHEMBED = dict_product(
     patch_size=[2], in_chans=[1, 4], img_size=[96], embed_dim=[6, 12], norm_layer=[nn.LayerNorm], nd=[2, 3]
-):
-    test_case = [
-        {
-            "patch_size": (params["patch_size"],) * params["nd"],
-            "in_chans": params["in_chans"],
-            "embed_dim": params["embed_dim"],
-            "norm_layer": params["norm_layer"],
-            "spatial_dims": params["nd"],
-        },
-        (2, params["in_chans"], *[params["img_size"]] * params["nd"]),
-        (2, params["embed_dim"], *[params["img_size"] // params["patch_size"]] * params["nd"]),
-    ]
-    TEST_CASE_PATCHEMBED.append(test_case)
-
+)
+TEST_CASE_PATCHEMBED = [
+                [
+                    params,
+                    (2, params["in_chans"], *([params["img_size"]] * params["nd"])),
+                    (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["embed_dim"]),
+                ]
+                for params in TEST_CASE_PATCHEMBED
+        ]
 
 @SkipIfBeforePyTorchVersion((1, 11, 1))
 class TestPatchEmbeddingBlock(unittest.TestCase):
