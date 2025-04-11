@@ -33,7 +33,7 @@ from functools import partial, reduce
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Callable
+from typing import Any, Callable, Iterable
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
@@ -864,7 +864,7 @@ if torch.cuda.is_available():
     TEST_DEVICES.append([torch.device("cuda")])
 
 
-def dict_product(**items: dict[str, list]) -> list[dict]:
+def dict_product(**items: Iterable[Any]) -> list[dict]:
     """Create cartesian product, equivalent to a nested for-loop, combinations of the items dict.
 
     Args:
