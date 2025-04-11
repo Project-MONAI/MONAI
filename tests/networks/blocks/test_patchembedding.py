@@ -45,16 +45,16 @@ TEST_CASE_PATCHEMBEDDINGBLOCK = [
     )
 ]
 
+img_size = 96
 TEST_CASE_PATCHEMBED = [
     [
         params,
-        (2, params["in_chans"], *([params["img_size"]] * params["spatial_dims"])),
-        (2, (params["img_size"] // params["patch_size"]) ** params["spatial_dims"], params["embed_dim"]),
+        (2, params["in_chans"], *([img_size] * params["spatial_dims"])),
+        (2, params["embed_dim"], *([img_size // params["patch_size"]]) * params["spatial_dims"]),
     ]
     for params in dict_product(
         patch_size=[2],
         in_chans=[1, 4],
-        img_size=[96],
         embed_dim=[6, 12],
         norm_layer=[nn.LayerNorm],
         spatial_dims=[2, 3],
