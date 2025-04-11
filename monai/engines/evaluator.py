@@ -28,7 +28,7 @@ from monai.transforms import Transform
 from monai.utils import ForwardMode, IgniteInfo, ensure_tuple, min_version, optional_import
 from monai.utils.enums import CommonKeys as Keys
 from monai.utils.enums import EngineStatsKeys as ESKeys
-from monai.utils.module import look_up_option, pytorch_after
+from monai.utils.module import look_up_option
 
 if TYPE_CHECKING:
     from ignite.engine import Engine, EventEnum
@@ -269,13 +269,8 @@ class SupervisedEvaluator(Evaluator):
             amp_kwargs=amp_kwargs,
         )
         if compile:
-            if pytorch_after(2, 1):
-                compile_kwargs = {} if compile_kwargs is None else compile_kwargs
-                network = torch.compile(network, **compile_kwargs)  # type: ignore[assignment]
-            else:
-                warnings.warn(
-                    "Network compilation (compile=True) not supported for Pytorch versions before 2.1, no compilation done"
-                )
+            compile_kwargs = {} if compile_kwargs is None else compile_kwargs
+            network = torch.compile(network, **compile_kwargs)  # type: ignore[assignment]
         self.network = network
         self.compile = compile
         self.inferer = SimpleInferer() if inferer is None else inferer
