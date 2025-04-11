@@ -37,9 +37,8 @@ from tests.test_utils import TEST_DEVICES, SkipIfBeforePyTorchVersion, assert_al
 DTYPES = [[torch.float32], [torch.float64], [torch.float16], [torch.int64], [torch.int32], [None]]
 
 # Replace nested loops with dict_product
-TESTS = []
-for params in dict_product(device=TEST_DEVICES, dtype=DTYPES):
-    TESTS.append((*params["device"], *params["dtype"]))  # type: ignore
+
+TESTS = [(*params["device"], *params["dtype"]) for params in dict_product(device=TEST_DEVICES, dtype=DTYPES)]
 
 
 def rand_string(min_len=5, max_len=10):

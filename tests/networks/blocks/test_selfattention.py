@@ -26,31 +26,22 @@ from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, dict_p
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_SABLOCK = []
-for params in dict_product(
-    dropout_rate=np.linspace(0, 1, 4),
-    hidden_size=[360, 480, 600, 768],
-    num_heads=[4, 6, 8, 12],
-    rel_pos_embedding=[None, RelPosEmbedding.DECOMPOSED],
-    input_size=[(16, 32), (8, 8, 8)],
-    include_fc=[True, False],
-    use_combined_linear=[True, False],
-):
-    test_case = [
-        {
-            "hidden_size": params["hidden_size"],
-            "num_heads": params["num_heads"],
-            "dropout_rate": params["dropout_rate"],
-            "rel_pos_embedding": params["rel_pos_embedding"],
-            "input_size": params["input_size"],
-            "include_fc": params["include_fc"],
-            "use_combined_linear": params["use_combined_linear"],
-            "use_flash_attention": True if params["rel_pos_embedding"] is None else False,
-        },
+TEST_CASE_SABLOCK = [
+    [
+        params,
         (2, 512, params["hidden_size"]),
         (2, 512, params["hidden_size"]),
     ]
-    TEST_CASE_SABLOCK.append(test_case)
+    for params in dict_product(
+        dropout_rate=np.linspace(0, 1, 4),
+        hidden_size=[360, 480, 600, 768],
+        num_heads=[4, 6, 8, 12],
+        rel_pos_embedding=[None, RelPosEmbedding.DECOMPOSED],
+        input_size=[(16, 32), (8, 8, 8)],
+        include_fc=[True, False],
+        use_combined_linear=[True, False],
+    )
+]
 
 
 class TestResBlock(unittest.TestCase):

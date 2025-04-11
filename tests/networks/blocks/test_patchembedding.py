@@ -26,36 +26,39 @@ from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product
 einops, has_einops = optional_import("einops")
 
 
-TEST_CASE_PATCHEMBEDDINGBLOCK = dict_product(
-    dropout_rate=[0.5],
-    in_channels=[1, 4],
-    hidden_size=[96, 288],
-    img_size=[32, 64],
-    patch_size=[8, 16],
-    num_heads=[8, 12],
-    proj_type=["conv", "perceptron"],
-    pos_embed_type=["none", "learnable", "sincos"],
-    spatial_dims=[2, 3],
-)
 TEST_CASE_PATCHEMBEDDINGBLOCK = [
     [
         params,
         (2, params["in_channels"], *([params["img_size"]] * params["spatial_dims"])),
         (2, (params["img_size"] // params["patch_size"]) ** params["spatial_dims"], params["hidden_size"]),
     ]
-    for params in TEST_CASE_PATCHEMBEDDINGBLOCK
+    for params in dict_product(
+        dropout_rate=[0.5],
+        in_channels=[1, 4],
+        hidden_size=[96, 288],
+        img_size=[32, 64],
+        patch_size=[8, 16],
+        num_heads=[8, 12],
+        proj_type=["conv", "perceptron"],
+        pos_embed_type=["none", "learnable", "sincos"],
+        spatial_dims=[2, 3],
+    )
 ]
 
-TEST_CASE_PATCHEMBED = dict_product(
-    patch_size=[2], in_chans=[1, 4], img_size=[96], embed_dim=[6, 12], norm_layer=[nn.LayerNorm], spatial_dims=[2, 3]
-)
 TEST_CASE_PATCHEMBED = [
     [
         params,
         (2, params["in_chans"], *([params["img_size"]] * params["spatial_dims"])),
         (2, (params["img_size"] // params["patch_size"]) ** params["spatial_dims"], params["embed_dim"]),
     ]
-    for params in TEST_CASE_PATCHEMBED
+    for params in dict_product(
+        patch_size=[2],
+        in_chans=[1, 4],
+        img_size=[96],
+        embed_dim=[6, 12],
+        norm_layer=[nn.LayerNorm],
+        spatial_dims=[2, 3],
+    )
 ]
 
 
