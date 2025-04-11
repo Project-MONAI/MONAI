@@ -67,7 +67,7 @@ class Interaction:
             engine.network.eval()
             with torch.no_grad():
                 if engine.amp:
-                    with torch.cuda.amp.autocast():
+                    with torch.autocast("cuda"):
                         predictions = engine.inferer(inputs, engine.network)
                 else:
                     predictions = engine.inferer(inputs, engine.network)

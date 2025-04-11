@@ -16,7 +16,6 @@ import unittest
 import numpy as np
 import torch
 import torch.distributed as dist
-from torch.cuda.amp import autocast
 
 # FIXME: test for the workaround of https://github.com/Project-MONAI/MONAI/issues/5291
 from monai.config.deviceconfig import print_config
@@ -33,7 +32,7 @@ def main_worker(rank, ngpus_per_node, port):
         model, device_ids=[rank], output_device=rank, find_unused_parameters=False
     )
     x = torch.ones(1, 1, 12, 12, 12).to(rank)
-    with autocast(enabled=True):
+    with torch.autocast("cuda"):
         model(x)
 
     if dist.is_initialized():

@@ -109,6 +109,16 @@ Blocks
 .. autoclass:: SABlock
     :members:
 
+`CABlock Block`
+~~~~~~~~~~~~~~~
+.. autoclass:: CABlock
+    :members:
+
+`FeedForward Block`
+~~~~~~~~~~~~~~~~~~~
+.. autoclass:: FeedForward
+    :members:
+
 `Squeeze-and-Excitation`
 ~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: ChannelSELayer
@@ -172,6 +182,16 @@ Blocks
     :members:
 .. autoclass:: Subpixelupsample
 .. autoclass:: SubpixelUpSample
+
+`Downsampling`
+~~~~~~~~~~~~~~
+.. autoclass:: DownSample
+    :members:
+.. autoclass:: Downsample
+.. autoclass:: SubpixelDownsample
+    :members:
+.. autoclass:: Subpixeldownsample
+.. autoclass:: SubpixelDownSample
 
 `Registration Residual Conv Block`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -625,6 +645,11 @@ Nets
 .. autoclass:: ViT
   :members:
 
+`Restormer`
+~~~~~~~~~~~
+.. autoclass:: restormer
+  :members:
+
 `ViTAutoEnc`
 ~~~~~~~~~~~~
 .. autoclass:: ViTAutoEnc
@@ -749,4 +774,39 @@ Utilities
   :members:
 
 .. automodule:: monai.apps.reconstruction.networks.nets.utils
+  :members:
+
+Noise Schedulers
+----------------
+.. automodule:: monai.networks.schedulers
+.. currentmodule:: monai.networks.schedulers
+
+`Scheduler`
+~~~~~~~~~~~
+.. autoclass:: Scheduler
+  :members:
+
+`NoiseSchedules`
+~~~~~~~~~~~~~~~~
+.. autoclass:: NoiseSchedules
+  :members:
+
+`DDPMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDPMScheduler
+  :members:
+
+`DDIMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: DDIMScheduler
+  :members:
+
+`PNDMScheduler`
+~~~~~~~~~~~~~~~
+.. autoclass:: PNDMScheduler
+  :members:
+
+`RFlowScheduler`
+~~~~~~~~~~~~~~~~
+.. autoclass:: RFlowScheduler
   :members:
