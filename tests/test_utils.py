@@ -33,7 +33,7 @@ from functools import partial, reduce
 from itertools import product
 from pathlib import Path
 from subprocess import PIPE, Popen
-from typing import Callable, Literal
+from typing import Callable
 from urllib.error import ContentTooShortError, HTTPError
 
 import numpy as np
