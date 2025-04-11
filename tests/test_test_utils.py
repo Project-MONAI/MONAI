@@ -18,7 +18,7 @@ from tests.test_utils import dict_product
 
 class TestTestUtils(unittest.TestCase):
     def setUp(self):
-        TEST_CASE_PATCHEMBEDDINGBLOCK = []
+        test_case_patchembeddingblock = []
         for dropout_rate in (0.5,):
             for in_channels in [1, 4]:
                 for hidden_size in [96, 288]:
@@ -44,9 +44,9 @@ class TestTestUtils(unittest.TestCase):
                                                 (2, in_channels, *([img_size] * nd)),
                                                 (2, (img_size // patch_size) ** nd, hidden_size),
                                             ]
-                                            TEST_CASE_PATCHEMBEDDINGBLOCK.append(test_case)
+                                            test_case_patchembeddingblock.append(test_case)
 
-        self.test_case_patchembeddingblock = TEST_CASE_PATCHEMBEDDINGBLOCK
+        self.test_case_patchembeddingblock = test_case_patchembeddingblock
 
     def test_case_patchembeddingblock(self):
         test_case_patchembeddingblock = dict_product(
