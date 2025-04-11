@@ -27,11 +27,7 @@ from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, dict_p
 einops, has_einops = optional_import("einops")
 
 TEST_CASE_SABLOCK = [
-    [
-        params,
-        (2, 512, params["hidden_size"]),
-        (2, 512, params["hidden_size"]),
-    ]
+    [params, (2, 512, params["hidden_size"]), (2, 512, params["hidden_size"])]
     for params in dict_product(
         dropout_rate=np.linspace(0, 1, 4),
         hidden_size=[360, 480, 600, 768],
