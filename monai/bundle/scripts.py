@@ -312,21 +312,6 @@ def _get_ngc_token(api_key, retry=0):
         return token
 
 
-def _get_latest_bundle_version_monaihosting(name):
-    full_url = f"{MONAI_HOSTING_BASE_URL}/{name.lower()}"
-    if has_requests:
-        resp = requests.get(full_url)
-        try:
-            resp.raise_for_status()
-            model_info = json.loads(resp.text)
-            return model_info["model"]["latestVersionIdStr"]
-        except requests.exceptions.HTTPError:
-            # for monaihosting bundles, if cannot find the version, get from model zoo model_info.json
-            return get_bundle_versions(name)["latest_version"]
-
-    raise ValueError("NGC API requires requests package. Please install it.")
-
-
 def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
     """Examine if the package version is compatible with the MONAI version in the metadata."""
     version_dict = get_versions()
@@ -430,7 +415,7 @@ def _get_latest_bundle_version(
         name = _add_ngc_prefix(name)
         return _get_latest_bundle_version_ngc(name)
     elif source == "monaihosting":
-        return _get_latest_bundle_version_monaihosting(name)
+        return get_bundle_versions(name, repo="Project-MONAI/model-zoo", tag="dev")["latest_version"]
     elif source == "ngc_private":
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
@@ -528,7 +513,9 @@ def download(
             If source is "ngc_private", you need specify the NGC_API_KEY in the environment variable.
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
-            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
+            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name". Please note that
+            bundles for "monaihosting" source are also hosted on Hugging Face Hub, but the "repo_id" is always in the form
+            of "MONAI/bundle_name", therefore, this argument is not required for "monaihosting" source.
             If `source` is "ngc_private", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
             or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
@@ -600,11 +587,15 @@ def download(
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_ver, progress=progress_)
         elif source_ == "monaihosting":
             try:
+                extract_path = os.path.join(bundle_dir_, name_)
+                huggingface_hub.snapshot_download(repo_id=f"MONAI/{name_}", revision=version_, local_dir=extract_path)
+            except (huggingface_hub.errors.RevisionNotFoundError, huggingface_hub.errors.RepositoryNotFoundError):
+                # if bundle or version not found from huggingface, download from ngc monaihosting
                 _download_from_monaihosting(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )
             except urllib.error.HTTPError:
-                # for monaihosting bundles, if cannot download from default host, download according to bundle_info
+                # if also cannot download from ngc monaihosting, download according to bundle_info
                 _download_from_bundle_info(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )
