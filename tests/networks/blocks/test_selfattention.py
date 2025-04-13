@@ -227,6 +227,27 @@ class TestResBlock(unittest.TestCase):
         out_2 = block_wo_flash_attention(test_data)
         assert_allclose(out_1, out_2, atol=1e-4)
 
+    @parameterized.expand([[True], [False]])
+    def test_no_extra_weights_if_no_fc(self, include_fc):
+        input_param = {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "dropout_rate": 0.0,
+            "rel_pos_embedding": None,
+            "input_size": (16, 32),
+            "include_fc": include_fc,
+            "use_combined_linear": use_combined_linear,
+        }
+        net = SABlock(**input_param)
+        if not include_fc:
+            self.assertNotIn("out_proj.weight", net.state_dict())
+            self.assertNotIn("out_proj.bias", net.state_dict())
+            self.assertIsInstance(net.out_proj, torch.nn.Identity)
+        else:
+            self.assertIn("out_proj.weight", net.state_dict())
+            self.assertIn("out_proj.bias", net.state_dict())
+            self.assertIsInstance(net.out_proj, torch.nn.Linear)
+
 
 if __name__ == "__main__":
     unittest.main()
