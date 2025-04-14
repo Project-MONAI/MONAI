@@ -18,7 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from monai.networks.layers.utils import get_rel_pos_embedding_layer
-from monai.utils import optional_import, pytorch_after
+from monai.utils import optional_import
 
 Rearrange, _ = optional_import("einops.layers.torch", name="Rearrange")
 
@@ -90,11 +90,6 @@ class SABlock(nn.Module):
         if causal and sequence_length is None:
             raise ValueError("sequence_length is necessary for causal attention.")
 
-        if use_flash_attention and not pytorch_after(minor=13, major=1, patch=0):
-            raise ValueError(
-                "use_flash_attention is only supported for PyTorch versions >= 2.0."
-                "Upgrade your PyTorch or set the flag to False."
-            )
         if use_flash_attention and save_attn:
             raise ValueError(
                 "save_attn has been set to True, but use_flash_attention is also set"
@@ -106,7 +101,11 @@ class SABlock(nn.Module):
 
         self.num_heads = num_heads
         self.hidden_input_size = hidden_input_size if hidden_input_size else hidden_size
-        self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        self.out_proj: Union[nn.Linear, nn.Identity]
+        if include_fc:
+            self.out_proj = nn.Linear(self.inner_dim, self.hidden_input_size)
+        else:
+            self.out_proj = nn.Identity()
 
         self.qkv: Union[nn.Linear, nn.Identity]
         self.to_q: Union[nn.Linear, nn.Identity]

@@ -120,7 +120,7 @@ function print_usage {
 
 # FIXME: https://github.com/Project-MONAI/MONAI/issues/4354
 protobuf_major_version=$("${PY_EXE}" -m pip list | grep '^protobuf ' | tr -s ' ' | cut -d' ' -f2 | cut -d'.' -f1)
-if [ "$protobuf_major_version" -ge "4" ]
+if [ ! -z "$protobuf_major_version" ] && [ "$protobuf_major_version" -ge "4" ]
 then
     export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 fi
@@ -728,7 +728,7 @@ if [ $doDistTests = true ]
 then
     echo "${separator}${blue}run distributed unit test cases${noColor}"
     torch_validate
-    for i in tests/test_*_dist.py
+    for i in  $(find ./tests/ -name "*_dist.py")
     do
         echo "$i"
         ${cmdPrefix}${cmd} "$i"
@@ -740,7 +740,7 @@ if [ $doNetTests = true ]
 then
     set +e  # disable exit on failure so that diagnostics can be given on failure
     echo "${separator}${blue}integration${noColor}"
-    for i in tests/*integration_*.py
+    for i in tests/integration/*.py
     do
         echo "$i"
         ${cmdPrefix}${cmd} "$i"

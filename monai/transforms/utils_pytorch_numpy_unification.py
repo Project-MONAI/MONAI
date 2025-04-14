@@ -18,7 +18,6 @@ import numpy as np
 import torch
 
 from monai.config.type_definitions import NdarrayOrTensor, NdarrayTensor
-from monai.utils.misc import is_module_ver_at_least
 from monai.utils.type_conversion import convert_data_type, convert_to_dst_type
 
 __all__ = [
@@ -215,10 +214,9 @@ def floor_divide(a: NdarrayOrTensor, b) -> NdarrayOrTensor:
         Element-wise floor division between two arrays/tensors.
     """
     if isinstance(a, torch.Tensor):
-        if is_module_ver_at_least(torch, (1, 8, 0)):
-            return torch.div(a, b, rounding_mode="floor")
         return torch.floor_divide(a, b)
-    return np.floor_divide(a, b)
+    else:
+        return np.floor_divide(a, b)
 
 
 def unravel_index(idx, shape) -> NdarrayOrTensor:

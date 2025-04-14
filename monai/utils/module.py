@@ -540,11 +540,11 @@ def version_leq(lhs: str, rhs: str) -> bool:
     """
 
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging.Version")
+    pkging, has_ver = optional_import("packaging.version")
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) <= pkging.version.Version(rhs))
-        except pkging.version.InvalidVersion:
+            return cast(bool, pkging.Version(lhs) <= pkging.Version(rhs))
+        except pkging.InvalidVersion:
             return True
 
     lhs_, rhs_ = parse_version_strs(lhs, rhs)
@@ -567,12 +567,12 @@ def version_geq(lhs: str, rhs: str) -> bool:
 
     """
     lhs, rhs = str(lhs), str(rhs)
-    pkging, has_ver = optional_import("packaging.Version")
+    pkging, has_ver = optional_import("packaging.version")
 
     if has_ver:
         try:
-            return cast(bool, pkging.version.Version(lhs) >= pkging.version.Version(rhs))
-        except pkging.version.InvalidVersion:
+            return cast(bool, pkging.Version(lhs) >= pkging.Version(rhs))
+        except pkging.InvalidVersion:
             return True
 
     lhs_, rhs_ = parse_version_strs(lhs, rhs)

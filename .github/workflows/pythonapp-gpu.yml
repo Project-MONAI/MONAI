@@ -22,29 +22,21 @@ jobs:
     strategy:
       matrix:
         environment:
-          - "PT19+CUDA114DOCKER"
-          - "PT110+CUDA111"
-          - "PT112+CUDA118DOCKER"
-          - "PT113+CUDA116"
-          - "PT210+CUDA121DOCKER"
+          - "PT230+CUDA124DOCKER"
+          - "PT240+CUDA125DOCKER"
+          - "PT250+CUDA126DOCKER"
         include:
           # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes
-          - environment: PT110+CUDA111
-            pytorch: "torch==1.10.2 torchvision==0.11.3 --extra-index-url https://download.pytorch.org/whl/cu111"
-            base: "nvcr.io/nvidia/cuda:11.1.1-devel-ubuntu18.04"
-          - environment: PT112+CUDA118DOCKER
-            # 22.09: 1.13.0a0+d0d6b1f
+          - environment: PT230+CUDA124DOCKER
+            # 24.04: 2.3.0a0+6ddf5cf85e
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
-            base: "nvcr.io/nvidia/pytorch:22.09-py3"
-          - environment: PT113+CUDA116
-            pytorch: "torch==1.13.1 torchvision==0.14.1"
-            base: "nvcr.io/nvidia/cuda:11.6.1-devel-ubuntu18.04"
-          - environment: PT210+CUDA121DOCKER
-            # 23.08: 2.1.0a0+29c30b1
+            base: "nvcr.io/nvidia/pytorch:24.04-py3"
+          - environment: PT240+CUDA125DOCKER
+            # 24.06: 2.4.0a0+f70bd71a48
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
-            base: "nvcr.io/nvidia/pytorch:23.08-py3"
-          - environment: PT210+CUDA121DOCKER
-            # 24.08: 2.3.0a0+40ec155e58.nv24.3
+            base: "nvcr.io/nvidia/pytorch:24.06-py3"
+          - environment: PT250+CUDA126DOCKER
+            # 24.08: 2.5.0a0+872d972e41
             pytorch: "-h"  # we explicitly set pytorch to -h to avoid pip install error
             base: "nvcr.io/nvidia/pytorch:24.08-py3"
     container:
@@ -59,8 +51,7 @@ jobs:
         apt-get update
         apt-get install -y wget
 
-        if [ ${{ matrix.environment }} = "PT110+CUDA111" ] || \
-          [ ${{ matrix.environment }} = "PT113+CUDA116" ]
+        if [ ${{ matrix.environment }} = "PT230+CUDA124" ]
         then
         PYVER=3.9 PYSFX=3 DISTUTILS=python3-distutils && \
         apt-get update && apt-get install -y --no-install-recommends \
@@ -94,9 +85,6 @@ jobs:
         python get-pip.py && \
         rm get-pip.py;
         fi
-    - if: matrix.environment == 'PT19+CUDA114DOCKER'
-      name: Optional Cupy dependency (cuda114)
-      run: echo "cupy-cuda114" >> requirements-dev.txt
     - name: Install dependencies
       if: github.event.pull_request.merged != true
       run: |
@@ -128,7 +116,7 @@ jobs:
         # build for the current self-hosted CI Tesla V100
         BUILD_MONAI=1 TORCH_CUDA_ARCH_LIST="7.0" ./runtests.sh --build --disttests
         ./runtests.sh --quick --unittests
-        if [ ${{ matrix.environment }} = "PT113+CUDA116" ]; then
+        if [ ${{ matrix.environment }} = "PT230+CUDA124" ]; then
           # test the clang-format tool downloading once
           coverage run -m tests.clang_format_utils
         fi
