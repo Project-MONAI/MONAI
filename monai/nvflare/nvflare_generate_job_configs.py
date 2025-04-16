@@ -95,7 +95,7 @@ def prepare_config(clients, experiment, root_dir, script_dir, nvflare_exec):
                     "min_responses_required": 0,
                     "wait_time_after_min_received": 10,
                     "task_name": task_name,
-                    "timeout": 6000,
+                    "timeout": 60000,
                 },
             }
         ],
@@ -367,7 +367,7 @@ def plan_and_preprocess_config(clients, experiment, root_dir, script_dir, nvflar
                     "min_responses_required": 0,
                     "wait_time_after_min_received": 10,
                     "task_name": task_name,
-                    "timeout": 6000,
+                    "timeout": 60000,
                 },
             }
         ],
@@ -515,7 +515,7 @@ def preprocess_config(clients, experiment, root_dir, script_dir, nvflare_exec):
                     "min_responses_required": 0,
                     "wait_time_after_min_received": 10,
                     "task_name": task_name,
-                    "timeout": 6000,
+                    "timeout": 60000,
                 },
             }
         ],
