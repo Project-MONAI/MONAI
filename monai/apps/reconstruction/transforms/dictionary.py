@@ -20,6 +20,7 @@ from torch import Tensor
 from monai.apps.reconstruction.transforms.array import EquispacedKspaceMask, RandomKspaceMask
 from monai.config import DtypeLike, KeysCollection
 from monai.config.type_definitions import NdarrayOrTensor
+from monai.data import MetaTensor
 from monai.transforms import InvertibleTransform
 from monai.transforms.croppad.array import SpatialCrop
 from monai.transforms.intensity.array import NormalizeIntensity
@@ -57,15 +58,25 @@ class ExtractDataKeyFromMetaKeyd(MapTransform):
         Returns:
             the new data dictionary
         """
+
         d = dict(data)
+
+        if isinstance(d[self.meta_key], MetaTensor):
+            # meta tensor
+            meta = d[self.meta_key].meta
+        else:
+            # meta dict
+            meta = d[self.meta_key]
+
         for key in self.keys:
-            if key in d[self.meta_key]:
-                d[key] = d[self.meta_key][key]  # type: ignore
+            if key in meta:
+                d[key] = meta[key]  # type: ignore
             elif not self.allow_missing_keys:
                 raise KeyError(
                     f"Key `{key}` of transform `{self.__class__.__name__}` was missing in the meta data"
                     " and allow_missing_keys==False."
                 )
+
         return d  # type: ignore
 
 
