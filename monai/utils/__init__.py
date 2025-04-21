@@ -29,6 +29,7 @@ from .enums import (
     CommonKeys,
     CompInitMode,
     DiceCEReduction,
+    DownsampleMode,
     EngineStatsKeys,
     FastMRIKeys,
     ForwardMode,
