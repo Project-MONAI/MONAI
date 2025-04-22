@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import Hashable, Mapping, Sequence
+from typing import Any
 
 import numpy as np
 from numpy import ndarray
@@ -61,9 +62,10 @@ class ExtractDataKeyFromMetaKeyd(MapTransform):
 
         d = dict(data)
 
+        meta: dict[str, Any]
         if isinstance(d[self.meta_key], MetaTensor):
             # meta tensor
-            meta = d[self.meta_key].meta
+            meta = d[self.meta_key].meta  # type: ignore
         else:
             # meta dict
             meta = d[self.meta_key]
