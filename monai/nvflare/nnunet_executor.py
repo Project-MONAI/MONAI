@@ -29,7 +29,8 @@ from monai.nvflare.nvflare_nnunet import (  # check_host_config,
     prepare_data_folder,
     preprocess,
     train,
-    finalize_bundle
+    finalize_bundle,
+    run_cross_site_validation
 )
 
 
@@ -114,6 +115,7 @@ class nnUNetExecutor(Executor):
         training_task_name="train",
         finalize_task_name="finalize",
         prepare_bundle_name="prepare_bundle",
+        cross_site_validation_task_name="cross_site_validation",
         subfolder_suffix=None,
         dataset_format="subfolders",
         patient_id_in_file_identifier=True,
@@ -124,6 +126,7 @@ class nnUNetExecutor(Executor):
         mlflow_token=None,
         bundle_root=None,
         modality_list=None,
+        monai_deploy_config=None,
         train_extra_configs=None,
         exclude_vars=None,
         continue_training=False,
@@ -152,6 +155,8 @@ class nnUNetExecutor(Executor):
         self.modality_list = modality_list
         self.continue_training = continue_training
         self.finalize_task_name = finalize_task_name
+        self.cross_site_validation_task_name = cross_site_validation_task_name
+        self.monai_deploy_config = monai_deploy_config
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
@@ -197,6 +202,8 @@ class nnUNetExecutor(Executor):
                 return self.prepare_bundle()
             elif task_name == self.finalize_task_name:
                 return self.finalize_bundle()
+            elif task_name == self.cross_site_validation_task_name:
+                return self.run_cross_site_validation()
             else:
                 return make_reply(ReturnCode.TASK_UNKNOWN)
         except Exception as e:
@@ -338,9 +345,11 @@ class nnUNetExecutor(Executor):
             "dataset_name_or_id": self.nnunet_config["dataset_name_or_id"]
         }
 
-        prepare_bundle(bundle_config, self.train_extra_configs)
+        bundle_config = prepare_bundle(bundle_config, self.train_extra_configs)
 
-        return make_reply(ReturnCode.OK)
+        outgoing_dxo = DXO(data_kind=DataKind.COLLECTION, data=bundle_config, meta={})
+        
+        return outgoing_dxo.to_shareable()
 
     def finalize_bundle(self):
         
@@ -368,3 +377,30 @@ class nnUNetExecutor(Executor):
         outgoing_dxo = DXO(data_kind=DataKind.COLLECTION, data=validation_summary, meta={})
         return outgoing_dxo.to_shareable()
         
+    def run_cross_site_validation(self):
+        if "nnunet_trainer" not in self.nnunet_config:
+            nnunet_trainer_name = "nnUNetTrainer"
+        else:
+            nnunet_trainer_name = self.nnunet_config["nnunet_trainer"]
+
+        if "nnunet_plans" not in self.nnunet_config:
+            nnunet_plans_name = "nnUNetPlans"
+        else:
+            nnunet_plans_name = self.nnunet_config["nnunet_plans"]
+        
+        validation_summary = run_cross_site_validation(
+            self.nnunet_root_folder,
+            self.nnunet_config["dataset_name_or_id"],
+            self.monai_deploy_config["app_path"],
+            self.monai_deploy_config["app_model_path"],
+            self.monai_deploy_config["app_output_path"],
+            trainer_class_name=nnunet_trainer_name,
+            fold=0,
+            experiment_name=self.nnunet_config["experiment_name"],
+            client_name=self.client_name,
+            tracking_uri=self.tracking_uri,
+            nnunet_plans_name=nnunet_plans_name
+        )
+        
+        outgoing_dxo = DXO(data_kind=DataKind.COLLECTION, data=validation_summary, meta={})
+        return outgoing_dxo.to_shareable()

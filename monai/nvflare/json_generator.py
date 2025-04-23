@@ -177,3 +177,46 @@ class nnUNetValSummaryJsonGenerator(Widget):
             res_file_path = os.path.join(cross_val_res_dir, self._json_file_name)
             with open(res_file_path, "w") as f:
                 json.dump(datasets, f)
+
+
+class nnUNetPrepareBundleJsonGenerator(Widget):
+    """
+    A class to generate a JSON configuration file for nnUNet bundle preparation.
+
+    This class listens to specific events during a federated learning run and generates
+    a JSON file containing the bundle configuration at the end of the run.
+
+    Parameters
+    ----------
+    results_dir : str, optional
+        The directory where the JSON configuration file will be saved. Default is "nnUNet_prepare_bundle".
+    json_file_name : str, optional
+        The name of the JSON configuration file. Default is "bundle_config.json".
+
+    Methods
+    -------
+    handle_event(event_type: str, fl_ctx: FLContext)
+        Handles events during the federated learning run. Clears the bundle configuration
+        at the start of the run and writes the configuration to a JSON file at the end of the run.
+    """
+    def __init__(self, results_dir="nnUNet_prepare_bundle", json_file_name="bundle_config.json"):
+
+        super(nnUNetPrepareBundleJsonGenerator, self).__init__()
+
+        self._results_dir = results_dir
+        self._bundle_config = {}
+        self._json_file_name = json_file_name
+
+    def handle_event(self, event_type: str, fl_ctx: FLContext):
+        if event_type == EventType.START_RUN:
+            self._bundle_config.clear()
+        elif event_type == EventType.END_RUN:
+            datasets = fl_ctx.get_prop("bundle_config", None)
+            run_dir = fl_ctx.get_engine().get_workspace().get_run_dir(fl_ctx.get_job_id())
+            cross_val_res_dir = os.path.join(run_dir, self._results_dir)
+            if not os.path.exists(cross_val_res_dir):
+                os.makedirs(cross_val_res_dir)
+
+            res_file_path = os.path.join(cross_val_res_dir, self._json_file_name)
+            with open(res_file_path, "w") as f:
+                json.dump(datasets, f)

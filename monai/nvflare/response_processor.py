@@ -308,13 +308,49 @@ class nnUNetBundlePrepareProcessor(ResponseProcessor):
 
     def __init__(self):
         ResponseProcessor.__init__(self)
+        self.bundle_config = {}
 
     def create_task_data(self, task_name: str, fl_ctx: FLContext) -> Shareable:
         return Shareable()
 
     def process_client_response(self, client: Client, task_name: str, response: Shareable, fl_ctx: FLContext) -> bool:
+        if not isinstance(response, Shareable):
+            self.log_error(
+                fl_ctx,
+                f"bad response from client {client.name}: " f"response must be Shareable but got {type(response)}",
+            )
+            return False
+
+        try:
+            dxo = from_shareable(response)
+
+        except Exception:
+            self.log_exception(fl_ctx, f"bad response from client {client.name}: " f"it does not contain DXO")
+            return False
+
+        if dxo.data_kind != DataKind.COLLECTION:
+            self.log_error(
+                fl_ctx,
+                f"bad response from client {client.name}: "
+                f"data_kind should be DataKind.COLLECTION but got {dxo.data_kind}",
+            )
+            return False
+
+        bundle_config = dxo.data
+
+        if not bundle_config:
+            self.log_error(fl_ctx, f"No bundle_config found from client {client.name}")
+            return False
+
+        self.bundle_config[client.name] = bundle_config
+
         return True
 
     def final_process(self, fl_ctx: FLContext) -> bool:
+        if not self.bundle_config:
+            self.log_error(fl_ctx, "no bundle_config from client")
+            return False
 
+        # must set sticky to True so other controllers can get it!
+        fl_ctx.set_prop("bundle_config", self.bundle_config, private=True, sticky=True)
         return True
