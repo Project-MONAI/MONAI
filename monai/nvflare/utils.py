@@ -114,10 +114,10 @@ def prepare_data_folder_api(data_dir,
     subfolder_suffix=None,
     patient_id_in_file_identifier=True,
     trainer_class_name="nnUNetTrainer",
-    concatenate_modalities = False,
+    concatenate_modalities_flag = False,
     output_data_dir=None,
     ):
-    if concatenate_modalities:
+    if concatenate_modalities_flag:
         concatenate_modalities(dataset_format,data_dir, modality_dict, output_data_dir=output_data_dir, patient_id_in_file_identifier=patient_id_in_file_identifier)
         if dataset_format == "decathlon" or dataset_format == "nnunet":
             modality_dict = {"image": modality_dict[list(modality_dict.keys())[0]], "label": modality_dict["label"]}
