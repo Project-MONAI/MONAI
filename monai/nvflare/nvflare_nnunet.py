@@ -35,6 +35,12 @@ from monai.apps.nnunet.nnunet_bundle import convert_monai_bundle_to_nnunet
 from monai.bundle import ConfigParser
 from pyhocon import ConfigFactory
 from pyhocon.converter import HOCONConverter
+from monai.data import load_decathlon_datalist
+
+from monai.metrics import compute_hausdorff_distance, compute_average_surface_distance, DiceMetric
+
+import SimpleITK as sitk
+from monai.transforms import AsDiscrete
 
 
 def run_job(sess, task_name, job_folder, clients=None):
@@ -86,6 +92,7 @@ def run_job(sess, task_name, job_folder, clients=None):
     
     return job_id
 
+
 def train(
     nnunet_root_dir,
     experiment_name,
@@ -100,6 +107,7 @@ def train(
     mlflow_token=None,
     continue_training=False,
     resume_epoch="latest",
+    skip_training=False,
 ):
     """
 
@@ -142,31 +150,32 @@ def train(
     data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
     runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
 
-    if not run_with_bundle:
-        if continue_training:
-            runner.train_single_model(config="3d_fullres", fold=fold, c=True)
+    if not skip_training:
+        if not run_with_bundle:
+            if continue_training:
+                runner.train_single_model(config="3d_fullres", fold=fold, c="")
+            else:
+                runner.train_single_model(config="3d_fullres", fold=fold)
         else:
-            runner.train_single_model(config="3d_fullres", fold=fold)
-    else:
-        os.environ["BUNDLE_ROOT"] = bundle_root
-        os.environ["PYTHONPATH"] = os.environ["PYTHONPATH"] + ":" + bundle_root
-        config_files = os.path.join(bundle_root, "configs", "train.yaml")
-        if continue_training:
-            config_files = [os.path.join(bundle_root, "configs", "train.yaml"), os.path.join(bundle_root, "configs", "train_resume.yaml")]
-        monai.bundle.run(
-            config_file=config_files,
-            bundle_root=bundle_root,
-            nnunet_trainer_class_name=trainer_class_name,
-            mlflow_experiment_name=experiment_name,
-            mlflow_run_name="run_" + client_name,
-            tracking_uri=tracking_uri,
-            fold_id=fold,
-            nnunet_root_folder=nnunet_root_dir,
-            reload_checkpoint_epoch=resume_epoch
-        )
-        nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}
-        convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
-        runner.train_single_model(config="3d_fullres", fold=fold, val="")
+            os.environ["BUNDLE_ROOT"] = bundle_root
+            os.environ["PYTHONPATH"] = os.environ["PYTHONPATH"] + ":" + bundle_root
+            config_files = os.path.join(bundle_root, "configs", "train.yaml")
+            if continue_training:
+                config_files = [os.path.join(bundle_root, "configs", "train.yaml"), os.path.join(bundle_root, "configs", "train_resume.yaml")]
+            monai.bundle.run(
+                config_file=config_files,
+                bundle_root=bundle_root,
+                nnunet_trainer_class_name=trainer_class_name,
+                mlflow_experiment_name=experiment_name,
+                mlflow_run_name="run_" + client_name,
+                tracking_uri=tracking_uri,
+                fold_id=fold,
+                nnunet_root_folder=nnunet_root_dir,
+                reload_checkpoint_epoch=resume_epoch
+            )
+            nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}
+            convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
+            runner.train_single_model(config="3d_fullres", fold=fold, val="")
 
     if mlflow_token is not None:
         os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
@@ -185,15 +194,6 @@ def train(
 
     runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
 
-    validation_summary = os.path.join(
-        runner.nnunet_results,
-        runner.dataset_name,
-        f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
-        f"fold_{fold}",
-        "validation",
-        "summary.json",
-    )
-
     dataset_file = os.path.join(
         runner.nnunet_results,
         runner.dataset_name,
@@ -206,11 +206,13 @@ def train(
         labels = dataset_dict["labels"]
         labels = {str(v): k for k, v in labels.items()}
 
-    with open(validation_summary, "r") as f:
-        validation_summary_dict = json.load(f)
+    validation_summary_dict = compute_validation_metrics(str(Path(runner.nnunet_raw).joinpath(runner.dataset_name, "labelsTr")),
+                                   str(Path(runner.nnunet_results).joinpath(runner.dataset_name,f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres", f"fold_{fold}", "validation")),
+                                   len(labels)-1)
 
     if len(runs) == 0:
         with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+            mlflow.log_dict(validation_summary_dict, "validation_summary.json")
             for label in validation_summary_dict["mean"]:
                 for metric in validation_summary_dict["mean"][label]:
                     label_name = labels[label]
@@ -218,6 +220,7 @@ def train(
 
     else:
         with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+            mlflow.log_dict(validation_summary_dict, "validation_summary.json")
             for label in validation_summary_dict["mean"]:
                 for metric in validation_summary_dict["mean"][label]:
                     label_name = labels[label]
@@ -432,7 +435,7 @@ def prepare_data_folder(
                         )
                         for modality_id in modality_dict
                     }
-                    for f in os.scandir(data_dir)
+                    for f in sorted(os.scandir(data_dir), key=lambda e: e.name)
                     if f.is_dir()
                 ],
                 "testing": [],
@@ -448,7 +451,7 @@ def prepare_data_folder(
                         )
                         for modality_id in modality_dict
                     }
-                    for f in os.scandir(data_dir)
+                    for f in sorted(os.scandir(data_dir), key=lambda e: e.name)
                     if f.is_dir()
                 ],
                 "testing": [],
@@ -456,7 +459,7 @@ def prepare_data_folder(
     elif dataset_format == "decathlon" or dataset_format == "nnunet":
         cases = []
 
-        for f in os.scandir(Path(data_dir).joinpath("imagesTr")):
+        for f in sorted(os.scandir(Path(data_dir).joinpath("imagesTr")), key=lambda e: e.name):
             if f.is_file():
                 for modality_suffix in list(modality_dict.values()):
                     if f.name.endswith(modality_suffix) and modality_suffix != ".nii.gz":
@@ -766,6 +769,68 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
 
     with open(Path(bundle_config["bundle_root"]).joinpath("configs", "evaluate.yaml"), "w") as f:
         yaml.dump(evaluate_config, f)
+    
+    return {"evaluate_config": evaluate_config, "train_config": train_config}
+
+def compute_validation_metrics(gt_folder, pred_folder, n_labels=1):
+    print("Computing validation metrics...")
+    print("Number of labels: ", n_labels)
+    to_onehot = AsDiscrete(to_onehot=n_labels+1)
+    dice_fn = DiceMetric(include_background=False)
+    summary_file = Path(pred_folder).joinpath("summary.json")
+    
+    if not summary_file.exists():
+        summary = {'metric_per_case': []}
+        for file in os.listdir(pred_folder):
+            if file.endswith(".nii.gz"):
+                summary['metric_per_case'].append(
+                    {
+                        "prediction_file": os.path.join(pred_folder, file),
+                        "metrics": {
+                        "1": {}
+                        }
+                    }
+                )
+    else:
+        with open(summary_file) as f:
+            summary = json.load(f)
+    for idx, case in enumerate(summary['metric_per_case']):
+        print("Processing case: ", idx)
+
+        case_id = Path(case['prediction_file']).name[:-len(".nii.gz")]
+        gt_image = sitk.ReadImage(Path(gt_folder).joinpath(case_id+".nii.gz"))
+        pred_image = sitk.ReadImage(Path(pred_folder).joinpath(case_id+".nii.gz"))
+        gt_array = sitk.GetArrayFromImage(gt_image)
+        pred_array = sitk.GetArrayFromImage(pred_image)
+
+        hd_95 = compute_hausdorff_distance(
+        to_onehot(pred_array[None])[None],
+        to_onehot(gt_array[None])[None],
+        spacing = gt_image.GetSpacing(),
+        percentile=95
+        )
+
+        asd = compute_average_surface_distance(
+        to_onehot(pred_array[None])[None],
+        to_onehot(gt_array[None])[None],
+        spacing = gt_image.GetSpacing(),
+        )
+        dice = dice_fn(to_onehot(pred_array[None])[None], to_onehot(gt_array[None])[None])
+        for label_id in range(1,1+n_labels):
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["HD95"] = hd_95[label_id-1][0].item()
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["ASD"] = asd[label_id-1][0].item()
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["Dice"] = dice[label_id-1][0].item()
+
+    for label_id in range(1,1+n_labels):
+        summary["mean"] = {}
+        summary["mean"][str(label_id)] = {}
+        summary["mean"][str(label_id)]["HD95"] = np.mean(
+            [case["metrics"][str(label_id)]["HD95"] for case in summary['metric_per_case'] if not np.isnan(case["metrics"][str(label_id)]["HD95"]) and not np.isinf(case["metrics"][str(label_id)]["HD95"])]
+        )
+        summary["mean"][str(label_id)]["ASD"] = np.mean([case["metrics"][str(label_id)]["ASD"] for case in summary['metric_per_case'] if not np.isnan(case["metrics"][str(label_id)]["ASD"]) and not np.isinf(case["metrics"][str(label_id)]["ASD"])])
+        summary["mean"][str(label_id)]["Dice"] = np.mean([case["metrics"][str(label_id)]["Dice"] for case in summary['metric_per_case']  if not np.isnan(case["metrics"][str(label_id)]["Dice"]) and not np.isinf(case["metrics"][str(label_id)]["Dice"])])
+    
+    return summary
 
 
 def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True,
@@ -862,33 +927,9 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
         convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
         
         runner.train_single_model(config="3d_fullres", fold=fold, val="")
+        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+        dataset_name = maybe_convert_to_dataset_name(int(dataset_name_or_id))
         
-        if mlflow_token is not None:
-            os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
-        if tracking_uri is not None:
-            mlflow.set_tracking_uri(tracking_uri)
-
-        try:
-            mlflow.create_experiment(experiment_name)
-        except Exception as e:
-            print(e)
-            mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name(experiment_name).experiment_id))
-
-        filter = f"""
-        tags."client" = "{client_name}"
-        """
-
-        runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
-
-        validation_summary = os.path.join(
-            runner.nnunet_results,
-            runner.dataset_name,
-            f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
-            f"fold_{fold}",
-            "validation",
-            "summary.json",
-        )
-
         dataset_file = os.path.join(
             runner.nnunet_results,
             runner.dataset_name,
@@ -900,9 +941,28 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
             dataset_dict = json.load(f)
             labels = dataset_dict["labels"]
             labels = {str(v): k for k, v in labels.items()}
+            
+        validation_summary_dict = compute_validation_metrics(str(Path(runner.nnunet_raw).joinpath(dataset_name, "labelsTr")),
+                                   str(Path(runner.nnunet_results).joinpath(dataset_name,f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres", f"fold_{fold}", "validation")),
+                                   len(labels)-1)
+        
+        if mlflow_token is not None:
+            os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
+        if tracking_uri is not None:
+            mlflow.set_tracking_uri(tracking_uri)
 
-        with open(validation_summary, "r") as f:
-            validation_summary_dict = json.load(f)
+        try:
+            mlflow.create_experiment("FedLearning-"+experiment_name)
+        except Exception as e:
+            print(e)
+            mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name("FedLearning-"+experiment_name).experiment_id))
+
+        filter = f"""
+        tags."client" = "{client_name}"
+        """
+
+        runs = mlflow.search_runs(experiment_names=["FedLearning-"+experiment_name], filter_string=filter, order_by=["start_time DESC"])
+
 
         if len(runs) == 0:
             with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
@@ -921,3 +981,114 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
                         mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
 
         return validation_summary_dict
+
+
+def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app_model_path, app_output_path, trainer_class_name="nnUNetTrainer", fold=0,
+                    experiment_name=None, client_name=None, tracking_uri=None,
+                    nnunet_plans_name="nnUNetPlans", mlflow_token=None):
+
+    from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
+
+    runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
+
+    with open(Path(nnunet_root_dir).joinpath(f"Task{dataset_name_or_id}_data_src_cfg.yaml"), "r") as f:
+        nnunet_config = yaml.safe_load(f)
+
+    data_root_dir = nnunet_config["dataroot"]
+    data_list_file = nnunet_config["datalist"]
+
+    data_list = load_decathlon_datalist(data_list_file_path=data_list_file, base_dir=data_root_dir)
+
+
+    dataset_name = maybe_convert_to_dataset_name(int(dataset_name_or_id))
+
+    with open(Path(runner.nnunet_raw).joinpath(dataset_name, "datalist.json"), "r") as f:
+        nnunet_datalist = yaml.safe_load(f)
+        
+    with open(Path(runner.nnunet_preprocessed).joinpath(dataset_name, "splits_final.json"), "r") as f:
+        nnunet_splits = json.load(f)
+
+    id_mapping = {}
+
+    for data in data_list:
+        app_input_path = data["image"]
+        filename = Path(app_input_path).name
+        
+        new_id = None  
+        for case in nnunet_datalist["training"]:
+            if case["image"].endswith(filename):
+                new_id = case["new_name"]
+                break
+        if new_id in nnunet_splits[fold]["val"]:
+            id_mapping[Path(data["image"]).name.split("_")[0].split(".")[0]] = new_id
+            subprocess.run(
+                [
+                "python",
+                app_path,
+                "--input", data["image"]
+                ],
+                env={
+                    **os.environ,
+                    "HOLOSCAN_MODEL_PATH": app_model_path,
+                    "HOLOSCAN_OUTPUT_PATH": app_output_path,
+                }
+            )
+
+    for file in os.listdir(app_output_path):
+        if file.endswith(".nii.gz"):
+            id = id_mapping[file[:-len(".nii.gz")]]
+            shutil.move(
+                os.path.join(app_output_path, file),
+                os.path.join(app_output_path, f"{id}.nii.gz")
+            )     
+
+    dataset_file = os.path.join(
+            runner.nnunet_results,
+            runner.dataset_name,
+            f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
+            "dataset.json",
+        )
+
+    with open(dataset_file, "r") as f:
+        dataset_dict = json.load(f)
+        labels = dataset_dict["labels"]
+        labels = {str(v): k for k, v in labels.items()}
+            
+    validation_summary_dict = compute_validation_metrics(str(Path(runner.nnunet_raw).joinpath(dataset_name, "labelsTr")), app_output_path, n_labels=len(labels)-1)
+    
+    if mlflow_token is not None:
+        os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
+    if tracking_uri is not None:
+        mlflow.set_tracking_uri(tracking_uri)
+
+    try:
+        mlflow.create_experiment(experiment_name)
+    except Exception as e:
+        print(e)
+        mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name(experiment_name).experiment_id))
+
+    filter = f"""
+    tags."client" = "{client_name}"
+    """
+
+    runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
+
+
+    if len(runs) == 0:
+        with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+            mlflow.log_dict(validation_summary_dict, "validation_summary.json")
+            for label in validation_summary_dict["mean"]:
+                for metric in validation_summary_dict["mean"][label]:
+                    label_name = labels[label]
+                    mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
+
+    else:
+        with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+            mlflow.log_dict(validation_summary_dict, "validation_summary.json")
+            for label in validation_summary_dict["mean"]:
+                for metric in validation_summary_dict["mean"][label]:
+                    label_name = labels[label]
+                    mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
+
+    return validation_summary_dict
