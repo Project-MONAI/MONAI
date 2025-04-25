@@ -1,5 +1,5 @@
 -f https://download.pytorch.org/whl/cpu/torch-2.3.0%2Bcpu-cp39-cp39-linux_x86_64.whl
-torch>=2.3.0
+torch>=2.4.1
 pytorch-ignite==0.4.11
 numpy>=1.20
 itk>=5.2
