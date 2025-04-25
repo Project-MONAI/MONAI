@@ -262,12 +262,17 @@ class nnUNetV2Runner:  # noqa: N801
             if not isinstance(modality, list):
                 modality = [modality]
 
+            labels = self.input_info.pop("labels", None)
+            regions_class_order = self.input_info.pop("regions_class_order", None)
+
             create_new_dataset_json(
                 modality=modality,
                 num_foreground_classes=num_foreground_classes,
                 num_input_channels=num_input_channels,
                 num_training_data=len(datalist_json["training"]),
                 output_filepath=os.path.join(raw_data_foldername, "dataset.json"),
+                labels=labels,
+                regions_class_order=regions_class_order,
             )
 
             create_new_data_copy(
