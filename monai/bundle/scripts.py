@@ -31,7 +31,6 @@ from torch.cuda import is_available
 
 from monai._version import get_versions
 from monai.apps.utils import _basename, download_url, extractall, get_logger
-from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -48,7 +47,6 @@ from monai.networks import (
 from monai.utils import (
     IgniteInfo,
     check_parent_dir,
-    deprecated_arg,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
