@@ -17,6 +17,9 @@ import random
 from pathlib import Path
 import numpy as np
 
+import SimpleITK as sitk
+import subprocess
+import yaml
 import os
 from monai.transforms import LoadImaged, ConcatItemsd, EnsureChannelFirstD, Compose, SaveImageD
 
@@ -26,7 +29,9 @@ import shutil
 from monai.apps.nnunet import nnUNetV2Runner
 from monai.bundle import ConfigParser
 import monai
-
+from monai.data import load_decathlon_datalist
+from monai.metrics import compute_hausdorff_distance, compute_average_surface_distance, DiceMetric
+from monai.transforms import AsDiscrete
 class NIFTINameFormatter:
     def __init__(self, suffix):
         self.suffix = suffix
@@ -116,6 +121,8 @@ def prepare_data_folder_api(data_dir,
     trainer_class_name="nnUNetTrainer",
     concatenate_modalities_flag = False,
     output_data_dir=None,
+    labels = None,
+    regions_class_order = None,
     ):
     if concatenate_modalities_flag:
         concatenate_modalities(dataset_format,data_dir, modality_dict, output_data_dir=output_data_dir, patient_id_in_file_identifier=patient_id_in_file_identifier)
@@ -226,6 +233,10 @@ def prepare_data_folder_api(data_dir,
         "datalist": str(datalist_file),
         "dataroot": str(data_dir),
     }
+    if labels is not None:
+        data_src["labels"] = labels
+    if regions_class_order is not None:
+        data_src["regions_class_order"] = regions_class_order
 
     ConfigParser.export_config_file(data_src, data_src_cfg)
 
@@ -238,3 +249,161 @@ def prepare_data_folder_api(data_dir,
         ...
 
     return data_list
+
+
+def cross_site_evaluation_api(nnunet_root_dir, dataset_name_or_id, app_path, app_model_path, app_output_path, fold=0, trainer_class_name="nnUNetTrainer", nnunet_plans_name="nnUNetPlans", skip_prediction=False):
+    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
+
+    runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
+
+    with open(Path(nnunet_root_dir).joinpath(f"Task{dataset_name_or_id}_data_src_cfg.yaml"), "r") as f:
+        nnunet_config = yaml.safe_load(f)
+
+    data_root_dir = nnunet_config["dataroot"]
+    data_list_file = nnunet_config["datalist"]
+    from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+
+    data_list = load_decathlon_datalist(data_list_file_path=data_list_file, base_dir=data_root_dir)
+
+    dataset_name = maybe_convert_to_dataset_name(int(dataset_name_or_id))
+
+    with open(Path(runner.nnunet_raw).joinpath(dataset_name, "datalist.json"), "r") as f:
+        nnunet_datalist = yaml.safe_load(f)
+        
+    with open(Path(runner.nnunet_preprocessed).joinpath(dataset_name, "splits_final.json"), "r") as f:
+        nnunet_splits = json.load(f)
+
+    id_mapping = {}
+
+    for data in data_list:
+        app_input_path = data["image"]
+        filename = Path(app_input_path).name
+        
+        new_id = None  
+        for case in nnunet_datalist["training"]:
+            if case["image"].endswith(filename):
+                new_id = case["new_name"]
+                break
+        if new_id in nnunet_splits[fold]["val"]:
+            id_mapping[Path(data["image"]).name.split("_")[0].split(".")[0]] = new_id
+            if skip_prediction:
+                continue
+            subprocess.run(
+                [
+                "python",
+                app_path,
+                "--input", data["image"]
+                ],
+                env={
+                    **os.environ,
+                    "HOLOSCAN_MODEL_PATH": app_model_path,
+                    "HOLOSCAN_OUTPUT_PATH": app_output_path,
+                }
+            )
+
+    for file in os.listdir(app_output_path):
+        if file.endswith(".nii.gz"):
+            if skip_prediction:
+                continue
+            id = id_mapping[file[:-len(".nii.gz")]]
+            shutil.move(
+                os.path.join(app_output_path, file),
+                os.path.join(app_output_path, f"{id}.nii.gz")
+            )     
+
+    dataset_file = os.path.join(
+            runner.nnunet_results,
+            runner.dataset_name,
+            f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
+            "dataset.json",
+        )
+
+    with open(dataset_file, "r") as f:
+        dataset_dict = json.load(f)
+        labels = dataset_dict["labels"]
+        labels = {str(v): k for k, v in labels.items()}
+            
+    validation_summary_dict = compute_validation_metrics(str(Path(runner.nnunet_raw).joinpath(dataset_name, "labelsTr")), app_output_path, n_labels=len(labels)-1)
+    
+    return validation_summary_dict, labels
+
+def compute_validation_metrics(gt_folder, pred_folder, n_labels=1):
+    print("Computing validation metrics...")
+    print("Number of labels: ", n_labels)
+    to_onehot = AsDiscrete(to_onehot=n_labels+1)
+    dice_fn = DiceMetric(include_background=False)
+    summary_file = Path(pred_folder).joinpath("summary.json")
+    
+    if not summary_file.exists():
+        summary = {'metric_per_case': []}
+        for file in os.listdir(pred_folder):
+            if file.endswith(".nii.gz"):
+                summary['metric_per_case'].append(
+                    {
+                        "prediction_file": os.path.join(pred_folder, file),
+                        "metrics": {
+                        "1": {}
+                        }
+                    }
+                )
+    else:
+        with open(summary_file) as f:
+            summary = json.load(f)
+    for idx, case in enumerate(summary['metric_per_case']):
+        print("Processing case: ", idx)
+
+        case_id = Path(case['prediction_file']).name[:-len(".nii.gz")]
+        gt_image = sitk.ReadImage(Path(gt_folder).joinpath(case_id+".nii.gz"))
+        pred_image = sitk.ReadImage(Path(pred_folder).joinpath(case_id+".nii.gz"))
+        gt_array = sitk.GetArrayFromImage(gt_image)
+        pred_array = sitk.GetArrayFromImage(pred_image)
+
+        hd_95 = compute_hausdorff_distance(
+        to_onehot(pred_array[None])[None],
+        to_onehot(gt_array[None])[None],
+        spacing = gt_image.GetSpacing(),
+        percentile=95
+        )
+
+        asd = compute_average_surface_distance(
+        to_onehot(pred_array[None])[None],
+        to_onehot(gt_array[None])[None],
+        spacing = gt_image.GetSpacing(),
+        )
+        dice = dice_fn(to_onehot(pred_array[None])[None], to_onehot(gt_array[None])[None])
+        for label_id in range(1,1+n_labels):
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["HD95"] = hd_95[label_id-1][0].item()
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["ASD"] = asd[label_id-1][0].item()
+            summary['metric_per_case'][idx]["metrics"][str(label_id)]["Dice"] = dice[label_id-1][0].item()
+
+    for label_id in range(1,1+n_labels):
+        summary["mean"] = {}
+        summary["mean"][str(label_id)] = {}
+        summary["mean"][str(label_id)]["HD95"] = np.mean(
+            [case["metrics"][str(label_id)]["HD95"] for case in summary['metric_per_case'] if not np.isnan(case["metrics"][str(label_id)]["HD95"]) and not np.isinf(case["metrics"][str(label_id)]["HD95"])]
+        )
+        summary["mean"][str(label_id)]["ASD"] = np.mean([case["metrics"][str(label_id)]["ASD"] for case in summary['metric_per_case'] if not np.isnan(case["metrics"][str(label_id)]["ASD"]) and not np.isinf(case["metrics"][str(label_id)]["ASD"])])
+        summary["mean"][str(label_id)]["Dice"] = np.mean([case["metrics"][str(label_id)]["Dice"] for case in summary['metric_per_case']  if not np.isnan(case["metrics"][str(label_id)]["Dice"]) and not np.isinf(case["metrics"][str(label_id)]["Dice"])])
+    
+    return summary
+
+
+def plan_and_preprocess_api(nnunet_root_dir, dataset_name_or_id, trainer_class_name="nnUNetTrainer", nnunet_plans_name="nnUNetPlans"):
+    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
+
+    runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
+
+    runner.plan_and_process(
+        npfp=2, verify_dataset_integrity=True, c=["3d_fullres"], n_proc=[2], overwrite_plans_name=nnunet_plans_name
+    )
+
+    preprocessed_folder = runner.nnunet_preprocessed
+
+    from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
+
+    dataset_name = maybe_convert_to_dataset_name(int(dataset_name_or_id))
+
+    with open(Path(preprocessed_folder).joinpath(f"{dataset_name}", nnunet_plans_name + ".json"), "r") as f:
+        nnunet_plans = json.load(f)
+        
+    return nnunet_plans
