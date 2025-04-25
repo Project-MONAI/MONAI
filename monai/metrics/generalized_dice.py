@@ -37,6 +37,8 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         reduction: Define mode of reduction to the metrics. Available reduction modes:
             {``"none"``, ``"mean"``, ``"sum"``, ``"mean_batch"``, ``"sum_batch"``,
             ``"mean_channel"``, ``"sum_channel"``}, default to ``"mean"``. if "none", will not do reduction.
+            Default value is changed from `MetricReduction.MEAN_BATCH` to `MetricReduction.MEAN` in v1.5.0.
+            Old versions computed `mean` when `mean_batch` was provided due to bug in reduction.
         weight_type: {``"square"``, ``"simple"``, ``"uniform"``}. Type of function to transform
             ground truth volume into a weight factor. Defaults to ``"square"``.
 
@@ -44,21 +46,10 @@ class GeneralizedDiceScore(CumulativeIterationMetric):
         ValueError: When the `reduction` is not one of MetricReduction enum.
     """
 
-    @deprecated_arg_default(
-        "reduction",
-        old_default=MetricReduction.MEAN_BATCH,
-        new_default=MetricReduction.MEAN,
-        since="1.4.0",
-        replaced="1.5.0",
-        msg_suffix=(
-            "Old versions computed `mean` when `mean_batch` was provided due to bug in reduction， "
-            "If you want to retain the old behavior (calculating the mean), please explicitly set the parameter to 'mean'."
-        ),
-    )
     def __init__(
         self,
         include_background: bool = True,
-        reduction: MetricReduction | str = MetricReduction.MEAN_BATCH,
+        reduction: MetricReduction | str = MetricReduction.MEAN,
         weight_type: Weight | str = Weight.SQUARE,
     ) -> None:
         super().__init__()

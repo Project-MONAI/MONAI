@@ -809,13 +809,12 @@ class CropForeground(Crop):
 
     """
 
-    @deprecated_arg_default("allow_smaller", old_default=True, new_default=False, since="1.2", replaced="1.5")
     def __init__(
         self,
         select_fn: Callable = is_positive,
         channel_indices: IndexSelection | None = None,
         margin: Sequence[int] | int = 0,
-        allow_smaller: bool = True,
+        allow_smaller: bool = False,
         return_coords: bool = False,
         k_divisible: Sequence[int] | int = 1,
         mode: str = PytorchPadMode.CONSTANT,
@@ -830,7 +829,8 @@ class CropForeground(Crop):
             margin: add margin value to spatial dims of the bounding box, if only 1 value provided, use it for all dims.
             allow_smaller: when computing box size with `margin`, whether to allow the image edges to be smaller than the
                 final box edges. If `False`, part of a padded output box might be outside of the original image, if `True`,
-                the image edges will be used as the box edges. Default to `True`.
+                the image edges will be used as the box edges. Default to `False`.
+                The default value is changed from `True` to `False` in v1.5.0.
             return_coords: whether return the coordinates of spatial bounding box for foreground.
             k_divisible: make each spatial dimension to be divisible by k, default to 1.
                 if `k_divisible` is an int, the same `k` be applied to all the input spatial dimensions.

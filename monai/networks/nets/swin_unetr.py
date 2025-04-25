@@ -50,16 +50,8 @@ class SwinUNETR(nn.Module):
     <https://arxiv.org/abs/2201.01266>"
     """
 
-    @deprecated_arg(
-        name="img_size",
-        since="1.3",
-        removed="1.5",
-        msg_suffix="The img_size argument is not required anymore and "
-        "checks on the input size are run during forward().",
-    )
     def __init__(
         self,
-        img_size: Sequence[int] | int,
         in_channels: int,
         out_channels: int,
         patch_size: int = 2,
@@ -83,10 +75,6 @@ class SwinUNETR(nn.Module):
     ) -> None:
         """
         Args:
-            img_size: spatial dimension of input image.
-                This argument is only used for checking that the input image size is divisible by the patch size.
-                The tensor passed to forward() can have a dynamic shape as long as its spatial dimensions are divisible by 2**5.
-                It will be removed in an upcoming version.
             in_channels: dimension of input channels.
             out_channels: dimension of output channels.
             patch_size: size of the patch token.
