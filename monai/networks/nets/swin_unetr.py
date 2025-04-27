@@ -101,13 +101,13 @@ class SwinUNETR(nn.Module):
         Examples::
 
             # for 3D single channel input with size (96,96,96), 4-channel output and feature size of 48.
-            >>> net = SwinUNETR(img_size=(96,96,96), in_channels=1, out_channels=4, feature_size=48)
+            >>> net = SwinUNETR(in_channels=1, out_channels=4, feature_size=48)
 
             # for 3D 4-channel input with size (128,128,128), 3-channel output and (2,4,2,2) layers in each stage.
-            >>> net = SwinUNETR(img_size=(128,128,128), in_channels=4, out_channels=3, depths=(2,4,2,2))
+            >>> net = SwinUNETR(in_channels=4, out_channels=3, depths=(2,4,2,2))
 
             # for 2D single channel input with size (96,96), 2-channel output and gradient checkpointing.
-            >>> net = SwinUNETR(img_size=(96,96), in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
+            >>> net = SwinUNETR(in_channels=3, out_channels=2, use_checkpoint=True, spatial_dims=2)
 
         """
 
@@ -118,11 +118,8 @@ class SwinUNETR(nn.Module):
 
         self.patch_size = patch_size
 
-        img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_sizes = ensure_tuple_rep(self.patch_size, spatial_dims)
         window_size = ensure_tuple_rep(window_size, spatial_dims)
-
-        self._check_input_size(img_size)
 
         if not (0 <= drop_rate <= 1):
             raise ValueError("dropout rate should be between 0 and 1.")
@@ -1097,7 +1094,7 @@ def filter_swinunetr(key, value):
         from monai.networks.utils import copy_model_state
         from monai.networks.nets.swin_unetr import SwinUNETR, filter_swinunetr
 
-        model = SwinUNETR(img_size=(96, 96, 96), in_channels=1, out_channels=3, feature_size=48)
+        model = SwinUNETR(in_channels=1, out_channels=3, feature_size=48)
         resource = (
             "https://github.com/Project-MONAI/MONAI-extra-test-data/releases/download/0.8.1/ssl_pretrained_weights.pth"
         )

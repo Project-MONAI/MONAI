@@ -647,6 +647,7 @@ def load(
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
     copy_model_args: dict | None = None,
+    net_override: dict | None = None,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -692,7 +693,7 @@ def load(
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
-        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
+        net_override: id-value pairs to override the parameters in the network of the bundle, default to `None`.
 
     Returns:
         1. If `load_ts_module` is `False` and `model` is `None`,
