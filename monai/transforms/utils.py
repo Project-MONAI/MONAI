@@ -58,7 +58,6 @@ from monai.utils import (
     SplineMode,
     TraceKeys,
     TraceStatusKeys,
-    deprecated_arg_default,
     ensure_tuple,
     ensure_tuple_rep,
     ensure_tuple_size,

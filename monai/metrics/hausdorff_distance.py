@@ -20,11 +20,10 @@ import torch
 from monai.metrics.utils import (
     do_metric_reduction,
     get_edge_surface_distance,
-    get_surface_distance,
     ignore_background,
     prepare_spacing,
 )
-from monai.utils import MetricReduction, convert_data_type, deprecated
+from monai.utils import MetricReduction, convert_data_type
 
 from .metric import CumulativeIterationMetric
 

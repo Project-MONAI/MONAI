@@ -30,7 +30,6 @@ from monai.utils import (
     convert_to_numpy,
     convert_to_tensor,
     deprecated_arg,
-    deprecated_arg_default,
     ensure_tuple_rep,
     look_up_option,
     optional_import,

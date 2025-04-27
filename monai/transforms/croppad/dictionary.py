@@ -50,7 +50,7 @@ from monai.transforms.inverse import InvertibleTransform
 from monai.transforms.traits import LazyTrait, MultiSampleTrait
 from monai.transforms.transform import LazyTransform, MapTransform, Randomizable
 from monai.transforms.utils import is_positive
-from monai.utils import MAX_SEED, Method, PytorchPadMode, deprecated_arg_default, ensure_tuple_rep
+from monai.utils import MAX_SEED, Method, PytorchPadMode, ensure_tuple_rep
 
 __all__ = [
     "Padd",
