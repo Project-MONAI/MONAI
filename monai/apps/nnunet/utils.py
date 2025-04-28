@@ -186,7 +186,6 @@ def create_new_dataset_json(
         sort_keys=True,
         indent=4,
         ensure_ascii=False,
-        sort_keys=False,
     )
 
     return
