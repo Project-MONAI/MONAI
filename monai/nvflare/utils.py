@@ -85,6 +85,7 @@ def concatenate_modalities(dataset_format,data_dir, modality_dict, output_data_d
             for modality_id in modality_dict:
                 if modality_id != "label":
                     data[modality_id] = str(Path(data_dir).joinpath("imagesTr").joinpath(case_id + modality_dict[modality_id])) 
+            print(f"Processing case: {case_id}")
             transform(data)
             shutil.copy(Path(data_dir).joinpath(f"labelsTr/{case_id}"+ modality_dict[modality_id]), Path(labels_output_dir).joinpath(f"{case_id}"+ modality_dict[modality_id]))
     elif dataset_format == "subfolders":
@@ -107,6 +108,7 @@ def concatenate_modalities(dataset_format,data_dir, modality_dict, output_data_d
                         data[modality_id] = str(Path(data_dir).joinpath(patient_id, patient_id + modality_dict[modality_id]))
                     else:
                         data[modality_id] = str(Path(data_dir).joinpath(patient_id, modality_dict[modality_id]))
+            print(f"Processing case: {case_id}")
             transform(data)
 
 def prepare_data_folder_api(data_dir,
