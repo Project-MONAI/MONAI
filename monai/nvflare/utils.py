@@ -108,7 +108,7 @@ def concatenate_modalities(dataset_format,data_dir, modality_dict, output_data_d
                         data[modality_id] = str(Path(data_dir).joinpath(patient_id, patient_id + modality_dict[modality_id]))
                     else:
                         data[modality_id] = str(Path(data_dir).joinpath(patient_id, modality_dict[modality_id]))
-            print(f"Processing case: {case_id}")
+            print(f"Processing case: {patient_id}")
             transform(data)
 
 def prepare_data_folder_api(data_dir,
