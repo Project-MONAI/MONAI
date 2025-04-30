@@ -2128,7 +2128,7 @@ class Resample(Transform):
 
             if convert_f32:
                 out = out.to(torch.float64)
-                
+
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
 
