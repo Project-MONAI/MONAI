@@ -14,6 +14,7 @@ A collection of "vanilla" transforms for spatial operations.
 
 from __future__ import annotations
 
+import sys
 import warnings
 from collections.abc import Callable, Sequence
 from copy import deepcopy
@@ -2106,13 +2107,28 @@ class Resample(Transform):
             if self.norm_coords:
                 for i, dim in enumerate(img_t.shape[sr + 1 : 0 : -1]):
                     grid_t[0, ..., i] *= 2.0 / max(2, dim)
+
+            # In some cases it's necessary to convert inputs to grid_sample from float64 to float32 to work around known
+            # issues with PyTorch, see https://github.com/Project-MONAI/MONAI/pull/8429
+            convert_f32 = sys.platform == "win32" and img_t.dtype == torch.float64 and img_t.device == torch.device("cpu")
+
+            _img_t = img_t.unsqueeze(0)
+
+            if convert_f32:
+                _img_t=_img_t.to(torch.float32)
+                grid_t=grid_t.to(torch.float32)
+
             out = torch.nn.functional.grid_sample(
-                img_t.unsqueeze(0),
+                _img_t,
                 grid_t,
                 mode=_interp_mode,
                 padding_mode=_padding_mode,
                 align_corners=None if _align_corners == TraceKeys.NONE else _align_corners,  # type: ignore
             )[0]
+
+            if convert_f32:
+                out = out.to(torch.float64)
+                
         out_val, *_ = convert_to_dst_type(out, dst=img, dtype=np.float32)
         return out_val
 
