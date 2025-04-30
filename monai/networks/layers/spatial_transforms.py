@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import sys
+from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
@@ -530,7 +530,7 @@ class AffineTransform(nn.Module):
 
         # In some cases it's necessary to convert inputs to grid_sample from float64 to float32 to work around known
         # issues with PyTorch, see https://github.com/Project-MONAI/MONAI/pull/8429
-        convert_f32 = sys.platform != "win32" and src.dtype == torch.float64 and src.device == torch.device("cpu")
+        convert_f32 = sys.platform == "win32" and src.dtype == torch.float64 and src.device == torch.device("cpu")
 
         # validate `theta`
         if not isinstance(theta, torch.Tensor):
@@ -595,11 +595,7 @@ class AffineTransform(nn.Module):
             grid = grid.to(torch.float32)
 
         dst = nn.functional.grid_sample(
-            input=_input,
-            grid=grid,
-            mode=self.mode,
-            padding_mode=self.padding_mode,
-            align_corners=self.align_corners,
+            input=_input, grid=grid, mode=self.mode, padding_mode=self.padding_mode, align_corners=self.align_corners
         )
 
         if convert_f32:
