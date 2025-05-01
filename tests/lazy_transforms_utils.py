@@ -66,7 +66,7 @@ def test_resampler_lazy(
 
     # FIXME: this is a fix for https://github.com/Project-MONAI/MONAI/pull/8429, remove when PyTorch has
     # fixed the underlying issue
-    if sys.platform == "win32":  
+    if sys.platform == "win32":
         atol=1e-4
         rtol=1e-4
 
