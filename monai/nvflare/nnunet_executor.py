@@ -130,6 +130,7 @@ class nnUNetExecutor(Executor):
         train_extra_configs=None,
         exclude_vars=None,
         continue_training=False,
+        label_dict = None
     ):
         super().__init__()
 
@@ -157,6 +158,7 @@ class nnUNetExecutor(Executor):
         self.finalize_task_name = finalize_task_name
         self.cross_site_validation_task_name = cross_site_validation_task_name
         self.monai_deploy_config = monai_deploy_config
+        self.label_dict = label_dict
 
     def handle_event(self, event_type: str, fl_ctx: FLContext):
         if event_type == EventType.START_RUN:
@@ -342,7 +344,8 @@ class nnUNetExecutor(Executor):
             "mlflow_run_name": self.client_name,
             "nnunet_plans_identifier": nnunet_plans_name,
             "nnunet_trainer_class_name": nnunet_trainer_name,
-            "dataset_name_or_id": self.nnunet_config["dataset_name_or_id"]
+            "dataset_name_or_id": self.nnunet_config["dataset_name_or_id"],
+            "label_dict": self.label_dict,
         }
 
         bundle_config = prepare_bundle(bundle_config, self.train_extra_configs)

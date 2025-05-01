@@ -842,6 +842,7 @@ def prepare_bundle_config(clients, experiment, root_dir, script_dir, nvflare_exe
                             "nnunet_config": {"experiment_name": experiment["experiment_name"], "dataset_name_or_id": experiment["dataset_name_or_id"]},
                             "client_name": clients[client_id]["client_name"],
                             "tracking_uri": experiment["tracking_uri"],
+                            "label_dict": experiment["label_dict"],
                         },
                     },
                 }
