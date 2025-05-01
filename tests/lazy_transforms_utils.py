@@ -11,8 +11,8 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 import sys
+from copy import deepcopy
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import InvertibleTransform, MapTransform, Randomizable
@@ -66,9 +66,9 @@ def test_resampler_lazy(
 
     # FIXME: this is a fix for https://github.com/Project-MONAI/MONAI/pull/8429, remove when PyTorch has
     # fixed the underlying issue
-    if sys.platform == "win32":  
-        atol=1e-4
-        rtol=1e-4
+    if sys.platform == "win32":
+        atol = 1e-4
+        rtol = 1e-4
 
     pending_output = resampler(**deepcopy(call_param))
     if output_idx is not None:

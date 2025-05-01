@@ -2110,13 +2110,15 @@ class Resample(Transform):
 
             # In some cases it's necessary to convert inputs to grid_sample from float64 to float32 to work around known
             # issues with PyTorch, see https://github.com/Project-MONAI/MONAI/pull/8429
-            convert_f32 = sys.platform == "win32" and img_t.dtype == torch.float64 and img_t.device == torch.device("cpu")
+            convert_f32 = (
+                sys.platform == "win32" and img_t.dtype == torch.float64 and img_t.device == torch.device("cpu")
+            )
 
             _img_t = img_t.unsqueeze(0)
 
             if convert_f32:
-                _img_t=_img_t.to(torch.float32)
-                grid_t=grid_t.to(torch.float32)
+                _img_t = _img_t.to(torch.float32)
+                grid_t = grid_t.to(torch.float32)
 
             out = torch.nn.functional.grid_sample(
                 _img_t,
