@@ -11,8 +11,10 @@
 
 from __future__ import annotations
 
+import os
 import random
 import unittest
+from contextlib import redirect_stderr
 from functools import wraps
 
 import numpy as np
@@ -35,7 +37,7 @@ from monai.transforms import (
     RandZoomd,
     ToTensor,
 )
-from monai.utils import set_determinism
+from monai.utils import first, set_determinism
 
 
 @wraps(pad_list_data_collate)
@@ -97,8 +99,9 @@ class TestPadCollation(unittest.TestCase):
         # Default collation should raise an error
         loader_fail = DataLoader(dataset, batch_size=10)
         with self.assertRaises(RuntimeError):
-            for _ in loader_fail:
-                pass
+            # stifle PyTorch error reporting, we expect failure so don't need to look at it
+            with open(os.devnull) as f, redirect_stderr(f):
+                _ = first(loader_fail)
 
         # Padded collation shouldn't
         loader = DataLoader(dataset, batch_size=10, collate_fn=collate_method)

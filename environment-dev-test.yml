@@ -1,0 +1,14 @@
+name: monai
+channels:
+  - pytorch
+  - defaults
+  - nvidia
+  - conda-forge
+dependencies:
+  - numpy>=1.17
+  - pytorch>=1.8
+  - torchvision
+  - pytorch-cuda=11.6
+  - pip
+  - pip:
+    - -r requirements-dev.txt

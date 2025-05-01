@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import sys
 
 from monai.data import MetaTensor, set_track_meta
 from monai.transforms import InvertibleTransform, MapTransform, Randomizable
@@ -62,6 +63,13 @@ def test_resampler_lazy(
         resampler.set_random_state(seed=seed)
     set_track_meta(True)
     resampler.lazy = True
+
+    # FIXME: this is a fix for https://github.com/Project-MONAI/MONAI/pull/8429, remove when PyTorch has
+    # fixed the underlying issue
+    if sys.platform == "win32":  
+        atol=1e-4
+        rtol=1e-4
+
     pending_output = resampler(**deepcopy(call_param))
     if output_idx is not None:
         expected_output, pending_output = (expected_output[output_idx], pending_output[output_idx])
