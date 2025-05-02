@@ -586,7 +586,7 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
             "work_dir": "@nnunet_root_folder",
         }
 
-        train_config["network"] = "$@nnunet_trainer.network._orig_mod"
+        train_config["network"] = "$@nnunet_trainer.network"
 
         train_handlers = train_config["train_handlers"]["handlers"]
 
@@ -633,6 +633,14 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
     for k, v in bundle_config["label_dict"].items():
         if k != "0":
             train_config["label_dict"][str(v)] = k
+
+
+    if "region_based" in train_extra_configs:
+        train_config["train_postprocessing_label_based"] = bundle_config["train_postprocessing"]
+        train_config["train_postprocessing"] = bundle_config["train_postprocessing_region_based"]
+        train_config["val_additional_metrics"]["Val_Dice_per_class_Local"]["include_background"] = True
+        train_config["train_additional_metrics"]["Train_Dice_per_class"]["include_background"] = True
+
     
     train_config["num_classes"] = len(train_config["label_dict"])
     with open(Path(bundle_config["bundle_root"]).joinpath("configs", "train.json"), "w") as f:

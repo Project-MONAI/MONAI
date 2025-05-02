@@ -168,6 +168,8 @@ class nnUNetExecutor(Executor):
         self.run_dir = fl_ctx.get_engine().get_workspace().get_run_dir(fl_ctx.get_job_id())
         self.root_dir = fl_ctx.get_engine().get_workspace().root_dir
         self.custom_app_dir = fl_ctx.get_engine().get_workspace().get_app_custom_dir(fl_ctx.get_job_id())
+        client_name = fl_ctx.get_identity_name()
+        self.client_name = client_name
 
         with open("init_logfile_out.log", "w") as f_o:
             with open("init_logfile_err.log", "w") as f_e:
@@ -218,10 +220,13 @@ class nnUNetExecutor(Executor):
         else:
             nnunet_trainer_name = self.nnunet_config["nnunet_trainer"]
 
+        dataset_name_or_id = self.nnunet_config["dataset_name_or_id"]
+        if isinstance(dataset_name_or_id, dict):
+            dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         data_list = prepare_data_folder(
             data_dir=self.data_dir,
             nnunet_root_dir=self.nnunet_root_folder,
-            dataset_name_or_id=self.nnunet_config["dataset_name_or_id"],
+            dataset_name_or_id=dataset_name_or_id,
             modality_dict=self.modality_dict,
             experiment_name=self.nnunet_config["experiment_name"],
             client_name=self.client_name,
@@ -266,9 +271,12 @@ class nnUNetExecutor(Executor):
         else:
             nnunet_trainer_name = self.nnunet_config["nnunet_trainer"]
 
+        dataset_name_or_id = self.nnunet_config["dataset_name_or_id"]
+        if isinstance(dataset_name_or_id, dict):
+            dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         nnunet_plans = plan_and_preprocess(
             self.nnunet_root_folder,
-            self.nnunet_config["dataset_name_or_id"],
+            dataset_name_or_id,
             self.client_name,
             self.nnunet_config["experiment_name"],
             self.tracking_uri,
@@ -290,9 +298,12 @@ class nnUNetExecutor(Executor):
         else:
             nnunet_trainer_name = self.nnunet_config["nnunet_trainer"]
 
+        dataset_name_or_id = self.nnunet_config["dataset_name_or_id"]
+        if isinstance(dataset_name_or_id, dict):
+            dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         nnunet_plans = preprocess(
             self.nnunet_root_folder,
-            self.nnunet_config["dataset_name_or_id"],
+            dataset_name_or_id,
             nnunet_plans_file_path=Path(self.custom_app_dir).joinpath(f"{nnunet_plans_name}.json"),
             trainer_class_name=nnunet_trainer_name,
         )
@@ -310,6 +321,9 @@ class nnUNetExecutor(Executor):
         else:
             nnunet_plans_name = self.nnunet_config["nnunet_plans"]
 
+        dataset_name_or_id = self.nnunet_config["dataset_name_or_id"]
+        if isinstance(dataset_name_or_id, dict):
+            dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         validation_summary = train(
             self.nnunet_root_folder,
             trainer_class_name=nnunet_trainer_name,
@@ -318,7 +332,7 @@ class nnUNetExecutor(Executor):
             client_name=self.client_name,
             tracking_uri=self.tracking_uri,
             nnunet_plans_name=nnunet_plans_name,
-            dataset_name_or_id=self.nnunet_config["dataset_name_or_id"],
+            dataset_name_or_id=dataset_name_or_id,
             run_with_bundle=True if self.bundle_root is not None else False,
             bundle_root=self.bundle_root,
             continue_training=self.continue_training
@@ -337,6 +351,9 @@ class nnUNetExecutor(Executor):
         else:
             nnunet_plans_name = self.nnunet_config["nnunet_plans"]
 
+        dataset_name_or_id = self.nnunet_config["dataset_name_or_id"]
+        if isinstance(dataset_name_or_id, dict):
+            dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         bundle_config = {
             "bundle_root": self.bundle_root,
             "tracking_uri": self.tracking_uri,
@@ -344,7 +361,7 @@ class nnUNetExecutor(Executor):
             "mlflow_run_name": self.client_name,
             "nnunet_plans_identifier": nnunet_plans_name,
             "nnunet_trainer_class_name": nnunet_trainer_name,
-            "dataset_name_or_id": self.nnunet_config["dataset_name_or_id"],
+            "dataset_name_or_id": dataset_name_or_id,
             "label_dict": self.label_dict,
         }
 
@@ -366,6 +383,9 @@ class nnUNetExecutor(Executor):
         else:
             nnunet_plans_name = self.nnunet_config["nnunet_plans"]
 
+        dataset_name_or_id = self.nnunet_config["dataset_name_or_id"]
+        if isinstance(dataset_name_or_id, dict):
+            dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         validation_summary = finalize_bundle(
             self.bundle_root,
             self.nnunet_root_folder,
@@ -375,7 +395,7 @@ class nnUNetExecutor(Executor):
             client_name=self.client_name,
             tracking_uri=self.tracking_uri,
             nnunet_plans_name=nnunet_plans_name,
-            dataset_name_or_id=self.nnunet_config["dataset_name_or_id"]
+            dataset_name_or_id=dataset_name_or_id
         )
         outgoing_dxo = DXO(data_kind=DataKind.COLLECTION, data=validation_summary, meta={})
         return outgoing_dxo.to_shareable()
@@ -391,9 +411,12 @@ class nnUNetExecutor(Executor):
         else:
             nnunet_plans_name = self.nnunet_config["nnunet_plans"]
         
+        dataset_name_or_id = self.nnunet_config["dataset_name_or_id"]
+        if isinstance(dataset_name_or_id, dict):
+            dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         validation_summary = run_cross_site_validation(
             self.nnunet_root_folder,
-            self.nnunet_config["dataset_name_or_id"],
+            dataset_name_or_id
             self.monai_deploy_config["app_path"],
             self.monai_deploy_config["app_model_path"],
             self.monai_deploy_config["app_output_path"],
