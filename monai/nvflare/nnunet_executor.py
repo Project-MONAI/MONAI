@@ -416,7 +416,7 @@ class nnUNetExecutor(Executor):
             dataset_name_or_id = dataset_name_or_id.get(self.client_name, None)
         validation_summary = run_cross_site_validation(
             self.nnunet_root_folder,
-            dataset_name_or_id
+            dataset_name_or_id,
             self.monai_deploy_config["app_path"],
             self.monai_deploy_config["app_model_path"],
             self.monai_deploy_config["app_output_path"],
