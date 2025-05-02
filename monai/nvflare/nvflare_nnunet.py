@@ -636,8 +636,8 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
 
 
     if "region_based" in train_extra_configs:
-        train_config["train_postprocessing_label_based"] = bundle_config["train_postprocessing"]
-        train_config["train_postprocessing"] = bundle_config["train_postprocessing_region_based"]
+        train_config["train_postprocessing_label_based"] = train_config["train_postprocessing"]
+        train_config["train_postprocessing"] = train_config["train_postprocessing_region_based"]
         train_config["val_additional_metrics"]["Val_Dice_per_class_Local"]["include_background"] = True
         train_config["train_additional_metrics"]["Train_Dice_per_class"]["include_background"] = True
 
