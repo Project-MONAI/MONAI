@@ -586,7 +586,7 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
             "work_dir": "@nnunet_root_folder",
         }
 
-        train_config["network"] = "$@nnunet_trainer.network"
+        train_config["network"] = "$@nnunet_trainer.network._orig_mod"
 
         train_handlers = train_config["train_handlers"]["handlers"]
 
