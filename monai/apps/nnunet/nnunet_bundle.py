@@ -291,6 +291,8 @@ class ModelnnUNetWrapper(torch.nn.Module):
             raise TypeError("Input must be a MetaTensor or a tuple of MetaTensors.")
 
         image_or_list_of_images = x.cpu().numpy()[0, :]
+        image_or_list_of_images = np.transpose(image_or_list_of_images, (0, 3, 2, 1))
+        properties_or_list_of_properties["spacing"] = properties_or_list_of_properties["spacing"][::-1]
 
         # input_files should be a list of file paths, one per modality
         prediction_output = self.predictor.predict_from_list_of_npy_arrays(  # type: ignore
@@ -308,7 +310,7 @@ class ModelnnUNetWrapper(torch.nn.Module):
         for out in prediction_output:  # Add batch and channel dimensions
             out_tensors.append(torch.from_numpy(np.expand_dims(np.expand_dims(out, 0), 0)))
         out_tensor = torch.cat(out_tensors, 0)  # Concatenate along batch dimension
-
+        out_tensor = out_tensor.permute(0, 1, 4, 3, 2)
         return MetaTensor(out_tensor, meta=x.meta)
 
 
@@ -363,8 +365,8 @@ def get_nnunet_monai_predictor(model_folder: Union[str, Path], model_name: str =
         use_gaussian=True,
         use_mirroring=False,
         device=torch.device("cuda", 0),
-        verbose=False,
-        verbose_preprocessing=False,
+        verbose=True,
+        verbose_preprocessing=True,
         allow_tqdm=True,
     )
     # initializes the network architecture, loads the checkpoint
