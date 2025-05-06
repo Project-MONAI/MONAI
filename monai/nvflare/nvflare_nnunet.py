@@ -36,7 +36,7 @@ from monai.bundle import ConfigParser
 from pyhocon import ConfigFactory
 from pyhocon.converter import HOCONConverter
 
-from monai.nvflare.utils import prepare_data_folder_api, compute_validation_metrics, cross_site_evaluation_api, plan_and_preprocess_api
+from monai.nvflare.utils import prepare_data_folder_api, finalize_bundle_api, cross_site_evaluation_api, plan_and_preprocess_api, prepare_bundle_api, train_api, validation_api
 
 
 
@@ -146,36 +146,10 @@ def train(
     dict
         Dictionary containing validation summary metrics.
     """
-    data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
-    runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
+    
+    train_api(nnunet_root_dir, dataset_name_or_id, experiment_name, trainer_class_name, run_with_bundle, bundle_root, skip_training, continue_training, fold, tracking_uri, client_name, resume_epoch)
 
-    if not skip_training:
-        if not run_with_bundle:
-            if continue_training:
-                runner.train_single_model(config="3d_fullres", fold=fold, c="")
-            else:
-                runner.train_single_model(config="3d_fullres", fold=fold)
-        else:
-            os.environ["BUNDLE_ROOT"] = bundle_root
-            os.environ["PYTHONPATH"] = os.environ["PYTHONPATH"] + ":" + bundle_root
-            config_files = os.path.join(bundle_root, "configs", "train.yaml")
-            if continue_training:
-                config_files = [os.path.join(bundle_root, "configs", "train.yaml"), os.path.join(bundle_root, "configs", "train_resume.yaml")]
-            monai.bundle.run(
-                config_file=config_files,
-                bundle_root=bundle_root,
-                nnunet_trainer_class_name=trainer_class_name,
-                mlflow_experiment_name=experiment_name,
-                mlflow_run_name="run_" + client_name,
-                tracking_uri=tracking_uri,
-                fold_id=fold,
-                nnunet_root_folder=nnunet_root_dir,
-                reload_checkpoint_epoch=resume_epoch
-            )
-            nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}
-            convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
-            runner.train_single_model(config="3d_fullres", fold=fold, val="")
-
+    validation_summary_dict, labels = validation_api(nnunet_root_dir, dataset_name_or_id, trainer_class_name, nnunet_plans_name, fold)
     if mlflow_token is not None:
         os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
     if tracking_uri is not None:
@@ -193,21 +167,7 @@ def train(
 
     runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
 
-    dataset_file = os.path.join(
-        runner.nnunet_results,
-        runner.dataset_name,
-        f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
-        "dataset.json",
-    )
-
-    with open(dataset_file, "r") as f:
-        dataset_dict = json.load(f)
-        labels = dataset_dict["labels"]
-        labels = {str(v): k for k, v in labels.items()}
-
-    validation_summary_dict = compute_validation_metrics(str(Path(runner.nnunet_raw).joinpath(runner.dataset_name, "labelsTr")),
-                                   str(Path(runner.nnunet_results).joinpath(runner.dataset_name,f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres", f"fold_{fold}", "validation")),
-                                   len(labels)-1)
+    
 
     if len(runs) == 0:
         with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
@@ -569,112 +529,7 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
     None
     """
 
-    with open(Path(bundle_config["bundle_root"]).joinpath("configs", "train.yaml")) as f:
-        train_config = yaml.safe_load(f)
-        train_config["bundle_root"] = bundle_config["bundle_root"]
-        train_config["tracking_uri"] = bundle_config["tracking_uri"]
-        train_config["mlflow_experiment_name"] = bundle_config["mlflow_experiment_name"]
-        train_config["mlflow_run_name"] = bundle_config["mlflow_run_name"]
-
-        train_config["dataset_name_or_id"] = bundle_config["dataset_name_or_id"]
-        train_config["data_src_cfg"] = "$@nnunet_root_folder+'/Task'+@dataset_name_or_id+'_data_src_cfg.yaml'"
-        train_config["nnunet_root_folder"] = "."
-        train_config["runner"] = {
-            "_target_": "nnUNetV2Runner",
-            "input_config": "$@data_src_cfg",
-            "trainer_class_name": "@nnunet_trainer_class_name",
-            "work_dir": "@nnunet_root_folder",
-        }
-
-        train_config["network"] = "$@nnunet_trainer.network._orig_mod"
-
-        train_handlers = train_config["train_handlers"]["handlers"]
-
-        for idx, handler in enumerate(train_handlers):
-            if handler["_target_"] == "ValidationHandler":
-                train_handlers.pop(idx)
-                break
-
-        train_config["train_handlers"]["handlers"] = train_handlers
-
-        if train_extra_configs is not None and "resume_epoch" in train_extra_configs:
-            resume_epoch = train_extra_configs["resume_epoch"]
-            train_config["initialize"] = [
-                "$monai.utils.set_determinism(seed=123)",
-                "$@runner.dataset_name_or_id",
-                f"$src.trainer.reload_checkpoint(@train#trainer, {resume_epoch}, @iterations, @ckpt_dir, @lr_scheduler)",
-            ]
-        else:
-            train_config["initialize"] = ["$monai.utils.set_determinism(seed=123)", "$@runner.dataset_name_or_id"]
-            
-        if train_extra_configs is not None:
-            for key in train_extra_configs:
-                if key != "resume_epoch":
-                    train_config[key] = train_extra_configs[key]
-
-        if "Val_Dice" in train_config["val_key_metric"]:
-            train_config["val_key_metric"] = {"Val_Dice_Local": train_config["val_key_metric"]["Val_Dice"]}
-
-        if "Val_Dice_per_class" in train_config["val_additional_metrics"]:
-            train_config["val_additional_metrics"] = {
-                "Val_Dice_per_class_Local": train_config["val_additional_metrics"]["Val_Dice_per_class"]
-            }
-        if "nnunet_plans_identifier" in bundle_config:
-            train_config["nnunet_plans_identifier"] = bundle_config["nnunet_plans_identifier"]
-
-        if "nnunet_trainer_class_name" in bundle_config:
-            train_config["nnunet_trainer_class_name"] = bundle_config["nnunet_trainer_class_name"]
-
-
-    train_config["label_dict"] = {
-        "0": "background",
-    }
-    
-    for k, v in bundle_config["label_dict"].items():
-        if k != "0":
-            train_config["label_dict"][str(v)] = k
-
-
-    if "region_based" in train_extra_configs:
-        train_config["train_postprocessing_label_based"] = train_config["train_postprocessing"]
-        train_config["train_postprocessing"] = train_config["train_postprocessing_region_based"]
-        train_config["val_additional_metrics"]["Val_Dice_per_class_Local"]["include_background"] = True
-        train_config["train_additional_metrics"]["Train_Dice_per_class"]["include_background"] = True
-
-    
-    train_config["num_classes"] = len(train_config["label_dict"])
-    with open(Path(bundle_config["bundle_root"]).joinpath("configs", "train.json"), "w") as f:
-        json.dump(train_config, f)
-
-    with open(Path(bundle_config["bundle_root"]).joinpath("configs", "train.yaml"), "w") as f:
-        yaml.dump(train_config, f)
-
-    if not Path(bundle_config["bundle_root"]).joinpath("configs", "evaluate.yaml").exists():
-        shutil.copy(
-            Path(bundle_config["bundle_root"]).joinpath("nnUNet", "evaluator", "evaluator.yaml"),
-            Path(bundle_config["bundle_root"]).joinpath("configs", "evaluate.yaml"),
-        )
-
-    with open(Path(bundle_config["bundle_root"]).joinpath("configs", "evaluate.yaml")) as f:
-        evaluate_config = yaml.safe_load(f)
-        evaluate_config["bundle_root"] = bundle_config["bundle_root"]
-
-        evaluate_config["tracking_uri"] = bundle_config["tracking_uri"]
-        evaluate_config["mlflow_experiment_name"] = bundle_config["mlflow_experiment_name"]
-        evaluate_config["mlflow_run_name"] = bundle_config["mlflow_run_name"]
-
-        if "nnunet_plans_identifier" in bundle_config:
-            evaluate_config["nnunet_plans_identifier"] = bundle_config["nnunet_plans_identifier"]
-        if "nnunet_trainer_class_name" in bundle_config:
-            evaluate_config["nnunet_trainer_class_name"] = bundle_config["nnunet_trainer_class_name"]
-
-    with open(Path(bundle_config["bundle_root"]).joinpath("configs", "evaluate.json"), "w") as f:
-        json.dump(evaluate_config, f)
-
-    with open(Path(bundle_config["bundle_root"]).joinpath("configs", "evaluate.yaml"), "w") as f:
-        yaml.dump(evaluate_config, f)
-    
-    return {"evaluate_config": evaluate_config, "train_config": train_config}
+    prepare_bundle_api(bundle_config, train_extra_configs=train_extra_configs, is_federated=True)
 
 
 
@@ -726,71 +581,14 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
         trains a single model, and logs validation metrics to MLflow.
     - The function creates and saves nnUNet-compatible checkpoints in the `models` directory.
     """
-    print("Finalizing bundle...")
-    if nnunet_root_dir is None:
-        raise ValueError("nnunet_root_dir must be provided if validate_with_nnunet is True")
-    if not Path(bundle_root).joinpath("models", "plans.json").exists():
-        raise ValueError("plans.json file not found in the models directory of the bundle")
-    if not Path(bundle_root).joinpath("models", "dataset.json").exists():
-        raise ValueError("dataset.json file not found in the models directory of the bundle")
-    
-    print("Converting bundle to nnUNet format...")
-    
-    with open(Path(bundle_root).joinpath("models","plans.json"),"r") as f:
-        plans = json.load(f)
-
-    with open(Path(bundle_root).joinpath("configs","plans.yaml"),"w") as f:
-        yaml.dump({"plans": plans}, f)
-
-    with open(Path(bundle_root).joinpath("models","dataset.json"),"r") as f:
-        dataset_json = json.load(f)
-        
-    with open(Path(bundle_root).joinpath("configs","dataset.yaml"),"w") as f:
-        yaml.dump({"dataset_json": dataset_json}, f)
-        
-    checkpoint = {
-        "trainer_name": trainer_class_name,
-        "inference_allowed_mirroring_axes": (0, 1, 2),
-        "init_args": {
-            "configuration": "3d_fullres",
-    }
-    }
-    
-    torch.save(checkpoint, Path(bundle_root).joinpath("models","nnunet_checkpoint.pth"))
-    
-    checkpoint_dict = torch.load(Path(bundle_root).joinpath("models",f"fold_{fold}","FL_global_model.pt"))
-    
-    new_checkpoint_dict = {}
-    new_checkpoint_dict["network_weights"] = checkpoint_dict["model"]
-    torch.save(new_checkpoint_dict, Path(bundle_root).joinpath("models",f"fold_{fold}","checkpoint_epoch=1000.pt"))
-    torch.save(new_checkpoint_dict, Path(bundle_root).joinpath("models",f"fold_{fold}","checkpoint_key_metric=1.0.pt"))
+    finalize_bundle_api(nnunet_root_dir, bundle_root, trainer_class_name, fold)
+   
     
     if validate_with_nnunet:
-        data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
-        runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
-
         nnunet_config = {"dataset_name_or_id": dataset_name_or_id, "nnunet_trainer": trainer_class_name}
         convert_monai_bundle_to_nnunet(nnunet_config, bundle_root)
+        validation_summary_dict, labels = validation_api(nnunet_root_dir, dataset_name_or_id, trainer_class_name, nnunet_plans_name, fold)
         
-        runner.train_single_model(config="3d_fullres", fold=fold, val="")
-        from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-        dataset_name = maybe_convert_to_dataset_name(int(dataset_name_or_id))
-        
-        dataset_file = os.path.join(
-            runner.nnunet_results,
-            runner.dataset_name,
-            f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres",
-            "dataset.json",
-        )
-
-        with open(dataset_file, "r") as f:
-            dataset_dict = json.load(f)
-            labels = dataset_dict["labels"]
-            labels = {str(v): k for k, v in labels.items()}
-            
-        validation_summary_dict = compute_validation_metrics(str(Path(runner.nnunet_raw).joinpath(dataset_name, "labelsTr")),
-                                   str(Path(runner.nnunet_results).joinpath(dataset_name,f"{trainer_class_name}__{nnunet_plans_name}__3d_fullres", f"fold_{fold}", "validation")),
-                                   len(labels)-1)
         
         if mlflow_token is not None:
             os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
