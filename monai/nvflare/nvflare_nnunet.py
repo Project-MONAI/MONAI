@@ -252,6 +252,7 @@ def plan_and_preprocess(
     mlflow_token=None,
     nnunet_plans_name="nnUNetPlans",
     trainer_class_name="nnUNetTrainer",
+    dataset_name=None,
 ):
     """
     Plan and preprocess the dataset using nnUNetV2Runner and log the plans to MLflow.
@@ -299,18 +300,23 @@ def plan_and_preprocess(
         print(e)
         mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name(experiment_name).experiment_id))
 
-    filter = f"""
-    tags."client" = "{client_name}"
-    """
+    run_name = f"run_plan_and_preprocess_{client_name}"
 
-    runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
+    runs = mlflow.search_runs(
+    experiment_names=[experiment_name],
+    filter_string=f"tags.mlflow.runName = '{run_name}'",
+    order_by=["start_time DESC"]
+    )
+    tags = {"client": client_name}
+    if dataset_name is not None:
+        tags["dataset_name"] = dataset_name
 
     if len(runs) == 0:
-        with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+        with mlflow.start_run(run_name=f"run_plan_and_preprocess_{client_name}", tags=tags):
             mlflow.log_dict(nnunet_plans, nnunet_plans_name + ".json")
 
     else:
-        with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+        with mlflow.start_run(run_id=runs.iloc[0].run_id, tags=tags):
             mlflow.log_dict(nnunet_plans, nnunet_plans_name + ".json")
 
     return nnunet_plans
@@ -330,6 +336,7 @@ def prepare_data_folder(
     subfolder_suffix=None,
     patient_id_in_file_identifier=True,
     trainer_class_name="nnUNetTrainer",
+    dataset_name=None,
 ):
     """
     Prepare the data folder for nnUNet training and log the data to MLflow.
@@ -394,18 +401,23 @@ def prepare_data_folder(
         print(e)
         mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name(experiment_name).experiment_id))
 
-    filter = f"""
-    tags."client" = "{client_name}"
-    """
 
-    runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
+    run_name = f"run_prepare_{client_name}"
 
+    runs = mlflow.search_runs(
+    experiment_names=[experiment_name],
+    filter_string=f"tags.mlflow.runName = '{run_name}'",
+    order_by=["start_time DESC"]
+    )
+    tags = {"client": client_name}
+    if dataset_name is not None:
+        tags["dataset_name"] = dataset_name
     try:
         if len(runs) == 0:
-            with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+            with mlflow.start_run(run_name=f"run_prepare_{client_name}", tags=tags):
                 mlflow.log_table(pd.DataFrame.from_records(data_list["training"]), f"{client_name}_train.json")
         else:
-            with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+            with mlflow.start_run(run_id=runs.iloc[0].run_id, tags=tags):
                 mlflow.log_table(pd.DataFrame.from_records(data_list["training"]), f"{client_name}_train.json")
     except (BrokenPipeError, ConnectionError) as e:
         logging.error(f"Failed to log data to MLflow: {e}")
@@ -537,7 +549,7 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
 def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True,
                     experiment_name=None, client_name=None, tracking_uri=None,
                     dataset_name_or_id=None, trainer_class_name="nnUNetTrainer",
-                    nnunet_plans_name="nnUNetPlans", fold=0, mlflow_token=None):
+                    nnunet_plans_name="nnUNetPlans", fold=0, mlflow_token=None, dataset_name=None):
     """
     Finalizes a MONAI bundle by converting model and dataset configurations to nnUNet format,
     saving checkpoints, and optionally validating the model using nnUNet.
@@ -601,15 +613,20 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
             print(e)
             mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name("FedLearning-"+experiment_name).experiment_id))
 
-        filter = f"""
-        tags."client" = "{client_name}"
-        """
+        run_name = f"run_validation_{client_name}"
 
-        runs = mlflow.search_runs(experiment_names=["FedLearning-"+experiment_name], filter_string=filter, order_by=["start_time DESC"])
+        runs = mlflow.search_runs(
+        experiment_names=["FedLearning-"+experiment_name],
+        filter_string=f"tags.mlflow.runName = '{run_name}'",
+        order_by=["start_time DESC"]
+        )
+        tags = {"client": client_name}
+        if dataset_name is not None:
+            tags["dataset_name"] = dataset_name
 
 
         if len(runs) == 0:
-            with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+            with mlflow.start_run(run_name=f"run_validation_{client_name}", tags=tags):
                 mlflow.log_dict(validation_summary_dict, "validation_summary.json")
                 for label in validation_summary_dict["mean"]:
                     for metric in validation_summary_dict["mean"][label]:
@@ -617,7 +634,7 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
                         mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
 
         else:
-            with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+            with mlflow.start_run(run_id=runs.iloc[0].run_id, tags=tags):
                 mlflow.log_dict(validation_summary_dict, "validation_summary.json")
                 for label in validation_summary_dict["mean"]:
                     for metric in validation_summary_dict["mean"][label]:
@@ -629,7 +646,7 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
 
 def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app_model_path, app_output_path, trainer_class_name="nnUNetTrainer", fold=0,
                     experiment_name=None, client_name=None, tracking_uri=None,
-                    nnunet_plans_name="nnUNetPlans", mlflow_token=None, skip_prediction=False):
+                    nnunet_plans_name="nnUNetPlans", mlflow_token=None, skip_prediction=False, dataset_name=None):
 
     validation_summary_dict, labels = cross_site_evaluation_api(
         nnunet_root_dir,
@@ -653,11 +670,16 @@ def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app
         print(e)
         mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name(experiment_name).experiment_id))
 
-    filter = f"""
-    tags."client" = "{client_name}"
-    """
+    run_name = f"run_cross_site_validation_{client_name}"
 
-    runs = mlflow.search_runs(experiment_names=[experiment_name], filter_string=filter, order_by=["start_time DESC"])
+    runs = mlflow.search_runs(
+    experiment_names=[experiment_name],
+    filter_string=f"tags.mlflow.runName = '{run_name}'",
+    order_by=["start_time DESC"]
+    )
+    tags = {"client": client_name}
+    if dataset_name is not None:
+        tags["dataset_name"] = dataset_name
 
 
     if len(runs) == 0:

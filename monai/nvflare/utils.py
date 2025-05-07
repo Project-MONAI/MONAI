@@ -540,6 +540,9 @@ def prepare_bundle_api(bundle_config, train_extra_configs=None, is_federated=Fal
 
         if "nnunet_trainer_class_name" in bundle_config:
             mlflow_params["nnunet_trainer_class_name"] = bundle_config["nnunet_trainer_class_name"]
+        
+        if "dataset_name" in bundle_config:
+            mlflow_params["dataset_name"] = bundle_config["dataset_name"]
 
     with open(Path(bundle_config["bundle_root"]).joinpath("nnUNet", "params.yaml"), "w") as f:
         yaml.dump(mlflow_params, f)
