@@ -17,7 +17,7 @@ mccabe
 pep8-naming
 pycodestyle
 pyflakes
-black>=22.12
+black>=25.1.0
 isort>=5.1, <6.0
 ruff
 pytype>=2020.6.1; platform_system != "Windows"
