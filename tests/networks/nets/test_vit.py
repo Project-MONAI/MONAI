@@ -18,45 +18,49 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.vit import ViT
-from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, skip_if_quick, test_script_save
 
-TEST_CASE_Vit = []
-for dropout_rate in [0.6]:
-    for in_channels in [4]:
-        for hidden_size in [768]:
-            for img_size in [96, 128]:
-                for patch_size in [16]:
-                    for num_heads in [12]:
-                        for mlp_dim in [3072]:
-                            for num_layers in [4]:
-                                for num_classes in [8]:
-                                    for proj_type in ["conv", "perceptron"]:
-                                        for classification in [False, True]:
-                                            for nd in (2, 3):
-                                                test_case = [
-                                                    {
-                                                        "in_channels": in_channels,
-                                                        "img_size": (img_size,) * nd,
-                                                        "patch_size": (patch_size,) * nd,
-                                                        "hidden_size": hidden_size,
-                                                        "mlp_dim": mlp_dim,
-                                                        "num_layers": num_layers,
-                                                        "num_heads": num_heads,
-                                                        "proj_type": proj_type,
-                                                        "classification": classification,
-                                                        "num_classes": num_classes,
-                                                        "dropout_rate": dropout_rate,
-                                                    },
-                                                    (2, in_channels, *([img_size] * nd)),
-                                                    (2, (img_size // patch_size) ** nd, hidden_size),
-                                                ]
-                                                if nd == 2:
-                                                    test_case[0]["spatial_dims"] = 2  # type: ignore
-                                                    if classification:
-                                                        test_case[0]["post_activation"] = False  # type: ignore
-                                                if test_case[0]["classification"]:  # type: ignore
-                                                    test_case[2] = (2, test_case[0]["num_classes"])  # type: ignore
-                                                TEST_CASE_Vit.append(test_case)
+TEST_CASE_Vit = [
+    (
+        [
+            {
+                "in_channels": params["in_channels"],
+                "img_size": (params["img_size"],) * params["nd"],
+                "patch_size": (params["patch_size"],) * params["nd"],
+                "hidden_size": params["hidden_size"],
+                "mlp_dim": params["mlp_dim"],
+                "num_layers": params["num_layers"],
+                "num_heads": params["num_heads"],
+                "proj_type": params["proj_type"],
+                "classification": params["classification"],
+                "num_classes": params["num_classes"],
+                "dropout_rate": params["dropout_rate"],
+                **({"spatial_dims": 2} if params["nd"] == 2 else {}),
+                **({"post_activation": False} if params["nd"] == 2 and params["classification"] else {}),
+            },
+            (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+            (
+                (2, params["num_classes"])
+                if params["classification"]
+                else (2, (params["img_size"] // params["patch_size"]) ** params["nd"], params["hidden_size"])
+            ),
+        ]
+    )
+    for params in dict_product(
+        dropout_rate=[0.6],
+        in_channels=[4],
+        hidden_size=[768],
+        img_size=[96, 128],
+        patch_size=[16],
+        num_heads=[12],
+        mlp_dim=[3072],
+        num_layers=[4],
+        num_classes=[8],
+        proj_type=["conv", "perceptron"],
+        classification=[False, True],
+        nd=[2, 3],
+    )
+]
 
 
 @skip_if_quick
