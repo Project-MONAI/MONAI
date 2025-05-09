@@ -614,7 +614,7 @@ class AutoencoderKL(nn.Module):
     def sampling(self, z_mu: torch.Tensor, z_sigma: torch.Tensor) -> torch.Tensor:
         """
         From the mean and sigma representations resulting of encoding an image through the latent space,
-        obtains a noise sample resulting from sampling gaussian noise, multiplying by the variance (sigma) and
+        obtains a noise sample resulting from sampling gaussian noise, multiplying by the variance (sigma) and 
         adding the mean.
 
         Args:
