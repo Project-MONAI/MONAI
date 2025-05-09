@@ -18,41 +18,42 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.unetr import UNETR
-from tests.test_utils import SkipIfBeforePyTorchVersion, skip_if_quick, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, dict_product, skip_if_quick, test_script_save
 
-TEST_CASE_UNETR = []
-for dropout_rate in [0.4]:
-    for in_channels in [1]:
-        for out_channels in [2]:
-            for hidden_size in [768]:
-                for img_size in [96, 128]:
-                    for feature_size in [16]:
-                        for num_heads in [8]:
-                            for mlp_dim in [3072]:
-                                for norm_name in ["instance"]:
-                                    for proj_type in ["perceptron"]:
-                                        for nd in (2, 3):
-                                            test_case = [
-                                                {
-                                                    "in_channels": in_channels,
-                                                    "out_channels": out_channels,
-                                                    "img_size": (img_size,) * nd,
-                                                    "hidden_size": hidden_size,
-                                                    "feature_size": feature_size,
-                                                    "norm_name": norm_name,
-                                                    "mlp_dim": mlp_dim,
-                                                    "num_heads": num_heads,
-                                                    "proj_type": proj_type,
-                                                    "dropout_rate": dropout_rate,
-                                                    "conv_block": True,
-                                                    "res_block": False,
-                                                },
-                                                (2, in_channels, *([img_size] * nd)),
-                                                (2, out_channels, *([img_size] * nd)),
-                                            ]
-                                            if nd == 2:
-                                                test_case[0]["spatial_dims"] = 2  # type: ignore
-                                            TEST_CASE_UNETR.append(test_case)
+TEST_CASE_UNETR = [
+    [
+        {
+            "in_channels": params["in_channels"],
+            "out_channels": params["out_channels"],
+            "img_size": (params["img_size"],) * params["nd"],
+            "hidden_size": params["hidden_size"],
+            "feature_size": params["feature_size"],
+            "norm_name": params["norm_name"],
+            "mlp_dim": params["mlp_dim"],
+            "num_heads": params["num_heads"],
+            "proj_type": params["proj_type"],
+            "dropout_rate": params["dropout_rate"],
+            "conv_block": True,
+            "res_block": False,
+            **({"spatial_dims": 2} if params["nd"] == 2 else {}),
+        },
+        (2, params["in_channels"], *([params["img_size"]] * params["nd"])),
+        (2, params["out_channels"], *([params["img_size"]] * params["nd"])),
+    ]
+    for params in dict_product(
+        dropout_rate=[0.4],
+        in_channels=[1],
+        out_channels=[2],
+        hidden_size=[768],
+        img_size=[96, 128],
+        feature_size=[16],
+        num_heads=[8],
+        mlp_dim=[3072],
+        norm_name=["instance"],
+        proj_type=["perceptron"],
+        nd=[2, 3],
+    )
+]
 
 
 @skip_if_quick
