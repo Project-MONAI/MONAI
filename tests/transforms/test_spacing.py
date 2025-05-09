@@ -24,237 +24,191 @@ from monai.data.utils import affine_to_spacing
 from monai.transforms import Spacing
 from monai.utils import fall_back_tuple
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, skip_if_quick
+from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, dict_product, skip_if_quick
 
-TESTS: list[list] = []
-for device in TEST_DEVICES:
-    TESTS.append(
-        [
-            {"pixdim": (1.0, 1.5), "padding_mode": "zeros", "dtype": float},
-            torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[1.0, 1.0], [3.0, 2.0]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": 1.0, "padding_mode": "zeros", "dtype": float},
-            torch.ones((1, 2, 1, 2)),  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": 2.0, "padding_mode": "zeros", "dtype": float},
-            torch.arange(4).reshape((1, 2, 2)) + 1.0,  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[1.0, 0.0], [0.0, 0.0]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
-            torch.ones((1, 2, 1, 2)),  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": True},
-            torch.ones((1, 2, 1, 2)),  # data
-            torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
-            {},
-            (
-                torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
-                if USE_COMPILED
-                else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]])
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (3.0, 1.0), "padding_mode": "zeros"},
-            torch.arange(24).reshape((2, 3, 4)),  # data
-            torch.as_tensor(np.diag([-3.0, 0.2, 1.5, 1])),
-            {},
-            torch.tensor([[[0, 0], [4, 0], [8, 0]], [[12, 0], [16, 0], [20, 0]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (3.0, 1.0), "padding_mode": "zeros"},
-            torch.arange(24).reshape((2, 3, 4)),  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[0, 1, 2, 3], [0, 0, 0, 0]], [[12, 13, 14, 15], [0, 0, 0, 0]]]),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (1.0, 1.0), "align_corners": True},
-            torch.arange(24).reshape((2, 3, 4)),  # data
-            torch.eye(4),
-            {},
-            torch.tensor(
-                [[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]], [[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]]]
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (4.0, 5.0, 6.0)},
-            torch.arange(24).reshape((1, 2, 3, 4)),  # data
-            torch.tensor([[-4, 0, 0, 4], [0, 5, 0, -5], [0, 0, 6, -6], [0, 0, 0, 1]]),
-            {},
-            torch.arange(24).reshape((1, 2, 3, 4)),  # data
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (4.0, 5.0, 6.0), "diagonal": True},
-            torch.arange(24).reshape((1, 2, 3, 4)),  # data
-            torch.tensor([[-4, 0, 0, 4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
-            {},
-            torch.tensor(
-                [[[[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]]
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (4.0, 5.0, 6.0), "padding_mode": "border", "diagonal": True},
-            torch.arange(24).reshape((1, 2, 3, 4)),  # data
-            torch.tensor([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
-            {},
-            torch.tensor(
-                [[[[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]]
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (4.0, 5.0, 6.0), "padding_mode": "border", "diagonal": True},
-            torch.arange(24).reshape((1, 2, 3, 4)),  # data
-            torch.tensor([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
-            {"mode": "nearest"},
-            torch.tensor(
-                [[[[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]]
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (1.9, 4.0), "padding_mode": "zeros", "diagonal": True},
-            torch.arange(24).reshape((1, 4, 6)),  # data
-            torch.tensor([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
-            {"mode": "nearest"},
-            torch.tensor(
+# Define the static parts of each test case
+_template_5_expected_output = (
+    torch.tensor([[[[0.75, 0.75]], [[0.75, 0.75]], [[0.75, 0.75]]]])
+    if USE_COMPILED
+    else torch.tensor([[[[0.95527864, 0.95527864]], [[1.0, 1.0]], [[1.0, 1.0]]]])
+)
+
+all_template_parts = [
+    [
+        {"pixdim": (1.0, 1.5), "padding_mode": "zeros", "dtype": float},
+        torch.arange(4).reshape((1, 2, 2)) + 1.0,
+        torch.eye(4),
+        {},
+        torch.tensor([[[1.0, 1.0], [3.0, 2.0]]]),
+    ],
+    [
+        {"pixdim": 1.0, "padding_mode": "zeros", "dtype": float},
+        torch.ones((1, 2, 1, 2)),
+        torch.eye(4),
+        {},
+        torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
+    ],
+    [
+        {"pixdim": 2.0, "padding_mode": "zeros", "dtype": float},
+        torch.arange(4).reshape((1, 2, 2)) + 1.0,
+        torch.eye(4),
+        {},
+        torch.tensor([[[1.0, 0.0], [0.0, 0.0]]]),
+    ],
+    [
+        {"pixdim": (1.0, 1.0, 1.0), "padding_mode": "zeros", "dtype": float},
+        torch.ones((1, 2, 1, 2)),
+        torch.eye(4),
+        {},
+        torch.tensor([[[[1.0, 1.0]], [[1.0, 1.0]]]]),
+    ],
+    [
+        {"pixdim": (1.0, 0.2, 1.5), "diagonal": False, "padding_mode": "zeros", "align_corners": True},
+        torch.ones((1, 2, 1, 2)),
+        torch.tensor([[2, 1, 0, 4], [-1, -3, 0, 5], [0, 0, 2.0, 5], [0, 0, 0, 1]]),
+        {},
+        _template_5_expected_output,
+    ],
+    [
+        {"pixdim": (3.0, 1.0), "padding_mode": "zeros"},
+        torch.arange(24).reshape((2, 3, 4)),
+        torch.as_tensor(np.diag([-3.0, 0.2, 1.5, 1])),
+        {},
+        torch.tensor([[[0, 0], [4, 0], [8, 0]], [[12, 0], [16, 0], [20, 0]]]),
+    ],
+    [
+        {"pixdim": (3.0, 1.0), "padding_mode": "zeros"},
+        torch.arange(24).reshape((2, 3, 4)),
+        torch.eye(4),
+        {},
+        torch.tensor([[[0, 1, 2, 3], [0, 0, 0, 0]], [[12, 13, 14, 15], [0, 0, 0, 0]]]),
+    ],
+    [
+        {"pixdim": (1.0, 1.0), "align_corners": True},
+        torch.arange(24).reshape((2, 3, 4)),
+        torch.eye(4),
+        {},
+        torch.tensor(
+            [[[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]], [[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]]]
+        ),
+    ],
+    [
+        {"pixdim": (4.0, 5.0, 6.0)},
+        torch.arange(24).reshape((1, 2, 3, 4)),
+        torch.tensor([[-4, 0, 0, 4], [0, 5, 0, -5], [0, 0, 6, -6], [0, 0, 0, 1]]),
+        {},
+        torch.arange(24).reshape((1, 2, 3, 4)),
+    ],
+    [
+        {"pixdim": (4.0, 5.0, 6.0), "diagonal": True},
+        torch.arange(24).reshape((1, 2, 3, 4)),
+        torch.tensor([[-4, 0, 0, 4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
+        {},
+        torch.tensor(
+            [[[[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]]
+        ),
+    ],
+    [
+        {"pixdim": (4.0, 5.0, 6.0), "padding_mode": "border", "diagonal": True},
+        torch.arange(24).reshape((1, 2, 3, 4)),
+        torch.tensor([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
+        {},
+        torch.tensor(
+            [[[[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]]
+        ),
+    ],
+    [
+        {"pixdim": (4.0, 5.0, 6.0), "padding_mode": "border", "diagonal": True},
+        torch.arange(24).reshape((1, 2, 3, 4)),
+        torch.tensor([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
+        {"mode": "nearest"},
+        torch.tensor(
+            [[[[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, 23]], [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]]]
+        ),
+    ],
+    [
+        {"pixdim": (1.9, 4.0), "padding_mode": "zeros", "diagonal": True},
+        torch.arange(24).reshape((1, 4, 6)),
+        torch.tensor([[-4, 0, 0, -4], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
+        {"mode": "nearest"},
+        torch.tensor(
+            [
                 [
-                    [
-                        [18.0, 19.0, 20.0, 20.0, 21.0, 22.0, 23.0],
-                        [18.0, 19.0, 20.0, 20.0, 21.0, 22.0, 23.0],
-                        [12.0, 13.0, 14.0, 14.0, 15.0, 16.0, 17.0],
-                        [12.0, 13.0, 14.0, 14.0, 15.0, 16.0, 17.0],
-                        [6.0, 7.0, 8.0, 8.0, 9.0, 10.0, 11.0],
-                        [6.0, 7.0, 8.0, 8.0, 9.0, 10.0, 11.0],
-                        [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 5.0],
-                    ]
+                    [18.0, 19.0, 20.0, 20.0, 21.0, 22.0, 23.0],
+                    [18.0, 19.0, 20.0, 20.0, 21.0, 22.0, 23.0],
+                    [12.0, 13.0, 14.0, 14.0, 15.0, 16.0, 17.0],
+                    [12.0, 13.0, 14.0, 14.0, 15.0, 16.0, 17.0],
+                    [6.0, 7.0, 8.0, 8.0, 9.0, 10.0, 11.0],
+                    [6.0, 7.0, 8.0, 8.0, 9.0, 10.0, 11.0],
+                    [0.0, 1.0, 2.0, 2.0, 3.0, 4.0, 5.0],
                 ]
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (5.0, 3.0), "padding_mode": "border", "diagonal": True, "dtype": torch.float32},
-            torch.arange(24).reshape((1, 4, 6)),  # data
-            torch.tensor([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
-            {"mode": "bilinear"},
-            torch.tensor(
+            ]
+        ),
+    ],
+    [
+        {"pixdim": (5.0, 3.0), "padding_mode": "border", "diagonal": True, "dtype": torch.float32},
+        torch.arange(24).reshape((1, 4, 6)),
+        torch.tensor([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
+        {"mode": "bilinear"},
+        torch.tensor(
+            [
                 [
-                    [
-                        [18.0, 18.6, 19.2, 19.8, 20.400002, 21.0, 21.6, 22.2, 22.8],
-                        [10.5, 11.1, 11.700001, 12.299999, 12.900001, 13.5, 14.1, 14.700001, 15.3],
-                        [3.0, 3.6000001, 4.2000003, 4.8, 5.4000006, 6.0, 6.6000004, 7.200001, 7.8],
-                    ]
+                    [18.0, 18.6, 19.2, 19.8, 20.400002, 21.0, 21.6, 22.2, 22.8],
+                    [10.5, 11.1, 11.700001, 12.299999, 12.900001, 13.5, 14.1, 14.700001, 15.3],
+                    [3.0, 3.6000001, 4.2000003, 4.8, 5.4000006, 6.0, 6.6000004, 7.200001, 7.8],
                 ]
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": (5.0, 3.0), "padding_mode": "zeros", "diagonal": True, "dtype": torch.float32},
-            torch.arange(24).reshape((1, 4, 6)),  # data
-            torch.tensor([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
-            {"mode": "bilinear"},
-            torch.tensor(
+            ]
+        ),
+    ],
+    [
+        {"pixdim": (5.0, 3.0), "padding_mode": "zeros", "diagonal": True, "dtype": torch.float32},
+        torch.arange(24).reshape((1, 4, 6)),
+        torch.tensor([[-4, 0, 0, 0], [0, 5, 0, 0], [0, 0, 6, 0], [0, 0, 0, 1]]),
+        {"mode": "bilinear"},
+        torch.tensor(
+            [
                 [
-                    [
-                        [18.0000, 18.6000, 19.2000, 19.8000, 20.4000, 21.0000, 21.6000, 22.2000, 22.8000],
-                        [10.5000, 11.1000, 11.7000, 12.3000, 12.9000, 13.5000, 14.1000, 14.7000, 15.3000],
-                        [3.0000, 3.6000, 4.2000, 4.8000, 5.4000, 6.0000, 6.6000, 7.2000, 7.8000],
-                    ]
+                    [18.0000, 18.6000, 19.2000, 19.8000, 20.4000, 21.0000, 21.6000, 22.2000, 22.8000],
+                    [10.5000, 11.1000, 11.7000, 12.3000, 12.9000, 13.5000, 14.1000, 14.7000, 15.3000],
+                    [3.0000, 3.6000, 4.2000, 4.8000, 5.4000, 6.0000, 6.6000, 7.2000, 7.8000],
                 ]
-            ),
-            *device,
-        ]
-    )
-    TESTS.append(
-        [
-            {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float},
-            torch.ones((1, 2, 1, 2)),  # data
-            torch.eye(4),
-            {},
-            torch.tensor([[[[1.0, 1.0, 1.0]], [[1.0, 1.0, 1.0]]]]),
-            *device,
-        ]
-    )
-    TESTS.append(  # 5D input
-        [
-            {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": True},
-            torch.ones((1, 2, 2, 2, 1)),  # data
-            torch.eye(4),
-            {},
-            torch.ones((1, 2, 2, 3, 1)),
-            *device,
-        ]
-    )
-    TESTS.append(  # 5D input
-        [
-            {"pixdim": 0.5, "padding_mode": "constant", "mode": "nearest", "scale_extent": True},
-            torch.ones((1, 368, 336, 368)),  # data
-            torch.tensor(
-                [
-                    [0.41, 0.005, 0.008, -79.7],
-                    [-0.0049, 0.592, 0.0664, -57.4],
-                    [-0.0073, -0.0972, 0.404, -32.1],
-                    [0.0, 0.0, 0.0, 1.0],
-                ]
-            ),
-            {},
-            torch.ones((1, 302, 403, 301)),
-            *device,
-        ]
-    )
+            ]
+        ),
+    ],
+    [
+        {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float},
+        torch.ones((1, 2, 1, 2)),
+        torch.eye(4),
+        {},
+        torch.tensor([[[[1.0, 1.0, 1.0]], [[1.0, 1.0, 1.0]]]]),
+    ],
+    [  # 5D input
+        {"pixdim": [-1, -1, 0.5], "padding_mode": "zeros", "dtype": float, "align_corners": True},
+        torch.ones((1, 2, 2, 2, 1)),
+        torch.eye(4),
+        {},
+        torch.ones((1, 2, 2, 3, 1)),
+    ],
+    [  # 5D input
+        {"pixdim": 0.5, "padding_mode": "constant", "mode": "nearest", "scale_extent": True},
+        torch.ones((1, 368, 336, 368)),
+        torch.tensor(
+            [
+                [0.41, 0.005, 0.008, -79.7],
+                [-0.0049, 0.592, 0.0664, -57.4],
+                [-0.0073, -0.0972, 0.404, -32.1],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        ),
+        {},
+        torch.ones((1, 302, 403, 301)),
+    ],
+]
+
+TESTS: list[list] = [
+    params["template"] + [*params["device_val"]]
+    for params in dict_product(template=all_template_parts, device_val=TEST_DEVICES)
+]
 
 TESTS_TORCH = []
 for track_meta in (False, True):
