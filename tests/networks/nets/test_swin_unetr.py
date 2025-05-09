@@ -24,6 +24,7 @@ from monai.networks import eval_mode
 from monai.networks.nets.swin_unetr import PatchMerging, PatchMergingV2, SwinUNETR, filter_swinunetr
 from monai.networks.utils import copy_model_state
 from monai.utils import optional_import
+from tests.test_utils import dict_product  # Added dict_product to imports
 from tests.test_utils import (
     assert_allclose,
     skip_if_downloading_fails,
@@ -34,36 +35,39 @@ from tests.test_utils import (
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_SWIN_UNETR = []
-case_idx = 0
 test_merging_mode = ["mergingv2", "merging", PatchMerging, PatchMergingV2]
 checkpoint_vals = [True, False]
-for attn_drop_rate in [0.4]:
-    for in_channels in [1]:
-        for depth in [[2, 1, 1, 1], [1, 2, 1, 1]]:
-            for out_channels in [2]:
-                for img_size in ((64, 32, 192), (96, 32)):
-                    for feature_size in [12]:
-                        for norm_name in ["instance"]:
-                            for use_checkpoint in checkpoint_vals:
-                                test_case = [
-                                    {
-                                        "spatial_dims": len(img_size),
-                                        "in_channels": in_channels,
-                                        "out_channels": out_channels,
-                                        "img_size": img_size,
-                                        "feature_size": feature_size,
-                                        "depths": depth,
-                                        "norm_name": norm_name,
-                                        "attn_drop_rate": attn_drop_rate,
-                                        "downsample": test_merging_mode[case_idx % 4],
-                                        "use_checkpoint": use_checkpoint,
-                                    },
-                                    (2, in_channels, *img_size),
-                                    (2, out_channels, *img_size),
-                                ]
-                                case_idx += 1
-                                TEST_CASE_SWIN_UNETR.append(test_case)
+
+TEST_CASE_SWIN_UNETR = [
+    [
+        {
+            "spatial_dims": len(params["img_size"]),
+            "in_channels": params["in_channels"],
+            "out_channels": params["out_channels"],
+            "img_size": params["img_size"],
+            "feature_size": params["feature_size"],
+            "depths": params["depth"],
+            "norm_name": params["norm_name"],
+            "attn_drop_rate": params["attn_drop_rate"],
+            "downsample": test_merging_mode[i % len(test_merging_mode)],
+            "use_checkpoint": params["use_checkpoint"],
+        },
+        (2, params["in_channels"], *params["img_size"]),
+        (2, params["out_channels"], *params["img_size"]),
+    ]
+    for i, params in enumerate(
+        dict_product(
+            attn_drop_rate=[0.4],
+            in_channels=[1],
+            depth=[[2, 1, 1, 1], [1, 2, 1, 1]],
+            out_channels=[2],
+            img_size=((64, 32, 192), (96, 32)),
+            feature_size=[12],
+            norm_name=["instance"],
+            use_checkpoint=checkpoint_vals,
+        )
+    )
+]
 
 TEST_CASE_FILTER = [
     [
