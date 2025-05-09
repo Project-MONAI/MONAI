@@ -22,22 +22,33 @@ from monai.networks import eval_mode
 from monai.networks.blocks.selfattention import SABlock
 from monai.networks.layers.factories import RelPosEmbedding
 from monai.utils import optional_import
-from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, dict_product, test_script_save
+from tests.test_utils import SkipIfBeforePyTorchVersion, assert_allclose, test_script_save
 
 einops, has_einops = optional_import("einops")
 
-TEST_CASE_SABLOCK = [
-    [params, (2, 512, params["hidden_size"]), (2, 512, params["hidden_size"])]
-    for params in dict_product(
-        dropout_rate=np.linspace(0, 1, 4),
-        hidden_size=[360, 480, 600, 768],
-        num_heads=[4, 6, 8, 12],
-        rel_pos_embedding=[None, RelPosEmbedding.DECOMPOSED],
-        input_size=[(16, 32), (8, 8, 8)],
-        include_fc=[True, False],
-        use_combined_linear=[True, False],
-    )
-]
+TEST_CASE_SABLOCK = []
+for dropout_rate in np.linspace(0, 1, 4):
+    for hidden_size in [360, 480, 600, 768]:
+        for num_heads in [4, 6, 8, 12]:
+            for rel_pos_embedding in [None, RelPosEmbedding.DECOMPOSED]:
+                for input_size in [(16, 32), (8, 8, 8)]:
+                    for include_fc in [True, False]:
+                        for use_combined_linear in [True, False]:
+                            test_case = [
+                                {
+                                    "hidden_size": hidden_size,
+                                    "num_heads": num_heads,
+                                    "dropout_rate": dropout_rate,
+                                    "rel_pos_embedding": rel_pos_embedding,
+                                    "input_size": input_size,
+                                    "include_fc": include_fc,
+                                    "use_combined_linear": use_combined_linear,
+                                    "use_flash_attention": True if rel_pos_embedding is None else False,
+                                },
+                                (2, 512, hidden_size),
+                                (2, 512, hidden_size),
+                            ]
+                            TEST_CASE_SABLOCK.append(test_case)
 
 
 class TestResBlock(unittest.TestCase):
@@ -215,6 +226,27 @@ class TestResBlock(unittest.TestCase):
         out_1 = block_w_flash_attention(test_data)
         out_2 = block_wo_flash_attention(test_data)
         assert_allclose(out_1, out_2, atol=1e-4)
+
+    @parameterized.expand([[True], [False]])
+    def test_no_extra_weights_if_no_fc(self, include_fc):
+        input_param = {
+            "hidden_size": 360,
+            "num_heads": 4,
+            "dropout_rate": 0.0,
+            "rel_pos_embedding": None,
+            "input_size": (16, 32),
+            "include_fc": include_fc,
+            "use_combined_linear": use_combined_linear,
+        }
+        net = SABlock(**input_param)
+        if not include_fc:
+            self.assertNotIn("out_proj.weight", net.state_dict())
+            self.assertNotIn("out_proj.bias", net.state_dict())
+            self.assertIsInstance(net.out_proj, torch.nn.Identity)
+        else:
+            self.assertIn("out_proj.weight", net.state_dict())
+            self.assertIn("out_proj.bias", net.state_dict())
+            self.assertIsInstance(net.out_proj, torch.nn.Linear)
 
 
 if __name__ == "__main__":
