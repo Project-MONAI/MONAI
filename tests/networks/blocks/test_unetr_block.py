@@ -43,7 +43,7 @@ TEST_CASE_UNETR_BASIC_BLOCK = [
             "stride": params["stride"],
         },
         (1, 16, *([params["in_size"]] * params["spatial_dims"])),
-        (1, 16, *([_get_out_size(params)] * params["spatial_dims"]),),
+        (1, 16, *([_get_out_size(params)] * params["spatial_dims"])),
     ]
     for params in dict_product(
         spatial_dims=range(1, 4),
