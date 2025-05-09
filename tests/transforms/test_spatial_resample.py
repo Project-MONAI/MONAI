@@ -24,7 +24,7 @@ from monai.data.utils import to_affine_nd
 from monai.transforms import SpatialResample
 from monai.utils import optional_import
 from tests.lazy_transforms_utils import test_resampler_lazy
-from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose
+from tests.test_utils import TEST_DEVICES, TEST_NDARRAYS_ALL, assert_allclose, dict_product
 
 TESTS = []
 
@@ -68,23 +68,23 @@ destinations_2d = [
 expected_2d = [torch.tensor([[[2.0, 1.0], [4.0, 3.0]]]), torch.tensor([[[3.0, 4.0], [1.0, 2.0]]])]
 
 for dst, expct in zip(destinations_2d, expected_2d):
-    for device in TEST_DEVICES:
-        for align in (False, True):
-            for interp_mode in ("nearest", "bilinear"):
-                TESTS.append(
-                    [
-                        torch.arange(4).reshape((1, 2, 2)) + 1.0,
-                        *device,
-                        {
-                            "dst_affine": dst,
-                            "dtype": torch.float32,
-                            "align_corners": align,
-                            "mode": interp_mode,
-                            "padding_mode": "zeros",
-                        },
-                        expct,
-                    ]
-                )
+    TESTS.extend(
+        [
+            [
+                torch.arange(4).reshape((1, 2, 2)) + 1.0,
+                *params["device"],
+                {
+                    "dst_affine": dst,
+                    "dtype": torch.float32,
+                    "align_corners": params["align"],
+                    "mode": params["interp_mode"],
+                    "padding_mode": "zeros",
+                },
+                expct,
+            ]
+            for params in dict_product(device=TEST_DEVICES, align=[False, True], interp_mode=["nearest", "bilinear"])
+        ]
+    )
 
 TEST_4_5_D = []
 for device in TEST_DEVICES:
