@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.transchex import Transchex
-from tests.test_utils import dict_product, skip_if_quick
+from tests.test_utils import dict_product, skip_if_downloading_fails, skip_if_quick
 
 TEST_CASE_TRANSCHEX = [
     [
@@ -51,7 +51,8 @@ TEST_CASE_TRANSCHEX = [
 class TestTranschex(unittest.TestCase):
     @parameterized.expand(TEST_CASE_TRANSCHEX)
     def test_shape(self, input_param, expected_shape):
-        net = Transchex(**input_param)
+        with skip_if_downloading_fails():
+            net = Transchex(**input_param)
         with eval_mode(net):
             result = net(torch.randint(2, (2, 512)), torch.randint(2, (2, 512)), torch.randn((2, 3, 224, 224)))
             self.assertEqual(result.shape, expected_shape)
