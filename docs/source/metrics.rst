@@ -98,7 +98,6 @@ Metrics
 `Hausdorff distance`
 --------------------
 .. autofunction:: compute_hausdorff_distance
-.. autofunction:: compute_percent_hausdorff_distance
 
 .. autoclass:: HausdorffDistanceMetric
     :members:
