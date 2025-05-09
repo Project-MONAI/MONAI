@@ -18,7 +18,7 @@ from parameterized import parameterized
 
 from monai.networks import eval_mode
 from monai.networks.nets.masked_autoencoder_vit import MaskedAutoEncoderViT
-from tests.test_utils import skip_if_quick, dict_product
+from tests.test_utils import dict_product, skip_if_quick
 
 TEST_CASE_MaskedAutoEncoderViT = []
 
@@ -62,11 +62,7 @@ for base_params in dict_product(
         if nd == 2:
             model_params["spatial_dims"] = 2
 
-        test_case = [
-            model_params,
-            input_shape,
-            expected_shape,
-        ]
+        test_case = [model_params, input_shape, expected_shape]
         TEST_CASE_MaskedAutoEncoderViT.append(test_case)
 
 TEST_CASE_ill_args = [

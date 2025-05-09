@@ -36,12 +36,7 @@ TEST_CASES_CAB = [
         (2, params["dim"], *([16] * params["spatial_dims"])),
         (2, params["dim"], *([16] * params["spatial_dims"])),
     ]
-    for params in dict_product(
-        spatial_dims=[2, 3],
-        dim=[32, 64, 128],
-        num_heads=[2, 4, 8],
-        bias=[True, False],
-    )
+    for params in dict_product(spatial_dims=[2, 3], dim=[32, 64, 128], num_heads=[2, 4, 8], bias=[True, False])
 ]
 
 

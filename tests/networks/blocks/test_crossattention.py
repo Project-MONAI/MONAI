@@ -40,13 +40,14 @@ TEST_CASE_CABLOCK = [
         (2, 512, params["hidden_size"]),
     ]
     for params in dict_product(
-    dropout_rate=np.linspace(0, 1, 4),
-    hidden_size=[360, 480, 600, 768],
-    num_heads=[4, 6, 8, 12],
-    rel_pos_embedding_val=[None, RelPosEmbedding.DECOMPOSED],
-    input_size=[(16, 32), (8, 8, 8)],
-    flash_attn=[True, False],
-)]
+        dropout_rate=np.linspace(0, 1, 4),
+        hidden_size=[360, 480, 600, 768],
+        num_heads=[4, 6, 8, 12],
+        rel_pos_embedding_val=[None, RelPosEmbedding.DECOMPOSED],
+        input_size=[(16, 32), (8, 8, 8)],
+        flash_attn=[True, False],
+    )
+]
 
 
 class TestResBlock(unittest.TestCase):
