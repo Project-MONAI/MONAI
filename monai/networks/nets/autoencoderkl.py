@@ -619,7 +619,7 @@ class AutoencoderKL(nn.Module):
 
         Args:
             z_mu: Bx[Z_CHANNELS]x[LATENT SPACE SIZE] mean vector obtained by the encoder when you encode an image
-            z_sigma: Bx[Z_CHANNELS]x[LATENT SPACE SIZE] variance vector obtained by the encoder when you encode an image 
+            z_sigma: Bx[Z_CHANNELS]x[LATENT SPACE SIZE] variance vector obtained by the encoder when you encode an image
 
         Returns:
             sample of shape Bx[Z_CHANNELS]x[LATENT SPACE SIZE]
