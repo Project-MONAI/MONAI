@@ -204,23 +204,20 @@ all_template_parts = [
         torch.ones((1, 302, 403, 301)),
     ],
 ]
-
 TESTS: list[list] = [
     params["template"] + [*params["device_val"]]
     for params in dict_product(template=all_template_parts, device_val=TEST_DEVICES)
 ]
 
-TESTS_TORCH = []
-for track_meta in (False, True):
-    for p in TEST_NDARRAYS_ALL:
-        TESTS_TORCH.append([[1.2, 1.3, 0.9], p(torch.zeros((1, 3, 4, 5))), track_meta])
+TESTS_TORCH = [
+    [[1.2, 1.3, 0.9], params["p"](torch.zeros((1, 3, 4, 5))), params["track_meta"]]
+    for params in dict_product(track_meta=[False, True], p=TEST_NDARRAYS_ALL)
+]
 
-TEST_INVERSE = []
-for d in TEST_DEVICES:
-    for recompute in (False, True):
-        for align in (False, True):
-            for scale_extent in (False, True):
-                TEST_INVERSE.append([*d, recompute, align, scale_extent])
+TEST_INVERSE = [
+    [*params["d"], params["recompute"], params["align"], params["scale_extent"]]
+    for params in dict_product(d=TEST_DEVICES, recompute=[False, True], align=[False, True], scale_extent=[False, True])
+]
 
 
 @skip_if_quick
