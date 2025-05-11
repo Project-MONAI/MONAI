@@ -99,6 +99,7 @@ def run_testsuit():
         "test_handler_parameter_scheduler",
         "test_handler_post_processing",
         "test_handler_prob_map_producer",
+        "test_handler_r2_score",
         "test_handler_regression_metrics",
         "test_handler_regression_metrics_dist",
         "test_handler_rocauc",
