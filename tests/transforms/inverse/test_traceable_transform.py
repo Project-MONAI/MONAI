@@ -45,13 +45,13 @@ class TestTraceable(unittest.TestCase):
         self.assertEqual(len(data[expected_key]), 2)
         self.assertEqual(data[expected_key][-1]["class"], "_TraceTest")
 
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             a.pop({"test": "test"})  # no stack in the data
         data = a.pop(data)
         data = a.pop(data)
         self.assertEqual(data[expected_key], [])
 
-        with self.assertRaises(IndexError):  # no more items
+        with self.assertRaises(ValueError):  # no more items
             a.pop(data)
 
 

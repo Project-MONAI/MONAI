@@ -51,7 +51,6 @@ for attn_drop_rate in [0.4]:
                                         "spatial_dims": len(img_size),
                                         "in_channels": in_channels,
                                         "out_channels": out_channels,
-                                        "img_size": img_size,
                                         "feature_size": feature_size,
                                         "depths": depth,
                                         "norm_name": norm_name,
@@ -67,7 +66,7 @@ for attn_drop_rate in [0.4]:
 
 TEST_CASE_FILTER = [
     [
-        {"img_size": (96, 96, 96), "in_channels": 1, "out_channels": 14, "feature_size": 48, "use_checkpoint": True},
+        {"in_channels": 1, "out_channels": 14, "feature_size": 48, "use_checkpoint": True},
         "swinViT.layers1.0.blocks.0.norm1.weight",
         torch.tensor([0.9473, 0.9343, 0.8566, 0.8487, 0.8065, 0.7779, 0.6333, 0.5555]),
     ]
@@ -85,30 +84,13 @@ class TestSWINUNETR(unittest.TestCase):
 
     def test_ill_arg(self):
         with self.assertRaises(ValueError):
-            SwinUNETR(
-                in_channels=1,
-                out_channels=3,
-                img_size=(128, 128, 128),
-                feature_size=24,
-                norm_name="instance",
-                attn_drop_rate=4,
-            )
+            SwinUNETR(spatial_dims=1, in_channels=1, out_channels=2, feature_size=48, norm_name="instance")
 
         with self.assertRaises(ValueError):
-            SwinUNETR(in_channels=1, out_channels=2, img_size=(96, 96), feature_size=48, norm_name="instance")
+            SwinUNETR(in_channels=1, out_channels=4, feature_size=50, norm_name="instance")
 
         with self.assertRaises(ValueError):
-            SwinUNETR(in_channels=1, out_channels=4, img_size=(96, 96, 96), feature_size=50, norm_name="instance")
-
-        with self.assertRaises(ValueError):
-            SwinUNETR(
-                in_channels=1,
-                out_channels=3,
-                img_size=(85, 85, 85),
-                feature_size=24,
-                norm_name="instance",
-                drop_rate=0.4,
-            )
+            SwinUNETR(in_channels=1, out_channels=3, feature_size=24, norm_name="instance", drop_rate=-1)
 
     def test_patch_merging(self):
         dim = 10
@@ -128,7 +110,7 @@ class TestSWINUNETR(unittest.TestCase):
                     data_spec["url"], weight_path, hash_val=data_spec["hash_val"], hash_type=data_spec["hash_type"]
                 )
 
-                ssl_weight = torch.load(weight_path)["model"]
+                ssl_weight = torch.load(weight_path, weights_only=True)["model"]
                 net = SwinUNETR(**input_param)
                 dst_dict, loaded, not_loaded = copy_model_state(net, ssl_weight, filter_func=filter_swinunetr)
                 assert_allclose(dst_dict[key][:8], value, atol=1e-4, rtol=1e-4, type_test=False)

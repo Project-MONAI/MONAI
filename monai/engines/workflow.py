@@ -90,8 +90,8 @@ class Workflow(Engine):
             default to `True`.
         to_kwargs: dict of other args for `prepare_batch` API when converting the input data, except for
             `device`, `non_blocking`.
-        amp_kwargs: dict of the args for `torch.cuda.amp.autocast()` API, for more details:
-            https://pytorch.org/docs/stable/amp.html#torch.cuda.amp.autocast.
+        amp_kwargs: dict of the args for `torch.autocast("cuda")` API, for more details:
+            https://pytorch.org/docs/stable/amp.html#torch.autocast.
 
     Raises:
         TypeError: When ``data_loader`` is not a ``torch.utils.data.DataLoader``.

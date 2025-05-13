@@ -92,7 +92,7 @@ def sure_loss_function(
         y_ref = operator(x)
 
     # get perturbed output
-    x_perturbed = x + eps * perturb_noise
+    x_perturbed = x + eps * perturb_noise  # type: ignore
     y_perturbed = operator(x_perturbed)
     # divergence
     divergence = torch.sum(1.0 / eps * torch.matmul(perturb_noise.permute(0, 1, 3, 2), y_perturbed - y_ref))  # type: ignore

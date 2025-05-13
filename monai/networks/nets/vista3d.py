@@ -315,7 +315,7 @@ class VISTA3D(nn.Module):
         """
         if auto_freeze != self.auto_freeze:
             if hasattr(self.image_encoder, "set_auto_grad"):
-                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)
+                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)  # type: ignore[operator]
             else:
                 for param in self.image_encoder.parameters():
                     param.requires_grad = (not auto_freeze) and (not point_freeze)
@@ -325,7 +325,7 @@ class VISTA3D(nn.Module):
 
         if point_freeze != self.point_freeze:
             if hasattr(self.image_encoder, "set_auto_grad"):
-                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)
+                self.image_encoder.set_auto_grad(auto_freeze=auto_freeze, point_freeze=point_freeze)  # type: ignore[operator]
             else:
                 for param in self.image_encoder.parameters():
                     param.requires_grad = (not auto_freeze) and (not point_freeze)
@@ -543,10 +543,10 @@ class PointMappingSAM(nn.Module):
         point_embedding = self.pe_layer.forward_with_coords(points, out_shape)  # type: ignore
         point_embedding[point_labels == -1] = 0.0
         point_embedding[point_labels == -1] += self.not_a_point_embed.weight
-        point_embedding[point_labels == 0] += self.point_embeddings[0].weight
-        point_embedding[point_labels == 1] += self.point_embeddings[1].weight
-        point_embedding[point_labels == 2] += self.point_embeddings[0].weight + self.special_class_embed.weight
-        point_embedding[point_labels == 3] += self.point_embeddings[1].weight + self.special_class_embed.weight
+        point_embedding[point_labels == 0] += self.point_embeddings[0].weight  # type: ignore[arg-type]
+        point_embedding[point_labels == 1] += self.point_embeddings[1].weight  # type: ignore[arg-type]
+        point_embedding[point_labels == 2] += self.point_embeddings[0].weight + self.special_class_embed.weight  # type: ignore[operator]
+        point_embedding[point_labels == 3] += self.point_embeddings[1].weight + self.special_class_embed.weight  # type: ignore[operator]
         output_tokens = self.mask_tokens.weight
 
         output_tokens = output_tokens.unsqueeze(0).expand(point_embedding.size(0), -1, -1)
@@ -884,7 +884,7 @@ class PositionEmbeddingRandom(nn.Module):
         coords = 2 * coords - 1
         # [bs=1,N=2,2] @ [2,128]
         # [bs=1, N=2, 128]
-        coords = coords @ self.positional_encoding_gaussian_matrix
+        coords = coords @ self.positional_encoding_gaussian_matrix  # type: ignore[operator]
         coords = 2 * np.pi * coords
         # outputs d_1 x ... x d_n x C shape
         # [bs=1, N=2, 128+128=256]

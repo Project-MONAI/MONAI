@@ -166,7 +166,7 @@ def run_inference_test(root_dir, test_x, test_y, device="cuda:0", num_workers=10
     model = DenseNet121(spatial_dims=2, in_channels=1, out_channels=len(np.unique(test_y))).to(device)
 
     model_filename = os.path.join(root_dir, "best_metric_model.pth")
-    model.load_state_dict(torch.load(model_filename))
+    model.load_state_dict(torch.load(model_filename, weights_only=True))
     y_true = []
     y_pred = []
     with eval_mode(model):

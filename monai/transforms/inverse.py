@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import threading
 import warnings
 from collections.abc import Hashable, Mapping
 from contextlib import contextmanager
@@ -66,15 +67,41 @@ class TraceableTransform(Transform):
     The information in the stack of applied transforms must be compatible with the
     default collate, by only storing strings, numbers and arrays.
 
-    `tracing` could be enabled by `self.set_tracing` or setting
+    `tracing` could be enabled by assigning to `self.tracing` or setting
     `MONAI_TRACE_TRANSFORM` when initializing the class.
     """
 
-    tracing = MONAIEnvVars.trace_transform() != "0"
+    def _init_trace_threadlocal(self):
+        """Create a `_tracing` instance member to store the thread-local tracing state value."""
+        # needed since this class is meant to be a trait with no constructor
+        if not hasattr(self, "_tracing"):
+            self._tracing = threading.local()
 
-    def set_tracing(self, tracing: bool) -> None:
-        """Set whether to trace transforms."""
-        self.tracing = tracing
+        # This is True while the above initialising _tracing is False when this is
+        # called from a different thread than the one initialising _tracing.
+        if not hasattr(self._tracing, "value"):
+            self._tracing.value = MONAIEnvVars.trace_transform() != "0"
+
+    def __getstate__(self):
+        """When pickling, remove the `_tracing` member from the output, if present, since it's not picklable."""
+        _dict = dict(getattr(self, "__dict__", {}))  # this makes __dict__ always present in the unpickled object
+        _slots = {k: getattr(self, k) for k in getattr(self, "__slots__", [])}
+        _dict.pop("_tracing", None)  # remove tracing
+        return _dict if len(_slots) == 0 else (_dict, _slots)
+
+    @property
+    def tracing(self) -> bool:
+        """
+        Returns the tracing state, which is thread-local and initialised to `MONAIEnvVars.trace_transform() != "0"`.
+        """
+        self._init_trace_threadlocal()
+        return bool(self._tracing.value)
+
+    @tracing.setter
+    def tracing(self, val: bool):
+        """Sets the thread-local tracing state to `val`."""
+        self._init_trace_threadlocal()
+        self._tracing.value = val
 
     @staticmethod
     def trace_key(key: Hashable = None):
@@ -294,7 +321,7 @@ class TraceableTransform(Transform):
 
     def get_most_recent_transform(self, data, key: Hashable = None, check: bool = True, pop: bool = False):
         """
-        Get most recent transform for the stack.
+        Get most recent matching transform for the current class from the sequence of applied operations.
 
         Args:
             data: dictionary of data or `MetaTensor`.
@@ -319,9 +346,14 @@ class TraceableTransform(Transform):
                 all_transforms = data.get(self.trace_key(key), MetaTensor.get_default_applied_operations())
         else:
             raise ValueError(f"`data` should be either `MetaTensor` or dictionary, got {type(data)}.")
+
+        if not all_transforms:
+            raise ValueError(f"Item of type {type(data)} (key: {key}, pop: {pop}) has empty 'applied_operations'")
+
         if check:
             self.check_transforms_match(all_transforms[-1])
-        return all_transforms.pop() if pop else all_transforms[-1]
+
+        return all_transforms.pop(-1) if pop else all_transforms[-1]
 
     def pop_transform(self, data, key: Hashable = None, check: bool = True):
         """

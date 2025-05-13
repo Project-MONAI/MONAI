@@ -31,7 +31,6 @@ from torch.cuda import is_available
 
 from monai._version import get_versions
 from monai.apps.utils import _basename, download_url, extractall, get_logger
-from monai.bundle.config_item import ConfigComponent
 from monai.bundle.config_parser import ConfigParser
 from monai.bundle.utils import DEFAULT_INFERENCE, DEFAULT_METADATA, merge_kv
 from monai.bundle.workflows import BundleWorkflow, ConfigWorkflow
@@ -48,7 +47,6 @@ from monai.networks import (
 from monai.utils import (
     IgniteInfo,
     check_parent_dir,
-    deprecated_arg,
     ensure_tuple,
     get_equivalent_dtype,
     min_version,
@@ -312,21 +310,6 @@ def _get_ngc_token(api_key, retry=0):
         return token
 
 
-def _get_latest_bundle_version_monaihosting(name):
-    full_url = f"{MONAI_HOSTING_BASE_URL}/{name.lower()}"
-    if has_requests:
-        resp = requests.get(full_url)
-        try:
-            resp.raise_for_status()
-            model_info = json.loads(resp.text)
-            return model_info["model"]["latestVersionIdStr"]
-        except requests.exceptions.HTTPError:
-            # for monaihosting bundles, if cannot find the version, get from model zoo model_info.json
-            return get_bundle_versions(name)["latest_version"]
-
-    raise ValueError("NGC API requires requests package. Please install it.")
-
-
 def _examine_monai_version(monai_version: str) -> tuple[bool, str]:
     """Examine if the package version is compatible with the MONAI version in the metadata."""
     version_dict = get_versions()
@@ -430,7 +413,7 @@ def _get_latest_bundle_version(
         name = _add_ngc_prefix(name)
         return _get_latest_bundle_version_ngc(name)
     elif source == "monaihosting":
-        return _get_latest_bundle_version_monaihosting(name)
+        return get_bundle_versions(name, repo="Project-MONAI/model-zoo", tag="dev")["latest_version"]
     elif source == "ngc_private":
         headers = kwargs.pop("headers", {})
         name = _add_ngc_prefix(name)
@@ -528,7 +511,9 @@ def download(
             If source is "ngc_private", you need specify the NGC_API_KEY in the environment variable.
         repo: repo name. This argument is used when `url` is `None` and `source` is "github" or "huggingface_hub".
             If `source` is "github", it should be in the form of "repo_owner/repo_name/release_tag".
-            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name".
+            If `source` is "huggingface_hub", it should be in the form of "repo_owner/repo_name". Please note that
+            bundles for "monaihosting" source are also hosted on Hugging Face Hub, but the "repo_id" is always in the form
+            of "MONAI/bundle_name", therefore, this argument is not required for "monaihosting" source.
             If `source` is "ngc_private", it should be in the form of "org/org_name" or "org/org_name/team/team_name",
             or you can specify the environment variable NGC_ORG and NGC_TEAM.
         url: url to download the data. If not `None`, data will be downloaded directly
@@ -600,11 +585,15 @@ def download(
             _download_from_github(repo=repo_, download_path=bundle_dir_, filename=name_ver, progress=progress_)
         elif source_ == "monaihosting":
             try:
+                extract_path = os.path.join(bundle_dir_, name_)
+                huggingface_hub.snapshot_download(repo_id=f"MONAI/{name_}", revision=version_, local_dir=extract_path)
+            except (huggingface_hub.errors.RevisionNotFoundError, huggingface_hub.errors.RepositoryNotFoundError):
+                # if bundle or version not found from huggingface, download from ngc monaihosting
                 _download_from_monaihosting(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )
             except urllib.error.HTTPError:
-                # for monaihosting bundles, if cannot download from default host, download according to bundle_info
+                # if also cannot download from ngc monaihosting, download according to bundle_info
                 _download_from_bundle_info(
                     download_path=bundle_dir_, filename=name_, version=version_, progress=progress_
                 )
@@ -638,9 +627,6 @@ def download(
     _check_monai_version(bundle_dir_, name_)
 
 
-@deprecated_arg("net_name", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("net_kwargs", since="1.2", removed="1.5", msg_suffix="please use ``model`` instead.")
-@deprecated_arg("return_state_dict", since="1.2", removed="1.5")
 def load(
     name: str,
     model: torch.nn.Module | None = None,
@@ -659,10 +645,7 @@ def load(
     workflow_name: str | BundleWorkflow | None = None,
     args_file: str | None = None,
     copy_model_args: dict | None = None,
-    return_state_dict: bool = True,
     net_override: dict | None = None,
-    net_name: str | None = None,
-    **net_kwargs: Any,
 ) -> object | tuple[torch.nn.Module, dict, dict] | Any:
     """
     Load model weights or TorchScript module of a bundle.
@@ -708,12 +691,7 @@ def load(
         workflow_name: specified bundle workflow name, should be a string or class, default to "ConfigWorkflow".
         args_file: a JSON or YAML file to provide default values for all the args in "download" function.
         copy_model_args: other arguments for the `monai.networks.copy_model_state` function.
-        return_state_dict: whether to return state dict, if True, return state_dict, else a corresponding network
-            from `_workflow.network_def` will be instantiated and load the achieved weights.
         net_override: id-value pairs to override the parameters in the network of the bundle, default to `None`.
-        net_name: if not `None`, a corresponding network will be instantiated and load the achieved weights.
-            This argument only works when loading weights.
-        net_kwargs: other arguments that are used to instantiate the network class defined by `net_name`.
 
     Returns:
         1. If `load_ts_module` is `False` and `model` is `None`,
@@ -728,9 +706,6 @@ def load(
             when `model` and `net_name` are all `None`.
 
     """
-    if return_state_dict and (model is not None or net_name is not None):
-        warnings.warn("Incompatible values: model and net_name are all specified, return state dict instead.")
-
     bundle_dir_ = _process_bundle_dir(bundle_dir)
     net_override = {} if net_override is None else net_override
     copy_model_args = {} if copy_model_args is None else copy_model_args
@@ -760,17 +735,14 @@ def load(
     if load_ts_module is True:
         return load_net_with_metadata(full_path, map_location=torch.device(device), more_extra_files=config_files)
     # loading with `torch.load`
-    model_dict = torch.load(full_path, map_location=torch.device(device))
+    model_dict = torch.load(full_path, map_location=torch.device(device), weights_only=True)
 
     if not isinstance(model_dict, Mapping):
         warnings.warn(f"the state dictionary from {full_path} should be a dictionary but got {type(model_dict)}.")
         model_dict = get_state_dict(model_dict)
 
-    if return_state_dict:
-        return model_dict
-
     _workflow = None
-    if model is None and net_name is None:
+    if model is None:
         bundle_config_file = bundle_dir_ / name / "configs" / f"{workflow_type}.json"
         if bundle_config_file.is_file():
             _net_override = {f"network_def#{key}": value for key, value in net_override.items()}
@@ -790,10 +762,6 @@ def load(
                 return model_dict
             else:
                 model = _workflow.network_def
-    elif net_name is not None:
-        net_kwargs["_target_"] = net_name
-        configer = ConfigComponent(config=net_kwargs)
-        model = configer.instantiate()  # type: ignore
 
     model.to(device)  # type: ignore
 
@@ -1279,9 +1247,8 @@ def verify_net_in_out(
         if input_dtype == torch.float16:
             # fp16 can only be executed in gpu mode
             net.to("cuda")
-            from torch.cuda.amp import autocast
 
-            with autocast():
+            with torch.autocast("cuda"):
                 output = net(test_data.cuda(), **extra_forward_args_)
             net.to(device_)
         else:
@@ -1330,7 +1297,7 @@ def _export(
         # here we use ignite Checkpoint to support nested weights and be compatible with MONAI CheckpointSaver
         Checkpoint.load_objects(to_load={key_in_ckpt: net}, checkpoint=ckpt_file)
     else:
-        ckpt = torch.load(ckpt_file)
+        ckpt = torch.load(ckpt_file, weights_only=True)
         copy_model_state(dst=net, src=ckpt if key_in_ckpt == "" else ckpt[key_in_ckpt])
 
     # Use the given converter to convert a model and save with metadata, config content
