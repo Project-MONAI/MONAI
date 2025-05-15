@@ -541,7 +541,7 @@ def prepare_bundle(bundle_config, train_extra_configs=None):
     None
     """
 
-    prepare_bundle_api(bundle_config, train_extra_configs=train_extra_configs, is_federated=True)
+    return prepare_bundle_api(bundle_config, train_extra_configs=train_extra_configs, is_federated=True)
 
 
 
@@ -644,9 +644,9 @@ def finalize_bundle(bundle_root, nnunet_root_dir=None, validate_with_nnunet=True
         return validation_summary_dict
 
 
-def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app_model_path, app_output_path, trainer_class_name="nnUNetTrainer", fold=0,
+def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app_model_path, app_output_path, model_name, trainer_class_name="nnUNetTrainer", fold=0,
                     experiment_name=None, client_name=None, tracking_uri=None,
-                    nnunet_plans_name="nnUNetPlans", mlflow_token=None, skip_prediction=False, dataset_name=None):
+                    nnunet_plans_name="nnUNetPlans", mlflow_token=None, skip_prediction=False, dataset_name=None, original_path=None):
 
     validation_summary_dict, labels = cross_site_evaluation_api(
         nnunet_root_dir,
@@ -658,6 +658,8 @@ def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app
         fold=fold,
         nnunet_plans_name=nnunet_plans_name,
         skip_prediction=skip_prediction,
+        original_path = original_path,
+
     )
     if mlflow_token is not None:
         os.environ["MLFLOW_TRACKING_TOKEN"] = mlflow_token
@@ -670,20 +672,20 @@ def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app
         print(e)
         mlflow.set_experiment(experiment_id=(mlflow.get_experiment_by_name(experiment_name).experiment_id))
 
-    run_name = f"run_cross_site_validation_{client_name}"
+    run_name = f"run_cross_site_validation_{client_name}_Model_{model_name}"
 
     runs = mlflow.search_runs(
     experiment_names=[experiment_name],
     filter_string=f"tags.mlflow.runName = '{run_name}'",
     order_by=["start_time DESC"]
     )
-    tags = {"client": client_name}
+    tags = {"client": client_name,"model": model_name}
     if dataset_name is not None:
         tags["dataset_name"] = dataset_name
 
 
     if len(runs) == 0:
-        with mlflow.start_run(run_name=f"run_{client_name}", tags={"client": client_name}):
+        with mlflow.start_run(run_name=run_name, tags=tags):
             mlflow.log_dict(validation_summary_dict, "validation_summary.json")
             for label in validation_summary_dict["mean"]:
                 for metric in validation_summary_dict["mean"][label]:
@@ -691,7 +693,7 @@ def run_cross_site_validation(nnunet_root_dir, dataset_name_or_id, app_path, app
                     mlflow.log_metric(f"{label_name}_{metric}", float(validation_summary_dict["mean"][label][metric]))
 
     else:
-        with mlflow.start_run(run_id=runs.iloc[0].run_id, tags={"client": client_name}):
+        with mlflow.start_run(run_id=runs.iloc[0].run_id, tags=tags):
             mlflow.log_dict(validation_summary_dict, "validation_summary.json")
             for label in validation_summary_dict["mean"]:
                 for metric in validation_summary_dict["mean"][label]:

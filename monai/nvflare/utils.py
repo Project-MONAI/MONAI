@@ -256,7 +256,7 @@ def prepare_data_folder_api(data_dir,
     return data_list
 
 
-def cross_site_evaluation_api(nnunet_root_dir, dataset_name_or_id, app_path, app_model_path, app_output_path, fold=0, trainer_class_name="nnUNetTrainer", nnunet_plans_name="nnUNetPlans", skip_prediction=False):
+def cross_site_evaluation_api(nnunet_root_dir, dataset_name_or_id, app_path, app_model_path, app_output_path, fold=0, trainer_class_name="nnUNetTrainer", nnunet_plans_name="nnUNetPlans", skip_prediction=False, original_path=None):
     data_src_cfg = os.path.join(nnunet_root_dir, f"Task{dataset_name_or_id}_data_src_cfg.yaml")
 
     runner = nnUNetV2Runner(input_config=data_src_cfg, trainer_class_name=trainer_class_name, work_dir=nnunet_root_dir)
@@ -285,14 +285,28 @@ def cross_site_evaluation_api(nnunet_root_dir, dataset_name_or_id, app_path, app
         filename = Path(app_input_path).name
         
         new_id = None  
+        updated_image_path = False
         for case in nnunet_datalist["training"]:
             if case["image"].endswith(filename):
                 new_id = case["new_name"]
                 break
+            if filename.startswith(case["new_name"]+"_"):
+                new_id = case["new_name"]
+                data["image"] = os.path.join(original_path, Path(case["image"]).name)
+                app_input_path = data["image"]
+                updated_image_path = True
+                break
         if new_id in nnunet_splits[fold]["val"]:
-            id_mapping[Path(data["image"]).name.split("_")[0].split(".")[0]] = new_id
+            if updated_image_path:
+                id_mapping[Path(data["image"]).name.split(".")[0]] = new_id
+            else:
+                id_mapping[Path(data["image"]).name.split("_")[0].split(".")[0]] = new_id
             if skip_prediction:
                 continue
+            print(f"Processing case: {new_id}")
+            print(f"App input path: {app_input_path}")
+            mapped_filename = Path(data["image"]).name.split(".")[0]
+            print(f"Mapping: {mapped_filename} -> {new_id}")
             subprocess.run(
                 [
                 "python",
